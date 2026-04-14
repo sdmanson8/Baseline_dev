@@ -1,0 +1,21 @@
+{
+  "Name": "Minimal",
+  "Entries": [
+    "ActivityHistory -Disable",
+    "AdvertisingID -Disable",
+    "DiagnosticDataLevel -Minimal",
+    "FeedbackFrequency -Never",
+    "LockWidgets -Disable",
+    "Powershell7Telemetry -Disable",
+    "TailoredExperiences -Disable",
+    "SettingsSuggestedContent -Hide",
+    "OneDriveFileExplorerAd -Hide",
+    "BingSearch -Disable",
+    "StartRecommendationsTips -Hide",
+    "WebSearch -Disable",
+    "TaskbarWidgets -Hide",
+    "TaskbarSearch -Hide",
+    "SearchHighlights -Hide",
+    "TaskbarEndTask -Enable"
+  ]
+}

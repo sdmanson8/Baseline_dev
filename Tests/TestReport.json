@@ -1,0 +1,63 @@
+{
+  "generated": "2026-04-14T14:38:31.7842438+02:00",
+  "platform": {
+    "os": "Microsoft Windows NT 10.0.26100.0",
+    "edition": "Core",
+    "psVersion": "7.6.0",
+    "hostname": "SHELDON"
+  },
+  "layers": {
+    "smoke": {
+      "name": "Smoke Tests",
+      "script": "E:\\Github\\Baseline_dev\\Tools\\Test-SmokeTest.ps1",
+      "result": "Failed",
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 38.71,
+      "output": ""
+    },
+    "unit": {
+      "name": "Unit Tests",
+      "script": "E:\\Github\\Baseline_dev\\Tests\\Unit",
+      "result": "Passed",
+      "passed": 2640,
+      "failed": 0,
+      "skipped": 4,
+      "duration": 75.59,
+      "output": "Tests: 2644 | Passed: 2640 | Failed: 0 | Skipped: 4"
+    },
+    "composition": {
+      "name": "GUI Composition Tests",
+      "script": "E:\\Github\\Baseline_dev\\Tests\\GUI.Composition.Tests.ps1",
+      "result": "Failed",
+      "passed": 27,
+      "failed": 7,
+      "skipped": 0,
+      "duration": 0.64,
+      "output": "Tests: 34 | Passed: 27 | Failed: 7 | Skipped: 0"
+    },
+    "preset": {
+      "name": "Preset Validation",
+      "script": "E:\\Github\\Baseline_dev\\Tools\\Test-PresetGeneration.ps1",
+      "result": "Failed",
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 1.1,
+      "output": ""
+    }
+  },
+  "summary": {
+    "totalPassed": 2667,
+    "totalFailed": 7,
+    "totalSkipped": 4,
+    "overallResult": "Failed"
+  },
+  "badge": {
+    "schemaVersion": 1,
+    "label": "tests",
+    "message": "7 failed",
+    "color": "red"
+  }
+}

@@ -1,0 +1,789 @@
+﻿Set-StrictMode -Version Latest
+
+BeforeAll {
+    # Load WPF assemblies so types like [System.Windows.Controls.Button] resolve
+    Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue
+    Add-Type -AssemblyName PresentationCore -ErrorAction SilentlyContinue
+    Add-Type -AssemblyName WindowsBase -ErrorAction SilentlyContinue
+
+    # Helper: parse functions from a .ps1 file via AST (no execution of top-level code)
+    # Rewrites function names with script: scope so they survive Pester 5 scoping.
+    <#
+        .SYNOPSIS
+        Internal function Import-AstFunctions.
+
+        .DESCRIPTION
+        Internal implementation helper used by Baseline.
+    #>
+
+    function Import-AstFunctions {
+        param (
+            [string]$FilePath,
+            [string[]]$Include
+        )
+        if (-not (Test-Path $FilePath)) { throw "Source file not found: $FilePath" }
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($FilePath, [ref]$null, [ref]$null)
+        $fns = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+        foreach ($fn in $fns) {
+            if ($Include -and $fn.Name -notin $Include) { continue }
+            # Rewrite the function definition to use script: scope so it's visible
+            # from Pester It blocks (Invoke-Expression in a nested call defaults to local scope)
+            $fnText = $fn.Extent.Text -replace "^function\s+$([regex]::Escape($fn.Name))", "function script:$($fn.Name)"
+            Invoke-Expression $fnText
+        }
+    }
+
+    # Helper used by several GUI source files
+    <#
+        .SYNOPSIS
+        Internal function Test-GuiObjectField.
+
+        .DESCRIPTION
+        Internal implementation helper used by Baseline.
+    #>
+
+    function Test-GuiObjectField {
+        param([object]$Object, [string]$FieldName)
+        if ($null -eq $Object) { return $false }
+        if ($Object -is [System.Collections.IDictionary]) { return $Object.Contains($FieldName) }
+        return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName])
+    }
+    <#
+        .SYNOPSIS
+        Internal function .
+
+        .DESCRIPTION
+        Internal implementation helper used by Baseline.
+    #>
+    function Get-GuiObjectField {
+        param([object]$Object, [string]$FieldName)
+        if ($null -eq $Object) { return $null }
+        if ($Object -is [System.Collections.IDictionary]) { return $Object[$FieldName] }
+        $prop = $Object.PSObject.Properties[$FieldName]
+        if ($prop) { return $prop.Value }
+        return $null
+    }
+
+    $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    $guiDir   = Join-Path $repoRoot 'Module/GUI'
+
+    # ── Mode state functions ──
+    Import-AstFunctions -FilePath (Join-Path $guiDir 'ModeState.ps1')
+
+    # ── Plan summary dialog ──
+    Import-AstFunctions -FilePath (Join-Path $guiDir 'PlanSummaryPanel.ps1') -Include 'Show-PlanSummaryDialog'
+
+    # ── Style management (Set-ButtonChrome, Show-ThemedDialog) ──
+    Import-AstFunctions -FilePath (Join-Path $guiDir 'StyleManagement.ps1') -Include 'Set-ButtonChrome', 'Show-ThemedDialog', 'Update-HeaderModeStateText', 'Update-GuiMenuBarLocalization', 'Update-GuiMenuBarTheme', 'Update-GuiDuplicateActionVisibility'
+
+    # ── New-SafeThickness, New-WpfSetter from GUI.psm1 (needed by Set-ButtonChrome) ──
+    $guiPsmPath = Join-Path $repoRoot 'Module/Regions/GUI.psm1'
+    Import-AstFunctions -FilePath $guiPsmPath -Include 'New-SafeThickness', 'New-WpfSetter'
+
+    # ── Initialize BrushCache so New-SafeBrushConverter doesn't index into null ──
+    $Script:BrushCache = @{}
+
+    # ── Execution summary dialog ──
+    Import-AstFunctions -FilePath (Join-Path $guiDir 'ExecutionSummaryDialog.ps1') -Include 'Show-ExecutionSummaryDialog'
+
+    # ── Icon factory (Test-GuiIconsAvailable, New-GuiLabeledIconContent, Set-GuiButtonIconContent) ──
+    Import-AstFunctions -FilePath (Join-Path $guiDir 'IconFactory.ps1')
+
+    # ── Tweak visualization (Get-TweakVisualMetadata) ──
+    Import-AstFunctions -FilePath (Join-Path $guiDir 'TweakVisualization.ps1') -Include 'Get-TweakVisualMetadata'
+
+    # ── Tweak analysis helpers needed by Get-TweakVisualMetadata ──
+    Import-AstFunctions -FilePath (Join-Path $guiDir 'TweakAnalysis.ps1')
+
+    # ── UX policy helpers ──
+    Import-AstFunctions -FilePath (Join-Path $guiDir 'UxPolicy.ps1')
+
+    # ── Theme palettes ──
+    Import-AstFunctions -FilePath (Join-Path $guiDir 'ThemeManagement.ps1')
+
+    # ── Game mode UI (Set-GameModeState) ──
+    Import-AstFunctions -FilePath (Join-Path $guiDir 'GameModeUI.ps1') -Include 'Set-GameModeState'
+
+    # Execute theme variable assignments from ThemeManagement.ps1 so $Script:DarkTheme / $Script:LightTheme are set
+    $themeAst = [System.Management.Automation.Language.Parser]::ParseFile(
+        (Join-Path $guiDir 'ThemeManagement.ps1'), [ref]$null, [ref]$null)
+    $assignments = $themeAst.FindAll({
+        param($node)
+        $node -is [System.Management.Automation.Language.AssignmentStatementAst] -and
+        $node.Left.ToString() -match '^\$Script:(Dark|Light)Theme$'
+    }, $true)
+    foreach ($assign in $assignments) {
+        Invoke-Expression $assign.Extent.Text
+    }
+
+    $Global:Localization = @{}
+}
+
+# ─────────────────────────────────────────────────────────────
+# W-1b: Mode transition contracts
+# ─────────────────────────────────────────────────────────────
+Describe 'Mode transition contracts (W-1b)' {
+    It 'Set-SafeModeState function exists' {
+        Get-Command -Name 'Set-SafeModeState' -CommandType Function -ErrorAction SilentlyContinue |
+            Should -Not -BeNullOrEmpty
+    }
+
+    It 'Set-AdvancedModeState function exists' {
+        Get-Command -Name 'Set-AdvancedModeState' -CommandType Function -ErrorAction SilentlyContinue |
+            Should -Not -BeNullOrEmpty
+    }
+
+    It 'Set-GameModeState function exists' {
+        Get-Command -Name 'Set-GameModeState' -CommandType Function -ErrorAction SilentlyContinue |
+            Should -Not -BeNullOrEmpty
+    }
+}
+
+# ─────────────────────────────────────────────────────────────
+# W-1a: Dialog creation contracts
+# ─────────────────────────────────────────────────────────────
+Describe 'Dialog creation contracts (W-1a)' {
+    It 'Show-PlanSummaryDialog function exists' {
+        Get-Command -Name 'Show-PlanSummaryDialog' -CommandType Function -ErrorAction SilentlyContinue |
+            Should -Not -BeNullOrEmpty
+    }
+
+    It 'Show-ThemedDialog function exists (exported from GUICommon)' {
+        Get-Command -Name 'Show-ThemedDialog' -CommandType Function -ErrorAction SilentlyContinue |
+            Should -Not -BeNullOrEmpty
+    }
+
+    It 'Show-ExecutionSummaryDialog function exists (exported from GUICommon)' {
+        Get-Command -Name 'Show-ExecutionSummaryDialog' -CommandType Function -ErrorAction SilentlyContinue |
+            Should -Not -BeNullOrEmpty
+    }
+}
+
+# ─────────────────────────────────────────────────────────────
+# W-1f: Icon fallback behavior
+# ─────────────────────────────────────────────────────────────
+Describe 'Icon fallback behavior (W-1f)' {
+    BeforeEach {
+        # Ensure icon system is NOT initialized
+        $Script:GuiIconEnabled = $false
+        $Script:GuiIconFontFamily = $null
+    }
+
+    It 'Test-GuiIconsAvailable returns $false when icon system is not initialized' {
+        Test-GuiIconsAvailable | Should -Be $false
+    }
+
+    It 'New-GuiLabeledIconContent with -AllowTextOnlyFallback returns non-null even without icons' {
+        $result = New-GuiLabeledIconContent -IconName 'Settings' -Text 'Test Label' -AllowTextOnlyFallback
+        $result | Should -Not -BeNullOrEmpty
+    }
+
+    It 'Set-GuiButtonIconContent falls back to text-only without icon system' {
+        $btn = [System.Windows.Controls.Button]::new()
+        Set-GuiButtonIconContent -Button $btn -IconName 'Settings' -Text 'Apply'
+        # Button content should be set (text fallback) rather than left empty
+        $btn.Content | Should -Not -BeNullOrEmpty
+        # The fallback should include or equal the text label
+        [string]$btn.Content | Should -Not -Be ''
+    }
+}
+
+# ─────────────────────────────────────────────────────────────
+# W-1c: Preview count generation
+# ─────────────────────────────────────────────────────────────
+Describe 'Preview count generation (W-1c)' {
+    It 'Get-TweakVisualMetadata function exists' {
+        Get-Command -Name 'Get-TweakVisualMetadata' -CommandType Function -ErrorAction SilentlyContinue |
+            Should -Not -BeNullOrEmpty
+    }
+
+    It 'returns object with MatchesDesired, StateLabel, StateTone for a Toggle tweak' {
+        $tweak = [pscustomobject]@{
+            Name         = 'TestTweak'
+            Type         = 'Toggle'
+            Default      = $true
+            Risk         = 'Low'
+            Function     = 'TestFunction'
+            CautionReason = ''
+            SubCategory   = ''
+            SourceRegion  = ''
+            Category     = 'Test'
+            PresetTier   = 'Basic'
+            Options      = @()
+            Tags         = @()
+            ScenarioTags = @()
+            Description  = ''
+            Detail       = ''
+            WhyThisMatters = ''
+        }
+        $state = [pscustomobject]@{
+            IsChecked    = $true
+            CurrentValue = $true
+        }
+
+        $result = Get-TweakVisualMetadata -Tweak $tweak -StateSource $state
+
+        $result | Should -Not -BeNullOrEmpty
+        $result.PSObject.Properties.Name | Should -Contain 'MatchesDesired'
+        $result.PSObject.Properties.Name | Should -Contain 'StateLabel'
+        $result.PSObject.Properties.Name | Should -Contain 'StateTone'
+    }
+
+    It 'returns null for null tweak input' {
+        $result = Get-TweakVisualMetadata -Tweak $null
+        $result | Should -BeNullOrEmpty
+    }
+}
+
+# ─────────────────────────────────────────────────────────────
+# W-1d: Button chrome variants
+# ─────────────────────────────────────────────────────────────
+Describe 'Button chrome variants (W-1d)' {
+    BeforeAll {
+        $Script:CurrentTheme = $Script:DarkTheme
+    }
+
+    It 'Set-ButtonChrome accepts all documented variants: <Variant>' -ForEach @(
+        @{ Variant = 'Primary' }
+        @{ Variant = 'Preview' }
+        @{ Variant = 'Danger' }
+        @{ Variant = 'DangerSubtle' }
+        @{ Variant = 'Secondary' }
+        @{ Variant = 'Subtle' }
+        @{ Variant = 'Selection' }
+    ) {
+        $btn = [System.Windows.Controls.Button]::new()
+        # Should not throw for any valid variant
+        { Set-ButtonChrome -Button $btn -Variant $Variant } | Should -Not -Throw
+    }
+}
+
+# ─────────────────────────────────────────────────────────────
+# W-1e: Theme management
+# ─────────────────────────────────────────────────────────────
+Describe 'Theme management (W-1e)' {
+    It '$Script:DarkTheme exists after module load' {
+        $Script:DarkTheme | Should -Not -BeNullOrEmpty
+    }
+
+    It '$Script:LightTheme exists after module load' {
+        $Script:LightTheme | Should -Not -BeNullOrEmpty
+    }
+
+    It 'DarkTheme has required keys: WindowBg, HeaderBg, AccentBlue, CautionBg, TextPrimary' {
+        $required = @('WindowBg', 'HeaderBg', 'AccentBlue', 'CautionBg', 'TextPrimary')
+        foreach ($key in $required) {
+            $Script:DarkTheme.Keys | Should -Contain $key
+        }
+    }
+
+    It 'LightTheme has required keys: WindowBg, HeaderBg, AccentBlue, CautionBg, TextPrimary' {
+        $required = @('WindowBg', 'HeaderBg', 'AccentBlue', 'CautionBg', 'TextPrimary')
+        foreach ($key in $required) {
+            $Script:LightTheme.Keys | Should -Contain $key
+        }
+    }
+
+    It 'ConvertTo-GuiBrush returns a WPF brush type' {
+        $brush = ConvertTo-GuiBrush -Color '#CDD6F4' -Context 'Test'
+
+        $brush | Should -BeOfType ([System.Windows.Media.Brush])
+    }
+
+    It 'New-SafeBrushConverter returns a WPF brush type' {
+        $converter = New-SafeBrushConverter -Context 'Test'
+        $brush = $converter.ConvertFromString('#CDD6F4')
+
+        $brush | Should -BeOfType ([System.Windows.Media.Brush])
+    }
+
+    It 'New-WpfSetter applies wrapped brush values safely through WPF styles' {
+        $wrappedBrush = [System.Management.Automation.PSObject]::AsPSObject([System.Windows.Media.Brushes]::CornflowerBlue)
+        $style = [System.Windows.Style]::new([System.Windows.Controls.Button])
+        $setter = New-WpfSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value $wrappedBrush
+        [void]$style.Setters.Add($setter)
+
+        $button = [System.Windows.Controls.Button]::new()
+        $button.Content = 'Test'
+        $button.Style = $style
+
+        { $button.Measure([System.Windows.Size]::new(1000, 1000)) } | Should -Not -Throw
+    }
+
+    It 'New-GuiLabeledIconContent normalizes wrapped foreground brushes before layout' {
+        $Script:GuiIconEnabled = $false
+        $Script:GuiIconFontFamily = $null
+
+        $wrappedBrush = [System.Management.Automation.PSObject]::AsPSObject([System.Windows.Media.Brushes]::SeaGreen)
+        $content = New-GuiLabeledIconContent -IconName 'Settings' -Text 'Test Label' -Foreground $wrappedBrush -AllowTextOnlyFallback
+
+        $content | Should -Not -BeNullOrEmpty
+        $content.Children.Count | Should -Be 1
+        $content.Children[0] | Should -BeOfType ([System.Windows.Controls.TextBlock])
+        $content.Children[0].Foreground | Should -BeOfType ([System.Windows.Media.Brush])
+        { $content.Measure([System.Windows.Size]::new(1000, 1000)) } | Should -Not -Throw
+    }
+
+    It 'Update-GuiMenuBarTheme preserves brush resources for menu foreground updates' {
+        $Script:CurrentTheme = $Script:DarkTheme
+        $Script:MainMenuBar = [System.Windows.Controls.Menu]::new()
+        $Script:MainMenuBar.Resources['MenuBarBackground']  = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Colors]::Black)
+        $Script:MainMenuBar.Resources['MenuBarBorder']      = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Colors]::Black)
+        $Script:MainMenuBar.Resources['MenuBarForeground']  = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Colors]::Black)
+        $Script:MainMenuBar.Resources['MenuBarHoverBg']     = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Colors]::Black)
+        $Script:MainMenuBar.Resources['MenuBarHoverFg']     = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Colors]::Black)
+        $Script:MainMenuBar.Resources['MenuSubmenuBg']      = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Colors]::Black)
+        $Script:MainMenuBar.Resources['MenuSubmenuBorder']  = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Colors]::Black)
+        $Script:MainMenuBar.Resources['MenuSeparatorBrush'] = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Colors]::Black)
+        $Script:MenuBarBorder = [System.Windows.Controls.Border]::new()
+
+        { Update-GuiMenuBarTheme } | Should -Not -Throw
+
+        $Script:MainMenuBar.Resources['MenuBarForeground'] | Should -BeOfType ([System.Windows.Media.Brush])
+        $Script:MainMenuBar.Resources['MenuBarHoverFg'] | Should -BeOfType ([System.Windows.Media.Brush])
+        $Script:MenuBarBorder.Background | Should -BeOfType ([System.Windows.Media.Brush])
+        $Script:MenuBarBorder.BorderBrush | Should -BeOfType ([System.Windows.Media.Brush])
+    }
+}
+
+Describe 'Theme menu state (W-1g)' {
+    BeforeEach {
+        <#
+            .SYNOPSIS
+            Internal function script.
+
+            .DESCRIPTION
+            Internal implementation helper used by Baseline.
+        #>
+
+        function script:Get-UxLocalizedString {
+            param(
+                [string]$Key,
+                [string]$Fallback
+            )
+
+            switch ($Key) {
+                'GuiThemeLight' { return 'Theme: Light' }
+                'GuiThemeDark'  { return 'Theme: Dark' }
+                default         { return $Fallback }
+            }
+        }
+
+        $Script:MenuViewTheme = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuViewTheme.IsCheckable = $true
+        $Script:ChkTheme = [System.Windows.Controls.CheckBox]::new()
+        $Script:ChkSafeMode = [System.Windows.Controls.CheckBox]::new()
+        $Script:TxtThemeState = [System.Windows.Controls.TextBlock]::new()
+        $Script:CurrentTheme = $Script:DarkTheme
+        $Script:CurrentThemeName = 'Dark'
+        $Script:SafeMode = $false
+        $Script:AdvancedMode = $false
+        $Script:TxtAdvancedModeState = [System.Windows.Controls.TextBlock]::new()
+    }
+
+    It 'syncs the menu label and check state for Light theme' {
+        $Script:ChkTheme.IsChecked = $true
+
+        Update-HeaderModeStateText
+
+        [string]$Script:MenuViewTheme.Header | Should -Be 'Switch to Dark Mode'
+        $Script:MenuViewTheme.IsChecked | Should -BeTrue
+        [string]$Script:TxtThemeState.Text | Should -Be 'Theme: Light'
+    }
+
+    It 'syncs the menu label and check state for Dark theme' {
+        $Script:ChkTheme.IsChecked = $false
+
+        Update-HeaderModeStateText
+
+        [string]$Script:MenuViewTheme.Header | Should -Be 'Switch to Light Mode'
+        $Script:MenuViewTheme.IsChecked | Should -BeFalse
+        [string]$Script:TxtThemeState.Text | Should -Be 'Theme: Dark'
+    }
+}
+
+Describe 'Safe Mode visibility (W-1h)' {
+    BeforeEach {
+        <#
+            .SYNOPSIS
+            Internal function script.
+
+            .DESCRIPTION
+            Internal implementation helper used by Baseline.
+        #>
+
+        function script:Get-UxLocalizedString {
+            param(
+                [string]$Key,
+                [string]$Fallback,
+                [object[]]$FormatArgs
+            )
+
+            switch ($Key) {
+                'GuiChkSafeMode' { return 'Safe Mode' }
+                'GuiStatusSafeModeEnabled' { return 'Safe mode enabled.' }
+                'GuiStatusSafeModeDisabledRestored' { return 'Safe mode disabled.' }
+                'GuiStatusSafeModeDisabledCleared' { return ('Safe mode disabled and {0} selection(s) cleared.' -f $FormatArgs[0]) }
+                default { return $Fallback }
+            }
+        }
+
+        <#
+            .SYNOPSIS
+            Internal function script.
+
+            .DESCRIPTION
+            Internal implementation helper used by Baseline.
+        #>
+
+        function script:Test-GuiModeActive {
+            param([string]$Mode)
+
+            switch ($Mode) {
+                'Safe'   { return $script:SafeModeActive }
+                'Expert' { return $script:ExpertModeActive }
+                default  { return $false }
+            }
+        }
+
+        <#
+            .SYNOPSIS
+            Internal function .
+
+            .DESCRIPTION
+            Internal implementation helper used by Baseline.
+        #>
+        function script:Set-GuiMode {
+            param([string]$ViewMode)
+
+            $script:LastViewMode = $ViewMode
+        }
+
+        <#
+            .SYNOPSIS
+            Internal function script.
+
+            .DESCRIPTION
+            Internal implementation helper used by Baseline.
+        #>
+
+        function script:Invoke-GuiStateTransition {
+            param(
+                [string]$Context,
+                [string]$StatusMessage,
+                [string]$StatusTone,
+                [switch]$ClearCache,
+                [switch]$RebuildTab,
+                [switch]$SyncActionButton,
+                [switch]$UpdatePresetBadge,
+                [switch]$UpdateModeText
+            )
+
+            $script:TransitionCall = [pscustomobject]@{
+                Context          = $Context
+                StatusMessage    = $StatusMessage
+                StatusTone       = $StatusTone
+                ClearCache       = [bool]$ClearCache
+                RebuildTab       = [bool]$RebuildTab
+                SyncActionButton = [bool]$SyncActionButton
+                UpdatePresetBadge = [bool]$UpdatePresetBadge
+                UpdateModeText   = [bool]$UpdateModeText
+            }
+        }
+
+        $script:SafeModeActive = $false
+        $script:ExpertModeActive = $false
+        $script:LastViewMode = $null
+        $script:TransitionCall = $null
+        $script:ClearedSelectionCount = 0
+        $script:ClearInvisibleSelectionStateScript = {
+            $script:ClearedSelectionCount++
+            return 3
+        }
+
+        foreach ($name in @(
+            'BtnLog',
+            'BtnFilterToggle',
+            'ChkScan',
+            'FilterOptionsPanel',
+            'MenuTools',
+            'MenuActionsCheckCompliance',
+            'MenuActionsScanSystem',
+            'MenuActionsAuditLog',
+            'MenuViewFilters',
+            'MenuFileExportSystemState',
+            'MenuFileExportConfigProfile'
+        )) {
+            Set-Variable -Scope Script -Name $name -Value $null
+        }
+
+        $Script:BtnLog = [System.Windows.Controls.Button]::new()
+        $Script:BtnLog.Visibility = 'Visible'
+        $Script:BtnFilterToggle = [System.Windows.Controls.Button]::new()
+        $Script:BtnFilterToggle.Visibility = 'Visible'
+        $Script:ChkScan = [System.Windows.Controls.CheckBox]::new()
+        $Script:ChkScan.Visibility = 'Visible'
+        $Script:FilterOptionsPanel = $null
+        $Script:MenuTools = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuTools.Visibility = 'Visible'
+        $Script:MenuActionsCheckCompliance = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuActionsCheckCompliance.Visibility = 'Visible'
+        $Script:MenuActionsScanSystem = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuActionsScanSystem.Visibility = 'Visible'
+        $Script:MenuActionsAuditLog = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuActionsAuditLog.Visibility = 'Visible'
+        $Script:MenuViewFilters = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuViewFilters.Visibility = 'Visible'
+        $Script:MenuFileExportSystemState = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuFileExportSystemState.Visibility = 'Visible'
+        $Script:MenuFileExportConfigProfile = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuFileExportConfigProfile.Visibility = 'Visible'
+        $Script:ChkSafeMode = [System.Windows.Controls.CheckBox]::new()
+        $Script:ExpertModeBanner = [System.Windows.Controls.Border]::new()
+        $Script:ExpertModeBanner.Visibility = 'Visible'
+    }
+
+    It 'collapses advanced controls when Safe Mode is enabled' {
+        $script:SafeModeActive = $false
+        $script:ExpertModeActive = $false
+
+        Set-SafeModeState -Enabled:$true
+
+        $script:LastViewMode | Should -Be 'Safe'
+        $script:TransitionCall.Context | Should -Be 'SafeMode'
+        $script:TransitionCall.StatusTone | Should -Be 'success'
+        $script:ClearedSelectionCount | Should -Be 1
+        $script:BtnLog.Visibility | Should -Be 'Collapsed'
+        $script:BtnFilterToggle.Visibility | Should -Be 'Collapsed'
+        $script:ChkScan.Visibility | Should -Be 'Collapsed'
+        $script:ExpertModeBanner.Visibility | Should -Be 'Collapsed'
+        $script:MenuTools.Visibility | Should -Be 'Collapsed'
+        $script:MenuActionsCheckCompliance.Visibility | Should -Be 'Collapsed'
+        $script:MenuActionsScanSystem.Visibility | Should -Be 'Collapsed'
+        $script:MenuActionsAuditLog.Visibility | Should -Be 'Collapsed'
+        $script:MenuViewFilters.Visibility | Should -Be 'Collapsed'
+        $script:MenuFileExportSystemState.Visibility | Should -Be 'Collapsed'
+        $script:MenuFileExportConfigProfile.Visibility | Should -Be 'Collapsed'
+        $script:ChkSafeMode.IsChecked | Should -BeTrue
+        [string]$script:ChkSafeMode.Content | Should -Be 'Safe Mode'
+    }
+
+    It 'restores controls when Safe Mode is disabled' {
+        $script:SafeModeActive = $true
+        $script:ExpertModeActive = $false
+        $script:BtnLog.Visibility = 'Collapsed'
+        $script:BtnFilterToggle.Visibility = 'Collapsed'
+        $script:ChkScan.Visibility = 'Collapsed'
+        $script:ExpertModeBanner.Visibility = 'Collapsed'
+        $script:MenuTools.Visibility = 'Collapsed'
+        $script:MenuActionsCheckCompliance.Visibility = 'Collapsed'
+        $script:MenuActionsScanSystem.Visibility = 'Collapsed'
+        $script:MenuActionsAuditLog.Visibility = 'Collapsed'
+        $script:MenuViewFilters.Visibility = 'Collapsed'
+        $script:MenuFileExportSystemState.Visibility = 'Collapsed'
+        $script:MenuFileExportConfigProfile.Visibility = 'Collapsed'
+
+        Set-SafeModeState -Enabled:$false
+
+        $script:LastViewMode | Should -Be 'Standard'
+        $script:TransitionCall.Context | Should -Be 'SafeMode'
+        $script:TransitionCall.StatusTone | Should -Be 'muted'
+        $script:BtnLog.Visibility | Should -Be 'Visible'
+        $script:BtnFilterToggle.Visibility | Should -Be 'Visible'
+        $script:ChkScan.Visibility | Should -Be 'Visible'
+        $script:ExpertModeBanner.Visibility | Should -Be 'Collapsed'
+        $script:MenuTools.Visibility | Should -Be 'Visible'
+        $script:MenuActionsCheckCompliance.Visibility | Should -Be 'Visible'
+        $script:MenuActionsScanSystem.Visibility | Should -Be 'Visible'
+        $script:MenuActionsAuditLog.Visibility | Should -Be 'Visible'
+        $script:MenuViewFilters.Visibility | Should -Be 'Visible'
+        $script:MenuFileExportSystemState.Visibility | Should -Be 'Visible'
+        $script:MenuFileExportConfigProfile.Visibility | Should -Be 'Visible'
+        $script:ChkSafeMode.IsChecked | Should -BeFalse
+        [string]$script:ChkSafeMode.Content | Should -Be 'Safe Mode'
+    }
+}
+
+Describe 'Duplicate action visibility (W-1i)' {
+    BeforeEach {
+        foreach ($name in @(
+            'BtnExportSettings',
+            'BtnImportSettings',
+            'BtnExportConfigProfile',
+            'BtnExportSystemState',
+            'BtnCheckCompliance',
+            'BtnAuditLog',
+            'BtnLog',
+            'BtnUndoLastRun'
+        )) {
+            Set-Variable -Scope Script -Name $name -Value $null
+        }
+
+        $Script:BtnExportSettings = [System.Windows.Controls.Button]::new()
+        $Script:BtnImportSettings = [System.Windows.Controls.Button]::new()
+        $Script:BtnExportConfigProfile = [System.Windows.Controls.Button]::new()
+        $Script:BtnExportSystemState = [System.Windows.Controls.Button]::new()
+        $Script:BtnCheckCompliance = [System.Windows.Controls.Button]::new()
+        $Script:BtnAuditLog = [System.Windows.Controls.Button]::new()
+        $Script:BtnLog = [System.Windows.Controls.Button]::new()
+        $Script:BtnUndoLastRun = [System.Windows.Controls.Button]::new()
+
+        foreach ($button in @(
+            $Script:BtnExportSettings,
+            $Script:BtnImportSettings,
+            $Script:BtnExportConfigProfile,
+            $Script:BtnExportSystemState,
+            $Script:BtnCheckCompliance,
+            $Script:BtnAuditLog,
+            $Script:BtnLog,
+            $Script:BtnUndoLastRun
+        )) {
+            $button.Visibility = 'Visible'
+        }
+    }
+
+    It 'collapses the duplicated toolbar actions and log button' {
+        Update-GuiDuplicateActionVisibility
+
+        $Script:BtnExportSettings.Visibility | Should -Be 'Collapsed'
+        $Script:BtnImportSettings.Visibility | Should -Be 'Collapsed'
+        $Script:BtnExportConfigProfile.Visibility | Should -Be 'Collapsed'
+        $Script:BtnExportSystemState.Visibility | Should -Be 'Collapsed'
+        $Script:BtnCheckCompliance.Visibility | Should -Be 'Collapsed'
+        $Script:BtnAuditLog.Visibility | Should -Be 'Collapsed'
+        $Script:BtnLog.Visibility | Should -Be 'Collapsed'
+        $Script:BtnUndoLastRun.Visibility | Should -Be 'Visible'
+    }
+}
+
+Describe 'Menu localization refresh (W-1j)' {
+    BeforeEach {
+        <#
+            .SYNOPSIS
+            Internal function script.
+
+            .DESCRIPTION
+            Internal implementation helper used by Baseline.
+        #>
+
+        function script:Get-UxLocalizedString {
+            param(
+                [string]$Key,
+                [string]$Fallback,
+                [object[]]$FormatArgs
+            )
+
+            $value = if ($script:LocalizationMap.ContainsKey($Key)) { $script:LocalizationMap[$Key] } else { $Fallback }
+            if ($FormatArgs -and $FormatArgs.Count -gt 0) { return ($value -f $FormatArgs) }
+            return $value
+        }
+
+        $script:LocalizationMap = @{
+            GuiMenuFile                = 'File'
+            GuiMenuActions             = 'Actions'
+            GuiMenuView                = 'View'
+            GuiMenuTools               = 'Tools'
+            GuiMenuHelp                = 'Help'
+            GuiMenuFileImportSettings  = 'Import Settings'
+            GuiMenuViewOpenLogs        = 'Open Logs'
+            GuiMenuViewSwitchToLightMode = 'Switch to Light Mode'
+            GuiMenuViewSwitchToDarkMode  = 'Switch to Dark Mode'
+            GuiChkSafeMode             = 'Safe Mode'
+            GuiThemeDark               = 'Theme: Dark'
+            GuiThemeLight              = 'Theme: Light'
+        }
+
+        foreach ($name in @(
+            'MenuFile',
+            'MenuActions',
+            'MenuView',
+            'MenuTools',
+            'MenuHelp',
+            'MenuFileImportSettings',
+            'MenuFileExportSettings',
+            'MenuFileExportConfigProfile',
+            'MenuFileExportSystemState',
+            'MenuActionsPreviewRun',
+            'MenuActionsRunTweaks',
+            'MenuActionsUndoLastRun',
+            'MenuActionsRestoreDefaults',
+            'MenuActionsCheckCompliance',
+            'MenuActionsScanSystem',
+            'MenuActionsAuditLog',
+            'MenuViewSafeMode',
+            'MenuViewFilters',
+            'MenuViewLogsPanel',
+            'MenuToolsAppsManager',
+            'MenuToolsUpdateAllApps',
+            'MenuHelpStartGuide',
+            'MenuHelpDocumentation',
+            'MenuHelpChangelog',
+            'MenuHelpCheckForUpdate',
+            'MenuHelpAbout'
+        )) {
+            Set-Variable -Scope Script -Name $name -Value $null
+        }
+
+        $Script:MenuFile = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuActions = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuView = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuTools = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuHelp = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuFileImportSettings = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuViewLogsPanel = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuViewTheme = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuViewSafeMode = [System.Windows.Controls.MenuItem]::new()
+        $Script:ChkTheme = [System.Windows.Controls.CheckBox]::new()
+        $Script:ChkTheme.IsChecked = $false
+        $Script:MenuViewTheme.IsCheckable = $true
+        $Script:ChkSafeMode = [System.Windows.Controls.CheckBox]::new()
+        $Script:TxtThemeState = [System.Windows.Controls.TextBlock]::new()
+        $Script:TxtAdvancedModeState = [System.Windows.Controls.TextBlock]::new()
+        $Script:CurrentTheme = $Script:DarkTheme
+        $Script:CurrentThemeName = 'Dark'
+        $Script:SafeMode = $false
+        $Script:AdvancedMode = $false
+    }
+
+    It 'refreshes menu labels when the localization source changes' {
+        Update-GuiMenuBarLocalization
+
+        [string]$Script:MenuFile.Header | Should -Be 'File'
+        [string]$Script:MenuActions.Header | Should -Be 'Actions'
+        [string]$Script:MenuView.Header | Should -Be 'View'
+        [string]$Script:MenuTools.Header | Should -Be 'Tools'
+        [string]$Script:MenuHelp.Header | Should -Be 'Help'
+        [string]$Script:MenuFileImportSettings.Header | Should -Be 'Import Settings'
+        [string]$Script:MenuViewLogsPanel.Header | Should -Be 'Open Logs'
+        [string]$Script:MenuViewTheme.Header | Should -Be 'Switch to Light Mode'
+        [string]$Script:TxtThemeState.Text | Should -Be 'Theme: Dark'
+
+        $script:LocalizationMap = @{
+            GuiMenuFile                = 'Fichier'
+            GuiMenuActions             = 'Actions'
+            GuiMenuView                = 'Affichage'
+            GuiMenuTools               = 'Outils'
+            GuiMenuHelp                = 'Aide'
+            GuiMenuFileImportSettings  = 'Importer les parametres'
+            GuiMenuViewOpenLogs        = 'Ouvrir les journaux'
+            GuiMenuViewSwitchToLightMode = 'Basculer vers le mode clair'
+            GuiMenuViewSwitchToDarkMode  = 'Basculer vers le mode sombre'
+            GuiChkSafeMode             = 'Mode sans echec'
+            GuiThemeDark               = 'Theme : sombre'
+            GuiThemeLight              = 'Theme : clair'
+        }
+
+        Update-GuiMenuBarLocalization
+
+        [string]$Script:MenuFile.Header | Should -Be 'Fichier'
+        [string]$Script:MenuActions.Header | Should -Be 'Actions'
+        [string]$Script:MenuView.Header | Should -Be 'Affichage'
+        [string]$Script:MenuTools.Header | Should -Be 'Outils'
+        [string]$Script:MenuHelp.Header | Should -Be 'Aide'
+        [string]$Script:MenuFileImportSettings.Header | Should -Be 'Importer les parametres'
+        [string]$Script:MenuViewLogsPanel.Header | Should -Be 'Ouvrir les journaux'
+        [string]$Script:MenuViewTheme.Header | Should -Be 'Basculer vers le mode clair'
+        [string]$Script:TxtThemeState.Text | Should -Be 'Theme : sombre'
+        [string]$Script:MenuViewSafeMode.Header | Should -Be 'Mode sans echec'
+    }
+}

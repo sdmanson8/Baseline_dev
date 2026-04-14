@@ -1,0 +1,73 @@
+{
+  "Tab": "Taskbar Clock",
+  "Entries": [
+    {
+      "Name": "Clock in Notification Center",
+      "Function": "ClockInNotificationCenter",
+      "Type": "Toggle",
+      "Options": null,
+      "DisplayOptions": null,
+      "Default": true,
+      "WinDefault": false,
+      "Description": "Time in Notification Center",
+      "Detail": "Shows or hides the clock in Notification Center so time remains visible when opening the notifications flyout.",
+      "Caution": false,
+      "CautionReason": null,
+      "LinkedWith": null,
+      "Scannable": null,
+      "Restorable": true,
+      "OnParam": "Show",
+      "OffParam": "Hide",
+      "ExtraArgs": null,
+      "SubCategory": null,
+      "SourceRegion": "TaskbarClock",
+      "Risk": "Low",
+      "Tags": [
+        "appearance",
+        "taskbar",
+        "clock"
+      ],
+      "Impact": "Low",
+      "Safe": true,
+      "RequiresRestart": false,
+      "WhyThisMatters": "Time in Notification Center",
+      "PresetTier": "Safe",
+      "RecoveryLevel": "Direct",
+      "CompatibilitySensitivity": "Low"
+    },
+    {
+      "Name": "Seconds on Taskbar Clock",
+      "Function": "SecondsInSystemClock",
+      "Type": "Toggle",
+      "Options": null,
+      "DisplayOptions": null,
+      "Default": false,
+      "WinDefault": false,
+      "Description": "Seconds on the taskbar clock",
+      "Detail": "Shows or hides seconds in the taskbar clock for a more precise time display at the cost of a slightly busier clock readout.",
+      "Caution": false,
+      "CautionReason": null,
+      "LinkedWith": null,
+      "Scannable": null,
+      "Restorable": true,
+      "OnParam": "Show",
+      "OffParam": "Hide",
+      "ExtraArgs": null,
+      "SubCategory": null,
+      "SourceRegion": "TaskbarClock",
+      "Risk": "Low",
+      "Tags": [
+        "appearance",
+        "taskbar",
+        "clock"
+      ],
+      "Impact": "Low",
+      "Safe": true,
+      "RequiresRestart": false,
+      "WhyThisMatters": "Seconds on the taskbar clock",
+      "PresetTier": "Safe",
+      "RecoveryLevel": "Direct",
+      "CompatibilitySensitivity": "Low"
+    }
+  ]
+}

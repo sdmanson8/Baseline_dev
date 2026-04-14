@@ -1,0 +1,414 @@
+Set-StrictMode -Version Latest
+
+BeforeAll {
+    <#
+        .SYNOPSIS
+        Internal function Test-GuiObjectField.
+
+        .DESCRIPTION
+        Internal implementation helper used by Baseline.
+    #>
+
+    function Test-GuiObjectField { param([object]$Object, [string]$FieldName) if ($null -eq $Object) { return $false }; if ($Object -is [System.Collections.IDictionary]) { return $Object.Contains($FieldName) }; return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName]) }
+    $gameModeUiPath = Join-Path $PSScriptRoot '../../Module/GUI/GameModeUI.ps1'
+    $gameModeUiAst = [System.Management.Automation.Language.Parser]::ParseFile($gameModeUiPath, [ref]$null, [ref]$null)
+    $gameModeUiFunctions = $gameModeUiAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+    foreach ($fn in $gameModeUiFunctions) {
+        if ($fn.Name -in @('Test-TweakEditableInGameModeTab', 'Sync-GameModePlanFromGamingControls', 'Set-GameModeProfile')) {
+            Invoke-Expression $fn.Extent.Text
+        }
+    }
+
+    $gameModeHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/GameMode.Helpers.ps1'
+    $gameModeHelpersAst = [System.Management.Automation.Language.Parser]::ParseFile($gameModeHelpersPath, [ref]$null, [ref]$null)
+    $gameModeHelpersFunctions = $gameModeHelpersAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+    foreach ($fn in $gameModeHelpersFunctions) {
+        if ($fn.Name -eq 'Test-GameModeAdvancedProfileDefaultSelection') {
+            Invoke-Expression $fn.Extent.Text
+        }
+    }
+
+    $executionPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration.ps1'
+    $executionAst = [System.Management.Automation.Language.Parser]::ParseFile($executionPath, [ref]$null, [ref]$null)
+    $executionFunctions = $executionAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+    foreach ($fn in $executionFunctions) {
+        if ($fn.Name -eq 'Get-ActiveTweakRunList') {
+            Invoke-Expression $fn.Extent.Text
+        }
+    }
+
+    <#
+        .SYNOPSIS
+        Internal function Get-SelectedTweakRunList.
+
+        .DESCRIPTION
+        Internal implementation helper used by Baseline.
+    #>
+
+    function Get-SelectedTweakRunList {
+        return @($script:SelectedTweaks)
+    }
+
+    <#
+        .SYNOPSIS
+        Internal function .
+
+        .DESCRIPTION
+        Internal implementation helper used by Baseline.
+    #>
+    function Get-ManifestEntryByFunction {
+        param (
+            [object[]]$Manifest,
+            [string]$Function
+        )
+
+        return @($Manifest | Where-Object { [string]$_.Function -eq [string]$Function } | Select-Object -First 1)
+    }
+
+    <#
+        .SYNOPSIS
+        Internal function .
+
+        .DESCRIPTION
+        Internal implementation helper used by Baseline.
+    #>
+    function Get-GameModePlan {
+        return @($script:GameModePlan)
+    }
+
+    <#
+        .SYNOPSIS
+        Internal function Update-GameModeStatusText.
+
+        .DESCRIPTION
+        Internal implementation helper used by Baseline.
+    #>
+
+    function Update-GameModeStatusText {
+        param (
+            [string]$Message,
+            [string]$Tone
+        )
+
+        $script:LastGameModeStatus = $Message
+        $script:LastGameModeTone = $Tone
+    }
+}
+
+Describe 'Game Mode plan merge' {
+    BeforeEach {
+        $script:GameMode = $true
+        $script:GameModeProfile = 'Competitive'
+        $script:GameModePlan = @()
+        $script:TweakManifest = @()
+        $script:Controls = @{ 0 = [pscustomobject]@{ IsEnabled = $true } }
+        $script:SelectedTweaks = @()
+        $script:GameModeControlSyncInProgress = $false
+        $script:GameModeAllowlist = @('GPUScheduling', 'PowerPlan', 'MouseAcceleration')
+        $script:GamingCrossTabFunctions = [System.Collections.Generic.HashSet[string]]::new([string[]]@('PowerPlan'))
+        $script:CategoryToPrimary = @{
+            Gaming = 'Gaming'
+            System = 'System'
+        }
+        Set-Variable -Name CategoryToPrimary -Scope Script -Value $script:CategoryToPrimary
+        $script:SyncGameModeContextStateScript = {}
+        <#
+            .SYNOPSIS
+            Internal function Get-UxLocalizedString.
+
+            .DESCRIPTION
+            Internal implementation helper used by Baseline.
+        #>
+
+        function Get-UxLocalizedString {
+            param (
+                [string]$Key,
+                [string]$Fallback
+            )
+
+            return $Fallback
+        }
+        $script:UpdateGameModeStatusTextScript = {
+            param(
+                [string]$Message,
+                [string]$Tone
+            )
+
+            $script:LastGameModeStatus = $Message
+            $script:LastGameModeTone = $Tone
+        }
+        $script:PresetStatusBadge = $null
+        $script:PresetStatusMessage = $null
+        $script:LastGameModeStatus = $null
+        $script:LastGameModeTone = $null
+    }
+
+    It 'treats reviewed cross-tab entries as editable from the Gaming tab' {
+        Test-TweakEditableInGameModeTab -Tweak ([pscustomobject]@{
+            Function = 'PowerPlan'
+            Category = 'System'
+        }) | Should -Be $true
+
+        Test-TweakEditableInGameModeTab -Tweak ([pscustomobject]@{
+            Function = 'SomeOtherSystemTweak'
+            Category = 'System'
+        }) | Should -Be $false
+    }
+
+    It 'merges profile actions with manual Gaming-tab selections including cross-tab functions' {
+        $script:TweakManifest = @(
+            [pscustomobject]@{
+                Function = 'GPUScheduling'
+                Category = 'Gaming'
+            }
+            [pscustomobject]@{
+                Function = 'PowerPlan'
+                Category = 'System'
+            }
+            [pscustomobject]@{
+                Function = 'MouseAcceleration'
+                Category = 'Gaming'
+            }
+        )
+
+        $script:GameModePlan = @(
+            [pscustomobject]@{
+                Function = 'GPUScheduling'
+                Category = 'Gaming'
+                Selection = 'Enable'
+                ToggleParam = 'Enable'
+                RequiresRestart = $false
+            }
+            [pscustomobject]@{
+                Function = 'PowerPlan'
+                Category = 'System'
+                Selection = 'High'
+                Value = 'High'
+                SelectedValue = 'High'
+                RequiresRestart = $false
+            }
+        )
+
+        $script:SelectedTweaks = @(
+            [pscustomobject]@{
+                Name = 'GPU Scheduling'
+                Function = 'GPUScheduling'
+                Category = 'Gaming'
+                Type = 'Toggle'
+                Selection = 'Enable'
+                ToggleParam = 'Enable'
+                OnParam = 'Enable'
+                OffParam = 'Disable'
+                IsChecked = $true
+                RequiresRestart = $false
+            }
+            [pscustomobject]@{
+                Name = 'Power Plan'
+                Function = 'PowerPlan'
+                Category = 'System'
+                Type = 'Choice'
+                Selection = 'Ultimate'
+                Value = 'Ultimate'
+                SelectedIndex = 2
+                SelectedValue = 'Ultimate'
+                RequiresRestart = $false
+            }
+            [pscustomobject]@{
+                Name = 'Mouse Acceleration'
+                Function = 'MouseAcceleration'
+                Category = 'Gaming'
+                Type = 'Toggle'
+                Selection = 'Enable'
+                ToggleParam = 'Enable'
+                OnParam = 'Enable'
+                OffParam = 'Disable'
+                IsChecked = $true
+                RequiresRestart = $false
+            }
+        )
+
+        Sync-GameModePlanFromGamingControls
+
+        @($script:GameModePlan).Count | Should -Be 3
+        @($script:GameModePlan | Where-Object Function -eq 'PowerPlan') | Should -HaveCount 1
+        (@($script:GameModePlan | Where-Object Function -eq 'PowerPlan'))[0].Selection | Should -Be 'Ultimate'
+        @($script:GameModePlan | Where-Object Function -eq 'MouseAcceleration') | Should -HaveCount 1
+        $script:PresetStatusMessage | Should -Match '3 action\(s\) selected'
+    }
+}
+
+Describe 'Set-GameModeProfile' {
+    BeforeEach {
+        $script:GameMode = $true
+        $script:GameModeProfile = $null
+        $script:GameModePlan = @()
+        $script:GameModeCorePlan = @()
+        $script:GameModeAdvancedSelections = @{}
+        $script:GameModeDecisionOverrides = @{}
+        $script:GameModeAllowlist = @('Set-SystemResponsiveness', 'Set-DirectXAutoHdr')
+        $script:AdvancedEntries = @(
+            [pscustomobject]@{
+                Function = 'Set-SystemResponsiveness'
+                DefaultCheckedByProfile = [pscustomobject]@{
+                    Competitive = $true
+                    Streaming = $true
+                    Casual = $false
+                    Troubleshooting = $false
+                }
+            }
+            [pscustomobject]@{
+                Function = 'Set-DirectXAutoHdr'
+                DefaultCheckedByProfile = [pscustomobject]@{
+                    Casual = $true
+                    Competitive = $false
+                    Streaming = $false
+                    Troubleshooting = $false
+                }
+            }
+        )
+
+        <#
+            .SYNOPSIS
+            Internal function Import-GameModeAdvancedData.
+
+            .DESCRIPTION
+            Internal implementation helper used by Baseline.
+        #>
+
+        function Import-GameModeAdvancedData {
+            return @($script:AdvancedEntries)
+        }
+
+        <#
+            .SYNOPSIS
+            Internal function .
+
+            .DESCRIPTION
+            Internal implementation helper used by Baseline.
+        #>
+        function Get-UxLocalizedString {
+            param (
+                [string]$Key,
+                [string]$Fallback
+            )
+
+            return $Fallback
+        }
+
+        <#
+            .SYNOPSIS
+            Internal function .
+
+            .DESCRIPTION
+            Internal implementation helper used by Baseline.
+        #>
+        function LogInfo {
+            param ([string]$Message)
+        }
+
+        <#
+            .SYNOPSIS
+            Internal function Get-GameModeDecisionOverridesText.
+
+            .DESCRIPTION
+            Internal implementation helper used by Baseline.
+        #>
+
+        function Get-GameModeDecisionOverridesText {
+            param ([hashtable]$Overrides)
+
+            return 'none'
+        }
+
+        $script:SaveGuiUndoSnapshotScript = {}
+        $script:BuildGameModePlanScript = {
+            param ([string]$ProfileName)
+
+            return @(
+                [pscustomobject]@{
+                    Function = 'CoreTweak'
+                    RequiresRestart = $false
+                }
+            )
+        }
+        $script:BuildGameModeAdvancedPlanEntriesScript = {
+            param ([string]$ProfileName)
+
+            return @()
+        }
+        $script:SyncGameModeContextStateScript = {}
+        $script:SyncGameModePlanToGamingControlsScript = {
+            param ([object[]]$Plan)
+        }
+        $script:InvokeGuiStateTransitionScript = {
+            param (
+                [string]$Context,
+                [switch]$ClearCache,
+                [switch]$RebuildTab,
+                [switch]$UpdatePresetBadge,
+                [string]$StatusMessage,
+                [string]$StatusTone
+            )
+        }
+        $script:UpdateRunPathContextLabelScript = {}
+        $script:PresetStatusBadge = $null
+        $script:PresetStatusMessage = $null
+    }
+
+    It 'pre-checks advanced options from per-profile defaults' {
+        Set-GameModeProfile -ProfileName 'Competitive'
+
+        $script:GameModeProfile | Should -Be 'Competitive'
+        $script:GameModeAdvancedSelections['Set-SystemResponsiveness'] | Should -Be $true
+        $script:GameModeAdvancedSelections['Set-DirectXAutoHdr'] | Should -Be $false
+    }
+
+    It 'pre-checks different advanced options for another profile' {
+        Set-GameModeProfile -ProfileName 'Casual'
+
+        $script:GameModeProfile | Should -Be 'Casual'
+        $script:GameModeAdvancedSelections['Set-SystemResponsiveness'] | Should -Be $false
+        $script:GameModeAdvancedSelections['Set-DirectXAutoHdr'] | Should -Be $true
+    }
+}
+
+Describe 'Get-ActiveTweakRunList' {
+    BeforeEach {
+        $script:GameMode = $true
+        $script:GameModePlan = @()
+        $script:GameModeAllowlist = @(
+            'Profile01', 'Profile02', 'Profile03', 'Profile04', 'Profile05', 'Profile06',
+            'PowerPlan', 'MouseAcceleration'
+        )
+        $script:SelectedTweaks = @()
+    }
+
+    It 'returns the union of the profile plan and extra Gaming-tab selections for preview and run counts' {
+        $script:GameModePlan = @(
+            1..6 | ForEach-Object {
+                [pscustomobject]@{
+                    Function = ('Profile{0:D2}' -f $_)
+                    FromGameMode = $true
+                    GameModeProfile = 'Competitive'
+                }
+            }
+        )
+
+        $script:SelectedTweaks = @(
+            [pscustomobject]@{
+                Function = 'PowerPlan'
+                Selection = 'Ultimate'
+            }
+            [pscustomobject]@{
+                Function = 'MouseAcceleration'
+                Selection = 'Enable'
+            }
+        )
+
+        $result = @(Get-ActiveTweakRunList)
+
+        $result.Count | Should -Be 8
+        @($result.Function) | Should -Contain 'PowerPlan'
+        @($result.Function) | Should -Contain 'MouseAcceleration'
+    }
+}

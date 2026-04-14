@@ -1,0 +1,34 @@
+Set-StrictMode -Version Latest
+
+BeforeAll {
+    $filePath = Join-Path $PSScriptRoot '../../Module/Regions/UWPApps.psm1'
+    $script:UwpAppsContent = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8
+}
+
+Describe 'UWP apps picker surface' {
+    It 'repairs picker theme values before forcing an opaque picker background in both branches' {
+        $script:UwpAppsContent | Should -Match 'function Set-UWPAppsPickerSurface'
+        $script:UwpAppsContent | Should -Match '\[object\]\s*\$UseDarkMode'
+        $script:UwpAppsContent | Should -Match 'GUICommon\\Get-GuiBooleanValue -Value \$UseDarkMode'
+        ([regex]::Matches($script:UwpAppsContent, 'Set-UWPAppsPickerSurface -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer')).Count | Should -Be 2
+        $script:UwpAppsContent | Should -Match 'Repair-GuiThemePalette -Theme \$surfaceTheme -ThemeName'
+        $script:UwpAppsContent | Should -Match '\$getThemeColor = \{'
+        $script:UwpAppsContent | Should -Match '\$windowBg = & \$getThemeColor -ColorName ''WindowBg'' -DefaultColor'
+        $script:UwpAppsContent | Should -Match '\$panelBg = & \$getThemeColor -ColorName ''PanelBg'' -DefaultColor'
+        $script:UwpAppsContent | Should -Match '\$Window\.Background = \$BrushConverter\.ConvertFromString\(\$windowBg\)'
+        $script:UwpAppsContent | Should -Match '\$RootBorder\.Background = \$BrushConverter\.ConvertFromString\(\$windowBg\)'
+        $script:UwpAppsContent | Should -Match '\$PanelContainer\.Background = \$BrushConverter\.ConvertFromString\(\$panelBg\)'
+    }
+
+    It 'does not pre-apply raw current-theme brush strings before the shared helpers run' {
+        $script:UwpAppsContent | Should -Not -Match '\$RootBorder\.Background = \$bc\.ConvertFromString\(\$currentTheme\.WindowBg\)'
+        $script:UwpAppsContent | Should -Not -Match '\$RootBorder\.BorderBrush = \$bc\.ConvertFromString\(\$currentTheme\.BorderColor\)'
+        $script:UwpAppsContent | Should -Not -Match '\$Form\.Foreground = \$bc\.ConvertFromString\(\$currentTheme\.TextPrimary\)'
+    }
+
+    It 'routes popup actions through the shared async runner' {
+        ([regex]::Matches($script:UwpAppsContent, 'GUICommon\\Start-GuiPopupCommandAsync -Window \$Form -ModulePath \$modulePath -AdditionalModulePaths @\(\$guiCommonPath\) -CommandName ''UWPApps'' -CommandParameters \$commandParameters')).Count | Should -Be 2
+        $script:UwpAppsContent | Should -Match '\$Form\.PSObject\.Properties\[''GuiPopupOperationResult''\]'
+        $script:UwpAppsContent | Should -Match '\$Form\.GuiPopupOperationResult'
+    }
+}

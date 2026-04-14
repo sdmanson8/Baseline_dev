@@ -1,0 +1,25 @@
+# Build and packaging outputs
+.artifacts/
+dist/
+_net48ref/
+*.zip
+*.exe
+*.msi
+*.nupkg
+*.snupkg
+
+# .NET build folders
+**/bin/
+**/obj/
+Launcher/_build/
+Launcher/publish/
+
+# Logs and test output
+*.log
+testResults.xml
+*.trx
+*.coverage
+*.coveragexml
+
+# Local agent metadata
+.claude/
