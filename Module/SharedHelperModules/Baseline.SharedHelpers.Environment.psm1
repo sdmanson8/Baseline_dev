@@ -37,6 +37,8 @@ $ExportedFunctions = @(
     'Format-BaselineDownloadStatus'
     'Set-BootstrapLoadingSplashState'
     'Close-LoadingSplashWindow'
+    'Compare-BaselineReleaseVersions'
+    'Get-BaselineLatestReleaseEntry'
     'Invoke-BaselineAutoUpdate'
     'Show-Menu'
     'Get-LocalizedShellString'

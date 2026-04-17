@@ -69,7 +69,7 @@ jobs:
             Tests/Integration/**/*.log
           if-no-files-found: ignore
 
-  win11-23h2:
+  win11-24h2:
     name: Windows 11 23H2 Desktop (self-hosted)
     runs-on: [self-hosted, windows, desktop, win11-23h2]
     steps:

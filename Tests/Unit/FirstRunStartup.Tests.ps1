@@ -81,6 +81,10 @@ Describe 'First-run startup command wiring' {
         $chocolateyCommands | Should -Not -BeNullOrEmpty
     }
 
+    It 'requires the explicit approval flag before queueing Chocolatey startup bootstrap jobs' {
+        $initialSetupContent | Should -Match "Test-BaselineEnvironmentFlagEnabled\s+-Name\s+'BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP'"
+    }
+
     It 'keeps CheckWinGet hidden while preserving the preset and headless hook' {
         $initialSetupCheckWinGetFunction | Should -Not -BeNullOrEmpty
         $detectScriptblocksContent | Should -Match '''CheckWinGet''\s*=\s*\{\s*\$false\s*\}'

@@ -1369,6 +1369,302 @@ function Close-LoadingSplashWindow
 
 <#
     .SYNOPSIS
+    Internal function Compare-BaselineReleaseVersions.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Compare-BaselineReleaseVersions
+{
+	<# .SYNOPSIS Compares two Baseline release tags using semantic-version precedence. #>
+	param(
+		[AllowNull()]
+		[string]$LeftVersion,
+
+		[AllowNull()]
+		[string]$RightVersion
+	)
+
+	$parseVersionInfo = {
+		param([AllowNull()][string]$VersionText)
+
+		if ([string]::IsNullOrWhiteSpace([string]$VersionText))
+		{
+			return $null
+		}
+
+		$originalText = [string]$VersionText
+		$trimmedText = $originalText.Trim()
+		$coreText = $trimmedText.Split('+')[0].Trim()
+		$match = [regex]::Match($coreText, '\d+(?:\.\d+){1,3}')
+		if (-not $match.Success)
+		{
+			return [pscustomobject]@{
+				OriginalText      = $trimmedText
+				ComparableText    = $coreText
+				Parsed            = $false
+				CoreVersion       = $null
+				PrereleaseLabel   = $null
+				PrereleaseTokens  = @()
+				IsPrerelease      = $false
+			}
+		}
+
+		$parts = $match.Value.Split('.')
+		while ($parts.Count -lt 4)
+		{
+			$parts += '0'
+		}
+		if ($parts.Count -gt 4)
+		{
+			$parts = $parts[0..3]
+		}
+
+		$coreVersion = $null
+		try
+		{
+			$coreVersion = [System.Version]($parts -join '.')
+		}
+		catch
+		{
+			return [pscustomobject]@{
+				OriginalText      = $trimmedText
+				ComparableText    = $coreText
+				Parsed            = $false
+				CoreVersion       = $null
+				PrereleaseLabel   = $null
+				PrereleaseTokens  = @()
+				IsPrerelease      = $false
+			}
+		}
+
+		$prereleaseLabel = $coreText.Substring($match.Index + $match.Length).Trim()
+		if ($prereleaseLabel -match '^\((.+)\)$')
+		{
+			$prereleaseLabel = [string]$Matches[1]
+		}
+		$prereleaseLabel = [regex]::Replace($prereleaseLabel, '^[\s\-\._\(\[\{]+', '')
+		$prereleaseLabel = [regex]::Replace($prereleaseLabel, '[\s\)\]\}]+$', '')
+		if ([string]::IsNullOrWhiteSpace([string]$prereleaseLabel))
+		{
+			$prereleaseLabel = $null
+		}
+
+		$prereleaseTokens = @()
+		if ($prereleaseLabel)
+		{
+			$tokenMatches = [regex]::Matches($prereleaseLabel.ToLowerInvariant(), '[0-9]+|[A-Za-z]+')
+			if ($tokenMatches.Count -gt 0)
+			{
+				$prereleaseTokens = @($tokenMatches | ForEach-Object { [string]$_.Value })
+			}
+			else
+			{
+				$prereleaseTokens = @([string]$prereleaseLabel.ToLowerInvariant())
+			}
+		}
+
+		return [pscustomobject]@{
+			OriginalText      = $trimmedText
+			ComparableText    = $coreText
+			Parsed            = $true
+			CoreVersion       = $coreVersion
+			PrereleaseLabel   = $prereleaseLabel
+			PrereleaseTokens  = $prereleaseTokens
+			IsPrerelease      = (-not [string]::IsNullOrWhiteSpace([string]$prereleaseLabel))
+		}
+	}
+
+	$leftInfo = & $parseVersionInfo $LeftVersion
+	$rightInfo = & $parseVersionInfo $RightVersion
+
+	if ($null -eq $leftInfo -and $null -eq $rightInfo)
+	{
+		return 0
+	}
+	if ($null -eq $leftInfo)
+	{
+		return -1
+	}
+	if ($null -eq $rightInfo)
+	{
+		return 1
+	}
+
+	if (-not $leftInfo.Parsed -and -not $rightInfo.Parsed)
+	{
+		return [Math]::Sign([string]::Compare($leftInfo.OriginalText, $rightInfo.OriginalText, [System.StringComparison]::OrdinalIgnoreCase))
+	}
+	if (-not $leftInfo.Parsed)
+	{
+		return -1
+	}
+	if (-not $rightInfo.Parsed)
+	{
+		return 1
+	}
+
+	$coreComparison = $leftInfo.CoreVersion.CompareTo($rightInfo.CoreVersion)
+	if ($coreComparison -ne 0)
+	{
+		return [Math]::Sign($coreComparison)
+	}
+
+	if ($leftInfo.IsPrerelease -and -not $rightInfo.IsPrerelease)
+	{
+		return -1
+	}
+	if (-not $leftInfo.IsPrerelease -and $rightInfo.IsPrerelease)
+	{
+		return 1
+	}
+	if (-not $leftInfo.IsPrerelease -and -not $rightInfo.IsPrerelease)
+	{
+		return 0
+	}
+
+	$maxTokenCount = [Math]::Max($leftInfo.PrereleaseTokens.Count, $rightInfo.PrereleaseTokens.Count)
+	for ($index = 0; $index -lt $maxTokenCount; $index++)
+	{
+		if ($index -ge $leftInfo.PrereleaseTokens.Count)
+		{
+			return -1
+		}
+		if ($index -ge $rightInfo.PrereleaseTokens.Count)
+		{
+			return 1
+		}
+
+		$leftToken = [string]$leftInfo.PrereleaseTokens[$index]
+		$rightToken = [string]$rightInfo.PrereleaseTokens[$index]
+		$leftTokenIsNumber = ($leftToken -match '^\d+$')
+		$rightTokenIsNumber = ($rightToken -match '^\d+$')
+
+		if ($leftTokenIsNumber -and $rightTokenIsNumber)
+		{
+			$leftNumber = [int64]$leftToken
+			$rightNumber = [int64]$rightToken
+			if ($leftNumber -ne $rightNumber)
+			{
+				return [Math]::Sign($leftNumber.CompareTo($rightNumber))
+			}
+			continue
+		}
+		if ($leftTokenIsNumber -and -not $rightTokenIsNumber)
+		{
+			return -1
+		}
+		if (-not $leftTokenIsNumber -and $rightTokenIsNumber)
+		{
+			return 1
+		}
+
+		$tokenComparison = [string]::Compare($leftToken, $rightToken, [System.StringComparison]::OrdinalIgnoreCase)
+		if ($tokenComparison -ne 0)
+		{
+			return [Math]::Sign($tokenComparison)
+		}
+	}
+
+	return 0
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-BaselineLatestReleaseEntry.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Get-BaselineLatestReleaseEntry
+{
+	<# .SYNOPSIS Selects the highest Baseline GitHub release from a release list. #>
+	param(
+		[AllowNull()]
+		[object[]]$Releases
+	)
+
+	$bestRelease = $null
+	$bestPublishedAt = [DateTimeOffset]::MinValue
+
+	foreach ($release in @($Releases))
+	{
+		if ($null -eq $release)
+		{
+			continue
+		}
+
+		$isDraft = $false
+		try
+		{
+			$isDraft = [bool]$release.draft
+		}
+		catch
+		{
+			$isDraft = $false
+		}
+		if ($isDraft)
+		{
+			continue
+		}
+
+		$candidateTag = [string]$release.tag_name
+		if ([string]::IsNullOrWhiteSpace([string]$candidateTag))
+		{
+			continue
+		}
+
+		$candidatePublishedAt = [DateTimeOffset]::MinValue
+		foreach ($propertyName in @('published_at', 'created_at'))
+		{
+			$rawPublishedAt = $null
+			try
+			{
+				if ($release.PSObject.Properties[$propertyName])
+				{
+					$rawPublishedAt = [string]$release.$propertyName
+				}
+			}
+			catch
+			{
+				$rawPublishedAt = $null
+			}
+
+			if ([string]::IsNullOrWhiteSpace([string]$rawPublishedAt))
+			{
+				continue
+			}
+
+			try
+			{
+				$candidatePublishedAt = [DateTimeOffset]::Parse($rawPublishedAt, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal)
+				break
+			}
+			catch { }
+		}
+
+		if ($null -eq $bestRelease)
+		{
+			$bestRelease = $release
+			$bestPublishedAt = $candidatePublishedAt
+			continue
+		}
+
+		$comparison = Compare-BaselineReleaseVersions -LeftVersion $candidateTag -RightVersion ([string]$bestRelease.tag_name)
+		if ($comparison -gt 0 -or ($comparison -eq 0 -and $candidatePublishedAt -gt $bestPublishedAt))
+		{
+			$bestRelease = $release
+			$bestPublishedAt = $candidatePublishedAt
+		}
+	}
+
+	return $bestRelease
+}
+
+<#
+    .SYNOPSIS
     Internal function Invoke-BaselineAutoUpdate.
 
     .DESCRIPTION
@@ -1411,22 +1707,11 @@ function Invoke-BaselineAutoUpdate
 		$headers = @{ 'User-Agent' = "Baseline/$CurrentVersion" }
 
 		$releases = Invoke-RestMethod -Uri $apiUrl -Headers $headers -Method Get -TimeoutSec 8 -ErrorAction Stop
-		$release = $releases | Where-Object { -not $_.draft } | Select-Object -First 1
+		$release = Get-BaselineLatestReleaseEntry -Releases $releases
 		if (-not $release) { LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_NoReleasesFound' -Fallback 'No releases found on GitHub; skipping update.'); return }
 
 		$latestTag = [string]$release.tag_name
-		$latestClean = $latestTag.TrimStart('v').Split('+')[0].Split('-')[0].Trim()
-		$currentClean = $CurrentVersion.TrimStart('v').Split('+')[0].Split('-')[0].Trim()
-
-		$isNewer = $false
-		if ([System.Version]::TryParse($latestClean, [ref]$null) -and [System.Version]::TryParse($currentClean, [ref]$null))
-		{
-			$isNewer = ([System.Version]$latestClean) -gt ([System.Version]$currentClean)
-		}
-		else
-		{
-			$isNewer = [string]::Compare($latestClean, $currentClean, [System.StringComparison]::OrdinalIgnoreCase) -gt 0
-		}
+		$isNewer = ((Compare-BaselineReleaseVersions -LeftVersion $latestTag -RightVersion $CurrentVersion) -gt 0)
 
 		if (-not $isNewer)
 		{
@@ -2092,7 +2377,7 @@ function Initialize-BaselineMarkdownRuntime
 		try { Add-Type -Path $dllPath -ErrorAction Stop } catch { $null = $_ }
 	}
 
-	$Script:CachedBaselineMarkdownRuntimeLoaded = ([System.Type]::GetType('Markdig.Wpf.Markdown, Markdig.Wpf') -ne $null)
+	$Script:CachedBaselineMarkdownRuntimeLoaded = (Test-BaselineMarkdownRuntimeReady)
 	return [bool]$Script:CachedBaselineMarkdownRuntimeLoaded
 }
 
@@ -2107,7 +2392,34 @@ function Initialize-BaselineMarkdownRuntime
 function Test-BaselineMarkdownRuntimeReady
 {
 	<# .SYNOPSIS Returns $true once Markdig + Markdig.Wpf have been loaded into the runspace. #>
-	return ([System.Type]::GetType('Markdig.Wpf.Markdown, Markdig.Wpf') -ne $null)
+	$markdigAssembly = $null
+	$markdigWpfAssembly = $null
+
+	foreach ($assembly in [System.AppDomain]::CurrentDomain.GetAssemblies())
+	{
+		$assemblyName = $null
+		try { $assemblyName = $assembly.GetName().Name } catch { $assemblyName = $null }
+		if ([string]::IsNullOrWhiteSpace([string]$assemblyName)) { continue }
+
+		if ($assemblyName -eq 'Markdig')
+		{
+			$markdigAssembly = $assembly
+		}
+		elseif ($assemblyName -eq 'Markdig.Wpf')
+		{
+			$markdigWpfAssembly = $assembly
+		}
+
+		if ($markdigAssembly -and $markdigWpfAssembly) { break }
+	}
+
+	if (-not $markdigAssembly -or -not $markdigWpfAssembly)
+	{
+		return $false
+	}
+
+	return (($null -ne $markdigAssembly.GetType('Markdig.Markdown', $false, $false)) -and
+		($null -ne $markdigWpfAssembly.GetType('Markdig.Wpf.Markdown', $false, $false)))
 }
 
 <#

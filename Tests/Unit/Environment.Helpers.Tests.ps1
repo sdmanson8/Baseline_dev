@@ -147,6 +147,48 @@ Describe 'Get-BaselineDisplayVersion' {
     }
 }
 
+Describe 'Compare-BaselineReleaseVersions' {
+    It 'treats a newer major version as higher even when an older prerelease appears first' {
+        (Compare-BaselineReleaseVersions -LeftVersion 'v4.0.0-beta' -RightVersion 'v3.0.0-beta') | Should -BeGreaterThan 0
+    }
+
+    It 'treats stable releases as newer than prereleases of the same core version' {
+        (Compare-BaselineReleaseVersions -LeftVersion 'v4.0.0' -RightVersion 'v4.0.0-beta') | Should -BeGreaterThan 0
+    }
+
+    It 'treats rc builds as newer than beta builds of the same core version' {
+        (Compare-BaselineReleaseVersions -LeftVersion 'v4.0.0-rc1' -RightVersion 'v4.0.0-beta') | Should -BeGreaterThan 0
+    }
+
+    It 'normalizes display-version prerelease text in parentheses' {
+        (Compare-BaselineReleaseVersions -LeftVersion 'v4.0.0 (beta)' -RightVersion 'v4.0.0-beta') | Should -Be 0
+    }
+}
+
+Describe 'Get-BaselineLatestReleaseEntry' {
+    It 'selects the highest non-draft release regardless of API ordering' {
+        $releases = @(
+            [pscustomobject]@{ draft = $false; tag_name = 'v3.0.0-beta'; published_at = '2026-03-01T00:00:00Z' }
+            [pscustomobject]@{ draft = $false; tag_name = 'v4.0.0-beta'; published_at = '2026-04-01T00:00:00Z' }
+        )
+
+        $result = Get-BaselineLatestReleaseEntry -Releases $releases
+
+        [string]$result.tag_name | Should -Be 'v4.0.0-beta'
+    }
+
+    It 'prefers a stable release over a prerelease with the same core version' {
+        $releases = @(
+            [pscustomobject]@{ draft = $false; tag_name = 'v4.0.0-beta'; published_at = '2026-04-01T00:00:00Z' }
+            [pscustomobject]@{ draft = $false; tag_name = 'v4.0.0'; published_at = '2026-04-02T00:00:00Z' }
+        )
+
+        $result = Get-BaselineLatestReleaseEntry -Releases $releases
+
+        [string]$result.tag_name | Should -Be 'v4.0.0'
+    }
+}
+
 Describe 'Get-BaselineValidationMatrixSummary' {
     It 'loads server coverage from the integration validation matrix' {
         $repoRoot = Join-Path $TestDrive 'RepoRoot'
@@ -236,6 +278,11 @@ Describe 'Invoke-BaselineAutoUpdate' {
         Remove-Item Env:\BASELINE_INSTALLER_MODE -ErrorAction SilentlyContinue
         Remove-Item Env:\BASELINE_SKIP_UPDATE -ErrorAction SilentlyContinue
         Remove-Item Env:\BASELINE_LAUNCHER_PATH -ErrorAction SilentlyContinue
+        $script:loggedInfoMessages = [System.Collections.Generic.List[string]]::new()
+        Mock LogInfo {
+            param([object]$Message)
+            [void]$script:loggedInfoMessages.Add([string]$Message)
+        }
     }
 
     It 'stays idle when the launcher flag is missing' {
@@ -269,6 +316,34 @@ Describe 'Invoke-BaselineAutoUpdate' {
         Assert-MockCalled Set-DownloadSecurityProtocol -Times 1
         Assert-MockCalled Invoke-RestMethod -Times 1
     }
+
+    It 'uses the highest non-draft release tag when deciding whether the current build is up to date' {
+        $env:BASELINE_EMBEDDED_HOST = '1'
+        $env:BASELINE_LAUNCHER_PATH = Join-Path $TestDrive 'Baseline.exe'
+        Set-Content -LiteralPath $env:BASELINE_LAUNCHER_PATH -Value '' -Encoding ASCII
+
+        Mock Set-DownloadSecurityProtocol {}
+        Mock Invoke-RestMethod {
+            @(
+                [pscustomobject]@{
+                    draft    = $false
+                    tag_name = 'v3.0.0-beta'
+                    assets   = @()
+                }
+                [pscustomobject]@{
+                    draft    = $false
+                    tag_name = 'v4.0.0-beta'
+                    assets   = @()
+                }
+            )
+        }
+        Mock Set-BootstrapLoadingSplashState {}
+        Mock Close-LoadingSplashWindow {}
+
+        { Invoke-BaselineAutoUpdate -CurrentVersion 'v4.0.0 (beta)' } | Should -Not -Throw
+
+        ($script:loggedInfoMessages -join "`n") | Should -Match 'Already up to date \(latest: v4\.0\.0-beta\)\.'
+    }
 }
 
 Describe 'Get-LocalizedShellString' {
@@ -276,5 +351,31 @@ Describe 'Get-LocalizedShellString' {
         $result = Get-LocalizedShellString -ResourceId 1 -Fallback '&Skip' -StripAccelerators
 
         $result | Should -Be 'Skip'
+    }
+}
+
+Describe 'Baseline markdown runtime' {
+    BeforeEach {
+        $script:CachedBaselineMarkdownRuntimeLoaded = $false
+    }
+
+    It 'uses loaded AppDomain assemblies instead of Type.GetType for Markdig readiness checks' {
+        $content = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8
+
+        $content | Should -Match '\[System\.AppDomain\]::CurrentDomain\.GetAssemblies\(\)'
+        $content | Should -Match 'GetType\(''Markdig\.Wpf\.Markdown'', \$false, \$false\)'
+        $content | Should -Not -Match 'Type\]::GetType\(''Markdig\.Wpf\.Markdown, Markdig\.Wpf''\)'
+    }
+
+    It 'loads the bundled Markdig runtime and renders markdown to html' {
+        $moduleRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Module'))
+
+        Initialize-BaselineMarkdownRuntime -ModuleRoot $moduleRoot | Should -BeTrue
+        Test-BaselineMarkdownRuntimeReady | Should -BeTrue
+
+        $html = ConvertFrom-BaselineMarkdownToHtml -Markdown '# Title'
+
+        $html | Should -Match '<h1'
+        $html | Should -Match 'Title'
     }
 }

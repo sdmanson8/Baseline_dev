@@ -131,7 +131,7 @@ function Show-BaselineUpdateCheckDialog
 		Set-DownloadSecurityProtocol
 		$headers = @{ 'User-Agent' = "Baseline/$currentVersion" }
 		$releases = Invoke-RestMethod -Uri 'https://api.github.com/repos/sdmanson8/Baseline/releases' -Headers $headers -Method Get -TimeoutSec 10 -ErrorAction Stop
-		$release = $releases | Where-Object { -not $_.draft } | Select-Object -First 1
+		$release = Get-BaselineLatestReleaseEntry -Releases $releases
 		if (-not $release)
 		{
 			Show-BaselineUpdateOverlay -Title $title -Description $upToDateDescription -StatusText $checkingStatus -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
@@ -148,18 +148,7 @@ function Show-BaselineUpdateCheckDialog
 		}
 
 		$latestTag = [string]$release.tag_name
-		$latestClean = $latestTag.TrimStart('v').Split('+')[0].Split('-')[0].Trim()
-		$currentClean = $currentVersion.TrimStart('v').Split('+')[0].Split('-')[0].Trim()
-
-		$isNewer = $false
-		if ([System.Version]::TryParse($latestClean, [ref]$null) -and [System.Version]::TryParse($currentClean, [ref]$null))
-		{
-			$isNewer = ([System.Version]$latestClean) -gt ([System.Version]$currentClean)
-		}
-		else
-		{
-			$isNewer = [string]::Compare($latestClean, $currentClean, [System.StringComparison]::OrdinalIgnoreCase) -gt 0
-		}
+		$isNewer = ((Compare-BaselineReleaseVersions -LeftVersion $latestTag -RightVersion $currentVersion) -gt 0)
 
 		if (-not $isNewer)
 		{

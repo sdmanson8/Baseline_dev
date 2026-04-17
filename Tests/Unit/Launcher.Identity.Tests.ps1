@@ -1,17 +1,22 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
-    $script:LauncherProgramPath = Join-Path $PSScriptRoot '../../Launcher/Program.cs'
-    $script:LauncherProjectPath = Join-Path $PSScriptRoot '../../Launcher/RunLauncher.csproj'
-    $script:BootstrapPath = Join-Path $PSScriptRoot '../../Bootstrap/Baseline.ps1'
-    $script:InitialActionsPath = Join-Path $PSScriptRoot '../../Module/Regions/InitialActions.psm1'
-    $script:UwpAppsPath = Join-Path $PSScriptRoot '../../Module/Regions/UWPApps.psm1'
-    $script:SystemWindowsFeaturesPath = Join-Path $PSScriptRoot '../../Module/Regions/System/System.WindowsFeatures.psm1'
-    $script:TelemetryServicesPath = Join-Path $PSScriptRoot '../../Module/Regions/PrivacyTelemetry/PrivacyTelemetry.TelemetryServices.psm1'
-    $script:BuildLauncherPath = Join-Path $PSScriptRoot '../../Tools/Build-Launcher.ps1'
+    $script:RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+    $script:LauncherProgramPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Launcher/Program.cs'))
+    $script:LauncherProjectPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Launcher/RunLauncher.csproj'))
+    $script:LauncherManifestPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Launcher/Baseline.manifest'))
+    $script:LauncherSurfacePath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Launcher/EmbeddedRuntimeSurface.json'))
+    $script:BootstrapPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Bootstrap/Baseline.ps1'))
+    $script:InitialActionsPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Module/Regions/InitialActions.psm1'))
+    $script:UwpAppsPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Module/Regions/UWPApps.psm1'))
+    $script:SystemWindowsFeaturesPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Module/Regions/System/System.WindowsFeatures.psm1'))
+    $script:TelemetryServicesPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Module/Regions/PrivacyTelemetry/PrivacyTelemetry.TelemetryServices.psm1'))
+    $script:BuildLauncherPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Tools/Build-Launcher.ps1'))
 
     $script:LauncherProgramContent = Get-Content -LiteralPath $script:LauncherProgramPath -Raw -Encoding UTF8
     $script:LauncherProjectContent = Get-Content -LiteralPath $script:LauncherProjectPath -Raw -Encoding UTF8
+    $script:LauncherManifestContent = Get-Content -LiteralPath $script:LauncherManifestPath -Raw -Encoding UTF8
+    $script:LauncherSurfaceContent = Get-Content -LiteralPath $script:LauncherSurfacePath -Raw -Encoding UTF8
     $script:BootstrapContent = Get-Content -LiteralPath $script:BootstrapPath -Raw -Encoding UTF8
     $script:InitialActionsContent = Get-Content -LiteralPath $script:InitialActionsPath -Raw -Encoding UTF8
     $script:UwpAppsContent = Get-Content -LiteralPath $script:UwpAppsPath -Raw -Encoding UTF8
@@ -38,11 +43,44 @@ Describe 'Launcher identity host' {
 
     It 'embeds shared helper wrapper modules and validates the full payload before cache reuse' {
         $script:LauncherProjectContent | Should -Match '<EmbeddedResource Include="\.\./Module/SharedHelperModules/\*\.psm1">'
+        $script:LauncherSurfaceContent | Should -Match '"Module/SharedHelperModules/\*\.psm1"'
         $script:LauncherProjectContent | Should -Match 'BaselinePayload/Module/SharedHelperModules/%\(Filename\)%\(Extension\)'
         $script:LauncherProgramContent | Should -Match 'GetEmbeddedPayloadResourceNames\(asm\)'
         $script:LauncherProgramContent | Should -Match 'Select\(GetPayloadRelativePath\)'
         $script:LauncherProgramContent | Should -Match 'Path\.Combine\(root, relativePath\)'
         $script:LauncherProgramContent | Should -Match 'Path\.Combine\(root, HydrationSentinel\)'
+    }
+
+    It 'keeps hydrated payload paths under MAX_PATH on Administrator profiles' {
+        $script:LauncherManifestContent | Should -Match 'longPathAware'
+        $script:LauncherProgramContent | Should -Match 'RuntimeCacheFolderName\s*=\s*"RC"'
+        $script:LauncherProgramContent | Should -Match 'StagingSuffix\s*=\s*"\.s"'
+
+        $runtimeRoot = 'C:\Users\Administrator\AppData\Local\Baseline\RC\4.0.0\4\00000000000000000000000000000000.s'
+        $payloadRoots = @(
+            @{ Root = Join-Path $script:RepoRoot 'Bootstrap'; Prefix = 'Bootstrap\' },
+            @{ Root = Join-Path $script:RepoRoot 'Module'; Prefix = 'Module\' },
+            @{ Root = Join-Path $script:RepoRoot 'Localizations'; Prefix = 'Localizations\' },
+            @{ Root = Join-Path $script:RepoRoot 'Assets'; Prefix = 'Assets\' },
+            @{ Root = Join-Path $script:RepoRoot 'Completion'; Prefix = 'Completion\' }
+        )
+
+        $hydratedPathLengths = foreach ($payloadRoot in $payloadRoots)
+        {
+            if (-not (Test-Path -LiteralPath $payloadRoot.Root -PathType Container))
+            {
+                continue
+            }
+
+            Get-ChildItem -LiteralPath $payloadRoot.Root -Recurse -File | ForEach-Object {
+                $relativePath = $payloadRoot.Prefix + $_.FullName.Substring($payloadRoot.Root.Length + 1)
+                (Join-Path $runtimeRoot $relativePath).Length
+            }
+        }
+
+        $maxHydratedPathLength = $hydratedPathLengths | Measure-Object -Maximum | Select-Object -ExpandProperty Maximum
+
+        $maxHydratedPathLength | Should -BeLessOrEqual 259
     }
 
     It 'restores UTF-8 BOMs only for non-ASCII PowerShell payload files during hydration' {

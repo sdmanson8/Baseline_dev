@@ -501,6 +501,65 @@ function Confirm-ChocolateyBootstrapExecution
 
 <#
     .SYNOPSIS
+    Internal function Get-PackageManagerBootstrapLogLines.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Get-PackageManagerBootstrapLogLines
+{
+	[CmdletBinding()]
+	param(
+		[AllowNull()]
+		[string]$Path
+	)
+
+	if ([string]::IsNullOrWhiteSpace([string]$Path) -or -not (Test-Path -LiteralPath $Path))
+	{
+		return @()
+	}
+
+	return @(
+		Get-Content -LiteralPath $Path |
+			ForEach-Object { [string]$_ } |
+			Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
+	)
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-PackageManagerBootstrapFailureSummary.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Get-PackageManagerBootstrapFailureSummary
+{
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory = $true)]
+		[string]$PackageManager,
+
+		[Parameter(Mandatory = $true)]
+		[string]$ExecutableName,
+
+		[AllowNull()]
+		[string[]]$ErrorLines = @()
+	)
+
+	$summary = '{0} installer reported errors and {1} is still unavailable.' -f $PackageManager, $ExecutableName
+	if ($ErrorLines -and $ErrorLines.Count -gt 0)
+	{
+		$summary = '{0} First error: {1}' -f $summary, ([string]$ErrorLines[0].Trim())
+	}
+
+	return $summary
+}
+
+<#
+    .SYNOPSIS
     Internal function Invoke-WinGetBootstrap.
 
     .DESCRIPTION
@@ -528,6 +587,8 @@ function Invoke-WinGetBootstrap
 	$installerPath = $null
 	$stdoutLog = $null
 	$stderrLog = $null
+	$stdoutLines = @()
+	$stderrLines = @()
 
 	try
 	{
@@ -582,26 +643,28 @@ function Invoke-WinGetBootstrap
 				$process = [pscustomobject]@{ ExitCode = $LASTEXITCODE }
 			}
 
-			if (Test-Path -LiteralPath $stdoutLog)
+			$stdoutLines = @(Get-PackageManagerBootstrapLogLines -Path $stdoutLog)
+			foreach ($stdoutLine in $stdoutLines)
 			{
-				Get-Content -LiteralPath $stdoutLog | ForEach-Object {
-					if ($_) { LogInfo "winget-installer: $_" }
-				}
-				Remove-Item -LiteralPath $stdoutLog -Force -ErrorAction SilentlyContinue
+				LogInfo "winget-installer: $stdoutLine"
 			}
 
-			if (Test-Path -LiteralPath $stderrLog)
+			$stderrLines = @(Get-PackageManagerBootstrapLogLines -Path $stderrLog)
+			foreach ($stderrLine in $stderrLines)
 			{
-				Get-Content -LiteralPath $stderrLog | ForEach-Object {
-				if ($_) { LogError "winget-installer: $_" }
-				}
-				Remove-Item -LiteralPath $stderrLog -Force -ErrorAction SilentlyContinue
+				LogError "winget-installer: $stderrLine"
 			}
 
-			$result.Installed = ($process.ExitCode -eq 0 -or $null -eq $process.ExitCode)
-			if ($result.Installed)
+			$installerExitedCleanly = ($process.ExitCode -eq 0 -or $null -eq $process.ExitCode)
+			$installerReportedErrors = ($stderrLines.Count -gt 0)
+			$result.Installed = $installerExitedCleanly
+			if ($installerExitedCleanly -and -not $installerReportedErrors)
 			{
 				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptCompletedSuccessfully' -Fallback '{0} installer script completed successfully' -FormatArgs @('WinGet'))
+			}
+			elseif ($installerExitedCleanly -and $installerReportedErrors)
+			{
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptReportedErrors' -Fallback '{0} installer script reported errors despite a zero exit code. Running validation before accepting the install.' -FormatArgs @('WinGet'))
 			}
 			else
 			{
@@ -614,19 +677,28 @@ function Invoke-WinGetBootstrap
 			{
 				$result.Available = $true
 				$result.Version = [string]$wingetVersion
+				$result.Installed = $true
 				$result.Success = $true
 				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerValidationSucceeded' -Fallback '{0} validation succeeded. Version: {1}' -FormatArgs @('WinGet', $wingetVersion))
 				return $result
 			}
 
-			if ($result.Installed)
+			if ($installerExitedCleanly -and -not $installerReportedErrors)
 			{
 				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationCompletedButUnavailable' -Fallback '{0} installation completed, but {1} is not available in the current session yet. A new session may be required.' -FormatArgs @('WinGet', 'winget.exe'))
 				$result.Success = $true
 				return $result
 			}
 
-			LogError (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationFailedValidation' -Fallback '{0} installation failed validation after the installer completed.' -FormatArgs @('WinGet'))
+			$validationFailureMessage = if ($installerReportedErrors)
+			{
+				Get-PackageManagerBootstrapFailureSummary -PackageManager 'WinGet' -ExecutableName 'winget.exe' -ErrorLines $stderrLines
+			}
+			else
+			{
+				Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationFailedValidation' -Fallback '{0} installation failed validation after the installer completed.' -FormatArgs @('WinGet')
+			}
+			throw $validationFailureMessage
 		}
 		catch
 		{
@@ -718,6 +790,8 @@ function Invoke-ChocolateyBootstrap
 	$installerPath = $null
 	$stdoutLog = $null
 	$stderrLog = $null
+	$stdoutLines = @()
+	$stderrLines = @()
 
 	try
 	{
@@ -766,26 +840,28 @@ function Invoke-ChocolateyBootstrap
 				$process = [pscustomobject]@{ ExitCode = $LASTEXITCODE }
 			}
 
-			if (Test-Path -LiteralPath $stdoutLog)
+			$stdoutLines = @(Get-PackageManagerBootstrapLogLines -Path $stdoutLog)
+			foreach ($stdoutLine in $stdoutLines)
 			{
-				Get-Content -LiteralPath $stdoutLog | ForEach-Object {
-					if ($_) { LogInfo "chocolatey-installer: $_" }
-				}
-				Remove-Item -LiteralPath $stdoutLog -Force -ErrorAction SilentlyContinue
+				LogInfo "chocolatey-installer: $stdoutLine"
 			}
 
-			if (Test-Path -LiteralPath $stderrLog)
+			$stderrLines = @(Get-PackageManagerBootstrapLogLines -Path $stderrLog)
+			foreach ($stderrLine in $stderrLines)
 			{
-				Get-Content -LiteralPath $stderrLog | ForEach-Object {
-					if ($_) { LogError "chocolatey-installer: $_" }
-				}
-				Remove-Item -LiteralPath $stderrLog -Force -ErrorAction SilentlyContinue
+				LogError "chocolatey-installer: $stderrLine"
 			}
 
-			$result.Installed = ($process.ExitCode -eq 0 -or $null -eq $process.ExitCode)
-			if ($result.Installed)
+			$installerExitedCleanly = ($process.ExitCode -eq 0 -or $null -eq $process.ExitCode)
+			$installerReportedErrors = ($stderrLines.Count -gt 0)
+			$result.Installed = $installerExitedCleanly
+			if ($installerExitedCleanly -and -not $installerReportedErrors)
 			{
 				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptCompletedSuccessfully' -Fallback '{0} installer script completed successfully' -FormatArgs @('Chocolatey'))
+			}
+			elseif ($installerExitedCleanly -and $installerReportedErrors)
+			{
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptReportedErrors' -Fallback '{0} installer script reported errors despite a zero exit code. Running validation before accepting the install.' -FormatArgs @('Chocolatey'))
 			}
 			else
 			{
@@ -798,19 +874,28 @@ function Invoke-ChocolateyBootstrap
 			{
 				$result.Available = $true
 				$result.Version = [string]$chocolateyVersion
+				$result.Installed = $true
 				$result.Success = $true
 				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerValidationSucceeded' -Fallback '{0} validation succeeded. Version: {1}' -FormatArgs @('Chocolatey', $chocolateyVersion))
 				return $result
 			}
 
-			if ($result.Installed)
+			if ($installerExitedCleanly -and -not $installerReportedErrors)
 			{
 				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationCompletedButUnavailable' -Fallback '{0} installation completed, but {1} is not available in the current session yet. A new session may be required.' -FormatArgs @('Chocolatey', 'choco.exe'))
 				$result.Success = $true
 				return $result
 			}
 
-			LogError (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationFailedValidation' -Fallback '{0} installation failed validation after the installer completed.' -FormatArgs @('Chocolatey'))
+			$validationFailureMessage = if ($installerReportedErrors)
+			{
+				Get-PackageManagerBootstrapFailureSummary -PackageManager 'Chocolatey' -ExecutableName 'choco.exe' -ErrorLines $stderrLines
+			}
+			else
+			{
+				Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationFailedValidation' -Fallback '{0} installation failed validation after the installer completed.' -FormatArgs @('Chocolatey')
+			}
+			throw $validationFailureMessage
 		}
 		catch
 		{
@@ -953,7 +1038,7 @@ function Get-BaselineLatestReleaseAssetUrl
 		throw "No releases found at $apiUrl"
 	}
 
-	$latest = $releases | Where-Object { -not $_.draft } | Select-Object -First 1
+	$latest = Get-BaselineLatestReleaseEntry -Releases $releases
 	if (-not $latest)
 	{
 		throw "No non-draft releases found at $apiUrl"

@@ -87,3 +87,118 @@ Describe 'Resolve-ChocolateyExecutable' {
         }
     }
 }
+
+Describe 'Invoke-WinGetBootstrap' {
+    BeforeEach {
+        $script:wingetBootstrapInfoMessages = [System.Collections.Generic.List[string]]::new()
+        $script:wingetBootstrapWarningMessages = [System.Collections.Generic.List[string]]::new()
+        $script:wingetBootstrapErrorMessages = [System.Collections.Generic.List[string]]::new()
+        $script:wingetVersionCallCount = 0
+        $script:previousTemp = $env:TEMP
+        $env:TEMP = $TestDrive
+
+        function Get-BaselineBilingualString {
+            param(
+                [string]$Key,
+                [string]$Fallback,
+                [object[]]$FormatArgs = @()
+            )
+
+            if ($FormatArgs.Count -gt 0) {
+                return ($Fallback -f $FormatArgs)
+            }
+
+            return $Fallback
+        }
+
+        function LogInfo {
+            param([string]$Message)
+            [void]$script:wingetBootstrapInfoMessages.Add($Message)
+        }
+
+        function LogWarning {
+            param([string]$Message)
+            [void]$script:wingetBootstrapWarningMessages.Add($Message)
+        }
+
+        function LogError {
+            param([string]$Message)
+            [void]$script:wingetBootstrapErrorMessages.Add($Message)
+        }
+
+        function Repair-WinGetPackageManager { }
+    }
+
+    AfterEach {
+        $env:TEMP = $script:previousTemp
+        Remove-Item Function:\Get-BaselineBilingualString -ErrorAction SilentlyContinue
+        Remove-Item Function:\LogInfo -ErrorAction SilentlyContinue
+        Remove-Item Function:\LogWarning -ErrorAction SilentlyContinue
+        Remove-Item Function:\LogError -ErrorAction SilentlyContinue
+        Remove-Item Function:\Repair-WinGetPackageManager -ErrorAction SilentlyContinue
+    }
+
+    It 'does not accept a zero exit code as success when stderr reported errors and winget is still unavailable' {
+        Mock Invoke-DownloadFile {
+            param($Uri, $OutFile)
+            Set-Content -LiteralPath $OutFile -Value 'installer' -Encoding ASCII
+        }
+        Mock Assert-FileHash { 'OK' }
+        Mock Start-Process { [pscustomobject]@{ ExitCode = 0 } }
+        Mock Get-PackageManagerBootstrapLogLines {
+            param($Path)
+            if ([string]$Path -like '*stderr*') {
+                return @('Add-AppxPackage : Deployment failed with HRESULT: 0x80073CF1')
+            }
+
+            return @('winget-install completed')
+        }
+        Mock Get-WinGetVersion {
+            $script:wingetVersionCallCount++
+            return $null
+        }
+        Mock Start-Sleep {}
+        Mock Set-PSRepository { throw 'repair path hit' }
+        Mock Install-PackageProvider {}
+        Mock Install-Module {}
+        Mock Import-Module {}
+        Mock Repair-WinGetPackageManager {}
+        Mock Reset-WinGetAvailabilityState {}
+
+        $result = Invoke-WinGetBootstrap
+
+        $result.Success | Should -BeFalse
+        ($script:wingetBootstrapWarningMessages -join "`n") | Should -Match 'reported errors despite a zero exit code'
+        ($script:wingetBootstrapErrorMessages -join "`n") | Should -Match 'winget\.exe is still unavailable\. First error: Add-AppxPackage'
+    }
+
+    It 'treats a clean installer with no stderr as success even if winget needs a new session' {
+        Mock Invoke-DownloadFile {
+            param($Uri, $OutFile)
+            Set-Content -LiteralPath $OutFile -Value 'installer' -Encoding ASCII
+        }
+        Mock Assert-FileHash { 'OK' }
+        Mock Start-Process { [pscustomobject]@{ ExitCode = 0 } }
+        Mock Get-PackageManagerBootstrapLogLines {
+            param($Path)
+            if ([string]$Path -like '*stderr*') {
+                return @()
+            }
+
+            return @('winget-install completed')
+        }
+        Mock Get-WinGetVersion {
+            $script:wingetVersionCallCount++
+            return $null
+        }
+        Mock Start-Sleep {}
+        Mock Reset-WinGetAvailabilityState {}
+
+        $result = Invoke-WinGetBootstrap
+
+        $result.Success | Should -BeTrue
+        $result.Installed | Should -BeTrue
+        $result.Available | Should -BeFalse
+        ($script:wingetBootstrapWarningMessages -join "`n") | Should -Match 'installation completed, but winget\.exe is not available in the current session yet'
+    }
+}

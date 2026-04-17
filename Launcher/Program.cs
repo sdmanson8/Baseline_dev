@@ -26,6 +26,8 @@ namespace Baseline.RunLauncher
         private const string PayloadPrefix = "BaselinePayload/";
         private const string HydrationSentinel = ".baseline-runtime-ready";
         private const string RuntimeCacheSchema = "4";
+        private const string RuntimeCacheFolderName = "RC";
+        private const string StagingSuffix = ".s";
         private static readonly byte[] Utf8Bom = new byte[] { 0xEF, 0xBB, 0xBF };
         private const int DefaultPowerShellTimeoutSeconds = 1800;
         private const string PowerShellTimeoutSecondsVar = "BASELINE_POWERSHELL_TIMEOUT_SECONDS";
@@ -125,7 +127,7 @@ namespace Baseline.RunLauncher
                 localAppData = Path.Combine(Path.GetTempPath(), "Baseline_LocalAppData");
             }
 
-            var cacheRoot = Path.Combine(localAppData, "Baseline", "RuntimeCache");
+            var cacheRoot = Path.Combine(localAppData, "Baseline", RuntimeCacheFolderName);
             var runtimeRoot = Path.Combine(cacheRoot, version, RuntimeCacheSchema, buildId);
             if (IsRuntimeReady(runtimeRoot, payloadResources)) return runtimeRoot;
 
@@ -141,7 +143,7 @@ namespace Baseline.RunLauncher
                 }
 
                 if (Directory.Exists(runtimeRoot)) Directory.Delete(runtimeRoot, true);
-                var staging = runtimeRoot + ".staging";
+                var staging = runtimeRoot + StagingSuffix;
                 if (Directory.Exists(staging)) Directory.Delete(staging, true);
                 Directory.CreateDirectory(staging);
 

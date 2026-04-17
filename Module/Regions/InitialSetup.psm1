@@ -202,6 +202,8 @@ function CheckWinGet
 	$installerPath = $null
 	$stdoutLog = $null
 	$stderrLog = $null
+	$stdoutLines = @()
+	$stderrLines = @()
 
 	try
 	{
@@ -271,24 +273,31 @@ function CheckWinGet
 
 			if (Test-Path $stdoutLog)
 			{
-				Get-Content $stdoutLog | ForEach-Object {
-					if ($_) { LogInfo "winget-installer: $_" }
+				$stdoutLines = @(Get-Content $stdoutLog | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+				foreach ($stdoutLine in $stdoutLines)
+				{
+					LogInfo "winget-installer: $stdoutLine"
 				}
-				Remove-Item $stdoutLog -Force -ErrorAction SilentlyContinue
 			}
 
 			if (Test-Path $stderrLog)
 			{
-				Get-Content $stderrLog | ForEach-Object {
-					if ($_) { LogError "winget-installer: $_" }
+				$stderrLines = @(Get-Content $stderrLog | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+				foreach ($stderrLine in $stderrLines)
+				{
+					LogError "winget-installer: $stderrLine"
 				}
-				Remove-Item $stderrLog -Force -ErrorAction SilentlyContinue
 			}
 
 			$installerCompletedSuccessfully = ($process.ExitCode -eq 0 -or $null -eq $process.ExitCode)
-			if ($installerCompletedSuccessfully)
+			$installerReportedErrors = ($stderrLines.Count -gt 0)
+			if ($installerCompletedSuccessfully -and -not $installerReportedErrors)
 			{
 				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptCompletedSuccessfully' -Fallback '{0} installer script completed successfully' -FormatArgs @('WinGet'))
+			}
+			elseif ($installerCompletedSuccessfully -and $installerReportedErrors)
+			{
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptReportedErrors' -Fallback '{0} installer script reported errors despite a zero exit code. Running validation before accepting the install.' -FormatArgs @('WinGet'))
 			}
 			else
 			{
@@ -305,7 +314,7 @@ function CheckWinGet
 				return
 			}
 
-			if ($installerCompletedSuccessfully)
+			if ($installerCompletedSuccessfully -and -not $installerReportedErrors)
 			{
 				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationCompletedButUnavailable' -Fallback '{0} installation completed, but {1} is not available in the current session yet. A new session may be required.' -FormatArgs @('WinGet', 'winget.exe'))
 				Write-ConsoleStatus -Status success
@@ -313,10 +322,15 @@ function CheckWinGet
 				return
 			}
 
-			LogError (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationFailedValidation' -Fallback '{0} installation failed validation after the installer completed.' -FormatArgs @('WinGet'))
-			Write-ConsoleStatus -Status failed
-			& $updateStartupSplashState -HideProgressBar
-			return
+			$validationFailureMessage = if ($installerReportedErrors)
+			{
+				"WinGet installer reported errors and winget.exe is still unavailable. First error: $([string]$stderrLines[0].Trim())"
+			}
+			else
+			{
+				Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationFailedValidation' -Fallback '{0} installation failed validation after the installer completed.' -FormatArgs @('WinGet')
+			}
+			throw $validationFailureMessage
 		}
 		catch
 		{
@@ -520,22 +534,38 @@ function Initialize-PackageManagersBootstrap
 		}
 		else
 		{
-			try
+			if (-not (Test-BaselineEnvironmentFlagEnabled -Name 'BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP'))
 			{
-				$jobs += Start-Job -Name 'ChocolateyBootstrap' -ScriptBlock $jobScriptBlock -ArgumentList @('Chocolatey', $loggingModulePath, $sharedHelpersModulePath, $logFilePath)
-			}
-			catch
-			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_FailedToStartPackageManagerBootstrapJob' -Fallback 'Failed to start {0} bootstrap job: {1}' -FormatArgs @('Chocolatey', $_.Exception.Message))
+				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_SkippingChocolateyStartupBootstrapApprovalRequired' -Fallback 'Skipping automatic Chocolatey bootstrap during startup because explicit approval is required. Chocolatey will be installed on demand after approval.')
 				[void]$results.Add([pscustomobject]@{
 					PackageManager = 'Chocolatey'
 					Available      = $false
 					Installed      = $false
 					Repaired       = $false
 					Version        = $null
-					Success        = $false
-					Error          = $_.Exception.Message
+					Success        = $true
+					Error          = $null
 				})
+			}
+			else
+			{
+				try
+				{
+					$jobs += Start-Job -Name 'ChocolateyBootstrap' -ScriptBlock $jobScriptBlock -ArgumentList @('Chocolatey', $loggingModulePath, $sharedHelpersModulePath, $logFilePath)
+				}
+				catch
+				{
+					LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_FailedToStartPackageManagerBootstrapJob' -Fallback 'Failed to start {0} bootstrap job: {1}' -FormatArgs @('Chocolatey', $_.Exception.Message))
+					[void]$results.Add([pscustomobject]@{
+						PackageManager = 'Chocolatey'
+						Available      = $false
+						Installed      = $false
+						Repaired       = $false
+						Version        = $null
+						Success        = $false
+						Error          = $_.Exception.Message
+					})
+				}
 			}
 		}
 

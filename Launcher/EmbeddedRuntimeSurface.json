@@ -11,6 +11,7 @@
     "Module/GUICommon/*.ps1",
     "Module/GUIExecution.psm1",
     "Module/SharedHelpers/*.ps1",
+    "Module/SharedHelperModules/*.psm1",
     "Module/GUI/*.ps1",
     "Module/GUI/*.xaml",
     "Module/Regions/**/*.psm1",

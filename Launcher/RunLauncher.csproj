@@ -105,4 +105,18 @@
   <Target Name="RemoveAppConfig" AfterTargets="Build">
     <Delete Files="$(OutputPath)$(AssemblyName).exe.config" />
   </Target>
+  <!-- Mirror the runtime libraries into Module/Libraries/ so dev-mode launches
+       (running the PowerShell module directly from the repo, without hydrating
+       the packaged Baseline.exe payload) can resolve Markdig at runtime. -->
+  <Target Name="SyncModuleLibraries"
+          AfterTargets="Build"
+          DependsOnTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <_ModuleLibrarySync Include="@(ReferenceCopyLocalPaths)"
+                          Condition="'%(Extension)' == '.dll'" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_ModuleLibrarySync)"
+          DestinationFolder="$(MSBuildProjectDirectory)/../Module/Libraries"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>

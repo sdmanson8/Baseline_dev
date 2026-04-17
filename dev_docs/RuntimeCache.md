@@ -3,9 +3,9 @@
 Baseline's embedded launcher hydrates its bundled PowerShell payload into a per-user runtime
 cache under:
 
-`%LOCALAPPDATA%\Baseline\RuntimeCache\<version>\3\<buildId>\`
+`%LOCALAPPDATA%\Baseline\RC\<version>\4\<buildId>\`
 
-The `3` segment is the current runtime-cache schema version from `Launcher/Program.cs`.
+The `4` segment is the current runtime-cache schema version from `Launcher/Program.cs`.
 
 ## What It Stores
 
@@ -23,24 +23,28 @@ The hydrated root is considered ready only when the launcher finds the sentinel 
 ## When The Cache Is Used
 
 On startup, the launcher first checks whether it is already running from a ready runtime root.
-If so, it executes in place and does not use `%LOCALAPPDATA%\Baseline\RuntimeCache`.
+If so, it executes in place and does not use `%LOCALAPPDATA%\Baseline\RC`.
 
 Otherwise it:
 
 1. reads the public bundle version from assembly metadata
 2. derives a build ID from the assembly module version ID
-3. uses `%LOCALAPPDATA%\Baseline\RuntimeCache\<version>\3\<buildId>\` as the hydration target
+3. uses `%LOCALAPPDATA%\Baseline\RC\<version>\4\<buildId>\` as the hydration target
 4. reuses that directory immediately if it already passes the readiness check
 
 ## Hydration Behaviour
 
 Hydration is protected by a single cache-root lock file:
 
-`%LOCALAPPDATA%\Baseline\RuntimeCache\.hydrate.lock`
+`%LOCALAPPDATA%\Baseline\RC\.hydrate.lock`
 
 The launcher extracts into a sibling staging directory, writes the sentinel last, and then
 renames the staging directory into place. If a target directory for the same build already
 exists but is not ready, the launcher deletes it and rehydrates the payload from scratch.
+
+The shorter `RC` cache root and `.s` staging suffix keep hydrated payload paths below classic
+`MAX_PATH` limits for long bundled CBS manifest filenames on machines that do not enable
+Windows long-path policy globally.
 
 This means:
 
