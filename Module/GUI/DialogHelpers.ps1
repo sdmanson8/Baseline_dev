@@ -1,3 +1,13 @@
+﻿# ──────────────────────────────────────────────────────────────────
+# DialogHelpers.ps1
+# Shared dialog builders and dialog-scoped UI helpers extracted from
+# Show-TweakGUI (GUI.psm1). Dot-sourced inside Show-TweakGUI so all
+# $Script: and local UI variables remain in scope.
+# Planned decomposition path: extract log-viewer, risk/help dialogs,
+# and reusable XAML/style builders into focused peer files as they
+# stabilize behind their current helper boundaries.
+# ──────────────────────────────────────────────────────────────────
+#
 # Dialog helper functions: risk decision, help, and log viewer dialogs
 
 	<#

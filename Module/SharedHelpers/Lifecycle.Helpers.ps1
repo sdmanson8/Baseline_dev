@@ -64,10 +64,21 @@ function Get-BaselineReleaseArtifactVerification
 		[Parameter(Mandatory)]
 		[string]$Path,
 
-		[string[]]$AllowedSubjects = @('CN=Microsoft Corporation'),
+		[string[]]$AllowedSubjects = @(),
 
-		[switch]$RequireTimestamp = $true
+		[switch]$RequireTimestamp = $true,
+
+		[switch]$AllowUnsignedPreview
 	)
+
+	if (-not $PSBoundParameters.ContainsKey('AllowUnsignedPreview'))
+	{
+		$previewEnv = [string]$env:BASELINE_PREVIEW_UNSIGNED
+		if (-not [string]::IsNullOrWhiteSpace($previewEnv) -and ($previewEnv -match '^(?i:1|true|yes|on)$'))
+		{
+			$AllowUnsignedPreview = $true
+		}
+	}
 
 	$verification = [ordered]@{
 		Path              = $Path
@@ -79,6 +90,7 @@ function Get-BaselineReleaseArtifactVerification
 		TimestampStatus   = 'Missing'
 		TimestampSubject  = $null
 		AllowedSubjects   = @($AllowedSubjects)
+		PreviewAcknowledged = [bool]$AllowUnsignedPreview
 		VerificationState = 'Missing'
 		VerificationMessage = 'Artifact not found.'
 		VerificationAt    = [System.DateTime]::UtcNow.ToString('o')
@@ -155,8 +167,16 @@ function Get-BaselineReleaseArtifactVerification
 
 	if ($issues.Count -gt 0)
 	{
-		$verification.VerificationState = 'Invalid'
-		$verification.VerificationMessage = ($issues -join '; ')
+		if ($AllowUnsignedPreview)
+		{
+			$verification.VerificationState = 'Preview'
+			$verification.VerificationMessage = 'Unsigned preview release accepted: ' + ($issues -join '; ')
+		}
+		else
+		{
+			$verification.VerificationState = 'Invalid'
+			$verification.VerificationMessage = ($issues -join '; ')
+		}
 	}
 	else
 	{
@@ -182,13 +202,24 @@ function Assert-BaselineReleaseArtifactVerification
 		[Parameter(Mandatory)]
 		[string]$Path,
 
-		[string[]]$AllowedSubjects = @('CN=Microsoft Corporation'),
+		[string[]]$AllowedSubjects = @(),
 
-		[switch]$RequireTimestamp = $true
+		[switch]$RequireTimestamp = $true,
+
+		[switch]$AllowUnsignedPreview
 	)
 
-	$verification = Get-BaselineReleaseArtifactVerification -Path $Path -AllowedSubjects $AllowedSubjects -RequireTimestamp:$RequireTimestamp
-	if ($verification.VerificationState -ne 'Valid')
+	if (-not $PSBoundParameters.ContainsKey('AllowUnsignedPreview'))
+	{
+		$previewEnv = [string]$env:BASELINE_PREVIEW_UNSIGNED
+		if (-not [string]::IsNullOrWhiteSpace($previewEnv) -and ($previewEnv -match '^(?i:1|true|yes|on)$'))
+		{
+			$AllowUnsignedPreview = $true
+		}
+	}
+
+	$verification = Get-BaselineReleaseArtifactVerification -Path $Path -AllowedSubjects $AllowedSubjects -RequireTimestamp:$RequireTimestamp -AllowUnsignedPreview:$AllowUnsignedPreview
+	if ($verification.VerificationState -notin @('Valid', 'Preview'))
 	{
 		throw ("Artifact verification failed for '{0}': {1}" -f $verification.Path, $verification.VerificationMessage)
 	}

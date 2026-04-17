@@ -17,6 +17,7 @@ param (
     [string]$LogFile
 )
 
+# Continue intentionally so the suite captures output from each validation layer before summarizing.
 $ErrorActionPreference = 'Continue'
 $repoRoot = Split-Path -Path $PSScriptRoot -Parent
 

@@ -26,3 +26,67 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           & .\Tools\Validate-ManifestData.ps1
+
+  release-readiness:
+    runs-on: windows-latest
+    needs: validate
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build launcher
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & .\Tools\Build-Launcher.ps1 -CopyToRepoRoot
+
+      - name: Run release smoke tests
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & .\Tools\Test-ReleaseSmoke.ps1
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          choco install innosetup --no-progress -y
+
+      - name: Build release package
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & .\Tools\New-ReleasePackage.ps1 -Force
+
+      - name: Validate release artifact layout
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Get-ChildItem -Path .\dist -Filter 'Baseline-*.zip' -File | Select-Object -First 1
+          if (-not $zip) { throw 'No release zip produced under .\dist' }
+          $stage = Join-Path $env:RUNNER_TEMP 'release-validate'
+          if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
+          Expand-Archive -LiteralPath $zip.FullName -DestinationPath $stage -Force
+          $setup = Get-ChildItem -Path $stage -Filter 'Baseline-setup-*.exe' -Recurse -File -Depth 3 | Select-Object -First 1
+          if (-not $setup) { throw "Release zip $($zip.FullName) does not contain Baseline-setup-*.exe (bootstrap would fail)." }
+          Write-Host "OK: $($zip.Name) -> $($setup.FullName)"
+
+      - name: Validate bootstrap setup-exe probe matches artifact layout
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $stage = Join-Path $env:RUNNER_TEMP 'release-validate'
+          $bootstrapPath = Join-Path (Get-Location) 'Bootstrap\Bootstrap.ps1'
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile($bootstrapPath, [ref]$null, [ref]$null)
+          $fn = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Find-BootstrapSetupExecutable' }, $true) | Select-Object -First 1
+          if (-not $fn) { throw 'Find-BootstrapSetupExecutable is missing from Bootstrap.ps1' }
+          Invoke-Expression $fn.Extent.Text
+          $resolved = Find-BootstrapSetupExecutable -ExtractRoot $stage
+          if (-not $resolved) { throw "Bootstrap probe could not find the setup exe under $stage" }
+          Write-Host "OK: bootstrap resolves $resolved"

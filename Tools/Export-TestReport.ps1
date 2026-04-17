@@ -26,6 +26,7 @@ param (
     [switch]$NoBadge
 )
 
+# Continue intentionally so the report can aggregate results from every validation layer.
 $ErrorActionPreference = 'Continue'
 Set-StrictMode -Version Latest
 

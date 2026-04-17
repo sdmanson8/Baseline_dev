@@ -278,13 +278,15 @@ Baseline remote targeting is GUI-capable for connected targets and includes the 
 
 ### Remote bootstrap (advanced)
 
-For convenience, you can download and launch directly from GitHub:
+For convenience, you can download and install directly from GitHub:
 
 ```powershell
 iwr https://raw.githubusercontent.com/sdmanson8/Baseline/main/Bootstrap/Bootstrap.ps1 -UseBasicParsing | iex
 ```
 
-> **Security note:** This uses pipe-to-IEX with no integrity verification beyond HTTPS/TLS. For higher assurance, download the archive manually, verify the commit hash, and run `Bootstrap\Baseline.ps1` directly.
+The bootstrap pulls the latest release zip from GitHub, extracts it, and runs the bundled `Baseline-setup-<version>.exe` installer. After the installer exits, if an installed `Baseline.exe` can be found it is launched (honoring `-Preset` / `BASELINE_PRESET`). If it cannot be found, launch Baseline from the Start Menu.
+
+> **Security note:** This uses pipe-to-IEX with no integrity verification beyond HTTPS/TLS. For higher assurance, download the release zip manually from the Releases page, verify its checksum, and run `Baseline-setup-<version>.exe` directly.
 
 ### Interactive session / tab completion
 
@@ -314,7 +316,7 @@ $env:BASELINE_PRESET = 'Basic'
 iwr https://raw.githubusercontent.com/sdmanson8/Baseline/main/Bootstrap/Bootstrap.ps1 -UseBasicParsing | iex
 ```
 
-The bootstrap flow downloads the repository archive, extracts it to `%USERPROFILE%\Downloads\Baseline-Bootstrap`, and launches the standard entry point. When `BASELINE_PRESET` is present, the preset is forwarded into the noninteractive runner.
+The bootstrap flow downloads the release zip to `%USERPROFILE%\Downloads\Baseline-Bootstrap`, runs the bundled setup installer, then launches the installed `Baseline.exe`. When `BASELINE_PRESET` is present, the preset is forwarded into the noninteractive runner after install.
 
 Preview Run lets you inspect every change before it is applied. In Safe Mode, the GUI surfaces `Minimal`, `Apply Tweaks`, and `Undo Selection Change` as the beginner path. Standard mode keeps the existing `Basic`, `Run Tweaks`, and `Restore Snapshot` wording, while Expert Mode keeps `Run Tweaks` but also uses `Undo Selection Change`. Scenario-mode actions for Workstation, Privacy, and Recovery remain available alongside Import Settings and Export Settings. Post-run summaries can also export a rollback profile when direct undo commands are available. That rollback export is separate from `Undo Selection Change` and from restoring Windows defaults.
 

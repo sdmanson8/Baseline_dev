@@ -2,19 +2,34 @@
 
 Baseline release artifacts are treated as trust-boundary inputs. The policy below is the operational contract for installer and release validation.
 
+## Current release posture
+
+Baseline 4.x public preview releases currently ship **unsigned**. Code signing infrastructure (HSM-held certificate, approved signer list, timestamp authority) is planned but not yet in place, so the lifecycle helpers operate in a preview mode that accepts unsigned installers when the operator explicitly acknowledges the posture.
+
+To run an upgrade or downgrade playbook against a preview (unsigned) artifact, acknowledge the posture before invoking the tooling:
+
+```powershell
+$env:BASELINE_PREVIEW_UNSIGNED = '1'
+powershell -File .\Tools\Invoke-LifecyclePlaybook.ps1 -Operation Upgrade -InstallerPath .\dist\Baseline-setup-<version>.exe
+```
+
+Or pass `-AllowUnsignedPreview` directly to `Get-BaselineReleaseArtifactVerification` / `Assert-BaselineReleaseArtifactVerification`. The verification record is surfaced with `VerificationState = 'Preview'` so that audit, support-bundle, and remote-rollout records honestly reflect that the artifact was unsigned.
+
+The signed-release policy below is the target state. It becomes mandatory the moment a release is promoted to an enterprise deployment channel — at that point `BASELINE_PREVIEW_UNSIGNED` must not be set, and `-AllowUnsignedPreview` must not be used.
+
 ## Scope
 
 - `Baseline-setup-<version>.exe`
 - `Baseline-<version>.zip`
 - any release payload that is promoted to an enterprise deployment channel
 
-## Policy
+## Policy (applies once signing is in place / to any promoted release)
 
 1. Release artifacts must be generated from the tagged repository state that produced the release version.
-2. Release artifacts must be Authenticode signed before they are published or promoted.
-3. The signing certificate subject must match the approved release signer list for the environment.
+2. Release artifacts must be Authenticode signed before they are published or promoted to an enterprise channel.
+3. The signing certificate subject must match the approved release signer list for the environment (configured via `-AllowedSubjects`).
 4. Operators must verify the artifact signature before execution on managed endpoints.
-5. Unsigned, tampered, or unverifiable artifacts must not be used for upgrade, downgrade, or rollback workflows.
+5. Unsigned, tampered, or unverifiable artifacts must not be used for upgrade, downgrade, or rollback workflows on promoted releases, and `BASELINE_PREVIEW_UNSIGNED` must not be set in that environment.
 
 ## Verification
 

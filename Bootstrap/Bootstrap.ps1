@@ -1,6 +1,6 @@
 ﻿<#
     .SYNOPSIS
-    Download and launch Baseline from GitHub.
+    Download and install Baseline from GitHub.
 
     .DESCRIPTION
     This script is designed to be hosted at a raw GitHub URL and executed with
@@ -8,19 +8,21 @@
 
         iwr https://raw.githubusercontent.com/sdmanson8/Baseline/main/Bootstrap/Bootstrap.ps1 -UseBasicParsing | iex
 
-    It queries the GitHub Releases API for the latest release (including
-    pre-releases), downloads the release asset zip, extracts it to a folder
-    under the user's Downloads directory, and launches the repo's root
-    Baseline.exe entrypoint. When
-    BASELINE_PRESET is set or -Preset is supplied, the preset is forwarded
-    into the noninteractive runner.
+    It queries the GitHub Releases API for the latest non-draft release,
+    downloads the release asset zip, extracts it to a folder under the user's
+    Downloads directory, and runs the Inno Setup installer
+    (Baseline-setup-<version>.exe) contained in the archive. After the
+    installer exits, if an installed Baseline.exe can be located it is
+    launched; when BASELINE_PRESET is set or -Preset is supplied, the preset
+    is forwarded to the installed launcher.
 
     .NOTES
     SECURITY: This bootstrap uses pipe-to-IEX with no integrity verification
     (no hash check, signature validation, or certificate pinning). The download
     is protected by TLS 1.2 to GitHub over HTTPS, but a compromised DNS or TLS
     interception could serve modified code. For higher assurance, download the
-    archive manually, verify the commit hash, and run Bootstrap\Baseline.ps1 directly.
+    release zip manually from the Releases page, verify its checksum, and run
+    the setup executable directly.
 #>
 
 [CmdletBinding()]
@@ -128,26 +130,59 @@ function Invoke-DownloadFile
 
 <#
     .SYNOPSIS
-    Internal function Get-RepositoryRoot.
+    Internal function Find-BootstrapSetupExecutable.
 
     .DESCRIPTION
-    Internal implementation helper used by Baseline.
+    Locates the Baseline-setup-<version>.exe installer inside the extracted
+    release archive. Searches up to three directory levels so minor archive
+    layout changes do not break the bootstrap.
 #>
 
-function Get-RepositoryRoot
+function Find-BootstrapSetupExecutable
 {
     param(
         [Parameter(Mandatory = $true)]
         [string]$ExtractRoot
     )
 
-    $repoRoot = Get-ChildItem -Path $ExtractRoot -Directory -ErrorAction Stop | Select-Object -First 1
-    if (-not $repoRoot)
+    $match = Get-ChildItem -Path $ExtractRoot -Filter 'Baseline-setup-*.exe' -Recurse -File -Depth 3 -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if (-not $match)
     {
-        throw 'The extracted archive did not contain a repository root folder.'
+        return $null
     }
 
-    return $repoRoot.FullName
+    return $match.FullName
+}
+
+<#
+    .SYNOPSIS
+    Internal function Find-InstalledBaselineExecutable.
+
+    .DESCRIPTION
+    Probes the common Inno Setup install locations produced by
+    Baseline-Setup.iss (per-machine under Program Files, per-user under
+    %LOCALAPPDATA%\Programs) and returns the first Baseline.exe it finds.
+#>
+
+function Find-InstalledBaselineExecutable
+{
+    $candidates = @()
+    foreach ($root in @($env:ProgramFiles, ${env:ProgramFiles(x86)}, (Join-Path $env:LOCALAPPDATA 'Programs')))
+    {
+        if ([string]::IsNullOrWhiteSpace([string]$root)) { continue }
+        $candidates += (Join-Path $root 'Baseline\Baseline.exe')
+    }
+
+    foreach ($candidate in $candidates)
+    {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf)
+        {
+            return $candidate
+        }
+    }
+
+    return $null
 }
 
 <#
@@ -406,16 +441,13 @@ try
         throw "No non-draft releases found at $apiUrl"
     }
 
-    # Prefer the uploaded .zip asset; fall back to the GitHub-generated zipball.
+    # The release asset is a zip whose payload is the Inno Setup installer.
     $asset = $latest.assets | Where-Object { $_.name -like '*.zip' } | Select-Object -First 1
-    if ($asset)
+    if (-not $asset)
     {
-        $downloadUrl = $asset.browser_download_url
+        throw "Release $($latest.tag_name) does not expose a .zip asset at $apiUrl. The bootstrap expects the release-zip produced by Tools/New-ReleasePackage.ps1."
     }
-    else
-    {
-        $downloadUrl = $latest.zipball_url
-    }
+    $downloadUrl = $asset.browser_download_url
 
     # Write-Host: intentional — bootstrap progress output
     Write-Host "Downloading $Repository $($latest.tag_name) from $downloadUrl"
@@ -424,12 +456,24 @@ try
     New-Item -ItemType Directory -Path $extractRoot -Force | Out-Null
     Expand-Archive -LiteralPath $archivePath -DestinationPath $extractRoot -Force
 
-    $repoRoot = Get-RepositoryRoot -ExtractRoot $extractRoot
-    $runExe = Join-Path $repoRoot 'Baseline.exe'
-
-    if (-not (Test-Path -LiteralPath $runExe))
+    $setupExe = Find-BootstrapSetupExecutable -ExtractRoot $extractRoot
+    if (-not $setupExe)
     {
-        throw "Baseline.exe was not found in the extracted repository: $repoRoot"
+        throw "Baseline-setup-*.exe was not found in the extracted archive under $extractRoot."
+    }
+
+    Write-Host "Running installer $setupExe..."
+    $setupProcess = Start-Process -FilePath $setupExe -Wait -PassThru
+    if ($setupProcess.ExitCode -ne 0)
+    {
+        throw "Baseline installer exited with code $($setupProcess.ExitCode)."
+    }
+
+    $installedExe = Find-InstalledBaselineExecutable
+    if (-not $installedExe)
+    {
+        Write-Host "Baseline installed. Launch it from the Start Menu — no installed Baseline.exe found in the default locations."
+        return
     }
 
     $previousPreset = $env:BASELINE_PRESET
@@ -437,24 +481,19 @@ try
     if (-not [string]::IsNullOrWhiteSpace([string]$Preset))
     {
         $env:BASELINE_PRESET = $Preset
-    }
-
-    if (-not [string]::IsNullOrWhiteSpace([string]$Preset))
-    {
-        Write-Host "Launching Baseline headless run with preset '$Preset'..."
+        Write-Host "Launching $installedExe with preset '$Preset'..."
     }
     else
     {
-        Write-Host "Launching Baseline..."
+        Write-Host "Launching $installedExe..."
     }
-    Push-Location $repoRoot
+
     try
     {
-        & $runExe
+        & $installedExe
     }
     finally
     {
-        Pop-Location
         if ($hadPreviousPreset)
         {
             $env:BASELINE_PRESET = $previousPreset
