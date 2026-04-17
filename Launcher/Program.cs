@@ -107,10 +107,16 @@ namespace Baseline.RunLauncher
         /// <returns>The hydrated runtime root directory.</returns>
         private static string EnsureHydratedRuntime()
         {
-            var scriptRoot = AppContext.BaseDirectory;
-            if (IsRuntimeReady(scriptRoot)) return scriptRoot;
-
             var asm = Assembly.GetExecutingAssembly();
+            var payloadResources = GetEmbeddedPayloadResourceNames(asm);
+            if (payloadResources.Length == 0)
+            {
+                throw new InvalidOperationException("Embedded runtime payload is missing.");
+            }
+
+            var scriptRoot = AppContext.BaseDirectory;
+            if (IsRuntimeReady(scriptRoot, payloadResources)) return scriptRoot;
+
             var version = GetBundleVersion(asm);
             var buildId = GetBundleBuildId(asm);
             var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -121,12 +127,12 @@ namespace Baseline.RunLauncher
 
             var cacheRoot = Path.Combine(localAppData, "Baseline", "RuntimeCache");
             var runtimeRoot = Path.Combine(cacheRoot, version, RuntimeCacheSchema, buildId);
-            if (IsRuntimeReady(runtimeRoot)) return runtimeRoot;
+            if (IsRuntimeReady(runtimeRoot, payloadResources)) return runtimeRoot;
 
             Directory.CreateDirectory(cacheRoot);
             using (var hydrationLock = new FileStream(Path.Combine(cacheRoot, ".hydrate.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
             {
-                if (IsRuntimeReady(runtimeRoot)) return runtimeRoot;
+                if (IsRuntimeReady(runtimeRoot, payloadResources)) return runtimeRoot;
 
                 var runtimeParent = Path.GetDirectoryName(runtimeRoot);
                 if (!string.IsNullOrWhiteSpace(runtimeParent))
@@ -134,24 +140,14 @@ namespace Baseline.RunLauncher
                     Directory.CreateDirectory(runtimeParent);
                 }
 
-                var resources = asm.GetManifestResourceNames()
-                    .Where(n => n.StartsWith(PayloadPrefix, StringComparison.Ordinal))
-                    .OrderBy(n => n, StringComparer.Ordinal)
-                    .ToArray();
-
-                if (resources.Length == 0)
-                {
-                    throw new InvalidOperationException("Embedded runtime payload is missing.");
-                }
-
                 if (Directory.Exists(runtimeRoot)) Directory.Delete(runtimeRoot, true);
                 var staging = runtimeRoot + ".staging";
                 if (Directory.Exists(staging)) Directory.Delete(staging, true);
                 Directory.CreateDirectory(staging);
 
-                foreach (var res in resources)
+                foreach (var res in payloadResources)
                 {
-                    var rel = res.Substring(PayloadPrefix.Length).Replace('/', Path.DirectorySeparatorChar);
+                    var rel = GetPayloadRelativePath(res);
                     var target = Path.Combine(staging, rel);
                     using (var rs = asm.GetManifestResourceStream(res))
                     {
@@ -169,6 +165,29 @@ namespace Baseline.RunLauncher
             }
 
             return runtimeRoot;
+        }
+
+        /// <summary>
+        /// Gets the manifest resource names that belong to the embedded runtime payload.
+        /// </summary>
+        /// <param name="asm">The launcher assembly.</param>
+        /// <returns>The sorted runtime payload resource names.</returns>
+        private static string[] GetEmbeddedPayloadResourceNames(Assembly asm)
+        {
+            return asm.GetManifestResourceNames()
+                .Where(n => n.StartsWith(PayloadPrefix, StringComparison.Ordinal))
+                .OrderBy(n => n, StringComparer.Ordinal)
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Maps an embedded payload resource name to its relative runtime file path.
+        /// </summary>
+        /// <param name="resourceName">The manifest resource name.</param>
+        /// <returns>The relative path inside the hydrated runtime root.</returns>
+        private static string GetPayloadRelativePath(string resourceName)
+        {
+            return resourceName.Substring(PayloadPrefix.Length).Replace('/', Path.DirectorySeparatorChar);
         }
 
         /// <summary>
@@ -308,19 +327,24 @@ namespace Baseline.RunLauncher
         /// Tests whether the hydrated runtime root has already been prepared.
         /// </summary>
         /// <param name="root">The runtime root path.</param>
+        /// <param name="payloadResources">The embedded runtime payload resource names.</param>
         /// <returns>True when the runtime sentinel is present.</returns>
-        private static bool IsRuntimeReady(string root)
+        private static bool IsRuntimeReady(string root, string[] payloadResources)
         {
-            return Directory.Exists(root) && new[]
+            if (!Directory.Exists(root) || payloadResources.Length == 0)
             {
-                Path.Combine(root, HydrationSentinel),
-                Path.Combine(root, @"Bootstrap\Baseline.ps1"),
-                Path.Combine(root, @"Localizations\English (United States)\en-US.json"),
-                Path.Combine(root, @"Module\Baseline.psd1"),
-                Path.Combine(root, @"Module\SharedHelpers.psm1"),
-                Path.Combine(root, @"Module\Libraries\Markdig.dll"),
-                Path.Combine(root, @"Module\Libraries\Markdig.Wpf.dll")
-            }.All(File.Exists);
+                return false;
+            }
+
+            if (!File.Exists(Path.Combine(root, HydrationSentinel)))
+            {
+                return false;
+            }
+
+            return payloadResources
+                .Select(GetPayloadRelativePath)
+                .Select(relativePath => Path.Combine(root, relativePath))
+                .All(File.Exists);
         }
 
         /// <summary>

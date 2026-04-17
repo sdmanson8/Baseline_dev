@@ -36,6 +36,15 @@ Describe 'Launcher identity host' {
         $script:LauncherProgramContent | Should -Match 'Path\.Combine\(cacheRoot, version, RuntimeCacheSchema, buildId\)'
     }
 
+    It 'embeds shared helper wrapper modules and validates the full payload before cache reuse' {
+        $script:LauncherProjectContent | Should -Match '<EmbeddedResource Include="\.\./Module/SharedHelperModules/\*\.psm1">'
+        $script:LauncherProjectContent | Should -Match 'BaselinePayload/Module/SharedHelperModules/%\(Filename\)%\(Extension\)'
+        $script:LauncherProgramContent | Should -Match 'GetEmbeddedPayloadResourceNames\(asm\)'
+        $script:LauncherProgramContent | Should -Match 'Select\(GetPayloadRelativePath\)'
+        $script:LauncherProgramContent | Should -Match 'Path\.Combine\(root, relativePath\)'
+        $script:LauncherProgramContent | Should -Match 'Path\.Combine\(root, HydrationSentinel\)'
+    }
+
     It 'restores UTF-8 BOMs only for non-ASCII PowerShell payload files during hydration' {
         $script:LauncherProgramContent | Should -Match 'Utf8Bom'
         $script:LauncherProgramContent | Should -Match 'ShouldPrependUtf8Bom\(target, resourceStream\)'
