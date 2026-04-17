@@ -15,7 +15,7 @@ $localizationDir = Join-Path $repoRoot 'Localizations'
 $file = Get-ChildItem -LiteralPath $localizationDir -Recurse -Filter "$LocaleName.json" -File | Select-Object -First 1
 if (-not $file) { throw "Locale file not found: $LocaleName.json" }
 
-$translations = Get-Content -LiteralPath $TranslationsJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json -AsHashtable
+$translationsObject = Get-Content -LiteralPath $TranslationsJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
 
 $doc = [System.Text.Json.JsonDocument]::Parse((Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8))
 $orderedLocale = [ordered]@{}
@@ -26,9 +26,9 @@ $doc.Dispose()
 
 $applied = 0
 $skipped = 0
-foreach ($k in $translations.Keys) {
-    if (-not $orderedLocale.Contains($k)) { $skipped++; continue }
-    $orderedLocale[$k] = [string]$translations[$k]
+foreach ($prop in $translationsObject.PSObject.Properties) {
+    if (-not $orderedLocale.Contains($prop.Name)) { $skipped++; continue }
+    $orderedLocale[$prop.Name] = [string]$prop.Value
     $applied++
 }
 

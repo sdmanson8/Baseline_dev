@@ -30,6 +30,8 @@ jobs:
   release-readiness:
     runs-on: windows-latest
     needs: validate
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
     steps:
       - name: Checkout

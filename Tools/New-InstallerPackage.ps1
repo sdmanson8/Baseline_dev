@@ -878,10 +878,14 @@ try
 
     Invoke-InstallerLocalizationTranslation -Root $installerLocalizationRoot
 
-    # Inno Setup string constants treat backslashes literally, so keep paths raw here.
+    # ISPP double-quoted #define strings interpret C-style escapes (\r, \t, \n, etc.),
+    # so raw Windows paths like "...\runneradmin\..." get mangled. Double the
+    # backslashes here; ISPP un-escapes them back to single backslashes at expansion.
+    $sourceRootEscaped     = $sourceRoot.Replace('\', '\\')
+    $resolvedOutputEscaped = $resolvedOutput.Replace('\', '\\')
     $issContent = $issContent -replace '#define MyAppVersion\s+"[^"]*"',  "#define MyAppVersion `"$Version`""
-    $issContent = $issContent -replace '#define MySourceRoot\s+"[^"]*"',  "#define MySourceRoot `"$sourceRoot`""
-    $issContent = $issContent -replace '#define MyOutputDir\s+"[^"]*"',   "#define MyOutputDir  `"$resolvedOutput`""
+    $issContent = $issContent -replace '#define MySourceRoot\s+"[^"]*"',  "#define MySourceRoot `"$sourceRootEscaped`""
+    $issContent = $issContent -replace '#define MyOutputDir\s+"[^"]*"',   "#define MyOutputDir  `"$resolvedOutputEscaped`""
 
     $generatedLocalization = New-InstallerLocalizationFunction `
         -SourceMap $installerLocalizationSource `
@@ -956,6 +960,23 @@ try
             Copy-Item -LiteralPath $stampedIss -Destination $persistDir -Force -ErrorAction SilentlyContinue
             Copy-Item -LiteralPath $stdoutFile -Destination $persistDir -Force -ErrorAction SilentlyContinue
             Copy-Item -LiteralPath $stderrFile -Destination $persistDir -Force -ErrorAction SilentlyContinue
+            # Snapshot the staged source root before the finally block wipes $tempRoot;
+            # without this, the CI catch handler has nothing left to inspect.
+            $listingFile = Join-Path $persistDir 'extract-listing.txt'
+            if (Test-Path -LiteralPath $sourceRoot -PathType Container)
+            {
+                "Source root: $sourceRoot" | Out-File -LiteralPath $listingFile -Encoding UTF8
+                "" | Out-File -LiteralPath $listingFile -Encoding UTF8 -Append
+                Get-ChildItem -LiteralPath $sourceRoot -Recurse -Force -ErrorAction SilentlyContinue |
+                    Select-Object Mode, Length, FullName |
+                    Format-Table -AutoSize |
+                    Out-String |
+                    Out-File -LiteralPath $listingFile -Encoding UTF8 -Append
+            }
+            else
+            {
+                "Source root missing at failure time: $sourceRoot" | Out-File -LiteralPath $listingFile -Encoding UTF8
+            }
             Write-Host "Persisted ISCC diagnostics to: $persistDir"
             throw "ISCC failed with exit code $($process.ExitCode)."
         }
