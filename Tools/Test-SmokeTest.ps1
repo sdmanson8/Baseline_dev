@@ -525,17 +525,21 @@ else
 
 $initialSetupPath = Join-Path $repoRoot 'Module/Regions/InitialSetup.psm1'
 $initialSetupContent = Get-Content -LiteralPath $initialSetupPath -Raw
+$packageManagementHelpersPath = Join-Path $repoRoot 'Module/SharedHelpers/PackageManagement.Helpers.ps1'
+$packageManagementHelpersContent = Get-Content -LiteralPath $packageManagementHelpersPath -Raw
 
 if (
-    $initialSetupContent -match 'github\.com/asheroto/winget-install/releases/download/' -and
-    $initialSetupContent -notmatch 'raw\.githubusercontent\.com/asheroto/winget-install/master/'
+    $initialSetupContent -match '\bGet-WinGetBootstrapInstallerMetadata\b' -and
+    $packageManagementHelpersContent -match 'github\.com/asheroto/winget-install/releases/download/' -and
+    $initialSetupContent -notmatch 'raw\.githubusercontent\.com/asheroto/winget-install/master/' -and
+    $packageManagementHelpersContent -notmatch 'raw\.githubusercontent\.com/asheroto/winget-install/master/'
 )
 {
     Write-TestResult -Name 'CheckWinGet uses a pinned installer URL' -Result Pass
 }
 else
 {
-    Write-TestResult -Name 'CheckWinGet uses a pinned installer URL' -Result Fail -Detail 'Expected a pinned release download URL and no master-branch raw URL'
+    Write-TestResult -Name 'CheckWinGet uses a pinned installer URL' -Result Fail -Detail 'Expected CheckWinGet to source a pinned release URL from the shared helper and avoid master-branch raw URLs'
 }
 
 if ($initialSetupContent -match 'Assert-FileHash')
