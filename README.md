@@ -28,6 +28,7 @@
 - [Key features](#key-features)
 - [Presets](#presets)
 - [Screenshots](#screenshots)
+- [Installation & trust](#installation--trust)
 - [Start Guide](#start-guide)
 - [Repository layout](#repository-layout)
 - [Developer tooling](#developer-tooling)
@@ -196,6 +197,25 @@ Windows 11 Non-Interactive
 <p align="center">
   <img src="https://github.com/user-attachments/assets/9fff35f8-a232-4044-b5ee-b831bda7430e" alt="Windows 11 Non-Interactive" width="1072">
 </p>
+
+## Installation & trust
+
+Download `Baseline-<version>.zip` from the [GitHub Releases](https://github.com/sdmanson8/Baseline/releases) page. The zip contains `Baseline-setup-<version>.exe`, which runs either as a per-machine installer or as a portable extract — you choose on the first wizard page.
+
+> **Baseline 4.x public preview releases ship unsigned.** Code signing (HSM-held certificate, timestamp authority) is planned but not in place yet. See [dev_docs/Installer-Signing-Policy.md](dev_docs/Installer-Signing-Policy.md) for the full posture and the `-AllowUnsignedPreview` / `BASELINE_PREVIEW_UNSIGNED` opt-in used by the lifecycle tooling.
+
+Because the installer is unsigned, Windows SmartScreen will show a **"Windows protected your PC"** dialog on first launch. To proceed:
+
+1. Click **More info**.
+2. Click **Run anyway**.
+
+If you want to verify the download before running it, compare its SHA-256 against the hash published in the GitHub Release notes:
+
+```powershell
+Get-FileHash .\Baseline-setup-<version>.exe -Algorithm SHA256
+```
+
+Once 4.x is promoted to a signed release channel, this section and the policy doc will be updated and `BASELINE_PREVIEW_UNSIGNED` will no longer be accepted.
 
 ## Start Guide
 
