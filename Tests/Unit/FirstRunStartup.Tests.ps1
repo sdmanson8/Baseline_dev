@@ -85,6 +85,17 @@ Describe 'First-run startup command wiring' {
         $initialSetupContent | Should -Match "Test-BaselineEnvironmentFlagEnabled\s+-Name\s+'BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP'"
     }
 
+    It 'uses the shared reviewed winget-install metadata instead of duplicating the release pin' {
+        $initialSetupContent | Should -Match 'Get-WinGetBootstrapInstallerMetadata'
+        $initialSetupContent | Should -Not -Match "\$installerVersion\s*=\s*'5\.3\.1'"
+        $initialSetupContent | Should -Not -Match "\$installerSha256\s*=\s*'029094EFD9D26A83AEA184B16D15C772D35D64E1288010741F50FD33A1E1F40F'"
+    }
+
+    It 'uses the shared generic winget-install arguments so Server 2019 stays on the upstream-selected path' {
+        $initialSetupContent | Should -Match 'Get-WinGetBootstrapInstallerArguments'
+        $initialSetupContent | Should -Not -Match "'-AlternateInstallMethod'"
+    }
+
     It 'keeps CheckWinGet hidden while preserving the preset and headless hook' {
         $initialSetupCheckWinGetFunction | Should -Not -BeNullOrEmpty
         $detectScriptblocksContent | Should -Match '''CheckWinGet''\s*=\s*\{\s*\$false\s*\}'

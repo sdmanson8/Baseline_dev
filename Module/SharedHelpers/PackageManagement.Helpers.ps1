@@ -560,6 +560,48 @@ function Get-PackageManagerBootstrapFailureSummary
 
 <#
     .SYNOPSIS
+    Internal function Get-WinGetBootstrapInstallerMetadata.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Get-WinGetBootstrapInstallerMetadata
+{
+	<# .SYNOPSIS Returns the reviewed winget-install release metadata Baseline bootstraps from. #>
+	[CmdletBinding()]
+	param()
+
+	$version = '5.3.6'
+
+	return [pscustomobject]@{
+		Version = $version
+		Sha256  = '6016097051EBD3385F4E315FE33B17CEDA6912B9E71CD0C60C1D0DF1823D3262'
+		Uri     = "https://github.com/asheroto/winget-install/releases/download/$version/winget-install.ps1"
+		Label   = "winget-install.ps1 v$version"
+	}
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-WinGetBootstrapInstallerArguments.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Get-WinGetBootstrapInstallerArguments
+{
+	<# .SYNOPSIS Returns the generic winget-install arguments Baseline passes to the upstream installer. #>
+	[CmdletBinding()]
+	param()
+
+	# Keep the invocation generic so winget-install can choose the correct Server 2019/2022/2025 path itself.
+	return @('-Force')
+}
+
+<#
+    .SYNOPSIS
     Internal function Invoke-WinGetBootstrap.
 
     .DESCRIPTION
@@ -582,8 +624,10 @@ function Invoke-WinGetBootstrap
 		Error          = $null
 	}
 
-	$installerVersion = '5.3.1'
-	$installerSha256 = '029094EFD9D26A83AEA184B16D15C772D35D64E1288010741F50FD33A1E1F40F'
+	$installerMetadata = Get-WinGetBootstrapInstallerMetadata
+	$installerVersion = [string]$installerMetadata.Version
+	$installerSha256 = [string]$installerMetadata.Sha256
+	$installerArguments = @(Get-WinGetBootstrapInstallerArguments)
 	$installerPath = $null
 	$stdoutLog = $null
 	$stderrLog = $null
@@ -605,7 +649,7 @@ function Invoke-WinGetBootstrap
 		LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerNotFunctional' -Fallback '{0} not found or not functional' -FormatArgs @('WinGet'))
 		try
 		{
-			$installerUrl = "https://github.com/asheroto/winget-install/releases/download/$installerVersion/winget-install.ps1"
+			$installerUrl = [string]$installerMetadata.Uri
 			$installerPath = Join-Path $env:TEMP ("winget-install-{0}.ps1" -f $installerVersion)
 			$stdoutLog = Join-Path $env:TEMP "winget-install-stdout.log"
 			$stderrLog = Join-Path $env:TEMP "winget-install-stderr.log"
@@ -621,25 +665,24 @@ function Invoke-WinGetBootstrap
 			$null = Assert-FileHash `
 				-Path $installerPath `
 				-ExpectedSha256 $installerSha256 `
-				-Label ("winget-install.ps1 v{0}" -f $installerVersion)
+				-Label ([string]$installerMetadata.Label)
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerDownloadVerified' -Fallback 'Download and SHA-256 verification completed for {0} v{1}' -FormatArgs @('WinGet', $installerVersion))
 
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_ExecutingInstallerScript' -Fallback 'Executing installer script...')
 			$process = $null
 			try
 			{
-				$process = Start-Process powershell.exe -ArgumentList @(
+				$process = Start-Process powershell.exe -ArgumentList (@(
 					'-NoProfile',
 					'-ExecutionPolicy', 'Bypass',
 					'-WindowStyle', 'Hidden',
-					'-File', "`"$installerPath`"",
-					'-Force'
-				) -Wait -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -ErrorAction Stop
+					'-File', "`"$installerPath`""
+				) + $installerArguments) -Wait -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -ErrorAction Stop
 			}
 			catch
 			{
 				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_StartProcessFailedInstaller' -Fallback 'Start-Process failed for {0} installer: {1}. Trying direct execution.' -FormatArgs @('WinGet', $_.Exception.Message))
-				& powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File $installerPath -Force
+				& powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File $installerPath @installerArguments
 				$process = [pscustomobject]@{ ExitCode = $LASTEXITCODE }
 			}
 

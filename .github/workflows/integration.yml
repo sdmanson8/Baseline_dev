@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  server2022:
+  WIN-2394JEK2B79:
     name: Windows Server 2022 (self-hosted)
     runs-on: [self-hosted, windows, x64, server2022]
     steps:
@@ -43,7 +43,7 @@ jobs:
             Tests/Integration/**/*.log
           if-no-files-found: ignore
 
-  win10-22h2:
+  DESKTOP-FODC0TC:
     name: Windows 10 22H2 Desktop (self-hosted)
     runs-on: [self-hosted, windows, desktop, win10-22h2]
     steps:
@@ -69,7 +69,7 @@ jobs:
             Tests/Integration/**/*.log
           if-no-files-found: ignore
 
-  win11-24h2:
+  DESKTOP-24HDOB8:
     name: Windows 11 23H2 Desktop (self-hosted)
     runs-on: [self-hosted, windows, desktop, win11-23h2]
     steps:

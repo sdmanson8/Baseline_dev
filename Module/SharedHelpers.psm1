@@ -819,6 +819,8 @@ $ExportedFunctions = @(
 	'Get-ChocolateyVersion'
 	'Test-ChocolateyAvailable'
 	'Reset-ChocolateyAvailabilityState'
+	'Get-WinGetBootstrapInstallerMetadata'
+	'Get-WinGetBootstrapInstallerArguments'
 	'Invoke-WinGetBootstrap'
 	'Invoke-ChocolateyBootstrap'
 	'Invoke-DownloadFile'

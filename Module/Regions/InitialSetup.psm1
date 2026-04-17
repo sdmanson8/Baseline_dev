@@ -197,8 +197,10 @@ function CheckWinGet
 		}
 	}.GetNewClosure()
 
-	$installerVersion = '5.3.1'
-	$installerSha256 = '029094EFD9D26A83AEA184B16D15C772D35D64E1288010741F50FD33A1E1F40F'
+	$installerMetadata = Get-WinGetBootstrapInstallerMetadata
+	$installerVersion = [string]$installerMetadata.Version
+	$installerSha256 = [string]$installerMetadata.Sha256
+	$installerArguments = @(Get-WinGetBootstrapInstallerArguments)
 	$installerPath = $null
 	$stdoutLog = $null
 	$stderrLog = $null
@@ -240,7 +242,7 @@ function CheckWinGet
 
 		try
 		{
-			$installerUrl = "https://github.com/asheroto/winget-install/releases/download/$installerVersion/winget-install.ps1"
+			$installerUrl = [string]$installerMetadata.Uri
 			$installerPath = Join-Path $env:TEMP ("winget-install-{0}.ps1" -f $installerVersion)
 			$stdoutLog = Join-Path $env:TEMP "winget-install-stdout.log"
 			$stderrLog = Join-Path $env:TEMP "winget-install-stderr.log"
@@ -257,19 +259,18 @@ function CheckWinGet
 			$null = Assert-FileHash `
 				-Path $installerPath `
 				-ExpectedSha256 $installerSha256 `
-				-Label ("winget-install.ps1 v{0}" -f $installerVersion)
+				-Label ([string]$installerMetadata.Label)
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerDownloadVerified' -Fallback 'Download and SHA-256 verification completed for {0} v{1}' -FormatArgs @('WinGet', $installerVersion))
 
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_ExecutingInstallerScript' -Fallback 'Executing installer script...')
 			$executingStatusText = Get-BaselineLocalizedString -Key 'Progress_Installing' -Fallback 'Installing {0}...' -FormatArgs @('WinGet')
 			& $updateStartupSplashState -StatusText $executingStatusText -Indeterminate
 
-			$process = Start-Process powershell.exe -ArgumentList @(
+			$process = Start-Process powershell.exe -ArgumentList (@(
 				'-NoProfile',
 				'-ExecutionPolicy', 'Bypass',
-				'-File', "`"$installerPath`"",
-				'-Force'
-			) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -ErrorAction Stop
+				'-File', "`"$installerPath`""
+			) + $installerArguments) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -ErrorAction Stop
 
 			if (Test-Path $stdoutLog)
 			{

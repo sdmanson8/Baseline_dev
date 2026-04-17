@@ -88,12 +88,32 @@ Describe 'Resolve-ChocolateyExecutable' {
     }
 }
 
+Describe 'Get-WinGetBootstrapInstallerMetadata' {
+    It 'returns the reviewed 5.3.6 winget-install release metadata' {
+        $metadata = Get-WinGetBootstrapInstallerMetadata
+
+        $metadata.Version | Should -Be '5.3.6'
+        $metadata.Sha256 | Should -Be '6016097051EBD3385F4E315FE33B17CEDA6912B9E71CD0C60C1D0DF1823D3262'
+        $metadata.Uri | Should -Be 'https://github.com/asheroto/winget-install/releases/download/5.3.6/winget-install.ps1'
+        $metadata.Label | Should -Be 'winget-install.ps1 v5.3.6'
+    }
+}
+
+Describe 'Get-WinGetBootstrapInstallerArguments' {
+    It 'keeps the upstream installer in charge of Server-specific method selection' {
+        $arguments = @(Get-WinGetBootstrapInstallerArguments)
+
+        $arguments | Should -Be @('-Force')
+    }
+}
+
 Describe 'Invoke-WinGetBootstrap' {
     BeforeEach {
         $script:wingetBootstrapInfoMessages = [System.Collections.Generic.List[string]]::new()
         $script:wingetBootstrapWarningMessages = [System.Collections.Generic.List[string]]::new()
         $script:wingetBootstrapErrorMessages = [System.Collections.Generic.List[string]]::new()
         $script:wingetVersionCallCount = 0
+        $script:capturedWinGetInstallerArgumentList = $null
         $script:previousTemp = $env:TEMP
         $env:TEMP = $TestDrive
 
@@ -200,5 +220,38 @@ Describe 'Invoke-WinGetBootstrap' {
         $result.Installed | Should -BeTrue
         $result.Available | Should -BeFalse
         ($script:wingetBootstrapWarningMessages -join "`n") | Should -Match 'installation completed, but winget\.exe is not available in the current session yet'
+    }
+
+    It 'passes only the generic upstream installer switch so Server 2019 and 2022 stay on the repo-defined paths' {
+        Mock Invoke-DownloadFile {
+            param($Uri, $OutFile)
+            Set-Content -LiteralPath $OutFile -Value 'installer' -Encoding ASCII
+        }
+        Mock Assert-FileHash { 'OK' }
+        Mock Start-Process {
+            param(
+                [string]$FilePath,
+                [object[]]$ArgumentList
+            )
+
+            $script:capturedWinGetInstallerArgumentList = @($ArgumentList)
+            [pscustomobject]@{ ExitCode = 0 }
+        }
+        Mock Get-PackageManagerBootstrapLogLines { @() }
+        Mock Get-WinGetVersion {
+            $script:wingetVersionCallCount++
+            if ($script:wingetVersionCallCount -eq 1) {
+                return $null
+            }
+
+            return '1.0.0'
+        }
+        Mock Start-Sleep {}
+        Mock Reset-WinGetAvailabilityState {}
+
+        $null = Invoke-WinGetBootstrap
+
+        ($script:capturedWinGetInstallerArgumentList -join ' ') | Should -Match '-Force'
+        ($script:capturedWinGetInstallerArgumentList -join ' ') | Should -Not -Match 'AlternateInstallMethod'
     }
 }
