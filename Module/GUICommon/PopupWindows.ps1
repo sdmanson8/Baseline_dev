@@ -341,24 +341,7 @@ function Add-GuiPopupWindowChrome
 		{
 			$Window | Add-Member -NotePropertyName 'GuiPopupProgressBar' -NotePropertyValue $progressBar -Force
 		}
-		if (-not $Script:GuiPopupThemeWindows.Contains($Window))
-		{
-			[void]$Script:GuiPopupThemeWindows.Add($Window)
-		}
-		$Window.Add_Closed({
-			param($sender, $eventArgs)
-			try
-			{
-				if ($Script:GuiPopupThemeWindows)
-				{
-					[void]$Script:GuiPopupThemeWindows.Remove($sender)
-				}
-			}
-			catch
-			{
-				$null = $_
-			}
-		}.GetNewClosure())
+		[void](Register-GuiPopupThemeWindow -Window $Window)
 	}
 	catch
 	{
@@ -382,6 +365,91 @@ function Add-GuiPopupWindowChrome
 	}
 
 	[void](Set-GuiPopupWindowTheme -Window $Window -Theme $Theme -UseDarkMode:$resolvedUseDarkMode)
+
+	return $true
+}
+
+<#
+    .SYNOPSIS
+    Internal function Register-GuiPopupThemeWindow.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+function Register-GuiPopupThemeWindow
+{
+	<# .SYNOPSIS Registers an existing popup window for global theme updates and an optional repaint callback. #>
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory = $true)]
+		[System.Windows.Window]$Window,
+
+		[Parameter(Mandatory = $false)]
+		[scriptblock]$ThemeCallback = $null
+	)
+
+	if (-not $Window)
+	{
+		return $false
+	}
+
+	try
+	{
+		if ($ThemeCallback)
+		{
+			if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupThemeCallback'))
+			{
+				$Window.GuiPopupThemeCallback = $ThemeCallback
+			}
+			else
+			{
+				$Window | Add-Member -NotePropertyName 'GuiPopupThemeCallback' -NotePropertyValue $ThemeCallback -Force
+			}
+		}
+
+		if (-not $Script:GuiPopupThemeWindows.Contains($Window))
+		{
+			[void]$Script:GuiPopupThemeWindows.Add($Window)
+		}
+
+		$registrationAttached = $false
+		if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupThemeRegistrationAttached'))
+		{
+			$registrationAttached = [bool]$Window.GuiPopupThemeRegistrationAttached
+		}
+
+		if (-not $registrationAttached)
+		{
+			$Window.Add_Closed({
+				param($sender, $eventArgs)
+				try
+				{
+					if ($Script:GuiPopupThemeWindows)
+					{
+						[void]$Script:GuiPopupThemeWindows.Remove($sender)
+					}
+				}
+				catch
+				{
+					$null = $_
+				}
+			}.GetNewClosure())
+
+			if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupThemeRegistrationAttached'))
+			{
+				$Window.GuiPopupThemeRegistrationAttached = $true
+			}
+			else
+			{
+				$Window | Add-Member -NotePropertyName 'GuiPopupThemeRegistrationAttached' -NotePropertyValue $true -Force
+			}
+		}
+	}
+	catch
+	{
+		Write-GuiCommonWarning ("Failed to register popup window for theme updates: {0}" -f $_.Exception.Message)
+		return $false
+	}
 
 	return $true
 }
@@ -598,6 +666,19 @@ function Set-GuiPopupWindowTheme
 	catch
 	{
 		$null = $_
+	}
+
+	$themeCallback = Get-GuiObjectField -Object $Window -FieldName 'GuiPopupThemeCallback'
+	if ($themeCallback -is [scriptblock])
+	{
+		try
+		{
+			& $themeCallback -Window $Window -Theme $themeRef -UseDarkMode $resolvedUseDarkMode
+		}
+		catch
+		{
+			Write-GuiCommonWarning ("Failed to run popup theme callback for window '{0}': {1}" -f [string]$Window.Title, $_.Exception.Message)
+		}
 	}
 
 	return $true

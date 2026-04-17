@@ -61,6 +61,11 @@ Describe 'First-run startup command wiring' {
         $initialActionsContent | Should -Not -Match 'CheckWinGet\s+-LoadingSplash\s+\$Global:LoadingSplash'
     }
 
+    It 'restores the neutral splash loading text after startup bootstrap' {
+        $initialActionsContent | Should -Match "GuiSplashLoading' -Fallback 'Please Wait\.\.\.'"
+        $initialActionsContent | Should -Not -Match "GuiSplashLoading' -Fallback 'Please wait - opening GUI\.\.\.'"
+    }
+
     It 'keeps the advisory tweaker probes non-fatal during startup' {
         $initialActionsContent | Should -Match '\$InvokeOptionalProbe\s*=\s*\{\s*param\(\[scriptblock\]\$ScriptBlock\)'
         $initialActionsContent | Should -Match '\$AutoSettingsPS\s*=\s*&\s*\$InvokeOptionalProbe'

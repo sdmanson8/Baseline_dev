@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## 4.0.0 | 2026-04-17
+
+### Changed
+
+- Release contract is now enforced end-to-end. The Bootstrap self-update path selects exactly one release zip and one matching `.zip.sha256.json` manifest via anchored regex (`^Baseline(?:-portable)?-(v?\d+\.\d+\.\d+(?:-[a-zA-Z0-9]+)?)\.zip$`) instead of a fuzzy `*.zip` glob, and CI now fails the build before artifact upload if `dist\` does not contain exactly one zip/manifest pair that matches the same pattern.
+- Taskbar Widgets tweak no longer executes registry or policy mutations after its own "Skipped: WebExperience package absent" log line. Both the non-personalization and `UIPersonalization` variants now return immediately on the skip branch.
+- GPU Hardware-Accelerated Scheduling detection no longer relies on a double-negated `-notmatch "Virtual"` check. Both sides of the condition share a new `Test-IsVirtualMachine` helper in `SharedHelpers/Environment.Helpers.ps1` (exported via `Baseline.SharedHelpers.Environment`) that inspects `Win32_ComputerSystem.Model` against the full list of VM signatures (VMware, VBOX, KVM, QEMU, Xen, Hyper-V).
+- `Tools/New-ReleasePackage.ps1` now only hashes the installer and emits the `.zip.sha256.json` manifest inside the `ShouldProcess` branch and with `Test-Path` guards, so `-WhatIf` no longer throws by trying to hash a non-existent archive.
+
+### Fixed
+
+- The themed Readme viewer now repaints correctly on open and on live theme toggle. A new `$setMarkdownViewerTheme` closure applies the active foreground to the `FlowDocumentScrollViewer` and to every block in the document, restoring readability on both the text and FlowDocument rendering paths that previously ignored the theme brush.
+
+### Added
+
+- `Tests/Unit/Bootstrap.ReleaseIntegrity.Tests.ps1` — asserts the Bootstrap release-contract regex, manifest hash lookup, and algorithm-unsupported failure paths.
+- `Tests/Unit/Environment.Helpers.Tests.ps1` — new `Describe 'Test-IsVirtualMachine'` block with cases for generic Virtual Machine model strings, VMware/VBOX, physical hardware, and CIM failure.
+- `Tests/Unit/Taskbar.Region.Tests.ps1` and `Tests/Unit/UIPersonalization.Taskbar.Tests.ps1` — skip-path tests that assert no registry or policy writes occur when the WebExperience package is absent.
+
+---
+
 ## 4.0.0-beta | 2026-04-14
 
 ### Changed

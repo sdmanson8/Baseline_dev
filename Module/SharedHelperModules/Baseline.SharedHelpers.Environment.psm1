@@ -58,6 +58,7 @@ $ExportedFunctions = @(
     'ConvertFrom-BaselineMarkdownToHtml'
     'Initialize-BaselineWebView2Runtime'
     'Test-BaselineWebView2RuntimeReady'
+    'Test-IsVirtualMachine'
 )
 
 Export-ModuleMember -Function $ExportedFunctions

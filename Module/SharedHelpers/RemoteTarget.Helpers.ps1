@@ -3332,6 +3332,69 @@ function Clear-BaselineRemoteResumeCheckpoint
 
 <#
     .SYNOPSIS
+    Internal function Write-BaselineRemoteCheckpointWarning.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Write-BaselineRemoteCheckpointWarning
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[string]$Message
+	)
+
+	$logWarningCommand = Get-Command -Name 'LogWarning' -CommandType Function -ErrorAction SilentlyContinue
+	if ($logWarningCommand)
+	{
+		LogWarning $Message
+		return
+	}
+
+	Write-Warning $Message
+}
+
+<#
+    .SYNOPSIS
+    Internal function Invoke-BaselineRemoteCheckpointAction.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Invoke-BaselineRemoteCheckpointAction
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[scriptblock]$Action,
+
+		[Parameter(Mandatory)]
+		[string]$Description
+	)
+
+	try
+	{
+		return (& $Action)
+	}
+	catch
+	{
+		Write-BaselineRemoteCheckpointWarning -Message ("Failed to {0}: {1}" -f $Description, $_.Exception.Message)
+
+		$removeHandledErrorCommand = Get-Command -Name 'Remove-HandledErrorRecord' -CommandType Function -ErrorAction SilentlyContinue
+		if ($removeHandledErrorCommand)
+		{
+			Remove-HandledErrorRecord -ErrorRecord $_
+		}
+
+		return $null
+	}
+}
+
+<#
+    .SYNOPSIS
     Internal function Resolve-BaselineRemoteResumeTargets.
 
     .DESCRIPTION
@@ -3714,11 +3777,9 @@ function Invoke-BaselineRemoteCompliance
 	$orchestrationRunId = if (-not [string]::IsNullOrWhiteSpace($ResumeRunId)) { $ResumeRunId } else { [guid]::NewGuid().ToString('N') }
 	$checkpointTargetStates = @{}
 	foreach ($queued in @($ComputerName)) { $checkpointTargetStates[[string]$queued] = 'Pending' }
-	try
-	{
+	[void](Invoke-BaselineRemoteCheckpointAction -Description ("persist RemoteCompliance checkpoint state for run '{0}'" -f $orchestrationRunId) -Action {
 		$null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteCompliance' -ProfilePath $ProfilePath -Targets @($ComputerName) -TargetStates $checkpointTargetStates -Status 'Running' -MaxRetryCount $MaxRetryCount -RetryDelayMilliseconds $RetryDelayMilliseconds
-	}
-	catch { }
+	})
 
 	$cancelEngaged = $false
 	foreach ($computer in @($ComputerName))
@@ -3736,7 +3797,9 @@ function Invoke-BaselineRemoteCompliance
 		if ($cancelEngaged)
 		{
 			$checkpointTargetStates[[string]$computer] = 'Cancelled'
-			try { $null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteCompliance' -TargetStates @{ ([string]$computer) = 'Cancelled' } -Status 'Interrupted' -InterruptReason 'Kill switch engaged during run.' } catch { }
+			[void](Invoke-BaselineRemoteCheckpointAction -Description ("persist RemoteCompliance cancellation state for target '{0}' in run '{1}'" -f $computer, $orchestrationRunId) -Action {
+				$null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteCompliance' -TargetStates @{ ([string]$computer) = 'Cancelled' } -Status 'Interrupted' -InterruptReason 'Kill switch engaged during run.'
+			})
 			continue
 		}
 
@@ -4019,26 +4082,26 @@ function Invoke-BaselineRemoteCompliance
 		}
 
 		$results.Add($entry)
-		try
-		{
+		[void](Invoke-BaselineRemoteCheckpointAction -Description ("persist RemoteCompliance target state for '{0}' in run '{1}'" -f $computer, $orchestrationRunId) -Action {
 			$checkpointTargetStates[[string]$computer] = [string]$entry.TerminalState
 			$null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteCompliance' -TargetStates @{ ([string]$computer) = [string]$entry.TerminalState } -Status 'Running'
-		}
-		catch { }
+		})
 	}
 
 	if ($cancelEngaged)
 	{
-		try { $null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteCompliance' -Status 'Interrupted' -InterruptReason 'Kill switch engaged during run.' } catch { }
+		[void](Invoke-BaselineRemoteCheckpointAction -Description ("persist interrupted RemoteCompliance checkpoint for run '{0}'" -f $orchestrationRunId) -Action {
+			$null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteCompliance' -Status 'Interrupted' -InterruptReason 'Kill switch engaged during run.'
+		})
 	}
 	else
 	{
-		try
-		{
+		[void](Invoke-BaselineRemoteCheckpointAction -Description ("mark RemoteCompliance checkpoint completed for run '{0}'" -f $orchestrationRunId) -Action {
 			$null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteCompliance' -Status 'Completed'
+		})
+		[void](Invoke-BaselineRemoteCheckpointAction -Description ("clear RemoteCompliance checkpoint for run '{0}'" -f $orchestrationRunId) -Action {
 			Clear-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId
-		}
-		catch { }
+		})
 	}
 
 	if ($results.Count -gt 0)
@@ -4136,11 +4199,9 @@ function Invoke-BaselineRemoteApply
 	$orchestrationRunId = if (-not [string]::IsNullOrWhiteSpace($ResumeRunId)) { $ResumeRunId } else { [guid]::NewGuid().ToString('N') }
 	$checkpointTargetStates = @{}
 	foreach ($queued in @($ComputerName)) { $checkpointTargetStates[[string]$queued] = 'Pending' }
-	try
-	{
+	[void](Invoke-BaselineRemoteCheckpointAction -Description ("persist RemoteApply checkpoint state for run '{0}'" -f $orchestrationRunId) -Action {
 		$null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteApply' -ProfilePath $ProfilePath -Targets @($ComputerName) -TargetStates $checkpointTargetStates -Status 'Running' -MaxRetryCount $MaxRetryCount -RetryDelayMilliseconds $RetryDelayMilliseconds
-	}
-	catch { }
+	})
 
 	$cancelEngaged = $false
 	foreach ($computer in @($ComputerName))
@@ -4158,7 +4219,9 @@ function Invoke-BaselineRemoteApply
 		if ($cancelEngaged)
 		{
 			$checkpointTargetStates[[string]$computer] = 'Cancelled'
-			try { $null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteApply' -TargetStates @{ ([string]$computer) = 'Cancelled' } -Status 'Interrupted' -InterruptReason 'Kill switch engaged during run.' } catch { }
+			[void](Invoke-BaselineRemoteCheckpointAction -Description ("persist RemoteApply cancellation state for target '{0}' in run '{1}'" -f $computer, $orchestrationRunId) -Action {
+				$null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteApply' -TargetStates @{ ([string]$computer) = 'Cancelled' } -Status 'Interrupted' -InterruptReason 'Kill switch engaged during run.'
+			})
 			continue
 		}
 
@@ -4521,26 +4584,26 @@ function Invoke-BaselineRemoteApply
 		}
 
 		$results.Add($entry)
-		try
-		{
+		[void](Invoke-BaselineRemoteCheckpointAction -Description ("persist RemoteApply target state for '{0}' in run '{1}'" -f $computer, $orchestrationRunId) -Action {
 			$checkpointTargetStates[[string]$computer] = [string]$entry.TerminalState
 			$null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteApply' -TargetStates @{ ([string]$computer) = [string]$entry.TerminalState } -Status 'Running'
-		}
-		catch { }
+		})
 	}
 
 	if ($cancelEngaged)
 	{
-		try { $null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteApply' -Status 'Interrupted' -InterruptReason 'Kill switch engaged during run.' } catch { }
+		[void](Invoke-BaselineRemoteCheckpointAction -Description ("persist interrupted RemoteApply checkpoint for run '{0}'" -f $orchestrationRunId) -Action {
+			$null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteApply' -Status 'Interrupted' -InterruptReason 'Kill switch engaged during run.'
+		})
 	}
 	else
 	{
-		try
-		{
+		[void](Invoke-BaselineRemoteCheckpointAction -Description ("mark RemoteApply checkpoint completed for run '{0}'" -f $orchestrationRunId) -Action {
 			$null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteApply' -Status 'Completed'
+		})
+		[void](Invoke-BaselineRemoteCheckpointAction -Description ("clear RemoteApply checkpoint for run '{0}'" -f $orchestrationRunId) -Action {
 			Clear-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId
-		}
-		catch { }
+		})
 	}
 
 	if ($results.Count -gt 0)

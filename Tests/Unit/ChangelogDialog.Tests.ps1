@@ -27,4 +27,13 @@ Describe 'Documentation viewer wiring' {
         $script:ActionHandlersContent | Should -Match '& \$showReadmeDialogCommand'
         $script:ActionHandlersContent | Should -Not -Match 'Start-Process -FilePath \$docsUrl'
     }
+
+    It 'reapplies the README viewer theme through the shared popup theme registry' {
+        $script:DialogHelpersContent | Should -Match 'Register-GuiPopupThemeWindow -Window \$dlg -ThemeCallback \$readmeThemeCallback'
+        $script:DialogHelpersContent | Should -Match '\$readmeThemeCallback = \{'
+        $script:DialogHelpersContent | Should -Match '& \$loadReadmeContent -ThemeOverride \$Theme'
+        $script:DialogHelpersContent | Should -Match 'ReadmeHeaderBorder'
+        $script:DialogHelpersContent | Should -Match 'ReadmeContentBorder'
+        $script:DialogHelpersContent | Should -Match 'ReadmeFooterBorder'
+    }
 }

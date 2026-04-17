@@ -40,7 +40,7 @@ require self-hosted runners or local execution inside a VM.
 | Services      | Disable a service, verify stopped, restore, verify running  |
 | Packages      | Remove a safe UWP app, verify absent (skipped in DryRun)   |
 | GroupPolicy   | Apply an LGPO-backed setting, verify, restore               |
-| GameMode      | Apply a Game Mode profile, verify settings, restore         |
+| GameMode      | Verify Game Bar, CPU priority, DirectX flip model, and GPU scheduling writes, then restore |
 
 ## Prerequisites
 

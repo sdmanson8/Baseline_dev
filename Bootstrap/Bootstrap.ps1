@@ -17,12 +17,14 @@
     is forwarded to the installed launcher.
 
     .NOTES
-    SECURITY: This bootstrap uses pipe-to-IEX with no integrity verification
-    (no hash check, signature validation, or certificate pinning). The download
-    is protected by TLS 1.2 to GitHub over HTTPS, but a compromised DNS or TLS
-    interception could serve modified code. For higher assurance, download the
-    release zip manually from the Releases page, verify its checksum, and run
-    the setup executable directly.
+    SECURITY: This bootstrap is still distributed via pipe-to-IEX, so the
+    bootstrap script itself is not signature-validated or hash-pinned.
+    Release payload integrity is enforced by downloading the companion
+    <release-zip>.sha256.json manifest from the GitHub Release and verifying
+    SHA-256 for both the zip and the extracted setup executable before launch.
+    For higher assurance, download the release assets manually from the
+    Releases page, verify the hash manifest yourself, and run the setup
+    executable directly.
 #>
 
 [CmdletBinding()]
@@ -125,7 +127,148 @@ function Invoke-DownloadFile
         $invokeParams.UseBasicParsing = $true
     }
 
-    Invoke-WebRequest @invokeParams | Out-Null
+	Invoke-WebRequest @invokeParams | Out-Null
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-BootstrapFileSha256.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Get-BootstrapFileSha256
+{
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf))
+    {
+        throw "File was not found: $Path"
+    }
+
+    if (Get-Command -Name 'Get-FileHash' -ErrorAction SilentlyContinue)
+    {
+        return (Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash.ToUpperInvariant()
+    }
+
+    $stream = [System.IO.File]::OpenRead($Path)
+    try
+    {
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        try
+        {
+            $hashBytes = $sha256.ComputeHash($stream)
+        }
+        finally
+        {
+            $sha256.Dispose()
+        }
+    }
+    finally
+    {
+        $stream.Dispose()
+    }
+
+    return ([System.BitConverter]::ToString($hashBytes)).Replace('-', '').ToUpperInvariant()
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-BootstrapReleaseIntegrityManifest.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Get-BootstrapReleaseIntegrityManifest
+{
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ManifestPath
+    )
+
+    if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf))
+    {
+        throw "Release integrity manifest was not found: $ManifestPath"
+    }
+
+    $manifest = Get-Content -LiteralPath $ManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ([string]$manifest.algorithm -ne 'sha256')
+    {
+        throw "Unsupported release integrity manifest algorithm '$([string]$manifest.algorithm)'."
+    }
+
+    if (-not $manifest.PSObject.Properties['files'] -or -not $manifest.files)
+    {
+        throw "Release integrity manifest does not contain a files map: $ManifestPath"
+    }
+
+    return $manifest
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-BootstrapReleaseAssetSha256.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Get-BootstrapReleaseAssetSha256
+{
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ManifestPath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$AssetName
+    )
+
+    $manifest = Get-BootstrapReleaseIntegrityManifest -ManifestPath $ManifestPath
+    $assetProperty = $manifest.files.PSObject.Properties[$AssetName]
+    if (-not $assetProperty -or [string]::IsNullOrWhiteSpace([string]$assetProperty.Value))
+    {
+        throw "Release integrity manifest '$ManifestPath' does not contain a SHA-256 entry for '$AssetName'."
+    }
+
+    return ([string]$assetProperty.Value).Trim().ToUpperInvariant()
+}
+
+<#
+    .SYNOPSIS
+    Internal function Assert-BootstrapReleaseAssetHash.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Assert-BootstrapReleaseAssetHash
+{
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ManifestPath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$AssetName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+
+        [string]$Label = 'Downloaded file'
+    )
+
+    $expected = Get-BootstrapReleaseAssetSha256 -ManifestPath $ManifestPath -AssetName $AssetName
+    $actual = Get-BootstrapFileSha256 -Path $FilePath
+    if ($actual -ne $expected)
+    {
+        throw "$Label failed SHA-256 verification. Expected $expected but received $actual."
+    }
+
+    return $actual
 }
 
 <#
@@ -441,17 +584,36 @@ try
         throw "No non-draft releases found at $apiUrl"
     }
 
-    # The release asset is a zip whose payload is the Inno Setup installer.
-    $asset = $latest.assets | Where-Object { $_.name -like '*.zip' } | Select-Object -First 1
-    if (-not $asset)
+    # Deterministic release asset selection: exactly one release zip and one
+    # matching SHA-256 manifest must be present. Enforces a 1:1 contract so a
+    # release with multiple zips (or a stray manifest) is treated as a hard
+    # contract violation rather than silently picking "the first match".
+    $repoEscaped             = [regex]::Escape($Repository)
+    $expectedZipPattern      = "^$repoEscaped(?:-portable)?-(v?\d+\.\d+\.\d+(?:-[a-zA-Z0-9]+)?)\.zip$"
+    $expectedManifestPattern = "^$repoEscaped(?:-portable)?-(v?\d+\.\d+\.\d+(?:-[a-zA-Z0-9]+)?)\.zip\.sha256\.json$"
+
+    $releaseAssets   = @($latest.assets)
+    $releaseZip      = @($releaseAssets | Where-Object { [string]$_.name -match $expectedZipPattern })
+    $releaseManifest = @($releaseAssets | Where-Object { [string]$_.name -match $expectedManifestPattern })
+
+    if ($releaseZip.Count -ne 1 -or $releaseManifest.Count -ne 1)
     {
-        throw "Release $($latest.tag_name) does not expose a .zip asset at $apiUrl. The bootstrap expects the release-zip produced by Tools/New-ReleasePackage.ps1."
+        throw "Release contract violation for $($latest.tag_name): expected exactly one zip matching '$expectedZipPattern' and one SHA-256 manifest matching '$expectedManifestPattern'. Found zip assets=$($releaseZip.Count), manifest assets=$($releaseManifest.Count)."
     }
-    $downloadUrl = $asset.browser_download_url
+
+    $asset                = $releaseZip[0]
+    $integrityAsset       = $releaseManifest[0]
+    $downloadUrl          = [string]$asset.browser_download_url
+    $integrityUrl         = [string]$integrityAsset.browser_download_url
+    $integrityManifestPath = Join-Path $CacheRoot ([string]$integrityAsset.name)
 
     # Write-Host: intentional — bootstrap progress output
     Write-Host "Downloading $Repository $($latest.tag_name) from $downloadUrl"
     Invoke-DownloadFile -Uri $downloadUrl -OutFile $archivePath
+    Write-Host "Downloading release integrity manifest from $integrityUrl"
+    Invoke-DownloadFile -Uri $integrityUrl -OutFile $integrityManifestPath
+    $archiveHash = Assert-BootstrapReleaseAssetHash -ManifestPath $integrityManifestPath -AssetName ([string]$asset.name) -FilePath $archivePath -Label 'Release archive'
+    Write-Host "Verified SHA-256 for $($asset.name): $archiveHash"
 
     New-Item -ItemType Directory -Path $extractRoot -Force | Out-Null
     Expand-Archive -LiteralPath $archivePath -DestinationPath $extractRoot -Force
@@ -461,6 +623,9 @@ try
     {
         throw "Baseline-setup-*.exe was not found in the extracted archive under $extractRoot."
     }
+
+    $setupHash = Assert-BootstrapReleaseAssetHash -ManifestPath $integrityManifestPath -AssetName ([System.IO.Path]::GetFileName($setupExe)) -FilePath $setupExe -Label 'Setup executable'
+    Write-Host "Verified SHA-256 for $([System.IO.Path]::GetFileName($setupExe)): $setupHash"
 
     Write-Host "Running installer $setupExe..."
     $setupProcess = Start-Process -FilePath $setupExe -Wait -PassThru

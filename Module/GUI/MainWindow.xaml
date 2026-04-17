@@ -484,7 +484,6 @@
 					<StackPanel Grid.Row="0" Orientation="Vertical" Margin="10">
 						<StackPanel Orientation="Horizontal" Margin="0,0,0,8">
 							<Button Name="BtnUpdateAllApps" Content="" Padding="10,5" Margin="0,0,12,0" Cursor="Hand"/>
-							<TextBlock Name="TxtAppCacheStatus" VerticalAlignment="Center" Opacity="0.7" Text=""/>
 							<TextBlock Name="AppsCategoryLabel" VerticalAlignment="Center" Margin="16,0,8,0" FontSize="11" Text=""/>
 							<ComboBox Name="CmbAppsCategoryFilter" Width="220" Height="30" VerticalContentAlignment="Center"/>
 							<StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">

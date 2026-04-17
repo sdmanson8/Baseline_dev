@@ -209,7 +209,7 @@ Because the installer is unsigned, Windows SmartScreen will show a **"Windows pr
 1. Click **More info**.
 2. Click **Run anyway**.
 
-If you want to verify the download before running it, compare its SHA-256 against the hash published in the GitHub Release notes:
+If you want to verify the download before running it, compare its SHA-256 against the published release hash manifest asset (`Baseline-<version>.zip.sha256.json`) on the same GitHub Release:
 
 ```powershell
 Get-FileHash .\Baseline-setup-<version>.exe -Algorithm SHA256
@@ -304,9 +304,9 @@ For convenience, you can download and install directly from GitHub:
 iwr https://raw.githubusercontent.com/sdmanson8/Baseline/main/Bootstrap/Bootstrap.ps1 -UseBasicParsing | iex
 ```
 
-The bootstrap pulls the latest release zip from GitHub, extracts it, and runs the bundled `Baseline-setup-<version>.exe` installer. After the installer exits, if an installed `Baseline.exe` can be found it is launched (honoring `-Preset` / `BASELINE_PRESET`). If it cannot be found, launch Baseline from the Start Menu.
+The bootstrap pulls the latest release zip from GitHub, downloads the matching `Baseline-<version>.zip.sha256.json` manifest, verifies SHA-256 for both the zip and the extracted `Baseline-setup-<version>.exe`, and then runs the installer. After the installer exits, if an installed `Baseline.exe` can be found it is launched (honoring `-Preset` / `BASELINE_PRESET`). If it cannot be found, launch Baseline from the Start Menu.
 
-> **Security note:** This uses pipe-to-IEX with no integrity verification beyond HTTPS/TLS. For higher assurance, download the release zip manually from the Releases page, verify its checksum, and run `Baseline-setup-<version>.exe` directly.
+> **Security note:** This still uses pipe-to-IEX for the bootstrap script itself. The release payload is hash-verified before execution, but the bootstrap entry script is not separately signature-validated or hash-pinned. For higher assurance, download the release assets manually from the Releases page, verify the published hash manifest yourself, and run `Baseline-setup-<version>.exe` directly.
 
 ### Interactive session / tab completion
 
@@ -411,6 +411,8 @@ This generates fresh `Minimal`, `Basic`, and `Balanced` preset files and validat
 ```powershell
 powershell -File .\Tools\New-ReleasePackage.ps1
 ```
+
+This produces `Baseline-<version>.zip` plus `Baseline-<version>.zip.sha256.json` in `dist/`.
 
 ### Build installer packages (per-user and per-machine)
 

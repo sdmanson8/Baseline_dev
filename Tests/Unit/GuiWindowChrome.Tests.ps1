@@ -57,6 +57,13 @@ Describe 'GUI window chrome theming' {
         $guiCommonContent | Should -Match 'Grid]::SetRow\(\$progressHost, \$insertRowIndex\)'
     }
 
+    It 'allows popup windows to register custom theme repaint callbacks' {
+        $guiCommonContent | Should -Match 'function Register-GuiPopupThemeWindow'
+        $guiCommonContent | Should -Match "'Register-GuiPopupThemeWindow'"
+        $guiCommonContent | Should -Match 'GuiPopupThemeCallback'
+        $guiCommonContent | Should -Match 'Register-GuiPopupThemeWindow -Window \$Window'
+    }
+
     It 'threads the active dark mode state through shared dialog wrappers' {
         $styleManagementContent | Should -Match '-UseDarkMode \(\$Script:CurrentThemeName -eq ''Dark''\)'
         $dialogHelpersContent | Should -Match '-UseDarkMode \(\$Script:CurrentThemeName -eq ''Dark''\)'

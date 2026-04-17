@@ -60,12 +60,12 @@ function GPUScheduling
 			LogInfo "Enabling hardware-accelerated GPU scheduling"
 			# Determining whether PC has an external graphics card
 			$AdapterDACType = Get-CimInstance -ClassName CIM_VideoController | Where-Object -FilterScript {($_.AdapterDACType -ne "Internal") -and ($null -ne $_.AdapterDACType)}
-			# Determining whether an OS is not installed on a virtual machine
-			$ComputerSystemModel = (Get-CimInstance -ClassName CIM_ComputerSystem).Model -notmatch "Virtual"
+			# Use the shared Test-IsVirtualMachine helper so production and tests agree.
+			$IsVirtualMachine = Test-IsVirtualMachine
 			# Checking whether a WDDM verion is 2.7 or higher
 			$WddmVersion_Min = [Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\FeatureSetUsage", "WddmVersion_Min", $null)
 
-			if ($AdapterDACType -and ($ComputerSystemModel -notmatch "Virtual") -and ($WddmVersion_Min -ge 2700))
+			if ($AdapterDACType -and (-not $IsVirtualMachine) -and ($WddmVersion_Min -ge 2700))
 			{
 				try
 				{

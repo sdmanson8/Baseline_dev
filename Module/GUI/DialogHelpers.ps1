@@ -4094,14 +4094,14 @@
 
 		<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
 			<Grid>
-				<TextBlock Text="$readmeTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
+				<TextBlock Name="TxtDlgTitle" Text="$readmeTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
 				<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
 					Background="Transparent" Foreground="$($theme.TextPrimary)" BorderThickness="0" Cursor="Hand"
 					HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
 			</Grid>
 		</Border>
 
-		<Border Grid.Row="1" Background="$($theme.HeaderBg)"
+		<Border Name="ReadmeHeaderBorder" Grid.Row="1" Background="$($theme.HeaderBg)"
 				BorderBrush="$($theme.BorderColor)" BorderThickness="0,0,0,1"
 				Padding="20,14,20,14">
 			<Grid>
@@ -4110,7 +4110,7 @@
 					<ColumnDefinition Width="Auto"/>
 				</Grid.ColumnDefinitions>
 				<StackPanel Grid.Column="0">
-					<TextBlock Text="$readmeTitle" FontSize="16" FontWeight="SemiBold"
+					<TextBlock Name="TxtReadmeTitle" Text="$readmeTitle" FontSize="16" FontWeight="SemiBold"
 							   Foreground="$($theme.TextPrimary)"/>
 					<TextBlock Name="TxtReadmePath" FontSize="11"
 							   Foreground="$($theme.TextMuted)" Margin="0,2,0,0"
@@ -4121,7 +4121,7 @@
 			</Grid>
 		</Border>
 
-		<Border Grid.Row="2" Background="$($theme.SearchBg)" Padding="16,12,16,12">
+		<Border Name="ReadmeContentBorder" Grid.Row="2" Background="$($theme.SearchBg)" Padding="16,12,16,12">
 			<Grid>
 				<wfi:WindowsFormsHost Name="ReadmeWebHost" Visibility="Collapsed"/>
 				<FlowDocumentScrollViewer Name="ReadmeFlowViewer"
@@ -4134,7 +4134,7 @@
 			</Grid>
 		</Border>
 
-		<Border Grid.Row="3" Background="$($theme.HeaderBg)"
+		<Border Name="ReadmeFooterBorder" Grid.Row="3" Background="$($theme.HeaderBg)"
 				BorderBrush="$($theme.BorderColor)" BorderThickness="0,1,0,0"
 				Padding="20,10,20,10">
 			<Grid>
@@ -4164,10 +4164,15 @@
 
 		$dlgTitleBar = $dlg.FindName('DlgTitleBar')
 		$btnDlgClose = $dlg.FindName('BtnDlgClose')
+		$txtDlgTitle = $dlg.FindName('TxtDlgTitle')
+		$readmeHeaderBorder = $dlg.FindName('ReadmeHeaderBorder')
+		$txtReadmeTitle = $dlg.FindName('TxtReadmeTitle')
 		$txtReadmePath = $dlg.FindName('TxtReadmePath')
 		$txtReadmeContent = $null
+		$readmeContentBorder = $dlg.FindName('ReadmeContentBorder')
 		$readmeWebHost = $dlg.FindName('ReadmeWebHost')
 		$readmeFlowViewer = $dlg.FindName('ReadmeFlowViewer')
+		$readmeFooterBorder = $dlg.FindName('ReadmeFooterBorder')
 		$btnRefresh = $dlg.FindName('BtnRefresh')
 		$btnClose = $dlg.FindName('BtnClose')
 
@@ -4190,8 +4195,121 @@
 		Set-ButtonChrome -Button $btnClose -Variant 'Primary' -Compact
 		$btnClose.IsCancel = $true
 
+		$getReadmeTheme = {
+			param([hashtable]$ThemeOverride = $null)
+
+			if ($ThemeOverride -and ($ThemeOverride -is [System.Collections.IDictionary]) -and $ThemeOverride.Count -gt 0)
+			{
+				return $ThemeOverride
+			}
+
+			if (Test-Path -Path Variable:\Script:CurrentTheme)
+			{
+				return $Script:CurrentTheme
+			}
+
+			return $theme
+		}.GetNewClosure()
+
+		$applyReadmeDialogTheme = {
+			param([hashtable]$ThemeOverride = $null)
+
+			$activeTheme = & $getReadmeTheme -ThemeOverride $ThemeOverride
+
+			if ($rootBorder)
+			{
+				$rootBorder.Background = $bc.ConvertFromString($activeTheme.WindowBg)
+				$rootBorder.BorderBrush = $bc.ConvertFromString($activeTheme.BorderColor)
+				$rootBorder.BorderThickness = [System.Windows.Thickness]::new(1)
+			}
+			if ($dlgTitleBar)
+			{
+				$dlgTitleBar.Background = $bc.ConvertFromString($activeTheme.HeaderBg)
+			}
+			if ($txtDlgTitle)
+			{
+				$txtDlgTitle.Foreground = $bc.ConvertFromString($activeTheme.TextPrimary)
+			}
+			if ($btnDlgClose)
+			{
+				$btnDlgClose.Background = [System.Windows.Media.Brushes]::Transparent
+				$btnDlgClose.Foreground = $bc.ConvertFromString($activeTheme.TextPrimary)
+			}
+			if ($readmeHeaderBorder)
+			{
+				$readmeHeaderBorder.Background = $bc.ConvertFromString($activeTheme.HeaderBg)
+				$readmeHeaderBorder.BorderBrush = $bc.ConvertFromString($activeTheme.BorderColor)
+				$readmeHeaderBorder.BorderThickness = [System.Windows.Thickness]::new(0, 0, 0, 1)
+			}
+			if ($txtReadmeTitle)
+			{
+				$txtReadmeTitle.Foreground = $bc.ConvertFromString($activeTheme.TextPrimary)
+			}
+			if ($txtReadmePath)
+			{
+				$txtReadmePath.Foreground = $bc.ConvertFromString($activeTheme.TextMuted)
+			}
+			if ($readmeContentBorder)
+			{
+				$readmeContentBorder.Background = $bc.ConvertFromString($activeTheme.SearchBg)
+			}
+			if ($readmeFlowViewer)
+			{
+				$readmeFlowViewer.Background = $bc.ConvertFromString($activeTheme.SearchBg)
+			}
+			if ($readmeFooterBorder)
+			{
+				$readmeFooterBorder.Background = $bc.ConvertFromString($activeTheme.HeaderBg)
+				$readmeFooterBorder.BorderBrush = $bc.ConvertFromString($activeTheme.BorderColor)
+				$readmeFooterBorder.BorderThickness = [System.Windows.Thickness]::new(0, 1, 0, 0)
+			}
+			if ($btnRefresh)
+			{
+				Set-ButtonChrome -Button $btnRefresh -Variant 'Subtle' -Compact -Muted
+			}
+			if ($btnClose)
+			{
+				Set-ButtonChrome -Button $btnClose -Variant 'Primary' -Compact
+			}
+		}.GetNewClosure()
+
+		# Force the rendered markdown's foreground/opacity back to theme values.
+		# Without this, Markdig.Wpf can emit block-level brushes (or residual
+		# opacity) from its default stylesheet that render as unreadable washed
+		# text against the dialog surface. Applied after every render and
+		# rerun when the popup theme registry repaints an open README window.
+		$setMarkdownViewerTheme = {
+			param(
+				[System.Windows.Controls.FlowDocumentScrollViewer]$Viewer,
+				[string]$ForegroundHex,
+				[hashtable]$ThemeOverride = $null
+			)
+
+			if (-not $Viewer) { return }
+			$activeTheme = & $getReadmeTheme -ThemeOverride $ThemeOverride
+			$Viewer.Background = $bc.ConvertFromString($activeTheme.SearchBg)
+			if (-not $Viewer.Document) { return }
+
+			$foregroundBrush = $bc.ConvertFromString($ForegroundHex)
+			$Viewer.Document.Foreground = $foregroundBrush
+
+			foreach ($block in $Viewer.Document.Blocks)
+			{
+				try
+				{
+					$block.Foreground = $foregroundBrush
+					$block.Opacity    = 1.0
+				}
+				catch { $null = $_ }
+			}
+		}.GetNewClosure()
+
 		$showReadmeAsText = {
-			param([string]$Content, [string]$ForegroundHex)
+			param(
+				[string]$Content,
+				[string]$ForegroundHex,
+				[hashtable]$ThemeOverride = $null
+			)
 			$paragraph = [System.Windows.Documents.Paragraph]::new()
 			$paragraph.Margin = [System.Windows.Thickness]::new(0)
 			$run = [System.Windows.Documents.Run]::new($Content)
@@ -4207,18 +4325,24 @@
 			$readmeFlowViewer.Document = $document
 			$readmeFlowViewer.Visibility = [System.Windows.Visibility]::Visible
 			if ($readmeWebHost) { $readmeWebHost.Visibility = [System.Windows.Visibility]::Collapsed }
+			& $setMarkdownViewerTheme -Viewer $readmeFlowViewer -ForegroundHex $ForegroundHex -ThemeOverride $ThemeOverride
 		}.GetNewClosure()
 
 		$showReadmeAsFlowDocument = {
-			param([System.Windows.Documents.FlowDocument]$Document)
+			param(
+				[System.Windows.Documents.FlowDocument]$Document,
+				[hashtable]$ThemeOverride = $null
+			)
+			$activeTheme = & $getReadmeTheme -ThemeOverride $ThemeOverride
 			$Document.Background = [System.Windows.Media.Brushes]::Transparent
-			$Document.Foreground = $bc.ConvertFromString($theme.TextPrimary)
+			$Document.Foreground = $bc.ConvertFromString($activeTheme.TextPrimary)
 			$Document.PagePadding = [System.Windows.Thickness]::new(0)
 			$Document.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI')
 			$Document.FontSize = [double]$readmeFontSize
 			$readmeFlowViewer.Document = $Document
 			$readmeFlowViewer.Visibility = [System.Windows.Visibility]::Visible
 			if ($readmeWebHost) { $readmeWebHost.Visibility = [System.Windows.Visibility]::Collapsed }
+			& $setMarkdownViewerTheme -Viewer $readmeFlowViewer -ForegroundHex $activeTheme.TextPrimary -ThemeOverride $activeTheme
 		}.GetNewClosure()
 
 		$webView2Ready = $false
@@ -4261,6 +4385,11 @@
 		}.GetNewClosure()
 
 		$loadReadmeContent = {
+			param([hashtable]$ThemeOverride = $null)
+
+			$activeTheme = & $getReadmeTheme -ThemeOverride $ThemeOverride
+			& $applyReadmeDialogTheme -ThemeOverride $activeTheme
+
 			$resolvedPath = if ([string]::IsNullOrWhiteSpace([string]$ReadmePath)) { Resolve-BaselineReadmePath } else { $ReadmePath }
 			$txtReadmePath.Text = if ([string]::IsNullOrWhiteSpace([string]$resolvedPath)) { '' } else { $resolvedPath }
 
@@ -4274,7 +4403,7 @@
 				{
 					"{0}`r`n`r`n{1}" -f $missingMessage, $resolvedPath
 				}
-				& $showReadmeAsText -Content $message -ForegroundHex $theme.RiskHighBadge
+				& $showReadmeAsText -Content $message -ForegroundHex $activeTheme.RiskHighBadge -ThemeOverride $activeTheme
 				return
 			}
 
@@ -4285,11 +4414,11 @@
 				$markdownText = [System.IO.File]::ReadAllText($resolvedFullPath)
 				$html = ConvertFrom-BaselineMarkdownToHtml `
 					-Markdown $markdownText `
-					-BackgroundColor $theme.SearchBg `
-					-ForegroundColor $theme.TextPrimary `
-					-MutedForegroundColor $theme.TextMuted `
-					-LinkColor $theme.AccentBlue `
-					-CodeBackgroundColor $theme.HeaderBg
+					-BackgroundColor $activeTheme.SearchBg `
+					-ForegroundColor $activeTheme.TextPrimary `
+					-MutedForegroundColor $activeTheme.TextMuted `
+					-LinkColor $activeTheme.AccentBlue `
+					-CodeBackgroundColor $activeTheme.HeaderBg
 
 				if (-not (& $showReadmeAsWebView -Html $html))
 				{
@@ -4302,20 +4431,33 @@
 
 					if ($flowDocument)
 					{
-						& $showReadmeAsFlowDocument -Document $flowDocument
+						& $showReadmeAsFlowDocument -Document $flowDocument -ThemeOverride $activeTheme
 					}
 					else
 					{
-						& $showReadmeAsText -Content $markdownText -ForegroundHex $theme.TextSecondary
+						& $showReadmeAsText -Content $markdownText -ForegroundHex $activeTheme.TextSecondary -ThemeOverride $activeTheme
 					}
 				}
 			}
 			catch
 			{
-				& $showReadmeAsText -Content ("Failed to read README.`r`n`r`n{0}" -f $_.Exception.Message) -ForegroundHex $theme.RiskHighBadge
+				& $showReadmeAsText -Content ("Failed to read README.`r`n`r`n{0}" -f $_.Exception.Message) -ForegroundHex $activeTheme.RiskHighBadge -ThemeOverride $activeTheme
 			}
 		}.GetNewClosure()
 
+		$readmeThemeCallback = {
+			param(
+				[System.Windows.Window]$Window,
+				[hashtable]$Theme,
+				[object]$UseDarkMode
+			)
+
+			$null = $Window
+			$null = $UseDarkMode
+			& $loadReadmeContent -ThemeOverride $Theme
+		}.GetNewClosure()
+
+		[void](GUICommon\Register-GuiPopupThemeWindow -Window $dlg -ThemeCallback $readmeThemeCallback)
 		& $loadReadmeContent
 
 		Register-GuiEventHandler -Source $btnRefresh -EventName 'Click' -Handler ({

@@ -1,6 +1,28 @@
 using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
+<#
+    .SYNOPSIS
+    Internal function Ensure-TaskbarRegistryPath.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Ensure-TaskbarRegistryPath
+{
+	param
+	(
+		[Parameter(Mandatory = $true)]
+		[string]$Path
+	)
+
+	if (-not (Test-Path -Path $Path))
+	{
+		New-Item -Path $Path -Force -ErrorAction Stop | Out-Null
+	}
+}
+
 #region Taskbar
 
 <#
@@ -108,6 +130,8 @@ function TaskbarAlignment
 		$Center
 	)
 
+	$taskbarAdvancedPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+
 	switch ($PSCmdlet.ParameterSetName)
 	{
 		"Center"
@@ -116,7 +140,8 @@ function TaskbarAlignment
 			LogInfo "Setting the taskbar alignment to the Center"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name TaskbarAl -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
+				New-ItemProperty -Path $taskbarAdvancedPath -Name TaskbarAl -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -131,7 +156,8 @@ function TaskbarAlignment
 			LogInfo "Setting the taskbar alignment to the Left"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name TaskbarAl -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
+				New-ItemProperty -Path $taskbarAdvancedPath -Name TaskbarAl -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -173,7 +199,7 @@ function TaskbarWidgets
 	if (-not (Get-AppxPackage -Name MicrosoftWindows.Client.WebExperience -WarningAction SilentlyContinue))
 	{
 		LogInfo ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
-		#LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
+		return
 	}
 
 	# Remove all policies in order to make changes visible in UI only if it's possible
@@ -189,14 +215,30 @@ function TaskbarWidgets
 		{
 			Write-ConsoleStatus -Action "Disabling the widgets icon on the taskbar"
 			LogInfo "Disabling the widgets icon on the taskbar"
-			Invoke-UCPDBypassed -ScriptBlock {New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name TaskbarDa -PropertyType DWord -Value 0 -Force}
+			Invoke-UCPDBypassed -ScriptBlock {
+				$path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+				if (-not (Test-Path -Path $path))
+				{
+					New-Item -Path $path -Force -ErrorAction Stop | Out-Null
+				}
+
+				New-ItemProperty -Path $path -Name TaskbarDa -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+			}
 			Write-ConsoleStatus -Status success
 		}
 		"Show"
 		{
 			Write-ConsoleStatus -Action "Enabling the widgets icon on the taskbar"
 			LogInfo "Enabling the widgets icon on the taskbar"
-			Invoke-UCPDBypassed -ScriptBlock {New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name TaskbarDa -PropertyType DWord -Value 1 -Force}
+			Invoke-UCPDBypassed -ScriptBlock {
+				$path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+				if (-not (Test-Path -Path $path))
+				{
+					New-Item -Path $path -Force -ErrorAction Stop | Out-Null
+				}
+
+				New-ItemProperty -Path $path -Name TaskbarDa -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+			}
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -243,6 +285,8 @@ function TaskbarSearch
 		$SearchBox
 	)
 
+	$searchPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search'
+
 	# Remove all policies in order to make changes visible in UI only if it's possible
 	New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\PolicyManager\default\Search\DisableSearch -Name value -PropertyType DWord -Value 0 -Force -ErrorAction Ignore | Out-Null
 	Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name DisableSearch, SearchOnTaskbarMode -Force -ErrorAction Ignore | Out-Null
@@ -257,7 +301,8 @@ function TaskbarSearch
 			LogInfo "Disabling the search on the taskbar"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Search -Name SearchboxTaskbarMode -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Ensure-TaskbarRegistryPath -Path $searchPath
+				New-ItemProperty -Path $searchPath -Name SearchboxTaskbarMode -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -272,7 +317,8 @@ function TaskbarSearch
 			LogInfo "Enabling the search icon on the taskbar"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Search -Name SearchboxTaskbarMode -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Ensure-TaskbarRegistryPath -Path $searchPath
+				New-ItemProperty -Path $searchPath -Name SearchboxTaskbarMode -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -287,7 +333,8 @@ function TaskbarSearch
 			LogInfo "Enabling the search icon label on the taskbar"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Search -Name SearchboxTaskbarMode -PropertyType DWord -Value 3 -Force -ErrorAction Stop | Out-Null
+				Ensure-TaskbarRegistryPath -Path $searchPath
+				New-ItemProperty -Path $searchPath -Name SearchboxTaskbarMode -PropertyType DWord -Value 3 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -302,7 +349,8 @@ function TaskbarSearch
 			LogInfo "Enabling the search box on the taskbar"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Search -Name SearchboxTaskbarMode -PropertyType DWord -Value 2 -Force -ErrorAction Stop | Out-Null
+				Ensure-TaskbarRegistryPath -Path $searchPath
+				New-ItemProperty -Path $searchPath -Name SearchboxTaskbarMode -PropertyType DWord -Value 2 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -341,6 +389,8 @@ function SearchHighlights
 		$Show
 	)
 
+	$searchSettingsPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\SearchSettings'
+
 	# Remove all policies in order to make changes visible in UI only if it's possible
 	Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name EnableDynamicContentInWSB -Force -ErrorAction Ignore | Out-Null
 	Set-Policy -Scope Computer -Path "SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name EnableDynamicContentInWSB -Type CLEAR | Out-Null
@@ -362,7 +412,8 @@ function SearchHighlights
 			}
 			else
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\SearchSettings -Name IsDynamicSearchBoxEnabled -PropertyType DWord -Value 0 -Force | Out-Null
+				Ensure-TaskbarRegistryPath -Path $searchSettingsPath
+				New-ItemProperty -Path $searchSettingsPath -Name IsDynamicSearchBoxEnabled -PropertyType DWord -Value 0 -Force | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 		}
@@ -373,7 +424,8 @@ function SearchHighlights
 			# Enable "Ask Copilot" and "Find results in Web" icons in Windows Search in order to enable Search Highlights
 			Remove-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Search -Name BingSearchEnabled -Force -ErrorAction Ignore | Out-Null
 			Remove-ItemProperty -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer -Name DisableSearchBoxSuggestions -Force -ErrorAction Ignore | Out-Null
-			New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\SearchSettings -Name IsDynamicSearchBoxEnabled -PropertyType DWord -Value 1 -Force | Out-Null
+			Ensure-TaskbarRegistryPath -Path $searchSettingsPath
+			New-ItemProperty -Path $searchSettingsPath -Name IsDynamicSearchBoxEnabled -PropertyType DWord -Value 1 -Force | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -406,6 +458,8 @@ function TaskViewButton
 		$Show
 	)
 
+	$taskbarAdvancedPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+
 	# Remove all policies in order to make changes visible in UI only if it's possible
 	Remove-ItemProperty -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer, HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer -Name HideTaskViewButton -Force -ErrorAction Ignore | Out-Null
 	Set-Policy -Scope User -Path Software\Policies\Microsoft\Windows\Explorer -Name HideTaskViewButton -Type CLEAR | Out-Null
@@ -419,7 +473,8 @@ function TaskViewButton
 			LogInfo "Disabling the Task view button on the taskbar"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name ShowTaskViewButton -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
+				New-ItemProperty -Path $taskbarAdvancedPath -Name ShowTaskViewButton -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -434,7 +489,8 @@ function TaskViewButton
 			LogInfo "Enabling the Task view button on the taskbar"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name ShowTaskViewButton -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
+				New-ItemProperty -Path $taskbarAdvancedPath -Name ShowTaskViewButton -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -480,6 +536,8 @@ function TaskbarCombine
 		$Never
 	)
 
+	$taskbarAdvancedPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+
 	# Remove all policies in order to make changes visible in UI only if it's possible
 	Remove-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer, HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name NoTaskGrouping -Force -ErrorAction Ignore | Out-Null
 	Set-Policy -Scope Computer -Path SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name NoTaskGrouping -Type CLEAR | Out-Null
@@ -493,7 +551,8 @@ function TaskbarCombine
 			LogInfo "Combine taskbar buttons and always hide labels"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name TaskbarGlomLevel -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
+				New-ItemProperty -Path $taskbarAdvancedPath -Name TaskbarGlomLevel -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -508,7 +567,8 @@ function TaskbarCombine
 			LogInfo "Combine taskbar buttons and hide labels when taskbar is full"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name TaskbarGlomLevel -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
+				New-ItemProperty -Path $taskbarAdvancedPath -Name TaskbarGlomLevel -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -523,7 +583,8 @@ function TaskbarCombine
 			LogInfo "Combine taskbar buttons and never hide labels"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name TaskbarGlomLevel -PropertyType DWord -Value 2 -Force -ErrorAction Stop | Out-Null
+				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
+				New-ItemProperty -Path $taskbarAdvancedPath -Name TaskbarGlomLevel -PropertyType DWord -Value 2 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch

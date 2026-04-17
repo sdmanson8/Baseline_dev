@@ -822,7 +822,7 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 	{
 		try
 		{
-			$splashLoadingText = Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please wait - opening GUI...'
+			$splashLoadingText = Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...'
 			if ($null -ne $Global:Localization)
 			{
 				$candidate = $null

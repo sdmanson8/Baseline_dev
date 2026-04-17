@@ -124,6 +124,20 @@ jobs:
           path: failed-*
           if-no-files-found: ignore
 
+      - name: Verify release contract (zip + manifest 1:1)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zipPattern      = '^Baseline(?:-portable)?-(v?\d+\.\d+\.\d+(?:-[a-zA-Z0-9]+)?)\.zip$'
+          $manifestPattern = '^Baseline(?:-portable)?-(v?\d+\.\d+\.\d+(?:-[a-zA-Z0-9]+)?)\.zip\.sha256\.json$'
+          $zip = @(Get-ChildItem -Path .\dist -File | Where-Object { $_.Name -match $zipPattern })
+          $manifest = @(Get-ChildItem -Path .\dist -File | Where-Object { $_.Name -match $manifestPattern })
+          if ($zip.Count -ne 1 -or $manifest.Count -ne 1) {
+            Write-Error "Release contract violation: expected exactly one zip and one SHA-256 manifest under .\dist. Found zips=$($zip.Count), manifests=$($manifest.Count)."
+            exit 1
+          }
+          Write-Host "OK: release contract satisfied -> $($zip[0].Name) / $($manifest[0].Name)"
+
       - name: Validate release artifact layout
         shell: powershell
         run: |

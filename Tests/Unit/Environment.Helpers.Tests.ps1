@@ -77,6 +77,12 @@ BeforeAll {
     . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Json.Helpers.ps1')
 
     $filePath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Environment.Helpers.ps1'
+    $script:EnvironmentHelpersContent = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8
+    $script:EnglishLocalizationFiles = @(
+        Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot '../../Localizations') -Directory |
+            Where-Object { $_.Name -like 'English*' } |
+            ForEach-Object { Get-ChildItem -LiteralPath $_.FullName -Filter '*.json' -File }
+    )
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
@@ -377,5 +383,61 @@ Describe 'Baseline markdown runtime' {
 
         $html | Should -Match '<h1'
         $html | Should -Match 'Title'
+    }
+}
+
+Describe 'Bootstrap splash defaults' {
+    It 'renders the custom splash title from the window title' {
+        $script:EnvironmentHelpersContent | Should -Match 'Name="TitleText"'
+        $script:EnvironmentHelpersContent | Should -Match 'Text="\{Binding RelativeSource=\{RelativeSource AncestorType=Window\}, Path=Title\}"'
+    }
+
+    It 'uses non-empty splash text fallbacks for initialization and idle restore' {
+        ([regex]::Matches($script:EnvironmentHelpersContent, "Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait\.\.\.'")).Count | Should -Be 3
+        $script:EnvironmentHelpersContent | Should -Match "GuiSplashAutoClose' -Fallback 'This window will close automatically when ready\.'"
+        $script:EnvironmentHelpersContent | Should -Match "GuiSplashSubtitle' -Fallback 'Windows Optimization & Hardening'"
+    }
+
+    It 'keeps every English splash localization on the neutral loading text' {
+        foreach ($localeFile in $script:EnglishLocalizationFiles) {
+            $content = Get-Content -LiteralPath $localeFile.FullName -Raw -Encoding UTF8
+            $content | Should -Match '"GuiSplashLoading": "Please Wait\.\.\."'
+        }
+    }
+}
+
+Describe 'Test-IsVirtualMachine' {
+    It 'returns $true when Win32_ComputerSystem reports a virtual-machine model' {
+        Mock Get-CimInstance {
+            [pscustomobject]@{ Model = 'Virtual Machine' }
+        } -ParameterFilter { $ClassName -eq 'Win32_ComputerSystem' }
+
+        Test-IsVirtualMachine | Should -BeTrue
+    }
+
+    It 'returns $true for known hypervisor signatures (VMware, VBOX)' {
+        Mock Get-CimInstance {
+            [pscustomobject]@{ Model = 'VMware Virtual Platform' }
+        } -ParameterFilter { $ClassName -eq 'Win32_ComputerSystem' }
+        Test-IsVirtualMachine | Should -BeTrue
+
+        Mock Get-CimInstance {
+            [pscustomobject]@{ Model = 'VirtualBox (VBOX)' }
+        } -ParameterFilter { $ClassName -eq 'Win32_ComputerSystem' }
+        Test-IsVirtualMachine | Should -BeTrue
+    }
+
+    It 'returns $false for a physical machine model' {
+        Mock Get-CimInstance {
+            [pscustomobject]@{ Model = 'OptiPlex 7090' }
+        } -ParameterFilter { $ClassName -eq 'Win32_ComputerSystem' }
+
+        Test-IsVirtualMachine | Should -BeFalse
+    }
+
+    It 'returns $false when CIM lookup fails rather than throwing' {
+        Mock Get-CimInstance { throw 'cim offline' } -ParameterFilter { $ClassName -eq 'Win32_ComputerSystem' }
+
+        Test-IsVirtualMachine | Should -BeFalse
     }
 }

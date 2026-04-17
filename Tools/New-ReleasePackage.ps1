@@ -1,12 +1,14 @@
 ﻿<#
 	.SYNOPSIS
-	Internal release tool that creates the Baseline release zip containing only the setup executable.
+	Internal release tool that creates the Baseline release zip and companion SHA-256 manifest.
 
 	.DESCRIPTION
 	Builds the Inno Setup installer (Baseline-setup-<version>.exe) via
 	New-InstallerPackage.ps1 then wraps it in a zip archive
-	(Baseline-<version>.zip) ready for GitHub Releases. This is an internal
-	shipping step for maintainers and release automation.
+	(Baseline-<version>.zip) ready for GitHub Releases. It also emits
+	(Baseline-<version>.zip.sha256.json), a manifest of SHA-256 hashes for the
+	release zip and installer. This is an internal shipping step for maintainers
+	and release automation.
 
 	.EXAMPLE
 	powershell -File .\Tools\New-ReleasePackage.ps1
@@ -25,6 +27,39 @@ param (
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Get-ReleasePackageSha256
+{
+	param(
+		[Parameter(Mandatory = $true)]
+		[string]$Path
+	)
+
+	if (Get-Command -Name 'Get-FileHash' -ErrorAction SilentlyContinue)
+	{
+		return (Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash.ToUpperInvariant()
+	}
+
+	$stream = [System.IO.File]::OpenRead($Path)
+	try
+	{
+		$sha256 = [System.Security.Cryptography.SHA256]::Create()
+		try
+		{
+			$hashBytes = $sha256.ComputeHash($stream)
+		}
+		finally
+		{
+			$sha256.Dispose()
+		}
+	}
+	finally
+	{
+		$stream.Dispose()
+	}
+
+	return ([System.BitConverter]::ToString($hashBytes)).Replace('-', '').ToUpperInvariant()
+}
 
 $repoRoot             = Split-Path -Path $PSScriptRoot -Parent
 $moduleManifestPath   = Join-Path $repoRoot 'Module/Baseline.psd1'
@@ -71,6 +106,7 @@ else
 }
 
 $archivePath = Join-Path $resolvedOutputDirectory $resolvedArchiveName
+$hashManifestPath = Join-Path $resolvedOutputDirectory ($resolvedArchiveName + '.sha256.json')
 if ((Test-Path -LiteralPath $archivePath -PathType Leaf) -and -not $Force)
 {
 	throw "Archive already exists: $archivePath. Re-run with -Force to overwrite it."
@@ -78,6 +114,10 @@ if ((Test-Path -LiteralPath $archivePath -PathType Leaf) -and -not $Force)
 if (Test-Path -LiteralPath $archivePath -PathType Leaf)
 {
 	Remove-Item -LiteralPath $archivePath -Force -ErrorAction Stop
+}
+if (Test-Path -LiteralPath $hashManifestPath -PathType Leaf)
+{
+	Remove-Item -LiteralPath $hashManifestPath -Force -ErrorAction Stop
 }
 
 # ── Build installer ───────────────────────────────────────────────────────────
@@ -122,12 +162,31 @@ if ($PSCmdlet.ShouldProcess($archivePath, 'Create Baseline release zip'))
 			Remove-Item -LiteralPath $stageRoot -Recurse -Force -ErrorAction SilentlyContinue
 		}
 	}
-}
 
-$archiveItem = Get-Item -LiteralPath $archivePath -ErrorAction Stop
-[pscustomobject]@{
-	Path      = $archiveItem.FullName
-	Version   = $Version
-	SizeBytes = [int64]$archiveItem.Length
-	Installer = $setupExePath
+	# Only hash + emit the manifest when the archive actually exists. Under
+	# -WhatIf the Compress-Archive call above is suppressed, so hashing
+	# $archivePath would throw on a non-existent file.
+	if ((Test-Path -LiteralPath $archivePath -PathType Leaf) -and (Test-Path -LiteralPath $setupExePath -PathType Leaf))
+	{
+		$releaseHashManifest = [ordered]@{
+			schemaVersion = 1
+			algorithm     = 'sha256'
+			generatedUtc  = ([System.DateTime]::UtcNow.ToString('o'))
+			version       = $Version
+			files         = [ordered]@{
+				$resolvedArchiveName                           = Get-ReleasePackageSha256 -Path $archivePath
+				([System.IO.Path]::GetFileName($setupExePath)) = Get-ReleasePackageSha256 -Path $setupExePath
+			}
+		}
+		$releaseHashManifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $hashManifestPath -Encoding UTF8
+
+		$archiveItem = Get-Item -LiteralPath $archivePath -ErrorAction Stop
+		[pscustomobject]@{
+			Path             = $archiveItem.FullName
+			Version          = $Version
+			SizeBytes        = [int64]$archiveItem.Length
+			Installer        = $setupExePath
+			HashManifestPath = $hashManifestPath
+		}
+	}
 }

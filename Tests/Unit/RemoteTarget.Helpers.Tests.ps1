@@ -32,6 +32,7 @@ Describe 'Remote session caching' {
         $script:RemoteTargetHelpersContent | Should -Match 'function Get-BaselineRemoteOrchestrationReconciliation'
         $script:RemoteTargetHelpersContent | Should -Match 'function Invoke-BaselineRemoteEntryWithRetry'
         $script:RemoteTargetHelpersContent | Should -Match 'function Invoke-BaselineRemoteRetryDelay'
+        $script:RemoteTargetHelpersContent | Should -Match 'function Invoke-BaselineRemoteCheckpointAction'
         $script:RemoteTargetHelpersContent | Should -Match 'function Test-BaselineRemoteOrchestrationAllowed'
         $script:RemoteTargetHelpersContent | Should -Match 'function Write-BaselineRemoteOrchestrationRecord'
         $script:RemoteTargetHelpersContent | Should -Match 'function Write-BaselineRemoteOrchestrationSummaryRecord'
@@ -117,6 +118,26 @@ Describe 'Remote session caching' {
         $removed | Should -Contain $cacheKey
         $refreshed.ComputerName | Should -Be 'server01'
         Should -Invoke New-PSSession -Times 2
+    }
+}
+
+Describe 'Remote resume checkpoint warnings' {
+    BeforeEach {
+        $script:remoteCheckpointWarnings = [System.Collections.Generic.List[string]]::new()
+        function LogWarning { param([string]$Message) [void]$script:remoteCheckpointWarnings.Add($Message) }
+    }
+
+    AfterEach {
+        Remove-Item Function:\LogWarning -ErrorAction SilentlyContinue
+    }
+
+    It 'logs checkpoint persistence failures with context instead of swallowing them silently' {
+        $result = Invoke-BaselineRemoteCheckpointAction -Description 'persist RemoteApply checkpoint state for run test-run' -Action { throw 'disk full' }
+
+        $result | Should -BeNullOrEmpty
+        $script:remoteCheckpointWarnings | Should -HaveCount 1
+        $script:remoteCheckpointWarnings[0] | Should -Match 'Failed to persist RemoteApply checkpoint state for run test-run'
+        $script:remoteCheckpointWarnings[0] | Should -Match 'disk full'
     }
 }
 

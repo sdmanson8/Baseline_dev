@@ -2691,69 +2691,33 @@ function Build-AppsViewCards
 			$buttonRow.Margin = [System.Windows.Thickness]::new(0, 12, 0, 0)
 
 			$appCapture = $app
-			$queueSelectionKey = [string]$selectionKeyCapture
-			$queueAction = Get-AppQueuedAction -AppId $queueSelectionKey
-			$queueGroupName = 'AppQueue_{0}' -f (($queueSelectionKey -replace '[^A-Za-z0-9]+', '_').Trim('_'))
-			$queuedActionControls = [pscustomobject]@{
-				Install = $null
-				Uninstall = $null
-				DoNothing = $null
+			$primaryActionKind = if ($isInstalled) { 'Uninstall' } else { 'Install' }
+			$primaryActionRequiresCache = ($primaryActionKind -ne 'Install')
+			$primaryButton = [System.Windows.Controls.Button]::new()
+			$primaryButton.Content = $primaryAction
+			$primaryButton.MinWidth = 88
+			$primaryButton.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
+			$primaryButton.Cursor = [System.Windows.Input.Cursors]::Hand
+			$primaryButton.IsEnabled = (-not $Script:AppsOperationInProgress) -and (-not $Script:AppsCacheRefreshInProgress) -and (-not $isAppActionBusy) -and ((-not $primaryActionRequiresCache) -or $cacheReady)
+			$primaryButton.ToolTip = if ($primaryActionKind -eq 'Install')
+			{
+				(Get-UxLocalizedString -Key 'Tooltip_InstallApplication' -Fallback 'Install this application.')
 			}
-			[void]$Script:AppsQueuedActionControlMap.Remove($queueSelectionKey)
-			[void]$Script:AppsQueuedActionControlMap.Add($queueSelectionKey, $queuedActionControls)
-
-			$installRadio = [System.Windows.Controls.RadioButton]::new()
-			$installRadio.Content = (Get-UxLocalizedString -Key 'Install' -Fallback 'Install')
-			$installRadio.GroupName = $queueGroupName
-			$installRadio.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
-			$installRadio.Padding = [System.Windows.Thickness]::new(8, 4, 8, 4)
-			$installRadio.Cursor = [System.Windows.Input.Cursors]::Hand
-			$installRadio.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-			$installRadio.Foreground = $bc.ConvertFromString($theme.TextPrimary)
-			$installRadio.ToolTip = (Get-UxLocalizedString -Key 'GuiAppsQueueInstallTip' -Fallback 'Queue this app for installation.')
-			$installRadio.IsChecked = ([string]$queueAction -eq 'Install')
-			$installRadio.Add_Checked({
-				if ($Script:AppsQueuedActionUiUpdating) { return }
-				& $setAppQueuedActionCommand -AppId $queueSelectionKey -Action 'Install'
+			else
+			{
+				(Get-UxLocalizedString -Key 'Tooltip_UninstallApplication' -Fallback 'Uninstall this application.')
+			}
+			Set-ButtonChrome -Button $primaryButton -Variant 'Primary' -Compact
+			$primaryButtonIcon = if ($primaryActionKind -eq 'Install') { 'ArrowDownload' } else { 'Delete' }
+			Set-GuiButtonIconContent -Button $primaryButton -IconName $primaryButtonIcon -Text $primaryAction -IconSize 14 -Gap 6 -TextFontSize 11 -ToolTip $primaryButton.ToolTip
+			[void]$Script:AppsActionButtons.Add($primaryButton)
+			$capturedPrimaryAction = $primaryActionKind
+			$primaryButton.Add_Click({
+				param($buttonSender, $buttonEventArgs)
+				$null = $buttonEventArgs
+				& $startAppsModuleActionAsyncCommand -Action $capturedPrimaryAction -Application $appCapture
 			}.GetNewClosure())
-			$queuedActionControls.Install = $installRadio
-			[void]$buttonRow.Children.Add($installRadio)
-
-			$uninstallRadio = [System.Windows.Controls.RadioButton]::new()
-			$uninstallRadio.Content = (Get-UxLocalizedString -Key 'Uninstall' -Fallback 'Uninstall')
-			$uninstallRadio.GroupName = $queueGroupName
-			$uninstallRadio.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
-			$uninstallRadio.Padding = [System.Windows.Thickness]::new(8, 4, 8, 4)
-			$uninstallRadio.Cursor = [System.Windows.Input.Cursors]::Hand
-			$uninstallRadio.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-			$uninstallRadio.Foreground = $bc.ConvertFromString($theme.TextPrimary)
-			$uninstallRadio.ToolTip = (Get-UxLocalizedString -Key 'GuiAppsQueueUninstallTip' -Fallback 'Queue this app for uninstallation.')
-			$uninstallRadio.IsChecked = ([string]$queueAction -eq 'Uninstall')
-			$uninstallRadio.Add_Checked({
-				if ($Script:AppsQueuedActionUiUpdating) { return }
-				& $setAppQueuedActionCommand -AppId $queueSelectionKey -Action 'Uninstall'
-			}.GetNewClosure())
-			$queuedActionControls.Uninstall = $uninstallRadio
-			[void]$buttonRow.Children.Add($uninstallRadio)
-
-			$doNothingRadio = [System.Windows.Controls.RadioButton]::new()
-			$doNothingRadio.Content = (Get-UxLocalizedString -Key 'GuiAppsDoNothing' -Fallback 'Do nothing')
-			$doNothingRadio.GroupName = $queueGroupName
-			$doNothingRadio.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
-			$doNothingRadio.Padding = [System.Windows.Thickness]::new(8, 4, 8, 4)
-			$doNothingRadio.Cursor = [System.Windows.Input.Cursors]::Hand
-			$doNothingRadio.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-			$doNothingRadio.Foreground = $bc.ConvertFromString($theme.TextMuted)
-			$doNothingRadio.ToolTip = (Get-UxLocalizedString -Key 'GuiAppsQueueDoNothingTip' -Fallback 'Leave this app unchanged for now.')
-			$doNothingRadio.IsChecked = (-not [string]::IsNullOrWhiteSpace([string]$queueAction) -and [string]$queueAction -eq 'DoNothing') -or [string]::IsNullOrWhiteSpace([string]$queueAction)
-			$doNothingRadio.Add_Checked({
-				if ($Script:AppsQueuedActionUiUpdating) { return }
-				& $setAppQueuedActionCommand -AppId $queueSelectionKey -Action 'DoNothing'
-			}.GetNewClosure())
-			$queuedActionControls.DoNothing = $doNothingRadio
-			[void]$buttonRow.Children.Add($doNothingRadio)
-
-			[void]$Script:AppsQueuedActionControls.Add($queuedActionControls)
+			[void]$buttonRow.Children.Add($primaryButton)
 
 			if ($isInstalled -or $hasUpdateAvailable)
 			{

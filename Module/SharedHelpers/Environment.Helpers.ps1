@@ -818,9 +818,9 @@ function Show-BootstrapLoadingSplash
 		$runspace.SessionStateProxy.SetVariable('splashDarkMode', $splashDarkMode)
 		$runspace.SessionStateProxy.SetVariable('CurrentTheme', $CurrentTheme)
 		# Pass localization strings for splash screen
-		$splashLocSubtitle = Get-BaselineLocalizedString -Key 'GuiSplashSubtitle' -Fallback ''
-		$splashLocLoading = Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback ''
-		$splashLocAutoClose = Get-BaselineLocalizedString -Key 'GuiSplashAutoClose' -Fallback ''
+		$splashLocSubtitle = Get-BaselineLocalizedString -Key 'GuiSplashSubtitle' -Fallback 'Windows Optimization & Hardening'
+		$splashLocLoading = Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...'
+		$splashLocAutoClose = Get-BaselineLocalizedString -Key 'GuiSplashAutoClose' -Fallback 'This window will close automatically when ready.'
 		$runspace.SessionStateProxy.SetVariable('splashLocSubtitle', $splashLocSubtitle)
 		$runspace.SessionStateProxy.SetVariable('splashLocLoading', $splashLocLoading)
 		$runspace.SessionStateProxy.SetVariable('splashLocAutoClose', $splashLocAutoClose)
@@ -859,7 +859,17 @@ function Show-BootstrapLoadingSplash
 				<ColumnDefinition Width="*"/>
 				<ColumnDefinition Width="Auto"/>
 			</Grid.ColumnDefinitions>
-			<Image Name="SplashTopLeftIcon" Grid.Column="0" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2,0,0,0"/>
+			<DockPanel Grid.Column="0" LastChildFill="True" VerticalAlignment="Center" Margin="0,0,10,0">
+				<Image Name="SplashTopLeftIcon" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2,0,8,0"/>
+				<TextBlock Name="TitleText"
+					Text="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=Title}"
+					FontFamily="Segoe UI"
+					FontSize="12"
+					FontWeight="SemiBold"
+					Foreground="$splashFg"
+					VerticalAlignment="Center"
+					TextTrimming="CharacterEllipsis"/>
+			</DockPanel>
 			<StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
 				<Button Name="BtnMinimize" Content="&#x2015;" Width="28" Height="24" FontSize="11"
 					Background="Transparent" Foreground="$splashBtnFg" BorderThickness="0"
@@ -870,13 +880,13 @@ function Show-BootstrapLoadingSplash
 			</StackPanel>
 		</Grid>
 			<StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
-				<TextBlock Text="Baseline" FontSize="22" FontWeight="Bold"
+				<TextBlock Text="Baseline" FontFamily="Segoe UI" FontSize="22" FontWeight="Bold"
 					Foreground="$splashFg" HorizontalAlignment="Center" Margin="0,0,0,6"/>
 				<TextBlock Name="SubtitleText" Text="$([System.Security.SecurityElement]::Escape($splashLocSubtitle))"
-					FontSize="13" Foreground="$splashSub"
+					FontFamily="Segoe UI" FontSize="13" Foreground="$splashSub"
 					HorizontalAlignment="Center" Margin="0,0,0,24"/>
 				<TextBlock Name="StatusText" Text="$([System.Security.SecurityElement]::Escape($splashLocLoading))"
-					FontSize="14" Foreground="$splashAccent"
+					FontFamily="Segoe UI" FontSize="14" Foreground="$splashAccent"
 					HorizontalAlignment="Center"/>
 				<ProgressBar Name="ProgressBar"
 					Width="320" Height="4"
@@ -887,7 +897,7 @@ function Show-BootstrapLoadingSplash
 					Background="$splashBorder"/>
 			</StackPanel>
 		<Border Grid.Row="2" Background="$splashFooterBg" Padding="12,8" CornerRadius="0,0,8,8">
-			<TextBlock FontSize="11" Foreground="$splashMuted" HorizontalAlignment="Center"
+			<TextBlock FontFamily="Segoe UI" FontSize="11" Foreground="$splashMuted" HorizontalAlignment="Center"
 				Text="$([System.Security.SecurityElement]::Escape($splashLocAutoClose))"/>
 		</Border>
 	</Grid>
@@ -1716,7 +1726,7 @@ function Invoke-BaselineAutoUpdate
 		if (-not $isNewer)
 		{
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_AlreadyUpToDate' -Fallback 'Already up to date (latest: {0}).' -FormatArgs @($latestTag))
-			[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback '') -HideProgressBar)
+			[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...') -HideProgressBar)
 			return
 		}
 
@@ -1852,7 +1862,7 @@ del /f /q "%~f0"
 	finally
 	{
 		# Restore splash to normal idle state if we didn't exit
-		try { [void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback '') -HideProgressBar) } catch { }
+		try { [void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...') -HideProgressBar) } catch { }
 	}
 }
 
@@ -2679,4 +2689,31 @@ function Test-BaselineWebView2RuntimeReady
 {
 	<# .SYNOPSIS Returns $true once WebView2 has been loaded into the runspace. #>
 	return ([System.Type]::GetType('Microsoft.Web.WebView2.WinForms.WebView2, Microsoft.Web.WebView2.WinForms') -ne $null)
+}
+
+<#
+    .SYNOPSIS
+    Detect whether the current host is a virtual machine.
+
+    .DESCRIPTION
+    Returns $true when the Win32_ComputerSystem Model reports a known
+    hypervisor signature. Used by guardrails that must not run on VMs (e.g.
+    hardware-accelerated GPU scheduling). Production code and tests share this
+    single helper so detection behavior stays aligned.
+#>
+function Test-IsVirtualMachine
+{
+	[CmdletBinding()]
+	param()
+
+	try
+	{
+		$model = [string](Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop).Model
+	}
+	catch
+	{
+		return $false
+	}
+
+	return ($model -match 'Virtual|VMware|VBOX|KVM|QEMU|Xen|Hyper-V')
 }

@@ -71,7 +71,7 @@ If the signature check fails, treat the artifact as untrusted and replace it wit
 
 The following sequence is the canonical verification path; it is also the sequence the lifecycle tooling expects:
 
-1. Compute the SHA-256 hash of the artifact and confirm it matches the published release manifest.
+1. Compute the SHA-256 hash of the artifact and confirm it matches the published release manifest asset (`Baseline-<version>.zip.sha256.json`).
 2. Run `signtool verify /pa /v /tw <artifact>`. The command must succeed with exit code 0.
 3. Inspect the signer chain and confirm the leaf certificate subject matches the approved release signer.
 4. Confirm the embedded version metadata matches the intended rollout target.
@@ -99,4 +99,3 @@ When signature verification fails on an endpoint:
 
 - Every release event (signing, promotion, verification, rollback) writes a record to the audit trail via `Write-AuditRecord`. These records are exported with the support bundle (`Export-BaselineSupportBundle`).
 - Audit retention is governed by `Get-BaselineAuditRetentionDays` and enforced by `Invoke-BaselineAuditRetentionPolicy`. Retention windows shorter than 90 days require formal sign-off.
-

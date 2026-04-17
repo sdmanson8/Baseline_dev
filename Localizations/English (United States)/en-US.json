@@ -975,7 +975,7 @@
   "GuiShowDetails": "Show details",
   "GuiShowOptions": "Show options",
   "GuiSplashAutoClose": "This window will close automatically when ready.",
-  "GuiSplashLoading": "Please wait - opening GUI...",
+  "GuiSplashLoading": "Please Wait...",
   "GuiSplashSubtitle": "Windows Optimization & Hardening",
   "GuiUpdateDialogDescription": "A new version of Baseline is available from GitHub. Do you want to download and extract it now?",
   "GuiUpdateDialogDownload": "Download Update",

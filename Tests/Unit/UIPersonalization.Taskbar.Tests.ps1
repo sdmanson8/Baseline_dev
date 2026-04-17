@@ -27,9 +27,11 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         $script:removeRegistrySafeCalls = [System.Collections.Generic.List[object]]::new()
         $script:removeItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
         $script:policyCalls = [System.Collections.Generic.List[object]]::new()
+        $script:ucpdScriptBlocks = [System.Collections.Generic.List[string]]::new()
         $script:pathExists = $false
         $script:hasExistingProperty = $false
         $script:shouldThrow = $false
+        $script:getAppxPackageReturns = $true
 
         function Write-ConsoleStatus {
             param([string]$Action, [string]$Status)
@@ -72,10 +74,19 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
             param([string]$Scope, [string]$Path, [string]$Name, [string]$Type, [object]$Value)
             [void]$script:policyCalls.Add([pscustomobject]@{ Scope = $Scope; Name = $Name; Type = $Type })
         }
+        function Get-AppxPackage {
+            param([string]$Name)
+            if ($script:getAppxPackageReturns) { return [pscustomobject]@{ Name = $Name } }
+            return $null
+        }
+        function Invoke-UCPDBypassed {
+            param([scriptblock]$ScriptBlock)
+            [void]$script:ucpdScriptBlocks.Add($ScriptBlock.ToString())
+        }
     }
 
     AfterEach {
-        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','Test-Path','New-Item','New-ItemProperty','Remove-ItemProperty','Get-ItemProperty','Set-RegistryValueSafe','Remove-RegistryValueSafe','Set-Policy')) {
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','Test-Path','New-Item','New-ItemProperty','Remove-ItemProperty','Get-ItemProperty','Set-RegistryValueSafe','Remove-RegistryValueSafe','Set-Policy','Get-AppxPackage','Invoke-UCPDBypassed')) {
             Microsoft.PowerShell.Management\Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }
@@ -98,12 +109,53 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
             ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'TaskbarAl' }).Value | Should -Be 1
         }
 
+        It 'creates Explorer\\Advanced when missing before writing TaskbarAl' {
+            $script:pathExists = $false
+
+            TaskbarAlignment -Center
+
+            $script:newItemCalls | Should -Contain 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        }
+
         It 'reports failed when the registry write throws' {
             $script:shouldThrow = $true
 
             TaskbarAlignment -Center
 
             $script:consoleStatuses[-1] | Should -Be 'failed'
+        }
+    }
+
+    Context 'TaskbarWidgets' {
+        BeforeEach {
+            $Global:Localization = [pscustomobject]@{ Skipped = '{0} skipped' }
+            if (-not (Test-Path Function:\Get-TweakSkipLabel)) {
+                function Get-TweakSkipLabel { param([object]$MyInvocation) return 'label' }
+            }
+        }
+
+        AfterEach {
+            Remove-Variable -Name Localization -Scope Global -ErrorAction SilentlyContinue
+            Microsoft.PowerShell.Management\Remove-Item Function:\Get-TweakSkipLabel -ErrorAction SilentlyContinue
+        }
+
+        It 'creates Explorer\\Advanced inside the UCPD bypass script before writing TaskbarDa' {
+            TaskbarWidgets -Hide
+
+            $script:ucpdScriptBlocks[0] | Should -Match 'New-Item -Path \$path -Force -ErrorAction Stop'
+            $script:ucpdScriptBlocks[0] | Should -Match 'TaskbarDa'
+        }
+
+        It 'returns without touching registry or policy when WebExperience package is absent' {
+            $script:getAppxPackageReturns = $false
+
+            TaskbarWidgets -Hide
+
+            $script:ucpdScriptBlocks.Count | Should -Be 0
+            $script:newItemPropertyCalls.Count | Should -Be 0
+            $script:removeItemPropertyCalls.Count | Should -Be 0
+            $script:policyCalls.Count | Should -Be 0
+            $script:consoleStatuses.Count | Should -Be 0
         }
     }
 
@@ -137,10 +189,29 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
             ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'SearchboxTaskbarMode' }).Value | Should -Be 3
         }
 
+        It 'creates the Search key when missing before writing SearchboxTaskbarMode' {
+            $script:pathExists = $false
+
+            TaskbarSearch -SearchBox
+
+            $script:newItemCalls | Should -Contain 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search'
+        }
+
         It 'clears the DisableSearch policy up-front' {
             TaskbarSearch -SearchBox
 
             @($script:policyCalls | Where-Object { $_.Name -eq 'DisableSearch' -and $_.Type -eq 'CLEAR' }).Count | Should -BeGreaterOrEqual 1
+        }
+    }
+
+    Context 'SearchHighlights' {
+        It 'creates SearchSettings when missing before writing IsDynamicSearchBoxEnabled' {
+            $script:pathExists = $false
+
+            SearchHighlights -Show
+
+            $script:newItemCalls | Should -Contain 'HKCU:\Software\Microsoft\Windows\CurrentVersion\SearchSettings'
+            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'IsDynamicSearchBoxEnabled' }).Value | Should -Be 1
         }
     }
 
@@ -155,6 +226,14 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
             TaskViewButton -Show
 
             ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'ShowTaskViewButton' }).Value | Should -Be 1
+        }
+
+        It 'creates Explorer\\Advanced when missing before writing ShowTaskViewButton' {
+            $script:pathExists = $false
+
+            TaskViewButton -Hide
+
+            $script:newItemCalls | Should -Contain 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
         }
     }
 
@@ -175,6 +254,14 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
             TaskbarCombine -Never
 
             ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'TaskbarGlomLevel' }).Value | Should -Be 2
+        }
+
+        It 'creates Explorer\\Advanced when missing before writing TaskbarGlomLevel' {
+            $script:pathExists = $false
+
+            TaskbarCombine -Always
+
+            $script:newItemCalls | Should -Contain 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
         }
     }
 

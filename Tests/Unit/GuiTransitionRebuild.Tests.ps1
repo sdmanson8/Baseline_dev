@@ -124,4 +124,10 @@ Describe 'Focused GUI rebuilds' {
         $script:GuiContent | Should -Match '\$refreshNotice = \[System\.Windows\.Controls\.TextBlock\]::new\(\)'
         $script:GuiContent | Should -Match 'if \(\-not \$cacheReady\)[\s\S]*?\[void\]\$stack\.Children\.Add\(\$refreshNotice\)[\s\S]*?\}\s*\$selectionRow = \[System\.Windows\.Controls\.DockPanel\]::new\(\)'
     }
+
+    It 'keeps the per-app install action available before the installed-app cache has been scanned' {
+        $script:GuiContent | Should -Match '\$primaryActionKind = if \(\$isInstalled\) \{ ''Uninstall'' \} else \{ ''Install'' \}'
+        $script:GuiContent | Should -Match '\$primaryActionRequiresCache = \(\$primaryActionKind -ne ''Install''\)'
+        $script:GuiContent | Should -Match '\$primaryButton\.IsEnabled = \(\-not \$Script:AppsOperationInProgress\) -and \(\-not \$Script:AppsCacheRefreshInProgress\) -and \(\-not \$isAppActionBusy\) -and \(\(\-not \$primaryActionRequiresCache\) -or \$cacheReady\)'
+    }
 }
