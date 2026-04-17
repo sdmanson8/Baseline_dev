@@ -42,10 +42,24 @@ function Append-Log
 # ── Header ──
 ("=== VALIDATION LOG ===" + "`n" + (Get-Date -Format 'o') + "`n" + "OS: $([System.Environment]::OSVersion.VersionString)" + "`n" + "PS: $($PSVersionTable.PSVersion)" + "`n") | Out-File -FilePath $LogFile -Encoding UTF8
 
-# ── 1. Smoke tests ──
-Append-Log '=== SMOKE TESTS ==='
+# ── 1. Source smoke tests ──
+Append-Log '=== SOURCE SMOKE TESTS ==='
 $smokeOut = & (Join-Path $repoRoot 'Tools/Test-SmokeTest.ps1') *>&1 | Out-String
 Append-Log $smokeOut
+
+# ── 1b. Release smoke tests ──
+Append-Log "`n=== RELEASE SMOKE TESTS ==="
+$releaseSmokeScript = Join-Path $repoRoot 'Tools/Test-ReleaseSmoke.ps1'
+$repoExe = Join-Path $repoRoot 'Baseline.exe'
+if (Test-Path -LiteralPath $repoExe -PathType Leaf)
+{
+    $releaseSmokeOut = & $releaseSmokeScript *>&1 | Out-String
+    Append-Log $releaseSmokeOut
+}
+else
+{
+    Append-Log '  [SKIP] Release smoke tests -- Baseline.exe not found; build the launcher or packaging inputs first.'
+}
 
 # ── 2. Documentation consistency checks ──
 Append-Log "`n=== DOCS CONSISTENCY CHECKS ==="

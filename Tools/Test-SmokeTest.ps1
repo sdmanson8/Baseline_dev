@@ -1,10 +1,12 @@
 ﻿<#
     .SYNOPSIS
-    Smoke-test script for Baseline release validation.
+    Smoke-test script for Baseline source validation.
 
     .DESCRIPTION
     Validates file structure, module loading, manifest integrity, preset
-    generation, and extraction safety. Run on Windows before release.
+    generation, and extraction safety. By default this only checks
+    source-controlled content so it can run in CI directly after checkout.
+    Use -RequireReleaseArtifacts to add built-launcher checks before release.
 
     Cross-platform checks run anywhere. GUI/WPF checks require Windows
     with PowerShell 5.1 Desktop edition.
@@ -14,11 +16,15 @@
 
     .EXAMPLE
     powershell -File .\Tools\Test-SmokeTest.ps1 -IncludeGUI
+
+    .EXAMPLE
+    powershell -File .\Tools\Test-SmokeTest.ps1 -RequireReleaseArtifacts
 #>
 
 [CmdletBinding()]
 param (
-    [switch]$IncludeGUI
+    [switch]$IncludeGUI,
+    [switch]$RequireReleaseArtifacts
 )
 
 $ErrorActionPreference = 'Stop'
@@ -64,7 +70,6 @@ function Write-TestResult
 Write-Host "`n=== File Structure ===" -ForegroundColor Cyan
 
 $requiredFiles = @(
-    'Baseline.exe'
     'Bootstrap/Baseline.ps1'
     'README.md'
     'CHANGELOG.md'
@@ -292,14 +297,21 @@ foreach ($ef in $extractedFiles)
     }
 }
 
-$baselineExePath = Join-Path $repoRoot 'Baseline.exe'
-if (Test-Path -LiteralPath $baselineExePath)
+if ($RequireReleaseArtifacts)
 {
-    Write-TestResult -Name 'Baseline.exe exists at the repository root' -Result Pass
+    $baselineExePath = Join-Path $repoRoot 'Baseline.exe'
+    if (Test-Path -LiteralPath $baselineExePath)
+    {
+        Write-TestResult -Name 'Baseline.exe exists at the repository root' -Result Pass
+    }
+    else
+    {
+        Write-TestResult -Name 'Baseline.exe exists at the repository root' -Result Fail -Detail 'Launcher executable not found'
+    }
 }
 else
 {
-    Write-TestResult -Name 'Baseline.exe exists at the repository root' -Result Fail -Detail 'Launcher executable not found'
+    Write-TestResult -Name 'Baseline.exe exists at the repository root' -Result Skip -Detail 'Use -RequireReleaseArtifacts to validate built launcher artifacts'
 }
 
 $legacyRunExePath = Join-Path $repoRoot 'run.exe'

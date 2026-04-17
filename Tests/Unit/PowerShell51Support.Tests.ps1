@@ -21,6 +21,7 @@ BeforeAll {
     $script:ExampleFiles = @(
         (Join-Path $PSScriptRoot '../../Tools/Validate-ManifestData.ps1')
         (Join-Path $PSScriptRoot '../../Tools/Test-SmokeTest.ps1')
+        (Join-Path $PSScriptRoot '../../Tools/Test-ReleaseSmoke.ps1')
         (Join-Path $PSScriptRoot '../../Tools/Test-ScreenshotDrift.ps1')
         (Join-Path $PSScriptRoot '../../Tools/Test-PresetGeneration.ps1')
         (Join-Path $PSScriptRoot '../../Tools/Test-DocumentationConsistency.ps1')

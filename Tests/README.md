@@ -40,6 +40,10 @@ Validates structural invariants: manifest integrity, preset ladder superset
 property, data file schema, and cross-module boundary contracts. Runs in CI
 on every push/PR.
 
+`Tools/Test-ReleaseSmoke.ps1` wraps the same suite with built-artifact checks
+enabled for release validation, including the expectation that `Baseline.exe`
+already exists at the repository root.
+
 ## Documentation Consistency (`Tools/Test-DocumentationConsistency.ps1`)
 
 Checks that the enterprise surfaces described in the docs still have matching
