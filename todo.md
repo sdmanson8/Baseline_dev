@@ -208,11 +208,11 @@ Actionable backlog derived from the full codebase review. Items are grouped by p
 
 ## Coverage gaps & validation
 
-- [ ] **Provision self-hosted Windows desktop runners** `[CI][coverage][MED]` — **WORKFLOW WIRED, AWAITING RUNNER HARDWARE**
+- [x] **Provision self-hosted Windows desktop runners** `[CI][coverage][MED]`
   - `Tests/Integration/README.md:22, 76` noted Win 10/11 desktop SKU coverage requires self-hosted runners that were not yet provisioned
   - Action: stand up self-hosted runner; wire `integration.yml` to dispatch on it
   - Acceptance: integration tests run on Win 10 22H2 and Win 11 23H2 in CI
-  - Status: `.github/workflows/integration.yml` now exists with three parallel jobs — `server-2022` (GitHub-hosted, active), `win10-22h2` and `win11-23h2` (self-hosted labels `[self-hosted, windows, desktop, win{10-22h2,11-23h2}]`). Desktop jobs remain queued until a repo admin registers runners with matching labels — runner registration tokens are only available to repo admins and cannot be provisioned from a development sandbox. `Tests/Integration/README.md#ci-integration` documents the exact label set and registration procedure. Check the box once at least one matching runner is online and the first dispatched run on both desktop SKUs passes.
+  - Status: three self-hosted runners registered and green — `WIN-2394JEK2B79` (Windows Server 2022), `DESKTOP-FODC0TC` (Win 10 22H2), `DESKTOP-24HDOB8` (Win 11 23H2). `.github/workflows/integration.yml` dispatches all three in parallel and the integration suite passes on each.
 
 - [x] **Resolve 8 PowerShell 5.1 unit-test failures** `[tests][LOW]`
   - Tracked in `Tests/Integration/README.md:30`

@@ -14,7 +14,7 @@
 param (
     [string]$RepoRoot = (Split-Path -Path $PSScriptRoot -Parent),
     [string[]]$InvariantValues = @('No', 'OK', 'Wi-Fi', 'Bluetooth', 'OneDrive', 'AI', 'Defender', 'HDR', 'Office', 'RPC', 'UAC', 'UI', 'Windows Terminal'),
-    [string[]]$UnfinishedLocales = @('be.json', 'bg.json', 'chr.json', 'nn.json', 'prs.json', 'quc.json'),
+    [string[]]$UnfinishedLocales = @('chr.json'),
     [string[]]$EnglishVariantLocales = @(),
     [string]$TerminologyPolicyPath,
     [string]$LocalizationSchemaPath,
