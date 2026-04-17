@@ -64,6 +64,37 @@ function Write-TestResult
     Write-Host $line
 }
 
+<#
+    .SYNOPSIS
+    Internal function Import-NewInstallerPackageFunctions.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+function Import-NewInstallerPackageFunctions
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$ScriptPath
+    )
+
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile($ScriptPath, [ref]$null, [ref]$null)
+    $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+    $moduleName = 'Baseline.NewInstallerPackage.TestImport'
+    $existingModule = Get-Module -Name $moduleName -ErrorAction SilentlyContinue
+    if ($existingModule)
+    {
+        Remove-Module -Name $moduleName -Force
+    }
+
+    $moduleSource = (($functions | ForEach-Object { $_.Extent.Text }) -join [Environment]::NewLine) +
+        [Environment]::NewLine +
+        'Export-ModuleMember -Function *'
+    $module = New-Module -Name $moduleName -ScriptBlock ([scriptblock]::Create($moduleSource))
+    Import-Module $module -Force -DisableNameChecking | Out-Null
+}
+
 # ============================================================
 # Section 1: File structure
 # ============================================================
@@ -561,6 +592,29 @@ if ($initialSetupContent -match 'Assert-FileHash')
 else
 {
     Write-TestResult -Name 'CheckWinGet verifies installer SHA-256' -Result Fail -Detail 'Hash verification call not found'
+}
+
+$installerScriptPath = Join-Path $repoRoot 'Tools/New-InstallerPackage.ps1'
+try
+{
+    Import-NewInstallerPackageFunctions -ScriptPath $installerScriptPath
+    $pathBudget = Get-InstallerPayloadPathBudgetReport `
+        -RepoRoot $repoRoot `
+        -BaseTempPath 'C:\Users\runneradmin\AppData\Local\Temp' `
+        -RootName 'BaselineInstaller_1234567890abcdef1234567890abcdef'
+
+    if ($pathBudget.MaxLength -le 259)
+    {
+        Write-TestResult -Name 'Installer payload staging stays within MAX_PATH budget' -Result Pass -Detail $pathBudget.MaxLength
+    }
+    else
+    {
+        Write-TestResult -Name 'Installer payload staging stays within MAX_PATH budget' -Result Fail -Detail "$($pathBudget.MaxLength): $($pathBudget.MaxRelativePath)"
+    }
+}
+catch
+{
+    Write-TestResult -Name 'Installer payload staging stays within MAX_PATH budget' -Result Fail -Detail $_.Exception.Message
 }
 
 # ============================================================

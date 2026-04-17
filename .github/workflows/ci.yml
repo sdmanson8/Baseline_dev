@@ -100,12 +100,17 @@ jobs:
             Write-Host "=== Staged source-root listing (if any) ===" -ForegroundColor Yellow
             $stageDirs = Get-ChildItem -Path $temp -Filter 'BaselineInstaller_*' -Directory -ErrorAction SilentlyContinue
             foreach ($d in $stageDirs) {
-              $extract = Join-Path $d.FullName 'extract\Baseline'
-              if (Test-Path -LiteralPath $extract) {
-                Write-Host "--- $extract ---"
-                Get-ChildItem -LiteralPath $extract -Force | Select-Object Mode,Name | Out-Host
-                $ico = Join-Path $extract 'Assets\baseline-setup.ico'
-                Write-Host "baseline-setup.ico exists: $(Test-Path -LiteralPath $ico)"
+              foreach ($extract in @(
+                (Join-Path $d.FullName 'x\B'),
+                (Join-Path $d.FullName 'extract\Baseline')
+              )) {
+                if (Test-Path -LiteralPath $extract) {
+                  Write-Host "--- $extract ---"
+                  Get-ChildItem -LiteralPath $extract -Force | Select-Object Mode,Name | Out-Host
+                  $ico = Join-Path $extract 'Assets\baseline-setup.ico'
+                  Write-Host "baseline-setup.ico exists: $(Test-Path -LiteralPath $ico)"
+                  break
+                }
               }
             }
             throw

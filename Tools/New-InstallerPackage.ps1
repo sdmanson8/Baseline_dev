@@ -90,6 +90,139 @@ function Resolve-IsccPath
 
 <#
     .SYNOPSIS
+    Internal function Get-InstallerPayloadEntries.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+function Get-InstallerPayloadEntries
+{
+    [CmdletBinding()]
+    param()
+
+    return @(
+        'Baseline.exe'
+        'Bootstrap'
+        'Module'
+        'Localizations'
+        'Assets'
+        'Completion'
+        'Tests'
+        'docs'
+        '.github'
+        'README.md'
+        'LICENSE'
+        'CHANGELOG.md'
+    )
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-InstallerBuildLayout.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+function Get-InstallerBuildLayout
+{
+    [CmdletBinding()]
+    param(
+        [string]$BaseTempPath = [System.IO.Path]::GetTempPath(),
+        [string]$RootName = ('BaselineInstaller_{0}' -f [System.Guid]::NewGuid().ToString('N'))
+    )
+
+    $tempRoot = Join-Path $BaseTempPath $RootName
+    $tempDist = Join-Path $tempRoot 'd'
+    $tempExtract = Join-Path $tempRoot 'x'
+    $tempScripts = Join-Path $tempRoot 'i'
+    $stageRoot = Join-Path $tempRoot 's'
+    $stageDir = Join-Path $stageRoot 'B'
+    $sourceRoot = Join-Path $tempExtract 'B'
+
+    return [pscustomobject]@{
+        TempRoot    = $tempRoot
+        TempDist    = $tempDist
+        TempExtract = $tempExtract
+        TempScripts = $tempScripts
+        StageRoot   = $stageRoot
+        StageDir    = $stageDir
+        SourceRoot  = $sourceRoot
+    }
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-InstallerPayloadPathBudgetReport.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+function Get-InstallerPayloadPathBudgetReport
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$RepoRoot,
+
+        [string]$BaseTempPath = [System.IO.Path]::GetTempPath(),
+
+        [string]$RootName = ('BaselineInstaller_{0}' -f [System.Guid]::NewGuid().ToString('N'))
+    )
+
+    $layout = Get-InstallerBuildLayout -BaseTempPath $BaseTempPath -RootName $RootName
+    $maxLength = 0
+    $maxRelativePath = $null
+    $maxTargetPath = $null
+
+    foreach ($relativeEntry in (Get-InstallerPayloadEntries))
+    {
+        $sourcePath = Join-Path $RepoRoot $relativeEntry
+        if (-not (Test-Path -LiteralPath $sourcePath))
+        {
+            continue
+        }
+
+        if (Test-Path -LiteralPath $sourcePath -PathType Leaf)
+        {
+            $targetPath = Join-Path $layout.SourceRoot $relativeEntry
+            $targetLength = $targetPath.Length
+            if ($targetLength -gt $maxLength)
+            {
+                $maxLength = $targetLength
+                $maxRelativePath = $relativeEntry
+                $maxTargetPath = $targetPath
+            }
+
+            continue
+        }
+
+        $sourceRootPath = (Resolve-Path -LiteralPath $sourcePath).Path
+        foreach ($file in (Get-ChildItem -LiteralPath $sourcePath -Recurse -File -Force -ErrorAction SilentlyContinue))
+        {
+            $relativeChildPath = $file.FullName.Substring($sourceRootPath.Length).TrimStart('\')
+            $relativeTargetPath = Join-Path $relativeEntry $relativeChildPath
+            $targetPath = Join-Path $layout.SourceRoot $relativeTargetPath
+            $targetLength = $targetPath.Length
+
+            if ($targetLength -gt $maxLength)
+            {
+                $maxLength = $targetLength
+                $maxRelativePath = $relativeTargetPath
+                $maxTargetPath = $targetPath
+            }
+        }
+    }
+
+    return [pscustomobject]@{
+        Layout          = $layout
+        MaxLength       = $maxLength
+        MaxRelativePath = $maxRelativePath
+        MaxTargetPath   = $maxTargetPath
+    }
+}
+
+<#
+    .SYNOPSIS
     Internal function Get-InstallerLocalizationDefinitions.
 
     .DESCRIPTION
@@ -818,10 +951,11 @@ if (-not (Test-Path -LiteralPath $repoExe -PathType Leaf))
 
 # ── Build portable payload ────────────────────────────────────────────────────
 
-$tempRoot    = Join-Path ([System.IO.Path]::GetTempPath()) ("BaselineInstaller_{0}" -f [System.Guid]::NewGuid().ToString('N'))
-$tempDist    = Join-Path $tempRoot 'dist'
-$tempExtract = Join-Path $tempRoot 'extract'
-$tempScripts = Join-Path $tempRoot 'iss'
+$buildLayout = Get-InstallerBuildLayout
+$tempRoot    = $buildLayout.TempRoot
+$tempDist    = $buildLayout.TempDist
+$tempExtract = $buildLayout.TempExtract
+$tempScripts = $buildLayout.TempScripts
 $archiveName = "Baseline-portable-$Version.zip"
 $archivePath = Join-Path $tempDist $archiveName
 
@@ -832,11 +966,11 @@ try
     New-Item -Path $tempScripts -ItemType Directory -Force | Out-Null
 
     # Stage loose files and compress into the portable payload zip
-    $stageRoot = Join-Path $tempRoot 'stage'
-    $stageDir  = Join-Path $stageRoot 'Baseline'
+    $stageRoot = $buildLayout.StageRoot
+    $stageDir  = $buildLayout.StageDir
     New-Item -Path $stageDir -ItemType Directory -Force | Out-Null
 
-    foreach ($rel in @('Baseline.exe','Bootstrap','Module','Localizations','Assets','Completion','Tests','docs','.github','README.md','LICENSE','CHANGELOG.md'))
+    foreach ($rel in (Get-InstallerPayloadEntries))
     {
         $src = Join-Path $repoRoot $rel
         if (Test-Path -LiteralPath $src)
@@ -857,7 +991,7 @@ try
     }
 
     Expand-Archive -LiteralPath $archivePath -DestinationPath $tempExtract -Force
-    $sourceRoot = Join-Path $tempExtract 'Baseline'
+    $sourceRoot = $buildLayout.SourceRoot
     if (-not (Test-Path -LiteralPath $sourceRoot -PathType Container))
     {
         throw "Payload root missing after extraction: $sourceRoot"

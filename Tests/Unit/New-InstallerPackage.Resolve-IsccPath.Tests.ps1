@@ -2,6 +2,7 @@ Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Tools/New-InstallerPackage.ps1'
+    $script:RepoRoot = Split-Path -Path (Split-Path -Path $filePath -Parent) -Parent
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
@@ -35,5 +36,29 @@ Describe 'Resolve-IsccPath' {
 
         { Resolve-IsccPath } | Should -Not -Throw
         Resolve-IsccPath | Should -Be $null
+    }
+}
+
+Describe 'Get-InstallerBuildLayout' {
+    It 'uses short staging directory names for the installer payload' {
+        $layout = Get-InstallerBuildLayout `
+            -BaseTempPath 'C:\Users\runneradmin\AppData\Local\Temp' `
+            -RootName 'BaselineInstaller_1234567890abcdef1234567890abcdef'
+
+        $layout.TempExtract | Should -Be 'C:\Users\runneradmin\AppData\Local\Temp\BaselineInstaller_1234567890abcdef1234567890abcdef\x'
+        $layout.SourceRoot | Should -Be 'C:\Users\runneradmin\AppData\Local\Temp\BaselineInstaller_1234567890abcdef1234567890abcdef\x\B'
+        $layout.StageDir | Should -Be 'C:\Users\runneradmin\AppData\Local\Temp\BaselineInstaller_1234567890abcdef1234567890abcdef\s\B'
+    }
+}
+
+Describe 'Get-InstallerPayloadPathBudgetReport' {
+    It 'keeps the staged payload under the classic MAX_PATH limit for release packaging' {
+        $report = Get-InstallerPayloadPathBudgetReport `
+            -RepoRoot $script:RepoRoot `
+            -BaseTempPath 'C:\Users\runneradmin\AppData\Local\Temp' `
+            -RootName 'BaselineInstaller_1234567890abcdef1234567890abcdef'
+
+        $report.MaxLength | Should -BeLessOrEqual 259
+        $report.MaxRelativePath | Should -Match 'Assets\\RemoveWindowsAIPackage\\'
     }
 }
