@@ -16,9 +16,9 @@ permissions:
   contents: read
 
 jobs:
-  server-2022:
+  server2022:
     name: Windows Server 2022 (self-hosted)
-    runs-on: [self-hosted,server-2022]
+    runs-on: [self-hosted,server2022]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
