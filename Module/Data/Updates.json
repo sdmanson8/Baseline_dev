@@ -3,7 +3,7 @@
   "Entries": [
     {
       "Name": "Security Updates Only Mode",
-      "Function": "Set-WindowsUpdateSecurityOnlyMode",
+      "Function": "WindowsUpdateSecurityOnlyMode",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -38,7 +38,7 @@
     },
     {
       "Name": "Pause Windows Updates",
-      "Function": "Set-WindowsUpdatePause",
+      "Function": "WindowsUpdatePause",
       "Type": "Date",
       "Options": null,
       "DisplayOptions": null,

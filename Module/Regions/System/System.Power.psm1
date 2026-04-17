@@ -211,23 +211,23 @@ function PowerPlan
 	Set the processor minimum state on DC power.
 
 	.EXAMPLE
-	Set-ProcessorMinimumState -ACValue 100 -DCValue 5
+	ProcessorMinimumState -ACValue 100 -DCValue 5
 
 	.EXAMPLE
-	Set-ProcessorMinimumState -Value 50
+	ProcessorMinimumState -Value 50
 
 	.NOTES
 	Current user
 #>
 <#
     .SYNOPSIS
-    Internal function Set-ProcessorMinimumState.
+    Internal function ProcessorMinimumState.
 
     .DESCRIPTION
     Internal implementation helper used by Baseline.
 #>
 
-function Set-ProcessorMinimumState
+function ProcessorMinimumState
 {
 	[CmdletBinding()]
 	param
@@ -285,23 +285,23 @@ function Set-ProcessorMinimumState
 	Set the processor maximum state on DC power.
 
 	.EXAMPLE
-	Set-ProcessorMaximumState -ACValue 100 -DCValue 100
+	ProcessorMaximumState -ACValue 100 -DCValue 100
 
 	.EXAMPLE
-	Set-ProcessorMaximumState -Value 100
+	ProcessorMaximumState -Value 100
 
 	.NOTES
 	Current user
 #>
 <#
     .SYNOPSIS
-    Internal function Set-ProcessorMaximumState.
+    Internal function ProcessorMaximumState.
 
     .DESCRIPTION
     Internal implementation helper used by Baseline.
 #>
 
-function Set-ProcessorMaximumState
+function ProcessorMaximumState
 {
 	[CmdletBinding()]
 	param
@@ -356,15 +356,15 @@ function Set-ProcessorMaximumState
 	Disable power throttling
 
 	.EXAMPLE
-	Set-PowerThrottling -Enable
+	PowerThrottling -Enable
 
 	.EXAMPLE
-	Set-PowerThrottling -Disable
+	PowerThrottling -Disable
 
 	.NOTES
 	Current user
 #>
-function Set-PowerThrottling
+function PowerThrottling
 {
 	[CmdletBinding()]
 	param
@@ -433,12 +433,12 @@ function Set-PowerThrottling
 	Set the increase threshold on DC power.
 
 	.EXAMPLE
-	Set-ProcessorPerformanceIncreaseThreshold -Value 10
+	ProcessorPerformanceIncreaseThreshold -Value 10
 
 	.NOTES
 	Current user
 #>
-function Set-ProcessorPerformanceIncreaseThreshold
+function ProcessorPerformanceIncreaseThreshold
 {
 	[CmdletBinding()]
 	param
@@ -496,12 +496,12 @@ function Set-ProcessorPerformanceIncreaseThreshold
 	Set the decrease threshold on DC power.
 
 	.EXAMPLE
-	Set-ProcessorPerformanceDecreaseThreshold -Value 8
+	ProcessorPerformanceDecreaseThreshold -Value 8
 
 	.NOTES
 	Current user
 #>
-function Set-ProcessorPerformanceDecreaseThreshold
+function ProcessorPerformanceDecreaseThreshold
 {
 	[CmdletBinding()]
 	param
@@ -565,20 +565,20 @@ function Set-ProcessorPerformanceDecreaseThreshold
 	Use the same behavior as Aggressive.
 
 	.EXAMPLE
-	Set-ProcessorPerformanceBoostMode -Enabled
+	ProcessorPerformanceBoostMode -Enabled
 
 	.NOTES
 	Current user
 #>
 <#
     .SYNOPSIS
-    Internal function Set-ProcessorPerformanceBoostMode.
+    Internal function ProcessorPerformanceBoostMode.
 
     .DESCRIPTION
     Internal implementation helper used by Baseline.
 #>
 
-function Set-ProcessorPerformanceBoostMode
+function ProcessorPerformanceBoostMode
 {
 	[CmdletBinding()]
 	param
@@ -718,12 +718,12 @@ function Set-ProcessorPerformanceBoostMode
 	Set the energy performance preference on DC power.
 
 	.EXAMPLE
-	Set-ProcessorEnergyPerformancePreference -ACValue 0 -DCValue 50
+	ProcessorEnergyPerformancePreference -ACValue 0 -DCValue 50
 
 	.NOTES
 	Current user
 #>
-function Set-ProcessorEnergyPerformancePreference
+function ProcessorEnergyPerformancePreference
 {
 	[CmdletBinding()]
 	param
@@ -781,12 +781,12 @@ function Set-ProcessorEnergyPerformancePreference
 	Set the minimum core parking percentage on DC power.
 
 	.EXAMPLE
-	Set-ProcessorCoreParkingMinimumCores -ACValue 0 -DCValue 0
+	ProcessorCoreParkingMinimumCores -ACValue 0 -DCValue 0
 
 	.NOTES
 	Current user
 #>
-function Set-ProcessorCoreParkingMinimumCores
+function ProcessorCoreParkingMinimumCores
 {
 	[CmdletBinding()]
 	param
@@ -844,12 +844,12 @@ function Set-ProcessorCoreParkingMinimumCores
 	Set the maximum core parking percentage on DC power.
 
 	.EXAMPLE
-	Set-ProcessorCoreParkingMaximumCores -ACValue 100 -DCValue 100
+	ProcessorCoreParkingMaximumCores -ACValue 100 -DCValue 100
 
 	.NOTES
 	Current user
 #>
-function Set-ProcessorCoreParkingMaximumCores
+function ProcessorCoreParkingMaximumCores
 {
 	[CmdletBinding()]
 	param
@@ -907,12 +907,12 @@ function Set-ProcessorCoreParkingMaximumCores
 	Set the USB hub suspend timeout on DC power.
 
 	.EXAMPLE
-	Set-USBHubSelectiveSuspendTimeout -ACValue 0 -DCValue 1000
+	USBHubSelectiveSuspendTimeout -ACValue 0 -DCValue 1000
 
 	.NOTES
 	Current user
 #>
-function Set-USBHubSelectiveSuspendTimeout
+function USBHubSelectiveSuspendTimeout
 {
 	[CmdletBinding()]
 	param
@@ -967,12 +967,12 @@ function Set-USBHubSelectiveSuspendTimeout
 	Enable USB selective suspend (default value).
 
 	.EXAMPLE
-	Set-USBSelectiveSuspend -Disabled
+	USBSelectiveSuspend -Disabled
 
 	.NOTES
 	Current user
 #>
-function Set-USBSelectiveSuspend
+function USBSelectiveSuspend
 {
 	[CmdletBinding()]
 	param
@@ -1019,12 +1019,12 @@ function Set-USBSelectiveSuspend
 	Use the maximum performance power plan.
 
 	.EXAMPLE
-	Set-IntelGraphicsPowerPlan -Balanced
+	IntelGraphicsPowerPlan -Balanced
 
 	.NOTES
 	Current user
 #>
-function Set-IntelGraphicsPowerPlan
+function IntelGraphicsPowerPlan
 {
 	[CmdletBinding()]
 	param
@@ -1079,12 +1079,12 @@ function Set-IntelGraphicsPowerPlan
 	Prefer smoother video playback.
 
 	.EXAMPLE
-	Set-MultimediaVideoPlaybackQualityBias -PerformanceBias
+	MultimediaVideoPlaybackQualityBias -PerformanceBias
 
 	.NOTES
 	Current user
 #>
-function Set-MultimediaVideoPlaybackQualityBias
+function MultimediaVideoPlaybackQualityBias
 {
 	[CmdletBinding()]
 	param
@@ -1279,4 +1279,4 @@ function Set-PowerSchemeChoiceSetting
 	}
 }
 
-Export-ModuleMember -Function 'Hibernation', 'PowerPlan', 'Set-ProcessorMinimumState', 'Set-ProcessorMaximumState', 'Set-PowerThrottling', 'Set-ProcessorPerformanceIncreaseThreshold', 'Set-ProcessorPerformanceDecreaseThreshold', 'Set-ProcessorPerformanceBoostMode', 'Set-ProcessorEnergyPerformancePreference', 'Set-ProcessorCoreParkingMinimumCores', 'Set-ProcessorCoreParkingMaximumCores', 'Set-USBHubSelectiveSuspendTimeout', 'Set-USBSelectiveSuspend', 'Set-IntelGraphicsPowerPlan', 'Set-MultimediaVideoPlaybackQualityBias'
+Export-ModuleMember -Function 'Hibernation', 'PowerPlan', 'ProcessorMinimumState', 'ProcessorMaximumState', 'PowerThrottling', 'ProcessorPerformanceIncreaseThreshold', 'ProcessorPerformanceDecreaseThreshold', 'ProcessorPerformanceBoostMode', 'ProcessorEnergyPerformancePreference', 'ProcessorCoreParkingMinimumCores', 'ProcessorCoreParkingMaximumCores', 'USBHubSelectiveSuspendTimeout', 'USBSelectiveSuspend', 'IntelGraphicsPowerPlan', 'MultimediaVideoPlaybackQualityBias'

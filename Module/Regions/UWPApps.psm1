@@ -42,7 +42,7 @@ function BackgroundApps
 			LogInfo "Enabling Background Apps"
 			try
 			{
-				Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -Name "GlobalUserDisabled" -Type DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -Name "GlobalUserDisabled" -Type DWord -Value 0 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -57,7 +57,7 @@ function BackgroundApps
 			LogInfo "Disabling Background Apps"
 			try
 			{
-				Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -Name "GlobalUserDisabled" -Type DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -Name "GlobalUserDisabled" -Type DWord -Value 1 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -379,22 +379,22 @@ function EdgeDebloat
 				New-Item -Path $EdgeBlocklistPath -Force -ErrorAction SilentlyContinue | Out-Null
 			}
 			
-			Set-ItemProperty -Path $EdgeUpdatePath -Name "CreateDesktopShortcutDefault" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path $EdgePath -Name "PersonalizationReportingEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path $EdgeBlocklistPath -Name "1" -Type String -Value "ofefcgjbeghpigppfmkologfjadafddi" -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path $EdgePath -Name "ShowRecommendationsEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path $EdgePath -Name "HideFirstRunExperience" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path $EdgePath -Name "UserFeedbackAllowed" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path $EdgePath -Name "ConfigureDoNotTrack" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path $EdgePath -Name "AlternateErrorPagesEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path $EdgePath -Name "EdgeCollectionsEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path $EdgePath -Name "EdgeShoppingAssistantEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path $EdgePath -Name "MicrosoftEdgeInsiderPromotionEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path $EdgePath -Name "ShowMicrosoftRewards" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path $EdgePath -Name "WebWidgetAllowed" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path $EdgePath -Name "DiagnosticData" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path $EdgePath -Name "EdgeAssetDeliveryServiceEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path $EdgePath -Name "WalletDonationEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgeUpdatePath -Name "CreateDesktopShortcutDefault" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgePath -Name "PersonalizationReportingEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgeBlocklistPath -Name "1" -Type String -Value "ofefcgjbeghpigppfmkologfjadafddi" -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgePath -Name "ShowRecommendationsEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgePath -Name "HideFirstRunExperience" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgePath -Name "UserFeedbackAllowed" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgePath -Name "ConfigureDoNotTrack" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgePath -Name "AlternateErrorPagesEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgePath -Name "EdgeCollectionsEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgePath -Name "EdgeShoppingAssistantEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgePath -Name "MicrosoftEdgeInsiderPromotionEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgePath -Name "ShowMicrosoftRewards" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgePath -Name "WebWidgetAllowed" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgePath -Name "DiagnosticData" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgePath -Name "EdgeAssetDeliveryServiceEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgePath -Name "WalletDonationEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
 			
 			LogInfo "Edge debloat policies applied"
 			Write-ConsoleStatus -Status success
@@ -471,19 +471,19 @@ function NewOutlook
 		{
 			Write-ConsoleStatus -Action "Enabling New Outlook"
 			LogInfo "Enabling New Outlook"
-			Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\16.0\Outlook\Preferences" -Name "UseNewOutlook" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path "HKCU:\Software\Microsoft\Office\16.0\Outlook\Options\General" -Name "HideNewOutlookToggle" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Office\16.0\Outlook\Options\General" -Name "DoNewOutlookAutoMigration" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Office\16.0\Outlook\Preferences" -Name "NewOutlookMigrationUserSetting" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath "HKCU:\SOFTWARE\Microsoft\Office\16.0\Outlook\Preferences" -Name "UseNewOutlook" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Office\16.0\Outlook\Options\General" -Name "HideNewOutlookToggle" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath "HKCU:\Software\Policies\Microsoft\Office\16.0\Outlook\Options\General" -Name "DoNewOutlookAutoMigration" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath "HKCU:\Software\Policies\Microsoft\Office\16.0\Outlook\Preferences" -Name "NewOutlookMigrationUserSetting" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 		"Disable"
 		{
 			Write-ConsoleStatus -Action "Disabling New Outlook"
 			LogInfo "Disabling New Outlook"
-			Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Office\16.0\Outlook\Preferences" -Name "UseNewOutlook" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path "HKCU:\Software\Microsoft\Office\16.0\Outlook\Options\General" -Name "HideNewOutlookToggle" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Office\16.0\Outlook\Options\General" -Name "DoNewOutlookAutoMigration" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath "HKCU:\SOFTWARE\Microsoft\Office\16.0\Outlook\Preferences" -Name "UseNewOutlook" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Office\16.0\Outlook\Options\General" -Name "HideNewOutlookToggle" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath "HKCU:\Software\Policies\Microsoft\Office\16.0\Outlook\Options\General" -Name "DoNewOutlookAutoMigration" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
 			Remove-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Office\16.0\Outlook\Preferences" -Name "NewOutlookMigrationUserSetting" -Force -ErrorAction SilentlyContinue | Out-Null
 			Write-ConsoleStatus -Status success
 		}
@@ -541,7 +541,7 @@ function Notifications
 			Write-ConsoleStatus -Action "Enabling Notification Tray/Calendar"
 			LogInfo "Enabling Notification Tray/Calendar"
 			Remove-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name "DisableNotificationCenter" -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications" -Name "ToastEnabled" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications" -Name "ToastEnabled" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 		"Disable"
@@ -552,8 +552,8 @@ function Notifications
 			{
 				New-Item -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Force -ErrorAction SilentlyContinue | Out-Null
 			}
-			Set-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name "DisableNotificationCenter" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
-			Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications" -Name "ToastEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name "DisableNotificationCenter" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications" -Name "ToastEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}

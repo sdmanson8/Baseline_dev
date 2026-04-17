@@ -15,10 +15,10 @@
 	is allowed to be more opinionated than the lower-risk tiers.
 
 	.EXAMPLE
-	pwsh -File .\Tools\Generate-PresetFiles.ps1
+	powershell -File .\Tools\Generate-PresetFiles.ps1
 
 	.EXAMPLE
-	pwsh -File .\Tools\Generate-PresetFiles.ps1 -PresetNames Basic,Balanced -DryRun
+	powershell -File .\Tools\Generate-PresetFiles.ps1 -PresetNames Basic,Balanced -DryRun
 #>
 
 [CmdletBinding(SupportsShouldProcess = $true)]
@@ -64,12 +64,11 @@ $validPresetNames = @('Minimal', 'Basic', 'Balanced')
 $basicAllowlistedFunctions = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 foreach ($approvedFunction in @(
 	'CheckWinGet'
-	'Update-Powershell'
-	'Update-DesktopRegistry'
-	'Disable-AutoRun'
+	'DesktopRegistry'
+	'AutoRun'
 	'DismissMSAccount'
 	'DismissSmartScreenFilter'
-	'Repair-Windows11SMBUpdateIssue'
+	'Windows11SMBUpdateIssue'
 	'UnpinTaskbarShortcuts'
 ))
 {
@@ -79,17 +78,16 @@ foreach ($approvedFunction in @(
 $balancedAllowlistedFunctions = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 foreach ($approvedFunction in @(
 	'CheckWinGet'
-	'Update-Powershell'
-	'Update-DesktopRegistry'
-	'Disable-AutoRun'
+	'DesktopRegistry'
+	'AutoRun'
 	'DismissMSAccount'
 	'DismissSmartScreenFilter'
-	'Repair-Windows11SMBUpdateIssue'
+	'Windows11SMBUpdateIssue'
 	'UnpinTaskbarShortcuts'
-	'Update-EventLogSize'
-	'Protect-FileSystemPerformance'
-	'Set-WindowsFirewallLogging'
-	'Install-Cursors'
+	'EventLogSize'
+	'FileSystemPerformance'
+	'WindowsFirewallLogging'
+	'Cursors'
 ))
 {
 	[void]$balancedAllowlistedFunctions.Add($approvedFunction)

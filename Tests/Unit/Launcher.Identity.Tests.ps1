@@ -31,19 +31,25 @@ Describe 'Launcher identity host' {
 
     It 'keys the hydrated runtime cache by build identity as well as version' {
         $script:LauncherProgramContent | Should -Match 'ManifestModule\.ModuleVersionId\.ToString\("N"\)'
-$script:LauncherProgramContent | Should -Match 'RuntimeCacheSchema\s*=\s*"3"'
+        $script:LauncherProgramContent | Should -Not -Match 'Substring\(0,\s*12\)'
+        $script:LauncherProgramContent | Should -Match 'RuntimeCacheSchema\s*=\s*"4"'
         $script:LauncherProgramContent | Should -Match 'Path\.Combine\(cacheRoot, version, RuntimeCacheSchema, buildId\)'
     }
 
-    It 'restores UTF-8 BOMs for PowerShell and JSON payload files during hydration' {
+    It 'restores UTF-8 BOMs only for non-ASCII PowerShell payload files during hydration' {
         $script:LauncherProgramContent | Should -Match 'Utf8Bom'
-        $script:LauncherProgramContent | Should -Match 'ShouldPrependUtf8Bom'
+        $script:LauncherProgramContent | Should -Match 'ShouldPrependUtf8Bom\(target, resourceStream\)'
         $script:LauncherProgramContent | Should -Match 'ResourceStartsWithUtf8Bom'
+        $script:LauncherProgramContent | Should -Match 'RequiresPowerShellUtf8Bom'
+        $script:LauncherProgramContent | Should -Match 'extension\.Equals\("\.ps1"'
+        $script:LauncherProgramContent | Should -Match 'extension\.Equals\("\.psm1"'
+        $script:LauncherProgramContent | Should -Match 'extension\.Equals\("\.psd1"'
+        $script:LauncherProgramContent | Should -Match 'hasNonAsciiByte'
     }
 
     It 'keeps the embedded host on the STA launcher thread' {
         $script:LauncherProgramContent | Should -Match 'runspace\.ApartmentState = ApartmentState\.STA;'
-    $script:LauncherProgramContent | Should -Match 'runspace\.ThreadOptions = PSThreadOptions\.ReuseThread;'
+        $script:LauncherProgramContent | Should -Match 'runspace\.ThreadOptions = PSThreadOptions\.ReuseThread;'
         $script:LauncherProgramContent | Should -Match 'Environment\.SetEnvironmentVariable\(EmbeddedHostVar, "1", EnvironmentVariableTarget\.Process\);'
     }
 

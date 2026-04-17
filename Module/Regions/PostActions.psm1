@@ -457,7 +457,7 @@ if ($Capability)
 
 			if (-not [string]::IsNullOrWhiteSpace($capabilityJson))
 			{
-				$PrintManagementCapability = $capabilityJson | ConvertFrom-Json
+				$PrintManagementCapability = $capabilityJson | ConvertFrom-BaselineJson -Depth 4
 			}
 
 			if ($PrintManagementCapability)

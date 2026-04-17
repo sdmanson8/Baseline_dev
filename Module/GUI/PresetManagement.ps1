@@ -325,12 +325,11 @@
 		foreach (
 			$approvedFunction in @(
 				'CheckWinGet'
-				'Update-Powershell'
-				'Update-DesktopRegistry'
-				'Disable-AutoRun'
+				'DesktopRegistry'
+				'AutoRun'
 				'DismissMSAccount'
 				'DismissSmartScreenFilter'
-				'Repair-Windows11SMBUpdateIssue'
+				'Windows11SMBUpdateIssue'
 				'UnpinTaskbarShortcuts'
 			)
 		)
@@ -843,7 +842,7 @@
 
 		if ([System.IO.Path]::GetExtension($presetPath).Equals('.json', [System.StringComparison]::OrdinalIgnoreCase))
 		{
-			$presetData = Get-Content -LiteralPath $presetPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+			$presetData = Get-Content -LiteralPath $presetPath -Raw -ErrorAction Stop | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop
 			$rawEntries = [System.Collections.Generic.List[object]]::new()
 			if ($presetData -and (Test-GuiObjectField -Object $presetData -FieldName 'Entries'))
 			{

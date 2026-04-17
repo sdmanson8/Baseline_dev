@@ -51,6 +51,153 @@ function Get-BaselineLifecycleComparableVersion
 
 <#
     .SYNOPSIS
+    Internal function Get-BaselineReleaseArtifactVerification.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Get-BaselineReleaseArtifactVerification
+{
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory)]
+		[string]$Path,
+
+		[string[]]$AllowedSubjects = @('CN=Microsoft Corporation'),
+
+		[switch]$RequireTimestamp = $true
+	)
+
+	$verification = [ordered]@{
+		Path              = $Path
+		Exists            = $false
+		HashAlgorithm     = 'SHA256'
+		FileHash          = $null
+		SignatureStatus   = 'Missing'
+		SignerSubject     = $null
+		TimestampStatus   = 'Missing'
+		TimestampSubject  = $null
+		AllowedSubjects   = @($AllowedSubjects)
+		VerificationState = 'Missing'
+		VerificationMessage = 'Artifact not found.'
+		VerificationAt    = [System.DateTime]::UtcNow.ToString('o')
+	}
+
+	if ([string]::IsNullOrWhiteSpace([string]$Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf))
+	{
+		return [pscustomobject]$verification
+	}
+
+	$verification.Exists = $true
+	try
+	{
+		$fileHash = Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop
+		$verification.FileHash = [string]$fileHash.Hash
+	}
+	catch
+	{
+		$verification.VerificationState = 'Invalid'
+		$verification.VerificationMessage = "Failed to compute SHA-256 hash: $($_.Exception.Message)"
+		return [pscustomobject]$verification
+	}
+
+	if (-not (Get-Command -Name 'Get-AuthenticodeSignature' -ErrorAction SilentlyContinue))
+	{
+		$verification.VerificationState = 'Unavailable'
+		$verification.VerificationMessage = "Get-AuthenticodeSignature is not available to verify '$Path'."
+		return [pscustomobject]$verification
+	}
+
+	try
+	{
+		$signature = Get-AuthenticodeSignature -FilePath $Path -ErrorAction Stop
+	}
+	catch
+	{
+		$verification.VerificationState = 'Invalid'
+		$verification.VerificationMessage = "Authenticode signature verification failed for '$Path': $($_.Exception.Message)"
+		return [pscustomobject]$verification
+	}
+
+	$verification.SignatureStatus = [string]$signature.Status
+	$verification.SignerSubject = if ($signature.SignerCertificate) { [string]$signature.SignerCertificate.Subject } else { $null }
+	$verification.TimestampStatus = if ($signature.TimeStamperCertificate) { 'Present' } else { 'Missing' }
+	$verification.TimestampSubject = if ($signature.TimeStamperCertificate) { [string]$signature.TimeStamperCertificate.Subject } else { $null }
+
+	$issues = [System.Collections.Generic.List[string]]::new()
+	if ($signature.Status -ne 'Valid')
+	{
+		[void]$issues.Add(("signature status is {0}" -f [string]$signature.Status))
+	}
+	if ($RequireTimestamp -and -not $signature.TimeStamperCertificate)
+	{
+		[void]$issues.Add('timestamp countersignature is missing')
+	}
+	if ($AllowedSubjects.Count -gt 0)
+	{
+		$subject = if ($signature.SignerCertificate) { [string]$signature.SignerCertificate.Subject } else { '' }
+		$subjectMatched = $false
+		foreach ($allowedSubject in @($AllowedSubjects))
+		{
+			if ([string]::IsNullOrWhiteSpace([string]$allowedSubject)) { continue }
+			if ($subject -like "*$allowedSubject*")
+			{
+				$subjectMatched = $true
+				break
+			}
+		}
+		if (-not $subjectMatched)
+		{
+			[void]$issues.Add(("signer subject '{0}' is not approved" -f $subject))
+		}
+	}
+
+	if ($issues.Count -gt 0)
+	{
+		$verification.VerificationState = 'Invalid'
+		$verification.VerificationMessage = ($issues -join '; ')
+	}
+	else
+	{
+		$verification.VerificationState = 'Valid'
+		$verification.VerificationMessage = 'Artifact signature and timestamp verification succeeded.'
+	}
+
+	return [pscustomobject]$verification
+}
+
+<#
+    .SYNOPSIS
+    Internal function Assert-BaselineReleaseArtifactVerification.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Assert-BaselineReleaseArtifactVerification
+{
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory)]
+		[string]$Path,
+
+		[string[]]$AllowedSubjects = @('CN=Microsoft Corporation'),
+
+		[switch]$RequireTimestamp = $true
+	)
+
+	$verification = Get-BaselineReleaseArtifactVerification -Path $Path -AllowedSubjects $AllowedSubjects -RequireTimestamp:$RequireTimestamp
+	if ($verification.VerificationState -ne 'Valid')
+	{
+		throw ("Artifact verification failed for '{0}': {1}" -f $verification.Path, $verification.VerificationMessage)
+	}
+
+	return $verification
+}
+
+<#
+    .SYNOPSIS
     Internal function Import-BaselineRollbackProfile.
 
     .DESCRIPTION
@@ -70,7 +217,7 @@ function Import-BaselineRollbackProfile
 		throw "Rollback profile not found: $Path"
 	}
 
-	$document = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+	$document = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop
 	$entries = @()
 	if ($document.PSObject.Properties['Entries'])
 	{
@@ -140,6 +287,7 @@ function New-BaselineLifecyclePlaybook
 
 	$commands = @()
 	$rollbackProfile = $null
+	$verification = $null
 	if ($Operation -eq 'Rollback')
 	{
 		if ([string]::IsNullOrWhiteSpace($RollbackProfilePath))
@@ -153,6 +301,15 @@ function New-BaselineLifecyclePlaybook
 		{
 			throw "Rollback profile '$RollbackProfilePath' does not contain any rollback commands."
 		}
+	}
+	elseif ($Operation -in @('Upgrade', 'Downgrade'))
+	{
+		if ([string]::IsNullOrWhiteSpace($InstallerPath))
+		{
+			throw 'InstallerPath is required for upgrade or downgrade playbooks.'
+		}
+
+		$verification = Assert-BaselineReleaseArtifactVerification -Path $InstallerPath
 	}
 
 	$currentComparable = if ([string]::IsNullOrWhiteSpace($CurrentVersion)) { $null } else { Get-BaselineLifecycleComparableVersion -VersionText $CurrentVersion }
@@ -202,6 +359,7 @@ function New-BaselineLifecyclePlaybook
 		InstallerPath     = if ($InstallerPath) { (Resolve-Path -LiteralPath $InstallerPath).Path } else { $null }
 		RollbackProfile   = $rollbackProfile
 		RollbackCommands  = $commands
+		Verification      = $verification
 		BaselineExecutable = if ($BaselineExecutablePath) { (Resolve-Path -LiteralPath $BaselineExecutablePath).Path } else { $null }
 		Steps             = @($steps)
 		GeneratedAt       = [System.DateTime]::UtcNow.ToString('o')
@@ -238,10 +396,16 @@ function Invoke-BaselineLifecyclePlaybook
 		Success   = $false
 		ExitCode  = $null
 		Commands  = @()
+		Verification = $null
+		VerificationChanged = $false
 	}
 
 	if (-not $Execute)
 	{
+		if ($Playbook.PSObject.Properties['Verification'])
+		{
+			$result.Verification = $Playbook.Verification
+		}
 		$result.Success = $true
 		return [pscustomobject]$result
 	}
@@ -261,9 +425,37 @@ function Invoke-BaselineLifecyclePlaybook
 			throw 'InstallerPath is required for upgrade or downgrade execution.'
 		}
 
-		if (Get-Command -Name 'Assert-AuthenticodeSignature' -ErrorAction SilentlyContinue)
+		$currentVerification = Assert-BaselineReleaseArtifactVerification -Path $Playbook.InstallerPath
+		$result.Verification = $currentVerification
+		if ($Playbook.PSObject.Properties['Verification'] -and $Playbook.Verification)
 		{
-			$null = Assert-AuthenticodeSignature -Path $Playbook.InstallerPath
+			$recordedVerification = $Playbook.Verification
+			$comparisonFields = @('VerificationState', 'SignatureStatus', 'TimestampStatus', 'SignerSubject', 'TimestampSubject', 'FileHash')
+			$verificationChanged = $false
+			foreach ($field in $comparisonFields)
+			{
+				$recordedValue = if ($recordedVerification.PSObject.Properties[$field]) { [string]$recordedVerification.$field } else { $null }
+				$currentValue = if ($currentVerification.PSObject.Properties[$field]) { [string]$currentVerification.$field } else { $null }
+				if ($recordedValue -ne $currentValue)
+				{
+					$verificationChanged = $true
+					break
+				}
+			}
+
+			if ($verificationChanged)
+			{
+				$changeMessage = @(
+					'The artifact verification state changed after the playbook was created.',
+					('Recorded: {0} | Status: {1} | Timestamp: {2} | Signer: {3}' -f $recordedVerification.VerificationState, $recordedVerification.SignatureStatus, $recordedVerification.TimestampStatus, $recordedVerification.SignerSubject),
+					('Current: {0} | Status: {1} | Timestamp: {2} | Signer: {3}' -f $currentVerification.VerificationState, $currentVerification.SignatureStatus, $currentVerification.TimestampStatus, $currentVerification.SignerSubject)
+				) -join [System.Environment]::NewLine
+				if (-not $PSCmdlet.ShouldContinue($changeMessage, 'Release verification changed'))
+				{
+					throw 'Execution cancelled by operator.'
+				}
+				$result.VerificationChanged = $true
+			}
 		}
 
 		$arguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CLOSEAPPLICATIONS')
@@ -375,10 +567,14 @@ function New-BaselineIncidentReproductionPack
 		$preflightPath = Join-Path $bundleRoot 'preflight-report.json'
 		$auditPath = Join-Path $bundleRoot 'audit.jsonl'
 		$compliancePath = Join-Path $bundleRoot 'compliance-report.json'
+		$validationEvidencePath = Join-Path $bundleRoot 'validation-evidence.json'
+		$deepLinksPath = Join-Path $bundleRoot 'remote-orchestration-deeplinks.json'
 
-		$metadata = if (Test-Path -LiteralPath $metadataPath) { Get-Content -LiteralPath $metadataPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction SilentlyContinue } else { $null }
-		$preflight = if (Test-Path -LiteralPath $preflightPath) { Get-Content -LiteralPath $preflightPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction SilentlyContinue } else { $null }
-		$compliance = if (Test-Path -LiteralPath $compliancePath) { Get-Content -LiteralPath $compliancePath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction SilentlyContinue } else { $null }
+		$metadata = if (Test-Path -LiteralPath $metadataPath) { Get-Content -LiteralPath $metadataPath -Raw -Encoding UTF8 | ConvertFrom-BaselineJson -Depth 16 -ErrorAction SilentlyContinue } else { $null }
+		$preflight = if (Test-Path -LiteralPath $preflightPath) { Get-Content -LiteralPath $preflightPath -Raw -Encoding UTF8 | ConvertFrom-BaselineJson -Depth 16 -ErrorAction SilentlyContinue } else { $null }
+		$compliance = if (Test-Path -LiteralPath $compliancePath) { Get-Content -LiteralPath $compliancePath -Raw -Encoding UTF8 | ConvertFrom-BaselineJson -Depth 16 -ErrorAction SilentlyContinue } else { $null }
+		$validationEvidence = if (Test-Path -LiteralPath $validationEvidencePath) { Get-Content -LiteralPath $validationEvidencePath -Raw -Encoding UTF8 | ConvertFrom-BaselineJson -Depth 16 -ErrorAction SilentlyContinue } else { $null }
+		$deepLinks = if (Test-Path -LiteralPath $deepLinksPath) { Get-Content -LiteralPath $deepLinksPath -Raw -Encoding UTF8 | ConvertFrom-BaselineJson -Depth 16 -ErrorAction SilentlyContinue } else { $null }
 
 		$auditLines = @()
 		if (Test-Path -LiteralPath $auditPath)
@@ -390,7 +586,7 @@ function New-BaselineIncidentReproductionPack
 			foreach ($line in $auditLines)
 			{
 				if ([string]::IsNullOrWhiteSpace([string]$line)) { continue }
-				try { $line | ConvertFrom-Json -ErrorAction Stop } catch { continue }
+				try { $line | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop } catch { continue }
 			}
 		)
 
@@ -420,13 +616,16 @@ function New-BaselineIncidentReproductionPack
 			OS                = if ($metadata -and $metadata.PSObject.Properties['OS']) { [string]$metadata.OS } else { $null }
 			ProfilePath       = if ($metadata -and $metadata.PSObject.Properties['ProfilePath']) { [string]$metadata.ProfilePath } else { $null }
 			AuditRetention    = if ($metadata -and $metadata.PSObject.Properties['AuditRetention']) { $metadata.AuditRetention } else { $null }
+			ValidationEvidence = if ($validationEvidence) { $validationEvidence } else { $null }
 			PreflightWarnings = @($warningDetails)
+			DeepLinks         = @($deepLinks)
 			RecentAudit        = @($recentAudit | Select-Object -First 10)
 			RecommendedSteps   = @($reproSteps)
 			Attachments        = @(
 				'metadata.json'
 				'preflight-report.json'
 				'compliance-report.json'
+				'validation-evidence.json'
 				'audit.jsonl'
 			) | Where-Object { Test-Path -LiteralPath (Join-Path $bundleRoot $_) }
 		}
@@ -442,6 +641,10 @@ function New-BaselineIncidentReproductionPack
 		[void]$md.Add(('Support bundle: {0}' -f $incident.SupportBundlePath))
 		[void]$md.Add(('Baseline version: {0}' -f $(if ($incident.BaselineVersion) { $incident.BaselineVersion } else { 'unknown' })))
 		[void]$md.Add(('Machine: {0}' -f $(if ($incident.MachineName) { $incident.MachineName } else { 'unknown' })))
+		if ($incident.ValidationEvidence -and $incident.ValidationEvidence.Summary)
+		{
+			[void]$md.Add(('Validation evidence: {0}' -f [string]$incident.ValidationEvidence.Summary))
+		}
 		[void]$md.Add('')
 		[void]$md.Add('## Reproduction Steps')
 		foreach ($step in @($incident.RecommendedSteps))
@@ -466,6 +669,22 @@ function New-BaselineIncidentReproductionPack
 				$action = if ($record.PSObject.Properties['Action']) { [string]$record.Action } else { 'Unknown' }
 				$mode = if ($record.PSObject.Properties['Mode']) { [string]$record.Mode } else { 'Unknown' }
 				[void]$md.Add(('- {0} ({1})' -f $action, $mode))
+			}
+		}
+		if ($incident.DeepLinks.Count -gt 0)
+		{
+			[void]$md.Add('')
+			[void]$md.Add('## Deep Links')
+			foreach ($link in @($incident.DeepLinks))
+			{
+				$targetName = if ($link.PSObject.Properties['ComputerName'] -and $link.ComputerName) { [string]$link.ComputerName } else { 'unknown target' }
+				$targetState = if ($link.PSObject.Properties['TargetState'] -and $link.TargetState) { [string]$link.TargetState } else { 'Unknown' }
+				$terminalState = if ($link.PSObject.Properties['TerminalState'] -and $link.TerminalState) { [string]$link.TerminalState } else { 'Unknown' }
+				[void]$md.Add(('- {0} | State: {1} | Terminal: {2}' -f $targetName, $targetState, $terminalState))
+				if ($link.PSObject.Properties['Artifacts'] -and $link.Artifacts)
+				{
+					[void]$md.Add(('  Artifacts: {0}' -f (@($link.Artifacts) -join ', ')))
+				}
 			}
 		}
 		[System.IO.File]::WriteAllText($mdPath, ($md -join [Environment]::NewLine), [System.Text.UTF8Encoding]::new($false))

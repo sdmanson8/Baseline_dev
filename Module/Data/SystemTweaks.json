@@ -71,7 +71,7 @@
     },
     {
       "Name": "Repair Windows 11 SMB Issue",
-      "Function": "Repair-Windows11SMBUpdateIssue",
+      "Function": "Windows11SMBUpdateIssue",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -104,7 +104,7 @@
     },
     {
       "Name": "SMB Guest Compatibility",
-      "Function": "Enable-SMBGuestCompatibility",
+      "Function": "SMBGuestCompatibility",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -137,7 +137,7 @@
     },
     {
       "Name": "SMB Sharing Compatibility",
-      "Function": "Set-SMBSharingCompatibility",
+      "Function": "SMBSharingCompatibility",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -171,7 +171,7 @@
     },
     {
       "Name": "Repair Shared Printer Connection Errors",
-      "Function": "Repair-SharedPrinterConnectionErrors",
+      "Function": "SharedPrinterConnectionErrors",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,

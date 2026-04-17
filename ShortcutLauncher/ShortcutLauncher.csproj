@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net48</TargetFramework>
-    <AssemblyName>Baseline</AssemblyName>
+    <AssemblyName>BaselineShortcutLauncher</AssemblyName>
     <RootNamespace>Baseline.ShortcutLauncher</RootNamespace>
     <Deterministic>true</Deterministic>
     <AddAppConfigToBuildOutputs>false</AddAppConfigToBuildOutputs>
@@ -11,10 +11,10 @@
     <DebugSymbols>false</DebugSymbols>
     <ApplicationManifest>Baseline.manifest</ApplicationManifest>
     <ApplicationIcon>../Assets/baseline.ico</ApplicationIcon>
-    <AssemblyTitle>Baseline</AssemblyTitle>
+    <AssemblyTitle>Baseline Shortcut Launcher</AssemblyTitle>
     <AssemblyProduct>Baseline</AssemblyProduct>
-    <AssemblyDescription>Baseline launcher</AssemblyDescription>
-    <!-- Maintainer note: output directly to repo root so the installer picks it up as Baseline.exe -->
+    <AssemblyDescription>Baseline desktop shortcut relay</AssemblyDescription>
+    <!-- Maintainer note: keep this runnable from the repo root, but never shadow the real Baseline.exe launcher. -->
     <OutputPath>../</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>

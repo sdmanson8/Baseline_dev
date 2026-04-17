@@ -25,6 +25,15 @@ Import-Module -Name "$PSScriptRoot\Logging.psm1" -Force -Global
 Import-Module -Name "$PSScriptRoot\SharedHelpers.psm1" -Force -Global
 Import-Module -Name "$PSScriptRoot\GUIExecution.psm1" -Force -Global
 
+# Optional supply-chain hardening. When BASELINE_INTEGRITY_MODE is set to
+# Strict or Audit, every script file under Module/ is hashed and compared
+# against Module/integrity.manifest.json before any region modules load.
+# Default mode is Off (no overhead, no behaviour change).
+if (Get-Command -Name 'Invoke-BaselineModuleIntegrityGate' -ErrorAction SilentlyContinue)
+{
+    Invoke-BaselineModuleIntegrityGate -ModuleRoot $PSScriptRoot
+}
+
 # Detect the OS version once through the shared helper so every module uses the same logic.
 $osName = (Get-OSInfo).OSName
 
@@ -51,8 +60,9 @@ else
 }
 
 $resolvedLogPath = Join-Path $logDirectory "Baseline - Utility for $osName.txt"
-$alreadyInitialized = -not [string]::IsNullOrWhiteSpace([string]$global:LogFilePath) -and
-                      $global:LogFilePath -eq $resolvedLogPath
+$previousLogPath = [string]$global:LogFilePath
+$hadPreviousLogPath = -not [string]::IsNullOrWhiteSpace([string]$previousLogPath)
+$alreadyInitialized = $hadPreviousLogPath -and $previousLogPath -eq $resolvedLogPath
 $global:LogFilePath = $resolvedLogPath
 if ($alreadyInitialized)
 {
@@ -62,6 +72,10 @@ else
 {
     Set-LogFile -Path $global:LogFilePath -Clear
     Initialize-SessionStatistics
+    if ($hadPreviousLogPath)
+    {
+        LogWarning ("Baseline loader reset session statistics after module reload because the log path changed from '{0}' to '{1}'." -f $previousLogPath, $resolvedLogPath)
+    }
 }
 
 <#

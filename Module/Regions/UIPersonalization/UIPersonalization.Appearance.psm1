@@ -44,9 +44,9 @@ function EnhPointerPrecision
 			LogInfo "Enabling enhanced pointer precision"
 			try
 			{
-				Set-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name "MouseSpeed" -Type String -Value "1" -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name "MouseThreshold1" -Type String -Value "6" -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name "MouseThreshold2" -Type String -Value "10" -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Mouse" -Name "MouseSpeed" -Type String -Value "1" -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Mouse" -Name "MouseThreshold1" -Type String -Value "6" -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Mouse" -Name "MouseThreshold2" -Type String -Value "10" -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -61,9 +61,9 @@ function EnhPointerPrecision
 			LogInfo "Disabling enhanced pointer precision"
 			try
 			{
-				Set-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name "MouseSpeed" -Type String -Value "0" -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name "MouseThreshold1" -Type String -Value "0" -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name "MouseThreshold2" -Type String -Value "0" -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Mouse" -Name "MouseSpeed" -Type String -Value "0" -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Mouse" -Name "MouseThreshold1" -Type String -Value "0" -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Mouse" -Name "MouseThreshold2" -Type String -Value "0" -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -121,7 +121,7 @@ function StartupSound
 			LogInfo "Enabling Windows startup sound"
 			try
 			{
-				Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\BootAnimation" -Name "DisableStartupSound" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\BootAnimation" -Name "DisableStartupSound" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -136,7 +136,7 @@ function StartupSound
 			LogInfo "Disabling Windows startup sound"
 			try
 			{
-				Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\BootAnimation" -Name "DisableStartupSound" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\BootAnimation" -Name "DisableStartupSound" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -228,7 +228,7 @@ function SoundDuckingPreference
 			LogInfo "Setting communications volume ducking to mute all other sounds"
 			try
 			{
-				Set-ItemProperty -Path $audioPath -Name "UserDuckingPreference" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $audioPath -Name "UserDuckingPreference" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -243,7 +243,7 @@ function SoundDuckingPreference
 			LogInfo "Setting communications volume ducking to reduce other sounds by 80%"
 			try
 			{
-				Set-ItemProperty -Path $audioPath -Name "UserDuckingPreference" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $audioPath -Name "UserDuckingPreference" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -258,7 +258,7 @@ function SoundDuckingPreference
 			LogInfo "Setting communications volume ducking to reduce other sounds by 50%"
 			try
 			{
-				Set-ItemProperty -Path $audioPath -Name "UserDuckingPreference" -Type DWord -Value 2 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $audioPath -Name "UserDuckingPreference" -Type DWord -Value 2 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -273,7 +273,7 @@ function SoundDuckingPreference
 			LogInfo "Setting communications volume ducking to do nothing"
 			try
 			{
-				Set-ItemProperty -Path $audioPath -Name "UserDuckingPreference" -Type DWord -Value 3 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $audioPath -Name "UserDuckingPreference" -Type DWord -Value 3 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -337,7 +337,7 @@ function NarratorAudioDucking
 			LogInfo "Enabling Narrator audio ducking"
 			try
 			{
-				Set-ItemProperty -Path $accessibilityPath -Name "DuckAudio" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $accessibilityPath -Name "DuckAudio" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -352,7 +352,7 @@ function NarratorAudioDucking
 			LogInfo "Disabling Narrator audio ducking"
 			try
 			{
-				Set-ItemProperty -Path $accessibilityPath -Name "DuckAudio" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $accessibilityPath -Name "DuckAudio" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -416,7 +416,7 @@ function SpeechOneCoreVoiceActivation
 			LogInfo "Enabling SpeechOneCore voice activation"
 			try
 			{
-				Set-ItemProperty -Path $speechOneCorePath -Name "AgentActivationEnabled" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $speechOneCorePath -Name "AgentActivationEnabled" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -431,7 +431,7 @@ function SpeechOneCoreVoiceActivation
 			LogInfo "Disabling SpeechOneCore voice activation"
 			try
 			{
-				Set-ItemProperty -Path $speechOneCorePath -Name "AgentActivationEnabled" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $speechOneCorePath -Name "AgentActivationEnabled" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -495,7 +495,7 @@ function AccessibilityActivationSounds
 			LogInfo "Enabling accessibility activation sounds"
 			try
 			{
-				Set-ItemProperty -Path $accessibilityPath -Name "Sound on Activation" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $accessibilityPath -Name "Sound on Activation" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -510,7 +510,7 @@ function AccessibilityActivationSounds
 			LogInfo "Disabling accessibility activation sounds"
 			try
 			{
-				Set-ItemProperty -Path $accessibilityPath -Name "Sound on Activation" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $accessibilityPath -Name "Sound on Activation" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -574,7 +574,7 @@ function AccessibilityWarningSounds
 			LogInfo "Enabling accessibility warning sounds"
 			try
 			{
-				Set-ItemProperty -Path $accessibilityPath -Name "Warning Sounds" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $accessibilityPath -Name "Warning Sounds" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -589,7 +589,7 @@ function AccessibilityWarningSounds
 			LogInfo "Disabling accessibility warning sounds"
 			try
 			{
-				Set-ItemProperty -Path $accessibilityPath -Name "Warning Sounds" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $accessibilityPath -Name "Warning Sounds" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -647,7 +647,7 @@ function TitleBarColor
 			LogInfo "Enabling title bar color adaptation to background"
 			try
 			{
-				Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\DWM" -Name "ColorPrevalence" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\DWM" -Name "ColorPrevalence" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -662,7 +662,7 @@ function TitleBarColor
 			LogInfo "Disabling title bar color adaptation to background"
 			try
 			{
-				Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\DWM" -Name "ColorPrevalence" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\DWM" -Name "ColorPrevalence" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -721,16 +721,16 @@ function VisualFX
 			LogInfo "Adjusting visual effects for performance"
 			try
 			{
-				Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "DragFullWindows" -Type String -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -Type String -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "UserPreferencesMask" -Type Binary -Value ([byte[]](144,18,3,128,16,0,0,0)) -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Control Panel\Desktop\WindowMetrics" -Name "MinAnimate" -Type String -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Control Panel\Keyboard" -Name "KeyboardDelay" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewAlphaSelect" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewShadow" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Type DWord -Value 3 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\DWM" -Name "EnableAeroPeek" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "DragFullWindows" -Type String -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -Type String -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "UserPreferencesMask" -Type Binary -Value ([byte[]](144,18,3,128,16,0,0,0)) -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop\WindowMetrics" -Name "MinAnimate" -Type String -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Keyboard" -Name "KeyboardDelay" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewAlphaSelect" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewShadow" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Type DWord -Value 3 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\DWM" -Name "EnableAeroPeek" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -746,16 +746,16 @@ function VisualFX
 			LogInfo "Adjusting visual effects for appearance"
 			try
 			{
-				Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "DragFullWindows" -Type String -Value 1 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -Type String -Value 400 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "UserPreferencesMask" -Type Binary -Value ([byte[]](158,30,7,128,18,0,0,0)) -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Control Panel\Desktop\WindowMetrics" -Name "MinAnimate" -Type String -Value 1 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Control Panel\Keyboard" -Name "KeyboardDelay" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewAlphaSelect" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewShadow" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Type DWord -Value 3 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\DWM" -Name "EnableAeroPeek" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "DragFullWindows" -Type String -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -Type String -Value 400 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "UserPreferencesMask" -Type Binary -Value ([byte[]](158,30,7,128,18,0,0,0)) -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop\WindowMetrics" -Name "MinAnimate" -Type String -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Keyboard" -Name "KeyboardDelay" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewAlphaSelect" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewShadow" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Type DWord -Value 3 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\DWM" -Name "EnableAeroPeek" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -964,7 +964,7 @@ function BuildNumberOnDesktop
 			LogInfo "Enabling build number and edition display on the Desktop"
 			try
 			{
-				Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "PaintDesktopVersion" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "PaintDesktopVersion" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -979,7 +979,7 @@ function BuildNumberOnDesktop
 			LogInfo "Disabling build number and edition display on the Desktop"
 			try
 			{
-				Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "PaintDesktopVersion" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "PaintDesktopVersion" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch

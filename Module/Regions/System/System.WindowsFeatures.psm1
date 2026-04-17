@@ -149,48 +149,11 @@ function WindowsCapabilities
 	}
 	$script:WindowsCapabilitiesSelectionResult = $null
 	$SelectedCapabilityNamesProvided = $PSBoundParameters.ContainsKey('SelectedCapabilityNames')
-	# The following optional features will have their checkboxes checked
-	[string[]]$CheckedCapabilities = @(
-		# Steps Recorder
-		"App.StepsRecorder*"
-	)
-
-	# The following optional features will have their checkboxes unchecked
-	[string[]]$UncheckedCapabilities = @(
-		# Internet Explorer mode
-		"Browser.InternetExplorer*",
-
-		# Windows Media Player
-		# If you want to leave "Multimedia settings" element in the advanced settings of Power Options do not uninstall this feature
-		"Media.WindowsMediaPlayer*",
-
-		# Voice Access / related speech capability entries
-		"*VoiceAccess*"
-	)
-
-	# The following optional features will be excluded from the display
-	[string[]]$ExcludedCapabilities = @(
-		# The DirectX Database to configure and optimize apps when multiple Graphics Adapters are present
-		"DirectX.Configuration.Database*",
-
-		# Language components
-		"Language.*",
-
-		# Notepad
-		"Microsoft.Windows.Notepad*",
-
-		# Mail, contacts, and calendar sync component
-		"OneCoreUAP.OneSync*",
-
-		# Windows PowerShell Intergrated Scripting Enviroment
-		"Microsoft.Windows.PowerShell.ISE*",
-
-		# Management of printers, printer drivers, and printer servers
-		"Print.Management.Console*",
-
-		# Features critical to Windows functionality
-		"Windows.Client.ShellComponents*"
-	)
+	# Pattern lists are sourced from SharedHelpers/WindowsFeatures.Helpers.ps1
+	# so the seed-selection rules can be unit-tested without instantiating WPF.
+	[string[]]$CheckedCapabilities = @(Get-WindowsCapabilityCheckedDefaults)
+	[string[]]$UncheckedCapabilities = @(Get-WindowsCapabilityUncheckedDefaults)
+	[string[]]$ExcludedCapabilities = @(Get-WindowsCapabilityExcludedDefaults)
 	#endregion Variables
 
 	#region XAML Markup
@@ -616,25 +579,8 @@ function WindowsCapabilities
 		& $ButtonAdd_Click -CapabilityList $SelectedCapabilityList
 	}
 
-	# Friendly display names for capabilities whose DisplayName is empty or unhelpful
-	$CapabilityFriendlyNames = @{
-		'App.StepsRecorder'                  = 'Steps Recorder'
-		'App.WiredNetworkDriverInstaller'    = 'Wired Network Driver Installer'
-		'Browser.InternetExplorer'           = 'Internet Explorer Mode'
-		'Hello.Face'                         = 'Windows Hello Face'
-		'MathRecognizer'                     = 'Math Recognizer'
-		'Media.WindowsMediaPlayer'           = 'Windows Media Player'
-		'Microsoft.Wallpapers.Extended'      = 'Extended Wallpapers'
-		'Microsoft.Windows.MSPaint'          = 'Microsoft Paint'
-		'Microsoft.Windows.Notepad.System'   = 'Notepad (System)'
-		'Microsoft.Windows.WordPad'          = 'WordPad'
-		'OpenSSH.Client'                     = 'OpenSSH Client'
-		'OpenSSH.Server'                     = 'OpenSSH Server'
-		'Print.Fax.Scan'                     = 'Windows Fax and Scan'
-		'Accessibility.Braille'              = 'Accessibility - Braille Support'
-		'App.Support.QuickAssist'            = 'Quick Assist'
-		'VoiceAccess'                        = 'Voice Access'
-	}
+	# Friendly display names sourced from SharedHelpers/WindowsFeatures.Helpers.ps1
+	$CapabilityFriendlyNames = Get-WindowsCapabilityFriendlyNameMap
 
 	<#
 	    .SYNOPSIS
@@ -1055,37 +1001,10 @@ function WindowsFeatures
 	}
 	$script:WindowsFeaturesSelectionResult = $null
 	$SelectedFeatureNamesProvided = $PSBoundParameters.ContainsKey('SelectedFeatureNames')
-	# The following Windows features will have their checkboxes checked
-	[string[]]$CheckedFeatures = @(
-		# Legacy Components
-		"LegacyComponents",
-
-		# PowerShell 2.0
-		"MicrosoftWindowsPowerShellV2",
-		"MicrosoftWindowsPowershellV2Root",
-
-		# Microsoft XPS Document Writer
-		"Printing-XPSServices-Features",
-
-		# Recall
-		"Recall"
-
-		# Work Folders Client
-		"WorkFolders-Client"
-	)
-
-	# The following Windows features will have their checkboxes unchecked
-	[string[]]$UncheckedFeatures = @(
-		# Media Features
-		# If you want to leave "Multimedia settings" in the advanced settings of Power Options do not disable this feature
-		"MediaPlayback",
-
-		# Windows Sandbox
-		"Containers-DisposableClientVM",
-
-		# Windows Defender Application Guard
-		"Windows-Defender-ApplicationGuard"
-	)
+	# Pattern lists are sourced from SharedHelpers/WindowsFeatures.Helpers.ps1
+	# (also fixes a missing-comma bug between "Recall" and "WorkFolders-Client").
+	[string[]]$CheckedFeatures = @(Get-WindowsFeatureCheckedDefaults)
+	[string[]]$UncheckedFeatures = @(Get-WindowsFeatureUncheckedDefaults)
 	#endregion Variables
 
 	#region XAML Markup

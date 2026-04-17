@@ -22,8 +22,8 @@ BeforeAll {
 			'InkingAndTypingPersonalization',
 			'DeviceSearchHistory',
 			'CloudContentSearch',
-			'Block-WorkplaceJoinMessages',
-			'Prevent-BitLockerAutoEncryption'
+			'WorkplaceJoinMessages',
+			'BitLockerAutoEncryption'
 		)) {
 			Invoke-Expression $fn.Extent.Text
 		}
@@ -301,9 +301,9 @@ Describe 'Privacy telemetry registry toggles' {
 		}
 	}
 
-	Describe 'Block-WorkplaceJoinMessages' {
+	Describe 'WorkplaceJoinMessages' {
 		It 'enables workplace join message blocking for machine and user policy paths' {
-			Block-WorkplaceJoinMessages -Enable
+			WorkplaceJoinMessages -Enable
 
 			$script:newItemCalls.Count | Should -Be 2
 			@($script:newItemCalls) | Should -Be @(
@@ -320,7 +320,7 @@ Describe 'Privacy telemetry registry toggles' {
 		}
 
 		It 'disables workplace join message blocking by clearing both policy values' {
-			Block-WorkplaceJoinMessages -Disable
+			WorkplaceJoinMessages -Disable
 
 			$script:removedPropertyCalls.Count | Should -Be 2
 			@($script:removedPropertyCalls.Path) | Should -Be @(
@@ -333,9 +333,9 @@ Describe 'Privacy telemetry registry toggles' {
 		}
 	}
 
-	Describe 'Prevent-BitLockerAutoEncryption' {
+	Describe 'BitLockerAutoEncryption' {
 		It 'enables BitLocker auto encryption prevention' {
-			Prevent-BitLockerAutoEncryption -Enable
+			BitLockerAutoEncryption -Enable
 
 			$script:newItemCalls.Count | Should -Be 1
 			$script:newItemCalls[0] | Should -Be 'HKLM:\SYSTEM\CurrentControlSet\Control\BitLocker'
@@ -345,7 +345,7 @@ Describe 'Privacy telemetry registry toggles' {
 		}
 
 		It 'disables BitLocker auto encryption prevention' {
-			Prevent-BitLockerAutoEncryption -Disable
+			BitLockerAutoEncryption -Disable
 
 			$script:newItemCalls.Count | Should -Be 1
 			$script:newItemCalls[0] | Should -Be 'HKLM:\SYSTEM\CurrentControlSet\Control\BitLocker'
@@ -365,8 +365,8 @@ Describe 'Privacy telemetry metadata' {
 			@{ Function = 'InkingAndTypingPersonalization'; Name = 'Inking and Typing Personalization'; Default = $false; WinDefault = $true },
 			@{ Function = 'DeviceSearchHistory'; Name = 'Device Search History'; Default = $false; WinDefault = $true },
 			@{ Function = 'CloudContentSearch'; Name = 'Cloud Content Search'; Default = $false; WinDefault = $true },
-			@{ Function = 'Block-WorkplaceJoinMessages'; Name = 'Block Workplace Join Messages'; Default = $true; WinDefault = $false },
-			@{ Function = 'Prevent-BitLockerAutoEncryption'; Name = 'Prevent BitLocker Auto Encryption'; Default = $true; WinDefault = $false }
+			@{ Function = 'WorkplaceJoinMessages'; Name = 'Block Workplace Join Messages'; Default = $true; WinDefault = $false },
+			@{ Function = 'BitLockerAutoEncryption'; Name = 'Prevent BitLocker Auto Encryption'; Default = $true; WinDefault = $false }
 		)
 
 		foreach ($entry in $expected)
@@ -391,8 +391,8 @@ Describe 'Privacy telemetry presets' {
 			'InkingAndTypingPersonalization -Disable',
 			'DeviceSearchHistory -Disable',
 			'CloudContentSearch -Disable',
-			'Block-WorkplaceJoinMessages -Enable',
-			'Prevent-BitLockerAutoEncryption -Enable'
+			'WorkplaceJoinMessages -Enable',
+			'BitLockerAutoEncryption -Enable'
 		)
 
 		foreach ($preset in @($script:BasicPreset, $script:BalancedPreset, $script:AdvancedPreset))

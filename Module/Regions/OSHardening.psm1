@@ -14,7 +14,7 @@ if (Test-Path $subModuleRoot)
 
 # --- Reversal coverage ---
 # Most functions in this file apply one-way hardening (Disable-*, Update-*, Protect-*).
-# Only Disable-RemoteCommands and Update-Protocols have been converted to Toggle
+# Only RemoteCommands and Protocols have been converted to Toggle
 # functions with -Enable/-Disable parameters. The remaining ~24 functions have no
 # built-in reversal because:
 #   1. Many settings (cipher suites, key exchanges, hash algorithms) have no single

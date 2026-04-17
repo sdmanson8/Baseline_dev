@@ -31,7 +31,7 @@
     verifies that the value returns to its pre-test state.
 
     .EXAMPLE
-    pwsh -File .\Tests\Integration\Test-RegistryTweak.ps1 `
+    powershell -File .\Tests\Integration\Test-RegistryTweak.ps1 `
         -FunctionName FileExtensions `
         -RegistryPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' `
         -ValueName HideFileExt `

@@ -9,19 +9,26 @@ BeforeAll {
         Invoke-Expression $fn.Extent.Text
     }
 
-    $guiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
-    $guiAst = [System.Management.Automation.Language.Parser]::ParseFile($guiPath, [ref]$null, [ref]$null)
-    $guiFunctions = $guiAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
-    foreach ($fn in $guiFunctions)
+    # Apps functions were extracted from GUI.psm1 into Module/GUI/AppsModule.ps1
+    # during Phase 2 decomposition. Parse both so tests find the definitions
+    # regardless of which file they currently live in.
+    $guiSourceFiles = @(
+        (Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'),
+        (Join-Path $PSScriptRoot '../../Module/GUI/AppsModule.ps1')
+    )
+    $targetAppsFunctions = @('Initialize-AppsSelectionState', 'Update-AppsSelectionSummary', 'Start-AppsModuleActionAsync', 'Start-AppsModuleBatchActionAsync', 'Initialize-AppsQueuedActionState')
+    foreach ($srcFile in $guiSourceFiles)
     {
-            if ($fn.Name -in @('Initialize-AppsSelectionState', 'Update-AppsSelectionSummary', 'Start-AppsModuleActionAsync', 'Start-AppsModuleBatchActionAsync'))
+        if (-not (Test-Path -LiteralPath $srcFile)) { continue }
+        $srcAst = [System.Management.Automation.Language.Parser]::ParseFile($srcFile, [ref]$null, [ref]$null)
+        $srcFunctions = $srcAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+        foreach ($fn in $srcFunctions)
+        {
+            if ($fn.Name -in $targetAppsFunctions)
             {
                 Invoke-Expression $fn.Extent.Text
             }
-            elseif ($fn.Name -eq 'Initialize-AppsQueuedActionState')
-            {
-                Invoke-Expression $fn.Extent.Text
-            }
+        }
     }
 
     $appsViewPath = Join-Path $PSScriptRoot '../../Module/GUI/ApplicationsView.ps1'
@@ -222,6 +229,15 @@ BeforeAll {
         Internal implementation helper used by Baseline.
     #>
     function LogError { param([object]$Message) }
+
+    <#
+        .SYNOPSIS
+        Internal function .
+
+        .DESCRIPTION
+        Internal implementation helper used by Baseline.
+    #>
+    function Reset-ChocolateyAvailabilityState { }
 
     $script:GuiModuleBasePath = $TestDrive
     $script:GuiLocalizationDirectoryPath = $TestDrive
@@ -539,6 +555,245 @@ Describe 'Chocolatey availability' {
         Should -Invoke Start-Process -Times 1 -ParameterFilter {
             $FilePath -eq 'choco.exe' -and
             -not $WindowStyle
+        }
+    }
+}
+
+Describe 'Chocolatey bootstrap' {
+    BeforeEach {
+        Mock Get-ExecutionPolicy { 'RemoteSigned' }
+        Mock Set-ExecutionPolicy {}
+        Mock Reset-ChocolateyAvailabilityState {}
+        Mock Confirm-ChocolateyBootstrapExecution {}
+        Remove-Variable -Name ChocolateyBootstrapExecuted -Scope Global -ErrorAction SilentlyContinue
+        $Global:ChocolateyBootstrapExecuted = $false
+    }
+
+    AfterEach {
+        Remove-Variable -Name ChocolateyBootstrapExecuted -Scope Global -ErrorAction SilentlyContinue
+    }
+
+    It 'downloads the Chocolatey bootstrap to disk only after approval' {
+        $script:BootstrapScriptPath = Join-Path $TestDrive 'choco-install.ps1'
+        Set-Content -LiteralPath $script:BootstrapScriptPath -Value '$Global:ChocolateyBootstrapExecuted = $true'
+        Mock Save-ChocolateyBootstrapScript { $script:BootstrapScriptPath }
+
+        Invoke-ChocolateyBootstrapInstall
+
+        $Global:ChocolateyBootstrapExecuted | Should -BeTrue
+        Should -Invoke Confirm-ChocolateyBootstrapExecution -Times 1
+        Should -Invoke Save-ChocolateyBootstrapScript -Times 1
+        Should -Invoke Reset-ChocolateyAvailabilityState -Times 1
+        Test-Path -LiteralPath $script:BootstrapScriptPath | Should -BeFalse
+    }
+
+    It 'restores the previous execution policy when bootstrap download fails' {
+        Mock Save-ChocolateyBootstrapScript { throw 'bootstrap download failed' }
+
+        { Invoke-ChocolateyBootstrapInstall } | Should -Throw '*bootstrap download failed*'
+
+        Should -Invoke Set-ExecutionPolicy -Times 1 -ParameterFilter {
+            $ExecutionPolicy -eq 'Bypass' -and $Scope -eq 'Process' -and $Force
+        }
+        Should -Invoke Set-ExecutionPolicy -Times 1 -ParameterFilter {
+            $ExecutionPolicy -eq 'RemoteSigned' -and $Scope -eq 'Process' -and $Force
+        }
+    }
+
+    It 'stops before downloading when approval is denied' {
+        Mock Confirm-ChocolateyBootstrapExecution { throw 'Chocolatey bootstrap requires explicit operator approval.' }
+        Mock Save-ChocolateyBootstrapScript { throw 'download should not be reached' }
+
+        { Invoke-ChocolateyBootstrapInstall } | Should -Throw '*explicit operator approval*'
+
+        Should -Invoke Save-ChocolateyBootstrapScript -Times 0
+        Should -Invoke Set-ExecutionPolicy -Times 0
+    }
+}
+
+Describe 'Chocolatey bootstrap approval' {
+    BeforeEach {
+        Remove-Item Env:\BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP -ErrorAction SilentlyContinue
+    }
+
+    AfterEach {
+        Remove-Item Env:\BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP -ErrorAction SilentlyContinue
+        Remove-Item Function:\Test-ChocolateyBootstrapInteractiveHost -ErrorAction SilentlyContinue
+    }
+
+    It 'accepts an explicit environment opt-in for reviewed automation' {
+        $env:BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP = '1'
+
+        { Confirm-ChocolateyBootstrapExecution } | Should -Not -Throw
+    }
+
+    It 'throws when no approval path is available' {
+        function Test-ChocolateyBootstrapInteractiveHost { return $false }
+
+        { Confirm-ChocolateyBootstrapExecution } | Should -Throw '*BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP=1*'
+    }
+}
+
+Describe 'Test-ChocolateyBootstrapInteractiveHost' {
+    BeforeAll {
+        # The 'Chocolatey bootstrap approval' Describe above removes this function
+        # via AfterEach; re-parse it from source so this Describe has its own copy.
+        $applicationsPath = Join-Path $PSScriptRoot '../../Module/Regions/Applications.psm1'
+        $applicationsAst = [System.Management.Automation.Language.Parser]::ParseFile($applicationsPath, [ref]$null, [ref]$null)
+        $targetFn = $applicationsAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Test-ChocolateyBootstrapInteractiveHost' }, $true) | Select-Object -First 1
+        if ($targetFn) { Invoke-Expression $targetFn.Extent.Text }
+    }
+
+    BeforeEach {
+        $script:rawUi = [pscustomobject]@{}
+        $script:baselineHost = [pscustomobject]@{
+            Name = 'BaselineHost'
+            UI = [pscustomobject]@{ RawUI = $script:rawUi }
+        }
+        $script:remoteHost = [pscustomobject]@{
+            Name = 'ServerRemoteHost'
+            UI = [pscustomobject]@{ RawUI = $script:rawUi }
+        }
+        $script:defaultHost = [pscustomobject]@{
+            Name = 'Default Host'
+            UI = [pscustomobject]@{ RawUI = $script:rawUi }
+        }
+        $script:consoleHost = [pscustomobject]@{
+            Name = 'ConsoleHost'
+            UI = [pscustomobject]@{ RawUI = $script:rawUi }
+        }
+    }
+
+    It 'rejects the BaselineHost launcher even though RawUI is present' {
+        Test-ChocolateyBootstrapInteractiveHost -HostInstance $script:baselineHost -UserInteractive $true | Should -BeFalse
+    }
+
+    It 'rejects PSRemoting ServerRemoteHost' {
+        Test-ChocolateyBootstrapInteractiveHost -HostInstance $script:remoteHost -UserInteractive $true | Should -BeFalse
+    }
+
+    It 'rejects Default Host automation contexts' {
+        Test-ChocolateyBootstrapInteractiveHost -HostInstance $script:defaultHost -UserInteractive $true | Should -BeFalse
+    }
+
+    It 'rejects when UserInteractive is false' {
+        Test-ChocolateyBootstrapInteractiveHost -HostInstance $script:consoleHost -UserInteractive $false | Should -BeFalse
+    }
+
+    It 'accepts a ConsoleHost when UserInteractive is true' {
+        Test-ChocolateyBootstrapInteractiveHost -HostInstance $script:consoleHost -UserInteractive $true | Should -BeTrue
+    }
+
+    It 'rejects a null host' {
+        Test-ChocolateyBootstrapInteractiveHost -HostInstance $null -UserInteractive $true | Should -BeFalse
+    }
+
+    It 'rejects a host with no UI' {
+        $hostNoUi = [pscustomobject]@{ Name = 'ConsoleHost'; UI = $null }
+        Test-ChocolateyBootstrapInteractiveHost -HostInstance $hostNoUi -UserInteractive $true | Should -BeFalse
+    }
+}
+
+Describe 'Command execution routes' {
+    BeforeEach {
+        $script:CapturedCommandInvocation = $null
+    }
+
+    It 'parses literal command strings into a command name and argument list' {
+        $invocation = ConvertTo-ApplicationCommandInvocation -Command "winget install -s msstore 'Microsoft Solitaire Collection'"
+
+        $invocation.CommandName | Should -Be 'winget'
+        @($invocation.CommandArguments).Count | Should -Be 4
+        $invocation.CommandArguments[0] | Should -Be 'install'
+        $invocation.CommandArguments[1] | Should -Be '-s'
+        $invocation.CommandArguments[2] | Should -Be 'msstore'
+        $invocation.CommandArguments[3] | Should -Be 'Microsoft Solitaire Collection'
+        $invocation.HasSingleCommandInvocation | Should -BeTrue
+    }
+
+    It 'parses safe pipelines and semicolon-separated statements' {
+        $invocation = ConvertTo-ApplicationCommandInvocation -Command 'Get-AppxPackage -Name *3DViewer* | Remove-AppxPackage; Get-AppxPackage -AllUsers -Name *3DViewer* | Remove-AppxProvisionedAppxPackage'
+
+        $invocation.HasSingleCommandInvocation | Should -BeFalse
+        @($invocation.CommandNames) | Should -Be @(
+            'Get-AppxPackage',
+            'Remove-AppxPackage',
+            'Get-AppxPackage',
+            'Remove-AppxProvisionedAppxPackage'
+        )
+    }
+
+    It 'rejects unsafe subexpressions and scriptblocks' {
+        {
+            ConvertTo-ApplicationCommandInvocation -Command 'Get-AppxPackage $(Get-Date)'
+        } | Should -Throw '*contains unsupported syntax*'
+    }
+
+    It 'rejects dot-source invocation against a literal script path' {
+        {
+            ConvertTo-ApplicationCommandInvocation -Command ". '.\foo.ps1'"
+        } | Should -Throw '*contains unsupported syntax*'
+    }
+
+    It 'rejects call-operator invocation against a literal script path' {
+        {
+            ConvertTo-ApplicationCommandInvocation -Command "& '.\foo.ps1'"
+        } | Should -Throw '*contains unsupported syntax*'
+    }
+
+    It 'rejects dot-source invocation against a bareword path' {
+        {
+            ConvertTo-ApplicationCommandInvocation -Command '. C:\Temp\foo.ps1'
+        } | Should -Throw '*contains unsupported syntax*'
+    }
+
+    It 'rejects call-operator invocation of a command name' {
+        {
+            ConvertTo-ApplicationCommandInvocation -Command '& winget install git'
+        } | Should -Throw '*contains unsupported syntax*'
+    }
+
+    It 'executes parsed commands without Invoke-Expression' {
+        function Invoke-TestApplicationCommand {
+            param (
+                [string]$Mode,
+                [string]$Target
+            )
+
+            $script:CapturedCommandInvocation = @($Mode, $Target)
+        }
+
+        try {
+            Invoke-CommandInstall -Command 'Invoke-TestApplicationCommand install baseline' -DisplayName 'Baseline Test App'
+
+            @($script:CapturedCommandInvocation).Count | Should -Be 2
+            $script:CapturedCommandInvocation[0] | Should -Be 'install'
+            $script:CapturedCommandInvocation[1] | Should -Be 'baseline'
+        }
+        finally {
+            Remove-Item -Path Function:\Invoke-TestApplicationCommand -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'executes safe pipelines without Invoke-Expression' {
+        function Get-TestApplicationItem {
+            'baseline'
+        }
+
+        function Invoke-TestPipelineCommand {
+            process {
+                $script:CapturedCommandInvocation = $_
+            }
+        }
+
+        try {
+            Invoke-CommandInstall -Command 'Get-TestApplicationItem | Invoke-TestPipelineCommand' -DisplayName 'Baseline Pipeline App'
+
+            $script:CapturedCommandInvocation | Should -Be 'baseline'
+        }
+        finally {
+            Remove-Item -Path Function:\Get-TestApplicationItem -ErrorAction SilentlyContinue
+            Remove-Item -Path Function:\Invoke-TestPipelineCommand -ErrorAction SilentlyContinue
         }
     }
 }

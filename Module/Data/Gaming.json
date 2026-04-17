@@ -466,7 +466,7 @@
     },
     {
       "Name": "Processor Scheduling",
-      "Function": "Set-Win32PrioritySeparation",
+      "Function": "Win32PrioritySeparation",
       "Type": "Choice",
       "Options": [
         "Programs",
@@ -523,7 +523,7 @@
     },
     {
       "Name": "System Responsiveness",
-      "Function": "Set-SystemResponsiveness",
+      "Function": "SystemResponsiveness",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -574,7 +574,7 @@
     },
     {
       "Name": "CPU Priority",
-      "Function": "Set-GamingCpuPriority",
+      "Function": "GamingCpuPriority",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -625,7 +625,7 @@
     },
     {
       "Name": "Scheduling Category",
-      "Function": "Set-GamingSchedulingCategory",
+      "Function": "GamingSchedulingCategory",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -676,7 +676,7 @@
     },
     {
       "Name": "GPU Priority",
-      "Function": "Set-GamingGpuPriority",
+      "Function": "GamingGpuPriority",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -727,7 +727,7 @@
     },
     {
       "Name": "Optimizations for windowed games",
-      "Function": "Set-DirectXFlipModel",
+      "Function": "DirectXFlipModel",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -778,7 +778,7 @@
     },
     {
       "Name": "Variable Refresh Rate",
-      "Function": "Set-DirectXVrrOptimizations",
+      "Function": "DirectXVrrOptimizations",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -828,7 +828,7 @@
     },
     {
       "Name": "Auto HDR",
-      "Function": "Set-DirectXAutoHdr",
+      "Function": "DirectXAutoHdr",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -878,7 +878,7 @@
     },
     {
       "Name": "Legacy NVIDIA Sharpening",
-      "Function": "Set-NvidiaSharpening",
+      "Function": "NvidiaSharpening",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,

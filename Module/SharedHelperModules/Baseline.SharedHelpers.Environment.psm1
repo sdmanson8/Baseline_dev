@@ -1,0 +1,61 @@
+<#
+    .SYNOPSIS
+    Wrapper module for Environment.Helpers.ps1.
+
+    .DESCRIPTION
+    Loads the shared helper slice into an explicitly named module so the helper
+    inventory is visible through Get-Module.
+#>
+
+$Script:SharedHelpersModuleRoot = Split-Path -Path $PSScriptRoot -Parent
+$Script:SharedHelpersRepoRoot = Split-Path -Path $Script:SharedHelpersModuleRoot -Parent
+
+$helperPath = Join-Path -Path (Join-Path $Script:SharedHelpersModuleRoot 'SharedHelpers') -ChildPath 'Environment.Helpers.ps1'
+if (-not (Test-Path -LiteralPath $helperPath))
+{
+    throw "Required shared helper file is missing: $helperPath"
+}
+
+. $helperPath
+
+$ExportedFunctions = @(
+    'Initialize-ForegroundWindowInterop'
+    'Initialize-ConsoleWindowInterop'
+    'Get-ConsoleHandle'
+    'Hide-ConsoleWindow'
+    'Show-ConsoleWindow'
+    'Test-InteractiveHost'
+    'Initialize-WpfWindowForeground'
+    'Get-WindowsVersionData'
+    'Get-OSInfo'
+    'Get-BaselineValidationMatrixSummary'
+    'Get-BaselineValidationEvidenceReport'
+    'ConvertTo-WindowsDisplayVersionComparable'
+    'Test-Windows11FeatureBranchSupport'
+    'Show-BootstrapLoadingSplash'
+    'Initialize-BaselineProcessIdentity'
+    'Format-BaselineDownloadStatus'
+    'Set-BootstrapLoadingSplashState'
+    'Close-LoadingSplashWindow'
+    'Invoke-BaselineAutoUpdate'
+    'Show-Menu'
+    'Get-LocalizedShellString'
+    'Restart-Script'
+    'Get-BaselineDisplayVersion'
+    'Get-TweakSkipLabel'
+    'Stop-Foreground'
+    'Invoke-UCPDBypassed'
+    'Get-UCPDTemporaryPowerShellPath'
+    'Set-BaselineOperationMode'
+    'Get-BaselineOperationMode'
+    'Test-BaselineReadOnlyMode'
+    'Assert-BaselineWriteAllowed'
+    'Initialize-BaselineMarkdownRuntime'
+    'Test-BaselineMarkdownRuntimeReady'
+    'ConvertFrom-BaselineMarkdownToFlowDocument'
+    'ConvertFrom-BaselineMarkdownToHtml'
+    'Initialize-BaselineWebView2Runtime'
+    'Test-BaselineWebView2RuntimeReady'
+)
+
+Export-ModuleMember -Function $ExportedFunctions

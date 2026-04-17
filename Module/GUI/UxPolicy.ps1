@@ -965,7 +965,7 @@ function Get-UxQuickStartSteps
 			'Safe'
 			{
 				$qsLabel = Get-UxLocalizedString -Key 'GuiPresetQuickStart' -Fallback 'Quick Start'
-				return (Get-UxLocalizedString -Key 'GuiPresetStartHereEmphasis' -Fallback "Start here `u{2014} {0} is recommended for your first run." -FormatArgs @($qsLabel))
+				return (Get-UxLocalizedString -Key 'GuiPresetStartHereEmphasis' -Fallback ("Start here {0} {1} is recommended for your first run." -f ([char]0x2014), $qsLabel))
 			}
 			'Expert'
 			{
@@ -1189,6 +1189,48 @@ function Get-UxQuickStartSteps
 		$noun = if ($IsGameModePreview) { 'gaming action' } else { 'tweak' }
 		$nounPlural = if ($IsGameModePreview) { 'gaming actions' } else { 'tweaks' }
 		$itemWord = if ($Summary.SelectedCount -eq 1) { $noun } else { $nounPlural }
+		$validationMatrix = $null
+		try
+		{
+			if (Get-Command -Name 'Get-BaselineValidationMatrixSummary' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				$validationMatrix = Get-BaselineValidationMatrixSummary
+			}
+		}
+		catch
+		{
+			$validationMatrix = $null
+		}
+		$currentOS = $null
+		try
+		{
+			if (Get-Command -Name 'Get-OSInfo' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				$currentOS = Get-OSInfo
+			}
+		}
+		catch
+		{
+			$currentOS = $null
+		}
+		$serverValidationWarning = $null
+		if ($currentOS -and $currentOS.IsWindowsServer)
+		{
+			if ($validationMatrix -and $validationMatrix.ServerValidationSummary)
+			{
+				$serverValidationWarning = if ([bool]$validationMatrix.ServerCIOnly) {
+					('Server validation outside CI remains CI only: {0}.' -f [string]$validationMatrix.ServerValidationSummary)
+				}
+				else
+				{
+					('Server validation outside CI is covered: {0}.' -f [string]$validationMatrix.ServerValidationSummary)
+				}
+			}
+			else
+			{
+				$serverValidationWarning = 'Server validation outside CI is not recorded in the current matrix.'
+			}
+		}
 
 		$summaryParts = @(
 			$(if ($IsGameModePreview) {
@@ -1323,6 +1365,10 @@ function Get-UxQuickStartSteps
 				}
 				$summaryParts += $restartSection
 			}
+		}
+		if ($serverValidationWarning)
+		{
+			$summaryParts += $serverValidationWarning
 		}
 
 		return $summaryParts

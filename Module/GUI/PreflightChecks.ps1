@@ -15,6 +15,8 @@ function New-PreflightCheckResult
         [Parameter(Mandatory)]
         [string]$Name,
 
+        [string]$Key,
+
         [Parameter(Mandatory)]
         [ValidateSet('Passed', 'Failed', 'Warning')]
         [string]$Status,
@@ -26,11 +28,14 @@ function New-PreflightCheckResult
         [ValidateSet('System', 'Storage', 'Services', 'Security', 'Recovery')]
         [string]$Category,
 
-        [object[]]$RemediationActions = @()
+        [object[]]$RemediationActions = @(),
+
+        [object]$Details
     )
 
     $result = [pscustomobject]@{
         Name     = $Name
+        Key      = $Key
         Status   = $Status
         Message  = $Message
         Category = $Category
@@ -41,7 +46,410 @@ function New-PreflightCheckResult
         $result | Add-Member -NotePropertyName RemediationActions -NotePropertyValue @($RemediationActions) -Force
     }
 
+    if ($null -ne $Details)
+    {
+        $result | Add-Member -NotePropertyName Details -NotePropertyValue $Details -Force
+    }
+
     return $result
+}
+
+<#
+    .SYNOPSIS
+    Internal function New-BaselineRiskCategory.
+
+    .DESCRIPTION
+    Builds a structured risk category record surfaced in preflight, preview,
+    and remote-console dialogs. Each category carries a status, tone, the
+    remediation steps the operator should take, and a documentation pointer
+    that the UI can hyperlink.
+#>
+
+function New-BaselineRiskCategory
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)][string]$Key,
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][ValidateSet('Passed','Warning','Failed')][string]$Status,
+        [Parameter(Mandatory)][string]$Summary,
+        [string[]]$RemediationActions = @(),
+        [string]$DocumentationPath,
+        [string]$LogHint,
+        [object]$Details
+    )
+
+    $tone = switch ($Status)
+    {
+        'Failed'  { 'Danger'; break }
+        'Warning' { 'Caution'; break }
+        default   { 'Muted' }
+    }
+
+    $record = [pscustomobject]@{
+        Key                = $Key
+        Name               = $Name
+        Status             = $Status
+        Tone               = $tone
+        Summary            = $Summary
+        RemediationActions = @($RemediationActions | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+        DocumentationPath  = $DocumentationPath
+        LogHint            = $LogHint
+    }
+    if ($null -ne $Details)
+    {
+        $record | Add-Member -NotePropertyName Details -NotePropertyValue $Details -Force
+    }
+    return $record
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-BaselineRiskCategoryList.
+
+    .DESCRIPTION
+    Translates raw preflight checks and rollout history into the structured
+    risk category list consumed by the preflight dialog, remote console, and
+    preview summary. Categories are ordered so operator-facing UI can render
+    them deterministically.
+#>
+
+function Get-BaselineRiskCategoryList
+{
+    [CmdletBinding()]
+    param (
+        [object]$ManagedPolicyCheck,
+        [object]$PendingRebootCheck,
+        [object]$WinRMCheck,
+        [switch]$IncludePartialSuccessHistory
+    )
+
+    $categories = [System.Collections.Generic.List[object]]::new()
+
+    # --- Managed endpoint policy ----------------------------------------
+    if ($ManagedPolicyCheck)
+    {
+        $mpStatus = [string]$ManagedPolicyCheck.Status
+        $mpRemediation = @()
+        if ($ManagedPolicyCheck.PSObject.Properties['RemediationActions'] -and $ManagedPolicyCheck.RemediationActions)
+        {
+            $mpRemediation = @($ManagedPolicyCheck.RemediationActions)
+        }
+        $mpSummary = if ($mpStatus -eq 'Passed')
+        {
+            (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryManagedPassed' -Fallback 'No managed-endpoint conflicts detected.')
+        }
+        else
+        {
+            [string]$ManagedPolicyCheck.Message
+        }
+        $mpDetails = if ($ManagedPolicyCheck.PSObject.Properties['Details']) { $ManagedPolicyCheck.Details } else { $null }
+        [void]$categories.Add((New-BaselineRiskCategory `
+            -Key 'ManagedEndpointPolicy' `
+            -Name (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryManagedName' -Fallback 'Managed endpoint policy') `
+            -Status $mpStatus `
+            -Summary $mpSummary `
+            -RemediationActions $mpRemediation `
+            -DocumentationPath 'dev_docs/Remediation/ManagedEndpoints.md' `
+            -LogHint (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryLogHintPolicy' -Fallback 'Review managed-policy entries in the support bundle (PolicyConflictSignals).') `
+            -Details $mpDetails))
+    }
+
+    # --- Pending reboot --------------------------------------------------
+    if ($PendingRebootCheck)
+    {
+        $prStatus = [string]$PendingRebootCheck.Status
+        $prRemediation = @()
+        if ($PendingRebootCheck.PSObject.Properties['RemediationActions'] -and $PendingRebootCheck.RemediationActions)
+        {
+            $prRemediation = @($PendingRebootCheck.RemediationActions)
+        }
+        $prSummary = if ($prStatus -eq 'Passed')
+        {
+            (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryRebootPassed' -Fallback 'No pending reboot detected.')
+        }
+        else
+        {
+            [string]$PendingRebootCheck.Message
+        }
+        $prDetails = if ($PendingRebootCheck.PSObject.Properties['Details']) { $PendingRebootCheck.Details } else { $null }
+        [void]$categories.Add((New-BaselineRiskCategory `
+            -Key 'PendingReboot' `
+            -Name (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryRebootName' -Fallback 'Pending reboot') `
+            -Status $prStatus `
+            -Summary $prSummary `
+            -RemediationActions $prRemediation `
+            -DocumentationPath 'dev_docs/Remediation/PendingReboot.md' `
+            -LogHint (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryLogHintReboot' -Fallback 'Pending-reboot reasons are recorded under PreflightChecks in the log.') `
+            -Details $prDetails))
+    }
+
+    # --- WinRM variability ---------------------------------------------
+    if ($WinRMCheck)
+    {
+        $wrStatus = [string]$WinRMCheck.Status
+        $isPartial = $false
+        $details = $null
+        if ($WinRMCheck.PSObject.Properties['Details'] -and $WinRMCheck.Details)
+        {
+            $details = $WinRMCheck.Details
+            if ($details -is [System.Collections.IDictionary])
+            {
+                if ($details.Contains('PartialCoverage')) { $isPartial = [bool]$details['PartialCoverage'] }
+            }
+            elseif ($details.PSObject.Properties['PartialCoverage'])
+            {
+                $isPartial = [bool]$details.PartialCoverage
+            }
+        }
+        $wrKey = if ($isPartial) { 'WinRMVariability' } else { 'WinRMReachability' }
+        $wrName = if ($isPartial) {
+            (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryWinRMVariabilityName' -Fallback 'WinRM reachability variability')
+        } else {
+            (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryWinRMName' -Fallback 'WinRM reachability')
+        }
+        $wrRemediation = @()
+        if ($WinRMCheck.PSObject.Properties['RemediationActions'] -and $WinRMCheck.RemediationActions)
+        {
+            $wrRemediation = @($WinRMCheck.RemediationActions)
+        }
+        $wrSummary = if ($wrStatus -eq 'Passed')
+        {
+            (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryWinRMPassed' -Fallback 'All targets reachable via WinRM.')
+        }
+        else
+        {
+            [string]$WinRMCheck.Message
+        }
+        [void]$categories.Add((New-BaselineRiskCategory `
+            -Key $wrKey `
+            -Name $wrName `
+            -Status $wrStatus `
+            -Summary $wrSummary `
+            -RemediationActions $wrRemediation `
+            -DocumentationPath 'dev_docs/Remediation/WinRMReachability.md' `
+            -LogHint (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryLogHintWinRM' -Fallback 'See WinRM detail lines in the remote-console log and support bundle transcripts.') `
+            -Details $details))
+    }
+
+    # --- Partial-success rollout risk (history driven) ------------------
+    if ($IncludePartialSuccessHistory)
+    {
+        $risk = Get-BaselinePartialSuccessRolloutRisk
+        if ($risk)
+        {
+            [void]$categories.Add($risk)
+        }
+    }
+
+    return @($categories)
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-BaselinePartialSuccessRolloutRisk.
+
+    .DESCRIPTION
+    Inspects recent rollout outcomes and, when partial-success outcomes are
+    present, returns a risk category flagging the rollout risk so the next
+    run surfaces it before the operator continues.
+#>
+
+function Get-BaselinePartialSuccessRolloutRisk
+{
+    [CmdletBinding()]
+    param ()
+
+    $cmd = Get-Command -Name 'Get-BaselineRemoteRolloutOutcomes' -CommandType Function -ErrorAction SilentlyContinue
+    if (-not $cmd)
+    {
+        return $null
+    }
+
+    $outcomes = @()
+    try
+    {
+        $since = [datetime]::UtcNow.AddDays(-7)
+        $outcomes = @(& $cmd -Since $since -MaxRecords 25)
+    }
+    catch
+    {
+        return $null
+    }
+
+    if (-not $outcomes -or $outcomes.Count -eq 0)
+    {
+        return $null
+    }
+
+    $partial = @($outcomes | Where-Object { [string]$_.Outcome -eq 'PartialSuccess' })
+    if ($partial.Count -eq 0)
+    {
+        return (New-BaselineRiskCategory `
+            -Key 'PartialSuccessRolloutRisk' `
+            -Name (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryPartialName' -Fallback 'Partial-success rollout risk') `
+            -Status 'Passed' `
+            -Summary (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryPartialPassed' -Fallback 'No partial-success rollouts recorded in the last 7 days.') `
+            -DocumentationPath 'dev_docs/Remediation/PartialSuccess.md')
+    }
+
+    $latest = $partial | Sort-Object -Property RecordedUtc -Descending | Select-Object -First 1
+    $summary = ((Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryPartialSummary' -Fallback '{0} recent rollout(s) ended in partial success (latest: {1}, run {2}).') -f $partial.Count, $latest.Operation, $latest.RunId)
+    $logHintTemplate = Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryLogHintPartial' -Fallback 'Use RunId {0} in the orchestration history to locate the failed sub-steps.'
+    $logHint = ($logHintTemplate -f [string]$latest.RunId)
+    return (New-BaselineRiskCategory `
+        -Key 'PartialSuccessRolloutRisk' `
+        -Name (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryPartialName' -Fallback 'Partial-success rollout risk') `
+        -Status 'Warning' `
+        -Summary $summary `
+        -RemediationActions @(
+            'Review the partial-success items from the referenced run before re-running the same operation.',
+            'Confirm the target(s) left in a partial state have been remediated or excluded from the next rollout.',
+            'If the partial-success is expected (e.g., package cleanup), annotate the run ID in the audit bundle.'
+        ) `
+        -DocumentationPath 'dev_docs/Remediation/PartialSuccess.md' `
+        -LogHint $logHint `
+        -Details ([ordered]@{
+            PartialOutcomeCount = $partial.Count
+            LatestRunId         = [string]$latest.RunId
+            LatestOperation     = [string]$latest.Operation
+            LatestRecordedUtc   = $latest.RecordedUtc
+        }))
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-BaselineRiskCategorySummaryText.
+
+    .DESCRIPTION
+    Produces a single-line summary suitable for status cards when one or
+    more risk categories are active. Uses localized labels where available.
+#>
+
+function Get-BaselineRiskCategorySummaryText
+{
+    [CmdletBinding()]
+    param (
+        [object[]]$Categories = @()
+    )
+
+    $active = @($Categories | Where-Object { [string]$_.Status -ne 'Passed' })
+    if ($active.Count -eq 0)
+    {
+        return (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryNone' -Fallback 'No policy conflict signals detected.')
+    }
+    $names = @($active | ForEach-Object { [string]$_.Name })
+    return ((Get-UxLocalizedString -Key 'GuiPreflightRiskCategorySummary' -Fallback 'Risk categories flagged: {0}.') -f ($names -join ', '))
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-BaselinePreflightContract.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Get-BaselinePreflightContract
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [object[]]$Results
+    )
+
+    $items = @($Results | Where-Object { $null -ne $_ })
+    $passedCount = @($items | Where-Object { [string]$_.Status -eq 'Passed' }).Count
+    $warningCount = @($items | Where-Object { [string]$_.Status -eq 'Warning' }).Count
+    $failedCount = @($items | Where-Object { [string]$_.Status -eq 'Failed' }).Count
+
+    $adminCheck = if ($items.Count -gt 0) { $items[0] } else { $null }
+    $managedPolicyCheck = if ($items.Count -gt 6) { $items[6] } else { $null }
+    $pendingRebootCheck = if ($items.Count -gt 7) { $items[7] } else { $null }
+    $winrmCheck = if ($items.Count -gt 8) { $items[8] } else { $null }
+
+    $policyConflictChecks = @($managedPolicyCheck, $pendingRebootCheck | Where-Object { $null -ne $_ })
+    $policyConflictCount = @($policyConflictChecks | Where-Object { [string]$_.Status -ne 'Passed' }).Count
+    $policyConflictStatus = if (@($policyConflictChecks | Where-Object { [string]$_.Status -eq 'Failed' }).Count -gt 0) { 'Failed' } elseif ($policyConflictCount -gt 0) { 'Warning' } else { 'Passed' }
+
+    $reachableTargets = @()
+    $unreachableTargets = @()
+    $targetCount = 0
+    $serviceStatus = $null
+    if ($winrmCheck -and $winrmCheck.PSObject.Properties['Details'] -and $winrmCheck.Details)
+    {
+        if ($winrmCheck.Details -is [System.Collections.IDictionary])
+        {
+            $targetCount = if ($winrmCheck.Details.Contains('TargetCount')) { [int]$winrmCheck.Details['TargetCount'] } else { 0 }
+            $reachableTargets = if ($winrmCheck.Details.Contains('ReachableTargets')) { @($winrmCheck.Details['ReachableTargets']) } else { @() }
+            $unreachableTargets = if ($winrmCheck.Details.Contains('UnreachableTargets')) { @($winrmCheck.Details['UnreachableTargets']) } else { @() }
+            $serviceStatus = if ($winrmCheck.Details.Contains('ServiceStatus')) { [string]$winrmCheck.Details['ServiceStatus'] } else { $null }
+        }
+        else
+        {
+            $targetCount = if ($winrmCheck.Details.PSObject.Properties['TargetCount']) { [int]$winrmCheck.Details.TargetCount } else { 0 }
+            $reachableTargets = if ($winrmCheck.Details.PSObject.Properties['ReachableTargets']) { @($winrmCheck.Details.ReachableTargets) } else { @() }
+            $unreachableTargets = if ($winrmCheck.Details.PSObject.Properties['UnreachableTargets']) { @($winrmCheck.Details.UnreachableTargets) } else { @() }
+            $serviceStatus = if ($winrmCheck.Details.PSObject.Properties['ServiceStatus']) { [string]$winrmCheck.Details.ServiceStatus } else { $null }
+        }
+    }
+
+    $environmentClassification = if ($failedCount -gt 0) { 'Unsupported' } elseif ($warningCount -gt 0) { 'AttentionRequired' } else { 'Supported' }
+    $topLevelStatus = if ($failedCount -gt 0) { 'Failed' } elseif ($warningCount -gt 0) { 'Warning' } else { 'Passed' }
+
+    $riskCategories = @(Get-BaselineRiskCategoryList -ManagedPolicyCheck $managedPolicyCheck -PendingRebootCheck $pendingRebootCheck -WinRMCheck $winrmCheck -IncludePartialSuccessHistory)
+    $categoryIssueCount = @($riskCategories | Where-Object { [string]$_.Status -ne 'Passed' }).Count
+
+    return [pscustomobject]@{
+        Status = $topLevelStatus
+        SupportedEnvironmentClassification = [pscustomobject]@{
+            Status       = $environmentClassification
+            PassedCount   = $passedCount
+            WarningCount  = $warningCount
+            FailedCount   = $failedCount
+            Summary       = ('Environment classification: {0} (Passed={1}, Warning={2}, Failed={3})' -f $environmentClassification, $passedCount, $warningCount, $failedCount)
+        }
+        WinRMReachability = if ($winrmCheck) {
+            [pscustomobject]@{
+                Status            = [string]$winrmCheck.Status
+                Check             = $winrmCheck
+                TargetCount       = $targetCount
+                ReachableTargets  = @($reachableTargets)
+                UnreachableTargets = @($unreachableTargets)
+                ServiceStatus     = $serviceStatus
+                Summary           = [string]$winrmCheck.Message
+            }
+        } else { $null }
+        Credentials = if ($adminCheck) {
+            [pscustomobject]@{
+                Status      = [string]$adminCheck.Status
+                Check       = $adminCheck
+                Summary     = [string]$adminCheck.Message
+                IsElevated  = if ($adminCheck.PSObject.Properties['Details'] -and $adminCheck.Details) {
+                    if ($adminCheck.Details -is [System.Collections.IDictionary]) {
+                        if ($adminCheck.Details.Contains('IsAdministrator')) { [bool]$adminCheck.Details['IsAdministrator'] } else { $null }
+                    }
+                    elseif ($adminCheck.Details.PSObject.Properties['IsAdministrator']) { [bool]$adminCheck.Details.IsAdministrator }
+                    else { $null }
+                } else { $null }
+            }
+        } else { $null }
+        PolicyConflictSignals = [pscustomobject]@{
+            Status                = $policyConflictStatus
+            ManagedPolicyEnvironment = $managedPolicyCheck
+            PendingReboot         = $pendingRebootCheck
+            Checks                = @($policyConflictChecks)
+            ConflictCount         = $policyConflictCount
+            Categories            = @($riskCategories)
+            CategoryIssueCount    = $categoryIssueCount
+            Summary               = if ($categoryIssueCount -gt 0) { (Get-BaselineRiskCategorySummaryText -Categories $riskCategories) } elseif ($policyConflictCount -gt 0) { 'Policy conflict signals detected.' } else { 'No policy conflict signals detected.' }
+        }
+        RiskCategories = @($riskCategories)
+        AllResults = $items
+        PassedCount = $passedCount
+        WarningCount = $warningCount
+        FailedCount = $failedCount
+    }
 }
 
 <#
@@ -62,13 +470,13 @@ function Test-PreflightAdminElevation
 
         if ($isAdmin)
         {
-            return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameAdmin' -Fallback 'Administrator') -Status 'Passed' -Message (Get-UxLocalizedString -Key 'GuiPreflightAdminPassed' -Fallback 'Running as administrator') -Category 'Security')
+            return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameAdmin' -Fallback 'Administrator') -Key 'AdminElevation' -Status 'Passed' -Message (Get-UxLocalizedString -Key 'GuiPreflightAdminPassed' -Fallback 'Running as administrator') -Category 'Security' -Details ([ordered]@{ IsAdministrator = $true }))
         }
-        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameAdmin' -Fallback 'Administrator') -Status 'Failed' -Message (Get-UxLocalizedString -Key 'GuiPreflightAdminFailed' -Fallback 'Not running as administrator') -Category 'Security')
+        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameAdmin' -Fallback 'Administrator') -Key 'AdminElevation' -Status 'Failed' -Message (Get-UxLocalizedString -Key 'GuiPreflightAdminFailed' -Fallback 'Not running as administrator') -Category 'Security' -Details ([ordered]@{ IsAdministrator = $false }))
     }
     catch
     {
-        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameAdmin' -Fallback 'Administrator') -Status 'Failed' -Message ((Get-UxLocalizedString -Key 'GuiPreflightAdminError' -Fallback 'Could not verify elevation: {0}') -f $_.Exception.Message) -Category 'Security')
+        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameAdmin' -Fallback 'Administrator') -Key 'AdminElevation' -Status 'Failed' -Message ((Get-UxLocalizedString -Key 'GuiPreflightAdminError' -Fallback 'Could not verify elevation: {0}') -f $_.Exception.Message) -Category 'Security')
     }
 }
 
@@ -266,7 +674,7 @@ function Test-PreflightManagedPolicyEnvironment
 
         if (-not $domainJoined -and $activePolicies.Count -eq 0)
         {
-            return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNamePolicies' -Fallback 'Managed endpoint policy') -Status 'Passed' -Message (Get-UxLocalizedString -Key 'GuiPreflightPoliciesPassed' -Fallback 'No domain join or active policy hives detected') -Category 'Security')
+            return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNamePolicies' -Fallback 'Managed endpoint policy') -Key 'ManagedPolicyEnvironment' -Status 'Passed' -Message (Get-UxLocalizedString -Key 'GuiPreflightPoliciesPassed' -Fallback 'No domain join or active policy hives detected') -Category 'Security' -Details ([ordered]@{ DomainJoined = $domainJoined; ActivePolicyHives = @(); ConflictSignals = @() }))
         }
 
         $details = [System.Collections.Generic.List[string]]::new()
@@ -288,11 +696,11 @@ function Test-PreflightManagedPolicyEnvironment
         [void]$remediation.Add('Use the Troubleshooting Guide and support bundle if the result needs escalation.')
         [void]$structuredRemediation.Add('Generate an incident reproduction pack from the support bundle after any failed remediation attempt.')
 
-        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNamePolicies' -Fallback 'Managed endpoint policy') -Status 'Warning' -Message (($details -join '; ') + '. ' + ($remediation -join ' ')) -Category 'Security' -RemediationActions @($structuredRemediation))
+        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNamePolicies' -Fallback 'Managed endpoint policy') -Key 'ManagedPolicyEnvironment' -Status 'Warning' -Message (($details -join '; ') + '. ' + ($remediation -join ' ')) -Category 'Security' -RemediationActions @($structuredRemediation) -Details ([ordered]@{ DomainJoined = $domainJoined; ActivePolicyHives = @($activePolicies); ConflictSignals = @($details); RemediationActions = @($structuredRemediation) }))
     }
     catch
     {
-        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNamePolicies' -Fallback 'Managed endpoint policy') -Status 'Warning' -Message ((Get-UxLocalizedString -Key 'GuiPreflightPoliciesError' -Fallback 'Could not evaluate policy environment: {0}') -f $_.Exception.Message) -Category 'Security')
+        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNamePolicies' -Fallback 'Managed endpoint policy') -Key 'ManagedPolicyEnvironment' -Status 'Warning' -Message ((Get-UxLocalizedString -Key 'GuiPreflightPoliciesError' -Fallback 'Could not evaluate policy environment: {0}') -f $_.Exception.Message) -Category 'Security')
     }
 }
 
@@ -333,15 +741,15 @@ function Test-PreflightPendingReboot
 
         if ($reasons.Count -eq 0)
         {
-            return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNamePendingReboot' -Fallback 'Pending reboot') -Status 'Passed' -Message (Get-UxLocalizedString -Key 'GuiPreflightPendingRebootClear' -Fallback 'No pending reboot detected') -Category 'System')
+            return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNamePendingReboot' -Fallback 'Pending reboot') -Key 'PendingReboot' -Status 'Passed' -Message (Get-UxLocalizedString -Key 'GuiPreflightPendingRebootClear' -Fallback 'No pending reboot detected') -Category 'System' -Details ([ordered]@{ PendingReasons = @() }))
         }
 
         $msg = ((Get-UxLocalizedString -Key 'GuiPreflightPendingRebootDetected' -Fallback 'Pending reboot: {0}. Restart before applying tweaks to avoid mid-run failures.') -f ($reasons -join '; '))
-        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNamePendingReboot' -Fallback 'Pending reboot') -Status 'Warning' -Message $msg -Category 'System' -RemediationActions @('Restart Windows before retrying.', 'Re-run preflight after reboot to confirm.'))
+        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNamePendingReboot' -Fallback 'Pending reboot') -Key 'PendingReboot' -Status 'Warning' -Message $msg -Category 'System' -RemediationActions @('Restart Windows before retrying.', 'Re-run preflight after reboot to confirm.') -Details ([ordered]@{ PendingReasons = @($reasons) }))
     }
     catch
     {
-        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNamePendingReboot' -Fallback 'Pending reboot') -Status 'Warning' -Message ((Get-UxLocalizedString -Key 'GuiPreflightPendingRebootError' -Fallback 'Could not evaluate reboot state: {0}') -f $_.Exception.Message) -Category 'System')
+        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNamePendingReboot' -Fallback 'Pending reboot') -Key 'PendingReboot' -Status 'Warning' -Message ((Get-UxLocalizedString -Key 'GuiPreflightPendingRebootError' -Fallback 'Could not evaluate reboot state: {0}') -f $_.Exception.Message) -Category 'System')
     }
 }
 
@@ -362,7 +770,7 @@ function Test-PreflightWinRMReachability
 
     if (-not $Targets -or $Targets.Count -eq 0)
     {
-        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameWinRM' -Fallback 'WinRM reachability') -Status 'Passed' -Message (Get-UxLocalizedString -Key 'GuiPreflightWinRMNoTargets' -Fallback 'No remote targets configured') -Category 'Services')
+        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameWinRM' -Fallback 'WinRM reachability') -Key 'WinRMReachability' -Status 'Passed' -Message (Get-UxLocalizedString -Key 'GuiPreflightWinRMNoTargets' -Fallback 'No remote targets configured') -Category 'Services' -Details ([ordered]@{ TargetCount = 0; ReachableTargets = @(); UnreachableTargets = @(); ServiceStatus = $null }))
     }
 
     try
@@ -370,21 +778,23 @@ function Test-PreflightWinRMReachability
         $svc = Get-Service -Name 'WinRM' -ErrorAction Stop
         if ($svc.Status -ne 'Running')
         {
-            return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameWinRM' -Fallback 'WinRM reachability') -Status 'Failed' -Message ((Get-UxLocalizedString -Key 'GuiPreflightWinRMServiceStopped' -Fallback 'WinRM service is {0}; remote operations require it to be running.') -f $svc.Status) -Category 'Services' -RemediationActions @('Run: Start-Service WinRM', 'Run: Enable-PSRemoting -SkipNetworkProfileCheck -Force on each target.'))
+            return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameWinRM' -Fallback 'WinRM reachability') -Key 'WinRMReachability' -Status 'Failed' -Message ((Get-UxLocalizedString -Key 'GuiPreflightWinRMServiceStopped' -Fallback 'WinRM service is {0}; remote operations require it to be running.') -f $svc.Status) -Category 'Services' -RemediationActions @('Run: Start-Service WinRM', 'Run: Enable-PSRemoting -SkipNetworkProfileCheck -Force on each target.') -Details ([ordered]@{ TargetCount = @($Targets).Count; ReachableTargets = @(); UnreachableTargets = @($Targets); ServiceStatus = [string]$svc.Status }))
         }
     }
     catch
     {
-        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameWinRM' -Fallback 'WinRM reachability') -Status 'Failed' -Message ((Get-UxLocalizedString -Key 'GuiPreflightWinRMQueryError' -Fallback 'Could not query WinRM service: {0}') -f $_.Exception.Message) -Category 'Services')
+        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameWinRM' -Fallback 'WinRM reachability') -Key 'WinRMReachability' -Status 'Failed' -Message ((Get-UxLocalizedString -Key 'GuiPreflightWinRMQueryError' -Fallback 'Could not query WinRM service: {0}') -f $_.Exception.Message) -Category 'Services')
     }
 
     $unreachable = [System.Collections.Generic.List[string]]::new()
+    $reachable = [System.Collections.Generic.List[string]]::new()
     foreach ($target in $Targets)
     {
         if ([string]::IsNullOrWhiteSpace([string]$target)) { continue }
         try
         {
             Test-WSMan -ComputerName $target -ErrorAction Stop | Out-Null
+            [void]$reachable.Add([string]$target)
         }
         catch
         {
@@ -394,11 +804,18 @@ function Test-PreflightWinRMReachability
 
     if ($unreachable.Count -eq 0)
     {
-        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameWinRM' -Fallback 'WinRM reachability') -Status 'Passed' -Message ((Get-UxLocalizedString -Key 'GuiPreflightWinRMReachable' -Fallback '{0} target(s) reachable via WinRM') -f $Targets.Count) -Category 'Services')
+        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameWinRM' -Fallback 'WinRM reachability') -Key 'WinRMReachability' -Status 'Passed' -Message ((Get-UxLocalizedString -Key 'GuiPreflightWinRMReachable' -Fallback '{0} target(s) reachable via WinRM') -f $Targets.Count) -Category 'Services' -Details ([ordered]@{ TargetCount = @($Targets).Count; ReachableTargets = @($Targets); UnreachableTargets = @(); PartialCoverage = $false; ServiceStatus = 'Running' }))
+    }
+
+    # Mixed reachability -> partial coverage warning, not an outright failure.
+    if ($reachable.Count -gt 0)
+    {
+        $msgPartial = ((Get-UxLocalizedString -Key 'GuiPreflightWinRMPartialCoverage' -Fallback 'Partial WinRM coverage: {0} of {1} target(s) reachable. Unreachable: {2}') -f $reachable.Count, @($Targets).Count, ($unreachable -join ' | '))
+        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameWinRM' -Fallback 'WinRM reachability') -Key 'WinRMReachability' -Status 'Warning' -Message $msgPartial -Category 'Services' -RemediationActions @('Confirm DNS resolution and routing for the unreachable target(s).', 'Scope the rollout to reachable targets or stage the unreachable ones separately.', 'Validate WinRM listeners and firewall rules on the unreachable target(s).') -Details ([ordered]@{ TargetCount = @($Targets).Count; ReachableTargets = @($reachable); UnreachableTargets = @($unreachable); PartialCoverage = $true; ServiceStatus = 'Running' }))
     }
 
     $msg = ((Get-UxLocalizedString -Key 'GuiPreflightWinRMUnreachable' -Fallback 'Unreachable target(s): {0}') -f ($unreachable -join ' | '))
-    return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameWinRM' -Fallback 'WinRM reachability') -Status 'Failed' -Message $msg -Category 'Services' -RemediationActions @('Verify network reachability and DNS resolution.', 'Confirm WinRM listeners (winrm e winrm/config/listener) on each target.', 'Check firewall: Enable-NetFirewallRule -DisplayGroup ''Windows Remote Management''.'))
+    return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameWinRM' -Fallback 'WinRM reachability') -Key 'WinRMReachability' -Status 'Failed' -Message $msg -Category 'Services' -RemediationActions @('Verify network reachability and DNS resolution.', 'Confirm WinRM listeners (winrm e winrm/config/listener) on each target.', 'Check firewall: Enable-NetFirewallRule -DisplayGroup ''Windows Remote Management''.') -Details ([ordered]@{ TargetCount = @($Targets).Count; ReachableTargets = @(); UnreachableTargets = @($unreachable); PartialCoverage = $false; ServiceStatus = 'Running' }))
 }
 
 <#
@@ -470,12 +887,19 @@ function Invoke-PreflightChecks
     $criticalFailures = @($allResults | Where-Object { $_.Status -eq 'Failed' })
     $warnings = @($allResults | Where-Object { $_.Status -eq 'Warning' })
     $passed = ($criticalFailures.Count -eq 0) -and ($warnings.Count -eq 0)
+    $contract = Get-BaselinePreflightContract -Results $allResults
 
     [pscustomobject]@{
         Passed           = $passed
+        Status           = if ($criticalFailures.Count -gt 0) { 'Failed' } elseif ($warnings.Count -gt 0) { 'Warning' } else { 'Passed' }
         CriticalFailures = $criticalFailures
         Warnings         = $warnings
         AllResults       = $allResults
+        WinRMReachability = $contract.WinRMReachability
+        Credentials       = $contract.Credentials
+        PolicyConflictSignals = $contract.PolicyConflictSignals
+        RiskCategories    = @($contract.RiskCategories)
+        SupportedEnvironmentClassification = $contract.SupportedEnvironmentClassification
     }
 }
 
@@ -511,6 +935,64 @@ function Show-PreflightResultsDialog
     $lines = [System.Collections.Generic.List[string]]::new()
     $lines.Add((Get-UxLocalizedString -Key 'GuiPreflightResultsHeading' -Fallback 'Pre-flight check results:'))
     $lines.Add('')
+
+    if ($Results.SupportedEnvironmentClassification -and $Results.SupportedEnvironmentClassification.Summary)
+    {
+        $lines.Add($Results.SupportedEnvironmentClassification.Summary)
+    }
+    if ($Results.WinRMReachability -and $Results.WinRMReachability.Summary)
+    {
+        $lines.Add(('WinRM reachability: {0}' -f $Results.WinRMReachability.Summary))
+    }
+    if ($Results.PolicyConflictSignals -and $Results.PolicyConflictSignals.Summary)
+    {
+        $lines.Add(('Policy signals: {0}' -f $Results.PolicyConflictSignals.Summary))
+    }
+
+    $categories = @()
+    if ($Results.PSObject.Properties['RiskCategories'] -and $Results.RiskCategories)
+    {
+        $categories = @($Results.RiskCategories | Where-Object { $_ -and [string]$_.Status -ne 'Passed' })
+    }
+    elseif ($Results.PolicyConflictSignals -and $Results.PolicyConflictSignals.PSObject.Properties['Categories'])
+    {
+        $categories = @($Results.PolicyConflictSignals.Categories | Where-Object { $_ -and [string]$_.Status -ne 'Passed' })
+    }
+    if ($categories.Count -gt 0)
+    {
+        $lines.Add('')
+        $lines.Add((Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryHeading' -Fallback 'Risk categories:'))
+        foreach ($cat in $categories)
+        {
+            $marker = if ([string]$cat.Status -eq 'Failed') { [char]0x2717 } else { [char]0x26A0 }
+            $lines.Add(('{0} {1}: {2}' -f $marker, $cat.Name, $cat.Summary))
+            if ($cat.RemediationActions -and @($cat.RemediationActions).Count -gt 0)
+            {
+                foreach ($action in $cat.RemediationActions)
+                {
+                    if (-not [string]::IsNullOrWhiteSpace([string]$action))
+                    {
+                        $lines.Add(('    ' + [char]0x2192 + ' {0}' -f [string]$action))
+                    }
+                }
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$cat.DocumentationPath))
+            {
+                $docLabel = Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryDocsLabel' -Fallback 'Remediation guide'
+                $lines.Add(('    {0}: {1}' -f $docLabel, [string]$cat.DocumentationPath))
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$cat.LogHint))
+            {
+                $logLabel = Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryLogsLabel' -Fallback 'Logs'
+                $lines.Add(('    {0}: {1}' -f $logLabel, [string]$cat.LogHint))
+            }
+        }
+    }
+
+    if ($lines.Count -gt 2)
+    {
+        $lines.Add('')
+    }
 
     $passedLabel = Get-UxLocalizedString -Key 'GuiPreflightStatusPassed' -Fallback 'Passed'
     $adminPassedMsg = Get-UxLocalizedString -Key 'GuiPreflightAdminPassed' -Fallback 'Running as administrator'

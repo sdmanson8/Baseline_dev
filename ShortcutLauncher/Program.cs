@@ -48,7 +48,7 @@ namespace Baseline.ShortcutLauncher
                 if (shell == null)
                 {
                     NativeMsgBox(IntPtr.Zero,
-                        "PowerShell was not found. Install PowerShell 7+ and try again.",
+                        "Windows PowerShell 5.1 (powershell.exe) was not found.",
                         "Baseline", MB_OK | MB_ICONERROR);
                     return 1;
                 }
@@ -85,12 +85,7 @@ namespace Baseline.ShortcutLauncher
         /// <returns>The resolved shell path, or null if none is available.</returns>
         private static string FindShell()
         {
-            foreach (var candidate in new[] { "pwsh.exe", "powershell.exe" })
-            {
-                var found = FindOnPath(candidate);
-                if (found != null) return found;
-            }
-            return null;
+            return FindOnPath("powershell.exe");
         }
 
         /// <summary>
@@ -109,11 +104,11 @@ namespace Baseline.ShortcutLauncher
                 if (File.Exists(full)) return full;
             }
 
-            var pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
             var extras = new[]
             {
-                Path.Combine(pf, "PowerShell", "7", exe),
-                Path.Combine(pf, "PowerShell", "7-preview", exe),
+                Path.Combine(windowsDir, "System32", "WindowsPowerShell", "v1.0", exe),
+                Path.Combine(windowsDir, "SysWOW64", "WindowsPowerShell", "v1.0", exe),
             };
             foreach (var path in extras)
                 if (File.Exists(path)) return path;

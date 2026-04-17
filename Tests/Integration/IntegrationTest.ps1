@@ -23,10 +23,10 @@
     restore points are unavailable on Server SKUs).
 
     .EXAMPLE
-    pwsh -File .\Tests\Integration\IntegrationTest.ps1
+    powershell -File .\Tests\Integration\IntegrationTest.ps1
 
     .EXAMPLE
-    pwsh -File .\Tests\Integration\IntegrationTest.ps1 -Category Registry -DryRun
+    powershell -File .\Tests\Integration\IntegrationTest.ps1 -Category Registry -DryRun
 #>
 
 [CmdletBinding()]

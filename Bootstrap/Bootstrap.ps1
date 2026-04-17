@@ -34,11 +34,6 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-if ([string]::IsNullOrWhiteSpace($Preset))
-{
-    $Preset = $env:BASELINE_PRESET
-}
-
 <#
     .SYNOPSIS
     Internal function Enable-Tls12.
@@ -66,6 +61,35 @@ function Enable-Tls12
         }
     }
     catch { $null = $_ }
+}
+
+<#
+    .SYNOPSIS
+    Internal function Resolve-BootstrapPreset.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Resolve-BootstrapPreset
+{
+    param(
+        [string]$Preset,
+        [string]$EnvironmentPreset = $env:BASELINE_PRESET
+    )
+
+    $candidate = if ([string]::IsNullOrWhiteSpace($Preset)) { $EnvironmentPreset } else { $Preset }
+    if ([string]::IsNullOrWhiteSpace($candidate))
+    {
+        return $null
+    }
+
+    if ($candidate -notmatch '^[A-Za-z0-9_.-]+$')
+    {
+        throw ("Invalid preset token '{0}'. Use letters, numbers, dots, underscores, or hyphens only." -f $candidate)
+    }
+
+    return [string]$candidate
 }
 
 <#
@@ -125,6 +149,8 @@ function Get-RepositoryRoot
 
     return $repoRoot.FullName
 }
+
+$Preset = Resolve-BootstrapPreset -Preset $Preset
 
 try
 {

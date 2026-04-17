@@ -185,7 +185,7 @@ function Show-ComplianceDialog
 		try
 		{
 			$raw = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8 -ErrorAction Stop
-			$profileData = $raw | ConvertFrom-Json -ErrorAction Stop
+			$profileData = $raw | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop
 			$complianceState.ProfileData = $profileData
 		}
 		catch

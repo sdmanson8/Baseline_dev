@@ -110,7 +110,7 @@ function Invoke-AdditionalServiceOptimizations
 				$registryPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$serviceName"
 				if (Test-Path -Path $registryPath)
 				{
-					Set-ItemProperty -Path $registryPath -Name "Start" -Type DWord -Value 4 -Force -ErrorAction Stop | Out-Null
+					Set-ItemProperty -LiteralPath $registryPath -Name "Start" -Type DWord -Value 4 -Force -ErrorAction Stop | Out-Null
 				}
 				else
 				{

@@ -9,10 +9,10 @@
     This is a maintainer-facing packaging script.
 
     .EXAMPLE
-    pwsh -File .\Tools\New-InstallerPackage.ps1
+    powershell -File .\Tools\New-InstallerPackage.ps1
 
     .EXAMPLE
-    pwsh -File .\Tools\New-InstallerPackage.ps1 -GenerateScriptOnly
+    powershell -File .\Tools\New-InstallerPackage.ps1 -GenerateScriptOnly
 #>
 
 [CmdletBinding(SupportsShouldProcess = $true)]
@@ -90,6 +90,185 @@ function Resolve-IsccPath
 
 <#
     .SYNOPSIS
+    Internal function Get-InstallerLocalizationDefinitions.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+function Get-InstallerLocalizationDefinitions
+{
+    [CmdletBinding()]
+    param()
+
+    @(
+        [pscustomobject]@{ OutputKey = 'LangPage.Title';              LocalizationKey = 'Installer_LangPage_Title';              Fallback = 'Choose Language' }
+        [pscustomobject]@{ OutputKey = 'LangPage.Desc';               LocalizationKey = 'Installer_LangPage_Desc';               Fallback = 'Choose the display language for Baseline.' }
+        [pscustomobject]@{ OutputKey = 'LangPage.Search';             LocalizationKey = 'Installer_LangPage_Search';             Fallback = 'Search languages:' }
+        [pscustomobject]@{ OutputKey = 'LangPage.Display';            LocalizationKey = 'Installer_LangPage_Display';            Fallback = 'Display language:' }
+        [pscustomobject]@{ OutputKey = 'LangPage.NoResults';          LocalizationKey = 'Installer_LangPage_NoResults';          Fallback = 'No matching languages found.' }
+        [pscustomobject]@{ OutputKey = 'LangPage.Help';               LocalizationKey = 'Installer_LangPage_Help';               Fallback = 'Search by English or native language name. You can change this later in Baseline.' }
+        [pscustomobject]@{ OutputKey = 'WizardTitle.Default';         LocalizationKey = 'Installer_WizardTitle_Default';         Fallback = 'Baseline Setup' }
+        [pscustomobject]@{ OutputKey = 'WizardTitle.Install';         LocalizationKey = 'Installer_WizardTitle_Install';         Fallback = 'Baseline Setup - Install' }
+        [pscustomobject]@{ OutputKey = 'WizardTitle.Portable';        LocalizationKey = 'Installer_WizardTitle_Portable';        Fallback = 'Baseline Setup - Portable' }
+        [pscustomobject]@{ OutputKey = 'PortableMode.AllUsersError';  LocalizationKey = 'Installer_PortableMode_AllUsersError';  Fallback = 'Portable mode writes to the current user''s profile and cannot be installed in all-users setup mode. Restart Setup and choose "Current user" on the install scope page, or rerun Setup with /CURRENTUSER.' }
+        [pscustomobject]@{ OutputKey = 'RestartAdminError';           LocalizationKey = 'Installer_RestartAdminError';           Fallback = 'Setup could not be restarted with administrative privileges.' }
+        [pscustomobject]@{ OutputKey = 'InstallFolderDialog.Title';   LocalizationKey = 'Installer_InstallFolderDialog_Title';   Fallback = 'Select installation folder' }
+        [pscustomobject]@{ OutputKey = 'InstallPath.EmptyError';      LocalizationKey = 'Installer_InstallPath_EmptyError';      Fallback = 'Please choose an installation folder.' }
+        [pscustomobject]@{ OutputKey = 'ModePage.Title';              LocalizationKey = 'Installer_ModePage_Title';              Fallback = 'Installation Type' }
+        [pscustomobject]@{ OutputKey = 'ModePage.Desc';               LocalizationKey = 'Installer_ModePage_Desc';               Fallback = 'Specify whether you want to install Baseline or run it as a portable app.' }
+        [pscustomobject]@{ OutputKey = 'ModePage.Action';             LocalizationKey = 'Installer_ModePage_Action';             Fallback = 'Select action:' }
+        [pscustomobject]@{ OutputKey = 'RbInstall.Caption';           LocalizationKey = 'Installer_RbInstall_Caption';           Fallback = 'Install for this PC' }
+        [pscustomobject]@{ OutputKey = 'RbInstall.Desc';              LocalizationKey = 'Installer_RbInstall_Desc';              Fallback = 'Baseline will be installed and registered in Programs and Features.' }
+        [pscustomobject]@{ OutputKey = 'RbPortable.Caption';          LocalizationKey = 'Installer_RbPortable_Caption';          Fallback = 'Portable' }
+        [pscustomobject]@{ OutputKey = 'RbPortable.Desc';             LocalizationKey = 'Installer_RbPortable_Desc';             Fallback = 'Run portable version (no installation needed).' }
+        [pscustomobject]@{ OutputKey = 'ScopePage.Title';             LocalizationKey = 'Installer_ScopePage_Title';             Fallback = 'Install Scope' }
+        [pscustomobject]@{ OutputKey = 'ScopePage.Desc';              LocalizationKey = 'Installer_ScopePage_Desc';              Fallback = 'Choose who should be able to use Baseline.' }
+        [pscustomobject]@{ OutputKey = 'ScopePage.Heading';           LocalizationKey = 'Installer_ScopePage_Heading';           Fallback = 'Select install scope:' }
+        [pscustomobject]@{ OutputKey = 'RbCurrentUser.Caption';       LocalizationKey = 'Installer_RbCurrentUser_Caption';       Fallback = 'Install for me only (recommended)' }
+        [pscustomobject]@{ OutputKey = 'RbCurrentUser.Desc';          LocalizationKey = 'Installer_RbCurrentUser_Desc';          Fallback = 'Installs Baseline for the current Windows account only.' }
+        [pscustomobject]@{ OutputKey = 'RbAllUsers.Caption';          LocalizationKey = 'Installer_RbAllUsers_Caption';          Fallback = 'Install for all users' }
+        [pscustomobject]@{ OutputKey = 'RbAllUsers.Desc';             LocalizationKey = 'Installer_RbAllUsers_Desc';             Fallback = 'Installs Baseline for every account on this PC and restarts Setup with administrative privileges if needed.' }
+        [pscustomobject]@{ OutputKey = 'LocPage.Title';               LocalizationKey = 'Installer_LocPage_Title';               Fallback = 'Install Location' }
+        [pscustomobject]@{ OutputKey = 'LocPage.Desc';                LocalizationKey = 'Installer_LocPage_Desc';                Fallback = 'Choose where Baseline should be installed.' }
+        [pscustomobject]@{ OutputKey = 'LocPage.Heading';             LocalizationKey = 'Installer_LocPage_Heading';             Fallback = 'Install location:' }
+        [pscustomobject]@{ OutputKey = 'BtnBrowse.Caption';           LocalizationKey = 'Installer_BtnBrowse_Caption';           Fallback = 'Browse...' }
+        [pscustomobject]@{ OutputKey = 'LocPage.Note';                LocalizationKey = 'Installer_LocPage_Note';                Fallback = 'Baseline will be registered with Windows and can be uninstalled from Settings.' }
+        [pscustomobject]@{ OutputKey = 'ShortPage.Title';             LocalizationKey = 'Installer_ShortPage_Title';             Fallback = 'Shortcuts' }
+        [pscustomobject]@{ OutputKey = 'ShortPage.Desc';              LocalizationKey = 'Installer_ShortPage_Desc';              Fallback = 'Choose which shortcuts to create for Baseline.' }
+        [pscustomobject]@{ OutputKey = 'ShortPage.Heading';           LocalizationKey = 'Installer_ShortPage_Heading';           Fallback = 'Create these shortcuts:' }
+        [pscustomobject]@{ OutputKey = 'CbDesktop.Caption';           LocalizationKey = 'Installer_CbDesktop_Caption';           Fallback = 'Desktop shortcut' }
+        [pscustomobject]@{ OutputKey = 'CbStartMenu.Caption';         LocalizationKey = 'Installer_CbStartMenu_Caption';         Fallback = 'Start menu shortcut' }
+        [pscustomobject]@{ OutputKey = 'FinishPage.Title';            LocalizationKey = 'Installer_FinishPage_Title';            Fallback = 'Setup Complete' }
+        [pscustomobject]@{ OutputKey = 'FinishPage.Desc';             LocalizationKey = 'Installer_FinishPage_Desc';             Fallback = 'Baseline is ready to use.' }
+        [pscustomobject]@{ OutputKey = 'CbLaunch.Caption';            LocalizationKey = 'Installer_CbLaunch_Caption';            Fallback = 'Launch Baseline now' }
+        [pscustomobject]@{ OutputKey = 'FinishMsg.Install';           LocalizationKey = 'Installer_FinishMsg_Install';           Fallback = 'Baseline has been installed to:' }
+        [pscustomobject]@{ OutputKey = 'FinishMsg.Portable';          LocalizationKey = 'Installer_FinishMsg_Portable';          Fallback = 'Baseline is ready in:' }
+        [pscustomobject]@{ OutputKey = 'FinishMsg.PortableShortcut';  LocalizationKey = 'Installer_FinishMsg_PortableShortcut';  Fallback = 'A desktop shortcut has been created.' }
+        [pscustomobject]@{ OutputKey = 'Btn.Next';                    LocalizationKey = 'Installer_Btn_Next';                    Fallback = 'Next >' }
+        [pscustomobject]@{ OutputKey = 'Btn.Install';                 LocalizationKey = 'Installer_Btn_Install';                 Fallback = 'Install' }
+        [pscustomobject]@{ OutputKey = 'Btn.Extract';                 LocalizationKey = 'Installer_Btn_Extract';                 Fallback = 'Extract' }
+        [pscustomobject]@{ OutputKey = 'Btn.Finish';                  LocalizationKey = 'Installer_Btn_Finish';                  Fallback = 'Finish' }
+    )
+}
+
+<#
+    .SYNOPSIS
+    Internal function Import-InstallerLocalizationTable.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+function Import-InstallerLocalizationTable
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$LocalizationRoot,
+
+        [Parameter(Mandatory)]
+        [string]$UICulture
+    )
+
+    if (-not (Test-Path -LiteralPath $LocalizationRoot -PathType Container))
+    {
+        return @{}
+    }
+
+    $cultureMap = @{
+        'zh-CN' = 'zh-Hans'
+        'zh-SG' = 'zh-Hans'
+        'zh-TW' = 'zh-Hant'
+        'zh-HK' = 'zh-Hant'
+        'zh-MO' = 'zh-Hant'
+    }
+
+    $candidates = [System.Collections.Generic.List[string]]::new()
+
+    function Add-InstallerLocalizationCandidate
+    {
+        param(
+            [Parameter(Mandatory)]
+            [string]$Candidate
+        )
+
+        if (-not [string]::IsNullOrWhiteSpace([string]$Candidate) -and -not $candidates.Contains($Candidate))
+        {
+            [void]$candidates.Add($Candidate)
+        }
+    }
+
+    $normalizedCulture = if ([string]::IsNullOrWhiteSpace([string]$UICulture)) { 'en-US' } else { [string]$UICulture.Trim() }
+    if ($cultureMap.ContainsKey($normalizedCulture))
+    {
+        Add-InstallerLocalizationCandidate -Candidate $cultureMap[$normalizedCulture]
+    }
+
+    try
+    {
+        $normalizedCulture = [System.Globalization.CultureInfo]::GetCultureInfo($normalizedCulture).Name
+    }
+    catch
+    {
+        $null = $_
+    }
+
+    Add-InstallerLocalizationCandidate -Candidate $normalizedCulture
+
+    if ($normalizedCulture -match '-')
+    {
+        $languageOnly = ($normalizedCulture -split '-', 2)[0]
+        try
+        {
+            $languageOnly = [System.Globalization.CultureInfo]::GetCultureInfo($languageOnly).Name
+        }
+        catch
+        {
+            $null = $_
+        }
+
+        if ($languageOnly -ne $normalizedCulture)
+        {
+            Add-InstallerLocalizationCandidate -Candidate $languageOnly
+        }
+    }
+
+    $localeFile = $null
+    foreach ($candidate in $candidates)
+    {
+        $matches = @(
+            Get-ChildItem -LiteralPath $LocalizationRoot -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { [string]::Equals($_.Name, ('{0}.json' -f $candidate), [System.StringComparison]::OrdinalIgnoreCase) }
+        )
+
+        if ($matches.Count -eq 1)
+        {
+            $localeFile = $matches[0].FullName
+            break
+        }
+
+        if ($matches.Count -gt 1)
+        {
+            throw "Multiple localization files named '$candidate.json' were found under '$LocalizationRoot'."
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace([string]$localeFile))
+    {
+        return @{}
+    }
+
+    $jsonObject = Get-Content -LiteralPath $localeFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    $table = @{}
+    foreach ($property in $jsonObject.PSObject.Properties)
+    {
+        $table[$property.Name] = [string]$property.Value
+    }
+
+    return $table
+}
+
+<#
+    .SYNOPSIS
     Internal function Get-InstallerLocalizationSource.
 
     .DESCRIPTION
@@ -98,57 +277,74 @@ function Resolve-IsccPath
 function Get-InstallerLocalizationSource
 {
     [CmdletBinding()]
-    param()
+    param(
+        [string]$UICulture = 'en-US',
 
-    [ordered]@{
-        'LangPage.Title'                = 'Choose Language'
-        'LangPage.Desc'                 = 'Choose the display language for Baseline.'
-        'LangPage.Search'               = 'Search languages:'
-        'LangPage.Display'              = 'Display language:'
-        'LangPage.NoResults'            = 'No matching languages found.'
-        'LangPage.Help'                 = 'Search by English or native language name. You can change this later in Baseline.'
-        'WizardTitle.Default'           = 'Baseline Setup'
-        'WizardTitle.Install'           = 'Baseline Setup - Install'
-        'WizardTitle.Portable'          = 'Baseline Setup - Portable'
-        'PortableMode.AllUsersError'    = 'Portable mode writes to the current user''s profile and cannot be installed in all-users setup mode. Restart Setup and choose "Current user" on the install scope page, or rerun Setup with /CURRENTUSER.'
-        'RestartAdminError'             = 'Setup could not be restarted with administrative privileges.'
-        'InstallFolderDialog.Title'     = 'Select installation folder'
-        'InstallPath.EmptyError'        = 'Please choose an installation folder.'
-        'ModePage.Title'               = 'Installation Type'
-        'ModePage.Desc'                = 'Specify whether you want to install Baseline or run it as a portable app.'
-        'ModePage.Action'              = 'Select action:'
-        'RbInstall.Caption'            = 'Install for this PC'
-        'RbInstall.Desc'               = 'Baseline will be installed and registered in Programs and Features.'
-        'RbPortable.Caption'           = 'Portable'
-        'RbPortable.Desc'              = 'Run portable version (no installation needed).'
-        'ScopePage.Title'              = 'Install Scope'
-        'ScopePage.Desc'               = 'Choose who should be able to use Baseline.'
-        'ScopePage.Heading'            = 'Select install scope:'
-        'RbCurrentUser.Caption'        = 'Install for me only (recommended)'
-        'RbCurrentUser.Desc'           = 'Installs Baseline for the current Windows account only.'
-        'RbAllUsers.Caption'           = 'Install for all users'
-        'RbAllUsers.Desc'              = 'Installs Baseline for every account on this PC and restarts Setup with administrative privileges if needed.'
-        'LocPage.Title'                = 'Install Location'
-        'LocPage.Desc'                 = 'Choose where Baseline should be installed.'
-        'LocPage.Heading'              = 'Install location:'
-        'BtnBrowse.Caption'            = 'Browse...'
-        'LocPage.Note'                 = 'Baseline will be registered with Windows and can be uninstalled from Settings.'
-        'ShortPage.Title'              = 'Shortcuts'
-        'ShortPage.Desc'               = 'Choose which shortcuts to create for Baseline.'
-        'ShortPage.Heading'            = 'Create these shortcuts:'
-        'CbDesktop.Caption'            = 'Desktop shortcut'
-        'CbStartMenu.Caption'          = 'Start menu shortcut'
-        'FinishPage.Title'             = 'Setup Complete'
-        'FinishPage.Desc'              = 'Baseline is ready to use.'
-        'CbLaunch.Caption'             = 'Launch Baseline now'
-        'FinishMsg.Install'            = 'Baseline has been installed to:'
-        'FinishMsg.Portable'           = 'Baseline is ready in:'
-        'FinishMsg.PortableShortcut'   = 'A desktop shortcut has been created.'
-        'Btn.Next'                     = 'Next >'
-        'Btn.Install'                  = 'Install'
-        'Btn.Extract'                  = 'Extract'
-        'Btn.Finish'                   = 'Finish'
+        [string]$RepoRoot,
+
+        [string]$LocalizationRoot
+    )
+
+    if (-not (Get-Command -Name 'Get-BaselineLocalizedString' -ErrorAction SilentlyContinue))
+    {
+        if ([string]::IsNullOrWhiteSpace([string]$RepoRoot))
+        {
+            throw 'RepoRoot is required to load installer localization helpers.'
+        }
+
+        $localizationHelpersPath = Join-Path $RepoRoot 'Module\SharedHelpers\Localization.Helpers.ps1'
+        if (-not (Test-Path -LiteralPath $localizationHelpersPath -PathType Leaf))
+        {
+            throw "Localization helper script not found: $localizationHelpersPath"
+        }
+
+        . $localizationHelpersPath
     }
+
+    if ([string]::IsNullOrWhiteSpace([string]$LocalizationRoot) -and -not [string]::IsNullOrWhiteSpace([string]$RepoRoot))
+    {
+        $LocalizationRoot = Join-Path $RepoRoot 'Localizations'
+    }
+
+    $Localization = if ([string]::IsNullOrWhiteSpace([string]$LocalizationRoot))
+    {
+        @{}
+    }
+    else
+    {
+        Import-InstallerLocalizationTable -LocalizationRoot $LocalizationRoot -UICulture $UICulture
+    }
+
+    $isEnglishCulture = $false
+    try
+    {
+        $isEnglishCulture = ([System.Globalization.CultureInfo]::GetCultureInfo($UICulture).TwoLetterISOLanguageName -eq 'en')
+    }
+    catch
+    {
+        $isEnglishCulture = ([string]$UICulture -like 'en*')
+    }
+
+    $sourceMap = [ordered]@{}
+    foreach ($definition in (Get-InstallerLocalizationDefinitions))
+    {
+        $localizedValue = $null
+        if ($Localization -is [System.Collections.IDictionary] -and $Localization.Contains($definition.LocalizationKey))
+        {
+            $localizedValue = [string]$Localization[$definition.LocalizationKey]
+        }
+
+        if ($isEnglishCulture)
+        {
+            $sourceMap[$definition.OutputKey] = if ([string]::IsNullOrWhiteSpace($localizedValue)) { [string]$definition.Fallback } else { $localizedValue }
+        }
+        else
+        {
+            $sourceMap[$definition.OutputKey] = if ($null -eq $localizedValue) { '' } else { $localizedValue }
+        }
+    }
+
+    return $sourceMap
 }
 
 <#
@@ -245,7 +441,12 @@ function Initialize-InstallerLocalizationWorkspace
         [System.Collections.Specialized.OrderedDictionary]$SourceMap,
 
         [Parameter(Mandatory)]
-        [string[]]$LocaleCodes
+        [string[]]$LocaleCodes,
+
+        [Parameter(Mandatory)]
+        [string]$RepoRoot,
+
+        [string]$LocalizationRoot
     )
 
     New-Item -Path $Root -ItemType Directory -Force | Out-Null
@@ -261,7 +462,27 @@ function Initialize-InstallerLocalizationWorkspace
         }
 
         $destinationPath = Join-Path $Root ("{0}.json" -f $locale)
-        Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
+        $localeMap = [ordered]@{}
+        $existingMap = Get-InstallerLocalizationSource -UICulture $locale -RepoRoot $RepoRoot -LocalizationRoot $LocalizationRoot
+        foreach ($key in $SourceMap.Keys)
+        {
+            $existingValue = $null
+            if ($existingMap -is [System.Collections.IDictionary] -and $existingMap.Contains($key))
+            {
+                $existingValue = [string]$existingMap[$key]
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($existingValue))
+            {
+                $localeMap[$key] = $existingValue
+            }
+            else
+            {
+                $localeMap[$key] = ''
+            }
+        }
+
+        $localeMap | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $destinationPath -Encoding UTF8
     }
 
     return $sourcePath
@@ -558,6 +779,7 @@ $launcherSourceRoots  = @(
     (Join-Path $repoRoot 'Localizations')
     (Join-Path $repoRoot 'Assets')
     (Join-Path $repoRoot 'Completion')
+    (Join-Path $repoRoot '.github')
 )
 
 $needsBuild = -not (Test-Path -LiteralPath $repoExe -PathType Leaf)
@@ -614,7 +836,7 @@ try
     $stageDir  = Join-Path $stageRoot 'Baseline'
     New-Item -Path $stageDir -ItemType Directory -Force | Out-Null
 
-    foreach ($rel in @('Baseline.exe','Bootstrap','Module','Localizations','Assets','Completion','Tests','docs','README.md','LICENSE','CHANGELOG.md'))
+    foreach ($rel in @('Baseline.exe','Bootstrap','Module','Localizations','Assets','Completion','Tests','docs','.github','README.md','LICENSE','CHANGELOG.md'))
     {
         $src = Join-Path $repoRoot $rel
         if (Test-Path -LiteralPath $src)
@@ -646,12 +868,13 @@ try
     $issContent = Get-Content -LiteralPath $templateIss -Raw
     $installerLocaleCodes = Get-InstallerLocaleCodes -TemplateContent $issContent
     $installerLocalizationRoot = Join-Path $tempRoot 'installer-localization'
-    $installerLocalizationSource = Get-InstallerLocalizationSource
+    $installerLocalizationSource = Get-InstallerLocalizationSource -UICulture 'en-US' -RepoRoot $repoRoot
 
     Initialize-InstallerLocalizationWorkspace `
         -Root $installerLocalizationRoot `
         -SourceMap $installerLocalizationSource `
-        -LocaleCodes $installerLocaleCodes
+        -LocaleCodes $installerLocaleCodes `
+        -RepoRoot $repoRoot
 
     Invoke-InstallerLocalizationTranslation -Root $installerLocalizationRoot
 

@@ -291,7 +291,7 @@ function Import-TweakManifestFromData
 		$rawJson = Get-Content -LiteralPath $dataFile.FullName -Raw -ErrorAction Stop
 		if ([string]::IsNullOrWhiteSpace($rawJson)) { continue }
 
-		$payload = $rawJson | ConvertFrom-Json -ErrorAction Stop
+		$payload = $rawJson | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop
 		$category = if ($payload.PSObject.Properties['Tab'] -and -not [string]::IsNullOrWhiteSpace($payload.Tab))
 		{
 			[string]$payload.Tab
@@ -327,6 +327,7 @@ function Import-TweakManifestFromData
 			$requiresRestartValue = if ($entry.PSObject.Properties['RequiresRestart']) { [bool]$entry.RequiresRestart } else { $false }
 			$presetTierValue = ConvertTo-TweakPresetTier -Value $(if ($entry.PSObject.Properties['PresetTier']) { $entry.PresetTier } else { $null }) -Risk $riskValue -Impact $impactValue
 			$workflowSensitivityValue = ConvertTo-TweakWorkflowSensitivity -Value $(if ($entry.PSObject.Properties['WorkflowSensitivity']) { $entry.WorkflowSensitivity } else { $null }) -Tags $tagValues
+			$maturityValue = ConvertTo-BaselineFeatureMaturityLevel -Value $(if ($entry.PSObject.Properties['Maturity']) { $entry.Maturity } else { $null })
 			if ($presetTierValue -eq 'Advanced' -and $tagValues -notcontains 'advanced')
 			{
 				$tagValues += 'advanced'
@@ -369,6 +370,7 @@ function Import-TweakManifestFromData
 				RequiresRestart = $requiresRestartValue
 				PresetTier      = $presetTierValue
 				WorkflowSensitivity = $workflowSensitivityValue
+				Maturity        = $maturityValue
 				WhyThisMatters  = $whyThisMattersValue
 			}
 

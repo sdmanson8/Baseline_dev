@@ -2,6 +2,12 @@ Set-StrictMode -Version Latest
 
 BeforeAll {
     $guiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
+    $appsModulePath = Join-Path $PSScriptRoot '../../Module/GUI/AppsModule.ps1'
+    $buildPrimaryTabsPath = Join-Path $PSScriptRoot '../../Module/GUI/BuildPrimaryTabs.ps1'
+    $buildTabContentPath = Join-Path $PSScriptRoot '../../Module/GUI/BuildTabContent.ps1'
+    $buildTweakControlsPath = Join-Path $PSScriptRoot '../../Module/GUI/BuildTweakControls.ps1'
+    $applyThemePath = Join-Path $PSScriptRoot '../../Module/GUI/ApplyTheme.ps1'
+    $mainWindowPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
     $stylePath = Join-Path $PSScriptRoot '../../Module/GUI/StyleManagement.ps1'
     $applicationsViewPath = Join-Path $PSScriptRoot '../../Module/GUI/ApplicationsView.ps1'
     $presetUiPath = Join-Path $PSScriptRoot '../../Module/GUI/PresetUI.ps1'
@@ -9,7 +15,15 @@ BeforeAll {
     $stateTransitionPath = Join-Path $PSScriptRoot '../../Module/GUI/StateTransitions.ps1'
     $gameModePath = Join-Path $PSScriptRoot '../../Module/GUI/GameModeUI.ps1'
 
-    $script:GuiContent = Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
+    $script:GuiContent = @(
+        Get-Content -LiteralPath $mainWindowPath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $appsModulePath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $buildPrimaryTabsPath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $buildTabContentPath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $buildTweakControlsPath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $applyThemePath -Raw -Encoding UTF8
+    ) -join "`n"
     $script:StyleContent = Get-Content -LiteralPath $stylePath -Raw -Encoding UTF8
     $script:ApplicationsViewContent = Get-Content -LiteralPath $applicationsViewPath -Raw -Encoding UTF8
     $script:PresetUiContent = Get-Content -LiteralPath $presetUiPath -Raw -Encoding UTF8

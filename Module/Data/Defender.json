@@ -211,7 +211,7 @@
     },
     {
       "Name": "Defender Exploit Guard Policy",
-      "Function": "Set-DefenderExploitGuardPolicy",
+      "Function": "DefenderExploitGuardPolicy",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -609,7 +609,7 @@
     },
     {
       "Name": "Import Exploit Protection Policy",
-      "Function": "Import-ExploitProtectionPolicy",
+      "Function": "ExploitProtectionPolicy",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -677,7 +677,7 @@
     },
     {
       "Name": "LOLBin Firewall Rules",
-      "Function": "Set-LOLBinFirewallRules",
+      "Function": "LOLBinFirewallRules",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -918,7 +918,7 @@
     },
     {
       "Name": "Windows Firewall Logging",
-      "Function": "Set-WindowsFirewallLogging",
+      "Function": "WindowsFirewallLogging",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,

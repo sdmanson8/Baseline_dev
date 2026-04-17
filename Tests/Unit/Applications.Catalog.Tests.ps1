@@ -1,0 +1,272 @@
+Set-StrictMode -Version Latest
+
+BeforeAll {
+    $filePath = Join-Path $PSScriptRoot '../../Module/Regions/Applications.psm1'
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
+    $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+    foreach ($fn in $functions) {
+        Invoke-Expression $fn.Extent.Text
+    }
+}
+
+Describe 'Test-ApplicationCatalogField' {
+    It 'returns false for null objects' {
+        Test-ApplicationCatalogField -Object $null -FieldName 'Name' | Should -Be $false
+    }
+
+    It 'returns false for blank field names' {
+        Test-ApplicationCatalogField -Object ([pscustomobject]@{ Name = 'x' }) -FieldName '' | Should -Be $false
+    }
+
+    It 'detects a hashtable key' {
+        $h = @{ WinGetId = 'Mozilla.Firefox' }
+        Test-ApplicationCatalogField -Object $h -FieldName 'WinGetId' | Should -Be $true
+        Test-ApplicationCatalogField -Object $h -FieldName 'ChocoId' | Should -Be $false
+    }
+
+    It 'detects a pscustomobject property' {
+        $obj = [pscustomobject]@{ Name = 'Firefox'; WinGetId = 'Mozilla.Firefox' }
+        Test-ApplicationCatalogField -Object $obj -FieldName 'Name' | Should -Be $true
+        Test-ApplicationCatalogField -Object $obj -FieldName 'Missing' | Should -Be $false
+    }
+}
+
+Describe 'Get-ApplicationCatalogFieldValue' {
+    It 'returns null for a missing field' {
+        Get-ApplicationCatalogFieldValue -Object ([pscustomobject]@{ Name = 'x' }) -FieldName 'Unknown' | Should -BeNullOrEmpty
+    }
+
+    It 'returns the hashtable value for a present key' {
+        $value = Get-ApplicationCatalogFieldValue -Object @{ ChocoId = 'firefox' } -FieldName 'ChocoId'
+        $value | Should -Be 'firefox'
+    }
+
+    It 'returns the property value for a pscustomobject' {
+        $obj = [pscustomobject]@{ DisplayName = 'Mozilla Firefox' }
+        Get-ApplicationCatalogFieldValue -Object $obj -FieldName 'DisplayName' | Should -Be 'Mozilla Firefox'
+    }
+}
+
+Describe 'Get-PackageManagerAvailabilityStateValue' {
+    It 'returns null when the state object is null' {
+        Get-PackageManagerAvailabilityStateValue -AvailabilityState $null -PropertyName 'WinGetAvailable' | Should -BeNullOrEmpty
+    }
+
+    It 'returns null when the property name is blank' {
+        $state = [pscustomobject]@{ WinGetAvailable = $true }
+        Get-PackageManagerAvailabilityStateValue -AvailabilityState $state -PropertyName '' | Should -BeNullOrEmpty
+    }
+
+    It 'reads the property from a pscustomobject state' {
+        $state = [pscustomobject]@{ WinGetAvailable = $true; ChocolateyAvailable = $false }
+        Get-PackageManagerAvailabilityStateValue -AvailabilityState $state -PropertyName 'WinGetAvailable' | Should -Be $true
+        Get-PackageManagerAvailabilityStateValue -AvailabilityState $state -PropertyName 'ChocolateyAvailable' | Should -Be $false
+    }
+
+    It 'reads the key from a hashtable state' {
+        $state = @{ WinGetAvailable = $true }
+        Get-PackageManagerAvailabilityStateValue -AvailabilityState $state -PropertyName 'WinGetAvailable' | Should -Be $true
+        Get-PackageManagerAvailabilityStateValue -AvailabilityState $state -PropertyName 'ChocolateyAvailable' | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Invoke-WingetInstall failure paths' {
+    BeforeEach {
+        $script:errorMessages = [System.Collections.Generic.List[string]]::new()
+        $script:infoMessages = [System.Collections.Generic.List[string]]::new()
+        $script:consoleActions = [System.Collections.Generic.List[string]]::new()
+
+        function Write-ConsoleStatus {
+            param([string]$Action, [string]$Status)
+            if (-not [string]::IsNullOrWhiteSpace($Action)) { [void]$script:consoleActions.Add($Action) }
+        }
+        function LogInfo { param([string]$Message) [void]$script:infoMessages.Add($Message) }
+        function LogError { param([string]$Message) [void]$script:errorMessages.Add($Message) }
+        function Get-BaselineLocalizedString {
+            param([string]$Key, [string]$Fallback, [object[]]$FormatArgs = @())
+            if ($FormatArgs.Count -gt 0) { return ($Fallback -f $FormatArgs) }
+            return $Fallback
+        }
+    }
+
+    AfterEach {
+        Remove-Item Function:\Write-ConsoleStatus -ErrorAction SilentlyContinue
+        Remove-Item Function:\LogInfo -ErrorAction SilentlyContinue
+        Remove-Item Function:\LogError -ErrorAction SilentlyContinue
+        Remove-Item Function:\Get-BaselineLocalizedString -ErrorAction SilentlyContinue
+    }
+
+    It 'throws when the supplied availability state reports WinGetAvailable=$false' {
+        $state = [pscustomobject]@{ WinGetAvailable = $false }
+
+        { Invoke-WingetInstall -WinGetId 'X' -DisplayName 'x' -PackageManagerAvailabilityState $state } |
+            Should -Throw '*WinGet is not available*'
+    }
+
+    It 'throws when WinGet availability is not supplied and probe returns false' {
+        function Test-WinGetAvailable { param([switch]$Refresh) return $false }
+
+        try {
+            { Invoke-WingetInstall -WinGetId 'X' -DisplayName 'x' } |
+                Should -Throw '*WinGet is not available*'
+        }
+        finally {
+            Remove-Item Function:\Test-WinGetAvailable -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'throws when Resolve-WinGetExecutable returns null' {
+        function Test-WinGetAvailable { param([switch]$Refresh) return $true }
+        function Resolve-WinGetExecutable { return $null }
+
+        try {
+            { Invoke-WingetInstall -WinGetId 'X' -DisplayName 'x' } |
+                Should -Throw '*WinGet is not available*'
+        }
+        finally {
+            Remove-Item Function:\Test-WinGetAvailable -ErrorAction SilentlyContinue
+            Remove-Item Function:\Resolve-WinGetExecutable -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+Describe 'Invoke-WingetUpdate' {
+    BeforeEach {
+        $script:errorMessages = [System.Collections.Generic.List[string]]::new()
+        $script:infoMessages = [System.Collections.Generic.List[string]]::new()
+        $script:startCalls = [System.Collections.Generic.List[object]]::new()
+        function Write-ConsoleStatus { param([string]$Action, [string]$Status) }
+        function LogInfo { param([string]$Message) [void]$script:infoMessages.Add($Message) }
+        function LogError { param([string]$Message) [void]$script:errorMessages.Add($Message) }
+        function Get-BaselineLocalizedString {
+            param([string]$Key, [string]$Fallback, [object[]]$FormatArgs = @())
+            if ($FormatArgs.Count -gt 0) { return ($Fallback -f $FormatArgs) }
+            return $Fallback
+        }
+        function Resolve-WinGetExecutable { return 'winget.exe' }
+        function Test-WinGetAvailable { param([switch]$Refresh) return $true }
+        function Start-Process {
+            param([string]$FilePath, [object[]]$ArgumentList, [switch]$Wait, [switch]$PassThru, [object]$ErrorAction)
+            [void]$script:startCalls.Add([pscustomobject]@{
+                FilePath = $FilePath
+                ArgumentList = @($ArgumentList)
+            })
+            [pscustomobject]@{ ExitCode = 0 }
+        }
+    }
+
+    AfterEach {
+        Remove-Item Function:\Write-ConsoleStatus -ErrorAction SilentlyContinue
+        Remove-Item Function:\LogInfo -ErrorAction SilentlyContinue
+        Remove-Item Function:\LogError -ErrorAction SilentlyContinue
+        Remove-Item Function:\Get-BaselineLocalizedString -ErrorAction SilentlyContinue
+        Remove-Item Function:\Resolve-WinGetExecutable -ErrorAction SilentlyContinue
+        Remove-Item Function:\Test-WinGetAvailable -ErrorAction SilentlyContinue
+        Remove-Item Function:\Start-Process -ErrorAction SilentlyContinue
+    }
+
+    It 'runs winget upgrade with silent non-interactive flags' {
+        Invoke-WingetUpdate -WinGetId 'Mozilla.Firefox' -DisplayName 'Mozilla Firefox'
+
+        $script:startCalls.Count | Should -Be 1
+        @($script:startCalls[0].ArgumentList) | Should -Contain 'upgrade'
+        @($script:startCalls[0].ArgumentList) | Should -Contain '--silent'
+        @($script:startCalls[0].ArgumentList) | Should -Contain 'Mozilla.Firefox'
+        @($script:startCalls[0].ArgumentList) | Should -Contain '--disable-interactivity'
+    }
+
+    It 'throws when availability state disables WinGet' {
+        $state = [pscustomobject]@{ WinGetAvailable = $false }
+
+        { Invoke-WingetUpdate -WinGetId 'X' -DisplayName 'x' -PackageManagerAvailabilityState $state } |
+            Should -Throw '*WinGet is not available*'
+    }
+}
+
+Describe 'Invoke-ChocoInstall' {
+    BeforeEach {
+        $script:infoMessages = [System.Collections.Generic.List[string]]::new()
+        $script:errorMessages = [System.Collections.Generic.List[string]]::new()
+        $script:startCalls = [System.Collections.Generic.List[object]]::new()
+        $script:executionPolicyCalls = [System.Collections.Generic.List[object]]::new()
+
+        function Write-ConsoleStatus { param([string]$Action, [string]$Status) }
+        function LogInfo { param([string]$Message) [void]$script:infoMessages.Add($Message) }
+        function LogError { param([string]$Message) [void]$script:errorMessages.Add($Message) }
+        function Get-BaselineLocalizedString {
+            param([string]$Key, [string]$Fallback, [object[]]$FormatArgs = @())
+            if ($FormatArgs.Count -gt 0) { return ($Fallback -f $FormatArgs) }
+            return $Fallback
+        }
+        function Resolve-ApplicationPackageId { param([string]$PackageId) return $PackageId }
+        function Resolve-ChocolateyExecutable { return 'choco.exe' }
+        function Start-Process {
+            param([string]$FilePath, [object[]]$ArgumentList, [switch]$Wait, [switch]$PassThru, [object]$ErrorAction)
+            [void]$script:startCalls.Add([pscustomobject]@{
+                FilePath = $FilePath
+                ArgumentList = @($ArgumentList)
+            })
+            [pscustomobject]@{ ExitCode = 0 }
+        }
+    }
+
+    AfterEach {
+        Remove-Item Function:\Write-ConsoleStatus -ErrorAction SilentlyContinue
+        Remove-Item Function:\LogInfo -ErrorAction SilentlyContinue
+        Remove-Item Function:\LogError -ErrorAction SilentlyContinue
+        Remove-Item Function:\Get-BaselineLocalizedString -ErrorAction SilentlyContinue
+        Remove-Item Function:\Resolve-ApplicationPackageId -ErrorAction SilentlyContinue
+        Remove-Item Function:\Resolve-ChocolateyExecutable -ErrorAction SilentlyContinue
+        Remove-Item Function:\Start-Process -ErrorAction SilentlyContinue
+        Remove-Item Function:\Get-ExecutionPolicy -ErrorAction SilentlyContinue
+    }
+
+    It 'runs choco install with expected non-interactive flags' {
+        Invoke-ChocoInstall -ChocoId 'firefox' -DisplayName 'Mozilla Firefox'
+
+        $script:startCalls.Count | Should -Be 1
+        @($script:startCalls[0].ArgumentList) | Should -Contain 'install'
+        @($script:startCalls[0].ArgumentList) | Should -Contain '-y'
+        @($script:startCalls[0].ArgumentList) | Should -Contain '--no-progress'
+        @($script:startCalls[0].ArgumentList) | Should -Contain 'firefox'
+    }
+
+    It 'throws when Chocolatey is unavailable and bootstrap install fails to resolve' {
+        function Resolve-ChocolateyExecutable { return $null }
+        function Confirm-ChocolateyBootstrapExecution { }
+        function Get-ExecutionPolicy { param([string]$Scope) return 'RemoteSigned' }
+        function Set-ExecutionPolicy {
+            param([string]$ExecutionPolicy, [string]$Scope, [switch]$Force)
+            [void]$script:executionPolicyCalls.Add([pscustomobject]@{
+                ExecutionPolicy = $ExecutionPolicy
+                Scope = $Scope
+            })
+        }
+        function Reset-ChocolateyAvailabilityState { }
+        # Prevent the real WebClient from trying to reach the internet during bootstrap.
+        function New-Object {
+            param([string]$TypeName)
+            $stub = [pscustomobject]@{}
+            Add-Member -InputObject $stub -MemberType ScriptMethod -Name DownloadString -Value { param([string]$Url) return '' }
+            Add-Member -InputObject $stub -MemberType ScriptMethod -Name DownloadFile   -Value { param([string]$Url, [string]$Path) Set-Content -LiteralPath $Path -Value '# stub bootstrap script' -Encoding UTF8 }
+            Add-Member -InputObject $stub -MemberType ScriptMethod -Name Dispose        -Value { }
+            return $stub
+        }
+
+        try {
+            { Invoke-ChocoInstall -ChocoId 'firefox' -DisplayName 'Firefox' } |
+                Should -Throw '*Chocolatey is not available*'
+            $script:executionPolicyCalls.Count | Should -Be 2
+            $script:executionPolicyCalls[0].ExecutionPolicy | Should -Be 'Bypass'
+            $script:executionPolicyCalls[1].ExecutionPolicy | Should -Be 'RemoteSigned'
+        }
+        finally {
+            Remove-Item Function:\Resolve-ChocolateyExecutable -ErrorAction SilentlyContinue
+            Remove-Item Function:\Confirm-ChocolateyBootstrapExecution -ErrorAction SilentlyContinue
+            Remove-Item Function:\Get-ExecutionPolicy -ErrorAction SilentlyContinue
+            Remove-Item Function:\Set-ExecutionPolicy -ErrorAction SilentlyContinue
+            Remove-Item Function:\Reset-ChocolateyAvailabilityState -ErrorAction SilentlyContinue
+            Remove-Item Function:\New-Object -ErrorAction SilentlyContinue
+        }
+    }
+}

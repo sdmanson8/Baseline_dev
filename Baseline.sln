@@ -4,9 +4,9 @@ VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Launcher", "Launcher", "{740C5202-8AD2-6D86-0CA9-F95B1A2D697C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShortcutLauncher", "ShortcutLauncher\ShortcutLauncher.csproj", "{CBC526D3-C5DF-0825-3F59-1098CB6B6032}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BaselineShortcutLauncher", "ShortcutLauncher\ShortcutLauncher.csproj", "{CBC526D3-C5DF-0825-3F59-1098CB6B6032}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunLauncher", "Launcher\RunLauncher.csproj", "{F58784BA-332D-C8A6-08C0-D0564E42A427}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BaselineLauncher", "Launcher\RunLauncher.csproj", "{F58784BA-332D-C8A6-08C0-D0564E42A427}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

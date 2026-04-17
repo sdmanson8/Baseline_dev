@@ -1,6 +1,9 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    # Json helpers must load first - Preset.Helpers calls ConvertFrom-BaselineJson.
+    . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Json.Helpers.ps1')
+
     # Extract inner functions from the dot-sourced file via AST.
     # Uses Invoke-Expression on function definition AST nodes - safe because
     # ParseFile only parses (no execution) and we only evaluate FunctionDefinitionAst
@@ -31,6 +34,11 @@ Describe 'ConvertTo-HeadlessPresetName' {
         ConvertTo-HeadlessPresetName -PresetName 'BALANCED' | Should -Be 'Balanced'
     }
 
+    It 'normalizes dotted gaming aliases without treating them as file paths' {
+        ConvertTo-HeadlessPresetName -PresetName 'gaming.only' | Should -Be 'Balanced'
+        ConvertTo-HeadlessPresetName -PresetName 'optimized.for.gaming' | Should -Be 'Balanced'
+    }
+
     It 'normalizes Basic and the Safe alias' {
         ConvertTo-HeadlessPresetName -PresetName 'basic' | Should -Be 'Basic'
         ConvertTo-HeadlessPresetName -PresetName 'Basic' | Should -Be 'Basic'
@@ -52,6 +60,29 @@ Describe 'ConvertTo-HeadlessPresetName' {
 
     It 'throws on unknown preset name' {
         { ConvertTo-HeadlessPresetName -PresetName 'Nonexistent' } | Should -Throw '*Unknown preset name*'
+    }
+
+    It 'rejects path-like preset tokens' {
+        { ConvertTo-HeadlessPresetName -PresetName '..\Basic' } | Should -Throw '*Invalid preset token*'
+    }
+
+    It 'rejects shell-meta preset tokens' {
+        { ConvertTo-HeadlessPresetName -PresetName 'Basic;calc' } | Should -Throw '*Invalid preset token*'
+    }
+}
+
+Describe 'Resolve-HeadlessEnvironmentPreset' {
+    It 'returns null when the environment preset is blank' {
+        Resolve-HeadlessEnvironmentPreset -EnvironmentPreset '' | Should -BeNullOrEmpty
+        Resolve-HeadlessEnvironmentPreset -EnvironmentPreset $null | Should -BeNullOrEmpty
+    }
+
+    It 'normalizes valid environment preset values' {
+        Resolve-HeadlessEnvironmentPreset -EnvironmentPreset 'Balanced.json' | Should -Be 'Balanced'
+    }
+
+    It 'rejects invalid environment preset values' {
+        { Resolve-HeadlessEnvironmentPreset -EnvironmentPreset '..\Basic' } | Should -Throw '*Invalid preset token*'
     }
 }
 
@@ -93,6 +124,84 @@ Describe 'Get-HeadlessPresetCommandList' {
 
     It 'throws when preset directory does not exist' {
         { Get-HeadlessPresetCommandList -PresetName 'Basic' -ModuleRoot '/nonexistent/path' } | Should -Throw '*Preset directory*'
+    }
+
+    It 'throws before execution when a preset references an unknown manifest function' {
+        $brokenModuleRoot = Join-Path $TestDrive 'BrokenModule'
+        $brokenDataRoot = Join-Path $brokenModuleRoot 'Data'
+        $brokenPresetRoot = Join-Path $brokenDataRoot 'Presets'
+        New-Item -ItemType Directory -Path $brokenPresetRoot -Force | Out-Null
+
+        Set-Content -LiteralPath (Join-Path $brokenDataRoot 'System.json') -Encoding UTF8 -Value @'
+{
+  "Tab": "System",
+  "Entries": [
+    {
+      "Name": "Known Tweak",
+      "Function": "KnownFunction",
+      "Type": "Toggle",
+      "Default": false
+    }
+  ]
+}
+'@
+
+        Set-Content -LiteralPath (Join-Path $brokenPresetRoot 'Broken.json') -Encoding UTF8 -Value @'
+{
+  "Name": "Broken",
+  "Entries": [
+    "KnownFunction -Enable",
+    "MissingFunction -Disable"
+  ]
+}
+'@
+
+        $brokenPresetPath = Join-Path $brokenPresetRoot 'Broken.json'
+
+        {
+            Get-HeadlessPresetCommandList -PresetName $brokenPresetPath -ModuleRoot $brokenModuleRoot
+        } | Should -Throw '*MissingFunction*'
+    }
+
+    It 'can warn instead of throwing for unknown preset functions' {
+        $warnModuleRoot = Join-Path $TestDrive 'WarnOnlyModule'
+        $warnDataRoot = Join-Path $warnModuleRoot 'Data'
+        $warnPresetRoot = Join-Path $warnDataRoot 'Presets'
+        New-Item -ItemType Directory -Path $warnPresetRoot -Force | Out-Null
+
+        Set-Content -LiteralPath (Join-Path $warnDataRoot 'System.json') -Encoding UTF8 -Value @'
+{
+  "Tab": "System",
+  "Entries": [
+    {
+      "Name": "Known Tweak",
+      "Function": "KnownFunction",
+      "Type": "Toggle",
+      "Default": false
+    }
+  ]
+}
+'@
+
+        Set-Content -LiteralPath (Join-Path $warnPresetRoot 'WarnOnly.json') -Encoding UTF8 -Value @'
+{
+  "Name": "WarnOnly",
+  "Entries": [
+    "KnownFunction -Enable",
+    "MissingFunction -Disable"
+  ]
+}
+'@
+
+        Mock Write-Warning {}
+
+        $warnPresetPath = Join-Path $warnPresetRoot 'WarnOnly.json'
+        $commands = Get-HeadlessPresetCommandList -PresetName $warnPresetPath -ModuleRoot $warnModuleRoot -WarningOnly
+
+        $commands.Count | Should -Be 2
+        Should -Invoke Write-Warning -Times 1 -ParameterFilter {
+            $Message -like '*MissingFunction*'
+        }
     }
 }
 

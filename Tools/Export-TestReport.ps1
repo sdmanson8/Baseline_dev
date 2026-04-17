@@ -14,10 +14,10 @@
     Skip writing the shield badge metadata to the report.
 
     .EXAMPLE
-    pwsh -File .\Tools\Export-TestReport.ps1
+    powershell -File .\Tools\Export-TestReport.ps1
 
     .EXAMPLE
-    pwsh -File .\Tools\Export-TestReport.ps1 -OutputPath ./artifacts/report.json
+    powershell -File .\Tools\Export-TestReport.ps1 -OutputPath ./artifacts/report.json
 #>
 
 [CmdletBinding()]
@@ -213,6 +213,47 @@ function Invoke-PesterLayer
     return $layer
 }
 
+<#
+    .SYNOPSIS
+    Internal function Test-TestLayerFailureState.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Test-TestLayerFailureState
+{
+    param (
+        [Parameter(Mandatory = $true)]
+        [object]$Layer
+    )
+
+    if ($null -eq $Layer)
+    {
+        return $false
+    }
+
+    $result = $null
+    if ($Layer -is [System.Collections.IDictionary])
+    {
+        if ($Layer.Contains('result'))
+        {
+            $result = [string]$Layer['result']
+        }
+    }
+    elseif ($Layer.PSObject.Properties['result'])
+    {
+        $result = [string]$Layer.result
+    }
+
+    if ([string]::IsNullOrWhiteSpace($result))
+    {
+        $result = 'Unknown'
+    }
+
+    return ($result -in @('Failed', 'Error'))
+}
+
 # Pester test discovery/execution must run without script-scoped strict mode.
 # Keeping strict mode enabled here causes false failures in the already-passing suites.
 Set-StrictMode -Off
@@ -253,6 +294,7 @@ $report.layers['preset'] = $presetResult
 $totalPassed = 0
 $totalFailed = 0
 $totalSkipped = 0
+$failingLayers = [System.Collections.Generic.List[object]]::new()
 
 foreach ($layerKey in $report.layers.Keys)
 {
@@ -260,22 +302,38 @@ foreach ($layerKey in $report.layers.Keys)
     $totalPassed  += $l.passed
     $totalFailed  += $l.failed
     $totalSkipped += $l.skipped
+    if (Test-TestLayerFailureState -Layer $l)
+    {
+        [void]$failingLayers.Add($l)
+    }
 }
 
 $report.summary.totalPassed  = $totalPassed
 $report.summary.totalFailed  = $totalFailed
 $report.summary.totalSkipped = $totalSkipped
-$report.summary.overallResult = if ($totalFailed -gt 0) { 'Failed' } else { 'Passed' }
+$hasFailingLayer = ($failingLayers.Count -gt 0)
+$report.summary.overallResult = if ($hasFailingLayer) { 'Failed' } else { 'Passed' }
 
 # ============================================================
 # Badge metadata (shields.io compatible)
 # ============================================================
 if (-not $NoBadge)
 {
-    $badgeColor = if ($totalFailed -gt 0) { 'red' } else { 'brightgreen' }
-    $badgeMessage = if ($totalFailed -gt 0)
+    $badgeColor = if ($hasFailingLayer) { 'red' } else { 'brightgreen' }
+    $badgeMessage = if ($hasFailingLayer)
     {
-        "$totalFailed failed"
+        if ($totalFailed -gt 0)
+        {
+            "$totalFailed failed"
+        }
+        elseif ($failingLayers.Count -eq 1)
+        {
+            '1 layer failed'
+        }
+        else
+        {
+            "$($failingLayers.Count) layers failed"
+        }
     }
     else
     {
@@ -310,7 +368,7 @@ Write-Host "  Result:  $($report.summary.overallResult)"
 Write-Host "  Report:  $OutputPath"
 Write-Host ''
 
-if ($totalFailed -gt 0)
+if ($hasFailingLayer)
 {
     Write-Host '  REPORT: FAILURES DETECTED' -ForegroundColor Red
     exit 1

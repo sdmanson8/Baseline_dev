@@ -8,7 +8,7 @@
     containing structured JSON and a human-readable markdown summary.
 
     .EXAMPLE
-    pwsh -File .\Tools\New-IncidentReproductionPack.ps1 -SupportBundlePath .\Bundle.zip
+    powershell -File .\Tools\New-IncidentReproductionPack.ps1 -SupportBundlePath .\Bundle.zip
 #>
 
 [CmdletBinding()]

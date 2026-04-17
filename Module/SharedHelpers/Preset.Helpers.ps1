@@ -19,7 +19,16 @@ function ConvertTo-HeadlessPresetName
 	)
 
 	$normalizedPresetName = if ([string]::IsNullOrWhiteSpace($PresetName)) { 'Basic' } else { [string]$PresetName }
-	$normalizedPresetName = [System.IO.Path]::GetFileNameWithoutExtension($normalizedPresetName.Trim())
+	$normalizedPresetName = $normalizedPresetName.Trim()
+	if ($normalizedPresetName -notmatch '^[A-Za-z0-9_.-]+$')
+	{
+		throw ("Invalid preset token '{0}'. Use letters, numbers, dots, underscores, or hyphens only." -f $normalizedPresetName)
+	}
+
+	if ($normalizedPresetName -match '^(?<name>.+?)\.(json|txt)$')
+	{
+		$normalizedPresetName = $Matches['name']
+	}
 
 	switch -Regex ($normalizedPresetName)
 	{
@@ -32,6 +41,163 @@ function ConvertTo-HeadlessPresetName
 		'^\s*(extreme|all.on)\s*$'                                                 { return 'Advanced' }
 		default                                                                    { throw "Unknown preset name '$normalizedPresetName'. Valid presets: Minimal (alias: Light), Basic (alias: Safe), Balanced (alias: Gaming), Advanced (alias: Extreme)." }
 	}
+}
+
+<#
+    .SYNOPSIS
+    Internal function Resolve-HeadlessEnvironmentPreset.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+function Resolve-HeadlessEnvironmentPreset
+{
+	<# .SYNOPSIS Validates and normalizes BASELINE_PRESET for headless startup. #>
+	param (
+		[string]$EnvironmentPreset = $env:BASELINE_PRESET
+	)
+
+	if ([string]::IsNullOrWhiteSpace($EnvironmentPreset))
+	{
+		return $null
+	}
+
+	return (ConvertTo-HeadlessPresetName -PresetName $EnvironmentPreset)
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-HeadlessPresetValidFunctionSet.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+function Get-HeadlessPresetValidFunctionSet
+{
+	param (
+		[string]$ModuleRoot
+	)
+
+	$resolvedRoot = if ($ModuleRoot) { $ModuleRoot } else { $Script:SharedHelpersModuleRoot }
+	$dataDirectory = Join-Path -Path $resolvedRoot -ChildPath 'Data'
+	if (-not (Test-Path -LiteralPath $dataDirectory -PathType Container))
+	{
+		throw "Manifest data directory was not found: $dataDirectory"
+	}
+
+	$presetDirectory = Join-Path -Path $dataDirectory -ChildPath 'Presets'
+	$resolvedPresetDirectory = if (Test-Path -LiteralPath $presetDirectory -PathType Container)
+	{
+		[System.IO.Path]::GetFullPath($presetDirectory)
+	}
+	else
+	{
+		$null
+	}
+
+	$validFunctions = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+	foreach ($dataFile in (Get-ChildItem -LiteralPath $dataDirectory -Filter '*.json' -File -Recurse | Sort-Object FullName))
+	{
+		$resolvedDataFilePath = [System.IO.Path]::GetFullPath($dataFile.FullName)
+		if ($resolvedPresetDirectory -and $resolvedDataFilePath.StartsWith($resolvedPresetDirectory, [System.StringComparison]::OrdinalIgnoreCase))
+		{
+			continue
+		}
+
+		$rawJson = Get-Content -LiteralPath $resolvedDataFilePath -Raw -ErrorAction Stop
+		if ([string]::IsNullOrWhiteSpace($rawJson))
+		{
+			continue
+		}
+
+		try
+		{
+			$payload = $rawJson | ConvertFrom-BaselineJson -Depth 12 -ErrorAction Stop
+		}
+		catch
+		{
+			throw "Manifest data file '$resolvedDataFilePath' could not be parsed while validating presets: $($_.Exception.Message)"
+		}
+
+		if (-not $payload -or -not $payload.PSObject.Properties['Entries'])
+		{
+			continue
+		}
+
+		foreach ($entry in @($payload.Entries))
+		{
+			if (-not $entry -or -not $entry.PSObject.Properties['Function'])
+			{
+				continue
+			}
+
+			$functionName = [string]$entry.Function
+			if ([string]::IsNullOrWhiteSpace($functionName))
+			{
+				continue
+			}
+
+			[void]$validFunctions.Add($functionName.Trim())
+		}
+	}
+
+	return $validFunctions
+}
+
+<#
+    .SYNOPSIS
+    Internal function Assert-HeadlessPresetCommandListValid.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+function Assert-HeadlessPresetCommandListValid
+{
+	param (
+		[Parameter(Mandatory = $true)]
+		[string[]]$CommandList,
+
+		[Parameter(Mandatory = $true)]
+		[string]$PresetPath,
+
+		[string]$ModuleRoot,
+
+		[switch]$WarningOnly
+	)
+
+	$validFunctions = Get-HeadlessPresetValidFunctionSet -ModuleRoot $ModuleRoot
+	$invalidEntries = [System.Collections.Generic.List[string]]::new()
+
+	foreach ($commandLine in @($CommandList))
+	{
+		if ([string]::IsNullOrWhiteSpace([string]$commandLine))
+		{
+			continue
+		}
+
+		$trimmed = [string]$commandLine.Trim()
+		$functionName = ($trimmed -split '\s+', 2)[0].Trim()
+		if ([string]::IsNullOrWhiteSpace($functionName) -or $validFunctions.Contains($functionName))
+		{
+			continue
+		}
+
+		[void]$invalidEntries.Add(("'{0}' in '{1}'" -f $functionName, $trimmed))
+	}
+
+	if ($invalidEntries.Count -eq 0)
+	{
+		return
+	}
+
+	$message = "Preset '$PresetPath' contains unknown region entry point(s): {0}. Every preset command must start with a Function defined in Module/Data manifests." -f ($invalidEntries -join ', ')
+	if ($WarningOnly)
+	{
+		Write-Warning $message
+		return
+	}
+
+	throw $message
 }
 
 <#
@@ -49,7 +215,9 @@ function Get-HeadlessPresetCommandList
 		[string]
 		$PresetName,
 
-		[string]$ModuleRoot
+		[string]$ModuleRoot,
+
+		[switch]$WarningOnly
 	)
 
 	$resolvedRoot = if ($ModuleRoot) { $ModuleRoot } else { $Script:SharedHelpersModuleRoot }
@@ -95,7 +263,7 @@ function Get-HeadlessPresetCommandList
 
 	if ([System.IO.Path]::GetExtension($presetPath).Equals('.json', [System.StringComparison]::OrdinalIgnoreCase))
 	{
-		$presetData = Get-Content -LiteralPath $presetPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+		$presetData = Get-Content -LiteralPath $presetPath -Raw -ErrorAction Stop | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop
 		if ($presetData -and $presetData.PSObject.Properties['Entries'])
 		{
 			$rawEntries = @($presetData.Entries)
@@ -135,6 +303,8 @@ function Get-HeadlessPresetCommandList
 			[void]$commandList.Add($trimmed)
 		}
 	}
+
+	Assert-HeadlessPresetCommandListValid -CommandList $commandList.ToArray() -PresetPath $presetPath -ModuleRoot $resolvedRoot -WarningOnly:$WarningOnly
 
 	return $commandList.ToArray()
 }

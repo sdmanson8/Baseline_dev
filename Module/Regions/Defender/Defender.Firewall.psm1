@@ -1,4 +1,4 @@
-﻿using module ..\..\Logging.psm1
+using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
 <#
@@ -65,7 +65,7 @@ function Firewall
 				If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\StandardProfile")) {
 					New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\StandardProfile" -Force -ErrorAction Stop | Out-Null
 				}
-				Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\StandardProfile" -Name "EnableFirewall" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Policies\Microsoft\WindowsFirewall\StandardProfile" -Name "EnableFirewall" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -86,7 +86,7 @@ function Firewall
 	larger size limit and dropped-connections logging enabled.
 
 	.EXAMPLE
-	Set-WindowsFirewallLogging
+	WindowsFirewallLogging
 
 	.NOTES
 	Machine-wide
@@ -95,7 +95,7 @@ function Firewall
 	Usually safe, but log file growth and storage policies should still be
 	considered on managed systems.
 #>
-function Set-WindowsFirewallLogging
+function WindowsFirewallLogging
 {
 	Write-ConsoleStatus -Action "Configuring Windows Firewall logging"
 	LogInfo "Configuring Windows Firewall logging"
@@ -122,7 +122,7 @@ function Set-WindowsFirewallLogging
 	should not normally make network connections.
 
 	.EXAMPLE
-	Set-LOLBinFirewallRules
+	LOLBinFirewallRules
 
 	.NOTES
 	Machine-wide
@@ -131,7 +131,7 @@ function Set-WindowsFirewallLogging
 	Advanced. Can break administrative scripts, installers, troubleshooting
 	tools, or enterprise workflows that intentionally use these binaries.
 #>
-function Set-LOLBinFirewallRules
+function LOLBinFirewallRules
 {
 	Write-ConsoleStatus -Action "Configuring LOLBin firewall rules"
 	LogInfo "Configuring LOLBin firewall rules"

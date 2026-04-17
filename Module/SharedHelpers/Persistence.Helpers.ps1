@@ -128,7 +128,7 @@ function Read-BaselineDocument
 	try
 	{
 		$content = [System.IO.File]::ReadAllText($FilePath, [System.Text.Encoding]::UTF8)
-		$document = $content | ConvertFrom-Json
+		$document = $content | ConvertFrom-BaselineJson -Depth 16
 	}
 	catch
 	{
@@ -265,7 +265,7 @@ function Read-BaselineAuditLog
 
 			try
 			{
-				$record = $line | ConvertFrom-Json
+				$record = $line | ConvertFrom-BaselineJson -Depth 16
 			}
 			catch
 			{

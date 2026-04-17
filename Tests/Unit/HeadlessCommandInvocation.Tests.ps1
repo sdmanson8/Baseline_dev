@@ -14,7 +14,7 @@ BeforeAll {
 Describe 'Get-HeadlessCommandInvocation' {
     It 'binds switch parameters as named arguments' {
         $cmdAst = [System.Management.Automation.Language.Parser]::ParseInput(
-            'Disable-RemoteCommands -Disable',
+            'RemoteCommands -Disable',
             [ref]$null,
             [ref]$null
         ).EndBlock.Statements[0].PipelineElements[0]

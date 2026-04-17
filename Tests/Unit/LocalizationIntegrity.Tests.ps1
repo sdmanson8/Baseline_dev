@@ -56,7 +56,7 @@ Describe 'Localization key-set integrity' {
         # PowerShell 5.1 ships ConvertFrom-Json without -AsHashtable, so we
         # parse to PSObject and project to a hashtable manually. Keeps the
         # downstream indexer access (e.g. $LocalizationSchema['key_hash'])
-        # identical across PS 5.1 and PS 7+.
+        # identical across supported Windows PowerShell 5.1 runs.
         $convertToHashtable = {
             param($Object)
             $h = @{}
@@ -114,5 +114,93 @@ Describe 'Localization key-set integrity' {
 
         $missingKeys | Should -BeNullOrEmpty -Because "Locale file '$LocaleName' must never drop canonical keys."
         $extraKeys | Should -BeNullOrEmpty -Because "Locale file '$LocaleName' must not invent keys outside the canonical source set."
+    }
+}
+
+Describe 'Localization value integrity' {
+    BeforeAll {
+        $script:RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+        $script:LocalizationDir = Join-Path $script:RepoRoot 'Localizations'
+        $script:ExemptKeysPath = Join-Path $script:LocalizationDir 'english_exempt_keys.json'
+
+        $script:ExemptKeys = @()
+        if (Test-Path -LiteralPath $script:ExemptKeysPath -PathType Leaf)
+        {
+            $exemptData = Get-Content -LiteralPath $script:ExemptKeysPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+            if ($exemptData -is [System.Collections.IDictionary])
+            {
+                $script:ExemptKeys = @($exemptData.Keys)
+            }
+            elseif ($exemptData -is [pscustomobject])
+            {
+                $script:ExemptKeys = @($exemptData.PSObject.Properties | ForEach-Object { $_.Name })
+            }
+            else
+            {
+                $script:ExemptKeys = @($exemptData)
+            }
+        }
+
+        $script:ExemptKeys = @(
+            $script:ExemptKeys |
+                Where-Object { $_ } |
+                Sort-Object -Unique
+        )
+    }
+
+    It '<LocaleName> does not contain empty translations outside the exemption list' -ForEach $script:LocaleCases {
+        $localeMap = Get-Content -LiteralPath $LocalePath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+        $emptyKeys = @(
+            $localeMap.PSObject.Properties |
+                Where-Object {
+                    [string]::IsNullOrWhiteSpace([string]$_.Value) -and
+                    ($_.Name -notin $script:ExemptKeys)
+                } |
+                ForEach-Object { $_.Name }
+        )
+
+        $emptyKeys | Should -BeNullOrEmpty -Because "Locale file '$LocaleName' must not contain empty translations for non-exempt keys."
+    }
+}
+
+Describe 'Localization string-overflow guard' {
+    BeforeAll {
+        $script:RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+        $script:LocalizationDir = Join-Path $script:RepoRoot 'Localizations'
+        $script:StringLengthLimitsPath = Join-Path $script:LocalizationDir 'string_length_limits.json'
+
+        $script:StringLengthLimits = @{}
+        if (Test-Path -LiteralPath $script:StringLengthLimitsPath -PathType Leaf)
+        {
+            $limitData = Get-Content -LiteralPath $script:StringLengthLimitsPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+            foreach ($prop in $limitData.PSObject.Properties)
+            {
+                if ($prop.Name.StartsWith('_')) { continue }
+                $script:StringLengthLimits[[string]$prop.Name] = [int]$prop.Value
+            }
+        }
+    }
+
+    It 'has a non-empty length-limit configuration' {
+        $script:StringLengthLimits.Count | Should -BeGreaterThan 0 -Because 'string_length_limits.json must define at least one tight UI slot to guard against overflow.'
+    }
+
+    It '<LocaleName> respects every declared UI slot length limit' -ForEach $script:LocaleCases {
+        $localeMap = Get-Content -LiteralPath $LocalePath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+        $overflows = foreach ($key in $script:StringLengthLimits.Keys)
+        {
+            $prop = $localeMap.PSObject.Properties[$key]
+            if ($null -eq $prop) { continue }
+            $value = [string]$prop.Value
+            if ([string]::IsNullOrWhiteSpace($value)) { continue }
+            $limit = [int]$script:StringLengthLimits[$key]
+            if ($value.Length -gt $limit)
+            {
+                "{0} = '{1}' ({2} chars, limit {3})" -f $key, $value, $value.Length, $limit
+            }
+        }
+
+        $overflows = @($overflows)
+        $overflows | Should -BeNullOrEmpty -Because "Locale file '$LocaleName' has translations that exceed declared UI slot widths and will overflow the control: $($overflows -join '; ')"
     }
 }

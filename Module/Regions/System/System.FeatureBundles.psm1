@@ -94,13 +94,13 @@ function Set-OptionalFeatureBundleState
 
 <#
     .SYNOPSIS
-    Internal function Set-LegacyMediaBundle.
+    Internal function LegacyMediaBundle.
 
     .DESCRIPTION
     Internal implementation helper used by Baseline.
 #>
 
-function Set-LegacyMediaBundle
+function LegacyMediaBundle
 {
 	[CmdletBinding(DefaultParameterSetName = 'Enable')]
 	param
@@ -129,13 +129,13 @@ function Set-LegacyMediaBundle
 
 <#
     .SYNOPSIS
-    Internal function Set-NfsBundle.
+    Internal function NfsBundle.
 
     .DESCRIPTION
     Internal implementation helper used by Baseline.
 #>
 
-function Set-NfsBundle
+function NfsBundle
 {
 	[CmdletBinding(DefaultParameterSetName = 'Enable')]
 	param
@@ -161,8 +161,8 @@ function Set-NfsBundle
 		) `
 		-PostEnableScript {
 			& nfsadmin client stop | Out-Null
-			Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\ClientForNFS\CurrentVersion\Default' -Name 'AnonymousUID' -Value 0 -ErrorAction Stop | Out-Null
-			Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\ClientForNFS\CurrentVersion\Default' -Name 'AnonymousGID' -Value 0 -ErrorAction Stop | Out-Null
+			Set-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\ClientForNFS\CurrentVersion\Default' -Name 'AnonymousUID' -Value 0 -ErrorAction Stop | Out-Null
+			Set-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\ClientForNFS\CurrentVersion\Default' -Name 'AnonymousGID' -Value 0 -ErrorAction Stop | Out-Null
 			& nfsadmin client start | Out-Null
 			& nfsadmin client localhost config 'fileaccess=755' 'SecFlavors=+sys' '-krb5' '-krb5i' | Out-Null
 		}
@@ -170,13 +170,13 @@ function Set-NfsBundle
 
 <#
     .SYNOPSIS
-    Internal function Set-HyperVManagementTools.
+    Internal function HyperVManagementTools.
 
     .DESCRIPTION
     Internal implementation helper used by Baseline.
 #>
 
-function Set-HyperVManagementTools
+function HyperVManagementTools
 {
 	[CmdletBinding(DefaultParameterSetName = 'Enable')]
 	param
@@ -199,4 +199,4 @@ function Set-HyperVManagementTools
 		-UseAll
 }
 
-Export-ModuleMember -Function 'Set-HyperVManagementTools', 'Set-LegacyMediaBundle', 'Set-NfsBundle'
+Export-ModuleMember -Function 'HyperVManagementTools', 'LegacyMediaBundle', 'NfsBundle'

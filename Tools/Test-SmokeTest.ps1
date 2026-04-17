@@ -10,10 +10,10 @@
     with PowerShell 5.1 Desktop edition.
 
     .EXAMPLE
-    pwsh -File .\Tools\Test-SmokeTest.ps1
+    powershell -File .\Tools\Test-SmokeTest.ps1
 
     .EXAMPLE
-    pwsh -File .\Tools\Test-SmokeTest.ps1 -IncludeGUI
+    powershell -File .\Tools\Test-SmokeTest.ps1 -IncludeGUI
 #>
 
 [CmdletBinding()]
@@ -116,7 +116,7 @@ $requiredFiles = @(
     'docs/website/index.html'
     'docs/website/sitemap.xml'
     'docs/website/google906d6ac91b49de74.html'
-    'docs/Installer-Signing-Policy.md'
+    'dev_docs/Installer-Signing-Policy.md'
 )
 
 foreach ($file in $requiredFiles)

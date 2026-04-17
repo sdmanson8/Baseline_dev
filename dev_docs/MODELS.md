@@ -32,6 +32,7 @@ summary record (see `New-ExecutionSummaryRecord` in `ExecutionSummary.ps1`).
 | Restorable | bool | Can be directly undone |
 | RecoveryLevel | string | `'Direct'`, `'DefaultsOnly'`, `'RestorePoint'`, `'Manual'` |
 | RequiresRestart | bool | |
+| FeatureMaturity | string | `'Implemented'`, `'Tested'`, `'CI-Validated'`, `'Production-Validated'` |
 | PresetTier | string | `'Minimal'`, `'Basic'`, `'Balanced'`, `'Advanced'` |
 | IsRemoval | bool | Package removal — affects confirmation and summary wording |
 | BlastRadius | string | User-facing impact description |

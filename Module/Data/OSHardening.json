@@ -3,7 +3,7 @@
   "Entries": [
     {
       "Name": "Remote Commands (DCOM)",
-      "Function": "Disable-RemoteCommands",
+      "Function": "RemoteCommands",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -37,7 +37,7 @@
     },
     {
       "Name": "Configure Cipher Suites",
-      "Function": "Update-CipherSuites",
+      "Function": "CipherSuites",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -71,7 +71,7 @@
     },
     {
       "Name": "Configure Event Log Sizes",
-      "Function": "Update-EventLogSize",
+      "Function": "EventLogSize",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -104,7 +104,7 @@
     },
     {
       "Name": "Configure Key Exchange Algorithms",
-      "Function": "Update-KeyExchanges",
+      "Function": "KeyExchanges",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -138,7 +138,7 @@
     },
     {
       "Name": "Legacy TLS Protocols (1.0/1.1)",
-      "Function": "Update-Protocols",
+      "Function": "Protocols",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -173,7 +173,7 @@
     },
     {
       "Name": "Configure Strong .NET Authentication",
-      "Function": "Update-DotNetStrongAuth",
+      "Function": "DotNetStrongAuth",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -207,7 +207,7 @@
     },
     {
       "Name": "Disable AES Ciphers",
-      "Function": "Disable-AESCiphers",
+      "Function": "AESCiphers",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -241,7 +241,7 @@
     },
     {
       "Name": "Disable AutoRun",
-      "Function": "Disable-AutoRun",
+      "Function": "AutoRun",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -274,7 +274,7 @@
     },
     {
       "Name": "Disable IPv6",
-      "Function": "Disable-IPv6",
+      "Function": "IPv6",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -308,7 +308,7 @@
     },
     {
       "Name": "Disable RC2 and RC4 Ciphers",
-      "Function": "Disable-RC2RC4Ciphers",
+      "Function": "RC2RC4Ciphers",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -342,7 +342,7 @@
     },
     {
       "Name": "Disable SMBv3 Compression",
-      "Function": "Disable-SMBv3Compression",
+      "Function": "SMBv3Compression",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -376,7 +376,7 @@
     },
     {
       "Name": "Disable TCP Timestamps",
-      "Function": "Disable-TCPTimestamps",
+      "Function": "TCPTimestamps",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -410,7 +410,7 @@
     },
     {
       "Name": "Disable Triple DES Cipher",
-      "Function": "Disable-TripleDESCipher",
+      "Function": "TripleDESCipher",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -444,7 +444,7 @@
     },
     {
       "Name": "Disable Weak Hash Algorithms",
-      "Function": "Disable-HashAlgorithms",
+      "Function": "HashAlgorithms",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -478,7 +478,7 @@
     },
     {
       "Name": "Enable Biometrics Anti-Spoofing",
-      "Function": "Enable-BiometricsAntiSpoofing",
+      "Function": "BiometricsAntiSpoofing",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -512,7 +512,7 @@
     },
     {
       "Name": "Ensure Registry Paths Exist",
-      "Function": "Update-RegistryPaths",
+      "Function": "RegistryPaths",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -546,7 +546,7 @@
     },
     {
       "Name": "Filesystem Performance Settings",
-      "Function": "Protect-FileSystemPerformance",
+      "Function": "FileSystemPerformance",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -580,7 +580,7 @@
     },
     {
       "Name": "General OS Hardening",
-      "Function": "Protect-OS",
+      "Function": "OS",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -615,7 +615,7 @@
     },
     {
       "Name": "Harden Adobe Reader",
-      "Function": "Update-AdobereaderDCSTIG",
+      "Function": "AdobereaderDCSTIG",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -649,7 +649,7 @@
     },
     {
       "Name": "Harden ClickOnce Trust Prompts",
-      "Function": "Protect-ClickOnce",
+      "Function": "ClickOnce",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -683,7 +683,7 @@
     },
     {
       "Name": "Harden MS Office",
-      "Function": "Protect-MSOffice",
+      "Function": "MSOffice",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -717,7 +717,7 @@
     },
     {
       "Name": "Harden Office Links",
-      "Function": "Protect-MSOfficeLinks",
+      "Function": "MSOfficeLinks",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -751,7 +751,7 @@
     },
     {
       "Name": "Harden WinRM",
-      "Function": "Protect-WinRM",
+      "Function": "WinRM",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -785,7 +785,7 @@
     },
     {
       "Name": "Prevent Remote DLL Hijacking",
-      "Function": "Set-DLLHijackingPrevention",
+      "Function": "DLLHijackingPrevention",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -818,7 +818,7 @@
     },
     {
       "Name": "Prevent Wireless Exploitation",
-      "Function": "Suspend-AirstrikeAttack",
+      "Function": "AirstrikeAttack",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -853,7 +853,7 @@
     },
     {
       "Name": "Reduce RPC Surface",
-      "Function": "Protect-RPCSurface",
+      "Function": "RPCSurface",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,

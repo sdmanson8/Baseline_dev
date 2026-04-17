@@ -49,6 +49,9 @@
     <EmbeddedResource Include="../Module/GUICommon.psm1">
       <LogicalName>BaselinePayload/Module/GUICommon.psm1</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="../Module/GUICommon/*.ps1">
+      <LogicalName>BaselinePayload/Module/GUICommon/%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="../Module/GUIExecution.psm1">
       <LogicalName>BaselinePayload/Module/GUIExecution.psm1</LogicalName>
     </EmbeddedResource>
@@ -56,6 +59,9 @@
       <LogicalName>BaselinePayload/Module/SharedHelpers/%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="../Module/GUI/*.ps1">
+      <LogicalName>BaselinePayload/Module/GUI/%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="../Module/GUI/*.xaml">
       <LogicalName>BaselinePayload/Module/GUI/%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="../Module/Regions/**/*.psm1">

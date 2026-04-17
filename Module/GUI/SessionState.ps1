@@ -1,4 +1,4 @@
-﻿# GUI session state, undo snapshots, and settings profile management
+# GUI session state, undo snapshots, and settings profile management
 
 <#
     .SYNOPSIS
@@ -9,14 +9,28 @@
 #>
 
 function Resolve-GuiModePreference
-	{
-		param (
-			[bool]$SafeMode,
-			[bool]$AdvancedMode
-		)
+{
+	param (
+		[bool]$SafeMode,
+		[bool]$AdvancedMode
+	)
 
-		if ($SafeMode)
-		{
+	if ($SafeMode)
+	{
+		return [pscustomobject]@{
+			SafeMode = $true
+			AdvancedMode = $false
+		}
+	}
+
+	if ($AdvancedMode)
+	{
+		return [pscustomobject]@{
+			SafeMode = $false
+			AdvancedMode = $true
+		}
+	}
+
 	return [pscustomobject]@{
 		SafeMode = $true
 		AdvancedMode = $false
@@ -437,7 +451,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 		throw "Policy file not found: $FilePath"
 	}
 
-	$policy = Get-Content -LiteralPath $FilePath -Raw -Encoding UTF8 | ConvertFrom-Json
+	$policy = Get-Content -LiteralPath $FilePath -Raw -Encoding UTF8 | ConvertFrom-BaselineJson -Depth 16
 	if (-not $policy -or [string]::IsNullOrWhiteSpace([string]$policy.Schema) -or [string]$policy.Schema -ne 'Baseline.GuiRemoteTargetApprovalPolicy')
 	{
 		throw 'The selected file does not contain a valid remote approval policy.'
@@ -465,23 +479,9 @@ function Import-GuiRemoteTargetApprovalPolicy
 	return $true
 }
 
-		if ($AdvancedMode)
-		{
-			return [pscustomobject]@{
-				SafeMode = $false
-				AdvancedMode = $true
-			}
-		}
-
-		return [pscustomobject]@{
-			SafeMode = $true
-			AdvancedMode = $false
-		}
-	}
-
-	<#
-	    .SYNOPSIS
-	    Internal function Save-GuiUndoSnapshot.
+<#
+    .SYNOPSIS
+    Internal function Save-GuiUndoSnapshot.
 
 	    .DESCRIPTION
 	    Internal implementation helper used by Baseline.
@@ -1251,7 +1251,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 		try
 		{
-			return (Get-Content -LiteralPath $path -Raw -ErrorAction Stop | ConvertFrom-Json)
+			return (Get-Content -LiteralPath $path -Raw -ErrorAction Stop | ConvertFrom-BaselineJson -Depth 16)
 		}
 		catch
 		{
@@ -1280,7 +1280,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 		try
 		{
-			return (Get-Content -LiteralPath $path -Raw -ErrorAction Stop | ConvertFrom-Json)
+			return (Get-Content -LiteralPath $path -Raw -ErrorAction Stop | ConvertFrom-BaselineJson -Depth 16)
 		}
 		catch
 		{

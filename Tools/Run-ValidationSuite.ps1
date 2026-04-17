@@ -47,7 +47,12 @@ Append-Log '=== SMOKE TESTS ==='
 $smokeOut = & (Join-Path $repoRoot 'Tools/Test-SmokeTest.ps1') *>&1 | Out-String
 Append-Log $smokeOut
 
-# ── 2. Unit tests ──
+# ── 2. Documentation consistency checks ──
+Append-Log "`n=== DOCS CONSISTENCY CHECKS ==="
+$docsOut = & (Join-Path $repoRoot 'Tools/Test-DocumentationConsistency.ps1') *>&1 | Out-String
+Append-Log $docsOut
+
+# ── 3. Unit tests ──
 Append-Log "`n=== UNIT TESTS ==="
 Import-Module Pester -MinimumVersion 5.0.0
 $cfg = New-PesterConfiguration
@@ -62,7 +67,7 @@ if ($unitResult.FailedCount -gt 0)
     $unitResult.Failed | ForEach-Object { Append-Log ("  FAIL: {0}" -f $_.Name) }
 }
 
-# ── 3. Composition tests ──
+# ── 4. Composition tests ──
 Append-Log "`n=== COMPOSITION TESTS ==="
 $cfg2 = New-PesterConfiguration
 $cfg2.Run.Path = Join-Path $repoRoot 'Tests/GUI.Composition.Tests.ps1'
@@ -76,7 +81,7 @@ if ($compResult.FailedCount -gt 0)
     $compResult.Failed | ForEach-Object { Append-Log ("  FAIL: {0}" -f $_.Name) }
 }
 
-# ── 4. Responsive tab/dropdown tests ──
+# ── 5. Responsive tab/dropdown tests ──
 Append-Log "`n=== RESPONSIVE TAB/DROPDOWN TESTS ==="
 $cfg3 = New-PesterConfiguration
 $cfg3.Run.Path = Join-Path $repoRoot 'Tests/Unit/ResponsiveTabDropdown.Tests.ps1'
@@ -86,7 +91,7 @@ $cfg3.TestRegistry.Enabled = $false
 $respResult = Invoke-Pester -Configuration $cfg3
 Append-Log ("RESPONSIVE-SUMMARY: Total={0} Passed={1} Failed={2} Skipped={3}" -f $respResult.TotalCount, $respResult.PassedCount, $respResult.FailedCount, $respResult.SkippedCount)
 
-# ── 5. Export JSON report ──
+# ── 6. Export JSON report ──
 Append-Log "`n=== EXPORT REPORT ==="
 $reportOut = & (Join-Path $repoRoot 'Tools/Export-TestReport.ps1') *>&1 | Out-String
 Append-Log $reportOut

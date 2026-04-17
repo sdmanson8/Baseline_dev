@@ -34,7 +34,11 @@ $script:UILogHandler = $null
 $script:ConsoleStatusContext = $null
 $script:LogMode = $null
 $script:DefaultLogMutexTimeoutMs = 5000
+$script:LogMutexRetryBackoffMs = @(100, 250, 500)
+$script:PendingLogMessages = [System.Collections.Generic.List[string]]::new()
+$script:PendingLogMessagesSyncRoot = [object]::new()
 $script:UILogWarningCache = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+$script:SessionStatisticsSyncRoot = [object]::new()
 $script:SessionStatistics = @{
     SessionStartTime    = $null
     PresetName          = $null
@@ -239,6 +243,108 @@ function Set-LogFile {
 
 <#
     .SYNOPSIS
+    Internal function Add-PendingLogMessage.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+function Add-PendingLogMessage {
+    param(
+        [string]$Message
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Message)) {
+        return
+    }
+
+    $lockTaken = $false
+    try {
+        [System.Threading.Monitor]::Enter($script:PendingLogMessagesSyncRoot, [ref]$lockTaken)
+        [void]$script:PendingLogMessages.Add($Message)
+    }
+    finally {
+        if ($lockTaken) {
+            [System.Threading.Monitor]::Exit($script:PendingLogMessagesSyncRoot)
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Internal function Restore-PendingLogMessages.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+function Restore-PendingLogMessages {
+    param(
+        [string[]]$Messages
+    )
+
+    if (-not $Messages -or $Messages.Count -eq 0) {
+        return
+    }
+
+    $lockTaken = $false
+    try {
+        [System.Threading.Monitor]::Enter($script:PendingLogMessagesSyncRoot, [ref]$lockTaken)
+        $script:PendingLogMessages.InsertRange(0, @($Messages))
+    }
+    finally {
+        if ($lockTaken) {
+            [System.Threading.Monitor]::Exit($script:PendingLogMessagesSyncRoot)
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Internal function Write-PendingLogMessagesToFile.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+function Write-PendingLogMessagesToFile {
+    param(
+        [string]$CurrentMessage,
+        [switch]$CurrentMessageAlreadyQueued
+    )
+
+    $messagesToWrite = [System.Collections.Generic.List[string]]::new()
+    $lockTaken = $false
+    try {
+        [System.Threading.Monitor]::Enter($script:PendingLogMessagesSyncRoot, [ref]$lockTaken)
+        foreach ($queuedMessage in @($script:PendingLogMessages)) {
+            [void]$messagesToWrite.Add([string]$queuedMessage)
+        }
+        $script:PendingLogMessages.Clear()
+    }
+    finally {
+        if ($lockTaken) {
+            [System.Threading.Monitor]::Exit($script:PendingLogMessagesSyncRoot)
+        }
+    }
+
+    if (-not $CurrentMessageAlreadyQueued -and -not [string]::IsNullOrWhiteSpace($CurrentMessage)) {
+        [void]$messagesToWrite.Add($CurrentMessage)
+    }
+
+    if ($messagesToWrite.Count -eq 0) {
+        return $true
+    }
+
+    try {
+        Add-Content -Path $script:LogFilePath -Value $messagesToWrite.ToArray() -Encoding UTF8 -ErrorAction Stop
+        return $true
+    }
+    catch {
+        Restore-PendingLogMessages -Messages $messagesToWrite.ToArray()
+        return $false
+    }
+}
+
+<#
+    .SYNOPSIS
     Write a formatted message to the current log file.
 
     .PARAMETER Message
@@ -300,23 +406,42 @@ function Write-LogMessage {
     
     # Use a mutex so multiple log writes do not corrupt the log file.
     $acquired = $false
+    $messageQueued = $false
     try {
         $acquired = $script:LogLock.WaitOne($script:DefaultLogMutexTimeoutMs)
     }
     catch {
         # Mutex handle may be closed if the runspace was disposed — write directly
-        try { Add-Content -Path $script:LogFilePath -Value $logMessage -Encoding UTF8 } catch { }
+        $null = Write-PendingLogMessagesToFile -CurrentMessage $logMessage
         return
     }
     try {
         if ($acquired) {
-            Add-Content -Path $script:LogFilePath -Value $logMessage -Encoding UTF8
+            $null = Write-PendingLogMessagesToFile -CurrentMessage $logMessage
         } else {
+            Add-PendingLogMessage -Message $logMessage
+            $messageQueued = $true
             try {
-                Write-Host "WARNING: Log mutex timeout after $($script:DefaultLogMutexTimeoutMs) ms; message not written to file: $logMessage" -ForegroundColor Yellow
+                Write-Host "WARNING: Log mutex timeout after $($script:DefaultLogMutexTimeoutMs) ms; message queued for retry: $logMessage" -ForegroundColor Yellow
             }
             catch {
-                Write-Warning "Log mutex timeout after $($script:DefaultLogMutexTimeoutMs) ms; message not written to file: $logMessage"
+                Write-Warning "Log mutex timeout after $($script:DefaultLogMutexTimeoutMs) ms; message queued for retry: $logMessage"
+            }
+
+            foreach ($backoffMs in @($script:LogMutexRetryBackoffMs)) {
+                Start-Sleep -Milliseconds ([int]$backoffMs)
+                try {
+                    $acquired = $script:LogLock.WaitOne(0)
+                }
+                catch {
+                    $acquired = $false
+                    break
+                }
+
+                if ($acquired) {
+                    $null = Write-PendingLogMessagesToFile -CurrentMessage $logMessage -CurrentMessageAlreadyQueued:$messageQueued
+                    break
+                }
             }
         }
     }
@@ -540,18 +665,30 @@ function Write-ConsoleStatus {
 #>
 
 function Initialize-SessionStatistics {
-    $script:SessionStatistics = @{
-        SessionStartTime    = Get-Date
-        PresetName          = $null
-        TweaksSelected      = 0
-        PreviewRunCount     = 0
-        ApplyRunCount       = 0
-        SucceededCount      = 0
-        FailedCount         = 0
-        SkippedCount        = 0
-        IsGUI               = $false
-        GameModeActive      = $false
-        GameModeProfile     = $null
+    $lockTaken = $false
+    try
+    {
+        [System.Threading.Monitor]::Enter($script:SessionStatisticsSyncRoot, [ref]$lockTaken)
+        $script:SessionStatistics = @{
+            SessionStartTime    = Get-Date
+            PresetName          = $null
+            TweaksSelected      = 0
+            PreviewRunCount     = 0
+            ApplyRunCount       = 0
+            SucceededCount      = 0
+            FailedCount         = 0
+            SkippedCount        = 0
+            IsGUI               = $false
+            GameModeActive      = $false
+            GameModeProfile     = $null
+        }
+    }
+    finally
+    {
+        if ($lockTaken)
+        {
+            [System.Threading.Monitor]::Exit($script:SessionStatisticsSyncRoot)
+        }
     }
 }
 
@@ -568,13 +705,27 @@ function Update-SessionStatistics {
         [hashtable]$Values
     )
 
-    if (-not $script:SessionStatistics -or -not $Values) { return }
+    if (-not $Values) { return }
 
-    foreach ($key in $Values.Keys)
+    $lockTaken = $false
+    try
     {
-        if ($script:SessionStatistics.ContainsKey($key))
+        [System.Threading.Monitor]::Enter($script:SessionStatisticsSyncRoot, [ref]$lockTaken)
+        if (-not $script:SessionStatistics) { return }
+
+        foreach ($key in $Values.Keys)
         {
-            $script:SessionStatistics[$key] = $Values[$key]
+            if ($script:SessionStatistics.ContainsKey($key))
+            {
+                $script:SessionStatistics[$key] = $Values[$key]
+            }
+        }
+    }
+    finally
+    {
+        if ($lockTaken)
+        {
+            [System.Threading.Monitor]::Exit($script:SessionStatisticsSyncRoot)
         }
     }
 }
@@ -594,9 +745,21 @@ function Add-SessionStatistic {
         [int]$Increment = 1
     )
 
-    if (-not $script:SessionStatistics -or -not $script:SessionStatistics.ContainsKey($Name)) { return }
+    $lockTaken = $false
+    try
+    {
+        [System.Threading.Monitor]::Enter($script:SessionStatisticsSyncRoot, [ref]$lockTaken)
+        if (-not $script:SessionStatistics -or -not $script:SessionStatistics.ContainsKey($Name)) { return }
 
-    $script:SessionStatistics[$Name] = [int]$script:SessionStatistics[$Name] + $Increment
+        $script:SessionStatistics[$Name] = [int]$script:SessionStatistics[$Name] + $Increment
+    }
+    finally
+    {
+        if ($lockTaken)
+        {
+            [System.Threading.Monitor]::Exit($script:SessionStatisticsSyncRoot)
+        }
+    }
 }
 
 <#
@@ -607,8 +770,20 @@ function Add-SessionStatistic {
     Internal implementation helper used by Baseline.
 #>
 function Get-SessionStatistics {
-    if (-not $script:SessionStatistics) { return $null }
-    return $script:SessionStatistics.Clone()
+    $lockTaken = $false
+    try
+    {
+        [System.Threading.Monitor]::Enter($script:SessionStatisticsSyncRoot, [ref]$lockTaken)
+        if (-not $script:SessionStatistics) { return $null }
+        return $script:SessionStatistics.Clone()
+    }
+    finally
+    {
+        if ($lockTaken)
+        {
+            [System.Threading.Monitor]::Exit($script:SessionStatisticsSyncRoot)
+        }
+    }
 }
 
 <#
@@ -633,9 +808,8 @@ function Write-SessionSummaryToLog {
     #>
 
     if (-not $script:LogFilePath) { return }
-    if (-not $script:SessionStatistics) { return }
-
-    $stats = $script:SessionStatistics
+    $stats = Get-SessionStatistics
+    if (-not $stats) { return }
 
     # Skip writing if no meaningful activity was tracked (e.g. background runspace
     # that imported the module but never ran through the main session flow).

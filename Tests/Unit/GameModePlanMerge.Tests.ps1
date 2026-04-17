@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     <#
@@ -10,6 +10,10 @@ BeforeAll {
     #>
 
     function Test-GuiObjectField { param([object]$Object, [string]$FieldName) if ($null -eq $Object) { return $false }; if ($Object -is [System.Collections.IDictionary]) { return $Object.Contains($FieldName) }; return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName]) }
+
+    # Json helpers must load first — GameMode.Helpers calls ConvertFrom-BaselineJson.
+    . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Json.Helpers.ps1')
+
     $gameModeUiPath = Join-Path $PSScriptRoot '../../Module/GUI/GameModeUI.ps1'
     $gameModeUiAst = [System.Management.Automation.Language.Parser]::ParseFile($gameModeUiPath, [ref]$null, [ref]$null)
     $gameModeUiFunctions = $gameModeUiAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
@@ -245,10 +249,10 @@ Describe 'Set-GameModeProfile' {
         $script:GameModeCorePlan = @()
         $script:GameModeAdvancedSelections = @{}
         $script:GameModeDecisionOverrides = @{}
-        $script:GameModeAllowlist = @('Set-SystemResponsiveness', 'Set-DirectXAutoHdr')
+        $script:GameModeAllowlist = @('SystemResponsiveness', 'DirectXAutoHdr')
         $script:AdvancedEntries = @(
             [pscustomobject]@{
-                Function = 'Set-SystemResponsiveness'
+                Function = 'SystemResponsiveness'
                 DefaultCheckedByProfile = [pscustomobject]@{
                     Competitive = $true
                     Streaming = $true
@@ -257,7 +261,7 @@ Describe 'Set-GameModeProfile' {
                 }
             }
             [pscustomobject]@{
-                Function = 'Set-DirectXAutoHdr'
+                Function = 'DirectXAutoHdr'
                 DefaultCheckedByProfile = [pscustomobject]@{
                     Casual = $true
                     Competitive = $false
@@ -359,16 +363,16 @@ Describe 'Set-GameModeProfile' {
         Set-GameModeProfile -ProfileName 'Competitive'
 
         $script:GameModeProfile | Should -Be 'Competitive'
-        $script:GameModeAdvancedSelections['Set-SystemResponsiveness'] | Should -Be $true
-        $script:GameModeAdvancedSelections['Set-DirectXAutoHdr'] | Should -Be $false
+        $script:GameModeAdvancedSelections['SystemResponsiveness'] | Should -Be $true
+        $script:GameModeAdvancedSelections['DirectXAutoHdr'] | Should -Be $false
     }
 
     It 'pre-checks different advanced options for another profile' {
         Set-GameModeProfile -ProfileName 'Casual'
 
         $script:GameModeProfile | Should -Be 'Casual'
-        $script:GameModeAdvancedSelections['Set-SystemResponsiveness'] | Should -Be $false
-        $script:GameModeAdvancedSelections['Set-DirectXAutoHdr'] | Should -Be $true
+        $script:GameModeAdvancedSelections['SystemResponsiveness'] | Should -Be $false
+        $script:GameModeAdvancedSelections['DirectXAutoHdr'] | Should -Be $true
     }
 }
 

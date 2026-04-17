@@ -348,7 +348,7 @@ function Import-SystemStateSnapshot
 		throw "Snapshot file is empty: $Path"
 	}
 
-	$snapshot = $rawJson | ConvertFrom-Json -ErrorAction Stop
+	$snapshot = $rawJson | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop
 
 	if (-not $snapshot.PSObject.Properties['Schema'] -or [string]$snapshot.Schema -ne 'Baseline.StateSnapshot')
 	{

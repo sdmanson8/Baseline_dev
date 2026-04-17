@@ -269,16 +269,6 @@
 				[void]$signalLabels.Add('Windows Terminal')
 			}
 
-			$powerShell7Installed = [bool](Get-Command -Name 'pwsh.exe' -ErrorAction SilentlyContinue)
-			if (-not $powerShell7Installed)
-			{
-				$powerShell7Installed = [bool](Get-Command -Name 'pwsh' -ErrorAction SilentlyContinue)
-			}
-			if ($powerShell7Installed)
-			{
-				[void]$signalLabels.Add('PowerShell 7')
-			}
-
 			$officeInstalled = $false
 			try
 			{
@@ -377,7 +367,7 @@
 			$privacyPending = @(
 				'ActivityHistory', 'AdvertisingID', 'DiagTrackService', 'DeliveryOptimization',
 				'LanguageListAccess', 'SharedExperiences', 'TailoredExperiences',
-				'Powershell7Telemetry', 'LockWidgets'
+				'LockWidgets'
 			) | Where-Object { Test-GuiManifestToggleNeedsAttention -FunctionName $_ }
 
 			$workstationPending = @(
@@ -428,7 +418,7 @@
 				})
 			}
 
-			if ($workstationPending.Count -ge 2 -or (($windowsTerminalInstalled -or $powerShell7Installed -or $officeInstalled -or $domainJoined -or $mappedNetworkDriveCount -gt 0) -and $workstationPending.Count -ge 1))
+			if ($workstationPending.Count -ge 2 -or (($windowsTerminalInstalled -or $officeInstalled -or $domainJoined -or $mappedNetworkDriveCount -gt 0) -and $workstationPending.Count -ge 1))
 			{
 				[void]$recommendations.Add([pscustomobject]@{
 					Name = 'Workstation'

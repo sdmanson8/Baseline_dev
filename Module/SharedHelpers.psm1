@@ -3,61 +3,79 @@
     Internal shared helper loader module for Baseline.
 
     .DESCRIPTION
-    Dot-sources the helper slices from Module/SharedHelpers and exports the
-    shared helper functions consumed across the project. This is internal
-    plumbing for the Baseline runtime.
+    Imports the helper slices from Module/SharedHelperModules in declared
+    dependency order and exports the shared helper functions consumed across
+    the project. This is internal plumbing for the Baseline runtime.
 #>
 
-# These script-scope variables are set before dot-sourcing any helper files.
-# All helper files may reference them (they share this module's scope).
+# These script-scope variables are available to helper wrappers and any
+# functions defined directly in this loader module.
 $Script:SharedHelpersModuleRoot = $PSScriptRoot
 $Script:SharedHelpersRepoRoot = Split-Path $PSScriptRoot -Parent
 
-# Load order matters: Manifest.Helpers depends on GameMode.Helpers (for
-# Test-TweakManifestIntegrity), so GameMode.Helpers must be loaded first.
-$HelperFiles = @(
-    'Localization.Helpers.ps1'
-    'ErrorHandling.Helpers.ps1'
-    'Registry.Helpers.ps1'
-    'Environment.Helpers.ps1'
-    'GameMode.Helpers.ps1'
-    'Manifest.Helpers.ps1'
-    'ScenarioMode.Helpers.ps1'
-    'Preset.Helpers.ps1'
-    'Recovery.Helpers.ps1'
-    'Lifecycle.Helpers.ps1'
-    'PackageManagement.Helpers.ps1'
-    'AdvancedStartup.Helpers.ps1'
-    'Taskbar.Helpers.ps1'
-    'SystemMaintenance.Helpers.ps1'
-    'Persistence.Helpers.ps1'
-    'ConfigProfile.Helpers.ps1'
-    'StateCapture.Helpers.ps1'
-    'Compliance.Helpers.ps1'
-    'AuditTrail.Helpers.ps1'
-    'SupportBundle.Helpers.ps1'
-    'Scheduler.Helpers.ps1'
-    'RemoteTarget.Helpers.ps1'
-    'GroupPolicy.Helpers.ps1'
-    'CliOutput.Helpers.ps1'
-    'OperatorPolicy.Helpers.ps1'
+# Load order still matters: Manifest depends on GameMode metadata helpers, so
+# GameMode must load first. The wrappers keep each helper in its own named
+# module while preserving a declared import order here in the loader.
+$helperModulesRoot = Join-Path $PSScriptRoot 'SharedHelperModules'
+$HelperModuleNames = @(
+    'Baseline.SharedHelpers.Json'
+    'Baseline.SharedHelpers.Localization'
+	'Baseline.SharedHelpers.FeatureMaturity'
+    'Baseline.SharedHelpers.ErrorHandling'
+    'Baseline.SharedHelpers.Integrity'
+    'Baseline.SharedHelpers.Registry'
+    'Baseline.SharedHelpers.Environment'
+    'Baseline.SharedHelpers.GameMode'
+    'Baseline.SharedHelpers.Manifest'
+    'Baseline.SharedHelpers.ScenarioMode'
+    'Baseline.SharedHelpers.Preset'
+    'Baseline.SharedHelpers.Recovery'
+    'Baseline.SharedHelpers.Lifecycle'
+    'Baseline.SharedHelpers.PackageManagement'
+    'Baseline.SharedHelpers.AdvancedStartup'
+    'Baseline.SharedHelpers.Taskbar'
+    'Baseline.SharedHelpers.SystemMaintenance'
+    'Baseline.SharedHelpers.Persistence'
+    'Baseline.SharedHelpers.ConfigProfile'
+    'Baseline.SharedHelpers.StateCapture'
+    'Baseline.SharedHelpers.Compliance'
+    'Baseline.SharedHelpers.AuditTrail'
+    'Baseline.SharedHelpers.SupportBundle'
+    'Baseline.SharedHelpers.Scheduler'
+    'Baseline.SharedHelpers.RemoteTarget'
+    'Baseline.SharedHelpers.GroupPolicy'
+    'Baseline.SharedHelpers.CliOutput'
+    'Baseline.SharedHelpers.OperatorPolicy'
+    'Baseline.SharedHelpers.InitialActions'
+    'Baseline.SharedHelpers.WindowsFeatures'
 )
 
-# Dot-sourcing runs each helper file in this module's scope (not an isolated
-# child scope). This is intentional: helpers share $Script:-scoped state
-# (e.g., $Script:SharedHelpersModuleRoot) and all exported functions land in
-# one flat module namespace. The trade-off is that helpers can accidentally
-# shadow each other's private variables - use distinctive names to avoid this.
-foreach ($helperFile in $HelperFiles)
+foreach ($helperModuleName in $HelperModuleNames)
 {
-    $helperPath = Join-Path -Path (Join-Path $PSScriptRoot 'SharedHelpers') -ChildPath $helperFile
-    if (-not (Test-Path -LiteralPath $helperPath))
+    $helperModulePath = Join-Path $helperModulesRoot "$helperModuleName.psm1"
+    if (-not (Test-Path -LiteralPath $helperModulePath))
     {
-        throw "Required shared helper file is missing: $helperPath"
+        throw "Required shared helper module is missing: $helperModulePath"
     }
 
-    . $helperPath
+    foreach ($existingHelperModule in @(Get-Module -Name $helperModuleName -All))
+    {
+        Remove-Module -ModuleInfo $existingHelperModule -Force -ErrorAction SilentlyContinue
+    }
+
+    Import-Module -Name $helperModulePath -Force -Global | Out-Null
 }
+
+$helperModuleNamesForCleanup = @($HelperModuleNames)
+$ExecutionContext.SessionState.Module.OnRemove = {
+    foreach ($helperModuleName in $helperModuleNamesForCleanup)
+    {
+        foreach ($loadedHelperModule in @(Get-Module -Name $helperModuleName -All))
+        {
+            Remove-Module -ModuleInfo $loadedHelperModule -Force -ErrorAction SilentlyContinue
+        }
+    }
+}.GetNewClosure()
 
 <#
     .SYNOPSIS
@@ -762,6 +780,7 @@ $ExportedFunctions = @(
     'Get-ScenarioProfilePlan'
     'Get-ScenarioProfileCommandList'
     'ConvertTo-HeadlessPresetName'
+    'Resolve-HeadlessEnvironmentPreset'
     'Get-HeadlessPresetCommandList'
     'Get-GameModeAllowlist'
     'Get-GameModeReviewedCrossCategoryAllowlist'
@@ -861,9 +880,13 @@ $ExportedFunctions = @(
     'Resolve-ApplicationPackageId'
     'Test-ApplicationPackageIdInCache'
     'Get-BaselineLifecycleComparableVersion'
+    'Get-BaselineReleaseArtifactVerification'
+    'Get-BaselineValidationMatrixSummary'
+    'Get-BaselineValidationEvidenceReport'
     'Import-BaselineRollbackProfile'
     'New-BaselineLifecyclePlaybook'
     'Invoke-BaselineLifecyclePlaybook'
+    'Assert-BaselineReleaseArtifactVerification'
     'New-BaselineIncidentReproductionPack'
     'Get-AuditLogPath'
     'Get-BaselineAuditRetentionDays'
@@ -873,7 +896,14 @@ $ExportedFunctions = @(
     'Get-AuditLog'
     'Export-AuditReport'
     'Clear-AuditLog'
+    'Get-BaselineAuditRetentionPolicyThreshold'
+    'Test-BaselineAuditRetentionBelowPolicy'
+    'Get-BaselineAuditRetentionPolicyWarning'
+    'Test-BaselineAuditRetentionTaskExecution'
+    'Get-BaselineAuditRetentionReport'
+    'Get-BaselineSupportBundleDeepLinks'
     'Export-BaselineSupportBundle'
+    'Test-BaselineSupportBundleIntegrity'
     'Register-BaselineScheduledTask'
     'Unregister-BaselineScheduledTask'
     'Get-BaselineScheduledTasks'
@@ -884,13 +914,37 @@ $ExportedFunctions = @(
     'Get-BaselineRemoteSessionSummary'
     'Get-BaselineRemoteOrchestrationHistoryPath'
     'Get-BaselineRemoteFailureProfile'
+    'New-BaselineRemoteAttemptRecord'
+    'Get-BaselineRemoteRetryAnalytics'
+    'Write-BaselineRemoteAttemptHistoryRecord'
     'Get-BaselineRemoteOrchestrationHistory'
     'Get-BaselineRemoteOrchestrationDetails'
     'Get-BaselineRemoteOrchestrationSummary'
+    'Get-BaselineRemoteRunSummaries'
     'Get-BaselineRemoteOrchestrationReconciliation'
     'Write-BaselineRemoteOrchestrationRecord'
+    'Write-BaselineRemoteOrchestrationSummaryRecord'
     'Invoke-BaselineRemoteCompliance'
     'Invoke-BaselineRemoteApply'
+    'Get-BaselineRemoteResumeDirectory'
+    'Get-BaselineRemoteResumeCheckpointPath'
+    'Save-BaselineRemoteResumeCheckpoint'
+    'Get-BaselineRemoteResumeCheckpoint'
+    'Get-BaselineRemoteResumableRuns'
+    'Clear-BaselineRemoteResumeCheckpoint'
+    'Resolve-BaselineRemoteResumeTargets'
+    'Resume-BaselineRemoteOrchestration'
+    'Get-BaselineRemoteTargetHealthPath'
+    'Get-BaselineRemoteTargetHealth'
+    'Update-BaselineRemoteTargetHealth'
+    'Get-BaselineRemoteTargetFailureHistory'
+    'Get-BaselineRemoteApprovalDecisionPath'
+    'Write-BaselineRemoteApprovalDecision'
+    'Get-BaselineRemoteApprovalDecisions'
+    'Write-BaselineRemoteRolloutOutcome'
+    'Get-BaselineRemoteRolloutOutcomes'
+    'Get-BaselineRemoteOrchestrationDashboard'
+    'Search-BaselineRemoteOrchestrationHistory'
     'Invoke-BaselineAutoUpdate'
     'Initialize-BaselineMarkdownRuntime'
     'Test-BaselineMarkdownRuntimeReady'
@@ -912,6 +966,13 @@ $ExportedFunctions = @(
     'Get-BaselineCliOutputFormat'
     'Format-BaselineCliResult'
     'Write-BaselineCliEvent'
+	'Get-BaselineFeatureMaturityLevels'
+	'ConvertTo-BaselineFeatureMaturityLevel'
+	'Get-BaselineFeatureMaturityRank'
+	'Test-BaselineFeatureMaturityAtLeast'
+	'Get-BaselineEnterpriseActionMaturityCatalog'
+	'Test-BaselineEnterpriseActionMaturityGate'
+	'Get-BaselineFeatureMaturityReport'
     'New-BaselineOperatorPolicy'
     'Test-BaselineOperatorChangeWindow'
     'Test-BaselineKillSwitch'
@@ -919,6 +980,26 @@ $ExportedFunctions = @(
     'Clear-BaselineKillSwitch'
     'Test-BaselineOperatorRunPolicy'
     'Format-BaselineOperatorPolicyDecision'
+    'ConvertFrom-BaselineJson'
+    'Get-BaselineStartupLabel'
+    'Test-BaselineUnsupportedHost'
+    'Test-BaselineHostsEntry'
+    'Get-BaselineHostsCandidateEntries'
+    'Test-BaselineHostsDownloadSuspect'
+    'Get-BaselineDefenderProductStateCode'
+    'Test-BaselineDefenderActiveByProductState'
+    'Test-BaselineDefenderFullyEnabled'
+    'Test-BaselineDefenderServicesHealthy'
+    'Get-WindowsCapabilityCheckedDefaults'
+    'Get-WindowsCapabilityUncheckedDefaults'
+    'Get-WindowsCapabilityExcludedDefaults'
+    'Get-WindowsCapabilityFriendlyNameMap'
+    'Get-WindowsFeatureCheckedDefaults'
+    'Get-WindowsFeatureUncheckedDefaults'
+    'Test-WindowsCapabilityPatternMatch'
+    'Get-WindowsCapabilityFriendlyName'
+    'Test-WindowsCapabilitySeedSelected'
+    'Select-WindowsCapabilityVisible'
 )
 
 Export-ModuleMember -Function $ExportedFunctions

@@ -30,11 +30,7 @@ function InitialActions
 	$osName = $osInfo.OSName
 	$displayVersion = Get-BaselineDisplayVersion
 
-	$startupLabel = "Baseline | Utility for $osName"
-	if (-not [string]::IsNullOrWhiteSpace([string]$displayVersion))
-	{
-		$startupLabel = "$startupLabel $displayVersion"
-	}
+	$startupLabel = Get-BaselineStartupLabel -OSName $osName -DisplayVersion $displayVersion
 
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_Starting' -Fallback 'Starting {0}' -FormatArgs @($startupLabel)) -addGap
 
@@ -154,7 +150,7 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 
 	# Checking whether the script was run in PowerShell ISE or VS Code
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingHostEnvironment' -Fallback 'Checking whether the script was run in PowerShell ISE or VS Code')
-	if (($Host.Name -match "ISE") -or ($env:TERM_PROGRAM -eq "vscode"))
+	if (Test-BaselineUnsupportedHost -HostName $Host.Name -TermProgram $env:TERM_PROGRAM)
 	{
 		LogWarning (Get-BaselineBilingualString -Key 'UnsupportedHost' -Fallback "The script doesn't support running via {0}." -FormatArgs @($Host.Name.Replace('Host', '')))
 	}
@@ -356,14 +352,12 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 			}
 			$update_v6 = (Invoke-WebRequest @Parameters).Content
 
-			$IPArray = @($extra, $extra_v6, $spy, $spy_v6, $update, $update_v6) -split "`r?`n" |
-				Where-Object { $_ -and ($_ -notmatch "^\s*#") }
+			$IPArray = Get-BaselineHostsCandidateEntries -Content (@($extra, $extra_v6, $spy, $spy_v6, $update, $update_v6) -split "`r?`n")
 
 			# Validate downloaded hosts entries for integrity
-			$HostsEntryPattern = '^\s*[\d.:a-fA-F]+\s+\S+'
 			$TotalLines = @($IPArray).Count
-			$InvalidLines = @($IPArray | Where-Object { $_ -notmatch $HostsEntryPattern })
-			$ValidLines = @($IPArray | Where-Object { $_ -match $HostsEntryPattern })
+			$InvalidLines = @($IPArray | Where-Object { -not (Test-BaselineHostsEntry -Line $_) })
+			$ValidLines = @($IPArray | Where-Object { Test-BaselineHostsEntry -Line $_ })
 
 			if ($InvalidLines.Count -gt 0)
 			{
@@ -373,7 +367,7 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 				}
 			}
 
-			if ($TotalLines -gt 0 -and ($InvalidLines.Count / $TotalLines) -gt 0.5)
+			if (Test-BaselineHostsDownloadSuspect -InvalidCount $InvalidLines.Count -TotalCount $TotalLines)
 			{
 				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_MoreThanHalfHostsEntriesFailedValidation' -Fallback 'More than 50% of downloaded hosts entries failed validation ({0}/{1}). Downloaded data may be corrupted or tampered. Skipping WindowsSpyBlocker hosts cleanup.' -FormatArgs @($InvalidLines.Count, $TotalLines))
 				return
@@ -581,7 +575,7 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 		LogWarning (Get-BaselineBilingualString -Key 'WindowsComponentBroken' -Fallback '{0} is broken or removed from Windows. Reinstall Windows using only a genuine ISO image.' -FormatArgs @('Microsoft Defender'))
 	}
 
-	$Script:DefenderServices = (($Services | Where-Object { $_.Status -ne "Running" } | Measure-Object).Count -lt $Services.Count)
+	$Script:DefenderServices = Test-BaselineDefenderServicesHealthy -Services $Services
 
 	# Checking Get-MpPreference cmdlet
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingGetMpPreference' -Fallback 'Checking Get-MpPreference cmdlet')
@@ -611,11 +605,7 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 		{
 			try
 			{
-				$ProductStateHex = '0x{0:x}' -f ([int]$DefenderProduct.productState)
-				if ($ProductStateHex.Length -ge 5)
-				{
-					$DefenderState = $ProductStateHex.Substring(3, 2)
-				}
+				$DefenderState = Get-BaselineDefenderProductStateCode -ProductState $DefenderProduct.productState
 			}
 			catch
 			{
@@ -628,7 +618,7 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_MicrosoftDefenderSecurityCenterStateUnavailable' -Fallback 'Microsoft Defender Security Center product state is not available on this OS.')
 	}
 
-	if ($DefenderState -and $DefenderState -notmatch "00|01")
+	if (Test-BaselineDefenderActiveByProductState -StateCode $DefenderState)
 	{
 		# Defender is a currently used AV. Continue...
 		$Script:DefenderProductState = $true
@@ -671,7 +661,7 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 		$Script:BehaviorMonitoringEnabled = $false
 	}
 
-	if ($Script:DefenderServices -and $Script:DefenderProductState -and $Script:AntiSpywareEnabled -and $Script:RealtimeMonitoringEnabled -and $Script:BehaviorMonitoringEnabled)
+	if (Test-BaselineDefenderFullyEnabled -ServicesRunning $Script:DefenderServices -ProductStateActive $Script:DefenderProductState -AntiSpywareEnabled $Script:AntiSpywareEnabled -RealtimeMonitoringEnabled $Script:RealtimeMonitoringEnabled -BehaviorMonitoringEnabled $Script:BehaviorMonitoringEnabled)
 	{
 		# Defender is enabled
 		$Script:DefenderEnabled = $true

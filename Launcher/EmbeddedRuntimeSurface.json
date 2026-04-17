@@ -8,9 +8,11 @@
     "Module/Logging.psm1",
     "Module/SharedHelpers.psm1",
     "Module/GUICommon.psm1",
+    "Module/GUICommon/*.ps1",
     "Module/GUIExecution.psm1",
     "Module/SharedHelpers/*.ps1",
     "Module/GUI/*.ps1",
+    "Module/GUI/*.xaml",
     "Module/Regions/**/*.psm1",
     "Module/Data/**/*.json",
     "Module/Fonts/FluentSystemIcons.ttf",
@@ -33,7 +35,6 @@
     "CHANGELOG.md",
     "README.md",
     "todo.md",
-    "Module/GUI/MODELS.md",
-    "Module/GUI/STATE.md"
+    "dev_docs/**"
   ]
 }

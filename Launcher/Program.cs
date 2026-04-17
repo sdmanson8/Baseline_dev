@@ -25,7 +25,7 @@ namespace Baseline.RunLauncher
         private const string LanguageVar = "BASELINE_LANGUAGE";
         private const string PayloadPrefix = "BaselinePayload/";
         private const string HydrationSentinel = ".baseline-runtime-ready";
-        private const string RuntimeCacheSchema = "3";
+        private const string RuntimeCacheSchema = "4";
         private static readonly byte[] Utf8Bom = new byte[] { 0xEF, 0xBB, 0xBF };
         private const int DefaultPowerShellTimeoutSeconds = 1800;
         private const string PowerShellTimeoutSecondsVar = "BASELINE_POWERSHELL_TIMEOUT_SECONDS";
@@ -186,7 +186,7 @@ namespace Baseline.RunLauncher
 
             using (var fs = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                if (ShouldPrependUtf8Bom(resourceStream) && !ResourceStartsWithUtf8Bom(resourceStream))
+                if (ShouldPrependUtf8Bom(target, resourceStream) && !ResourceStartsWithUtf8Bom(resourceStream))
                 {
                     fs.Write(Utf8Bom, 0, Utf8Bom.Length);
                 }
@@ -198,11 +198,12 @@ namespace Baseline.RunLauncher
         /// <summary>
         /// Determines whether a hydrated resource should be written with a UTF-8 BOM.
         /// </summary>
+        /// <param name="target">The destination file path.</param>
         /// <param name="resourceStream">The embedded resource stream.</param>
         /// <returns>True when the file should be prefixed with a BOM.</returns>
-        private static bool ShouldPrependUtf8Bom(Stream resourceStream)
+        private static bool ShouldPrependUtf8Bom(string target, Stream resourceStream)
         {
-            if (!resourceStream.CanSeek || resourceStream.Length == 0)
+            if (!RequiresPowerShellUtf8Bom(target) || !resourceStream.CanSeek || resourceStream.Length == 0)
             {
                 return false;
             }
@@ -211,7 +212,7 @@ namespace Baseline.RunLauncher
             try
             {
                 resourceStream.Position = 0;
-                var sampleLength = (int)Math.Min(resourceStream.Length, 4096);
+                var sampleLength = checked((int)resourceStream.Length);
                 var sample = new byte[sampleLength];
                 var bytesRead = resourceStream.Read(sample, 0, sample.Length);
                 if (bytesRead <= Utf8Bom.Length)
@@ -219,12 +220,25 @@ namespace Baseline.RunLauncher
                     return false;
                 }
 
+                var hasNonAsciiByte = false;
                 for (var i = 0; i < bytesRead; i++)
                 {
                     if (sample[i] == 0)
                     {
                         return false;
                     }
+
+                    if (sample[i] > 127)
+                    {
+                        hasNonAsciiByte = true;
+                    }
+                }
+
+                // ASCII-only scripts are safe without a BOM. Only preserve UTF-8 BOMs
+                // for PowerShell script resources that actually contain non-ASCII bytes.
+                if (!hasNonAsciiByte)
+                {
+                    return false;
                 }
 
                 try
@@ -241,6 +255,24 @@ namespace Baseline.RunLauncher
             {
                 resourceStream.Position = originalPosition;
             }
+        }
+
+        /// <summary>
+        /// Determines whether a resource type relies on a UTF-8 BOM when hydrated.
+        /// </summary>
+        /// <param name="target">The destination file path.</param>
+        /// <returns>True when the resource is a PowerShell script/module file.</returns>
+        private static bool RequiresPowerShellUtf8Bom(string target)
+        {
+            if (string.IsNullOrWhiteSpace(target))
+            {
+                return false;
+            }
+
+            var extension = Path.GetExtension(target);
+            return extension.Equals(".ps1", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".psm1", StringComparison.OrdinalIgnoreCase)
+                || extension.Equals(".psd1", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -301,6 +333,14 @@ namespace Baseline.RunLauncher
             var v = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
                  ?? asm.GetName().Version?.ToString()
                  ?? "0.0.0";
+
+            // Strip build metadata so the cache path only reflects the public bundle version.
+            var plusIndex = v.IndexOf('+');
+            if (plusIndex > 0)
+            {
+                v = v.Substring(0, plusIndex);
+            }
+
             var bad = Path.GetInvalidFileNameChars();
             return new string(v.Select(c => bad.Contains(c) ? '_' : c).ToArray());
         }
@@ -312,7 +352,8 @@ namespace Baseline.RunLauncher
         /// <returns>The bundle build identifier.</returns>
         private static string GetBundleBuildId(Assembly asm)
         {
-            return asm.ManifestModule.ModuleVersionId.ToString("N");
+            var buildId = asm.ManifestModule.ModuleVersionId.ToString("N");
+            return buildId;
         }
 
         // ── State root ────────────────────────────────────────────────────────────
@@ -387,6 +428,10 @@ namespace Baseline.RunLauncher
                 return false;
             }
             catch (System.Security.SecurityException)
+            {
+                return false;
+            }
+            catch (Exception)
             {
                 return false;
             }

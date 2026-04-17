@@ -85,184 +85,30 @@ else
 
 $SourcePath = Resolve-LocalizationFilePath -LocalizationRoot $LocalizationDir -FileName $SourceFileName
 
-# Keep these English on purpose.
-$ExemptKeys = @(
-    'GuiChoiceWindowsTerminal'
-    'GuiTabOneDrive'
-    'GuiTagAi'
-    'GuiTagBluetooth'
-    'GuiTagDefender'
-    'GuiTagHdr'
-    'GuiTagOffice'
-    'GuiTagRpc'
-    'GuiTagStore'
-    'GuiTagUac'
-    'GuiTagUi'
-    'Tweak_OneDrive'
-
-    # Log / diagnostic keys kept English intentionally
-    'GuiLogExecutionCompleteDefaultsAborted'
-    'GuiLogExecutionCompleteRunAborted'
-    'GuiLogExecutionOuterCatch'
-    'GuiLogExecutionCompleteFailed'
-    'GuiLogInfo'
-    'GuiLogFailed'
-    'GuiLogSkippedWarning'
-    'GuiLogSuccess'
-    'GuiLogViewerTitle'
-    'GuiLogExecutionRunDone'
-    'GuiLogRuntimeFailureInvocation'
-    'GuiLogRuntimeFailureScriptStackTrace'
-    'GuiLogRuntimeFailureStackTrace'
-
-    # Technical/UI terms you may want to keep English globally
-    'GuiBtnOk'
-    'GuiTagExplorer'
-    'GuiTagTerminal'
-    'GuiTagFirmware'
-    'GuiChoiceConsoleHost'
-    'Tweak_DefenderSandbox'
-    'Tweak_Teredo'
-    'Tweak_WindowsSandbox'
-
-    # Shared labels and shell terms that are intentionally stable across locales
-    'GuiAppsCategoryBrowsers'
-    'GuiAppsCategoryCommunication'
-    'GuiAppsCategoryCompression'
-    'GuiAppsCategoryDocuments'
-    'GuiAppsCategoryImaging'
-    'GuiAppsCategoryMedia'
-    'GuiAuditFilter'
-    'GuiChoiceDownloads'
-    'GuiChoiceCompact'
-    'GuiChoiceMax'
-    'GuiChoiceMinimal'
-    'GuiChoicePublic'
-    'GuiBtnFilterToggle'
-    'GuiGameModeCompareItemColumn'
-    'GuiGameModeCompareVs'
-    'GuiHelpSectionImportExport'
-    'GuiHelpExpertSectionModes'
-    'GuiImpactBadge'
-    'GuiDetailsButton'
-    'GuiPauseButton'
-    'GuiPreflightNameAdmin'
-    'GuiRecoveryLevelDirect'
-    'GuiRecoveryLevelManual'
-    'GuiRestorePossible'
-    'GuiSectionImpact'
-    'GuiScenarioLabelPrivacy'
-    'GuiTabCursors'
-    'GuiTabUpdates'
-    'GuiTabSystem'
-    'GuiTagApp'
-    'GuiTagBackup'
-    'GuiTagCasual'
-    'GuiTagAudio'
-    'GuiTagBrowser'
-    'GuiTagDebloat'
-    'GuiTagDesktop'
-    'GuiTagCursor'
-    'GuiTagDownloads'
-    'GuiTagFirewall'
-    'GuiTagHardware'
-    'GuiTagMedia'
-    'GuiTagMultimedia'
-    'GuiTagMouse'
-    'GuiTagClipboard'
-    'GuiTagCrash'
-    'GuiTagNotification'
-    'GuiTagOverlay'
-    'GuiTagPrinter'
-    'GuiTagPrivacy'
-    'GuiTagService'
-    'GuiTagStreaming'
-    'GuiTagSystem'
-    'GuiTagUpdates'
-    'GuiRiskFilterLabel'
-    'GuiTweakTypeAction'
-    'GuiTweakTypeDate'
-
-    # Session cleanup 2026-04-11: keys where translator confirmed English = native usage
-    # across multiple locales (brand/tech terms, short UI labels, product names).
-    'Category_SoftwareApps_Title'
-    'GuiAppsCategoryAll'
-    'GuiAuditFilterAll'
-    'GuiAuditModeFormat'
-    'GuiAuditPresetFormat'
-    'GuiCategoryAll'
-    'GuiChkLightMode'
-    'GuiChkSafeMode'
-    'GuiChoiceDefault'
-    'GuiChoiceSearchBox'
-    'GuiCommonLogFilePrefix'
-    'GuiDefaultLabel'
-    'GuiDiffTargetPrefix'
-    'GuiDiffViewTitle'
-    'GuiExecutionSummaryLogFile'
-    'GuiGameModePillRestorePoint'
-    'GuiGameModeProfileA'
-    'GuiGameModeProfileB'
-    'GuiHelpSectionExpertMode'
-    'GuiHelpSectionSafeMode'
-    'GuiPreflightNameRestore'
-    'GuiPreflightNameRestorePoint'
-    'GuiPreviewStatusAll'
-    'GuiPreviewStatusRestorePoint'
-    'GuiRecoveryLevelRestorePoint'
-    'GuiRiskAll'
-    'GuiScenarioLabelWorkstation'
-    'GuiSectionDefault'
-    'GuiTabStartMenu'
-    'GuiTabTaskbarClock'
-    'GuiTabUWPApps'
-    'GuiTagAccessibility'
-    'GuiTagAdvanced'
-    'GuiTagDisplay'
-    'GuiTagFilesystem'
-    'GuiTagLockScreen'
-    'GuiTagNetwork'
-    'GuiTagNetworking'
-    'GuiTagStartMenu'
-    'GuiTweakStateCustom'
-    'GuiTweakStateIdle'
-    'Nav_SoftwareAndApps'
-    'Progress_Error'
-    'TweakDesc_CrossDeviceResume'
-    'TweakDesc_DeliveryOptimization'
-    'TweakDesc_FullscreenOptimizations'
-    'TweakDesc_GPUScheduling'
-    'TweakDesc_LockScreen'
-    'TweakDesc_NCSIProbe'
-    'TweakDesc_Notifications'
-    'TweakDesc_S3Sleep'
-    'TweakDesc_UWPSwapFile'
-    'TweakDesc_WPBT'
-    'TweakDesc_WindowsGameMode'
-    'Tweak_AdvertisingID'
-    'Tweak_BootRecovery'
-    'Tweak_CIMemoryIntegrity'
-    'Tweak_DiagTrackService'
-    'Tweak_LLMNR'
-    'Tweak_LanmanWorkstationGuestAuthPolicy'
-    'Tweak_LockScreen'
-    'Tweak_LockScreenRS1'
-    'Tweak_SMB1'
-    'Tweak_StandbyFix'
-    'Tweak_Superfetch'
-    'Tweak_UWPCalendar'
-    'Tweak_UWPRadios'
-    'Tweak_UpdateMSRT'
-    'UWPAppsTitle'
-
-)
+# Exempt list intentionally empty: every non-English locale should translate every key.
+$ExemptKeys = @()
 
 $ExemptKeysPath = Join-Path $LocalizationDir 'english_exempt_keys.json'
 if (Test-Path -LiteralPath $ExemptKeysPath -PathType Leaf)
 {
-    $ExemptKeys += @(
-        Get-Content -LiteralPath $ExemptKeysPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    )
+    $ExemptKeyData = Get-Content -LiteralPath $ExemptKeysPath -Raw -Encoding UTF8 | ConvertFrom-Json
+
+    if ($ExemptKeyData -is [System.Collections.IDictionary])
+    {
+        $ExemptKeys += @($ExemptKeyData.Keys)
+    }
+    elseif ($ExemptKeyData -is [pscustomobject])
+    {
+        $props = @($ExemptKeyData.PSObject.Properties)
+        if ($props.Count -gt 0)
+        {
+            $ExemptKeys += @($props | ForEach-Object { $_.Name })
+        }
+    }
+    else
+    {
+        $ExemptKeys += @($ExemptKeyData)
+    }
 }
 
 $ExemptKeys = @(

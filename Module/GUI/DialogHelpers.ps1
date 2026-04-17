@@ -1,4 +1,4 @@
-﻿# Dialog helper functions: risk decision, help, and log viewer dialogs
+# Dialog helper functions: risk decision, help, and log viewer dialogs
 
 	<#
 	    .SYNOPSIS
@@ -366,7 +366,7 @@
 			<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
 				<Grid>
 					<TextBlock Text="$windowTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
-					<Button Name="BtnDlgClose" Content="×" FontFamily="Arial" FontSize="12" Width="32" Height="28"
+					<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
 						Background="Transparent" Foreground="$($theme.TextPrimary)" BorderThickness="0" Cursor="Hand"
 						HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
 				</Grid>
@@ -593,7 +593,7 @@
 			<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
 				<Grid>
 					<TextBlock Text="$windowTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
-					<Button Name="BtnDlgClose" Content="×" FontFamily="Arial" FontSize="12" Width="32" Height="28"
+					<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
 						Background="Transparent" Foreground="$($theme.TextPrimary)" BorderThickness="0" Cursor="Hand"
 						HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
 				</Grid>
@@ -791,7 +791,7 @@
 			<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
 				<Grid>
 					<TextBlock Text="$windowTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
-					<Button Name="BtnDlgClose" Content="×" FontFamily="Arial" FontSize="12" Width="32" Height="28"
+					<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
 						Background="Transparent" Foreground="$($theme.TextPrimary)" BorderThickness="0" Cursor="Hand"
 						HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
 				</Grid>
@@ -824,8 +824,31 @@
 					<TextBlock Name="TxtConnectedAt" Grid.Row="2" Text="" Margin="0,0,0,8" TextWrapping="Wrap" Foreground="$($theme.TextSecondary)"/>
 					<TextBlock Name="TxtApprovalMessage" Grid.Row="3" Text="" Margin="0,0,0,8" TextWrapping="Wrap" Foreground="$($theme.TextSecondary)"/>
 					<TextBlock Name="TxtCachedSessions" Grid.Row="4" Text="" Margin="0,0,0,8" TextWrapping="Wrap" Foreground="$($theme.TextSecondary)"/>
-					<TextBlock Name="TxtRecentOrchestration" Grid.Row="5" Text="" Margin="0,0,0,8" TextWrapping="Wrap" Foreground="$($theme.TextSecondary)"/>
-					<TextBlock Name="TxtConsoleHint" Grid.Row="6" Text="" Margin="0,14,0,0" TextWrapping="Wrap" Foreground="$($theme.TextMuted)"/>
+					<Border Grid.Row="5" Background="$($theme.InputBg)" BorderBrush="$($theme.BorderColor)" BorderThickness="1" CornerRadius="6" Padding="12,10,12,10" Margin="0,0,0,8">
+						<StackPanel>
+							<Grid Margin="0,0,0,8">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="*"/>
+									<ColumnDefinition Width="Auto"/>
+								</Grid.ColumnDefinitions>
+								<TextBlock Grid.Column="0" Text="Recent remote runs" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)" VerticalAlignment="Center"/>
+								<TextBox Name="TxtFilterRuns" Grid.Column="1" Width="200" Padding="4" VerticalAlignment="Center"/>
+							</Grid>
+							<ListView Name="LstRecentRemoteRuns" BorderThickness="0" Background="Transparent" Height="180">
+								<ListView.View>
+									<GridView>
+										<GridViewColumn Header="Date" Width="155" DisplayMemberBinding="{Binding Timestamp, StringFormat='yyyy-MM-dd HH:mm:ss'}"/>
+										<GridViewColumn Header="Operation" Width="120" DisplayMemberBinding="{Binding Operation}"/>
+										<GridViewColumn Header="State" Width="90" DisplayMemberBinding="{Binding TerminalState}"/>
+										<GridViewColumn Header="Targets" Width="70" DisplayMemberBinding="{Binding TargetCount}"/>
+										<GridViewColumn Header="Counts" Width="240" DisplayMemberBinding="{Binding CountsSummary}"/>
+										<GridViewColumn Header="Summary" Width="420" DisplayMemberBinding="{Binding Summary}"/>
+									</GridView>
+								</ListView.View>
+							</ListView>
+						</StackPanel>
+					</Border>
+					<TextBlock Name="TxtConsoleHint" Grid.Row="6" Text="" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="$($theme.TextMuted)"/>
 				</Grid>
 			</ScrollViewer>
 
@@ -877,8 +900,9 @@
 		$txtConnectedAt = $dlg.FindName('TxtConnectedAt')
 		$txtApprovalMessage = $dlg.FindName('TxtApprovalMessage')
 		$txtCachedSessions = $dlg.FindName('TxtCachedSessions')
-		$txtRecentOrchestration = $dlg.FindName('TxtRecentOrchestration')
+		$lstRecentRemoteRuns = $dlg.FindName('LstRecentRemoteRuns')
 		$txtConsoleHint = $dlg.FindName('TxtConsoleHint')
+		$txtFilterRuns = $dlg.FindName('TxtFilterRuns')
 
 		$promptRemoteTargetConnectionCommand = Get-GuiRuntimeCommand -Name 'Prompt-GuiRemoteTargetConnection' -CommandType 'Function'
 		$setRemoteTargetContextCommand = Get-GuiRuntimeCommand -Name 'Set-GuiRemoteTargetContext' -CommandType 'Function'
@@ -889,8 +913,12 @@
 		$exportRemoteTargetApprovalPolicyCommand = Get-GuiRuntimeCommand -Name 'Export-GuiRemoteTargetApprovalPolicy' -CommandType 'Function'
 		$importRemoteTargetApprovalPolicyCommand = Get-GuiRuntimeCommand -Name 'Import-GuiRemoteTargetApprovalPolicy' -CommandType 'Function'
 		$getRemoteSessionSummaryCommand = Get-GuiRuntimeCommand -Name 'Get-BaselineRemoteSessionSummary' -CommandType 'Function'
+		$getRemoteRunSummariesCommand = Get-GuiRuntimeCommand -Name 'Get-BaselineRemoteRunSummaries' -CommandType 'Function'
 		$getRemoteOrchestrationDetailsCommand = Get-GuiRuntimeCommand -Name 'Get-BaselineRemoteOrchestrationDetails' -CommandType 'Function'
 		$getRemoteOrchestrationSummaryCommand = Get-GuiRuntimeCommand -Name 'Get-BaselineRemoteOrchestrationSummary' -CommandType 'Function'
+		$exportSupportBundleCommand = Get-GuiRuntimeCommand -Name 'Export-BaselineSupportBundle' -CommandType 'Function'
+		$showGuiFileSaveDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiFileSaveDialog' -CommandType 'Function'
+		$getGuiSettingsSnapshotCommand = Get-GuiRuntimeCommand -Name 'Get-GuiSettingsSnapshot' -CommandType 'Function'
 		$testRemoteConnectivityCommand = Get-GuiRuntimeCommand -Name 'Test-BaselineRemoteConnectivity' -CommandType 'Function'
 		$testInteractiveHostCapture = Get-GuiFunctionCapture -Name 'Test-InteractiveHost'
 		$showRemoteConsoleError = {
@@ -921,6 +949,197 @@
 			LogWarn ($Title + ': ' + $Message)
 		}.GetNewClosure()
 
+		if ($txtFilterRuns -and (Get-Command -Name 'Set-GuiWatermarkText' -CommandType Function -ErrorAction SilentlyContinue))
+		{
+			Set-GuiWatermarkText -TextBox $txtFilterRuns -Text 'Filter runs...'
+		}
+
+		$remoteRunsCtx = New-Object System.Windows.Controls.ContextMenu
+		$ctxOpenLog = New-Object System.Windows.Controls.MenuItem
+		$ctxOpenLog.Header = 'Open Log...'
+		$ctxExportBundle = New-Object System.Windows.Controls.MenuItem
+		$ctxExportBundle.Header = 'Export Support Bundle...'
+		$ctxIncidentPack = New-Object System.Windows.Controls.MenuItem
+		$ctxIncidentPack.Header = 'Generate Incident Repro Pack...'
+		$ctxExportDeepLinkedBundle = New-Object System.Windows.Controls.MenuItem
+		$ctxExportDeepLinkedBundle.Header = 'Export Deep-Linked Support Bundle...'
+		$ctxRetryFailed = New-Object System.Windows.Controls.MenuItem
+		$ctxRetryFailed.Header = 'Retry Failed Targets'
+		$ctxExportFailed = New-Object System.Windows.Controls.MenuItem
+		$ctxExportFailed.Header = 'Export Failed Target List...'
+		
+		[void]$remoteRunsCtx.Items.Add($ctxOpenLog)
+		[void]$remoteRunsCtx.Items.Add($ctxExportBundle)
+		[void]$remoteRunsCtx.Items.Add($ctxIncidentPack)
+		[void]$remoteRunsCtx.Items.Add($ctxExportDeepLinkedBundle)
+		[void]$remoteRunsCtx.Items.Add((New-Object System.Windows.Controls.Separator))
+		[void]$remoteRunsCtx.Items.Add($ctxRetryFailed)
+		[void]$remoteRunsCtx.Items.Add($ctxExportFailed)
+		if ($lstRecentRemoteRuns) { $lstRecentRemoteRuns.ContextMenu = $remoteRunsCtx }
+
+		$remoteRunsCtx.Add_Opened({
+			$selected = $lstRecentRemoteRuns.SelectedItem
+			if (-not $selected)
+			{
+				$ctxOpenLog.IsEnabled = $false
+				$ctxExportBundle.IsEnabled = $false
+				$ctxIncidentPack.IsEnabled = $false
+				$ctxRetryFailed.IsEnabled = $false
+				$ctxExportFailed.IsEnabled = $false
+			}
+			else
+			{
+				$hasLog = (Test-GuiObjectField -Object $selected -FieldName 'LogPath') -and -not [string]::IsNullOrWhiteSpace($selected.LogPath)
+				$hasBundle = (Test-GuiObjectField -Object $selected -FieldName 'BundlePath') -and -not [string]::IsNullOrWhiteSpace($selected.BundlePath)
+				$hasFailed = (Test-GuiObjectField -Object $selected -FieldName 'FailedCount') -and $selected.FailedCount -gt 0
+				$canDeepLink = (Test-GuiObjectField -Object $selected -FieldName 'RunId') -and -not [string]::IsNullOrWhiteSpace([string]$selected.RunId) -and $hasFailed
+
+				$ctxOpenLog.IsEnabled = $hasLog
+				$ctxExportBundle.IsEnabled = $hasBundle
+				$ctxIncidentPack.IsEnabled = ($hasBundle -and [string]$selected.TerminalState -match '(?i)Failed')
+				$ctxExportDeepLinkedBundle.IsEnabled = $canDeepLink
+				$ctxRetryFailed.IsEnabled = $hasFailed
+				$ctxExportFailed.IsEnabled = $hasFailed
+			}
+		}.GetNewClosure())
+
+		$ctxOpenLog.Add_Click({
+			$selected = $lstRecentRemoteRuns.SelectedItem
+			if ($selected -and (Test-GuiObjectField -Object $selected -FieldName 'LogPath') -and -not [string]::IsNullOrWhiteSpace($selected.LogPath))
+			{
+				Show-LogDialog -LogPath $selected.LogPath
+			}
+		}.GetNewClosure())
+
+		$ctxExportBundle.Add_Click({
+			$selected = $lstRecentRemoteRuns.SelectedItem
+			if ($selected -and (Test-GuiObjectField -Object $selected -FieldName 'BundlePath') -and -not [string]::IsNullOrWhiteSpace($selected.BundlePath))
+			{
+				try { [System.Diagnostics.Process]::Start('explorer.exe', "/select,`"$($selected.BundlePath)`"") } catch { & $showRemoteConsoleError -Title 'Remote Console' -Message "Failed to show bundle: $($_.Exception.Message)" }
+			}
+		}.GetNewClosure())
+
+		$ctxIncidentPack.Add_Click({
+			$selected = $lstRecentRemoteRuns.SelectedItem
+			if ($selected -and (Test-GuiObjectField -Object $selected -FieldName 'BundlePath') -and -not [string]::IsNullOrWhiteSpace($selected.BundlePath))
+			{
+				try
+				{
+					$incidentPackCmd = Get-GuiRuntimeCommand -Name 'New-IncidentReproductionPack' -CommandType 'Function'
+					if ($incidentPackCmd)
+					{
+						& $incidentPackCmd -SupportBundlePath $selected.BundlePath
+					}
+				}
+				catch
+				{
+					& $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to generate incident reproduction pack.`n`n{0}" -f $_.Exception.Message)
+				}
+			}
+		}.GetNewClosure())
+
+		$ctxExportDeepLinkedBundle.Add_Click({
+			$selected = $lstRecentRemoteRuns.SelectedItem
+			if (-not $selected) { return }
+			if (-not (Test-GuiObjectField -Object $selected -FieldName 'RunId') -or [string]::IsNullOrWhiteSpace([string]$selected.RunId)) { return }
+			if (-not (Test-GuiObjectField -Object $selected -FieldName 'FailedCount') -or [int]$selected.FailedCount -le 0) { return }
+			if (-not $exportSupportBundleCommand -or -not $showGuiFileSaveDialogCommand)
+			{
+				& $showRemoteConsoleError -Title 'Remote Console' -Message 'Support bundle export is unavailable in this runtime.'
+				return
+			}
+
+			try
+			{
+				$defaultFileName = 'Baseline-SupportBundle-{0}-{1}.zip' -f ((Get-Date -Format 'yyyyMMdd-HHmmss')), ([string]$selected.ComputerName -replace '[^A-Za-z0-9._-]', '_')
+				$savePath = & $showGuiFileSaveDialogCommand -Title 'Export Deep-Linked Support Bundle' -Filter 'ZIP Files (*.zip)|*.zip|All Files (*.*)|*.*' -DefaultExtension 'zip' -FileName $defaultFileName
+				if ([string]::IsNullOrWhiteSpace($savePath)) { return }
+
+				$sessionSnapshot = $null
+				try { if ($getGuiSettingsSnapshotCommand) { $sessionSnapshot = & $getGuiSettingsSnapshotCommand } } catch { $sessionSnapshot = $null }
+				$sessionStatePath = Join-Path ([System.IO.Path]::GetTempPath()) ('BaselineSupportBundleSession_{0}.json' -f [guid]::NewGuid().ToString('N'))
+				try
+				{
+					$sessionPayload = [ordered]@{
+						Schema = 'Baseline.GuiSession'
+						SchemaVersion = 1
+						SavedAt = (Get-Date).ToString('o')
+						State = $sessionSnapshot
+					}
+					($sessionPayload | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $sessionStatePath -Encoding UTF8 -Force
+
+					$systemSnapshot = $null
+					try { $systemSnapshot = New-SystemStateSnapshot -Manifest $Script:TweakManifest } catch { $systemSnapshot = $null }
+
+					$result = & $exportSupportBundleCommand -OutputPath $savePath -ProfilePath $sessionStatePath -SystemSnapshot $systemSnapshot -Manifest $Script:TweakManifest -IncludeAuditLog -IncludeTestReport -DeepLinkRunId @([string]$selected.RunId) -DeepLinkComputerName @([string]$selected.ComputerName) -DeepLinkOperation @([string]$selected.Operation)
+					LogInfo ("Exported deep-linked support bundle to {0}" -f $result.OutputPath)
+					try { [System.Diagnostics.Process]::Start('explorer.exe', "/select,`"$($result.OutputPath)`"") | Out-Null } catch { }
+				}
+				finally
+				{
+					if (Test-Path -LiteralPath $sessionStatePath)
+					{
+						try { Remove-Item -LiteralPath $sessionStatePath -Force -ErrorAction SilentlyContinue } catch { }
+					}
+				}
+			}
+			catch
+			{
+				& $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to export deep-linked support bundle.`n`n{0}" -f $_.Exception.Message)
+			}
+		}.GetNewClosure())
+
+		$ctxRetryFailed.Add_Click({
+			$selected = $lstRecentRemoteRuns.SelectedItem
+			if ($selected -and (Test-GuiObjectField -Object $selected -FieldName 'FailedCount') -and $selected.FailedCount -gt 0)
+			{
+				$targets = if (Test-GuiObjectField -Object $selected -FieldName 'FailedTargets') { @($selected.FailedTargets) } else { @() }
+				if ($targets.Count -gt 0)
+				{
+					try
+					{
+						$ctx = Invoke-CapturedFunction -Name 'Get-GuiRemoteTargetContext'
+						$cred = if ($ctx) { $ctx.Credential } else { $null }
+						$null = Invoke-CapturedFunction -Name 'Set-GuiRemoteTargetContext' -Parameters @{
+							ComputerName = $targets
+							Credential = $cred
+							StatusMessage = 'Context updated to retry failed targets.'
+						}
+						& $refreshConsole
+					}
+					catch
+					{
+						& $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to stage retry targets.`n`n{0}" -f $_.Exception.Message)
+					}
+				}
+				else
+				{
+					& $showRemoteConsoleError -Title 'Remote Console' -Message "Failed target list not available in this summary."
+				}
+			}
+		}.GetNewClosure())
+
+		$ctxExportFailed.Add_Click({
+			$selected = $lstRecentRemoteRuns.SelectedItem
+			if ($selected -and (Test-GuiObjectField -Object $selected -FieldName 'FailedCount') -and $selected.FailedCount -gt 0)
+			{
+				$targets = if (Test-GuiObjectField -Object $selected -FieldName 'FailedTargets') { @($selected.FailedTargets) } else { @() }
+				if ($targets.Count -gt 0)
+				{
+					$dialog = New-Object Microsoft.Win32.SaveFileDialog
+					$dialog.Title = 'Export Failed Targets'
+					$dialog.Filter = 'Text Files (*.txt)|*.txt|All Files (*.*)|*.*'
+					$dialog.DefaultExt = 'txt'
+					$dialog.FileName = ('FailedTargets-{0}.txt' -f $selected.Timestamp.ToString('yyyyMMdd-HHmmss'))
+					if ($dialog.ShowDialog($dlg) -eq $true)
+					{
+						try { [System.IO.File]::WriteAllLines($dialog.FileName, $targets) } catch { & $showRemoteConsoleError -Title 'Export Failed' -Message ("Failed to write file.`n`n{0}" -f $_.Exception.Message) }
+					}
+				}
+				else { & $showRemoteConsoleError -Title 'Remote Console' -Message "Failed target list not available in this summary." }
+			}
+		}.GetNewClosure())
+
 		$refreshConsole = {
 			$context = $null
 			try { $context = Invoke-CapturedFunction -Name 'Get-GuiRemoteTargetContext' } catch { $context = $null }
@@ -929,7 +1148,11 @@
 			$recentRuns = @()
 			try
 			{
-				if (Get-GuiFunctionCapture -Name 'Get-BaselineRemoteOrchestrationDetails')
+				if ($getRemoteRunSummariesCommand)
+				{
+					$recentRuns = @((Invoke-CapturedFunction -Name 'Get-BaselineRemoteRunSummaries' -Parameters @{ MaxRecords = 5 }))
+				}
+				elseif (Get-GuiFunctionCapture -Name 'Get-BaselineRemoteOrchestrationDetails')
 				{
 					$recentRuns = @((Invoke-CapturedFunction -Name 'Get-BaselineRemoteOrchestrationDetails' -Parameters @{ MaxRecords = 5 }))
 				}
@@ -941,6 +1164,45 @@
 			catch
 			{
 				$recentRuns = @()
+			}
+
+			$recentRunRows = @()
+			if ($recentRuns.Count -gt 0)
+			{
+				$recentRunRows = @($recentRuns | ForEach-Object {
+					$timestamp = $null
+					try { $timestamp = [datetime]::Parse([string]$_.Timestamp) } catch { $timestamp = [datetime]::UtcNow }
+					$succeededCount = if ($_.PSObject.Properties['SucceededCount']) { [int]$_.SucceededCount } else { 0 }
+					$failedCount = if ($_.PSObject.Properties['FailedCount']) { [int]$_.FailedCount } else { 0 }
+					$skippedCount = if ($_.PSObject.Properties['SkippedCount']) { [int]$_.SkippedCount } else { 0 }
+					$retryingCount = if ($_.PSObject.Properties['RetryingCount']) { [int]$_.RetryingCount } else { 0 }
+					$cancelledCount = if ($_.PSObject.Properties['CancelledCount']) { [int]$_.CancelledCount } else { 0 }
+					$attempts = if ($_.PSObject.Properties['TotalAttempts']) { [int]$_.TotalAttempts } else { 0 }
+					$retries = if ($_.PSObject.Properties['TotalRetries']) { [int]$_.TotalRetries } else { 0 }
+
+					[pscustomobject]@{
+						Timestamp      = $timestamp
+						Operation      = if ($_.PSObject.Properties['Operation']) { [string]$_.Operation } else { 'Remote' }
+						TerminalState  = if ($_.PSObject.Properties['TerminalState']) { [string]$_.TerminalState } else { 'Unknown' }
+						TargetCount    = if ($_.PSObject.Properties['TargetCount']) { [int]$_.TargetCount } else { 0 }
+						FailedCount    = $failedCount
+						FailedTargets  = if ($_.PSObject.Properties['FailedTargets']) { @($_.FailedTargets) } else { @() }
+						CountsSummary  = ('Success={0}, Failed={1}, Skipped={2}, Retrying={3}, Cancelled={4}, Attempts={5}, Retries={6}' -f $succeededCount, $failedCount, $skippedCount, $retryingCount, $cancelledCount, $attempts, $retries)
+						Summary        = if ($_.PSObject.Properties['Summary']) { [string]$_.Summary } else { ('{0} | {1} | Run {2}' -f $timestamp.ToString('yyyy-MM-dd HH:mm:ss'), (if ($_.PSObject.Properties['Operation']) { [string]$_.Operation } else { 'Remote' }), (if ($_.PSObject.Properties['RunId']) { [string]$_.RunId } else { 'n/a' })) }
+						LogPath        = if ($_.PSObject.Properties['LogPath']) { [string]$_.LogPath } else { $null }
+						BundlePath     = if ($_.PSObject.Properties['BundlePath']) { [string]$_.BundlePath } else { $null }
+					}
+				})
+			}
+
+			if ($txtFilterRuns -and -not [string]::IsNullOrWhiteSpace($txtFilterRuns.Text))
+			{
+				$filter = $txtFilterRuns.Text
+				$recentRunRows = @($recentRunRows | Where-Object {
+					$_.Operation -match $filter -or
+					$_.TerminalState -match $filter -or
+					$_.Summary -match $filter
+				})
 			}
 
 			if ($txtConnectedTargets)
@@ -989,22 +1251,16 @@
 				}
 			}
 
-			if ($txtRecentOrchestration)
+			if ($lstRecentRemoteRuns)
 			{
-				if ($recentRuns.Count -gt 0)
+				$lstRecentRemoteRuns.ItemsSource = $recentRunRows
+				if ($recentRunRows.Count -eq 0)
 				{
-					if ($recentRuns[0].PSObject.Properties['Summary'])
-					{
-						$txtRecentOrchestration.Text = ('Recent orchestration: {0}' -f (($recentRuns | ForEach-Object { $_.Summary }) -join ' || '))
-					}
-					else
-					{
-						$txtRecentOrchestration.Text = ('Recent orchestration: {0}' -f ($recentRuns -join ' || '))
-					}
+					$lstRecentRemoteRuns.IsEnabled = $false
 				}
 				else
 				{
-					$txtRecentOrchestration.Text = 'Recent orchestration: none'
+					$lstRecentRemoteRuns.IsEnabled = $true
 				}
 			}
 
@@ -1135,20 +1391,109 @@
 				{
 					$context = Invoke-CapturedFunction -Name 'Get-GuiRemoteTargetContext'
 					if (-not $context -or -not $context.Connected -or $context.TargetComputers.Count -eq 0) { return }
-					if (-not (Get-GuiFunctionCapture -Name 'Test-BaselineRemoteConnectivity')) { throw 'Remote connectivity helper is not available.' }
+					if (-not (Get-GuiFunctionCapture -Name 'Invoke-PreflightChecks')) { throw 'Preflight helper is not available.' }
 
-					$results = @((Invoke-CapturedFunction -Name 'Test-BaselineRemoteConnectivity' -Parameters @{
-						ComputerName = @($context.TargetComputers)
-						Credential = $context.Credential
-					}))
+					$results = Invoke-CapturedFunction -Name 'Invoke-PreflightChecks' -Parameters @{
+						RemoteTargets = @($context.TargetComputers)
+					}
 					$lines = [System.Collections.Generic.List[string]]::new()
 					[void]$lines.Add('Remote preflight results:')
-					foreach ($result in @($results))
+					if ($results -and $results.SupportedEnvironmentClassification -and $results.SupportedEnvironmentClassification.Summary)
+					{
+						[void]$lines.Add($results.SupportedEnvironmentClassification.Summary)
+					}
+					if ($results -and $results.WinRMReachability -and $results.WinRMReachability.Summary)
+					{
+						[void]$lines.Add(('WinRM reachability: {0}' -f $results.WinRMReachability.Summary))
+					}
+					if ($results -and $results.Credentials -and $results.Credentials.Summary)
+					{
+						[void]$lines.Add(('Credentials: {0}' -f $results.Credentials.Summary))
+					}
+					if ($results -and $results.PolicyConflictSignals -and $results.PolicyConflictSignals.Summary)
+					{
+						[void]$lines.Add(('Policy signals: {0}' -f $results.PolicyConflictSignals.Summary))
+					}
+
+					$remoteCategories = @()
+					if ($results -and $results.PSObject.Properties['RiskCategories'] -and $results.RiskCategories)
+					{
+						$remoteCategories = @($results.RiskCategories | Where-Object { $_ -and [string]$_.Status -ne 'Passed' })
+					}
+					elseif ($results -and $results.PolicyConflictSignals -and $results.PolicyConflictSignals.PSObject.Properties['Categories'])
+					{
+						$remoteCategories = @($results.PolicyConflictSignals.Categories | Where-Object { $_ -and [string]$_.Status -ne 'Passed' })
+					}
+					if ($remoteCategories.Count -gt 0)
+					{
+						[void]$lines.Add(' ')
+						[void]$lines.Add('Risk categories:')
+						foreach ($cat in $remoteCategories)
+						{
+							$statusMark = if ([string]$cat.Status -eq 'Failed') { '!' } else { '*' }
+							[void]$lines.Add(('{0} {1} ({2}): {3}' -f $statusMark, $cat.Name, $cat.Status, $cat.Summary))
+							if ($cat.RemediationActions -and @($cat.RemediationActions).Count -gt 0)
+							{
+								foreach ($action in $cat.RemediationActions)
+								{
+									if (-not [string]::IsNullOrWhiteSpace([string]$action))
+									{
+										[void]$lines.Add(('    -> {0}' -f [string]$action))
+									}
+								}
+							}
+							if (-not [string]::IsNullOrWhiteSpace([string]$cat.DocumentationPath))
+							{
+								[void]$lines.Add(('    Remediation guide: {0}' -f [string]$cat.DocumentationPath))
+							}
+							if (-not [string]::IsNullOrWhiteSpace([string]$cat.LogHint))
+							{
+								[void]$lines.Add(('    Logs: {0}' -f [string]$cat.LogHint))
+							}
+						}
+					}
+
+					[void]$lines.Add(' ')
+					[void]$lines.Add('Checks:')
+					foreach ($result in @($results.AllResults))
 					{
 						if (-not $result) { continue }
-						$status = if ($result.Reachable -eq $true) { 'OK' } else { 'Blocked' }
-						$detail = if ($result.Reachable -eq $true) { 'WinRM connectivity confirmed.' } else { [string]$result.Error }
-						[void]$lines.Add(('{0} -> {1} ({2})' -f $result.ComputerName, $status, $detail))
+						$line = '{0} -> {1}: {2}' -f $result.Name, $result.Status, $result.Message
+						if ($result.PSObject.Properties['Key'] -and -not [string]::IsNullOrWhiteSpace([string]$result.Key))
+						{
+							$line += " | Key: $($result.Key)"
+						}
+						if ($result.PSObject.Properties['Category'] -and -not [string]::IsNullOrWhiteSpace([string]$result.Category))
+						{
+							$line += " | Category: $($result.Category)"
+						}
+						if ($result.PSObject.Properties['RemediationActions'] -and $result.RemediationActions)
+						{
+							$actions = @($result.RemediationActions)
+							if ($actions.Count -gt 0)
+							{
+								$line += " | Remediation: $($actions -join '; ')"
+							}
+						}
+						[void]$lines.Add($line)
+
+						if ($result.PSObject.Properties['Details'] -and $result.Details)
+						{
+							if ($result.Details -is [System.Collections.IDictionary])
+							{
+								foreach ($detailKey in @($result.Details.Keys | Sort-Object))
+								{
+									[void]$lines.Add(('  - {0}: {1}' -f $detailKey, $result.Details[$detailKey]))
+								}
+							}
+							elseif ($result.Details.PSObject.Properties.Count -gt 0)
+							{
+								foreach ($detailProp in @($result.Details.PSObject.Properties | Sort-Object Name))
+								{
+									[void]$lines.Add(('  - {0}: {1}' -f $detailProp.Name, $detailProp.Value))
+								}
+							}
+						}
 					}
 					[void](Show-ThemedDialog -Title 'Remote Console Preflight' -Message ($lines -join [Environment]::NewLine) -Buttons @('OK') -AccentButton 'OK')
 				}
@@ -1599,7 +1944,7 @@
 				if ($dialog.ShowDialog($dlg) -ne $true) { return }
 				try
 				{
-					$raw = Get-Content -LiteralPath $dialog.FileName -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+					$raw = Get-Content -LiteralPath $dialog.FileName -Raw -Encoding UTF8 | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop
 					$cw = @{}
 					if ($raw.ChangeWindow)
 					{
@@ -1629,6 +1974,262 @@
 		$dlg.Add_KeyDown({
 			$eventArgs = $args[1]
 			if ($eventArgs.Key -eq [System.Windows.Input.Key]::Escape) { $dlg.Close() }
+		})
+
+		[void]($dlg.ShowDialog())
+		return $null
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Show-GuiHistoryViewerDialog.
+
+	    .DESCRIPTION
+	    Internal implementation helper used by Baseline. Shows historical run
+	    data with query, filter, and export capabilities.
+	#>
+
+	function Show-GuiHistoryViewerDialog
+	{
+		$theme = $Script:CurrentTheme
+		if (-not $theme)
+		{
+			return $null
+		}
+
+		$bc = New-SafeBrushConverter -Context 'DialogHelpers-HistoryViewer'
+		$windowTitle = Get-UxLocalizedString -Key 'GuiHistoryViewerTitle' -Fallback 'History Viewer'
+		$windowSubtitle = Get-UxLocalizedString -Key 'GuiHistoryViewerSubtitle' -Fallback 'Review, query, and export historical run data.'
+		$closeLabel = Get-UxLocalizedString -Key 'GuiCloseButton' -Fallback 'Close'
+		$refreshLabel = Get-UxLocalizedString -Key 'GuiRefreshButton' -Fallback 'Refresh'
+		$viewDetailsLabel = Get-UxLocalizedString -Key 'GuiHistoryViewDetails' -Fallback 'View Details...'
+		$exportBundleLabel = Get-UxLocalizedString -Key 'GuiHistoryExportBundle' -Fallback 'Export Bundle...'
+
+		[xml]$xaml = @"
+<Window
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	Title="$windowTitle"
+	Width="960" Height="720"
+	MinWidth="800" MinHeight="600"
+	WindowStartupLocation="CenterOwner"
+	ResizeMode="CanResizeWithGrip"
+	FontFamily="FluentSystemIcons"
+	FontSize="12"
+	Background="Transparent"
+	WindowStyle="None"
+	AllowsTransparency="True">
+	<Border Name="RootBorder" CornerRadius="8">
+		<Grid>
+			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="*"/>
+				<RowDefinition Height="Auto"/>
+			</Grid.RowDefinitions>
+
+			<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
+				<Grid>
+					<TextBlock Text="$windowTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
+					<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
+						Background="Transparent" Foreground="$($theme.TextPrimary)" BorderThickness="0" Cursor="Hand"
+						HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+				</Grid>
+			</Border>
+
+			<Border Grid.Row="1" Background="$($theme.HeaderBg)"
+					BorderBrush="$($theme.BorderColor)" BorderThickness="0,0,0,1"
+					Padding="20,14,20,14">
+				<StackPanel>
+					<TextBlock Name="TxtDialogTitle" Text="$windowTitle" FontSize="16" FontWeight="SemiBold"
+							   Foreground="$($theme.TextPrimary)"/>
+					<TextBlock Name="TxtDialogSubtitle" Text="$windowSubtitle"
+							   FontSize="12" Foreground="$($theme.TextMuted)" Margin="0,2,0,0" TextWrapping="Wrap"/>
+				</StackPanel>
+			</Border>
+
+			<Grid Grid.Row="2" Margin="20,16,20,16">
+				<Grid.RowDefinitions>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="*"/>
+					<RowDefinition Height="Auto"/>
+				</Grid.RowDefinitions>
+
+				<Grid Grid.Row="0" Margin="0,0,0,12">
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="*"/>
+						<ColumnDefinition Width="Auto"/>
+					</Grid.ColumnDefinitions>
+					<TextBox Name="TxtSearch" Grid.Column="0" Padding="6,4,6,4" VerticalContentAlignment="Center"/>
+					<Button Name="BtnRefresh" Grid.Column="1" Content="$refreshLabel" Margin="8,0,0,0" Padding="16,6" FontSize="13"/>
+				</Grid>
+
+				<ListView Name="HistoryList" Grid.Row="1" BorderThickness="1" BorderBrush="$($theme.BorderColor)">
+					<ListView.View>
+						<GridView>
+							<GridViewColumn Header="Date" Width="160" DisplayMemberBinding="{Binding Timestamp, StringFormat='yyyy-MM-dd HH:mm:ss'}"/>
+							<GridViewColumn Header="Operation" Width="120" DisplayMemberBinding="{Binding Operation}"/>
+							<GridViewColumn Header="Targets" Width="180" DisplayMemberBinding="{Binding Targets}"/>
+							<GridViewColumn Header="Result" Width="100" DisplayMemberBinding="{Binding Result}"/>
+							<GridViewColumn Header="Summary" Width="350" DisplayMemberBinding="{Binding Summary}"/>
+						</GridView>
+					</ListView.View>
+				</ListView>
+
+				<TextBlock Name="TxtStatus" Grid.Row="2" Margin="0,8,0,0" Foreground="$($theme.TextMuted)"/>
+			</Grid>
+
+			<Border Grid.Row="3" Background="$($theme.HeaderBg)"
+					BorderBrush="$($theme.BorderColor)" BorderThickness="0,1,0,0"
+					Padding="20,10,20,10">
+				<WrapPanel HorizontalAlignment="Right">
+					<Button Name="BtnViewDetails" Content="$viewDetailsLabel" Margin="0,0,8,0" Padding="16,6" FontSize="13"/>
+					<Button Name="BtnExportBundle" Content="$exportBundleLabel" Margin="0,0,8,0" Padding="16,6" FontSize="13"/>
+					<Button Name="BtnClose" Content="$closeLabel" Padding="16,6" FontSize="13"/>
+				</WrapPanel>
+			</Border>
+		</Grid>
+	</Border>
+</Window>
+"@
+
+		$reader = [System.Xml.XmlNodeReader]::new($xaml)
+		$dlg = [Windows.Markup.XamlReader]::Load($reader)
+		$dlg.Owner = $Form
+
+		$rootBorder = $dlg.FindName('RootBorder')
+		if ($rootBorder)
+		{
+			$rootBorder.Background = $bc.ConvertFromString($theme.WindowBg)
+			$rootBorder.BorderBrush = $bc.ConvertFromString($theme.BorderColor)
+			$rootBorder.BorderThickness = [System.Windows.Thickness]::new(1)
+		}
+
+		[void](GUICommon\Set-GuiWindowChromeTheme -Window $dlg -UseDarkMode ($Script:CurrentThemeName -eq 'Dark'))
+
+		$dlgTitleBar     = $dlg.FindName('DlgTitleBar')
+		$btnDlgClose     = $dlg.FindName('BtnDlgClose')
+		$txtSearch       = $dlg.FindName('TxtSearch')
+		$historyList     = $dlg.FindName('HistoryList')
+		$txtStatus       = $dlg.FindName('TxtStatus')
+		$btnRefresh      = $dlg.FindName('BtnRefresh')
+		$btnViewDetails  = $dlg.FindName('BtnViewDetails')
+		$btnExportBundle = $dlg.FindName('BtnExportBundle')
+		$btnClose        = $dlg.FindName('BtnClose')
+
+		$getHistoryCmd = Get-GuiRuntimeCommand -Name 'Get-BaselineRemoteOrchestrationDetails' -CommandType 'Function'
+		$allHistoryItems = @()
+
+		$updateActionButtons = {
+			$selected = $historyList.SelectedItem
+			if ($btnViewDetails) { $btnViewDetails.IsEnabled = ($null -ne $selected -and (Test-GuiObjectField -Object $selected -FieldName 'LogPath') -and -not [string]::IsNullOrWhiteSpace($selected.LogPath)) }
+			if ($btnExportBundle) { $btnExportBundle.IsEnabled = ($null -ne $selected -and (Test-GuiObjectField -Object $selected -FieldName 'BundlePath') -and -not [string]::IsNullOrWhiteSpace($selected.BundlePath)) }
+		}.GetNewClosure()
+
+		$refreshHistory = {
+			if (-not $getHistoryCmd)
+			{
+				$historyList.ItemsSource = @()
+				$txtStatus.Text = 'History query service is not available.'
+				return
+			}
+
+			try
+			{
+				$script:allHistoryItems = @((& $getHistoryCmd))
+			}
+			catch
+			{
+				$script:allHistoryItems = @()
+				$txtStatus.Text = "Failed to load history: $($_.Exception.Message)"
+			}
+
+			$filterText = $txtSearch.Text
+			$filteredItems = if ([string]::IsNullOrWhiteSpace($filterText))
+			{
+				$script:allHistoryItems
+			}
+			else
+			{
+				@($script:allHistoryItems | Where-Object {
+					$_.Targets -match $filterText -or
+					$_.Operation -match $filterText -or
+					$_.Result -match $filterText -or
+					$_.Summary -match $filterText
+				})
+			}
+
+			$historyList.ItemsSource = $filteredItems
+			if ($filteredItems.Count -eq 0)
+			{
+				$txtStatus.Text = (Get-UxLocalizedString -Key 'GuiHistoryNoRunsFound' -Fallback 'No historical runs found.')
+			}
+			else
+			{
+				$txtStatus.Text = (Get-UxLocalizedString -Key 'GuiHistoryStatus' -Fallback 'Showing {0} of {1} runs.' -FormatArgs @($filteredItems.Count, $script:allHistoryItems.Count))
+			}
+			& $updateActionButtons
+		}.GetNewClosure()
+
+		if ($dlgTitleBar) { $dlgTitleBar.Add_MouseLeftButtonDown({ $dlg.DragMove() }.GetNewClosure()) }
+		if ($btnDlgClose) { $btnDlgClose.Add_Click({ $dlg.Close() }.GetNewClosure()) }
+
+		if ($txtSearch)
+		{
+			$txtSearch.Add_TextChanged({ & $refreshHistory }.GetNewClosure())
+			if (Get-Command -Name 'Set-GuiWatermarkText' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Set-GuiWatermarkText -TextBox $txtSearch -Text (Get-UxLocalizedString -Key 'GuiHistoryFilterByTarget' -Fallback 'Filter by target, operation, result...')
+			}
+		}
+
+		if ($historyList)
+		{
+			$historyList.Add_SelectionChanged({ & $updateActionButtons }.GetNewClosure())
+		}
+
+		if ($btnRefresh)
+		{
+			Set-ButtonChrome -Button $btnRefresh -Variant 'Secondary' -Compact
+			$btnRefresh.Add_Click({ & $refreshHistory }.GetNewClosure())
+		}
+
+		if ($btnViewDetails)
+		{
+			Set-ButtonChrome -Button $btnViewDetails -Variant 'Secondary' -Compact
+			$btnViewDetails.Add_Click({
+				$selected = $historyList.SelectedItem
+				if ($null -ne $selected -and (Test-GuiObjectField -Object $selected -FieldName 'LogPath') -and -not [string]::IsNullOrWhiteSpace($selected.LogPath))
+				{
+					Show-LogDialog -LogPath $selected.LogPath
+				}
+			}.GetNewClosure())
+		}
+
+		if ($btnExportBundle)
+		{
+			Set-ButtonChrome -Button $btnExportBundle -Variant 'Secondary' -Compact
+			$btnExportBundle.Add_Click({
+				$selected = $historyList.SelectedItem
+				if ($null -ne $selected -and (Test-GuiObjectField -Object $selected -FieldName 'BundlePath') -and -not [string]::IsNullOrWhiteSpace($selected.BundlePath))
+				{
+					try { [System.Diagnostics.Process]::Start($selected.BundlePath) } catch { [void](Show-ThemedDialog -Title $windowTitle -Message "Failed to open bundle: $($_.Exception.Message)") }
+				}
+			}.GetNewClosure())
+		}
+
+		if ($btnClose)
+		{
+			Set-ButtonChrome -Button $btnClose -Variant 'Primary' -Compact
+			$btnClose.IsDefault = $true
+			$btnClose.IsCancel = $true
+			$btnClose.Add_Click({ $dlg.Close() }.GetNewClosure())
+		}
+
+		$dlg.Add_ContentRendered({ & $refreshHistory })
+		$dlg.Add_KeyDown({
+			param($s, $e)
+			if ($e.Key -eq [System.Windows.Input.Key]::Escape) { $dlg.Close() }
 		})
 
 		[void]($dlg.ShowDialog())
@@ -1712,25 +2313,107 @@
 			$iconStatus = 'Unknown'
 		}
 		$matrixSummary = 'Unavailable'
-		$matrixPath = if ($resolvedRepoRoot) { Join-Path $resolvedRepoRoot 'Tests/Integration/DesktopMatrixResults.json' } else { $null }
-		if ($matrixPath -and (Test-Path -LiteralPath $matrixPath))
+		$serverValidationSummary = 'Unavailable'
+		try
 		{
-			try
+			if (Get-Command -Name 'Get-BaselineValidationMatrixSummary' -CommandType Function -ErrorAction SilentlyContinue)
 			{
-				$matrixJson = Get-Content -LiteralPath $matrixPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
-				$validated = @($matrixJson.summary.testedDesktopEditions)
-				$pending = @($matrixJson.summary.pendingDesktopEditions)
-				$server = @($matrixJson.summary.serverEditions)
-				$matrixSummary = @(
-					('Validated: {0}' -f ($(if ($validated.Count -gt 0) { $validated -join ', ' } else { 'none' }))),
-					('Pending: {0}' -f ($(if ($pending.Count -gt 0) { $pending -join ', ' } else { 'none' }))),
-					('Server: {0}' -f ($(if ($server.Count -gt 0) { $server -join ', ' } else { 'none' })))
-				) -join ' | '
+				$matrix = Get-BaselineValidationMatrixSummary -RepoRoot $resolvedRepoRoot
+				if ($matrix)
+				{
+					if ($matrix.Summary)
+					{
+						$matrixSummary = [string]$matrix.Summary
+					}
+					if ($matrix.ServerValidationSummary)
+					{
+						$serverValidationSummary = [string]$matrix.ServerValidationSummary
+					}
+				}
 			}
-			catch
+		}
+		catch
+		{
+			$matrixSummary = 'Unavailable'
+			$serverValidationSummary = 'Unavailable'
+		}
+		$validationEvidenceSummary = 'Unavailable'
+		$validationEvidenceChannels = 'Unavailable'
+		$validationEvidenceProvenance = 'Unavailable'
+		try
+		{
+			if (Get-Command -Name 'Get-BaselineValidationEvidenceReport' -CommandType Function -ErrorAction SilentlyContinue)
 			{
-				$matrixSummary = 'Unavailable'
+				$validationEvidence = Get-BaselineValidationEvidenceReport -RepoRoot $resolvedRepoRoot
+				if ($validationEvidence)
+				{
+					if ($validationEvidence.Summary)
+					{
+						$validationEvidenceSummary = [string]$validationEvidence.Summary
+					}
+					if ($validationEvidence.ValidationChannels)
+					{
+						$validationEvidenceChannels = (@($validationEvidence.ValidationChannels | ForEach-Object { [string]$_.Channel }) -join ', ')
+					}
+
+					$provenanceParts = [System.Collections.Generic.List[string]]::new()
+					if ($validationEvidence.Build)
+					{
+						if ($validationEvidence.Build.BaselineVersion) { [void]$provenanceParts.Add(('version {0}' -f [string]$validationEvidence.Build.BaselineVersion)) }
+						if ($validationEvidence.Build.TestReportGeneratedAt) { [void]$provenanceParts.Add(('test report {0}' -f [string]$validationEvidence.Build.TestReportGeneratedAt)) }
+						if ($validationEvidence.Build.TestPlatform) { [void]$provenanceParts.Add(('platform {0}' -f [string]$validationEvidence.Build.TestPlatform)) }
+					}
+					if ($validationEvidence.SourcePath)
+					{
+						if ($validationEvidence.SourcePath.TestReport) { [void]$provenanceParts.Add(('report {0}' -f [string]$validationEvidence.SourcePath.TestReport)) }
+						if ($validationEvidence.SourcePath.ValidationMatrix) { [void]$provenanceParts.Add(('matrix {0}' -f [string]$validationEvidence.SourcePath.ValidationMatrix)) }
+					}
+					if ($provenanceParts.Count -gt 0)
+					{
+						$validationEvidenceProvenance = ($provenanceParts -join ' | ')
+					}
+				}
 			}
+		}
+		catch
+		{
+			$validationEvidenceSummary = 'Unavailable'
+			$validationEvidenceChannels = 'Unavailable'
+			$validationEvidenceProvenance = 'Unavailable'
+		}
+		$featureMaturitySummary = 'Unavailable'
+		$enterpriseGateSummary = 'Unavailable'
+		try
+		{
+			$featureMaturityCmd = Get-GuiRuntimeCommand -Name 'Get-BaselineFeatureMaturityReport' -CommandType 'Function'
+			if ($featureMaturityCmd)
+			{
+				$featureMaturityReport = & $featureMaturityCmd -Manifest $Script:TweakManifest
+				if ($featureMaturityReport -and $featureMaturityReport.Summary)
+				{
+					$featureMaturitySummary = @(
+						('Implemented={0}' -f [int]$featureMaturityReport.Summary.Implemented),
+						('Tested={0}' -f [int]$featureMaturityReport.Summary.Tested),
+						('CI-validated={0}' -f [int]$featureMaturityReport.Summary.'CI-validated'),
+						('Production-validated={0}' -f [int]$featureMaturityReport.Summary.'Production-validated')
+					) -join ', '
+
+					$gateParts = @(
+						@($featureMaturityReport.EnterpriseActions | ForEach-Object {
+							('{0}: {1} (required {2}) [{3}]' -f [string]$_.FeatureName, [string]$_.CurrentMaturity, [string]$_.RequiredMaturity, $(if ([bool]$_.Allowed) { 'Open' } else { 'Blocked' }))
+						})
+					)
+					if ($gateParts.Count -gt 0)
+					{
+						$enterpriseGateSummary = ($gateParts -join ' | ')
+					}
+				}
+			}
+		}
+		catch
+		{
+			$featureMaturitySummary = 'Unavailable'
+			$enterpriseGateSummary = 'Unavailable'
 		}
 		$pinnedVersion = $null
 		try
@@ -1753,6 +2436,7 @@
 			$(if ($resolvedRepoRoot) { Join-Path $resolvedRepoRoot 'Baseline-setup-4.0.0.exe' }),
 			$(if ($resolvedRepoRoot) { Join-Path $resolvedRepoRoot 'Baseline-4.0.0.zip' })
 		)
+		$artifactVerificationCmd = Get-GuiRuntimeCommand -Name 'Get-BaselineReleaseArtifactVerification' -CommandType 'Function'
 
 		[xml]$xaml = @"
 <Window
@@ -1780,7 +2464,7 @@
 			<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
 				<Grid>
 					<TextBlock Text="$windowTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
-					<Button Name="BtnDlgClose" Content="×" FontFamily="Arial" FontSize="12" Width="32" Height="28"
+					<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
 						Background="Transparent" Foreground="$($theme.TextPrimary)" BorderThickness="0" Cursor="Hand"
 						HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
 				</Grid>
@@ -1902,25 +2586,46 @@
 			[void]$lines.Add(("Icon font: {0}" -f $iconFontPath))
 		}
 		[void]$lines.Add(("Validation matrix: {0}" -f $matrixSummary))
+		[void]$lines.Add(("Server validation outside CI: {0}" -f $serverValidationSummary))
+		[void]$lines.Add(("Validation evidence: {0}" -f $validationEvidenceSummary))
+		[void]$lines.Add(("Validation channels: {0}" -f $validationEvidenceChannels))
+		[void]$lines.Add(("Build/test provenance: {0}" -f $validationEvidenceProvenance))
+		[void]$lines.Add(("Feature maturity: {0}" -f $featureMaturitySummary))
+		[void]$lines.Add(("Enterprise gates: {0}" -f $enterpriseGateSummary))
+		[void]$lines.Add('Artifact verification:')
 		foreach ($path in @($exePaths))
 		{
-			$status = 'Missing'
-			$signer = 'n/a'
-			if (Test-Path -LiteralPath $path)
+			$verification = $null
+			try
 			{
-				$status = 'Present'
-				try
+				if ($artifactVerificationCmd)
 				{
-					$sig = Get-AuthenticodeSignature -FilePath $path -ErrorAction Stop
-					$signer = if ($sig.SignerCertificate) { $sig.SignerCertificate.Subject } else { [string]$sig.Status }
-					$status = [string]$sig.Status
-				}
-				catch
-				{
-					$signer = $_.Exception.Message
+					$verification = Invoke-CapturedFunction -Name 'Get-BaselineReleaseArtifactVerification' -Parameters @{ Path = $path }
 				}
 			}
-			[void]$lines.Add(("Artifact: {0} | Status: {1} | Signer: {2}" -f $path, $status, $signer))
+			catch
+			{
+				$verification = $null
+			}
+
+			if (-not $verification)
+			{
+				$status = if (Test-Path -LiteralPath $path) { 'Present' } else { 'Missing' }
+				$verification = [pscustomobject]@{
+					VerificationState = if ($status -eq 'Present') { 'Unavailable' } else { 'Missing' }
+					SignatureStatus   = $status
+					TimestampStatus   = 'Unavailable'
+					SignerSubject     = $null
+					TimestampSubject  = $null
+					FileHash          = $null
+					VerificationMessage = if ($status -eq 'Present') { 'Artifact verification helper is not available.' } else { 'Artifact not found.' }
+				}
+			}
+
+			[void]$lines.Add(("Artifact: {0}" -f $path))
+			[void]$lines.Add(("Verification: {0} | Signature: {1} | Timestamp: {2}" -f $verification.VerificationState, $verification.SignatureStatus, $verification.TimestampStatus))
+			[void]$lines.Add(("Signer: {0} | Timestamp signer: {1} | SHA256: {2}" -f ($(if ($verification.SignerSubject) { $verification.SignerSubject } else { 'n/a' })), ($(if ($verification.TimestampSubject) { $verification.TimestampSubject } else { 'n/a' })), ($(if ($verification.FileHash) { $verification.FileHash } else { 'n/a' }))))
+			[void]$lines.Add(("Result: {0}" -f $verification.VerificationMessage))
 		}
 
 		foreach ($line in $lines)
@@ -2054,7 +2759,7 @@
 			<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
 				<Grid>
 					<TextBlock Text="$windowTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
-					<Button Name="BtnDlgClose" Content="×" FontFamily="Arial" FontSize="12" Width="32" Height="28"
+					<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
 						Background="Transparent" Foreground="$($theme.TextPrimary)" BorderThickness="0" Cursor="Hand"
 						HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
 				</Grid>
@@ -2252,7 +2957,7 @@
 			<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
 				<Grid>
 					<TextBlock Text="$windowTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
-					<Button Name="BtnDlgClose" Content="×" FontFamily="Arial" FontSize="12" Width="32" Height="28"
+					<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
 						Background="Transparent" Foreground="$($theme.TextPrimary)" BorderThickness="0" Cursor="Hand"
 						HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
 				</Grid>
@@ -2432,7 +3137,7 @@
 		<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
 			<Grid>
 				<TextBlock Text="$helpDialogTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
-				<Button Name="BtnDlgClose" Content="×" FontFamily="Arial" FontSize="12" Width="32" Height="28"
+				<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
 					Background="Transparent" Foreground="$($theme.TextPrimary)" BorderThickness="0" Cursor="Hand"
 					HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
 			</Grid>
@@ -2897,7 +3602,7 @@
 		<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
 			<Grid>
 				<TextBlock Text="$logViewerTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
-				<Button Name="BtnDlgClose" Content="×" FontFamily="Arial" FontSize="12" Width="32" Height="28"
+				<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
 					Background="Transparent" Foreground="$($theme.TextPrimary)" BorderThickness="0" Cursor="Hand"
 					HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
 			</Grid>
@@ -3183,7 +3888,7 @@
 		<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
 			<Grid>
 				<TextBlock Text="$changelogTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
-				<Button Name="BtnDlgClose" Content="×" FontFamily="Arial" FontSize="12" Width="32" Height="28"
+				<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
 					Background="Transparent" Foreground="$($theme.TextPrimary)" BorderThickness="0" Cursor="Hand"
 					HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
 			</Grid>
@@ -3380,7 +4085,7 @@
 		<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
 			<Grid>
 				<TextBlock Text="$readmeTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
-				<Button Name="BtnDlgClose" Content="×" FontFamily="Arial" FontSize="12" Width="32" Height="28"
+				<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
 					Background="Transparent" Foreground="$($theme.TextPrimary)" BorderThickness="0" Cursor="Hand"
 					HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
 			</Grid>
@@ -3616,7 +4321,7 @@
 		[void]($dlg.ShowDialog())
 	}
 
-	# Guided Setup wizard: goal selection → impact summary → load preset.
+	# Guided Setup wizard: goal selection -> impact summary -> load preset.
 	# Launched from the first-run welcome dialog CTA and the Start Guide button.
 	# Steps: 1) Choose goal  2) Review impact  3) Preset loaded, user continues in main UI.
 	<#
@@ -3641,13 +4346,13 @@
 
 		$resolvedUseDarkMode = GUICommon\Get-GuiBooleanValue -Value $UseDarkMode -Default $(if (Test-Path -Path Variable:\Script:CurrentThemeName) { $Script:CurrentThemeName -eq 'Dark' } else { $true }) -Context 'Show-GuidedSetupWizard'
 
-		# ── Step 1: Goal selection ────────────────────────────────────────────────
+		# -- Step 1: Goal selection -----------------------------------------------
 		$privacyLabel     = Get-UxLocalizedString -Key 'GuiGuidedGoalPrivacy'    -Fallback 'Privacy first'
 		$performanceLabel = Get-UxLocalizedString -Key 'GuiGuidedGoalPerformance' -Fallback 'Performance first'
 		$balancedLabel    = Get-UxLocalizedString -Key 'GuiGuidedGoalBalanced'   -Fallback 'Balanced'
 		$cancelLabel      = Get-UxLocalizedString -Key 'GuiCloseButton'          -Fallback 'Close'
-		$step1Title       = Get-UxLocalizedString -Key 'GuiGuidedStep1Title'     -Fallback 'Guided Setup — Step 1 of 2'
-		$step1Message     = Get-UxLocalizedString -Key 'GuiGuidedStep1Message'   -Fallback "What is your main goal?`n`n• Privacy first — disable telemetry, advertising IDs, activity tracking, and data collection`n• Performance first — tune system responsiveness, visual effects, and background services`n• Balanced — a broad selection covering privacy, performance, and quality-of-life improvements"
+		$step1Title       = Get-UxLocalizedString -Key 'GuiGuidedStep1Title'     -Fallback 'Guided Setup - Step 1 of 2'
+		$step1Message     = Get-UxLocalizedString -Key 'GuiGuidedStep1Message'   -Fallback "What is your main goal?`n`n- Privacy first - disable telemetry, advertising IDs, activity tracking, and data collection`n- Performance first - tune system responsiveness, visual effects, and background services`n- Balanced - a broad selection covering privacy, performance, and quality-of-life improvements"
 
 		$goalChoice = & $ShowThemedDialogCapture `
 			-Title $step1Title `
@@ -3664,7 +4369,7 @@
 			return
 		}
 
-		# Map goal → preset and impact description
+		# Map goal -> preset and impact description
 		$presetName = switch ([string]$goalChoice)
 		{
 			{ $_ -eq $privacyLabel }     { 'Minimal' }
@@ -3685,10 +4390,10 @@
 			}
 		}
 
-		# ── Step 2: Impact summary ────────────────────────────────────────────────
-		$backLabel  = Get-UxLocalizedString -Key 'GuiGuidedBack'       -Fallback '← Back'
+		# -- Step 2: Impact summary -----------------------------------------------
+		$backLabel  = Get-UxLocalizedString -Key 'GuiGuidedBack'       -Fallback '<- Back'
 		$applyLabel = Get-UxLocalizedString -Key 'GuiGuidedLoadPreset' -Fallback 'Load preset'
-		$step2Title = Get-UxLocalizedString -Key 'GuiGuidedStep2Title' -Fallback 'Guided Setup — Step 2 of 2'
+		$step2Title = Get-UxLocalizedString -Key 'GuiGuidedStep2Title' -Fallback 'Guided Setup - Step 2 of 2'
 
 		$impactChoice = & $ShowThemedDialogCapture `
 			-Title $step2Title `
@@ -3718,7 +4423,7 @@
 			return
 		}
 
-		# ── Step 3: Load preset ───────────────────────────────────────────────────
+		# -- Step 3: Load preset ---------------------------------------------------
 		if ($SetGuiPresetSelectionAction)
 		{
 			& $SetGuiPresetSelectionAction -PresetName $presetName

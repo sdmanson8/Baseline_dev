@@ -117,7 +117,7 @@
       }
     },
     {
-      "Function": "Set-Win32PrioritySeparation",
+      "Function": "Win32PrioritySeparation",
       "Type": "Choice",
       "ApplyValue": "Programs",
       "Category": "Performance",
@@ -136,7 +136,7 @@
       }
     },
     {
-      "Function": "Set-SystemResponsiveness",
+      "Function": "SystemResponsiveness",
       "Type": "Toggle",
       "ApplyValue": "Enable",
       "Category": "Performance",
@@ -155,7 +155,7 @@
       }
     },
     {
-      "Function": "Set-GamingCpuPriority",
+      "Function": "GamingCpuPriority",
       "Type": "Toggle",
       "ApplyValue": "Enable",
       "Category": "Performance",
@@ -174,7 +174,7 @@
       }
     },
     {
-      "Function": "Set-GamingSchedulingCategory",
+      "Function": "GamingSchedulingCategory",
       "Type": "Toggle",
       "ApplyValue": "Enable",
       "Category": "Performance",
@@ -193,7 +193,7 @@
       }
     },
     {
-      "Function": "Set-GamingGpuPriority",
+      "Function": "GamingGpuPriority",
       "Type": "Toggle",
       "ApplyValue": "Enable",
       "Category": "Performance",
@@ -212,7 +212,7 @@
       }
     },
     {
-      "Function": "Set-DirectXFlipModel",
+      "Function": "DirectXFlipModel",
       "Type": "Toggle",
       "ApplyValue": "Enable",
       "Category": "Overlay",
@@ -231,7 +231,7 @@
       }
     },
     {
-      "Function": "Set-DirectXVrrOptimizations",
+      "Function": "DirectXVrrOptimizations",
       "Type": "Toggle",
       "ApplyValue": "Enable",
       "Category": "Overlay",
@@ -250,7 +250,7 @@
       }
     },
     {
-      "Function": "Set-DirectXAutoHdr",
+      "Function": "DirectXAutoHdr",
       "Type": "Toggle",
       "ApplyValue": "Enable",
       "Category": "Overlay",
@@ -269,7 +269,7 @@
       }
     },
     {
-      "Function": "Set-NvidiaSharpening",
+      "Function": "NvidiaSharpening",
       "Type": "Toggle",
       "ApplyValue": "Enable",
       "Category": "Overlay",

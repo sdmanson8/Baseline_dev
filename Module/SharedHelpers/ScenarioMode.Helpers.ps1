@@ -72,7 +72,6 @@ function Get-ScenarioProfileDefinitions
 				'LanguageListAccess'
 				'TailoredExperiences'
 				'SharedExperiences'
-				'Powershell7Telemetry'
 				'DNSoverHTTPS'
 				'DeliveryOptimization'
 				'LockWidgets'

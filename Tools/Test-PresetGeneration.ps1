@@ -8,7 +8,7 @@
 	without forcing the checked-in curated presets to be regenerated.
 
 	.EXAMPLE
-	pwsh -File .\Tools\Test-PresetGeneration.ps1
+	powershell -File .\Tools\Test-PresetGeneration.ps1
 #>
 
 [CmdletBinding()]

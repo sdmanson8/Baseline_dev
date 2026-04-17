@@ -31,15 +31,15 @@ function Get-GameModeAllowlist
 		'WindowsGameMode'
 		'MouseAcceleration'
 		'NaglesAlgorithm'
-		'Set-Win32PrioritySeparation'
-		'Set-SystemResponsiveness'
-		'Set-GamingCpuPriority'
-		'Set-GamingSchedulingCategory'
-		'Set-GamingGpuPriority'
-		'Set-DirectXFlipModel'
-		'Set-DirectXVrrOptimizations'
-		'Set-DirectXAutoHdr'
-		'Set-NvidiaSharpening'
+		'Win32PrioritySeparation'
+		'SystemResponsiveness'
+		'GamingCpuPriority'
+		'GamingSchedulingCategory'
+		'GamingGpuPriority'
+		'DirectXFlipModel'
+		'DirectXVrrOptimizations'
+		'DirectXAutoHdr'
+		'NvidiaSharpening'
 	)
 }
 
@@ -113,7 +113,7 @@ function Read-GameModeJsonDataFile
 
 	try
 	{
-		return ($jsonContent | ConvertFrom-Json -ErrorAction Stop)
+		return ($jsonContent | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop)
 	}
 	catch
 	{

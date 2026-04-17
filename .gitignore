@@ -13,6 +13,7 @@ _net48ref/
 **/obj/
 Launcher/_build/
 Launcher/publish/
+.dotnet-home/
 
 # Logs and test output
 *.log
@@ -23,3 +24,5 @@ testResults.xml
 
 # Local agent metadata
 .claude/
+.vscode/
+.codex*/

@@ -439,7 +439,7 @@
     },
     {
       "Name": "DNS Provider Presets",
-      "Function": "Set-DnsProvider",
+      "Function": "DnsProvider",
       "Type": "Choice",
       "Options": [
         "Default",
@@ -599,7 +599,7 @@
     },
     {
       "Name": "Download Updates Over Metered Connection",
-      "Function": "Set-DownloadUpdatesOverMeteredConnection",
+      "Function": "DownloadUpdatesOverMeteredConnection",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -634,7 +634,7 @@
     },
     {
       "Name": "Feature Update Deferral",
-      "Function": "Set-FeatureUpdateDeferral",
+      "Function": "FeatureUpdateDeferral",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -668,7 +668,7 @@
     },
     {
       "Name": "Quality Update Deferral Period",
-      "Function": "Set-QualityUpdateDeferral",
+      "Function": "QualityUpdateDeferral",
       "Type": "Choice",
       "Options": [
         "Default",
@@ -1100,7 +1100,7 @@
     },
     {
       "Name": "NTP Server Override",
-      "Function": "Set-NtpServerOverride",
+      "Function": "NtpServerOverride",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -1169,7 +1169,7 @@
     },
     {
       "Name": "OpenSSH Server",
-      "Function": "Install-OpenSSHServer",
+      "Function": "OpenSSHServer",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
@@ -1247,7 +1247,7 @@
     },
     {
       "Name": "Processor Minimum State",
-      "Function": "Set-ProcessorMinimumState",
+      "Function": "ProcessorMinimumState",
       "Type": "NumericRange",
       "NumericRange": {
         "MinValue": 0,
@@ -1292,7 +1292,7 @@
     },
     {
       "Name": "Processor Maximum State",
-      "Function": "Set-ProcessorMaximumState",
+      "Function": "ProcessorMaximumState",
       "Type": "NumericRange",
       "NumericRange": {
         "MinValue": 0,
@@ -1337,7 +1337,7 @@
     },
     {
       "Name": "Processor Performance Increase Threshold",
-      "Function": "Set-ProcessorPerformanceIncreaseThreshold",
+      "Function": "ProcessorPerformanceIncreaseThreshold",
       "Type": "NumericRange",
       "NumericRange": {
         "MinValue": 0,
@@ -1376,7 +1376,7 @@
     },
     {
       "Name": "Processor Performance Decrease Threshold",
-      "Function": "Set-ProcessorPerformanceDecreaseThreshold",
+      "Function": "ProcessorPerformanceDecreaseThreshold",
       "Type": "NumericRange",
       "NumericRange": {
         "MinValue": 0,
@@ -1415,7 +1415,7 @@
     },
     {
       "Name": "Processor Performance Boost Mode",
-      "Function": "Set-ProcessorPerformanceBoostMode",
+      "Function": "ProcessorPerformanceBoostMode",
       "Type": "Choice",
       "Options": [
         "Disabled",
@@ -1462,7 +1462,7 @@
     },
     {
       "Name": "CPU Core Parking Minimum Cores",
-      "Function": "Set-ProcessorCoreParkingMinimumCores",
+      "Function": "ProcessorCoreParkingMinimumCores",
       "Type": "NumericRange",
       "NumericRange": {
         "MinValue": 0,
@@ -1507,7 +1507,7 @@
     },
     {
       "Name": "CPU Core Parking Maximum Cores",
-      "Function": "Set-ProcessorCoreParkingMaximumCores",
+      "Function": "ProcessorCoreParkingMaximumCores",
       "Type": "NumericRange",
       "NumericRange": {
         "MinValue": 0,
@@ -1552,7 +1552,7 @@
     },
     {
       "Name": "Processor Energy Performance Preference",
-      "Function": "Set-ProcessorEnergyPerformancePreference",
+      "Function": "ProcessorEnergyPerformancePreference",
       "Type": "NumericRange",
       "NumericRange": {
         "MinValue": 0,
@@ -1597,7 +1597,7 @@
     },
     {
       "Name": "USB Hub Selective Suspend Timeout",
-      "Function": "Set-USBHubSelectiveSuspendTimeout",
+      "Function": "USBHubSelectiveSuspendTimeout",
       "Type": "NumericRange",
       "NumericRange": {
         "MinValue": 0,
@@ -1642,7 +1642,7 @@
     },
     {
       "Name": "USB selective suspend setting",
-      "Function": "Set-USBSelectiveSuspend",
+      "Function": "USBSelectiveSuspend",
       "Type": "Choice",
       "Options": [
         "Disabled",
@@ -1680,7 +1680,7 @@
     },
     {
       "Name": "Intel(R) Graphics Power Plan",
-      "Function": "Set-IntelGraphicsPowerPlan",
+      "Function": "IntelGraphicsPowerPlan",
       "Type": "Choice",
       "Options": [
         "MaximumBatteryLife",
@@ -1723,7 +1723,7 @@
     },
     {
       "Name": "Video Playback Quality Bias",
-      "Function": "Set-MultimediaVideoPlaybackQualityBias",
+      "Function": "MultimediaVideoPlaybackQualityBias",
       "Type": "Choice",
       "Options": [
         "PowerSavingBias",
@@ -1764,7 +1764,7 @@
     },
     {
       "Name": "Power Throttling",
-      "Function": "Set-PowerThrottling",
+      "Function": "PowerThrottling",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -2047,7 +2047,7 @@
     },
     {
       "Name": "Update Notification Level",
-      "Function": "Set-UpdateNotificationLevel",
+      "Function": "UpdateNotificationLevel",
       "Type": "Choice",
       "Options": [
         "Default",
@@ -2158,7 +2158,7 @@
     },
     {
       "Name": "Block Microsoft Store Search Results",
-      "Function": "Block-StoreSearchResults",
+      "Function": "StoreSearchResults",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -2368,7 +2368,7 @@
     },
     {
       "Name": "Windows Update Repair",
-      "Function": "Repair-WindowsUpdate",
+      "Function": "WindowsUpdate",
       "Type": "Choice",
       "Options": [
         "Standard",
@@ -2409,7 +2409,7 @@
     },
     {
       "Name": "Microsoft Store App Auto-Download",
-      "Function": "Set-StoreAppAutoDownload",
+      "Function": "StoreAppAutoDownload",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -2586,7 +2586,7 @@
     },
     {
       "Name": "Legacy Media",
-      "Function": "Set-LegacyMediaBundle",
+      "Function": "LegacyMediaBundle",
       "Type": "Choice",
       "Options": [
         "Disable",
@@ -2624,7 +2624,7 @@
     },
     {
       "Name": "NFS",
-      "Function": "Set-NfsBundle",
+      "Function": "NfsBundle",
       "Type": "Choice",
       "Options": [
         "Disable",
@@ -2662,7 +2662,7 @@
     },
     {
       "Name": "Hyper-V Management Tools",
-      "Function": "Set-HyperVManagementTools",
+      "Function": "HyperVManagementTools",
       "Type": "Choice",
       "Options": [
         "Disable",

@@ -86,6 +86,17 @@
 			}
 		}
 
+		if ($unmatchedPresetEntries.Count -gt 0)
+		{
+			$unmatchedFunctionNames = @($unmatchedPresetEntries | ForEach-Object { [string]$_.Function } | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)
+			$unmatchedMessage = "Preset '{0}' references {1} unknown function$(if ($unmatchedPresetEntries.Count -eq 1) { '' } else { 's' }) (typo or removed tweak): {2}. These entries will be ignored." -f $presetDefinition.Name, $unmatchedPresetEntries.Count, ($unmatchedFunctionNames -join ', ')
+			Write-Warning $unmatchedMessage
+			if ($WriteGuiPresetDebugScript)
+			{
+				& $WriteGuiPresetDebugScript -Context 'Set-TabPreset' -Message $unmatchedMessage
+			}
+		}
+
 		return [pscustomobject]@{
 			NormalizedPresetTier   = $normalizedPresetTier
 			PresetDefinition       = $presetDefinition

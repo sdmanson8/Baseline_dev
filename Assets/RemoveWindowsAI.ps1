@@ -140,24 +140,22 @@ catch {
     # Silently skip — background runspaces do not support WindowTitle
 }
 
-# Track whether the host is Windows PowerShell 5.1 or PowerShell 7+.
-$version = $PSVersionTable.PSVersion
-if ($version -like '7*') {
-    $Global:psversion = 7
-}
-else {
-    $Global:psversion = 5
-}
+# Require the classic Windows PowerShell 5.1 host.
+$runningWindowsPowerShell51 = (
+    $PSVersionTable.PSEdition -eq 'Desktop' -and
+    $PSVersionTable.PSVersion.Major -eq 5 -and
+    $PSVersionTable.PSVersion.Minor -eq 1
+)
 
-if ($psversion -ge 7) {
+if (-not $runningWindowsPowerShell51) {
     Write-Host 'ERROR: This script requires Windows PowerShell 5.1 (powershell.exe).' -ForegroundColor Red
     Write-Host "You are currently running PowerShell version $($PSVersionTable.PSVersion.Major).$($PSVersionTable.PSVersion.Minor)." -ForegroundColor Red
-    Write-Host 'PowerShell 7+ (pwsh.exe) is not supported. Please run the script using the classic Windows PowerShell 5.1.' -ForegroundColor Red
+    Write-Host 'This host is not supported. Please run the script using the classic Windows PowerShell 5.1.' -ForegroundColor Red
     if (-not $nonInteractive) {
         try {
             Add-Type -AssemblyName System.Windows.Forms
             [System.Windows.Forms.MessageBox]::Show(
-                "This script must be run in Windows PowerShell 5.1.`n`nCurrent version: $($PSVersionTable.PSVersion)`n`nPlease use powershell.exe instead of pwsh.exe.",
+                "This script must be run in Windows PowerShell 5.1.`n`nCurrent version: $($PSVersionTable.PSVersion)`n`nPlease use powershell.exe.",
                 'PowerShell Version Error',
                 [System.Windows.Forms.MessageBoxButtons]::OK,
                 [System.Windows.Forms.MessageBoxIcon]::Error

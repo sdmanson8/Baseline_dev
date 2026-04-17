@@ -1,8 +1,9 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
-    $guiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
-    $script:GuiContent = Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
+    $xamlPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
+    $buildPrimaryTabsPath = Join-Path $PSScriptRoot '../../Module/GUI/BuildPrimaryTabs.ps1'
+    $script:GuiContent = (Get-Content -LiteralPath $xamlPath -Raw -Encoding UTF8) + "`n" + (Get-Content -LiteralPath $buildPrimaryTabsPath -Raw -Encoding UTF8)
 }
 
 Describe 'Adaptive primary tab layout' {

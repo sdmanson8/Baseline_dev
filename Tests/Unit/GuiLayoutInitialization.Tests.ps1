@@ -2,8 +2,9 @@ Set-StrictMode -Version Latest
 
 BeforeAll {
     $guiCommonPath = Join-Path $PSScriptRoot '../../Module/GUICommon.psm1'
+    $guiCommonLayoutPath = Join-Path $PSScriptRoot '../../Module/GUICommon/Layout.ps1'
     $guiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
-    $guiCommonContent = Get-Content -LiteralPath $guiCommonPath -Raw -Encoding UTF8
+    $guiCommonContent = (Get-Content -LiteralPath $guiCommonPath -Raw -Encoding UTF8) + "`n" + (Get-Content -LiteralPath $guiCommonLayoutPath -Raw -Encoding UTF8)
     $guiContent = Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
 }
 

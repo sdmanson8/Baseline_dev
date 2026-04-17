@@ -424,7 +424,7 @@ function Import-ConfigurationProfile
 	try
 	{
 		$content = [System.IO.File]::ReadAllText($FilePath, [System.Text.Encoding]::UTF8)
-		$document = $content | ConvertFrom-Json
+		$document = $content | ConvertFrom-BaselineJson -Depth 16
 	}
 	catch
 	{

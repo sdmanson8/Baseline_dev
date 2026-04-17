@@ -113,15 +113,15 @@ function GPUScheduling
 	Prioritize background services
 
 	.EXAMPLE
-	Set-Win32PrioritySeparation -Programs
+	Win32PrioritySeparation -Programs
 
 	.EXAMPLE
-	Set-Win32PrioritySeparation -BackgroundServices
+	Win32PrioritySeparation -BackgroundServices
 
 	.NOTES
 	Machine-wide
 #>
-function Set-Win32PrioritySeparation
+function Win32PrioritySeparation
 {
 	[CmdletBinding()]
 	param
@@ -189,15 +189,15 @@ function Set-Win32PrioritySeparation
 	Restore default system responsiveness
 
 	.EXAMPLE
-	Set-SystemResponsiveness -Enable
+	SystemResponsiveness -Enable
 
 	.EXAMPLE
-	Set-SystemResponsiveness -Disable
+	SystemResponsiveness -Disable
 
 	.NOTES
 	Machine-wide
 #>
-function Set-SystemResponsiveness
+function SystemResponsiveness
 {
 	[CmdletBinding()]
 	param
@@ -265,15 +265,15 @@ function Set-SystemResponsiveness
 	Restore the default CPU priority
 
 	.EXAMPLE
-	Set-GamingCpuPriority -Enable
+	GamingCpuPriority -Enable
 
 	.EXAMPLE
-	Set-GamingCpuPriority -Disable
+	GamingCpuPriority -Disable
 
 	.NOTES
 	Machine-wide
 #>
-function Set-GamingCpuPriority
+function GamingCpuPriority
 {
 	[CmdletBinding()]
 	param
@@ -341,15 +341,15 @@ function Set-GamingCpuPriority
 	Restore the default Medium scheduling category
 
 	.EXAMPLE
-	Set-GamingSchedulingCategory -Enable
+	GamingSchedulingCategory -Enable
 
 	.EXAMPLE
-	Set-GamingSchedulingCategory -Disable
+	GamingSchedulingCategory -Disable
 
 	.NOTES
 	Machine-wide
 #>
-function Set-GamingSchedulingCategory
+function GamingSchedulingCategory
 {
 	[CmdletBinding()]
 	param
@@ -417,15 +417,15 @@ function Set-GamingSchedulingCategory
 	Restore the default GPU priority
 
 	.EXAMPLE
-	Set-GamingGpuPriority -Enable
+	GamingGpuPriority -Enable
 
 	.EXAMPLE
-	Set-GamingGpuPriority -Disable
+	GamingGpuPriority -Disable
 
 	.NOTES
 	Machine-wide
 #>
-function Set-GamingGpuPriority
+function GamingGpuPriority
 {
 	[CmdletBinding()]
 	param
@@ -707,7 +707,7 @@ function FullscreenOptimizations
 			LogInfo "Enabling Fullscreen Optimizations"
 			try
 			{
-				Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_DXGIHonorFSEWindowsCompatible" -Type DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\System\GameConfigStore" -Name "GameDVR_DXGIHonorFSEWindowsCompatible" -Type DWord -Value 0 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -722,7 +722,7 @@ function FullscreenOptimizations
 			LogInfo "Disabling Fullscreen Optimizations"
 			try
 			{
-				Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_DXGIHonorFSEWindowsCompatible" -Type DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKCU:\System\GameConfigStore" -Name "GameDVR_DXGIHonorFSEWindowsCompatible" -Type DWord -Value 1 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -795,7 +795,7 @@ function MultiplaneOverlay
 			LogInfo "Disabling Multiplane Overlay"
 			try
 			{
-				Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\Dwm" -Name "OverlayTestMode" -Type DWord -Value 5 -Force -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Microsoft\Windows\Dwm" -Name "OverlayTestMode" -Type DWord -Value 5 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -977,15 +977,15 @@ function WindowsGameMode
 	Disable the DirectX flip presentation model optimizations
 
 	.EXAMPLE
-	Set-DirectXFlipModel -Enable
+	DirectXFlipModel -Enable
 
 	.EXAMPLE
-	Set-DirectXFlipModel -Disable
+	DirectXFlipModel -Disable
 
 	.NOTES
 	Current user
 #>
-function Set-DirectXFlipModel
+function DirectXFlipModel
 {
 	[CmdletBinding()]
 	param
@@ -1053,15 +1053,15 @@ function Set-DirectXFlipModel
 	Disable VRR optimizations
 
 	.EXAMPLE
-	Set-DirectXVrrOptimizations -Enable
+	DirectXVrrOptimizations -Enable
 
 	.EXAMPLE
-	Set-DirectXVrrOptimizations -Disable
+	DirectXVrrOptimizations -Disable
 
 	.NOTES
 	Current user
 #>
-function Set-DirectXVrrOptimizations
+function DirectXVrrOptimizations
 {
 	[CmdletBinding()]
 	param
@@ -1129,15 +1129,15 @@ function Set-DirectXVrrOptimizations
 	Disable Auto HDR
 
 	.EXAMPLE
-	Set-DirectXAutoHdr -Enable
+	DirectXAutoHdr -Enable
 
 	.EXAMPLE
-	Set-DirectXAutoHdr -Disable
+	DirectXAutoHdr -Disable
 
 	.NOTES
 	Current user
 #>
-function Set-DirectXAutoHdr
+function DirectXAutoHdr
 {
 	[CmdletBinding()]
 	param
@@ -1205,15 +1205,15 @@ function Set-DirectXAutoHdr
 	Disable the legacy NVIDIA sharpening flag
 
 	.EXAMPLE
-	Set-NvidiaSharpening -Enable
+	NvidiaSharpening -Enable
 
 	.EXAMPLE
-	Set-NvidiaSharpening -Disable
+	NvidiaSharpening -Disable
 
 	.NOTES
 	Machine-wide
 #>
-function Set-NvidiaSharpening
+function NvidiaSharpening
 {
 	[CmdletBinding()]
 	param
@@ -1311,9 +1311,9 @@ function MouseAcceleration
 			LogInfo "Enabling mouse acceleration"
 			try
 			{
-				Set-ItemProperty -Path $MousePath -Name "MouseSpeed" -Value "1" -Force -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path $MousePath -Name "MouseThreshold1" -Value "6" -Force -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path $MousePath -Name "MouseThreshold2" -Value "10" -Force -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $MousePath -Name "MouseSpeed" -Value "1" -Force -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $MousePath -Name "MouseThreshold1" -Value "6" -Force -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $MousePath -Name "MouseThreshold2" -Value "10" -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1328,9 +1328,9 @@ function MouseAcceleration
 			LogInfo "Disabling mouse acceleration"
 			try
 			{
-				Set-ItemProperty -Path $MousePath -Name "MouseSpeed" -Value "0" -Force -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path $MousePath -Name "MouseThreshold1" -Value "0" -Force -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path $MousePath -Name "MouseThreshold2" -Value "0" -Force -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $MousePath -Name "MouseSpeed" -Value "0" -Force -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $MousePath -Name "MouseThreshold1" -Value "0" -Force -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $MousePath -Name "MouseThreshold2" -Value "0" -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch

@@ -4,11 +4,11 @@ BeforeAll {
     $script:SessionStatePath = Join-Path $PSScriptRoot '../../Module/GUI/SessionState.ps1'
     $script:AuditViewPath = Join-Path $PSScriptRoot '../../Module/GUI/AuditView.ps1'
     $script:DialogHelpersPath = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers.ps1'
-    $script:GuiRegionPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
+    $script:MainWindowPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
     $script:GuiContent = Get-Content -LiteralPath $script:SessionStatePath -Raw -Encoding UTF8
     $script:AuditViewContent = Get-Content -LiteralPath $script:AuditViewPath -Raw -Encoding UTF8
     $script:DialogHelpersContent = Get-Content -LiteralPath $script:DialogHelpersPath -Raw -Encoding UTF8
-    $script:GuiRegionContent = Get-Content -LiteralPath $script:GuiRegionPath -Raw -Encoding UTF8
+    $script:MainWindowContent = Get-Content -LiteralPath $script:MainWindowPath -Raw -Encoding UTF8
 }
 
 Describe 'Audit retention settings' {
@@ -30,7 +30,7 @@ Describe 'Audit retention settings' {
         $script:DialogHelpersContent | Should -Match 'function Show-GuiAuditSettingsDialog'
         $script:DialogHelpersContent | Should -Match 'GuiAuditSettings'
         $script:DialogHelpersContent | Should -Match 'CmbAuditRetention'
-        $script:GuiRegionContent | Should -Match 'MenuFileAuditSettings'
-        $script:GuiRegionContent | Should -Match 'Audit Settings\.\.\.'
+        $script:MainWindowContent | Should -Match 'MenuFileAuditSettings'
+        $script:MainWindowContent | Should -Match 'Audit Settings\.\.\.'
     }
 }

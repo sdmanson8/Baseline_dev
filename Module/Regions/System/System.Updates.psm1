@@ -141,15 +141,15 @@ function WindowsLatestUpdate
 	Do not download updates automatically over metered connections (default value)
 
 	.EXAMPLE
-	Set-DownloadUpdatesOverMeteredConnection -Enable
+	DownloadUpdatesOverMeteredConnection -Enable
 
 	.EXAMPLE
-	Set-DownloadUpdatesOverMeteredConnection -Disable
+	DownloadUpdatesOverMeteredConnection -Disable
 
 	.NOTES
 	Machine-wide
 #>
-function Set-DownloadUpdatesOverMeteredConnection
+function DownloadUpdatesOverMeteredConnection
 {
 	param
 	(
@@ -224,15 +224,15 @@ function Set-DownloadUpdatesOverMeteredConnection
 	Do not allow Microsoft Store apps to automatically download and install updates (default value)
 
 	.EXAMPLE
-	Set-StoreAppAutoDownload -Enable
+	StoreAppAutoDownload -Enable
 
 	.EXAMPLE
-	Set-StoreAppAutoDownload -Disable
+	StoreAppAutoDownload -Disable
 
 	.NOTES
 	Machine-wide
 #>
-function Set-StoreAppAutoDownload
+function StoreAppAutoDownload
 {
 	param
 	(
@@ -307,15 +307,15 @@ function Set-StoreAppAutoDownload
 	Restore Windows default feature update behavior (default value)
 
 	.EXAMPLE
-	Set-FeatureUpdateDeferral -Enable
+	FeatureUpdateDeferral -Enable
 
 	.EXAMPLE
-	Set-FeatureUpdateDeferral -Disable
+	FeatureUpdateDeferral -Disable
 
 	.NOTES
 	Machine-wide
 #>
-function Set-FeatureUpdateDeferral
+function FeatureUpdateDeferral
 {
 	param
 	(
@@ -391,23 +391,23 @@ function Set-FeatureUpdateDeferral
 	Defer quality updates by 7 days
 
 	.EXAMPLE
-	Set-QualityUpdateDeferral -FourDays
+	QualityUpdateDeferral -FourDays
 
 	.EXAMPLE
-	Set-QualityUpdateDeferral -SevenDays
+	QualityUpdateDeferral -SevenDays
 
 	.NOTES
 	Machine-wide
 #>
 <#
     .SYNOPSIS
-    Internal function Set-QualityUpdateDeferral.
+    Internal function QualityUpdateDeferral.
 
     .DESCRIPTION
     Internal implementation helper used by Baseline.
 #>
 
-function Set-QualityUpdateDeferral
+function QualityUpdateDeferral
 {
 	param
 	(
@@ -506,15 +506,15 @@ function Set-QualityUpdateDeferral
 	Restore the normal Windows update posture
 
 	.EXAMPLE
-	Set-WindowsUpdateSecurityOnlyMode -Enable
+	WindowsUpdateSecurityOnlyMode -Enable
 
 	.EXAMPLE
-	Set-WindowsUpdateSecurityOnlyMode -Disable
+	WindowsUpdateSecurityOnlyMode -Disable
 
 	.NOTES
 	Machine-wide
 #>
-function Set-WindowsUpdateSecurityOnlyMode
+function WindowsUpdateSecurityOnlyMode
 {
 	param
 	(
@@ -544,8 +544,8 @@ function Set-WindowsUpdateSecurityOnlyMode
 				UpdateAutoDownload -Disable
 				UpdateDriver -Disable
 				UpdateRestart -Disable
-				Set-FeatureUpdateDeferral -Enable
-				Set-QualityUpdateDeferral -SevenDays
+				FeatureUpdateDeferral -Enable
+				QualityUpdateDeferral -SevenDays
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -563,8 +563,8 @@ function Set-WindowsUpdateSecurityOnlyMode
 				UpdateAutoDownload -Enable
 				UpdateDriver -Enable
 				UpdateRestart -Enable
-				Set-FeatureUpdateDeferral -Disable
-				Set-QualityUpdateDeferral -Default
+				FeatureUpdateDeferral -Disable
+				QualityUpdateDeferral -Default
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -590,23 +590,23 @@ function Set-WindowsUpdateSecurityOnlyMode
 	The date that should be written to the documented Windows Update pause keys in yyyy-MM-dd format
 
 	.EXAMPLE
-	Set-WindowsUpdatePause -Enable -StartDate 2025-04-08
+	WindowsUpdatePause -Enable -StartDate 2025-04-08
 
 	.EXAMPLE
-	Set-WindowsUpdatePause -Disable
+	WindowsUpdatePause -Disable
 
 	.NOTES
 	Machine-wide
 #>
 <#
     .SYNOPSIS
-    Internal function Set-WindowsUpdatePause.
+    Internal function WindowsUpdatePause.
 
     .DESCRIPTION
     Internal implementation helper used by Baseline.
 #>
 
-function Set-WindowsUpdatePause
+function WindowsUpdatePause
 {
 	param
 	(
@@ -832,26 +832,26 @@ function RestartNotification
 	Hide all Windows Update notifications, including restart warnings
 
 	.EXAMPLE
-	Set-UpdateNotificationLevel -All
+	UpdateNotificationLevel -All
 
 	.EXAMPLE
-	Set-UpdateNotificationLevel -RestartOnly
+	UpdateNotificationLevel -RestartOnly
 
 	.EXAMPLE
-	Set-UpdateNotificationLevel -Off
+	UpdateNotificationLevel -Off
 
 	.NOTES
 	Machine-wide
 #>
 <#
     .SYNOPSIS
-    Internal function Set-UpdateNotificationLevel.
+    Internal function UpdateNotificationLevel.
 
     .DESCRIPTION
     Internal implementation helper used by Baseline.
 #>
 
-function Set-UpdateNotificationLevel
+function UpdateNotificationLevel
 {
 	param
 	(
@@ -1173,7 +1173,7 @@ function SearchAppInStore
 				If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer")) {
 					New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -ErrorAction Stop | Out-Null
 				}
-				Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoUseStoreOpenWith" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "NoUseStoreOpenWith" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1196,15 +1196,15 @@ function SearchAppInStore
 	Allow recommended Microsoft Store apps when searching for apps in the Start menu
 
 	.EXAMPLE
-	Block-StoreSearchResults -Enable
+	StoreSearchResults -Enable
 
 	.EXAMPLE
-	Block-StoreSearchResults -Disable
+	StoreSearchResults -Disable
 
 	.NOTES
 	Current user
 #>
-function Block-StoreSearchResults
+function StoreSearchResults
 {
 	param
 	(
@@ -1285,10 +1285,10 @@ function Block-StoreSearchResults
 	Run the standard repair sequence plus OS integrity checks and deeper Windows Update cache resets.
 
 	.EXAMPLE
-	Repair-WindowsUpdate -Standard
+	WindowsUpdate -Standard
 
 	.EXAMPLE
-	Repair-WindowsUpdate -Aggressive
+	WindowsUpdate -Aggressive
 
 	.NOTES
 	Machine-wide
@@ -1298,13 +1298,13 @@ function Block-StoreSearchResults
 #>
 <#
     .SYNOPSIS
-    Internal function Repair-WindowsUpdate.
+    Internal function WindowsUpdate.
 
     .DESCRIPTION
     Internal implementation helper used by Baseline.
 #>
 
-function Repair-WindowsUpdate
+function WindowsUpdate
 {
 	[CmdletBinding(DefaultParameterSetName = 'Standard')]
 	param
@@ -1422,7 +1422,7 @@ function Repair-WindowsUpdate
 			Start-Service -Name $serviceName -ErrorAction SilentlyContinue | Out-Null
 		}
 
-		Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\AppIDSvc' -Name 'Start' -Value 3 -ErrorAction SilentlyContinue | Out-Null
+		Set-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Services\AppIDSvc' -Name 'Start' -Value 3 -ErrorAction SilentlyContinue | Out-Null
 		Start-Service -Name 'AppIDSvc' -ErrorAction SilentlyContinue | Out-Null
 
 		try

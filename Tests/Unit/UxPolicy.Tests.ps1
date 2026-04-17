@@ -1,6 +1,20 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    function Get-OSInfo {
+        [pscustomobject]@{
+            IsWindowsServer = $true
+        }
+    }
+
+    function Get-BaselineValidationMatrixSummary {
+        [pscustomobject]@{
+            ServerValidationSummary = 'CI only: Windows Server 2022 (CI only)'
+            ServerCIOnly = $true
+            HasServerCoverage = $true
+        }
+    }
+
     $filePath = Join-Path $PSScriptRoot '../../Module/GUI/UxPolicy.ps1'
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
@@ -192,6 +206,24 @@ Describe 'UxPolicy' {
             ($sections['Game Mode Workflow'] -join ' ') | Should -Match 'only the Gaming tab plan can be edited or run'
             ($sections['Preview Run'] -join ' ') | Should -Match 'active Game Mode plan'
             ($sections['Profiles and Plan Building'] -join ' ') | Should -Match 'Casual, Competitive, Streaming, and Troubleshooting'
+        }
+
+        It 'adds a server validation warning to preview summaries on Windows Server' {
+            $summary = [pscustomobject]@{
+                SelectedCount = 2
+                HighRiskCount = 0
+                MediumRiskCount = 0
+                ShouldRecommendRestorePoint = $false
+                RestoreRecommendation = $null
+                RestoreRecommendationSeverity = $null
+                DirectUndoEligibleCount = 0
+                Categories = @()
+                CategoryText = ''
+            }
+
+            $parts = @(Get-UxPreviewSummaryParts -Summary $summary -IsGameModePreview:$false -AlreadyDesiredCount 0 -WillChangeCount 1 -RequiresRestartCount 0 -NotFullyRestorablePreviewCount 0 -AdvancedTierCount 0)
+
+            ($parts -join ' ') | Should -Match 'Server validation outside CI remains CI only'
         }
     }
 }

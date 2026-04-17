@@ -228,7 +228,7 @@ function Import-BaselineLocalization
         param([string]$JsonPath)
 
         $jsonContent = Get-Content -Path $JsonPath -Raw -Encoding UTF8
-        $jsonObj = ConvertFrom-Json -InputObject $jsonContent
+        $jsonObj = $jsonContent | ConvertFrom-BaselineJson -Depth 16
 
         $hashtable = @{}
         foreach ($prop in $jsonObj.PSObject.Properties)

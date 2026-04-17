@@ -104,7 +104,7 @@ function Set-SystemTweaksRegistryValue
 
 	if ($null -ne (Get-ItemProperty -Path $Path -Name $Name -ErrorAction SilentlyContinue))
 	{
-		Set-ItemProperty -Path $Path -Name $Name -Type $Type -Value $Value -Force -ErrorAction Stop | Out-Null
+		Set-ItemProperty -LiteralPath $Path -Name $Name -Type $Type -Value $Value -Force -ErrorAction Stop | Out-Null
 	}
 	else
 	{
@@ -176,12 +176,12 @@ function Test-Windows11SmbDuplicateSidIssue
 Repair the common Windows 11 SMB client/share issue introduced after updates.
 
 .EXAMPLE
-Repair-Windows11SMBUpdateIssue
+Windows11SMBUpdateIssue
 
 .NOTES
 Current user
 #>
-function Repair-Windows11SMBUpdateIssue
+function Windows11SMBUpdateIssue
 {
 	Write-ConsoleStatus -Action "Repairing Windows 11 SMB post-update issue"
 
@@ -436,7 +436,7 @@ function Repair-Windows11SMBUpdateIssue
 	{
 		try
 		{
-			Enable-SMBGuestCompatibility -SuppressConsoleStatus
+			SMBGuestCompatibility -SuppressConsoleStatus
 		}
 		catch
 		{
@@ -472,12 +472,12 @@ function Repair-Windows11SMBUpdateIssue
 Enable guest/no-prompt SMB compatibility on non-domain machines.
 
 .EXAMPLE
-Enable-SMBGuestCompatibility
+SMBGuestCompatibility
 
 .NOTES
 Current user
 #>
-function Enable-SMBGuestCompatibility
+function SMBGuestCompatibility
 {
 	[CmdletBinding()]
 	param
@@ -599,12 +599,12 @@ function Enable-SMBGuestCompatibility
 Preserve SMB file sharing, printer sharing, and Windows credential access.
 
 .EXAMPLE
-Set-SMBSharingCompatibility
+SMBSharingCompatibility
 
 .NOTES
 Current user
 #>
-function Set-SMBSharingCompatibility
+function SMBSharingCompatibility
 {
 	Write-ConsoleStatus -Action "Preserving SMB and printer sharing compatibility"
 	LogInfo "Preserving SMB and printer sharing compatibility"
@@ -744,13 +744,13 @@ Run the optional client-side cleanup path in addition to the host/common printer
 Skip deleting stale files from the print spool folder.
 
 .EXAMPLE
-Repair-SharedPrinterConnectionErrors
+SharedPrinterConnectionErrors
 
 .EXAMPLE
-Repair-SharedPrinterConnectionErrors -ClientMode
+SharedPrinterConnectionErrors -ClientMode
 
 .EXAMPLE
-Repair-SharedPrinterConnectionErrors -SkipSpoolerSpool
+SharedPrinterConnectionErrors -SkipSpoolerSpool
 
 .NOTES
 Machine-wide
@@ -760,13 +760,13 @@ Restart required.
 #>
 <#
     .SYNOPSIS
-    Internal function Repair-SharedPrinterConnectionErrors.
+    Internal function SharedPrinterConnectionErrors.
 
     .DESCRIPTION
     Internal implementation helper used by Baseline.
 #>
 
-function Repair-SharedPrinterConnectionErrors
+function SharedPrinterConnectionErrors
 {
 	[CmdletBinding()]
 	param
@@ -784,7 +784,7 @@ function Repair-SharedPrinterConnectionErrors
 	$principal = [Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()
 	if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 	{
-		LogError "Repair-SharedPrinterConnectionErrors requires an elevated PowerShell session."
+		LogError "SharedPrinterConnectionErrors requires an elevated PowerShell session."
 		Write-ConsoleStatus -Status failed
 		return
 	}
@@ -1161,7 +1161,7 @@ function Repair-SharedPrinterConnectionErrors
 			{
 				if ($filtered.Count -gt 0)
 				{
-					Set-ItemProperty -Path $sessionManagerPath -Name "PendingFileRenameOperations" -Value $filtered -Force
+					Set-ItemProperty -LiteralPath $sessionManagerPath -Name "PendingFileRenameOperations" -Value $filtered -Force
 				}
 				else
 				{

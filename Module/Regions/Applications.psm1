@@ -1,4 +1,4 @@
-using module ..\Logging.psm1
+﻿using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 #region Applications
@@ -508,6 +508,398 @@ function Resolve-ApplicationExecutionRoute
 
 <#
     .SYNOPSIS
+    Internal function Save-ChocolateyBootstrapScript.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Save-ChocolateyBootstrapScript
+{
+	[CmdletBinding()]
+	param()
+
+	$bootstrapScriptUrl = 'https://community.chocolatey.org/install.ps1'
+	$bootstrapScriptPath = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath ("baseline-choco-bootstrap-{0}.ps1" -f [System.Guid]::NewGuid().ToString('N'))
+	$webClient = New-Object System.Net.WebClient
+
+	try
+	{
+		$webClient.DownloadFile($bootstrapScriptUrl, $bootstrapScriptPath)
+		return $bootstrapScriptPath
+	}
+	finally
+	{
+		$webClient.Dispose()
+	}
+}
+
+<#
+    .SYNOPSIS
+    Internal function Test-BaselineEnvironmentFlagEnabled.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Test-BaselineEnvironmentFlagEnabled
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[ValidateNotNullOrEmpty()]
+		[string]$Name
+	)
+
+	$rawValue = [System.Environment]::GetEnvironmentVariable($Name)
+	if ([string]::IsNullOrWhiteSpace($rawValue))
+	{
+		return $false
+	}
+
+	switch ($rawValue.Trim().ToLowerInvariant())
+	{
+		'1' { return $true }
+		'true' { return $true }
+		'yes' { return $true }
+		'on' { return $true }
+		default { return $false }
+	}
+}
+
+<#
+    .SYNOPSIS
+    Internal function Test-ChocolateyBootstrapInteractiveHost.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Test-ChocolateyBootstrapInteractiveHost
+{
+	[CmdletBinding()]
+	param(
+		[Parameter()]
+		[object]$HostInstance = $Host,
+
+		[Parameter()]
+		[Nullable[bool]]$UserInteractive = $null
+	)
+
+	try
+	{
+		if ($null -eq $HostInstance -or $null -eq $HostInstance.UI)
+		{
+			return $false
+		}
+
+		# Known non-interactive hosts whose PromptForChoice implementation throws
+		# NotSupportedException: BaselineHost (launcher), ServerRemoteHost (PSRemoting),
+		# Default Host (various automation contexts). RawUI presence is not enough —
+		# BaselineHost exposes RawUI but rejects PromptForChoice.
+		$nonInteractiveHostNames = @('BaselineHost', 'ServerRemoteHost', 'Default Host')
+		if ($HostInstance.Name -and ($nonInteractiveHostNames -contains [string]$HostInstance.Name))
+		{
+			return $false
+		}
+
+		$isUserInteractive = if ($null -ne $UserInteractive) { [bool]$UserInteractive } else { [Environment]::UserInteractive }
+		if (-not $isUserInteractive)
+		{
+			return $false
+		}
+
+		$null = $HostInstance.UI.RawUI
+		return $true
+	}
+	catch
+	{
+		return $false
+	}
+}
+
+<#
+    .SYNOPSIS
+    Internal function Confirm-ChocolateyBootstrapExecution.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Confirm-ChocolateyBootstrapExecution
+{
+	[CmdletBinding()]
+	param()
+
+	$bootstrapScriptUrl = 'https://community.chocolatey.org/install.ps1'
+	$approvalVariableName = 'BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP'
+	if (Test-BaselineEnvironmentFlagEnabled -Name $approvalVariableName)
+	{
+		return
+	}
+
+	$approvalTitle = Get-BaselineLocalizedString -Key 'Progress_Choco_BootstrapApprovalTitle' -Fallback 'Approve Chocolatey bootstrap'
+	$approvalMessage = Get-BaselineLocalizedString -Key 'Progress_Choco_BootstrapApprovalMessage' -Fallback ("Baseline can install Chocolatey by downloading and running Chocolatey's official bootstrap script.`n`nURL: {0}`n`nThis script is not bundled with Baseline or integrity-pinned by this repository. Review and approve it before continuing.`n`nFor reviewed headless automation, set {1}=1 for this process before launching Baseline." -f $bootstrapScriptUrl, $approvalVariableName)
+	$approvalFailureMessage = Get-BaselineLocalizedString -Key 'Progress_Choco_BootstrapApprovalRequired' -Fallback ("Chocolatey bootstrap requires explicit operator approval before Baseline runs {0}. Review the script and approve it in an interactive session, or set {1}=1 for this process after review." -f $bootstrapScriptUrl, $approvalVariableName)
+
+	$showThemedDialog = Get-Command -Name 'GUICommon\Show-ThemedDialog' -ErrorAction SilentlyContinue
+	$approveLabel = 'Approve and Continue'
+	if ($showThemedDialog -and (Test-Path -Path Variable:\Script:CurrentTheme) -and (Test-Path -Path Function:\Set-ButtonChrome))
+	{
+		$useDarkMode = $true
+		if (Test-Path -Path Variable:\Script:CurrentThemeName)
+		{
+			$useDarkMode = ($Script:CurrentThemeName -eq 'Dark')
+		}
+
+		$dialogResult = GUICommon\Show-ThemedDialog `
+			-Theme $Script:CurrentTheme `
+			-ApplyButtonChrome ${function:Set-ButtonChrome} `
+			-Title $approvalTitle `
+			-Message $approvalMessage `
+			-Buttons @('Cancel', $approveLabel) `
+			-AccentButton $approveLabel `
+			-UseDarkMode $useDarkMode
+
+		if ($dialogResult -eq $approveLabel)
+		{
+			return
+		}
+
+		throw $approvalFailureMessage
+	}
+
+	if (Test-ChocolateyBootstrapInteractiveHost)
+	{
+		$approveChoice = New-Object -TypeName System.Management.Automation.Host.ChoiceDescription -ArgumentList '&Approve and Continue', 'Download and run the Chocolatey bootstrap script now.'
+		$cancelChoice = New-Object -TypeName System.Management.Automation.Host.ChoiceDescription -ArgumentList '&Cancel', 'Stop before downloading and executing the Chocolatey bootstrap script.'
+		$selectedIndex = $Host.UI.PromptForChoice($approvalTitle, $approvalMessage, @($approveChoice, $cancelChoice), 1)
+		if ($selectedIndex -eq 0)
+		{
+			return
+		}
+	}
+
+	throw $approvalFailureMessage
+}
+
+<#
+    .SYNOPSIS
+    Internal function ConvertTo-ApplicationCommandLiteral.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function ConvertTo-ApplicationCommandLiteral
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		$Ast,
+
+		[Parameter(Mandatory = $true)]
+		[string]$Command,
+
+		[Parameter(Mandatory = $false)]
+		[switch]$CommandName
+	)
+
+	if ($Ast -is [System.Management.Automation.Language.StringConstantExpressionAst])
+	{
+		$literalValue = [string]$Ast.Value
+		if ($CommandName -and [string]::IsNullOrWhiteSpace($literalValue))
+		{
+			throw "Command '$Command' must start with a literal command name."
+		}
+
+		return $literalValue
+	}
+
+	if (-not $CommandName -and $Ast -is [System.Management.Automation.Language.ConstantExpressionAst])
+	{
+		return [string]$Ast.Value
+	}
+
+	if ($CommandName)
+	{
+		throw "Command '$Command' must start with a literal command name."
+	}
+
+	throw "Command '$Command' contains unsupported syntax."
+}
+
+<#
+    .SYNOPSIS
+    Internal function Assert-ApplicationCommandAstIsSafe.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Assert-ApplicationCommandAstIsSafe
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		$Ast,
+
+		[Parameter(Mandatory = $true)]
+		[string]$Command
+	)
+
+	if ($Ast.ParamBlock -or $Ast.BeginBlock -or $Ast.ProcessBlock -or $Ast.DynamicParamBlock -or $Ast.CleanBlock)
+	{
+		throw "Command '$Command' contains unsupported syntax."
+	}
+
+	if (-not $Ast.EndBlock)
+	{
+		throw "Command '$Command' must resolve to one or more command invocations."
+	}
+
+	$statements = @($Ast.EndBlock.Statements)
+	if ($statements.Count -eq 0)
+	{
+		throw "Command '$Command' must resolve to one or more command invocations."
+	}
+
+	foreach ($statement in $statements)
+	{
+		$pipelineAst = $statement -as [System.Management.Automation.Language.PipelineAst]
+		if (-not $pipelineAst)
+		{
+			throw "Command '$Command' must contain only command invocations."
+		}
+
+		if ($pipelineAst.Background)
+		{
+			throw "Command '$Command' contains unsupported syntax."
+		}
+
+		foreach ($pipelineElement in @($pipelineAst.PipelineElements))
+		{
+			$commandAst = $pipelineElement -as [System.Management.Automation.Language.CommandAst]
+			if (-not $commandAst -or $commandAst.CommandElements.Count -lt 1)
+			{
+				throw "Command '$Command' must resolve to a command name plus arguments."
+			}
+
+			if (@($commandAst.Redirections).Count -gt 0)
+			{
+				throw "Command '$Command' contains unsupported syntax."
+			}
+
+			if ($commandAst.InvocationOperator -ne [System.Management.Automation.Language.TokenKind]::Unknown)
+			{
+				throw "Command '$Command' contains unsupported syntax."
+			}
+
+			$null = ConvertTo-ApplicationCommandLiteral -Ast $commandAst.CommandElements[0] -Command $Command -CommandName
+			foreach ($element in ($commandAst.CommandElements | Select-Object -Skip 1))
+			{
+				if ($element -is [System.Management.Automation.Language.CommandParameterAst])
+				{
+					if ($null -ne $element.Argument)
+					{
+						$null = ConvertTo-ApplicationCommandLiteral -Ast $element.Argument -Command $Command
+					}
+
+					continue
+				}
+
+				$null = ConvertTo-ApplicationCommandLiteral -Ast $element -Command $Command
+			}
+		}
+	}
+}
+
+<#
+    .SYNOPSIS
+    Internal function ConvertTo-ApplicationCommandInvocation.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function ConvertTo-ApplicationCommandInvocation
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[ValidateNotNullOrEmpty()]
+		[string]$Command
+	)
+
+	$tokens = $null
+	$parseErrors = $null
+	$ast = [System.Management.Automation.Language.Parser]::ParseInput($Command, [ref]$tokens, [ref]$parseErrors)
+	if ($parseErrors -and $parseErrors.Count -gt 0)
+	{
+		throw "Command '$Command' could not be parsed safely."
+	}
+
+	Assert-ApplicationCommandAstIsSafe -Ast $ast -Command $Command
+
+	$statements = @($ast.EndBlock.Statements)
+	$commandNames = [System.Collections.Generic.List[string]]::new()
+	$isSingleCommandInvocation = ($statements.Count -eq 1)
+	$commandAst = $null
+	if ($isSingleCommandInvocation)
+	{
+		$pipelineAst = $statements[0] -as [System.Management.Automation.Language.PipelineAst]
+		$isSingleCommandInvocation = ($pipelineAst -and $pipelineAst.PipelineElements.Count -eq 1)
+		if ($isSingleCommandInvocation)
+		{
+			$commandAst = $pipelineAst.PipelineElements[0] -as [System.Management.Automation.Language.CommandAst]
+		}
+	}
+
+	$commandArguments = [System.Collections.Generic.List[string]]::new()
+	foreach ($statement in $statements)
+	{
+		$pipelineAst = $statement -as [System.Management.Automation.Language.PipelineAst]
+		foreach ($pipelineElement in @($pipelineAst.PipelineElements))
+		{
+			$pipelineCommandAst = $pipelineElement -as [System.Management.Automation.Language.CommandAst]
+			[void]$commandNames.Add((ConvertTo-ApplicationCommandLiteral -Ast $pipelineCommandAst.CommandElements[0] -Command $Command -CommandName))
+		}
+	}
+
+	if ($commandAst)
+	{
+		foreach ($element in ($commandAst.CommandElements | Select-Object -Skip 1))
+		{
+			if ($element -is [System.Management.Automation.Language.StringConstantExpressionAst] -or $element -is [System.Management.Automation.Language.ConstantExpressionAst])
+			{
+				[void]$commandArguments.Add([string]$element.Value)
+				continue
+			}
+
+			if ($element -is [System.Management.Automation.Language.CommandParameterAst])
+			{
+				[void]$commandArguments.Add("-$($element.ParameterName)")
+				if ($null -ne $element.Argument)
+				{
+					[void]$commandArguments.Add((ConvertTo-ApplicationCommandLiteral -Ast $element.Argument -Command $Command))
+				}
+
+				continue
+			}
+		}
+	}
+
+	return [pscustomobject]@{
+		CommandName = if ($commandAst) { [string]$commandNames[0] } else { $null }
+		CommandArguments = @($commandArguments)
+		CommandNames = @($commandNames)
+		HasSingleCommandInvocation = [bool]$commandAst
+		ScriptBlock = [scriptblock]::Create($Command)
+	}
+}
+
+<#
+    .SYNOPSIS
     Internal function Invoke-WingetInstall.
 
     .DESCRIPTION
@@ -731,6 +1123,49 @@ function Invoke-WingetUpdate
 
 <#
     .SYNOPSIS
+    Internal function Invoke-ChocolateyBootstrapInstall.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Invoke-ChocolateyBootstrapInstall
+{
+	[CmdletBinding()]
+	param()
+
+	Confirm-ChocolateyBootstrapExecution
+
+	$previousExecutionPolicy = [string](Get-ExecutionPolicy -Scope Process)
+	$previousSecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol
+	$bootstrapScriptPath = $null
+	if ([string]::IsNullOrWhiteSpace($previousExecutionPolicy))
+	{
+		$previousExecutionPolicy = 'Undefined'
+	}
+
+	try
+	{
+		Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+		[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+		$bootstrapScriptPath = Save-ChocolateyBootstrapScript
+		& $bootstrapScriptPath
+		Reset-ChocolateyAvailabilityState
+	}
+	finally
+	{
+		[System.Net.ServicePointManager]::SecurityProtocol = $previousSecurityProtocol
+		if ($bootstrapScriptPath -and (Test-Path -LiteralPath $bootstrapScriptPath))
+		{
+			Remove-Item -LiteralPath $bootstrapScriptPath -Force -ErrorAction SilentlyContinue
+		}
+
+		Set-ExecutionPolicy -ExecutionPolicy $previousExecutionPolicy -Scope Process -Force
+	}
+}
+
+<#
+    .SYNOPSIS
     Internal function Invoke-ChocoInstall.
 
     .DESCRIPTION
@@ -761,10 +1196,7 @@ function Invoke-ChocoInstall
 		if (-not $chocoPath)
 		{
 			LogInfo (Get-BaselineLocalizedString -Key 'Progress_Choco_Installing' -Fallback 'Installing Chocolatey package manager...')
-			Set-ExecutionPolicy Bypass -Scope Process -Force
-			[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
-			Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-			Reset-ChocolateyAvailabilityState
+			Invoke-ChocolateyBootstrapInstall
 			$chocoPath = Resolve-ChocolateyExecutable
 		}
 
@@ -829,10 +1261,7 @@ function Invoke-ChocoUninstall
 		if (-not $chocoPath)
 		{
 			LogInfo (Get-BaselineLocalizedString -Key 'Progress_Choco_Installing' -Fallback 'Installing Chocolatey package manager...')
-			Set-ExecutionPolicy Bypass -Scope Process -Force
-			[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
-			Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-			Reset-ChocolateyAvailabilityState
+			Invoke-ChocolateyBootstrapInstall
 			$chocoPath = Resolve-ChocolateyExecutable
 		}
 
@@ -897,10 +1326,7 @@ function Invoke-ChocoUpdate
 		if (-not $chocoPath)
 		{
 			LogInfo (Get-BaselineLocalizedString -Key 'Progress_Choco_Installing' -Fallback 'Installing Chocolatey package manager...')
-			Set-ExecutionPolicy Bypass -Scope Process -Force
-			[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
-			Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-			Reset-ChocolateyAvailabilityState
+			Invoke-ChocolateyBootstrapInstall
 			$chocoPath = Resolve-ChocolateyExecutable
 		}
 
@@ -1293,7 +1719,30 @@ function Invoke-CommandInstall
 			$UseDarkMode = ($Script:CurrentThemeName -eq 'Dark')
 		}
 
-		$result = Invoke-Expression -Command $Command -ErrorAction Stop
+		$commandInvocation = ConvertTo-ApplicationCommandInvocation -Command $Command
+		$previousErrorActionPreference = $ErrorActionPreference
+		try
+		{
+			$ErrorActionPreference = 'Stop'
+			$null = & $commandInvocation.ScriptBlock
+			if ($commandInvocation.HasSingleCommandInvocation -and -not [string]::IsNullOrWhiteSpace([string]$commandInvocation.CommandName))
+			{
+				$resolvedCommand = Get-Command -Name $commandInvocation.CommandName -ErrorAction Stop | Select-Object -First 1
+				if ($resolvedCommand.CommandType -in @([System.Management.Automation.CommandTypes]::Application, [System.Management.Automation.CommandTypes]::ExternalScript))
+				{
+					$exitCode = $global:LASTEXITCODE
+					if ($exitCode -ne 0)
+					{
+						throw "Command '$Command' exited with code $exitCode."
+					}
+				}
+			}
+		}
+		finally
+		{
+			$ErrorActionPreference = $previousErrorActionPreference
+		}
+
 		LogInfo (Get-BaselineLocalizedString -Key 'Progress_Command_Success' -Fallback 'Successfully executed installation command for {0}' -FormatArgs @($DisplayName))
 		return
 	}

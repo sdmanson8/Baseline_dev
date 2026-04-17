@@ -5,7 +5,7 @@ BeforeAll {
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
-        if ($fn.Name -in @('Set-OptionalFeatureBundleState', 'Set-LegacyMediaBundle', 'Set-NfsBundle', 'Set-HyperVManagementTools')) {
+        if ($fn.Name -in @('Set-OptionalFeatureBundleState', 'LegacyMediaBundle', 'NfsBundle', 'HyperVManagementTools')) {
             Invoke-Expression $fn.Extent.Text
         }
     }
@@ -158,7 +158,7 @@ Describe 'Feature bundle wrappers' {
         #>
         function Set-ItemProperty {
             param(
-                [string]$Path,
+                [string]$Path, [string]$LiteralPath,
                 [string]$Name,
                 [object]$Value,
                 [object]$ErrorAction
@@ -166,7 +166,7 @@ Describe 'Feature bundle wrappers' {
 
             [void]$script:featureCalls.Add([pscustomobject]@{
                 Command = 'Set-ItemProperty'
-                Path = $Path
+                Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path })
                 Name = $Name
                 Value = $Value
             })
@@ -185,7 +185,7 @@ Describe 'Feature bundle wrappers' {
     }
 
     It 'enables the Legacy Media bundle' {
-        Set-LegacyMediaBundle -Enable
+        LegacyMediaBundle -Enable
 
         $script:featureCalls.Count | Should -Be 4
         $script:featureCalls[0].Command | Should -Be 'Enable'
@@ -199,7 +199,7 @@ Describe 'Feature bundle wrappers' {
     }
 
     It 'disables the Legacy Media bundle' {
-        Set-LegacyMediaBundle -Disable
+        LegacyMediaBundle -Disable
 
         $script:featureCalls.Count | Should -Be 4
         @($script:featureCalls | ForEach-Object Command) | Should -Be @('Disable', 'Disable', 'Disable', 'Disable')
@@ -209,7 +209,7 @@ Describe 'Feature bundle wrappers' {
     }
 
     It 'enables the NFS bundle and applies the client defaults' {
-        Set-NfsBundle -Enable
+        NfsBundle -Enable
 
         $script:featureCalls.Count | Should -Be 8
         $script:featureCalls[0].FeatureName | Should -Be 'ServicesForNFS-ClientOnly'
@@ -230,7 +230,7 @@ Describe 'Feature bundle wrappers' {
     }
 
     It 'disables the NFS bundle without applying the client defaults' {
-        Set-NfsBundle -Disable
+        NfsBundle -Disable
 
         $script:featureCalls.Count | Should -Be 3
         @($script:featureCalls | ForEach-Object Command) | Should -Be @('Disable', 'Disable', 'Disable')
@@ -240,7 +240,7 @@ Describe 'Feature bundle wrappers' {
     }
 
     It 'enables Hyper-V management tools with the all flag' {
-        Set-HyperVManagementTools -Enable
+        HyperVManagementTools -Enable
 
         $script:featureCalls.Count | Should -Be 1
         $script:featureCalls[0].Command | Should -Be 'Enable'
@@ -252,7 +252,7 @@ Describe 'Feature bundle wrappers' {
     }
 
     It 'disables Hyper-V management tools' {
-        Set-HyperVManagementTools -Disable
+        HyperVManagementTools -Disable
 
         $script:featureCalls.Count | Should -Be 1
         $script:featureCalls[0].Command | Should -Be 'Disable'

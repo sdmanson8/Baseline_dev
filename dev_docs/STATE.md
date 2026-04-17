@@ -109,6 +109,19 @@ What you actually need during a run:
 
 ---
 
+## Loader reload behaviour
+
+`Module/Baseline.psm1` keeps session statistics in the logging module, not in the GUI context.
+
+If the loader is imported again and resolves a different `$global:LogFilePath` than the current one, it treats that as a new session:
+- `Set-LogFile -Clear` points logging at the new path
+- `Initialize-SessionStatistics` resets the in-memory counters
+- a warning is written to the new log stating that module reload changed the log path and session statistics were reset
+
+This state does not migrate across loader reloads. If you are debugging a reload path, check the current log file first.
+
+---
+
 ## Known traps
 
 **`$FilterUiUpdating`** — must be `$true` while you're programmatically updating filter controls. If you miss it, filter events fire during the update and trigger a cascade of content rebuilds. This has caused hard-to-reproduce blank-tab bugs.

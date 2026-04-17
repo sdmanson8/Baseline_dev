@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     # Extract inner functions from both Manifest.Helpers.ps1 (for Get-TweakManifestEntryValue
@@ -6,6 +6,9 @@ BeforeAll {
     # Uses Invoke-Expression on function definition AST nodes - safe because
     # ParseFile only parses (no execution) and we only evaluate FunctionDefinitionAst
     # nodes, which merely define functions without side effects.
+
+    # Json helpers must load first — GameMode.Helpers calls ConvertFrom-BaselineJson.
+    . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Json.Helpers.ps1')
 
     $Script:SharedHelpersModuleRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../Module')).Path
     $Script:CachedGameModeAllowlistData = $null
@@ -49,15 +52,15 @@ Describe 'Get-GameModeAllowlist' {
     It 'contains the new advanced gaming functions' {
         $allowlist = Get-GameModeAllowlist
 
-        $allowlist | Should -Contain 'Set-Win32PrioritySeparation'
-        $allowlist | Should -Contain 'Set-SystemResponsiveness'
-        $allowlist | Should -Contain 'Set-GamingCpuPriority'
-        $allowlist | Should -Contain 'Set-GamingSchedulingCategory'
-        $allowlist | Should -Contain 'Set-GamingGpuPriority'
-        $allowlist | Should -Contain 'Set-DirectXFlipModel'
-        $allowlist | Should -Contain 'Set-DirectXVrrOptimizations'
-        $allowlist | Should -Contain 'Set-DirectXAutoHdr'
-        $allowlist | Should -Contain 'Set-NvidiaSharpening'
+        $allowlist | Should -Contain 'Win32PrioritySeparation'
+        $allowlist | Should -Contain 'SystemResponsiveness'
+        $allowlist | Should -Contain 'GamingCpuPriority'
+        $allowlist | Should -Contain 'GamingSchedulingCategory'
+        $allowlist | Should -Contain 'GamingGpuPriority'
+        $allowlist | Should -Contain 'DirectXFlipModel'
+        $allowlist | Should -Contain 'DirectXVrrOptimizations'
+        $allowlist | Should -Contain 'DirectXAutoHdr'
+        $allowlist | Should -Contain 'NvidiaSharpening'
     }
 
     It 'contains only unique entries' {

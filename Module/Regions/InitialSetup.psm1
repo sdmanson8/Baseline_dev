@@ -666,83 +666,6 @@ function Initialize-PackageManagersBootstrap
 
 <#
 	.SYNOPSIS
-	Install or update to the latest PowerShell 7 release.
-
-	.DESCRIPTION
-	Uses WinGet to install the latest stable PowerShell 7 release.
-	Falls back to the official Microsoft install script if WinGet is unavailable.
-
-	.EXAMPLE
-	Update-Powershell
-
-	.NOTES
-	Machine-wide
-#>
-function Update-Powershell
-{
-	$powerShellStatusText = Get-BaselineLocalizedString -Key 'Progress_Installing' -Fallback 'Installing {0}...' -FormatArgs @('PowerShell 7')
-	Write-ConsoleStatus -Action $powerShellStatusText
-	LogInfo $powerShellStatusText
-	try
-	{
-		$WingetPath = Resolve-WinGetExecutable
-		if (-not [string]::IsNullOrWhiteSpace([string]$WingetPath))
-		{
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_UsingPackageManagerExecutable' -Fallback 'Using {0} executable: {1}' -FormatArgs @('WinGet', $WingetPath))
-		}
-		if ($WingetPath)
-		{
-			$wingetSucceeded = $false
-			$process = Start-Process -FilePath $WingetPath `
-				-ArgumentList "install --id Microsoft.PowerShell --source winget --accept-package-agreements --accept-source-agreements --silent" `
-				-WindowStyle Hidden -Wait -PassThru -ErrorAction Stop
-			if ($process.ExitCode -in 0, -1978335189)
-			{
-				$wingetSucceeded = $true
-			}
-			else
-			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallReturnedExitCodeFallback' -Fallback '{0} install returned exit code {1}, falling back to MSI installer' -FormatArgs @('WinGet', $process.ExitCode))
-			}
-		}
-		if (-not $WingetPath -or -not $wingetSucceeded)
-		{
-			$installerPath = $null
-			try
-			{
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_DownloadingOfficialPowerShellMsi' -Fallback 'Downloading the official PowerShell MSI package from GitHub')
-				$installerUri = Resolve-PowerShellInstallerUri
-				$installerFileName = Split-Path -Path $installerUri -Leaf
-				$installerPath = Join-Path $env:TEMP $installerFileName
-				Invoke-DownloadFile -Uri $installerUri -OutFile $installerPath
-				$null = Assert-AuthenticodeSignature -Path $installerPath -AllowedSubjects @('CN=Microsoft Corporation')
-				$process = Start-Process -FilePath 'msiexec.exe' `
-					-ArgumentList "/i `"$installerPath`" /qn /norestart" `
-					-WindowStyle Hidden -Wait -PassThru -ErrorAction Stop
-				if ($process.ExitCode -notin 0, 3010)
-				{
-					throw "msiexec returned exit code $($process.ExitCode)"
-				}
-			}
-			finally
-			{
-				if ($installerPath -and (Test-Path -LiteralPath $installerPath))
-				{
-					Remove-Item -LiteralPath $installerPath -Force -ErrorAction SilentlyContinue
-				}
-			}
-		}
-		Write-ConsoleStatus -Status success
-	}
-	catch
-	{
-		Write-ConsoleStatus -Status failed
-		LogError (Get-BaselineBilingualString -Key 'Bootstrap_PowerShellInstallFailed' -Fallback 'Failed to install/update PowerShell 7: {0}' -FormatArgs @($_.Exception.Message))
-	}
-}
-
-<#
-	.SYNOPSIS
 	Hide the Spotlight "About this picture" desktop icon.
 
 	.DESCRIPTION
@@ -750,12 +673,12 @@ function Update-Powershell
 	HideDesktopIcons value so the icon stays hidden for the current user.
 
 	.EXAMPLE
-	Update-DesktopRegistry
+	DesktopRegistry
 
 	.NOTES
 	Current user
 #>
-function Update-DesktopRegistry
+function DesktopRegistry
 {
 	# Write-Host: intentional — user-visible progress indicator
 	Write-Host 'Removing "About this Picture" from Desktop - ' -NoNewline
@@ -783,7 +706,7 @@ function Update-DesktopRegistry
 		{
             New-Item -Path $hideIconsPath -Force -ErrorAction Stop | Out-Null
         }
-        Set-ItemProperty -Path $hideIconsPath -Name $valueName -Value $valueData -Type DWord -ErrorAction Stop | Out-Null
+        Set-ItemProperty -LiteralPath $hideIconsPath -Name $valueName -Value $valueData -Type DWord -ErrorAction Stop | Out-Null
 		Write-ConsoleStatus -Status success
     }
 	catch

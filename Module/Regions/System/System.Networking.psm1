@@ -168,23 +168,23 @@ function CurrentNetwork
 	Use OpenDNS servers
 
 	.EXAMPLE
-	Set-DnsProvider -Google
+	DnsProvider -Google
 
 	.EXAMPLE
-	Set-DnsProvider -DHCP
+	DnsProvider -DHCP
 
 	.NOTES
 	Machine-wide
 #>
 <#
     .SYNOPSIS
-    Internal function Set-DnsProvider.
+    Internal function DnsProvider.
 
     .DESCRIPTION
     Internal implementation helper used by Baseline.
 #>
 
-function Set-DnsProvider
+function DnsProvider
 {
 	param
 	(
@@ -691,7 +691,7 @@ function ConnectionSharing
 		{
 			Write-ConsoleStatus -Action "Disabling Internet Connection Sharing (ICS)"
 			LogInfo "Disabling Internet Connection Sharing (ICS)"
-			Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Network Connections" -Name "NC_ShowSharedAccessUI" -Type DWord -Value 0 | Out-Null
+			Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Network Connections" -Name "NC_ShowSharedAccessUI" -Type DWord -Value 0 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -751,7 +751,7 @@ function LLMNR
 			If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient")) {
 				New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient" -Force | Out-Null
 			}
-			Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient" -Name "EnableMulticast" -Type DWord -Value 0 | Out-Null
+			Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient" -Name "EnableMulticast" -Type DWord -Value 0 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -810,7 +810,7 @@ function NCSIProbe
 		{
 			Write-ConsoleStatus -Action "Disabling Network Connectivity Status Indicator (NCSI) active probe"
 			LogInfo "Disabling Network Connectivity Status Indicator (NCSI) active probe"
-			Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\NetworkConnectivityStatusIndicator" -Name "NoActiveProbe" -Type DWord -Value 1 | Out-Null
+			Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows\NetworkConnectivityStatusIndicator" -Name "NoActiveProbe" -Type DWord -Value 1 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -884,15 +884,15 @@ function NetBIOS
 	Restore Windows Time to use time.windows.com
 
 	.EXAMPLE
-	Set-NtpServerOverride -Enable
+	NtpServerOverride -Enable
 
 	.EXAMPLE
-	Set-NtpServerOverride -Disable
+	NtpServerOverride -Disable
 
 	.NOTES
 	Current user
 #>
-function Set-NtpServerOverride
+function NtpServerOverride
 {
 	param
 	(
@@ -963,7 +963,7 @@ function Set-NtpServerOverride
 	.NOTES
 	Machine-wide
 #>
-function Install-OpenSSHServer
+function OpenSSHServer
 {
 	param()
 
@@ -1196,7 +1196,7 @@ function NetDevicesAutoInst
 			If (!(Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private")) {
 				New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private" -Force | Out-Null
 			}
-			Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private" -Name "AutoSetup" -Type DWord -Value 0 | Out-Null
+			Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\NcdAutoSetup\Private" -Name "AutoSetup" -Type DWord -Value 0 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -1325,7 +1325,7 @@ function UnknownNetworks
 			If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\NetworkList\Signatures\010103000F0000F0010000000F0000F0C967A3643C3AD745950DA7859209176EF5B87C875FA20DF21951640E807D7C24")) {
 				New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\NetworkList\Signatures\010103000F0000F0010000000F0000F0C967A3643C3AD745950DA7859209176EF5B87C875FA20DF21951640E807D7C24" -Force | Out-Null
 			}
-			Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\NetworkList\Signatures\010103000F0000F0010000000F0000F0C967A3643C3AD745950DA7859209176EF5B87C875FA20DF21951640E807D7C24" -Name "Category" -Type DWord -Value 1 | Out-Null
+			Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\CurrentVersion\NetworkList\Signatures\010103000F0000F0010000000F0000F0C967A3643C3AD745950DA7859209176EF5B87C875FA20DF21951640E807D7C24" -Name "Category" -Type DWord -Value 1 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 		"Public"

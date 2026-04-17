@@ -193,7 +193,7 @@ Describe 'DNSoverHTTPS' {
             )
 
             [void]$script:newItemPropertyCalls.Add([pscustomobject]@{
-                Path = $Path
+                Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path })
                 Name = $Name
                 PropertyType = $PropertyType
                 Value = $Value
@@ -210,14 +210,14 @@ Describe 'DNSoverHTTPS' {
 
         function Set-ItemProperty {
             param(
-                [string]$Path,
+                [string]$Path, [string]$LiteralPath,
                 [string]$Name,
                 [object]$Value,
                 [object]$ErrorAction
             )
 
             [void]$script:setItemPropertyCalls.Add([pscustomobject]@{
-                Path = $Path
+                Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path })
                 Name = $Name
                 Value = $Value
             })

@@ -10,7 +10,7 @@
 	maintainer/admin validation script.
 
 	.EXAMPLE
-	pwsh -File .\Tools\Validate-ManifestData.ps1
+	powershell -File .\Tools\Validate-ManifestData.ps1
 #>
 
 [CmdletBinding()]
@@ -52,6 +52,7 @@ $totalEntries = 0
 $dataFileCount = 0
 $validRecoveryLevels = @('Direct', 'DefaultsOnly', 'RestorePoint', 'Manual')
 $validCompatibilitySensitivityValues = @('Low', 'Medium', 'High')
+$validMaturityValues = @(Get-BaselineFeatureMaturityLevels)
 $validScenarioTags = @(Get-ValidScenarioTagCatalog)
 $validGamingPreviewGroups = @(Get-ValidGamingPreviewGroups)
 $validGameModeProfiles = @(Get-ValidGameModeProfileNames)
@@ -534,6 +535,18 @@ foreach ($dataFile in (Get-ChildItem -LiteralPath $dataDir -Filter '*.json' -Fil
 			}
 		}
 
+		$maturityRaw = if ($entry.PSObject.Properties['Maturity']) { [string]$entry.Maturity } else { $null }
+		$maturity = ConvertTo-BaselineFeatureMaturityLevel -Value $maturityRaw
+		if (-not [string]::IsNullOrWhiteSpace($maturityRaw) -and $maturityRaw -notmatch '^(?i)\s*(implemented|tested|ci([\s\-_]?validated)?|production([\s\-_]?validated)?|prod([\s\-_]?validated)?)\s*$')
+		{
+			[void]$issues.Add([PSCustomObject]@{
+				Type = 'InvalidMaturity'
+				File = $dataFile.Name
+				Entry = $entryIndex
+				Message = "'$name' uses invalid Maturity '$($entry.Maturity)'. Valid values: $($validMaturityValues -join ', ')."
+			})
+		}
+
 		if (-not [string]::IsNullOrWhiteSpace($name) -and -not [string]::IsNullOrWhiteSpace($functionName))
 		{
 			$key = '{0}|{1}' -f $name.Trim(), $functionName.Trim()
@@ -551,6 +564,7 @@ foreach ($dataFile in (Get-ChildItem -LiteralPath $dataDir -Filter '*.json' -Fil
 				Name       = $name
 				Function   = $functionName
 				Risk       = if ($entry.PSObject.Properties['Risk']) { [string]$entry.Risk } else { $null }
+				Maturity   = $maturity
 				Safe       = if ($entry.PSObject.Properties['Safe']) { [bool]$entry.Safe } else { $false }
 				PresetTier = if ($entry.PSObject.Properties['PresetTier']) { [string]$entry.PresetTier } else { $null }
 				Type       = $typeName

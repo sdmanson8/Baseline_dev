@@ -101,7 +101,7 @@ param
 	$ScheduledRun,
 
 	[Parameter(Mandatory = $false)]
-	[Alias('ConfigFile', 'ConfingFile')]
+	[Alias('ConfigFile')]
 	[string]
 	$ProfilePath,
 
@@ -262,6 +262,51 @@ function ConvertTo-BaselineCommandLineLiteral
 
 	$text = [string]$Value
 	return "'" + ($text -replace "'", "''") + "'"
+}
+
+<#
+    .SYNOPSIS
+    Internal function ConvertTo-ValidatedTargetComputerList.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function ConvertTo-ValidatedTargetComputerList
+{
+	param(
+		[Parameter(Mandatory = $true)]
+		[string[]]
+		$ComputerName
+	)
+
+	$hostnamePattern = '^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(?:\.(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?))*$'
+	$ipv4LiteralPattern = '^(?:\d{1,3}\.){3}\d{1,3}$'
+	$validated = [System.Collections.Generic.List[string]]::new()
+
+	foreach ($computer in @($ComputerName))
+	{
+		$candidate = [string]$computer
+		if ([string]::IsNullOrWhiteSpace($candidate))
+		{
+			throw 'Invalid -TargetComputer entry: value cannot be empty.'
+		}
+
+		$candidate = $candidate.Trim()
+		if ($candidate -match $ipv4LiteralPattern)
+		{
+			throw ("Invalid -TargetComputer entry '{0}'. Use a hostname or FQDN, not an IP literal." -f $candidate)
+		}
+
+		if ($candidate -notmatch $hostnamePattern)
+		{
+			throw ("Invalid -TargetComputer entry '{0}'. Use a valid hostname or FQDN." -f $candidate)
+		}
+
+		$validated.Add($candidate)
+	}
+
+	return $validated.ToArray()
 }
 
 <#
@@ -550,6 +595,14 @@ Write-LaunchTrace ('Markdown runtime loaded: {0}' -f (Test-BaselineMarkdownRunti
 
 if ($ReadOnly)
 {
+	if ($Apply)
+	{
+		throw [System.InvalidOperationException]::new('-ReadOnly cannot be combined with -Apply. ReadOnly mode forbids any state mutation; -Apply requests state mutation. Pick one.')
+	}
+	if ($ApplyProfile)
+	{
+		throw [System.InvalidOperationException]::new('-ReadOnly cannot be combined with -ApplyProfile. ReadOnly mode forbids any state mutation; -ApplyProfile writes profile state to the system. Pick one.')
+	}
 	Set-BaselineOperationMode -Mode 'ReadOnly'
 	Write-LaunchTrace 'Operation mode forced to ReadOnly via -ReadOnly switch.'
 }
@@ -759,7 +812,7 @@ function Get-ErrorDetailText
 
 if ([string]::IsNullOrWhiteSpace($Preset) -and [string]::IsNullOrWhiteSpace($GameModeProfile) -and [string]::IsNullOrWhiteSpace($ScenarioProfile) -and -not $Functions)
 {
-	$Preset = $env:BASELINE_PRESET
+	$Preset = Resolve-HeadlessEnvironmentPreset -EnvironmentPreset $env:BASELINE_PRESET
 }
 
 if ($Script:BootstrapSplash -and $Script:BootstrapSplash.IsAlive)
@@ -840,6 +893,11 @@ if ($TargetComputer -and [string]::IsNullOrWhiteSpace($ProfilePath) -and -not $P
 if ($TargetComputer -and $Functions -and -not $Preset)
 {
 	throw '-TargetComputer cannot be combined with -Functions directly. Use -ProfilePath or -Preset instead.'
+}
+
+if ($TargetComputer)
+{
+	$TargetComputer = @(ConvertTo-ValidatedTargetComputerList -ComputerName $TargetComputer)
 }
 
 <#
@@ -1782,7 +1840,7 @@ if ($Functions)
 	if ($Script:IsEmbeddedHost) { return } else { exit }
 }
 
-# Restart Script in PowerShell 5.1 if running PowerShell 7
+# Restart under Windows PowerShell 5.1 unless we are already running there
 Restart-Script -ScriptPath $MyInvocation.MyCommand.Path -Preset $Preset -GameModeProfile $GameModeProfile -ScenarioProfile $ScenarioProfile -Functions $Functions -DryRun:$DryRun
 
 # WPF requires an STA thread. If Windows PowerShell was launched with -MTA,

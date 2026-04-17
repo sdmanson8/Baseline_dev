@@ -1,10 +1,16 @@
 ﻿Set-StrictMode -Version Latest
 
 BeforeAll {
-    $guiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
+    $xamlPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
+    $buildPrimaryTabsPath = Join-Path $PSScriptRoot '../../Module/GUI/BuildPrimaryTabs.ps1'
+    $windowSetupPath = Join-Path $PSScriptRoot '../../Module/GUI/WindowSetup.ps1'
     $tabMgmtPath = Join-Path $PSScriptRoot '../../Module/GUI/TabManagement.ps1'
 
-    $script:GuiContent = Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
+    $script:GuiContent = @(
+        Get-Content -LiteralPath $xamlPath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $buildPrimaryTabsPath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $windowSetupPath -Raw -Encoding UTF8
+    ) -join "`n"
     $script:TabMgmtContent = Get-Content -LiteralPath $tabMgmtPath -Raw -Encoding UTF8
 }
 

@@ -1,4 +1,4 @@
-# Shared helper slice for Baseline.
+﻿# Shared helper slice for Baseline.
 
 <#
     .SYNOPSIS
@@ -379,6 +379,128 @@ function Test-ChocolateyAvailable
 
 <#
     .SYNOPSIS
+    Internal function Test-BaselineEnvironmentFlagEnabled.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Test-BaselineEnvironmentFlagEnabled
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[ValidateNotNullOrEmpty()]
+		[string]$Name
+	)
+
+	$rawValue = [System.Environment]::GetEnvironmentVariable($Name)
+	if ([string]::IsNullOrWhiteSpace($rawValue))
+	{
+		return $false
+	}
+
+	switch ($rawValue.Trim().ToLowerInvariant())
+	{
+		'1' { return $true }
+		'true' { return $true }
+		'yes' { return $true }
+		'on' { return $true }
+		default { return $false }
+	}
+}
+
+<#
+    .SYNOPSIS
+    Internal function Test-ChocolateyBootstrapInteractiveHost.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Test-ChocolateyBootstrapInteractiveHost
+{
+	[CmdletBinding()]
+	param(
+		[Parameter()]
+		[object]$HostInstance = $Host,
+
+		[Parameter()]
+		[Nullable[bool]]$UserInteractive = $null
+	)
+
+	try
+	{
+		if ($null -eq $HostInstance -or $null -eq $HostInstance.UI)
+		{
+			return $false
+		}
+
+		# Known non-interactive hosts whose PromptForChoice implementation throws
+		# NotSupportedException: BaselineHost (launcher), ServerRemoteHost (PSRemoting),
+		# Default Host (various automation contexts). RawUI presence is not enough —
+		# BaselineHost exposes RawUI but rejects PromptForChoice.
+		$nonInteractiveHostNames = @('BaselineHost', 'ServerRemoteHost', 'Default Host')
+		if ($HostInstance.Name -and ($nonInteractiveHostNames -contains [string]$HostInstance.Name))
+		{
+			return $false
+		}
+
+		$isUserInteractive = if ($null -ne $UserInteractive) { [bool]$UserInteractive } else { [Environment]::UserInteractive }
+		if (-not $isUserInteractive)
+		{
+			return $false
+		}
+
+		$null = $HostInstance.UI.RawUI
+		return $true
+	}
+	catch
+	{
+		return $false
+	}
+}
+
+<#
+    .SYNOPSIS
+    Internal function Confirm-ChocolateyBootstrapExecution.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Confirm-ChocolateyBootstrapExecution
+{
+	[CmdletBinding()]
+	param()
+
+	$installerUrl = 'https://community.chocolatey.org/install.ps1'
+	$approvalVariableName = 'BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP'
+	if (Test-BaselineEnvironmentFlagEnabled -Name $approvalVariableName)
+	{
+		return
+	}
+
+	$approvalTitle = Get-BaselineBilingualString -Key 'Bootstrap_ChocolateyApprovalTitle' -Fallback 'Approve Chocolatey bootstrap'
+	$approvalMessage = Get-BaselineBilingualString -Key 'Bootstrap_ChocolateyApprovalMessage' -Fallback ("Baseline can install Chocolatey by downloading and running Chocolatey's official bootstrap script.`n`nURL: {0}`n`nThis script is not bundled with Baseline or integrity-pinned by this repository. Review and approve it before continuing.`n`nFor reviewed headless automation, set {1}=1 for this process before launching Baseline." -f $installerUrl, $approvalVariableName)
+	$approvalFailureMessage = Get-BaselineBilingualString -Key 'Bootstrap_ChocolateyApprovalRequired' -Fallback ("Chocolatey bootstrap requires explicit operator approval before Baseline runs {0}. Review the script and approve it in an interactive session, or set {1}=1 for this process after review." -f $installerUrl, $approvalVariableName)
+
+	if (Test-ChocolateyBootstrapInteractiveHost)
+	{
+		$approveChoice = New-Object -TypeName System.Management.Automation.Host.ChoiceDescription -ArgumentList '&Approve and Continue', 'Download and run the Chocolatey bootstrap script now.'
+		$cancelChoice = New-Object -TypeName System.Management.Automation.Host.ChoiceDescription -ArgumentList '&Cancel', 'Stop before downloading and executing the Chocolatey bootstrap script.'
+		$selectedIndex = $Host.UI.PromptForChoice($approvalTitle, $approvalMessage, @($approveChoice, $cancelChoice), 1)
+		if ($selectedIndex -eq 0)
+		{
+			return
+		}
+	}
+
+	throw $approvalFailureMessage
+}
+
+<#
+    .SYNOPSIS
     Internal function Invoke-WinGetBootstrap.
 
     .DESCRIPTION
@@ -599,6 +721,8 @@ function Invoke-ChocolateyBootstrap
 
 	try
 	{
+		Confirm-ChocolateyBootstrapExecution
+
 		$chocolateyVersion = Get-ChocolateyVersion
 		if ($chocolateyVersion)
 		{
@@ -823,7 +947,7 @@ function Get-BaselineLatestReleaseAssetUrl
 
 	$apiUrl = "https://api.github.com/repos/$Owner/$Repository/releases"
 	$releasesJson = (New-Object System.Net.WebClient).DownloadString($apiUrl)
-	$releases = $releasesJson | ConvertFrom-Json
+	$releases = $releasesJson | ConvertFrom-BaselineJson -Depth 16
 	if (-not $releases -or $releases.Count -eq 0)
 	{
 		throw "No releases found at $apiUrl"

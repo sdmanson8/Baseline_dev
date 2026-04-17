@@ -79,7 +79,7 @@ function LockScreen
 				{
 					New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization" -Force -ErrorAction Stop | Out-Null
 				}
-				Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization" -Name "NoLockScreen" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization" -Name "NoLockScreen" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -264,7 +264,7 @@ function LockScreenBlur
 		{
 			Write-ConsoleStatus -Action "Enabling blurring of the lockscreen"
 			LogInfo "Enabling blurring of the lockscreen"
-			Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "DisableAcrylicBackgroundOnLogon" -Type DWord -Value 1 | Out-Null
+			Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "DisableAcrylicBackgroundOnLogon" -Type DWord -Value 1 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -330,7 +330,7 @@ function NetworkFromLockScreen
 		{
 			Write-ConsoleStatus -Action "Disabling the Network options on the lockscreen"
 			LogInfo "Disabling the Network options on the lockscreen"
-			Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "DontDisplayNetworkSelectionUI" -Type DWord -Value 1 | Out-Null
+			Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "DontDisplayNetworkSelectionUI" -Type DWord -Value 1 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -389,14 +389,14 @@ function ShutdownFromLockScreen
 		{
 			Write-ConsoleStatus -Action "Enabling the shutdown options on the lockscreen"
 			LogInfo "Enabling the shutdown options on the lockscreen"
-			Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ShutdownWithoutLogon" -Type DWord -Value 1 | Out-Null
+			Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ShutdownWithoutLogon" -Type DWord -Value 1 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 		"Disable"
 		{
 			Write-ConsoleStatus -Action "Disabling the shutdown options on the lockscreen"
 			LogInfo "Disabling the shutdown options on the lockscreen"
-			Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ShutdownWithoutLogon" -Type DWord -Value 0 | Out-Null
+			Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ShutdownWithoutLogon" -Type DWord -Value 0 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}

@@ -980,7 +980,12 @@
 					foreach ($session in @($sessions))
 					{
 						if (-not $session) { continue }
-						[void]$lines.Add((' - {0} [{1}]' -f $session.ComputerName, $session.State))
+						$transportSuffix = ''
+						if ($session.PSObject.Properties['TransportKey'] -and -not [string]::IsNullOrWhiteSpace([string]$session.TransportKey) -and [string]$session.TransportKey -ne '<default>')
+						{
+							$transportSuffix = ' (transport: {0})' -f ([string]$session.TransportKey).Substring(0, [Math]::Min(8, ([string]$session.TransportKey).Length))
+						}
+						[void]$lines.Add((' - {0} [{1}]{2}' -f $session.ComputerName, $session.State, $transportSuffix))
 					}
 				}
 				else

@@ -2,11 +2,12 @@ Set-StrictMode -Version Latest
 
 BeforeAll {
     $script:GuiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
+    $script:MainWindowPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
     $script:ActionHandlersPath = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers.ps1'
     $script:StyleManagementPath = Join-Path $PSScriptRoot '../../Module/GUI/StyleManagement.ps1'
     $script:SessionStatePath = Join-Path $PSScriptRoot '../../Module/GUI/SessionState.ps1'
     $script:DialogHelpersPath = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers.ps1'
-    $script:GuiContent = Get-Content -LiteralPath $script:GuiPath -Raw -Encoding UTF8
+    $script:GuiContent = (Get-Content -LiteralPath $script:GuiPath -Raw -Encoding UTF8) + "`n" + (Get-Content -LiteralPath $script:MainWindowPath -Raw -Encoding UTF8)
     $script:ActionHandlersContent = Get-Content -LiteralPath $script:ActionHandlersPath -Raw -Encoding UTF8
     $script:StyleManagementContent = Get-Content -LiteralPath $script:StyleManagementPath -Raw -Encoding UTF8
     $script:SessionStateContent = Get-Content -LiteralPath $script:SessionStatePath -Raw -Encoding UTF8
@@ -60,9 +61,16 @@ Describe 'Remote target approval menu' {
         $script:DialogHelpersContent | Should -Match 'BtnSavePolicy'
         $script:DialogHelpersContent | Should -Match 'BtnLoadPolicy'
         $script:DialogHelpersContent | Should -Match 'BtnPreflight'
-        $script:DialogHelpersContent | Should -Match 'Test-BaselineRemoteConnectivity'
-        $script:DialogHelpersContent | Should -Match 'TxtRecentOrchestration'
-        $script:DialogHelpersContent | Should -Match 'Get-BaselineRemoteOrchestrationSummary'
+        $script:DialogHelpersContent | Should -Match "Get-GuiFunctionCapture -Name 'Invoke-PreflightChecks'"
+        $script:DialogHelpersContent | Should -Match "Invoke-CapturedFunction -Name 'Invoke-PreflightChecks'"
+        $script:DialogHelpersContent | Should -Match 'SupportedEnvironmentClassification'
+        $script:DialogHelpersContent | Should -Match 'PolicyConflictSignals'
+        $script:DialogHelpersContent | Should -Not -Match 'Firewall access:'
+        $script:DialogHelpersContent | Should -Match 'Export Deep-Linked Support Bundle'
+        $script:DialogHelpersContent | Should -Match 'DeepLinkRunId'
+        $script:DialogHelpersContent | Should -Match 'TxtFilterRuns'
+        $script:DialogHelpersContent | Should -Match 'LstRecentRemoteRuns'
+        $script:DialogHelpersContent | Should -Match "Get-GuiRuntimeCommand -Name 'Get-BaselineRemoteRunSummaries'"
     }
 
     It 'adds a release status dialog and wires it through the Help menu' {
@@ -73,6 +81,12 @@ Describe 'Remote target approval menu' {
         $script:DialogHelpersContent | Should -Match 'Clear Pin'
         $script:DialogHelpersContent | Should -Match 'Icon system:'
         $script:DialogHelpersContent | Should -Match 'Validation matrix:'
+        $script:DialogHelpersContent | Should -Match 'Validation evidence:'
+        $script:DialogHelpersContent | Should -Match 'Validation channels:'
+        $script:DialogHelpersContent | Should -Match 'Build/test provenance:'
+        $script:DialogHelpersContent | Should -Match 'Artifact verification:'
+        $script:DialogHelpersContent | Should -Match 'Server validation outside CI'
+        $script:DialogHelpersContent | Should -Match 'Verification:'
         $script:GuiContent | Should -Match 'MenuHelpReleaseStatus'
         $script:GuiContent | Should -Match 'Release Status\.{3}'
         $script:ActionHandlersContent | Should -Match "Get-GuiRuntimeCommand -Name 'Show-GuiReleaseStatusDialog'"

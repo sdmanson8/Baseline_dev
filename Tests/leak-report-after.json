@@ -1,0 +1,915 @@
+{
+  "generated": "2026-04-16T07:43:36.9720639+02:00",
+  "source_key_count": 2421,
+  "exempt_key_count": 2399,
+  "non_exempt_key_count": 22,
+  "non_exempt_keys": [
+    "GuiPreflightRiskCategoryDocsLabel",
+    "GuiPreflightRiskCategoryHeading",
+    "GuiPreflightRiskCategoryLogHintPartial",
+    "GuiPreflightRiskCategoryLogHintPolicy",
+    "GuiPreflightRiskCategoryLogHintReboot",
+    "GuiPreflightRiskCategoryLogHintWinRM",
+    "GuiPreflightRiskCategoryLogsLabel",
+    "GuiPreflightRiskCategoryManagedName",
+    "GuiPreflightRiskCategoryManagedPassed",
+    "GuiPreflightRiskCategoryNone",
+    "GuiPreflightRiskCategoryPartialName",
+    "GuiPreflightRiskCategoryPartialPassed",
+    "GuiPreflightRiskCategoryPartialSummary",
+    "GuiPreflightRiskCategoryRebootName",
+    "GuiPreflightRiskCategoryRebootPassed",
+    "GuiPreflightRiskCategorySummary",
+    "GuiPreflightRiskCategoryWinRMName",
+    "GuiPreflightRiskCategoryWinRMPassed",
+    "GuiPreflightRiskCategoryWinRMVariabilityName",
+    "GuiPreflightWinRMPartialCoverage",
+    "GuiPreviewRiskCategoryDocsLabel",
+    "GuiPreviewRiskCategoryHeading"
+  ],
+  "script_exempt_count": 158,
+  "file_exempt_count": 2399,
+  "invariant_value_count": 13,
+  "english_variants_skipped": [
+    "en-AE.json",
+    "en-AU.json",
+    "en-BZ.json",
+    "en-CA.json",
+    "en-GB.json",
+    "en-IE.json",
+    "en-IN.json",
+    "en-JM.json",
+    "en-MV.json",
+    "en-MY.json",
+    "en-NZ.json",
+    "en-PH.json",
+    "en-SG.json",
+    "en-TT.json",
+    "en-US.json",
+    "en-ZA.json",
+    "en-ZW.json",
+    "en-029.json"
+  ],
+  "total_leak_count": 0,
+  "total_exempt_matches": 5344,
+  "locale_count": 107,
+  "locales": {
+    "af.json": {
+      "path": "Localizations\\Afrikaans\\af.json",
+      "leak_count": 0,
+      "exempt_matches": 50,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "am.json": {
+      "path": "Localizations\\Amharic\\am.json",
+      "leak_count": 0,
+      "exempt_matches": 24,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ar.json": {
+      "path": "Localizations\\Arabic\\ar.json",
+      "leak_count": 0,
+      "exempt_matches": 23,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "as.json": {
+      "path": "Localizations\\Assamese\\as.json",
+      "leak_count": 0,
+      "exempt_matches": 22,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "az.json": {
+      "path": "Localizations\\Azerbaijani\\az.json",
+      "leak_count": 0,
+      "exempt_matches": 52,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "be.json": {
+      "path": "Localizations\\Belarusian\\be.json",
+      "leak_count": 0,
+      "exempt_matches": 29,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "bg.json": {
+      "path": "Localizations\\Bulgarian\\bg.json",
+      "leak_count": 0,
+      "exempt_matches": 45,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "bn-BD.json": {
+      "path": "Localizations\\Bangla (Bangladesh)\\bn-BD.json",
+      "leak_count": 0,
+      "exempt_matches": 29,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "bn.json": {
+      "path": "Localizations\\Bangla\\bn.json",
+      "leak_count": 0,
+      "exempt_matches": 30,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "bs.json": {
+      "path": "Localizations\\Bosnian\\bs.json",
+      "leak_count": 0,
+      "exempt_matches": 66,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ca.json": {
+      "path": "Localizations\\Catalan\\ca.json",
+      "leak_count": 0,
+      "exempt_matches": 43,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "chr.json": {
+      "path": "Localizations\\Cherokee\\chr.json",
+      "leak_count": 0,
+      "exempt_matches": 323,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ckb.json": {
+      "path": "Localizations\\Kurdish (Sorani)\\ckb.json",
+      "leak_count": 0,
+      "exempt_matches": 29,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "cs.json": {
+      "path": "Localizations\\Czech\\cs.json",
+      "leak_count": 0,
+      "exempt_matches": 45,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "cy.json": {
+      "path": "Localizations\\Welsh\\cy.json",
+      "leak_count": 0,
+      "exempt_matches": 35,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "da.json": {
+      "path": "Localizations\\Danish\\da.json",
+      "leak_count": 0,
+      "exempt_matches": 68,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "de.json": {
+      "path": "Localizations\\German\\de.json",
+      "leak_count": 0,
+      "exempt_matches": 56,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "el.json": {
+      "path": "Localizations\\Greek\\el.json",
+      "leak_count": 0,
+      "exempt_matches": 39,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "es-MX.json": {
+      "path": "Localizations\\Spanish (Mexico)\\es-MX.json",
+      "leak_count": 0,
+      "exempt_matches": 32,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "es.json": {
+      "path": "Localizations\\Spanish\\es.json",
+      "leak_count": 0,
+      "exempt_matches": 29,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "et.json": {
+      "path": "Localizations\\Estonian\\et.json",
+      "leak_count": 0,
+      "exempt_matches": 50,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "eu.json": {
+      "path": "Localizations\\Basque\\eu.json",
+      "leak_count": 0,
+      "exempt_matches": 50,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "fa.json": {
+      "path": "Localizations\\Persian\\fa.json",
+      "leak_count": 0,
+      "exempt_matches": 73,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "fi.json": {
+      "path": "Localizations\\Finnish\\fi.json",
+      "leak_count": 0,
+      "exempt_matches": 58,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "fil.json": {
+      "path": "Localizations\\Filipino\\fil.json",
+      "leak_count": 0,
+      "exempt_matches": 128,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "fr-CA.json": {
+      "path": "Localizations\\French (Canada)\\fr-CA.json",
+      "leak_count": 0,
+      "exempt_matches": 41,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "fr.json": {
+      "path": "Localizations\\French\\fr.json",
+      "leak_count": 0,
+      "exempt_matches": 38,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ga.json": {
+      "path": "Localizations\\Irish\\ga.json",
+      "leak_count": 0,
+      "exempt_matches": 33,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "gd.json": {
+      "path": "Localizations\\Scottish Gaelic\\gd.json",
+      "leak_count": 0,
+      "exempt_matches": 44,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "gl.json": {
+      "path": "Localizations\\Galician\\gl.json",
+      "leak_count": 0,
+      "exempt_matches": 42,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "gu.json": {
+      "path": "Localizations\\Gujarati\\gu.json",
+      "leak_count": 0,
+      "exempt_matches": 69,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ha.json": {
+      "path": "Localizations\\Hausa\\ha.json",
+      "leak_count": 0,
+      "exempt_matches": 74,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "he.json": {
+      "path": "Localizations\\Hebrew\\he.json",
+      "leak_count": 0,
+      "exempt_matches": 43,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "hi.json": {
+      "path": "Localizations\\Hindi\\hi.json",
+      "leak_count": 0,
+      "exempt_matches": 23,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "hr.json": {
+      "path": "Localizations\\Croatian\\hr.json",
+      "leak_count": 0,
+      "exempt_matches": 57,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "hu.json": {
+      "path": "Localizations\\Hungarian\\hu.json",
+      "leak_count": 0,
+      "exempt_matches": 44,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "hy.json": {
+      "path": "Localizations\\Armenian\\hy.json",
+      "leak_count": 0,
+      "exempt_matches": 63,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "id.json": {
+      "path": "Localizations\\Indonesian\\id.json",
+      "leak_count": 0,
+      "exempt_matches": 42,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ig.json": {
+      "path": "Localizations\\Igbo\\ig.json",
+      "leak_count": 0,
+      "exempt_matches": 45,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "is.json": {
+      "path": "Localizations\\Icelandic\\is.json",
+      "leak_count": 0,
+      "exempt_matches": 44,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "it.json": {
+      "path": "Localizations\\Italian\\it.json",
+      "leak_count": 0,
+      "exempt_matches": 43,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ja.json": {
+      "path": "Localizations\\Japanese\\ja.json",
+      "leak_count": 0,
+      "exempt_matches": 27,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ka.json": {
+      "path": "Localizations\\Georgian\\ka.json",
+      "leak_count": 0,
+      "exempt_matches": 45,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "kk.json": {
+      "path": "Localizations\\Kazakh\\kk.json",
+      "leak_count": 0,
+      "exempt_matches": 41,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "km.json": {
+      "path": "Localizations\\Khmer\\km.json",
+      "leak_count": 0,
+      "exempt_matches": 39,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "kn.json": {
+      "path": "Localizations\\Kannada\\kn.json",
+      "leak_count": 0,
+      "exempt_matches": 30,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ko.json": {
+      "path": "Localizations\\Korean\\ko.json",
+      "leak_count": 0,
+      "exempt_matches": 24,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "kok.json": {
+      "path": "Localizations\\Konkani\\kok.json",
+      "leak_count": 0,
+      "exempt_matches": 30,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ky.json": {
+      "path": "Localizations\\Kyrgyz\\ky.json",
+      "leak_count": 0,
+      "exempt_matches": 69,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "lb.json": {
+      "path": "Localizations\\Luxembourgish\\lb.json",
+      "leak_count": 0,
+      "exempt_matches": 114,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "lo.json": {
+      "path": "Localizations\\Lao\\lo.json",
+      "leak_count": 0,
+      "exempt_matches": 69,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "lt.json": {
+      "path": "Localizations\\Lithuanian\\lt.json",
+      "leak_count": 0,
+      "exempt_matches": 39,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "lv.json": {
+      "path": "Localizations\\Latvian\\lv.json",
+      "leak_count": 0,
+      "exempt_matches": 46,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "mi.json": {
+      "path": "Localizations\\Māori\\mi.json",
+      "leak_count": 0,
+      "exempt_matches": 41,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "mk.json": {
+      "path": "Localizations\\Macedonian\\mk.json",
+      "leak_count": 0,
+      "exempt_matches": 46,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ml.json": {
+      "path": "Localizations\\Malayalam\\ml.json",
+      "leak_count": 0,
+      "exempt_matches": 33,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "mn.json": {
+      "path": "Localizations\\Mongolian\\mn.json",
+      "leak_count": 0,
+      "exempt_matches": 45,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "mr.json": {
+      "path": "Localizations\\Marathi\\mr.json",
+      "leak_count": 0,
+      "exempt_matches": 30,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ms.json": {
+      "path": "Localizations\\Malay\\ms.json",
+      "leak_count": 0,
+      "exempt_matches": 51,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "mt.json": {
+      "path": "Localizations\\Maltese\\mt.json",
+      "leak_count": 0,
+      "exempt_matches": 98,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "nb.json": {
+      "path": "Localizations\\Norwegian Bokmål\\nb.json",
+      "leak_count": 0,
+      "exempt_matches": 74,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ne.json": {
+      "path": "Localizations\\Nepali\\ne.json",
+      "leak_count": 0,
+      "exempt_matches": 29,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "nl-BE.json": {
+      "path": "Localizations\\Dutch (Belgium)\\nl-BE.json",
+      "leak_count": 0,
+      "exempt_matches": 64,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "nl.json": {
+      "path": "Localizations\\Dutch\\nl.json",
+      "leak_count": 0,
+      "exempt_matches": 62,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "nn.json": {
+      "path": "Localizations\\Norwegian Nynorsk\\nn.json",
+      "leak_count": 0,
+      "exempt_matches": 95,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "nso.json": {
+      "path": "Localizations\\Northern Sotho\\nso.json",
+      "leak_count": 0,
+      "exempt_matches": 40,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "or.json": {
+      "path": "Localizations\\Odia\\or.json",
+      "leak_count": 0,
+      "exempt_matches": 29,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "pa-Arab.json": {
+      "path": "Localizations\\Punjabi (Naskh)\\pa-Arab.json",
+      "leak_count": 0,
+      "exempt_matches": 28,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "pa.json": {
+      "path": "Localizations\\Punjabi\\pa.json",
+      "leak_count": 0,
+      "exempt_matches": 30,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "pl.json": {
+      "path": "Localizations\\Polish\\pl.json",
+      "leak_count": 0,
+      "exempt_matches": 32,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "prs.json": {
+      "path": "Localizations\\Dari\\prs.json",
+      "leak_count": 0,
+      "exempt_matches": 209,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ps.json": {
+      "path": "Localizations\\Pashto\\ps.json",
+      "leak_count": 0,
+      "exempt_matches": 35,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "pt-BR.json": {
+      "path": "Localizations\\Portuguese (Brazil)\\pt-BR.json",
+      "leak_count": 0,
+      "exempt_matches": 40,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "pt.json": {
+      "path": "Localizations\\Portuguese\\pt.json",
+      "leak_count": 0,
+      "exempt_matches": 36,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "qu.json": {
+      "path": "Localizations\\Quechua\\qu.json",
+      "leak_count": 0,
+      "exempt_matches": 34,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "quc.json": {
+      "path": "Localizations\\Kʼicheʼ\\quc.json",
+      "leak_count": 0,
+      "exempt_matches": 206,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ro.json": {
+      "path": "Localizations\\Romanian\\ro.json",
+      "leak_count": 0,
+      "exempt_matches": 70,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ru.json": {
+      "path": "Localizations\\Russian\\ru.json",
+      "leak_count": 0,
+      "exempt_matches": 27,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "rw.json": {
+      "path": "Localizations\\Kinyarwanda\\rw.json",
+      "leak_count": 0,
+      "exempt_matches": 48,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "sd.json": {
+      "path": "Localizations\\Sindhi\\sd.json",
+      "leak_count": 0,
+      "exempt_matches": 35,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "si.json": {
+      "path": "Localizations\\Sinhala\\si.json",
+      "leak_count": 0,
+      "exempt_matches": 47,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "sk.json": {
+      "path": "Localizations\\Slovak\\sk.json",
+      "leak_count": 0,
+      "exempt_matches": 68,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "sl.json": {
+      "path": "Localizations\\Slovenian\\sl.json",
+      "leak_count": 0,
+      "exempt_matches": 46,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "sq.json": {
+      "path": "Localizations\\Albanian\\sq.json",
+      "leak_count": 0,
+      "exempt_matches": 36,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "sr-Cyrl.json": {
+      "path": "Localizations\\Serbian (Cyrillic)\\sr-Cyrl.json",
+      "leak_count": 0,
+      "exempt_matches": 30,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "sr.json": {
+      "path": "Localizations\\Serbian\\sr.json",
+      "leak_count": 0,
+      "exempt_matches": 30,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "sv.json": {
+      "path": "Localizations\\Swedish\\sv.json",
+      "leak_count": 0,
+      "exempt_matches": 53,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "sw.json": {
+      "path": "Localizations\\Swahili\\sw.json",
+      "leak_count": 0,
+      "exempt_matches": 43,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ta.json": {
+      "path": "Localizations\\Tamil\\ta.json",
+      "leak_count": 0,
+      "exempt_matches": 34,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "te.json": {
+      "path": "Localizations\\Telugu\\te.json",
+      "leak_count": 0,
+      "exempt_matches": 34,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "th.json": {
+      "path": "Localizations\\Thai\\th.json",
+      "leak_count": 0,
+      "exempt_matches": 30,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ti.json": {
+      "path": "Localizations\\Tigrinya\\ti.json",
+      "leak_count": 0,
+      "exempt_matches": 34,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "tk.json": {
+      "path": "Localizations\\Turkmen\\tk.json",
+      "leak_count": 0,
+      "exempt_matches": 40,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "tn.json": {
+      "path": "Localizations\\Tswana\\tn.json",
+      "leak_count": 0,
+      "exempt_matches": 29,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "tr.json": {
+      "path": "Localizations\\Turkish\\tr.json",
+      "leak_count": 0,
+      "exempt_matches": 26,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "tt.json": {
+      "path": "Localizations\\Tatar\\tt.json",
+      "leak_count": 0,
+      "exempt_matches": 34,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ug.json": {
+      "path": "Localizations\\Uyghur\\ug.json",
+      "leak_count": 0,
+      "exempt_matches": 60,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "uk.json": {
+      "path": "Localizations\\Ukrainian\\uk.json",
+      "leak_count": 0,
+      "exempt_matches": 34,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "ur.json": {
+      "path": "Localizations\\Urdu\\ur.json",
+      "leak_count": 0,
+      "exempt_matches": 29,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "uz.json": {
+      "path": "Localizations\\Uzbek\\uz.json",
+      "leak_count": 0,
+      "exempt_matches": 43,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "vi.json": {
+      "path": "Localizations\\Vietnamese\\vi.json",
+      "leak_count": 0,
+      "exempt_matches": 31,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "wo.json": {
+      "path": "Localizations\\Wolof\\wo.json",
+      "leak_count": 0,
+      "exempt_matches": 48,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "xh.json": {
+      "path": "Localizations\\Xhosa\\xh.json",
+      "leak_count": 0,
+      "exempt_matches": 49,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "yo.json": {
+      "path": "Localizations\\Yoruba\\yo.json",
+      "leak_count": 0,
+      "exempt_matches": 39,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "zh-Hans.json": {
+      "path": "Localizations\\Chinese (Simplified)\\zh-Hans.json",
+      "leak_count": 0,
+      "exempt_matches": 29,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "zh-Hant.json": {
+      "path": "Localizations\\Chinese (Traditional)\\zh-Hant.json",
+      "leak_count": 0,
+      "exempt_matches": 22,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    },
+    "zu.json": {
+      "path": "Localizations\\Zulu\\zu.json",
+      "leak_count": 0,
+      "exempt_matches": 33,
+      "invariant_matches": 0,
+      "missing_keys": 0,
+      "sample_leak_keys": []
+    }
+  },
+  "top_10_by_leaks": []
+}

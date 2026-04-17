@@ -174,6 +174,15 @@
 				$classification.RecoveryHint = 'This tweak did not execute because the run ended early.'
 				return [pscustomobject]$classification
 			}
+			'^(Cancelled)$'
+			{
+				$classification.OutcomeState = 'Cancelled'
+				$classification.OutcomeReason = 'This item was cancelled by the operator before it could execute.'
+				$classification.FailureCategory = 'Cancelled by operator'
+				$classification.FailureCode = 'cancelled_by_operator'
+				$classification.RecoveryHint = 'This tweak did not execute because the run was cancelled by the operator.'
+				return [pscustomobject]$classification
+			}
 			'^(Not applicable)$'
 			{
 				$classification.OutcomeState = 'Not applicable on this system'
@@ -354,6 +363,7 @@
 			'not_supported_restore'      { return 'This item is not supported by in-app restore.' }
 			'skipped_by_policy'          { return 'This item is not supported by in-app restore.' }
 			'restart_required'           { return 'Restored to Windows default. Restart required to finish.' }
+			'cancelled_by_operator'      { return 'Did not run because the restore was cancelled by the operator.' }
 			'not_run'                    { return 'Did not run because the restore stopped early.' }
 			'general_failure'            {
 				if ($isPackage) { return 'This app may require package or Store follow-up to fully restore.' }
@@ -375,6 +385,7 @@
 		{
 			'^(Success)$'                              { return 'Restored to Windows default.' }
 			'^(Restart pending)$'                      { return 'Restored to Windows default. Restart required to finish.' }
+			'^(Cancelled)$'                            { return 'Did not run because the restore was cancelled by the operator.' }
 			'^(Already at Windows default|Already in desired state)$' { return 'Already at Windows default.' }
 			'^(Not applicable on this system)$'        { return 'Not applicable on this PC or this version of Windows.' }
 			'^(Not supported by in-app restore|Skipped by preset or selection)$' { return 'This item is not supported by in-app restore.' }
@@ -599,6 +610,11 @@
 			(Test-GuiObjectField -Object $_ -FieldName 'FailureCode') -and
 			[string]$_.FailureCode -eq 'general_failure'
 		})
+		$blockedResults = @($results | Where-Object {
+			(Test-GuiObjectField -Object $_ -FieldName 'FailureCode') -and
+			[string]$_.FailureCode -eq 'blocked_by_system_state'
+		})
+		$cancelledResults = @($results | Where-Object { [string]$_.Status -eq 'Cancelled' })
 
 		$needsLogReview = $false
 		if (-not [string]::IsNullOrWhiteSpace($FatalError) -or $notRunResults.Count -gt 0 -or $manualFailedResults.Count -gt 0 -or $partialSuccessResults.Count -gt 0 -or $generalFailureResults.Count -gt 0)
@@ -640,7 +656,10 @@
 			RecoverableFailedCount = $recoverableFailedResults.Count
 			ManualFailedCount = $manualFailedResults.Count
 			NotRunCount = $notRunResults.Count
-			NeedsAttentionCount = $recoverableFailedResults.Count + $manualFailedResults.Count + $notRunResults.Count
+			CancelledCount = $cancelledResults.Count
+			BlockedCount = $blockedResults.Count
+			PartialSuccessCount = $partialSuccessResults.Count
+			NeedsAttentionCount = $recoverableFailedResults.Count + $manualFailedResults.Count + $notRunResults.Count + $cancelledResults.Count
 			NeedsLogReview = $needsLogReview
 			ReviewLogHint = $reviewLogHint
 		}
@@ -681,7 +700,10 @@
 		if ($Insights.PackageOperationCount -gt 0) { $parts += "${packageLabel}: $($Insights.PackageOperationCount)" }
 		if ($Insights.RecoverableFailedCount -gt 0) { $parts += "Retry offered: $($Insights.RecoverableFailedCount)" }
 		if ($Insights.ManualFailedCount -gt 0) { $parts += "Manual review: $($Insights.ManualFailedCount)" }
+		if ($Insights.PartialSuccessCount -gt 0) { $parts += "Partial success: $($Insights.PartialSuccessCount)" }
+		if ($Insights.BlockedCount -gt 0) { $parts += "Blocked: $($Insights.BlockedCount)" }
 		if ($SummaryPayload.NotRunCount -gt 0) { $parts += "Not run: $($SummaryPayload.NotRunCount)" }
+		if ($Insights.CancelledCount -gt 0) { $parts += "Cancelled: $($Insights.CancelledCount)" }
 		return (($parts | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join '. ') + '.'
 	}
 
@@ -792,6 +814,24 @@
 		$appliedLabel = if ($isRestore) { 'Restored' } else { 'Applied' }
 		$appliedDetail = if ($isRestore) { 'Returned to Windows defaults' } else { 'Completed successfully' }
 		$restartDetail = if ($isRestore) { 'Restart required to finish restoring' } else { 'Restart required to finish applying changes' }
+		$currentOS = $null
+		$validationMatrix = $null
+		try
+		{
+			if (Get-Command -Name 'Get-OSInfo' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				$currentOS = Get-OSInfo
+			}
+			if (Get-Command -Name 'Get-BaselineValidationMatrixSummary' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				$validationMatrix = Get-BaselineValidationMatrixSummary
+			}
+		}
+		catch
+		{
+			$currentOS = $null
+			$validationMatrix = $null
+		}
 		$cards = @(
 			[pscustomobject]@{
 				Label = $appliedLabel
@@ -812,6 +852,22 @@
 				Tone = $(if ($SummaryPayload.RestartPendingCount -gt 0) { 'Caution' } else { 'Muted' })
 			}
 		)
+		if ($currentOS -and $currentOS.IsWindowsServer)
+		{
+			$serverDetail = if ($validationMatrix -and $validationMatrix.ServerValidationSummary) {
+				[string]$validationMatrix.ServerValidationSummary
+			}
+			else
+			{
+				'Server coverage not recorded in the current matrix'
+			}
+			$cards += [pscustomobject]@{
+				Label = 'Server validation'
+				Value = $(if ($validationMatrix -and $validationMatrix.ServerCIOnly) { 'CI only' } elseif ($validationMatrix -and $validationMatrix.HasServerCoverage) { 'Outside CI' } else { 'Unavailable' })
+				Detail = $serverDetail
+				Tone = $(if ($validationMatrix -and $validationMatrix.ServerCIOnly) { 'Caution' } elseif ($validationMatrix -and $validationMatrix.HasServerCoverage) { 'Success' } else { 'Muted' })
+			}
+		}
 
 		if ($Insights.AlreadyDesiredCount -gt 0)
 		{
@@ -870,6 +926,24 @@
 				Value = $Insights.ManualFailedCount
 				Detail = $(if ($isRestore) { 'Needs manual steps outside Baseline' } else { 'Needs manual correction' })
 				Tone = 'Danger'
+			}
+		}
+		if ($Insights.PartialSuccessCount -gt 0)
+		{
+			$cards += [pscustomobject]@{
+				Label = 'Partial Success'
+				Value = $Insights.PartialSuccessCount
+				Detail = 'Review logs for incomplete steps'
+				Tone = 'Caution'
+			}
+		}
+		if ($Insights.CancelledCount -gt 0)
+		{
+			$cards += [pscustomobject]@{
+				Label = 'Cancelled'
+				Value = $Insights.CancelledCount
+				Detail = 'Stopped by operator'
+				Tone = 'Muted'
 			}
 		}
 
@@ -966,6 +1040,13 @@
 			{
 				$resultLabel = $failedLabel
 				$logLevel = 'ERROR'
+				$includeReason = $true
+				break
+			}
+			'^(Cancelled)$'
+			{
+				$resultLabel = $skippedLabel
+				$logLevel = 'WARNING'
 				$includeReason = $true
 				break
 			}
@@ -1093,17 +1174,20 @@
 		{
 			if ($record.Status -in @('Pending', 'Running'))
 			{
+			if ($AbortedRun)
+				{
+				$record.Status = 'Cancelled'
+				if ([string]::IsNullOrWhiteSpace([string]$record.Detail))
+				{
+					$record.Detail = 'Run was cancelled by the operator before this tweak could execute.'
+					}
+			}
+			else
+			{
 				$record.Status = 'Not Run'
 				if ([string]::IsNullOrWhiteSpace([string]$record.Detail))
 				{
-					$record.Detail = if ($AbortedRun) {
-						'Run was aborted before this tweak completed.'
-					}
-					elseif (-not [string]::IsNullOrWhiteSpace($FatalError)) {
-						'Run stopped before this tweak could complete because of a fatal error.'
-					}
-					else {
-						'This tweak did not produce a final result.'
+					$record.Detail = if (-not [string]::IsNullOrWhiteSpace($FatalError)) { 'Run stopped before this tweak could complete because of a fatal error.' } else { 'This tweak did not produce a final result.' }
 					}
 				}
 			}
@@ -1196,6 +1280,7 @@
 			$line = "$linePrefix | $($result.Status) | [$($result.Category)] $($result.Name)$selectionLabel$typeLabel$stateLabel$reasonLabel$outcomeLabel$outcomeReasonLabel$failureCategoryLabel$failureCodeLabel$retryAvailabilityLabel$retryReasonLabel$recoverableLabel$recoveryHintLabel$detailSuffix"
 			switch ($result.Status)
 			{
+				'Cancelled' { LogWarning $line }
 				'Failed' { LogError $line }
 				'Restart pending' { LogWarning $line }
 				'Skipped' { LogWarning $line }

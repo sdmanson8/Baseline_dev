@@ -235,6 +235,17 @@ Windows 11 Non-Interactive
 
 > **Note:** Headless runs may require `Set-ExecutionPolicy Bypass -Scope Process` if your execution policy blocks unsigned scripts.
 
+### Chocolatey bootstrap approval
+
+Some application-catalog actions install Chocolatey by downloading and running
+Chocolatey's official bootstrap script from
+`https://community.chocolatey.org/install.ps1`.
+
+Baseline now requires explicit operator approval before it runs that script.
+Interactive sessions show a confirmation prompt. For reviewed headless
+automation, set `BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP=1` for the current process
+before launching Baseline.
+
 ### Dry run (preview without applying)
 
 ```powershell
@@ -343,6 +354,28 @@ powershell -File .\Tools\Generate-PresetFiles.ps1 -DryRun
 
 The generator currently targets the lower-risk preset tiers and is meant to reduce drift between metadata and curated preset files.
 
+### Author custom preset files
+
+Custom preset files live under `Module/Data/Presets/` and use the same JSON shape as the checked-in presets:
+
+```json
+{
+  "Name": "MyPreset",
+  "Entries": [
+    "FunctionName",
+    "AnotherFunction -Disable"
+  ]
+}
+```
+
+Each entry is a command string that starts with a manifest-referenced function name and then optional parameters. Use the checked-in `Minimal`, `Basic`, `Balanced`, and `Advanced` preset files as templates, and validate changes with:
+
+```powershell
+powershell -File .\Tools\Test-PresetGeneration.ps1
+```
+
+If you are generating presets from manifest metadata, `Tools/Generate-PresetFiles.ps1` can rebuild the curated low-risk tiers from the manifest data.
+
 ### Validate generated preset files
 
 ```powershell
@@ -386,7 +419,16 @@ This turns a Baseline support bundle into a repro pack with incident metadata, p
 
 ### Installer signing policy
 
-The formal release-signing policy is documented in [docs/Installer-Signing-Policy.md](docs/Installer-Signing-Policy.md). It defines the artifact trust contract Baseline expects before upgrade, downgrade, or rollback promotion.
+The formal release-signing policy is documented in [dev_docs/Installer-Signing-Policy.md](dev_docs/Installer-Signing-Policy.md). It defines the artifact trust contract Baseline expects before upgrade, downgrade, or rollback promotion.
+
+### Developer docs
+
+The developer reference notes are in:
+
+- [dev_docs/MODELS.md](dev_docs/MODELS.md) - shared object shapes used by the GUI and helper modules
+- [dev_docs/STATE.md](dev_docs/STATE.md) - GUI state containers, closures, and late-bound function captures
+- [dev_docs/Roadmap.md](dev_docs/Roadmap.md) - roadmap framing and Tier-3 readiness interpretation
+- [dev_docs/RuntimeCache.md](dev_docs/RuntimeCache.md) - launcher runtime-cache path, reuse rules, and growth behaviour
 
 ## Quality & Validation
 
@@ -399,6 +441,8 @@ Baseline includes 29 dedicated test scripts covering:
 - **Integration tests**: end-to-end execution on supported Windows editions
 
 Automated CI runs on every push through GitHub Actions for structural validation and manifest checks. Desktop-specific tests (WPF rendering, service manipulation, package installation) require a local or self-hosted Windows VM — the tested matrix is documented in Tests/Integration/README.md.
+
+The maintainer validation suite also includes a documentation consistency check that verifies the enterprise claims in the docs still have matching code and test evidence.
 
 ## Known limitations
 

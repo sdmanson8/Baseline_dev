@@ -2,16 +2,27 @@ Set-StrictMode -Version Latest
 
 BeforeAll {
     $guiCommonPath = Join-Path $PSScriptRoot '../../Module/GUICommon.psm1'
+    $dialogsPath = Join-Path $PSScriptRoot '../../Module/GUICommon/Dialogs.ps1'
+    $windowChromePath = Join-Path $PSScriptRoot '../../Module/GUICommon/WindowChrome.ps1'
+    $popupWindowsPath = Join-Path $PSScriptRoot '../../Module/GUICommon/PopupWindows.ps1'
+    $utilitiesPath = Join-Path $PSScriptRoot '../../Module/GUICommon/Utilities.ps1'
     $styleManagementPath = Join-Path $PSScriptRoot '../../Module/GUI/StyleManagement.ps1'
     $dialogHelpersPath = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers.ps1'
     $executionSummaryDialogPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionSummaryDialog.ps1'
     $guiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
+    $applyThemePath = Join-Path $PSScriptRoot '../../Module/GUI/ApplyTheme.ps1'
 
-    $guiCommonContent = Get-Content -LiteralPath $guiCommonPath -Raw -Encoding UTF8
+    $guiCommonContent = @(
+        Get-Content -LiteralPath $guiCommonPath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $dialogsPath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $utilitiesPath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $windowChromePath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $popupWindowsPath -Raw -Encoding UTF8
+    ) -join "`n"
     $styleManagementContent = Get-Content -LiteralPath $styleManagementPath -Raw -Encoding UTF8
     $dialogHelpersContent = Get-Content -LiteralPath $dialogHelpersPath -Raw -Encoding UTF8
     $executionSummaryDialogContent = Get-Content -LiteralPath $executionSummaryDialogPath -Raw -Encoding UTF8
-    $guiContent = Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
+    $guiContent = (Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8) + "`n" + (Get-Content -LiteralPath $applyThemePath -Raw -Encoding UTF8)
 }
 
 Describe 'GUI window chrome theming' {

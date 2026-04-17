@@ -643,6 +643,14 @@
 			return
 		}
 
+		if ((Get-Command -Name 'Test-BaselineReadOnlyMode' -ErrorAction SilentlyContinue) -and (Test-BaselineReadOnlyMode))
+		{
+			$readOnlyMessage = ("App {0} blocked: Baseline is running in -ReadOnly mode. State mutation is not permitted; restart without -ReadOnly to install/uninstall apps." -f $Action)
+			LogWarning $readOnlyMessage
+			Write-Warning $readOnlyMessage
+			return
+		}
+
 		$resolvedDisplayName = $DisplayName
 		$resolvedWinGetId = $WinGetId
 		$resolvedChocoId = $ChocoId
@@ -1878,6 +1886,15 @@
 
 		$tweakList = @($TweakList)
 		if ($tweakList.Count -eq 0) { return }
+
+		if ($Mode -in @('Run', 'Defaults') -and (Get-Command -Name 'Test-BaselineReadOnlyMode' -ErrorAction SilentlyContinue) -and (Test-BaselineReadOnlyMode))
+		{
+			$readOnlyMessage = ("Tweak run blocked: Baseline is running in -ReadOnly mode. State mutation is not permitted; restart without -ReadOnly to apply changes.")
+			LogWarning $readOnlyMessage
+			Write-Warning $readOnlyMessage
+			return
+		}
+
 		if ($Mode -in @('Run', 'Defaults'))
 		{
 			$resolvedTweakList = Resolve-InteractiveRunSelections -TweakList $tweakList
@@ -1950,14 +1967,27 @@
 						{
 							$remoteErrors = @($remoteResult.Errors | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
 						}
+						$terminalState = if ((Test-GuiObjectField -Object $remoteResult -FieldName 'TerminalState') -and -not [string]::IsNullOrWhiteSpace([string]$remoteResult.TerminalState)) { [string]$remoteResult.TerminalState } else { $null }
 
-						$status = if (($remoteResult.Applied -eq $true) -and ($remoteErrors.Count -eq 0)) { 'Success' }
+						$status = if ($terminalState -eq 'Succeeded') { 'Success' }
+							elseif ($terminalState -eq 'Skipped') { 'Skipped' }
+							elseif ($terminalState -eq 'Cancelled') { 'Not Run' }
+							elseif ($terminalState -eq 'Retrying') { 'Failed' }
+							elseif (($remoteResult.Applied -eq $true) -and ($remoteErrors.Count -eq 0)) { 'Success' }
 							elseif (([int]$remoteResult.FailedCount -gt 0) -or ($remoteErrors.Count -gt 0)) { 'Failed' }
 							else { 'Skipped' }
 
 						$detail = if ($status -eq 'Success')
 						{
 							'Applied {0} change(s).' -f ([int]$remoteResult.AppliedCount)
+						}
+						elseif ($terminalState -eq 'Retrying')
+						{
+							if ($remoteErrors.Count -gt 0) { 'Retryable failure: {0}' -f ($remoteErrors -join '; ') } else { 'Retryable failure.' }
+						}
+						elseif ($terminalState -eq 'Cancelled')
+						{
+							'Cancelled before completion.'
 						}
 						elseif ($remoteErrors.Count -gt 0)
 						{
@@ -1977,11 +2007,12 @@
 							Name          = [string]$remoteResult.ComputerName
 							Category      = 'Remote Target'
 							Status        = $status
+							TerminalState = $terminalState
 							Detail        = $detail
 							Selection     = $targetLabel
 							Type          = 'Remote'
-							CurrentState  = $(if ($status -eq 'Success') { 'Connected' } else { 'Connected with issues' })
-							OutcomeState  = $(if ($status -eq 'Success') { 'Applied' } elseif ($status -eq 'Failed') { 'Failed' } else { 'Skipped' })
+							CurrentState  = $(if ($status -eq 'Success') { 'Connected' } elseif ($status -eq 'Skipped') { 'Connected (skipped)' } else { 'Connected with issues' })
+							OutcomeState  = $(if ($terminalState -eq 'Succeeded') { 'Applied' } elseif ($terminalState -eq 'Retrying') { 'Retrying' } elseif ($terminalState -eq 'Cancelled') { 'Cancelled' } elseif ($status -eq 'Success') { 'Applied' } elseif ($status -eq 'Failed') { 'Failed' } else { 'Skipped' })
 							OutcomeReason = if ($remoteErrors.Count -gt 0) { $remoteErrors -join '; ' } else { $null }
 							IsRecoverable = $false
 						}

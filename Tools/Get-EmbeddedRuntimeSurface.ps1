@@ -7,10 +7,10 @@
   Baseline.exe runtime payload. By default optional include globs are excluded.
 
   .EXAMPLE
-  pwsh -File .\Tools\Get-EmbeddedRuntimeSurface.ps1
+  powershell -File .\Tools\Get-EmbeddedRuntimeSurface.ps1
 
   .EXAMPLE
-  pwsh -File .\Tools\Get-EmbeddedRuntimeSurface.ps1 -IncludeOptional
+  powershell -File .\Tools\Get-EmbeddedRuntimeSurface.ps1 -IncludeOptional
 #>
 
 [CmdletBinding()]
@@ -28,7 +28,7 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
     throw "Runtime surface manifest not found: $manifestPath"
 }
 
-$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json -Depth 8
+$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 
 $includeGlobs = [System.Collections.Generic.List[string]]::new()
 foreach ($glob in @($manifest.includeGlobs)) {

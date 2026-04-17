@@ -7,12 +7,14 @@ BeforeAll {
     $initialActionsPath = Join-Path $PSScriptRoot '../../Module/Regions/InitialActions.psm1'
     $initialSetupPath = Join-Path $PSScriptRoot '../../Module/Regions/InitialSetup.psm1'
     $initialSetupManifestPath = Join-Path $PSScriptRoot '../../Module/Data/InitialSetup.json'
+    $detectScriptblocksPath = Join-Path $PSScriptRoot '../../Module/GUI/DetectScriptblocks.ps1'
 
     $guiContent = Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
     $actionHandlersContent = Get-Content -LiteralPath $actionHandlersPath -Raw -Encoding UTF8
     $errorHelpersContent = Get-Content -LiteralPath $errorHelpersPath -Raw -Encoding UTF8
     $initialActionsContent = Get-Content -LiteralPath $initialActionsPath -Raw -Encoding UTF8
     $initialSetupContent = Get-Content -LiteralPath $initialSetupPath -Raw -Encoding UTF8
+    $detectScriptblocksContent = Get-Content -LiteralPath $detectScriptblocksPath -Raw -Encoding UTF8
     $initialSetupManifest = Get-Content -LiteralPath $initialSetupManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
     $initialSetupAst = [System.Management.Automation.Language.Parser]::ParseFile($initialSetupPath, [ref]$null, [ref]$null)
     $initialSetupBootstrapFunction = $initialSetupAst.FindAll({
@@ -81,7 +83,7 @@ Describe 'First-run startup command wiring' {
 
     It 'keeps CheckWinGet hidden while preserving the preset and headless hook' {
         $initialSetupCheckWinGetFunction | Should -Not -BeNullOrEmpty
-        $guiContent | Should -Match '''CheckWinGet''\s*=\s*\{\s*\$false\s*\}'
+        $detectScriptblocksContent | Should -Match '''CheckWinGet''\s*=\s*\{\s*\$false\s*\}'
 
         $checkWinGetEntry = @($initialSetupManifest.Entries | Where-Object { [string]$_.Function -eq 'CheckWinGet' })
         $checkWinGetEntry | Should -Not -BeNullOrEmpty

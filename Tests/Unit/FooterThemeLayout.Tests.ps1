@@ -3,9 +3,17 @@ Set-StrictMode -Version Latest
 BeforeAll {
     $stylePath = Join-Path $PSScriptRoot '../../Module/GUI/StyleManagement.ps1'
     $guiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
+    $xamlPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
+    $applyThemePath = Join-Path $PSScriptRoot '../../Module/GUI/ApplyTheme.ps1'
+    $buildTweakControlsPath = Join-Path $PSScriptRoot '../../Module/GUI/BuildTweakControls.ps1'
 
     $script:StyleContent = Get-Content -LiteralPath $stylePath -Raw -Encoding UTF8
-    $script:GuiContent = Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
+    $script:GuiContent = @(
+        Get-Content -LiteralPath $xamlPath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $applyThemePath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $buildTweakControlsPath -Raw -Encoding UTF8
+    ) -join "`n"
 }
 
 Describe 'Footer and theme toggle layout' {

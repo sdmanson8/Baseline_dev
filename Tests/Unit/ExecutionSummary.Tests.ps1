@@ -55,6 +55,29 @@ BeforeAll {
         return $Fallback
     }
 
+    function Get-UxString {
+        param(
+            [string]$Key,
+            [string]$Fallback
+        )
+
+        return $Fallback
+    }
+
+    function Get-OSInfo {
+        [pscustomobject]@{
+            IsWindowsServer = $true
+        }
+    }
+
+    function Get-BaselineValidationMatrixSummary {
+        [pscustomobject]@{
+            ServerValidationSummary = 'CI only: Windows Server 2022 (CI only)'
+            ServerCIOnly = $true
+            HasServerCoverage = $true
+        }
+    }
+
     # Extract inner functions from the dot-sourced file via AST.
     # Uses Invoke-Expression on function definition AST nodes - safe because
     # ParseFile only parses (no execution) and we only evaluate FunctionDefinitionAst
@@ -250,6 +273,32 @@ Describe 'Get-RestoreDefaultsOutcomeText' {
     }
 }
 
+Describe 'Get-ExecutionSummaryDialogCards' {
+    It 'adds a server validation card on Windows Server' {
+        $summaryPayload = [pscustomobject]@{
+            AppliedCount = 2
+            RestartPendingCount = 0
+        }
+        $insights = [pscustomobject]@{
+            NeedsAttentionCount = 1
+            AlreadyDesiredCount = 0
+            NotApplicableCount = 0
+            PolicySkippedCount = 0
+            PackageOperationCount = 0
+            PackageFailedCount = 0
+            RecoverableFailedCount = 0
+            ManualFailedCount = 0
+            PartialSuccessCount = 0
+            CancelledCount = 0
+        }
+
+        $cards = @(Get-ExecutionSummaryDialogCards -Mode 'Run' -SummaryPayload $summaryPayload -Insights $insights)
+
+        $cards.Label | Should -Contain 'Server validation'
+        ($cards | Where-Object Label -eq 'Server validation').Value | Should -Be 'CI only'
+    }
+}
+
 Describe 'Update-ExecutionSummaryClassification' {
     It 'applies restore-specific package follow-up wording to defaults records' {
         $Script:ExecutionMode = 'Defaults'
@@ -295,7 +344,7 @@ Describe 'Get-ExecutionResultLiveLogEntry' {
 
     It 'formats failed records with the failure reason' {
         $record = [pscustomobject]@{
-            Name = 'Install PowerShell 7'
+            Name = 'Check WinGet'
             Status = 'Failed'
             Detail = 'winget executable was not found'
             OutcomeState = 'Failed and manual intervention required'
@@ -304,7 +353,7 @@ Describe 'Get-ExecutionResultLiveLogEntry' {
 
         $entry = Get-ExecutionResultLiveLogEntry -Record $record
 
-        $entry.Message | Should -Be 'Install PowerShell 7 - failed (winget executable was not found)'
+        $entry.Message | Should -Be 'Check WinGet - failed (winget executable was not found)'
         $entry.Level | Should -Be 'ERROR'
     }
 

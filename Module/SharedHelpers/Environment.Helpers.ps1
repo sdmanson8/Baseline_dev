@@ -357,6 +357,290 @@ function Get-OSInfo
 
 <#
     .SYNOPSIS
+    Internal function Get-BaselineValidationMatrixSummary.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Get-BaselineValidationMatrixSummary
+{
+	[CmdletBinding()]
+	param (
+		[string]$RepoRoot = $null
+	)
+
+	$resolvedRepoRoot = $RepoRoot
+	if ([string]::IsNullOrWhiteSpace($resolvedRepoRoot))
+	{
+		if ($Script:SharedHelpersRepoRoot)
+		{
+			$resolvedRepoRoot = [string]$Script:SharedHelpersRepoRoot
+		}
+		elseif ($PSScriptRoot)
+		{
+			$resolvedRepoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+		}
+	}
+
+	$matrixPath = if (-not [string]::IsNullOrWhiteSpace($resolvedRepoRoot)) { Join-Path $resolvedRepoRoot 'Tests/Integration/DesktopMatrixResults.json' } else { $null }
+	$summary = [ordered]@{
+		SourcePath                 = $matrixPath
+		ValidatedDesktopEditions    = @()
+		PendingDesktopEditions      = @()
+		ServerEditions              = @()
+		Summary                    = 'Unavailable'
+		ServerValidationSummary    = 'Unavailable'
+		ServerCoverageStatus       = 'Unavailable'
+		HasServerCoverage          = $false
+		ServerCIOnly               = $false
+	}
+
+	if ($matrixPath -and (Test-Path -LiteralPath $matrixPath))
+	{
+		try
+		{
+			$matrixJson = Get-Content -LiteralPath $matrixPath -Raw -Encoding UTF8 | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop
+			$validated = @($matrixJson.summary.testedDesktopEditions)
+			$pending = @($matrixJson.summary.pendingDesktopEditions)
+			$server = @($matrixJson.summary.serverEditions)
+			$serverCount = @($server).Count
+			$serverCIOnly = $serverCount -gt 0 -and (@($server | Where-Object { [string]$_ -match '(?i)\bCI only\b' }).Count -eq $serverCount)
+
+			$summary.ValidatedDesktopEditions = @($validated)
+			$summary.PendingDesktopEditions = @($pending)
+			$summary.ServerEditions = @($server)
+			$summary.HasServerCoverage = ($serverCount -gt 0)
+			$summary.ServerCIOnly = $serverCIOnly
+			$summary.ServerCoverageStatus = if ($serverCount -gt 0) { if ($serverCIOnly) { 'CIOnly' } else { 'Validated' } } else { 'Unavailable' }
+			$summary.ServerValidationSummary = if ($serverCount -gt 0) {
+				$serverText = if ($server.Count -gt 0) { $server -join ', ' } else { 'none' }
+				if ($serverCIOnly)
+				{
+					('CI only: {0}' -f $serverText)
+				}
+				else
+				{
+					('Validated outside CI: {0}' -f $serverText)
+				}
+			}
+			else
+			{
+				'No server editions recorded'
+			}
+			$summary.Summary = @(
+				('Validated: {0}' -f ($(if ($validated.Count -gt 0) { $validated -join ', ' } else { 'none' }))),
+				('Pending: {0}' -f ($(if ($pending.Count -gt 0) { $pending -join ', ' } else { 'none' }))),
+				('Server: {0}' -f ($(if ($server.Count -gt 0) { $server -join ', ' } else { 'none' })))
+			) -join ' | '
+		}
+		catch
+		{
+			$summary.Summary = 'Unavailable'
+			$summary.ServerValidationSummary = 'Unavailable'
+			$summary.ServerCoverageStatus = 'Unavailable'
+			$summary.HasServerCoverage = $false
+			$summary.ServerCIOnly = $false
+		}
+	}
+
+	[pscustomobject]$summary
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-BaselineValidationEvidenceReport.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+
+function Get-BaselineValidationEvidenceReport
+{
+	[CmdletBinding()]
+	param (
+		[string]$RepoRoot = $null
+	)
+
+	$resolvedRepoRoot = $RepoRoot
+	if ([string]::IsNullOrWhiteSpace($resolvedRepoRoot))
+	{
+		if ($Script:SharedHelpersRepoRoot)
+		{
+			$resolvedRepoRoot = [string]$Script:SharedHelpersRepoRoot
+		}
+		elseif ($PSScriptRoot)
+		{
+			$resolvedRepoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+		}
+	}
+
+	$testReportPath = if (-not [string]::IsNullOrWhiteSpace($resolvedRepoRoot)) { Join-Path $resolvedRepoRoot 'Tests/TestReport.json' } else { $null }
+	$matrixPath = if (-not [string]::IsNullOrWhiteSpace($resolvedRepoRoot)) { Join-Path $resolvedRepoRoot 'Tests/Integration/DesktopMatrixResults.json' } else { $null }
+	$report = [ordered]@{
+		Schema = 'Baseline.ValidationEvidence'
+		SchemaVersion = 1
+		GeneratedAt = [System.DateTime]::UtcNow.ToString('o')
+		SourcePath = [ordered]@{
+			RepoRoot = $resolvedRepoRoot
+			TestReport = $testReportPath
+			ValidationMatrix = $matrixPath
+		}
+		Build = [ordered]@{
+			BaselineVersion = $null
+			TestReportGeneratedAt = $null
+			TestPlatform = $null
+			TestPowerShell = $null
+		}
+		ValidationChannels = @()
+		Summary = 'Unavailable'
+	}
+
+	$channelRows = [System.Collections.Generic.List[pscustomobject]]::new()
+	$summaryParts = [System.Collections.Generic.List[string]]::new()
+
+	$baselineVersion = $null
+	if (Get-Command -Name 'Get-BaselineDisplayVersion' -ErrorAction SilentlyContinue)
+	{
+		try { $baselineVersion = Get-BaselineDisplayVersion } catch { $baselineVersion = $null }
+	}
+	if (-not [string]::IsNullOrWhiteSpace([string]$baselineVersion))
+	{
+		$report.Build.BaselineVersion = [string]$baselineVersion
+	}
+
+	if ($testReportPath -and (Test-Path -LiteralPath $testReportPath))
+	{
+		try
+		{
+			$testReport = Get-Content -LiteralPath $testReportPath -Raw -Encoding UTF8 | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop
+			if ($testReport.PSObject.Properties['generated'])
+			{
+				$report.Build.TestReportGeneratedAt = [string]$testReport.generated
+			}
+			if ($testReport.PSObject.Properties['platform'])
+			{
+				$platform = $testReport.platform
+				if ($platform.PSObject.Properties['os'])
+				{
+					$report.Build.TestPlatform = [string]$platform.os
+				}
+				if ($platform.PSObject.Properties['psVersion'])
+				{
+					$report.Build.TestPowerShell = [string]$platform.psVersion
+				}
+			}
+
+			$unitLayer = $null
+			$compositionLayer = $null
+			if ($testReport.PSObject.Properties['layers'])
+			{
+				$layers = $testReport.layers
+				if ($layers.PSObject.Properties['unit']) { $unitLayer = $layers.unit }
+				if ($layers.PSObject.Properties['composition']) { $compositionLayer = $layers.composition }
+			}
+
+			if ($unitLayer)
+			{
+				$unitResult = if ($unitLayer.PSObject.Properties['result']) { [string]$unitLayer.result } else { 'Unknown' }
+				$unitPassed = if ($unitLayer.PSObject.Properties['passed']) { [int]$unitLayer.passed } else { 0 }
+				$unitFailed = if ($unitLayer.PSObject.Properties['failed']) { [int]$unitLayer.failed } else { 0 }
+				$unitSkipped = if ($unitLayer.PSObject.Properties['skipped']) { [int]$unitLayer.skipped } else { 0 }
+				$channelRows.Add([pscustomobject]@{
+					Channel = 'unit-tested'
+					Status = $unitResult
+					Source = $testReportPath
+					Detail = ('Unit layer result: {0} (passed {1}, failed {2}, skipped {3})' -f $unitResult, $unitPassed, $unitFailed, $unitSkipped)
+				})
+				if ($unitResult -eq 'Passed')
+				{
+					[void]$summaryParts.Add('unit-tested')
+				}
+			}
+
+			if ($compositionLayer)
+			{
+				$compositionResult = if ($compositionLayer.PSObject.Properties['result']) { [string]$compositionLayer.result } else { 'Unknown' }
+				$compositionPassed = if ($compositionLayer.PSObject.Properties['passed']) { [int]$compositionLayer.passed } else { 0 }
+				$compositionFailed = if ($compositionLayer.PSObject.Properties['failed']) { [int]$compositionLayer.failed } else { 0 }
+				$channelRows.Add([pscustomobject]@{
+					Channel = 'desktop-session CI validated'
+					Status = $compositionResult
+					Source = $testReportPath
+					Detail = ('Desktop-session layer result: {0} (passed {1}, failed {2})' -f $compositionResult, $compositionPassed, $compositionFailed)
+				})
+				if ($compositionResult -eq 'Passed')
+				{
+					[void]$summaryParts.Add('desktop-session CI validated')
+				}
+			}
+
+			$manualChannel = $null
+			if ($testReport.PSObject.Properties['validationChannel'] -and -not [string]::IsNullOrWhiteSpace([string]$testReport.validationChannel))
+			{
+				$manualChannel = [string]$testReport.validationChannel
+			}
+			elseif ($testReport.PSObject.Properties['manualValidation'])
+			{
+				$manualValidationValue = $testReport.manualValidation
+				if (($manualValidationValue -is [bool] -and $manualValidationValue) -or ($manualValidationValue -isnot [bool] -and -not [string]::IsNullOrWhiteSpace([string]$manualValidationValue)))
+				{
+					$manualChannel = 'manually validated'
+				}
+			}
+			elseif ($testReport.PSObject.Properties['summary'] -and $testReport.summary.PSObject.Properties['validationChannel'] -and -not [string]::IsNullOrWhiteSpace([string]$testReport.summary.validationChannel))
+			{
+				$manualChannel = [string]$testReport.summary.validationChannel
+			}
+
+			if (-not [string]::IsNullOrWhiteSpace($manualChannel))
+			{
+				$normalizedManualChannel = [string]$manualChannel.Trim()
+				$channelRows.Add([pscustomobject]@{
+					Channel = 'manually validated'
+					Status = 'Passed'
+					Source = $testReportPath
+					Detail = ('Explicit validation channel recorded: {0}' -f $normalizedManualChannel)
+				})
+				[void]$summaryParts.Add('manually validated')
+			}
+		}
+		catch
+		{
+			# Keep the report deterministic when the test report cannot be parsed.
+		}
+	}
+
+	$matrix = $null
+	if (Get-Command -Name 'Get-BaselineValidationMatrixSummary' -ErrorAction SilentlyContinue)
+	{
+		try { $matrix = Get-BaselineValidationMatrixSummary -RepoRoot $resolvedRepoRoot } catch { $matrix = $null }
+	}
+	if ($matrix)
+	{
+		$channelRows.Add([pscustomobject]@{
+			Channel = 'server CI only'
+			Status = if ($matrix.HasServerCoverage) { if ($matrix.ServerCIOnly) { 'CI only' } else { 'Outside CI' } } else { 'Unavailable' }
+			Source = $matrix.SourcePath
+			Detail = [string]$matrix.ServerValidationSummary
+		})
+		if ($matrix.HasServerCoverage -and $matrix.ServerCIOnly)
+		{
+			[void]$summaryParts.Add('server CI only')
+		}
+	}
+
+	$report.ValidationChannels = @($channelRows)
+	if ($summaryParts.Count -gt 0)
+	{
+		$report.Summary = ($summaryParts -join '; ')
+	}
+
+	[pscustomobject]$report
+}
+
+<#
+    .SYNOPSIS
     Internal function ConvertTo-WindowsDisplayVersionComparable.
 
     .DESCRIPTION
@@ -465,7 +749,7 @@ function Show-BootstrapLoadingSplash
 			$sessionPath = Join-Path $env:LOCALAPPDATA 'Baseline\Profiles\Baseline-last-session.json'
 			if (Test-Path -LiteralPath $sessionPath)
 			{
-				$sessionJson = Get-Content -LiteralPath $sessionPath -Raw -ErrorAction Stop | ConvertFrom-Json
+				$sessionJson = Get-Content -LiteralPath $sessionPath -Raw -ErrorAction Stop | ConvertFrom-BaselineJson -Depth 16
 				if ($sessionJson.State -and $sessionJson.State.Theme -eq 'Light') { $useLightTheme = $true }
 			}
 		}
@@ -1449,7 +1733,7 @@ function Get-LocalizedShellString
 
 function Restart-Script
 {
-	<# .SYNOPSIS Restarts the script under Windows PowerShell 5.1 if running in PowerShell 7+. #>
+	<# .SYNOPSIS Restarts the script under Windows PowerShell 5.1 unless it is already running there. #>
 	param
 	(
 		[Parameter(Mandatory = $true)]
@@ -1476,7 +1760,13 @@ function Restart-Script
 		return
 	}
 
-	if ($PSVersionTable.PSVersion.Major -ge 7)
+	$runningWindowsPowerShell51 = (
+		$PSVersionTable.PSEdition -eq 'Desktop' -and
+		$PSVersionTable.PSVersion.Major -eq 5 -and
+		$PSVersionTable.PSVersion.Minor -eq 1
+	)
+
+	if (-not $runningWindowsPowerShell51)
 	{
 		$powershell51 = (Get-Command -Name powershell.exe -ErrorAction SilentlyContinue).Source
 
@@ -1492,7 +1782,7 @@ function Restart-Script
 			[Environment]::Exit(1)
 		}
 
-		LogInfo "Restarting script in Windows PowerShell 5.1"
+		LogInfo "Restarting script in Windows PowerShell 5.1 from host $($PSVersionTable.PSVersion) ($($PSVersionTable.PSEdition))."
 
 		$currentPolicy = (Get-ExecutionPolicy).ToString()
 		$argList = @(

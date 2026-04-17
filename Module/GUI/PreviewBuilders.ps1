@@ -781,6 +781,72 @@
 
 	<#
 	    .SYNOPSIS
+	    Internal function Get-PreviewRiskCategoryLines.
+
+	    .DESCRIPTION
+	    Builds preview summary lines that surface active risk categories
+	    (managed endpoints, WinRM variability, partial-success rollout risk,
+	    pending reboot). Each active category produces a single summary line
+	    followed by up to two remediation pointers so the operator sees the
+	    next action before continuing.
+	#>
+	function Get-PreviewRiskCategoryLines
+	{
+		$categories = @()
+		try
+		{
+			if (Get-Command -Name 'Get-BaselineRiskCategoryList' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				$managedCheck = $null
+				$rebootCheck = $null
+				if (Get-Command -Name 'Test-PreflightManagedPolicyEnvironment' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					try { $managedCheck = Test-PreflightManagedPolicyEnvironment } catch { $managedCheck = $null }
+				}
+				if (Get-Command -Name 'Test-PreflightPendingReboot' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					try { $rebootCheck = Test-PreflightPendingReboot } catch { $rebootCheck = $null }
+				}
+				$categories = @(Get-BaselineRiskCategoryList -ManagedPolicyCheck $managedCheck -PendingRebootCheck $rebootCheck -IncludePartialSuccessHistory)
+			}
+		}
+		catch
+		{
+			$categories = @()
+		}
+
+		$active = @($categories | Where-Object { $_ -and [string]$_.Status -ne 'Passed' })
+		if ($active.Count -eq 0)
+		{
+			return @()
+		}
+
+		$lines = [System.Collections.Generic.List[string]]::new()
+		[void]$lines.Add((Get-UxLocalizedString -Key 'GuiPreviewRiskCategoryHeading' -Fallback 'Risk-aware checks flagged before this run:'))
+		foreach ($cat in $active)
+		{
+			$marker = if ([string]$cat.Status -eq 'Failed') { [char]0x2717 } else { [char]0x26A0 }
+			[void]$lines.Add(('{0} {1}: {2}' -f $marker, $cat.Name, $cat.Summary))
+			$remediation = @()
+			if ($cat.PSObject.Properties['RemediationActions'] -and $cat.RemediationActions)
+			{
+				$remediation = @($cat.RemediationActions | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -First 2)
+			}
+			foreach ($action in $remediation)
+			{
+				[void]$lines.Add(('    ' + [char]0x2192 + ' {0}' -f [string]$action))
+			}
+			if (-not [string]::IsNullOrWhiteSpace([string]$cat.DocumentationPath))
+			{
+				$label = Get-UxLocalizedString -Key 'GuiPreviewRiskCategoryDocsLabel' -Fallback 'Remediation guide'
+				[void]$lines.Add(('    {0}: {1}' -f $label, [string]$cat.DocumentationPath))
+			}
+		}
+		return @($lines)
+	}
+
+	<#
+	    .SYNOPSIS
 	    Internal function Show-SelectedTweakPreview.
 
 	    .DESCRIPTION
@@ -861,6 +927,12 @@
 			-NotFullyRestorablePreviewCount $notFullyRestorablePreviewCount `
 			-AdvancedTierCount $advancedTierCount `
 			-SelectedTweaks $selected)
+
+		$riskCategoryLines = @(Get-PreviewRiskCategoryLines)
+		if ($riskCategoryLines.Count -gt 0)
+		{
+			$summaryParts += $riskCategoryLines
+		}
 
 		$displayResults = @(Get-LocalizedPreviewResults -Results $previewResults)
 		$viewChangesLabel = Get-UxLocalizedString -Key 'GuiBtnViewChanges' -Fallback 'View Changes'
@@ -1407,6 +1479,30 @@
 			$highRiskCountPreview = @($results | Where-Object Status -eq 'High-risk changes').Count
 			$notFullyRestorablePreviewCount = @($results | Where-Object Status -eq 'Not fully restorable').Count
 		$categoryNames = @($results | ForEach-Object { [string]$_.Category } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+		$serverValidationSuffix = $null
+		try
+		{
+			if ((Get-Command -Name 'Get-OSInfo' -CommandType Function -ErrorAction SilentlyContinue) -and (Get-Command -Name 'Get-BaselineValidationMatrixSummary' -CommandType Function -ErrorAction SilentlyContinue))
+			{
+				$currentOS = Get-OSInfo
+				$validationMatrix = Get-BaselineValidationMatrixSummary
+				if ($currentOS -and $currentOS.IsWindowsServer)
+				{
+					if ($validationMatrix -and $validationMatrix.ServerValidationSummary)
+					{
+						$serverValidationSuffix = (' Server validation outside CI: {0}.' -f [string]$validationMatrix.ServerValidationSummary)
+					}
+					else
+					{
+						$serverValidationSuffix = ' Server validation outside CI is not recorded in the current matrix.'
+					}
+				}
+			}
+		}
+		catch
+		{
+			$serverValidationSuffix = $null
+		}
 
-		LogInfo (Get-UxBilingualLocalizedString -Key 'GuiLogPreviewSummary' -Fallback 'Preview summary: Selected={0}, AlreadyDesired={1}, WillChange={2}, MediumRisk={3}, HighRisk={4}, NotFullyRestorable={5}, RequiresRestart={6}, Categories={7}. No changes were applied.' -FormatArgs @($selectedCount, $alreadyInDesiredCount, $willChangeCount, $mediumRiskCount, $highRiskCountPreview, $notFullyRestorablePreviewCount, $requiresRestartCount, $categoryNames.Count))
+		LogInfo ((Get-UxBilingualLocalizedString -Key 'GuiLogPreviewSummary' -Fallback 'Preview summary: Selected={0}, AlreadyDesired={1}, WillChange={2}, MediumRisk={3}, HighRisk={4}, NotFullyRestorable={5}, RequiresRestart={6}, Categories={7}. No changes were applied.' -FormatArgs @($selectedCount, $alreadyInDesiredCount, $willChangeCount, $mediumRiskCount, $highRiskCountPreview, $notFullyRestorablePreviewCount, $requiresRestartCount, $categoryNames.Count)) + $(if ($serverValidationSuffix) { $serverValidationSuffix } else { '' }))
 	}

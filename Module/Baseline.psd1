@@ -4,7 +4,7 @@
     ModuleVersion         = '4.0.0'
     Author                = 'sdmanson8'
     Description           = 'Internal module for Windows fine-tuning and automating the routine tasks'
-    CompatiblePSEditions  = @('Core', 'Desktop')
+    CompatiblePSEditions  = @('Desktop')
     PowerShellVersion     = '5.1'
     ProcessorArchitecture = 'None'
     FunctionsToExport     = '*'

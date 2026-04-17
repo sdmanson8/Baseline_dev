@@ -127,7 +127,7 @@ function DefenderAppGuard
 	of ASR rules, and applies system-wide exploit mitigations.
 
 	.EXAMPLE
-	Set-DefenderExploitGuardPolicy
+	DefenderExploitGuardPolicy
 
 	.NOTES
 	Machine-wide
@@ -137,7 +137,7 @@ function DefenderAppGuard
 	tooling, scripts, or line-of-business workflows depending on how they
 	interact with Defender ASR and system mitigations.
 #>
-function Set-DefenderExploitGuardPolicy
+function DefenderExploitGuardPolicy
 {
 	Write-ConsoleStatus -Action "Configuring Defender Exploit Guard policies"
 	LogInfo "Configuring Defender Exploit Guard policies"
@@ -153,13 +153,13 @@ function Set-DefenderExploitGuardPolicy
 		{
 			New-Item -Path "HKCU:\SOFTWARE\Microsoft\Windows Defender" -Force -ErrorAction Stop | Out-Null
 		}
-		Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows Defender" -Name "PassiveMode" -Value 2 -ErrorAction Stop | Out-Null
+		Set-ItemProperty -LiteralPath "HKCU:\SOFTWARE\Microsoft\Windows Defender" -Name "PassiveMode" -Value 2 -ErrorAction Stop | Out-Null
 
 		if (!(Test-Path "HKLM:\SYSTEM\CurrentControlSet\Policies\EarlyLaunch"))
 		{
 			New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Policies\EarlyLaunch" -Force -ErrorAction Stop | Out-Null
 		}
-		Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Policies\EarlyLaunch" -Name "DriverLoadPolicy" -Value 3 -ErrorAction Stop | Out-Null
+		Set-ItemProperty -LiteralPath "HKLM:\SYSTEM\CurrentControlSet\Policies\EarlyLaunch" -Name "DriverLoadPolicy" -Value 3 -ErrorAction Stop | Out-Null
 
 		$rules = @(
 			'D1E49AAC-8F56-4280-B9BA-993A6D77B4F2',
@@ -237,7 +237,7 @@ function CIMemoryIntegrity
 				If (!(Test-Path "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity")) {
 					New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" -Force -ErrorAction Stop | Out-Null
 				}
-				Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" -Name "Enabled" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" -Name "Enabled" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -273,7 +273,7 @@ function CIMemoryIntegrity
 	Set-ProcessMitigation, and removes the temporary file.
 
 	.EXAMPLE
-	Import-ExploitProtectionPolicy
+	ExploitProtectionPolicy
 
 	.NOTES
 	Machine-wide
@@ -282,7 +282,7 @@ function CIMemoryIntegrity
 	Advanced. Imports a downloaded mitigation policy that can change exploit
 	protection behavior for applications across the system.
 #>
-function Import-ExploitProtectionPolicy
+function ExploitProtectionPolicy
 {
 	Write-ConsoleStatus -Action "Importing Exploit Protection policy"
 	LogInfo "Importing Exploit Protection policy"

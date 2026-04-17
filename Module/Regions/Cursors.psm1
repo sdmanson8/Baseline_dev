@@ -17,13 +17,13 @@ using module ..\SharedHelpers.psm1
 	Set default cursors
 
 	.EXAMPLE
-	Install-Cursors -Dark
+	Cursors -Dark
 
 	.EXAMPLE
-	Install-Cursors -Light
+	Cursors -Light
 
 	.EXAMPLE
-	Install-Cursors -Default
+	Cursors -Default
 
 	.LINK
 	https://www.deviantart.com/jepricreations/art/Windows-11-Cursors-Concept-886489356
@@ -36,13 +36,44 @@ using module ..\SharedHelpers.psm1
 #>
 <#
     .SYNOPSIS
-    Internal function Install-Cursors.
+    Internal function Expand-CursorArchiveFolder.
+
+    .DESCRIPTION
+    Internal implementation helper used by Baseline.
+#>
+function Expand-CursorArchiveFolder
+{
+	param
+	(
+		[Parameter(Mandatory = $true)]
+		[string]
+		$ArchivePath,
+
+		[Parameter(Mandatory = $true)]
+		[string]
+		$DestinationPath,
+
+		[Parameter(Mandatory = $true)]
+		[string]
+		$FolderName
+	)
+
+	& "$env:SystemRoot\System32\tar.exe" -xf $ArchivePath -C $DestinationPath --strip-components=1 "$FolderName/" | Out-Null
+	if ($LASTEXITCODE -ne 0)
+	{
+		throw "tar.exe returned exit code $LASTEXITCODE"
+	}
+}
+
+<#
+    .SYNOPSIS
+    Internal function Cursors.
 
     .DESCRIPTION
     Internal implementation helper used by Baseline.
 #>
 
-function Install-Cursors
+function Cursors
 {
 	param
 	(
@@ -105,12 +136,7 @@ function Install-Cursors
 					New-Item -Path "$env:SystemRoot\Cursors\W11 Cursor Dark Free" -ItemType Directory -Force -ErrorAction Stop | Out-Null
 				}
 
-				# Extract archive from "dark" folder only
-				& "$env:SystemRoot\System32\tar.exe" -xf $cursorArchivePath -C "$env:SystemRoot\Cursors\W11 Cursor Dark Free" --strip-components=1 dark/ | Out-Null
-				if ($LASTEXITCODE -ne 0)
-				{
-					throw "tar.exe returned exit code $LASTEXITCODE"
-				}
+				Expand-CursorArchiveFolder -ArchivePath $cursorArchivePath -DestinationPath "$env:SystemRoot\Cursors\W11 Cursor Dark Free" -FolderName 'dark'
 
 				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name "(default)" -PropertyType String -Value "W11 Cursor Dark Free by Jepri Creations" -Force -ErrorAction Stop | Out-Null
 				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name AppStarting -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\appstarting.ani" -Force -ErrorAction Stop | Out-Null
@@ -179,12 +205,7 @@ function Install-Cursors
 					New-Item -Path "$env:SystemRoot\Cursors\W11 Cursor Light Free" -ItemType Directory -Force -ErrorAction Stop | Out-Null
 				}
 
-				# Extract archive from "light" folder only
-				& "$env:SystemRoot\System32\tar.exe" -xf $cursorArchivePath -C "$env:SystemRoot\Cursors\W11 Cursor Light Free" --strip-components=1 light/ | Out-Null
-				if ($LASTEXITCODE -ne 0)
-				{
-					throw "tar.exe returned exit code $LASTEXITCODE"
-				}
+				Expand-CursorArchiveFolder -ArchivePath $cursorArchivePath -DestinationPath "$env:SystemRoot\Cursors\W11 Cursor Light Free" -FolderName 'light'
 
 				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name "(default)" -PropertyType String -Value "W11 Cursor Light Free by Jepri Creations" -Force -ErrorAction Stop | Out-Null
 				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name AppStarting -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\appstarting.ani" -Force -ErrorAction Stop | Out-Null

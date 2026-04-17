@@ -23,13 +23,13 @@
     all entries as verified today. Use after capturing fresh screenshots.
 
     .EXAMPLE
-    pwsh -File .\Tools\Test-ScreenshotDrift.ps1
+    powershell -File .\Tools\Test-ScreenshotDrift.ps1
 
     .EXAMPLE
-    pwsh -File .\Tools\Test-ScreenshotDrift.ps1 -UpdateManifest
+    powershell -File .\Tools\Test-ScreenshotDrift.ps1 -UpdateManifest
 
     .EXAMPLE
-    pwsh -File .\Tools\Test-ScreenshotDrift.ps1 -StaleDays 30
+    powershell -File .\Tools\Test-ScreenshotDrift.ps1 -StaleDays 30
 #>
 
 [CmdletBinding()]

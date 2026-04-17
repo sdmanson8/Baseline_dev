@@ -826,6 +826,33 @@ function UseStoreOpenWith
 
 <#
 	.SYNOPSIS
+	Internal function Get-WindowsTerminalSettingsPath.
+
+	.DESCRIPTION
+	Internal implementation helper used by Baseline.
+#>
+function Get-WindowsTerminalSettingsPath
+{
+	param(
+		[object]$Package
+	)
+
+	if (-not $Package -or [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA))
+	{
+		return $null
+	}
+
+	$packageFamilyName = [string]$Package.PackageFamilyName
+	if ([string]::IsNullOrWhiteSpace($packageFamilyName))
+	{
+		return $null
+	}
+
+	return (Join-Path $env:LOCALAPPDATA ("Packages\{0}\LocalState\settings.json" -f $packageFamilyName))
+}
+
+<#
+	.SYNOPSIS
 	Open Windows Terminal in context menu as administrator
 
 	.PARAMETER Enable
@@ -862,29 +889,75 @@ function OpenWindowsTerminalAdminContext
 		$Disable
 	)
 
-	if (-not (Get-AppxPackage -Name Microsoft.WindowsTerminal -WarningAction SilentlyContinue))
+	$WindowsTerminalPackage = Get-AppxPackage -Name Microsoft.WindowsTerminal -WarningAction SilentlyContinue | Select-Object -First 1
+	if (-not $WindowsTerminalPackage)
 	{
 		LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 
 		return
 	}
 
-	if (-not (Test-Path -Path "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"))
+	$TerminalSettingsPath = Get-WindowsTerminalSettingsPath -Package $WindowsTerminalPackage
+	if ([string]::IsNullOrWhiteSpace($TerminalSettingsPath))
 	{
-		Start-Process -FilePath wt -PassThru | Out-Null
-		Start-Sleep -Seconds 2
-		Stop-Process -Name WindowsTerminal -Force -PassThru | Out-Null
+		LogWarning "Unable to resolve the Windows Terminal settings path. Skipping."
+		LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
+
+		return
+	}
+
+	$TerminalLocalStatePath = Split-Path -Path $TerminalSettingsPath -Parent
+	if (-not (Test-Path -Path $TerminalSettingsPath))
+	{
+		$wtCommand = Get-Command -Name wt -ErrorAction SilentlyContinue | Select-Object -First 1
+		$wtPath = $null
+		if ($wtCommand)
+		{
+			if ($wtCommand.PSObject.Properties['Path'] -and -not [string]::IsNullOrWhiteSpace([string]$wtCommand.Path))
+			{
+				$wtPath = [string]$wtCommand.Path
+			}
+			elseif ($wtCommand.PSObject.Properties['Source'] -and -not [string]::IsNullOrWhiteSpace([string]$wtCommand.Source))
+			{
+				$wtPath = [string]$wtCommand.Source
+			}
+		}
+
+		if (-not [string]::IsNullOrWhiteSpace($wtPath))
+		{
+			try
+			{
+				# Best effort: launch Terminal once so it can materialize the LocalState settings file.
+				Start-Process -FilePath $wtPath -PassThru | Out-Null
+				Start-Sleep -Seconds 2
+			}
+			finally
+			{
+				Stop-Process -Name WindowsTerminal -Force -ErrorAction SilentlyContinue | Out-Null
+			}
+		}
+	}
+
+	if (-not (Test-Path -Path $TerminalSettingsPath))
+	{
+		LogWarning ("Windows Terminal settings file not found: {0}" -f $TerminalSettingsPath)
+		LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
+
+		return
 	}
 
 	try
 	{
-		$Terminal = Get-Content -Path "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json" -Encoding UTF8 -Force | ConvertFrom-Json
+		$Terminal = Get-Content -Path $TerminalSettingsPath -Encoding UTF8 -Force | ConvertFrom-BaselineJson -Depth 16
 	}
 	catch [System.ArgumentException]
 	{
 		LogError $_.Exception.Message
 
-		Invoke-Item -Path "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState"
+		if (Test-Path -Path $TerminalLocalStatePath)
+		{
+			Invoke-Item -Path $TerminalLocalStatePath
+		}
 		LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 
 		return
@@ -944,7 +1017,7 @@ function OpenWindowsTerminalAdminContext
 	try
 	{
 		# Save in UTF-8 with BOM despite JSON must not has the BOM: https://datatracker.ietf.org/doc/html/rfc8259#section-8.1. Unless Terminal profile names which contains non-Latin characters will have "?" instead of titles
-		ConvertTo-Json -InputObject $Terminal -Depth 4 | Set-Content -Path "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json" -Encoding UTF8 -Force -ErrorAction Stop | Out-Null
+		ConvertTo-Json -InputObject $Terminal -Depth 4 | Set-Content -Path $TerminalSettingsPath -Encoding UTF8 -Force -ErrorAction Stop | Out-Null
 	}
 	catch
 	{
@@ -1006,15 +1079,15 @@ function Set-TakeOwnershipContextMenu
 				{
 					New-Item -Path $path -Force -ErrorAction Stop | Out-Null
 				}
-				Set-ItemProperty -Path $path -Name "MUIVerb" -Type String -Value "Take Ownership" -Force -ErrorAction Stop | Out-Null
-				Set-ItemProperty -Path $path -Name "HasLUAShield" -Type String -Value "" -Force -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $path -Name "MUIVerb" -Type String -Value "Take Ownership" -Force -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $path -Name "HasLUAShield" -Type String -Value "" -Force -ErrorAction Stop | Out-Null
 
 				$cmdPath = "$path\command"
 				if (-not (Test-Path -Path $cmdPath))
 				{
 					New-Item -Path $cmdPath -Force -ErrorAction Stop | Out-Null
 				}
-				Set-ItemProperty -Path $cmdPath -Name "(Default)" -Type String -Value "cmd /c takeown /F `"%1`" /A && icacls `"%1`" /grant:r admins:F /T /C /Q" -Force -ErrorAction Stop | Out-Null
+				Set-ItemProperty -LiteralPath $cmdPath -Name "(Default)" -Type String -Value "cmd /c takeown /F `"%1`" /A && icacls `"%1`" /grant:r admins:F /T /C /Q" -Force -ErrorAction Stop | Out-Null
 
 				Write-ConsoleStatus -Status success
 			}

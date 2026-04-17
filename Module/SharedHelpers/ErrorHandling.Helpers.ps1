@@ -1,4 +1,4 @@
-# Shared helper slice for Baseline -- error handling, classification, and user-facing error info.
+﻿# Shared helper slice for Baseline -- error handling, classification, and user-facing error info.
 
 <#
     .SYNOPSIS
@@ -59,6 +59,12 @@ function Test-IgnorableErrorMessage
 	<#
 	.SYNOPSIS
 	Tests whether an error message matches known ignorable patterns.
+
+	.DESCRIPTION
+	Each pattern below is annotated with its provenance and the failure mode it
+	protects against. Patterns were collected empirically across Win 10/11 SKUs
+	while running tweak regions; new entries should keep the same documentation
+	style so the rule list does not become an undocumented allowlist.
 	#>
 	param
 	(
@@ -69,32 +75,86 @@ function Test-IgnorableErrorMessage
 
 	if ([string]::IsNullOrWhiteSpace($Message)) { return $true }
 
-	return ($Message -match (
-		'Property .* does not exist' +
-		'|Cannot find path' +
-		'|Cannot find a process with the name' +
-		'|The process \".*\" not found' +
-		'|The operation completed successfully\.' +
-		'|The system was unable to find the specified registry key or value\.' +
-		'|The registry key at the specified path does not exist\.' +
-		'|Cannot find any service with service name' +
-		'|No package found for ''Microsoft Edge' +
-		'|Function \".*\" skipped\.' +
-		'|\".*\" was skipped because a required component is not available on this system\.' +
-		'|No MSFT_ScheduledTask objects found with property ''TaskName'' equal to ''Disable LockScreen''' +
-		'|A key in this path already exists\.' +
-		'|You must specify an object for the Get-Member cmdlet' +
-		'|Cannot bind argument to parameter .InputObject. because it is null' +
-		'|The property .* cannot be found on this object' +
-		'|The parameter is incorrect' +
-		'|Unknown error \(0x' +
-		'|Safe handle has been closed' +
-		'|command that prompts the user failed because the host program' +
-		'|Access is denied\.' +
-		'|Security error\.' +
-		'|The system cannot find the path specified\.' +
-		'|The system cannot find the file specified\.'
-	))
+	$ignorablePatterns = @(
+		# Why: Tweak regions inspect optional PSObject properties that may not exist on
+		# older OS builds; absence is expected and not a failure.
+		'Property .* does not exist'
+
+		# Why: Several tweaks attempt cleanup of paths that may not exist on a fresh
+		# install (e.g. user-customised folders).
+		'Cannot find path'
+
+		# Why: Service/process kill helpers run unconditionally; absence of the target
+		# means the tweak's goal (process not running) is already satisfied.
+		'Cannot find a process with the name'
+		'The process \".*\" not found'
+
+		# Why: Win32 APIs return success-coded exceptions when no work was needed
+		# (e.g. service already in desired state).
+		'The operation completed successfully\.'
+
+		# Why: Registry tweaks address keys that may not exist on every SKU; missing
+		# means the policy is already at default and no change is required.
+		'The system was unable to find the specified registry key or value\.'
+		'The registry key at the specified path does not exist\.'
+
+		# Why: Service-name lookups for SKU-specific services (e.g. Xbox, Maps) fail
+		# cleanly on SKUs where the service is not installed.
+		'Cannot find any service with service name'
+
+		# Why: Edge removal path is intentionally tolerant — Microsoft has shipped
+		# multiple Edge package layouts; missing package on this SKU is benign.
+		'No package found for ''Microsoft Edge'
+
+		# Why: Tweak orchestrator emits these after deciding a tweak is not applicable
+		# (e.g. wrong SKU). Skips are an intended outcome, not a failure.
+		'Function \".*\" skipped\.'
+		'\".*\" was skipped because a required component is not available on this system\.'
+
+		# Why: Specific scheduled-task lookup that fails on SKUs where the task was
+		# never created — observed during Disable LockScreen tweak on Pro builds.
+		'No MSFT_ScheduledTask objects found with property ''TaskName'' equal to ''Disable LockScreen'''
+
+		# Why: New-Item over an existing registry key emits this; idempotent re-runs
+		# are expected behaviour for our tweaks.
+		'A key in this path already exists\.'
+
+		# Why: Pipeline introspection on optional CIM/WMI results can produce these
+		# when a query returns null on a non-applicable SKU.
+		'You must specify an object for the Get-Member cmdlet'
+		'Cannot bind argument to parameter .InputObject. because it is null'
+		'The property .* cannot be found on this object'
+
+		# Why: Win32 returns this for several no-op cases (e.g. setting an already-set
+		# registry value with mismatched type on locked-down policies).
+		'The parameter is incorrect'
+
+		# Why: Unknown HRESULTs from interop calls — historically these wrap "no work
+		# needed" results from DISM/CIM on edge-case SKUs.
+		'Unknown error \(0x'
+
+		# Why: Disposed runspace handles surface this on cleanup paths; not a tweak
+		# failure, just late teardown.
+		'Safe handle has been closed'
+
+		# Why: Custom non-interactive PSHost rejects prompts. Tweaks that try to prompt
+		# are intentionally short-circuited; we surface them via dedicated logs, not
+		# the error stream.
+		'command that prompts the user failed because the host program'
+
+		# Why: Many registry/service tweaks legitimately require admin; in -Preview or
+		# limited-permission runs we record but do not escalate these.
+		'Access is denied\.'
+		'Security error\.'
+
+		# Why: Optional cleanup paths for files/dirs that the user may have already
+		# removed; mirrors "Cannot find path" but for native APIs.
+		'The system cannot find the path specified\.'
+		'The system cannot find the file specified\.'
+	)
+
+	$combinedPattern = ($ignorablePatterns -join '|')
+	return ($Message -match $combinedPattern)
 }
 
 <#

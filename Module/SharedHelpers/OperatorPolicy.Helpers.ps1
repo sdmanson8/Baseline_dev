@@ -196,6 +196,9 @@ function Test-BaselineOperatorRunPolicy
 
 		[string[]]$Functions = @(),
 
+		[ValidateSet('RemoteApply', 'RemoteCompliance', 'ConnectivityTest', 'Unknown')]
+		[string]$EnterpriseAction = 'Unknown',
+
 		[switch]$Apply
 	)
 
@@ -208,6 +211,25 @@ function Test-BaselineOperatorRunPolicy
 	{
 		[void]$reasons.Add('Kill switch is engaged. Run blocked until cleared.')
 		$decision = 'Block'
+	}
+
+	if (Get-Command -Name 'Test-BaselineEnterpriseActionMaturityGate' -ErrorAction SilentlyContinue)
+	{
+		$featureName = if ($EnterpriseAction -ne 'Unknown') { $EnterpriseAction } elseif ($Apply) { 'RemoteApply' } else { 'RemoteCompliance' }
+		try
+		{
+			$maturityGate = Test-BaselineEnterpriseActionMaturityGate -FeatureName $featureName
+			if ($maturityGate -and -not [bool]$maturityGate.Allowed)
+			{
+				[void]$reasons.Add(('Maturity gate blocked {0}: current={1}, required={2}.' -f $featureName, [string]$maturityGate.CurrentMaturity, [string]$maturityGate.RequiredMaturity))
+				$decision = 'Block'
+			}
+		}
+		catch
+		{
+			[void]$reasons.Add(('Maturity gate evaluation failed for {0}: {1}' -f $featureName, $_.Exception.Message))
+			if ($decision -ne 'Block') { $decision = 'Confirm' }
+		}
 	}
 
 	if (-not (Test-BaselineOperatorChangeWindow -ChangeWindow $Policy.ChangeWindow))

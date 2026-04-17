@@ -9,10 +9,10 @@
 	shipping step for maintainers and release automation.
 
 	.EXAMPLE
-	pwsh -File .\Tools\New-ReleasePackage.ps1
+	powershell -File .\Tools\New-ReleasePackage.ps1
 
 	.EXAMPLE
-	pwsh -File .\Tools\New-ReleasePackage.ps1 -Version 4.0.0 -Force
+	powershell -File .\Tools\New-ReleasePackage.ps1 -Version 4.0.0 -Force
 #>
 
 [CmdletBinding(SupportsShouldProcess = $true)]

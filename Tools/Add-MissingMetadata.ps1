@@ -4,6 +4,15 @@
     CompatibilitySensitivity) to all Module/Data/*.json tweak entries.
 
 .DESCRIPTION
+    This script is intentionally heuristic and is the documented exception to the AGENTS.md
+    heuristics ban. It is a maintainer-side metadata backfill tool, not runtime product logic.
+
+    Constraints:
+    - conservative allowlists and reviewed maps only
+    - fill missing metadata only; avoid broad guesses and preserve explicit manifest values
+    - deterministic and idempotent on unchanged input
+    - review the resulting diff before commit
+
     Derives values from existing metadata:
     - Impact: derived from Risk (Low->Low, Medium->Medium, High->High)
     - Safe: derived from Risk (Low->true, Medium/High->false)
@@ -34,7 +43,7 @@ $jsonFiles = Get-ChildItem -Path $dataDir -Filter '*.json' -File
 # Functions that are in the curated Minimal preset
 $minimalFunctions = @(
     'ActivityHistory', 'AdvertisingID', 'BingSearch', 'LockWidgets',
-    'OneDriveFileExplorerAd', 'Powershell7Telemetry', 'SearchHighlights',
+    'OneDriveFileExplorerAd', 'SearchHighlights',
     'SettingsSuggestedContent', 'StartRecommendationsTips', 'TailoredExperiences',
     'TaskbarEndTask', 'TaskbarWidgets', 'WebSearch',
     'DiagnosticDataLevel', 'FeedbackFrequency', 'TaskbarSearch'
@@ -47,7 +56,7 @@ $safeFunctions = @(
         'FileExtensions', 'LanguageListAccess', 'MapUpdates',
         'MergeConflicts', 'NewsInterests', 'PreventEdgeShortcutCreation',
         'SharedExperiences', 'StartAccountNotifications', 'TaskViewButton',
-        'UnpinTaskbarShortcuts', 'Update-DesktopRegistry', 'Update-Powershell',
+        'UnpinTaskbarShortcuts', 'DesktopRegistry',
         'UseStoreOpenWith', 'WiFiSense', 'WPBT'
     )
 ) | Select-Object -Unique
@@ -80,9 +89,9 @@ $restartKeywords = @(
 # Functions known to require restart
 $restartFunctions = @(
     'GPUScheduling', 'FastStartup', 'CIMemoryIntegrity',
-    'LocalSecurityAuthority', 'Protect-OS', 'WindowsSandbox',
+    'LocalSecurityAuthority', 'OS', 'WindowsSandbox',
     'DefenderAppGuard', 'VirtualizationBasedSecurity',
-    'Disable-IPv6', 'NTFSLastAccess', 'LanmanWorkstationGuestAuthPolicy'
+    'IPv6', 'NTFSLastAccess', 'LanmanWorkstationGuestAuthPolicy'
 )
 
 # Conservative backfill for reviewed gaming-safe functions only.

@@ -145,12 +145,12 @@
 				$stateRow.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
 				if ($matchesDesired)
 				{
-					$stateRow.Text = (Get-UxLocalizedString -Key 'GuiDetailNoChangeNeeded' -Fallback "{0} `u{2014} no change needed" -FormatArgs @($stateLabel))
+					$stateRow.Text = (Get-UxLocalizedString -Key 'GuiDetailNoChangeNeeded' -Fallback ("{0} {1} no change needed" -f $stateLabel, ([char]0x2014)))
 					$stateRow.Foreground = $bc.ConvertFromString($theme.LowRiskBadge)
 				}
 				else
 				{
-					$stateRow.Text = (Get-UxLocalizedString -Key 'GuiDetailWillChange' -Fallback "Will change `u{2014} not currently at desired state")
+					$stateRow.Text = (Get-UxLocalizedString -Key 'GuiDetailWillChange' -Fallback ("Will change {0} not currently at desired state" -f ([char]0x2014)))
 					$stateRow.Foreground = $bc.ConvertFromString($theme.AccentBlue)
 				}
 				[void]($stackPanel.Children.Add($stateRow))

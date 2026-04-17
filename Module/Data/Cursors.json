@@ -3,7 +3,7 @@
   "Entries": [
     {
       "Name": "Cursors",
-      "Function": "Install-Cursors",
+      "Function": "Cursors",
       "Type": "Choice",
       "Options": [
         "Default",

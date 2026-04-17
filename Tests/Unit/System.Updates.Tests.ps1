@@ -7,13 +7,13 @@ BeforeAll {
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
-        if ($fn.Name -in @('Block-StoreSearchResults', 'Repair-WindowsUpdate', 'Set-DownloadUpdatesOverMeteredConnection', 'Set-StoreAppAutoDownload', 'Set-FeatureUpdateDeferral', 'Set-QualityUpdateDeferral', 'Set-UpdateNotificationLevel', 'Set-WindowsUpdateSecurityOnlyMode', 'Set-WindowsUpdatePause')) {
+        if ($fn.Name -in @('StoreSearchResults', 'WindowsUpdate', 'DownloadUpdatesOverMeteredConnection', 'StoreAppAutoDownload', 'FeatureUpdateDeferral', 'QualityUpdateDeferral', 'UpdateNotificationLevel', 'WindowsUpdateSecurityOnlyMode', 'WindowsUpdatePause')) {
             Invoke-Expression $fn.Extent.Text
         }
     }
 }
 
-Describe 'Set-WindowsUpdateSecurityOnlyMode' {
+Describe 'WindowsUpdateSecurityOnlyMode' {
     BeforeEach {
         $script:updateSecurityOnlyCalls = [pscustomobject]@{
             AutoDownload = [System.Collections.Generic.List[string]]::new()
@@ -86,7 +86,7 @@ Describe 'Set-WindowsUpdateSecurityOnlyMode' {
             .DESCRIPTION
             Internal implementation helper used by Baseline.
         #>
-        function Set-FeatureUpdateDeferral {
+        function FeatureUpdateDeferral {
             param(
                 [Parameter(Mandatory = $true, ParameterSetName = 'Enable')]
                 [switch]$Enable,
@@ -99,13 +99,13 @@ Describe 'Set-WindowsUpdateSecurityOnlyMode' {
 
         <#
             .SYNOPSIS
-            Internal function Set-QualityUpdateDeferral.
+            Internal function QualityUpdateDeferral.
 
             .DESCRIPTION
             Internal implementation helper used by Baseline.
         #>
 
-        function Set-QualityUpdateDeferral {
+        function QualityUpdateDeferral {
             param(
                 [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
                 [switch]$Default,
@@ -160,15 +160,15 @@ Describe 'Set-WindowsUpdateSecurityOnlyMode' {
         Remove-Item Function:\UpdateAutoDownload -ErrorAction SilentlyContinue
         Remove-Item Function:\UpdateDriver -ErrorAction SilentlyContinue
         Remove-Item Function:\UpdateRestart -ErrorAction SilentlyContinue
-        Remove-Item Function:\Set-FeatureUpdateDeferral -ErrorAction SilentlyContinue
-        Remove-Item Function:\Set-QualityUpdateDeferral -ErrorAction SilentlyContinue
+        Remove-Item Function:\FeatureUpdateDeferral -ErrorAction SilentlyContinue
+        Remove-Item Function:\QualityUpdateDeferral -ErrorAction SilentlyContinue
         Remove-Item Function:\Write-ConsoleStatus -ErrorAction SilentlyContinue
         Remove-Item Function:\LogInfo -ErrorAction SilentlyContinue
         Remove-Item Function:\LogError -ErrorAction SilentlyContinue
     }
 
     It 'applies the security-only bundle when enabled' {
-        Set-WindowsUpdateSecurityOnlyMode -Enable
+        WindowsUpdateSecurityOnlyMode -Enable
 
         @($script:updateSecurityOnlyCalls.AutoDownload) | Should -Be @('Disable')
         @($script:updateSecurityOnlyCalls.Driver) | Should -Be @('Disable')
@@ -178,7 +178,7 @@ Describe 'Set-WindowsUpdateSecurityOnlyMode' {
     }
 
     It 'restores the normal update posture when disabled' {
-        Set-WindowsUpdateSecurityOnlyMode -Disable
+        WindowsUpdateSecurityOnlyMode -Disable
 
         @($script:updateSecurityOnlyCalls.AutoDownload) | Should -Be @('Enable')
         @($script:updateSecurityOnlyCalls.Driver) | Should -Be @('Enable')
@@ -188,7 +188,7 @@ Describe 'Set-WindowsUpdateSecurityOnlyMode' {
     }
 }
 
-Describe 'Set-WindowsUpdatePause' {
+Describe 'WindowsUpdatePause' {
     BeforeEach {
         $script:loggedInfoMessages = [System.Collections.Generic.List[string]]::new()
         $script:loggedErrorMessages = [System.Collections.Generic.List[string]]::new()
@@ -308,7 +308,7 @@ Describe 'Set-WindowsUpdatePause' {
             )
 
             [void]$script:removedPropertyCalls.Add([pscustomobject]@{
-                Path = $Path
+                Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path })
                 Name = $Name
             })
         }
@@ -325,7 +325,7 @@ Describe 'Set-WindowsUpdatePause' {
     }
 
     It 'writes the pause registry values when enabled' {
-        Set-WindowsUpdatePause -Enable -StartDate '2025-04-08'
+        WindowsUpdatePause -Enable -StartDate '2025-04-08'
 
         $script:newItemCalls.Count | Should -Be 1
         $script:newItemCalls[0] | Should -Be 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings'
@@ -339,7 +339,7 @@ Describe 'Set-WindowsUpdatePause' {
     }
 
     It 'clears the pause registry values when disabled' {
-        Set-WindowsUpdatePause -Disable
+        WindowsUpdatePause -Disable
 
         $script:removedPropertyCalls.Count | Should -Be 1
         $script:removedPropertyCalls[0].Path | Should -Be 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings'
@@ -354,7 +354,7 @@ Describe 'Set-WindowsUpdatePause' {
     }
 }
 
-Describe 'Set-UpdateNotificationLevel' {
+Describe 'UpdateNotificationLevel' {
     BeforeEach {
         $script:loggedInfoMessages = [System.Collections.Generic.List[string]]::new()
         $script:loggedErrorMessages = [System.Collections.Generic.List[string]]::new()
@@ -474,7 +474,7 @@ Describe 'Set-UpdateNotificationLevel' {
             )
 
             [void]$script:removedPropertyCalls.Add([pscustomobject]@{
-                Path = $Path
+                Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path })
                 Name = $Name
             })
         }
@@ -491,7 +491,7 @@ Describe 'Set-UpdateNotificationLevel' {
     }
 
     It 'restores the default update notification behavior when default is selected' {
-        Set-UpdateNotificationLevel -Default
+        UpdateNotificationLevel -Default
 
         $script:removedPropertyCalls.Count | Should -Be 1
         $script:removedPropertyCalls[0].Path | Should -Be 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
@@ -501,7 +501,7 @@ Describe 'Set-UpdateNotificationLevel' {
     }
 
     It 'shows all update notifications when all is selected' {
-        Set-UpdateNotificationLevel -All
+        UpdateNotificationLevel -All
 
         $script:newItemCalls.Count | Should -Be 1
         $script:newItemCalls[0] | Should -Be 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
@@ -511,7 +511,7 @@ Describe 'Set-UpdateNotificationLevel' {
     }
 
     It 'shows restart warnings only when restart-only is selected' {
-        Set-UpdateNotificationLevel -RestartOnly
+        UpdateNotificationLevel -RestartOnly
 
         $script:newItemCalls.Count | Should -Be 1
         $script:newItemCalls[0] | Should -Be 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
@@ -521,7 +521,7 @@ Describe 'Set-UpdateNotificationLevel' {
     }
 
     It 'hides all update notifications when off is selected' {
-        Set-UpdateNotificationLevel -Off
+        UpdateNotificationLevel -Off
 
         $script:newItemCalls.Count | Should -Be 1
         $script:newItemCalls[0] | Should -Be 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
@@ -533,7 +533,7 @@ Describe 'Set-UpdateNotificationLevel' {
 
 Describe 'Update notification metadata' {
     It 'uses the four-state selector with the documented policy values' {
-        $updateNotification = @($script:SystemData.Entries | Where-Object Function -eq 'Set-UpdateNotificationLevel')
+        $updateNotification = @($script:SystemData.Entries | Where-Object Function -eq 'UpdateNotificationLevel')
         $updateNotification.Count | Should -Be 1
         $updateNotification[0].Type | Should -Be 'Choice'
         @($updateNotification[0].Options) | Should -Be @('Default', 'All', 'RestartOnly', 'Off')
@@ -544,7 +544,7 @@ Describe 'Update notification metadata' {
     }
 }
 
-Describe 'Set-FeatureUpdateDeferral' {
+Describe 'FeatureUpdateDeferral' {
     BeforeEach {
         $script:loggedInfoMessages = [System.Collections.Generic.List[string]]::new()
         $script:loggedErrorMessages = [System.Collections.Generic.List[string]]::new()
@@ -664,7 +664,7 @@ Describe 'Set-FeatureUpdateDeferral' {
             )
 
             [void]$script:removedPropertyCalls.Add([pscustomobject]@{
-                Path = $Path
+                Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path })
                 Name = $Name
             })
         }
@@ -681,7 +681,7 @@ Describe 'Set-FeatureUpdateDeferral' {
     }
 
     It 'writes the feature deferral keys when enabled' {
-        Set-FeatureUpdateDeferral -Enable
+        FeatureUpdateDeferral -Enable
 
         $script:newItemCalls.Count | Should -Be 1
         $script:newItemCalls[0] | Should -Be 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings'
@@ -693,7 +693,7 @@ Describe 'Set-FeatureUpdateDeferral' {
     }
 
     It 'clears the feature deferral keys when disabled' {
-        Set-FeatureUpdateDeferral -Disable
+        FeatureUpdateDeferral -Disable
 
         $script:removedPropertyCalls.Count | Should -Be 1
         $script:removedPropertyCalls[0].Path | Should -Be 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings'
@@ -702,7 +702,7 @@ Describe 'Set-FeatureUpdateDeferral' {
     }
 }
 
-Describe 'Set-QualityUpdateDeferral' {
+Describe 'QualityUpdateDeferral' {
     BeforeEach {
         $script:loggedInfoMessages = [System.Collections.Generic.List[string]]::new()
         $script:loggedErrorMessages = [System.Collections.Generic.List[string]]::new()
@@ -822,7 +822,7 @@ Describe 'Set-QualityUpdateDeferral' {
             )
 
             [void]$script:removedPropertyCalls.Add([pscustomobject]@{
-                Path = $Path
+                Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path })
                 Name = $Name
             })
         }
@@ -839,7 +839,7 @@ Describe 'Set-QualityUpdateDeferral' {
     }
 
     It 'restores Windows default quality update behavior' {
-        Set-QualityUpdateDeferral -Default
+        QualityUpdateDeferral -Default
 
         $script:removedPropertyCalls.Count | Should -Be 1
         $script:removedPropertyCalls[0].Path | Should -Be 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings'
@@ -848,7 +848,7 @@ Describe 'Set-QualityUpdateDeferral' {
     }
 
     It 'writes the four-day quality update deferral keys' {
-        Set-QualityUpdateDeferral -FourDays
+        QualityUpdateDeferral -FourDays
 
         $script:newItemCalls.Count | Should -Be 1
         $script:newItemPropertyCalls.Count | Should -Be 2
@@ -857,7 +857,7 @@ Describe 'Set-QualityUpdateDeferral' {
     }
 
     It 'writes the seven-day quality update deferral keys' {
-        Set-QualityUpdateDeferral -SevenDays
+        QualityUpdateDeferral -SevenDays
 
         $script:newItemCalls.Count | Should -Be 1
         $script:newItemPropertyCalls.Count | Should -Be 2
@@ -868,7 +868,7 @@ Describe 'Set-QualityUpdateDeferral' {
 
 Describe 'Quality update deferral metadata' {
     It 'uses only the short dropdown labels' {
-        $qualityDeferral = @($script:SystemData.Entries | Where-Object Function -eq 'Set-QualityUpdateDeferral')
+        $qualityDeferral = @($script:SystemData.Entries | Where-Object Function -eq 'QualityUpdateDeferral')
         $qualityDeferral.Count | Should -Be 1
         @($qualityDeferral[0].DisplayOptions).Count | Should -Be 3
         $qualityDeferral[0].DisplayOptions[0] | Should -Be 'default'
@@ -878,7 +878,7 @@ Describe 'Quality update deferral metadata' {
     }
 }
 
-Describe 'Set-DownloadUpdatesOverMeteredConnection' {
+Describe 'DownloadUpdatesOverMeteredConnection' {
     BeforeEach {
         $script:loggedInfoMessages = [System.Collections.Generic.List[string]]::new()
         $script:loggedErrorMessages = [System.Collections.Generic.List[string]]::new()
@@ -991,7 +991,7 @@ Describe 'Set-DownloadUpdatesOverMeteredConnection' {
     }
 
     It 'allows downloads over metered connections when enabled' {
-        Set-DownloadUpdatesOverMeteredConnection -Enable
+        DownloadUpdatesOverMeteredConnection -Enable
 
         $script:newItemCalls.Count | Should -Be 1
         $script:newItemCalls[0] | Should -Be 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
@@ -1001,7 +1001,7 @@ Describe 'Set-DownloadUpdatesOverMeteredConnection' {
     }
 
     It 'blocks downloads over metered connections when disabled' {
-        Set-DownloadUpdatesOverMeteredConnection -Disable
+        DownloadUpdatesOverMeteredConnection -Disable
 
         $script:newItemCalls.Count | Should -Be 1
         $script:newItemCalls[0] | Should -Be 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
@@ -1011,7 +1011,7 @@ Describe 'Set-DownloadUpdatesOverMeteredConnection' {
     }
 }
 
-Describe 'Set-StoreAppAutoDownload' {
+Describe 'StoreAppAutoDownload' {
     BeforeEach {
         $script:loggedInfoMessages = [System.Collections.Generic.List[string]]::new()
         $script:loggedErrorMessages = [System.Collections.Generic.List[string]]::new()
@@ -1124,7 +1124,7 @@ Describe 'Set-StoreAppAutoDownload' {
     }
 
     It 'allows Microsoft Store app updates when enabled' {
-        Set-StoreAppAutoDownload -Enable
+        StoreAppAutoDownload -Enable
 
         $script:newItemCalls.Count | Should -Be 1
         $script:newItemCalls[0] | Should -Be 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsStore'
@@ -1134,7 +1134,7 @@ Describe 'Set-StoreAppAutoDownload' {
     }
 
     It 'blocks Microsoft Store app updates when disabled' {
-        Set-StoreAppAutoDownload -Disable
+        StoreAppAutoDownload -Disable
 
         $script:newItemCalls.Count | Should -Be 1
         $script:newItemCalls[0] | Should -Be 'HKLM:\SOFTWARE\Policies\Microsoft\WindowsStore'
@@ -1144,7 +1144,7 @@ Describe 'Set-StoreAppAutoDownload' {
     }
 }
 
-Describe 'Block-StoreSearchResults' {
+Describe 'StoreSearchResults' {
     BeforeEach {
         $script:loggedInfoMessages = [System.Collections.Generic.List[string]]::new()
         $script:loggedErrorMessages = [System.Collections.Generic.List[string]]::new()
@@ -1255,7 +1255,7 @@ Describe 'Block-StoreSearchResults' {
     }
 
     It 'blocks Microsoft Store search results when enabled' {
-        Block-StoreSearchResults -Enable
+        StoreSearchResults -Enable
 
         $script:icaclsCalls.Count | Should -Be 1
         $script:icaclsCalls[0].Path | Should -Be (Join-Path $env:LocalAppData 'Packages\Microsoft.WindowsStore_8wekyb3d8bbwe\LocalState\store.db')
@@ -1264,7 +1264,7 @@ Describe 'Block-StoreSearchResults' {
     }
 
     It 'unblocks Microsoft Store search results when disabled' {
-        Block-StoreSearchResults -Disable
+        StoreSearchResults -Disable
 
         $script:icaclsCalls.Count | Should -Be 1
         $script:icaclsCalls[0].Path | Should -Be (Join-Path $env:LocalAppData 'Packages\Microsoft.WindowsStore_8wekyb3d8bbwe\LocalState\store.db')
@@ -1273,7 +1273,7 @@ Describe 'Block-StoreSearchResults' {
     }
 }
 
-Describe 'Repair-WindowsUpdate' {
+Describe 'WindowsUpdate' {
     BeforeEach {
         $script:consoleActions = [System.Collections.Generic.List[string]]::new()
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
@@ -1431,7 +1431,7 @@ Describe 'Repair-WindowsUpdate' {
             )
 
             [void]$script:removeItemCalls.Add([pscustomobject]@{
-                Path = $Path
+                Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path })
                 Recurse = [bool]$Recurse
             })
         }
@@ -1454,7 +1454,7 @@ Describe 'Repair-WindowsUpdate' {
             )
 
             [void]$script:renameItemCalls.Add([pscustomobject]@{
-                Path = $Path
+                Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path })
                 NewName = $NewName
             })
         }
@@ -1478,7 +1478,7 @@ Describe 'Repair-WindowsUpdate' {
             )
 
             [void]$script:removeItemPropertyCalls.Add([pscustomobject]@{
-                Path = $Path
+                Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path })
                 Name = $Name
             })
         }
@@ -1494,7 +1494,7 @@ Describe 'Repair-WindowsUpdate' {
         function Set-ItemProperty {
             [CmdletBinding(PositionalBinding = $false)]
             param(
-                [string]$Path,
+                [string]$Path, [string]$LiteralPath,
                 [string]$Name,
                 [object]$Value,
                 [Parameter(ValueFromRemainingArguments = $true)]
@@ -1502,7 +1502,7 @@ Describe 'Repair-WindowsUpdate' {
             )
 
             [void]$script:setItemPropertyCalls.Add([pscustomobject]@{
-                Path = $Path
+                Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path })
                 Name = $Name
                 Value = $Value
             })
@@ -1626,7 +1626,7 @@ Describe 'Repair-WindowsUpdate' {
     }
 
     It 'runs the standard repair sequence' {
-        Repair-WindowsUpdate -Standard
+        WindowsUpdate -Standard
 
         $script:consoleActions[0] | Should -Be 'Repairing Windows Update'
         $script:consoleStatuses[-1] | Should -Be 'success'
@@ -1649,7 +1649,7 @@ Describe 'Repair-WindowsUpdate' {
     }
 
     It 'runs the aggressive repair sequence' {
-        Repair-WindowsUpdate -Aggressive
+        WindowsUpdate -Aggressive
 
         $script:consoleActions[0] | Should -Be 'Repairing Windows Update (Aggressive)'
         $script:consoleStatuses[-1] | Should -Be 'success'

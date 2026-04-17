@@ -5,7 +5,7 @@ BeforeAll {
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
-        if ($fn.Name -in @('DeliveryOptimization', 'Set-DnsProvider', 'Set-NtpServerOverride', 'Install-OpenSSHServer')) {
+        if ($fn.Name -in @('DeliveryOptimization', 'DnsProvider', 'NtpServerOverride', 'OpenSSHServer')) {
             Invoke-Expression $fn.Extent.Text
         }
     }
@@ -196,7 +196,7 @@ Describe 'DeliveryOptimization' {
     }
 }
 
-Describe 'Set-DnsProvider' {
+Describe 'DnsProvider' {
     BeforeAll {
         $script:NetworkingContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/System/System.Networking.psm1') -Raw -Encoding UTF8
     }
@@ -329,7 +329,7 @@ Describe 'Set-DnsProvider' {
                 })
             }
 
-            Set-DnsProvider -Default
+            DnsProvider -Default
 
             [pscustomobject]@{
                 DnsCalls            = $dnsCalls
@@ -346,7 +346,7 @@ Describe 'Set-DnsProvider' {
     }
 }
 
-Describe 'Set-NtpServerOverride' {
+Describe 'NtpServerOverride' {
     BeforeEach {
         $script:loggedInfoMessages = [System.Collections.Generic.List[string]]::new()
         $script:loggedErrorMessages = [System.Collections.Generic.List[string]]::new()
@@ -447,7 +447,7 @@ Describe 'Set-NtpServerOverride' {
     }
 
     It 'configures pool.ntp.org when enabling the override' {
-        Set-NtpServerOverride -Enable
+        NtpServerOverride -Enable
 
         $script:callSequence.Count | Should -Be 4
         $script:callSequence[0] | Should -Be 'Start-Service:w32time'
@@ -459,7 +459,7 @@ Describe 'Set-NtpServerOverride' {
     }
 
     It 'restores time.windows.com when disabling the override' {
-        Set-NtpServerOverride -Disable
+        NtpServerOverride -Disable
 
         $script:callSequence.Count | Should -Be 4
         $script:callSequence[0] | Should -Be 'Start-Service:w32time'
@@ -471,7 +471,7 @@ Describe 'Set-NtpServerOverride' {
     }
 }
 
-Describe 'Install-OpenSSHServer' {
+Describe 'OpenSSHServer' {
     BeforeEach {
         $script:loggedInfoMessages = [System.Collections.Generic.List[string]]::new()
         $script:loggedErrorMessages = [System.Collections.Generic.List[string]]::new()
@@ -750,7 +750,7 @@ Match Group administrators
     }
 
     It 'installs OpenSSH Server and normalizes the standard SSH config' {
-        Install-OpenSSHServer
+        OpenSSHServer
 
         $script:callSequence[0] | Should -Be 'Get-WindowsCapability:OpenSSH.Server'
         $script:callSequence | Should -Contain 'Add-WindowsCapability:OpenSSH.Server'

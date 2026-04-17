@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     <#
@@ -73,6 +73,9 @@ BeforeAll {
     #>
     function LogError { param([object]$Message) }
 
+    # Json helpers must load first — Environment.Helpers calls ConvertFrom-BaselineJson.
+    . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Json.Helpers.ps1')
+
     $filePath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Environment.Helpers.ps1'
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
@@ -141,6 +144,89 @@ Describe 'Get-BaselineDisplayVersion' {
         $result = Get-BaselineDisplayVersion -ModuleRoot $moduleRoot
 
         $result | Should -Be 'v2.0.0'
+    }
+}
+
+Describe 'Get-BaselineValidationMatrixSummary' {
+    It 'loads server coverage from the integration validation matrix' {
+        $repoRoot = Join-Path $TestDrive 'RepoRoot'
+        $matrixRoot = Join-Path $repoRoot 'Tests/Integration'
+        $null = New-Item -ItemType Directory -Path $matrixRoot -Force
+        $matrixPath = Join-Path $matrixRoot 'DesktopMatrixResults.json'
+        Set-Content -LiteralPath $matrixPath -Encoding UTF8 -Value @'
+{
+  "summary": {
+    "testedDesktopEditions": ["Windows 11 Pro (26100)"],
+    "pendingDesktopEditions": ["Windows 10 22H2"],
+    "serverEditions": ["Windows Server 2022 (CI only)"]
+  }
+}
+'@
+
+        $result = Get-BaselineValidationMatrixSummary -RepoRoot $repoRoot
+
+        $result.Summary | Should -Be 'Validated: Windows 11 Pro (26100) | Pending: Windows 10 22H2 | Server: Windows Server 2022 (CI only)'
+        $result.ServerValidationSummary | Should -Be 'CI only: Windows Server 2022 (CI only)'
+        $result.ServerCoverageStatus | Should -Be 'CIOnly'
+        $result.HasServerCoverage | Should -BeTrue
+        $result.ServerCIOnly | Should -BeTrue
+    }
+}
+
+Describe 'Get-BaselineValidationEvidenceReport' {
+    It 'combines test report and validation matrix channels into a provenance summary' {
+        $repoRoot = Join-Path $TestDrive 'RepoRoot'
+        $testsRoot = Join-Path $repoRoot 'Tests'
+        $integrationRoot = Join-Path $testsRoot 'Integration'
+        $null = New-Item -ItemType Directory -Path $integrationRoot -Force
+
+        Set-Content -LiteralPath (Join-Path $testsRoot 'TestReport.json') -Encoding UTF8 -Value @'
+{
+  "generated": "2026-04-14T14:38:31.7842438+02:00",
+  "platform": {
+    "os": "Microsoft Windows NT 10.0.26100.0",
+    "edition": "Core",
+    "psVersion": "7.6.0",
+    "hostname": "SHELDON"
+  },
+  "layers": {
+    "unit": {
+      "result": "Passed",
+      "passed": 2640,
+      "failed": 0,
+      "skipped": 4
+    },
+    "composition": {
+      "result": "Passed",
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "summary": {
+    "overallResult": "Passed"
+  }
+}
+'@
+
+        Set-Content -LiteralPath (Join-Path $integrationRoot 'DesktopMatrixResults.json') -Encoding UTF8 -Value @'
+{
+  "summary": {
+    "testedDesktopEditions": ["Windows 11 Pro (26100)"],
+    "pendingDesktopEditions": [],
+    "serverEditions": ["Windows Server 2022 (CI only)"]
+  }
+}
+'@
+
+        $result = Get-BaselineValidationEvidenceReport -RepoRoot $repoRoot
+
+        $result.Schema | Should -Be 'Baseline.ValidationEvidence'
+        $result.Summary | Should -Be 'unit-tested; desktop-session CI validated; server CI only'
+        @($result.ValidationChannels).Count | Should -Be 3
+        ($result.ValidationChannels | Where-Object Channel -eq 'unit-tested').Status | Should -Be 'Passed'
+        ($result.ValidationChannels | Where-Object Channel -eq 'desktop-session CI validated').Status | Should -Be 'Passed'
+        ($result.ValidationChannels | Where-Object Channel -eq 'server CI only').Status | Should -Be 'CI only'
     }
 }
 
