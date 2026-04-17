@@ -30,8 +30,8 @@ jobs:
           $category = '${{ inputs.category }}'
           if ([string]::IsNullOrWhiteSpace($category)) { $category = 'All' }
           # Server SKUs in CI cannot create system restore points.
-          $suiteArgs = @('-Category', $category, '-SkipRestorePoint')
-          if ('${{ inputs.dry_run }}' -eq 'true') { $suiteArgs += '-DryRun' }
+          $suiteArgs = @{ Category = $category; SkipRestorePoint = $true }
+          if ('${{ inputs.dry_run }}' -eq 'true') { $suiteArgs.DryRun = $true }
           & .\Tests\Integration\IntegrationTest.ps1 @suiteArgs
 
       - name: Upload integration report
@@ -57,8 +57,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $category = '${{ inputs.category }}'
           if ([string]::IsNullOrWhiteSpace($category)) { $category = 'All' }
-          $suiteArgs = @('-Category', $category)
-          if ('${{ inputs.dry_run }}' -eq 'true') { $suiteArgs += '-DryRun' }
+          $suiteArgs = @{ Category = $category }
+          if ('${{ inputs.dry_run }}' -eq 'true') { $suiteArgs.DryRun = $true }
           & .\Tests\Integration\IntegrationTest.ps1 @suiteArgs
 
       - name: Upload integration report
@@ -84,8 +84,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $category = '${{ inputs.category }}'
           if ([string]::IsNullOrWhiteSpace($category)) { $category = 'All' }
-          $suiteArgs = @('-Category', $category)
-          if ('${{ inputs.dry_run }}' -eq 'true') { $suiteArgs += '-DryRun' }
+          $suiteArgs = @{ Category = $category }
+          if ('${{ inputs.dry_run }}' -eq 'true') { $suiteArgs.DryRun = $true }
           & .\Tests\Integration\IntegrationTest.ps1 @suiteArgs
 
       - name: Upload integration report
