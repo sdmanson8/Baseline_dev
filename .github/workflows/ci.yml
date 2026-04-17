@@ -57,12 +57,65 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           choco install innosetup --no-progress -y
+          $isccPath = $null
+          $cmd = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+          if ($cmd) { $isccPath = $cmd.Source }
+          if (-not $isccPath) {
+            foreach ($p in @('C:\Program Files (x86)\Inno Setup 6\ISCC.exe','C:\Program Files\Inno Setup 6\ISCC.exe')) {
+              if (Test-Path -LiteralPath $p) { $isccPath = $p; break }
+            }
+          }
+          if ($isccPath) {
+            Write-Host "ISCC located at: $isccPath"
+            $ver = (Get-Item -LiteralPath $isccPath).VersionInfo.ProductVersion
+            Write-Host "ISCC ProductVersion: $ver"
+          } else {
+            Write-Host "ISCC.exe not found after choco install" -ForegroundColor Red
+          }
 
       - name: Build release package
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          & .\Tools\New-ReleasePackage.ps1 -Force
+          try {
+            & .\Tools\New-ReleasePackage.ps1 -Force
+          } catch {
+            Write-Host "=== New-ReleasePackage.ps1 failed: $_ ===" -ForegroundColor Red
+            Write-Host "=== Searching for persisted ISCC diagnostics ===" -ForegroundColor Yellow
+            $temp = $env:TEMP
+            $persistDirs = Get-ChildItem -Path $temp -Filter 'BaselineInstaller-failed-*' -Directory -ErrorAction SilentlyContinue
+            foreach ($d in $persistDirs) {
+              Write-Host "--- $($d.FullName) ---"
+              Get-ChildItem -LiteralPath $d.FullName | ForEach-Object {
+                Write-Host "  >> $($_.Name) ($($_.Length) bytes)"
+                if ($_.Extension -in '.iss','.log') {
+                  Write-Host "--- content of $($_.Name) ---"
+                  Get-Content -LiteralPath $_.FullName | Out-Host
+                }
+                Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $env:GITHUB_WORKSPACE "failed-$($_.Name)") -Force -ErrorAction SilentlyContinue
+              }
+            }
+            Write-Host "=== Staged source-root listing (if any) ===" -ForegroundColor Yellow
+            $stageDirs = Get-ChildItem -Path $temp -Filter 'BaselineInstaller_*' -Directory -ErrorAction SilentlyContinue
+            foreach ($d in $stageDirs) {
+              $extract = Join-Path $d.FullName 'extract\Baseline'
+              if (Test-Path -LiteralPath $extract) {
+                Write-Host "--- $extract ---"
+                Get-ChildItem -LiteralPath $extract -Force | Select-Object Mode,Name | Out-Host
+                $ico = Join-Path $extract 'Assets\baseline-setup.ico'
+                Write-Host "baseline-setup.ico exists: $(Test-Path -LiteralPath $ico)"
+              }
+            }
+            throw
+          }
+
+      - name: Upload failed ISCC diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-iscc-diagnostics
+          path: failed-*
+          if-no-files-found: ignore
 
       - name: Validate release artifact layout
         shell: powershell

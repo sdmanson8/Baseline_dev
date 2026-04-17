@@ -939,11 +939,29 @@ try
 
     if ($PSCmdlet.ShouldProcess($setupPath, 'Build Baseline setup executable'))
     {
+        $stdoutFile = Join-Path $tempScripts 'iscc.stdout.log'
+        $stderrFile = Join-Path $tempScripts 'iscc.stderr.log'
         $process = Start-Process -FilePath $resolvedIscc -ArgumentList @('/Qp', "`"$stampedIss`"") `
-                                 -Wait -PassThru -NoNewWindow
+                                 -Wait -PassThru -NoNewWindow `
+                                 -RedirectStandardOutput $stdoutFile `
+                                 -RedirectStandardError $stderrFile
         if ($process.ExitCode -ne 0)
         {
+            Write-Host '--- ISCC stdout ---'
+            if (Test-Path -LiteralPath $stdoutFile) { Get-Content -LiteralPath $stdoutFile | Write-Host }
+            Write-Host '--- ISCC stderr ---'
+            if (Test-Path -LiteralPath $stderrFile) { Get-Content -LiteralPath $stderrFile | Write-Host }
+            $persistDir = Join-Path ([System.IO.Path]::GetTempPath()) ('BaselineInstaller-failed-' + [System.Guid]::NewGuid().ToString('N'))
+            New-Item -Path $persistDir -ItemType Directory -Force | Out-Null
+            Copy-Item -LiteralPath $stampedIss -Destination $persistDir -Force -ErrorAction SilentlyContinue
+            Copy-Item -LiteralPath $stdoutFile -Destination $persistDir -Force -ErrorAction SilentlyContinue
+            Copy-Item -LiteralPath $stderrFile -Destination $persistDir -Force -ErrorAction SilentlyContinue
+            Write-Host "Persisted ISCC diagnostics to: $persistDir"
             throw "ISCC failed with exit code $($process.ExitCode)."
+        }
+        else
+        {
+            if (Test-Path -LiteralPath $stdoutFile) { Get-Content -LiteralPath $stdoutFile | Write-Host }
         }
     }
 
