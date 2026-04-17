@@ -717,7 +717,9 @@ function FileExtensions
 			LogInfo "Enabling file name extensions"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name HideFileExt -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				$advancedKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+				if (-not (Test-Path -LiteralPath $advancedKey)) { New-Item -Path $advancedKey -Force -ErrorAction Stop | Out-Null }
+				New-ItemProperty -Path $advancedKey -Name HideFileExt -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -732,7 +734,9 @@ function FileExtensions
 			LogInfo "Disabling file name extensions"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name HideFileExt -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				$advancedKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+				if (-not (Test-Path -LiteralPath $advancedKey)) { New-Item -Path $advancedKey -Force -ErrorAction Stop | Out-Null }
+				New-ItemProperty -Path $advancedKey -Name HideFileExt -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
