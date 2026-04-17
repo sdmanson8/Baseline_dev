@@ -1,6 +1,7 @@
 # Build and packaging outputs
 .artifacts/
-dist/
+dist/*
+!dist/Baseline-Setup.iss
 _net48ref/
 *.zip
 *.exe
