@@ -1,4 +1,4 @@
-<#
+﻿<#
 	.SYNOPSIS
 	Generate curated preset JSON files from manifest metadata.
 

@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Download and install Baseline from GitHub.
 

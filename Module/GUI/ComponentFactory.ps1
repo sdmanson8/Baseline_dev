@@ -1,4 +1,4 @@
-# WPF component factory functions: info icons, badges, status pills, scenario tags
+﻿# WPF component factory functions: info icons, badges, status pills, scenario tags
 
 	<#
 	    .SYNOPSIS

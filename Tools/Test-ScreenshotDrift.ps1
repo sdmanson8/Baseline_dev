@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Validates screenshot manifest freshness and flags potentially stale screenshots.
 

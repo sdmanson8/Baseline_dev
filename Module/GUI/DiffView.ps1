@@ -1,4 +1,4 @@
-# ──────────────────────────────────────────────────────────────────
+﻿# ──────────────────────────────────────────────────────────────────
 # DiffView.ps1
 # Visual diff dialog showing "Current State -> After Run" for each
 # selected tweak.  Dot-sourced inside Show-TweakGUI so all $Script:

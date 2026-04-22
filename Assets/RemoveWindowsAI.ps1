@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Admin utility for disabling and removing Windows AI features such as Copilot, Recall, and related packages.
 

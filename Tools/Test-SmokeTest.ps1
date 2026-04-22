@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Smoke-test script for Baseline source validation.
 

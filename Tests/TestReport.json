@@ -1,5 +1,5 @@
 {
-  "generated": "2026-04-17T04:58:52.2355360+02:00",
+  "generated": "2026-04-22T11:52:32.5448206+02:00",
   "platform": {
     "os": "Microsoft Windows NT 10.0.26100.0",
     "edition": "Core",
@@ -14,18 +14,18 @@
       "passed": 0,
       "failed": 0,
       "skipped": 0,
-      "duration": 39.67,
+      "duration": 43.45,
       "output": ""
     },
     "unit": {
       "name": "Unit Tests",
       "script": "E:\\Github\\Baseline_dev\\Tests\\Unit",
       "result": "Passed",
-      "passed": 3447,
+      "passed": 3501,
       "failed": 0,
       "skipped": 5,
-      "duration": 98.44,
-      "output": "Tests: 3452 | Passed: 3447 | Failed: 0 | Skipped: 5"
+      "duration": 105.42,
+      "output": "Tests: 3506 | Passed: 3501 | Failed: 0 | Skipped: 5"
     },
     "composition": {
       "name": "GUI Composition Tests",
@@ -34,7 +34,7 @@
       "passed": 34,
       "failed": 0,
       "skipped": 0,
-      "duration": 0.61,
+      "duration": 0.64,
       "output": "Tests: 34 | Passed: 34 | Failed: 0 | Skipped: 0"
     },
     "preset": {
@@ -44,12 +44,12 @@
       "passed": 0,
       "failed": 0,
       "skipped": 0,
-      "duration": 1.75,
+      "duration": 1.88,
       "output": ""
     }
   },
   "summary": {
-    "totalPassed": 3481,
+    "totalPassed": 3535,
     "totalFailed": 0,
     "totalSkipped": 5,
     "overallResult": "Passed"
@@ -57,7 +57,7 @@
   "badge": {
     "schemaVersion": 1,
     "label": "tests",
-    "message": "3481 passed",
+    "message": "3535 passed",
     "color": "brightgreen"
   }
 }

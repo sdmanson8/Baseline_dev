@@ -1,4 +1,4 @@
-# Tweak filtering, visibility, and category filter management
+﻿# Tweak filtering, visibility, and category filter management
 
 	<#
 	    .SYNOPSIS

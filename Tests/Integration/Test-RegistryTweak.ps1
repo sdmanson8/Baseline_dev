@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Focused integration test for a single registry-based tweak function.
 

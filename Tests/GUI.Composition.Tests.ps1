@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     # Load WPF assemblies so types like [System.Windows.Controls.Button] resolve

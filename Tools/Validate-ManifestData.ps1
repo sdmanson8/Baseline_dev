@@ -1,4 +1,4 @@
-<#
+﻿<#
 	.SYNOPSIS
 	Internal validation tool for tweak metadata files under Module/Data.
 

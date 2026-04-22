@@ -1,4 +1,4 @@
-	$Script:CurrentPrimaryTab = $null
+﻿	$Script:CurrentPrimaryTab = $null
 	$Script:SubTabControls = @{}
 
 

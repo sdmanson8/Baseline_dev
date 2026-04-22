@@ -1,4 +1,4 @@
-# ──────────────────────────────────────────────────────────────────
+﻿# ──────────────────────────────────────────────────────────────────
 # DialogHelpers.ps1
 # Shared dialog builders and dialog-scoped UI helpers extracted from
 # Show-TweakGUI (GUI.psm1). Dot-sourced inside Show-TweakGUI so all

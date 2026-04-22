@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Internal build tool for creating the Baseline setup executable with Inno Setup.
 

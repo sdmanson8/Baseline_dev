@@ -1,4 +1,4 @@
-<#
+﻿<#
 	.SYNOPSIS
 	WPF GUI for Windows 10 & Windows 11 fine-tuning and automating the routine tasks
 

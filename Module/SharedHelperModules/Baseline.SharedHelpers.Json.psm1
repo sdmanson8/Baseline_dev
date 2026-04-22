@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Named module boundary for Json.Helpers.ps1 — exposes its functions through the module system.
 

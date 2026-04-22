@@ -1,4 +1,4 @@
-using module ..\Logging.psm1
+﻿using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 #region Applications

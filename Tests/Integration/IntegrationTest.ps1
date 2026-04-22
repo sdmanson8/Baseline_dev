@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     VM-based integration test runner for Baseline.
 

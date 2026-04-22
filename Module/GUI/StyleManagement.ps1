@@ -1,4 +1,4 @@
-# ──────────────────────────────────────────────────────────────────
+﻿# ──────────────────────────────────────────────────────────────────
 # StyleManagement.ps1
 # Theme / styling helpers extracted from Show-TweakGUI (GUI.psm1).
 # Dot-sourced inside Show-TweakGUI so all $Script: and local UI

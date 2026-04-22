@@ -1,4 +1,4 @@
-	foreach ($pKey in $PrimaryCategories.Keys)
+﻿	foreach ($pKey in $PrimaryCategories.Keys)
 	{
 		# Check if any tweaks exist for this primary tab
 		$hasTweaks = $false

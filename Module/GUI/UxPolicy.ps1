@@ -1,4 +1,4 @@
-# Mode presentation helpers - Safe Mode gets beginner-focused wording while
+﻿# Mode presentation helpers - Safe Mode gets beginner-focused wording while
 # the existing full-detail views keep the original wording.
 # The execution engine is the same in all views; these only change what the user sees.
 #

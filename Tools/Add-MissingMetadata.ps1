@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Adds missing metadata fields (Impact, Safe, RequiresRestart, WhyThisMatters, PresetTier,
     CompatibilitySensitivity) to all Module/Data/*.json tweak entries.

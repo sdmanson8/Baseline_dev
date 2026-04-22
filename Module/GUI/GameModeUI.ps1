@@ -1,4 +1,4 @@
-# Game Mode profile definitions, plan builders, and UI state management
+﻿# Game Mode profile definitions, plan builders, and UI state management
 
 	<#
 	    .SYNOPSIS

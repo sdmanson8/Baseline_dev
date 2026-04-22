@@ -1,4 +1,4 @@
-# Shared helper slice for Baseline -- error handling, classification, and user-facing error info.
+﻿# Shared helper slice for Baseline -- error handling, classification, and user-facing error info.
 
 <#
     .SYNOPSIS

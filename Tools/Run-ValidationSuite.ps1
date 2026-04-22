@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Runs the internal validation suite and appends all output to a log file.
 

@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Internal function Show-RiskDecisionDialog.
 #>

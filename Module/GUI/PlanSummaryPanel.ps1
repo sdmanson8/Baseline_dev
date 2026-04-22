@@ -1,4 +1,4 @@
-# Plan Summary Panel — pre-run "what will happen" dialog shown after the user
+﻿# Plan Summary Panel — pre-run "what will happen" dialog shown after the user
 # clicks Run but before tweaks execute.  Provides a category breakdown,
 # impact summary cards, pre-flight status, and a scrollable tweak list.
 

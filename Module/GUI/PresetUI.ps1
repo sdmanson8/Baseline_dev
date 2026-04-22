@@ -1,4 +1,4 @@
-# Preset/scenario UI builder functions: button definitions, panels, filters, selection bars, and recommendation display
+﻿# Preset/scenario UI builder functions: button definitions, panels, filters, selection bars, and recommendation display
 
 	<#
 	    .SYNOPSIS

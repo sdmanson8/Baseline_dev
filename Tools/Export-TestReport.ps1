@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Runs all test layers and exports a machine-readable JSON report.
 

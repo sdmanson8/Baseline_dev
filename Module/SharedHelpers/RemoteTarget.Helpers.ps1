@@ -1,4 +1,4 @@
-# Remote targeting helper slice for Baseline.
+﻿# Remote targeting helper slice for Baseline.
 # Provides multi-machine compliance checking and profile application over
 # PowerShell Remoting (WinRM / PSSession). Each function accepts an array of
 # computer names and operates in parallel per-session.

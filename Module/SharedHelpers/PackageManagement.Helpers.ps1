@@ -1,4 +1,4 @@
-# Shared helper slice for Baseline.
+﻿# Shared helper slice for Baseline.
 
 <#
     .SYNOPSIS
