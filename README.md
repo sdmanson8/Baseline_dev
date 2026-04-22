@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  Baseline is a manifest-driven platform for applying, tracking, and reversing Windows configuration changes — with a full GUI, compliance drift detection, audit trails, snapshot/restore, and headless automation across 125 locale files.
+  Baseline is a manifest-driven platform for applying, tracking, and reversing Windows configuration changes — with a full GUI, compliance drift detection, audit trails, snapshot/restore, and headless automation. Localization ships with 125 locale files at full key coverage; translation quality is machine-assisted and under active QA.
 </p>
 
 <p align="center">
