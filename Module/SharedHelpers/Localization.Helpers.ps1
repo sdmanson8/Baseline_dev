@@ -63,9 +63,6 @@ function Resolve-BaselineLocalizationDirectory
 <#
     .SYNOPSIS
     Internal function Resolve-BaselineLocalizationFile.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-BaselineLocalizationFile
@@ -100,9 +97,6 @@ function Resolve-BaselineLocalizationFile
 <#
     .SYNOPSIS
     Internal function Import-BaselineLocalization.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Import-BaselineLocalization
@@ -146,9 +140,6 @@ function Import-BaselineLocalization
     <#
         .SYNOPSIS
         Internal function Add-LocalizationCandidate.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Add-LocalizationCandidate
@@ -263,9 +254,6 @@ function Import-BaselineLocalization
 <#
     .SYNOPSIS
     Internal function Resolve-BaselineCultureName.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-BaselineCultureName
@@ -321,9 +309,6 @@ function Resolve-BaselineCultureName
 <#
     .SYNOPSIS
     Internal function Set-BaselineThreadCulture.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-BaselineThreadCulture
@@ -352,9 +337,6 @@ function Set-BaselineThreadCulture
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-BaselineLocalizedString
 {
@@ -412,9 +394,6 @@ function Get-BaselineLocalizedString
 <#
     .SYNOPSIS
     Internal function Get-BaselineBilingualString.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineBilingualString

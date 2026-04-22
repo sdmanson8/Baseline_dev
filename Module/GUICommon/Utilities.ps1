@@ -1,9 +1,6 @@
-﻿<#
+<#
     .SYNOPSIS
     Internal function Test-GuiCommonUniqueAdd.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Test-GuiCommonUniqueAdd
 {
@@ -46,9 +43,6 @@ function Test-GuiCommonUniqueAdd
 <#
     .SYNOPSIS
     Internal function Get-GuiBooleanValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-GuiBooleanValue
 {
@@ -112,9 +106,6 @@ function Get-GuiBooleanValue
 <#
     .SYNOPSIS
     Internal function Write-GuiCommonWarning.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Write-GuiCommonWarning
 {

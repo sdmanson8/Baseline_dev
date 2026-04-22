@@ -3,9 +3,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ExecutionSummaryRecord.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ExecutionSummaryRecord
@@ -67,9 +64,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Initialize-ExecutionSummary.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Initialize-ExecutionSummary
@@ -93,9 +87,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ExecutionSummaryClassification.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ExecutionSummaryClassification
@@ -330,9 +321,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-RestoreDefaultsOutcomeText.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-RestoreDefaultsOutcomeText
@@ -409,9 +397,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ExecutionRetryPolicy.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ExecutionRetryPolicy
@@ -547,9 +532,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Test-ExecutionSummaryPackageOperationRecord.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-ExecutionSummaryPackageOperationRecord
@@ -570,9 +552,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ExecutionSummaryInsights.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ExecutionSummaryInsights
@@ -668,9 +647,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ExecutionSummaryCountsText.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ExecutionSummaryCountsText
@@ -710,9 +686,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ExecutionSummaryNextStepsText.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ExecutionSummaryNextStepsText
@@ -796,9 +769,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ExecutionSummaryDialogCards.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ExecutionSummaryDialogCards
@@ -953,9 +923,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-ExecutionSummaryClassification.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-ExecutionSummaryClassification
@@ -999,9 +966,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ExecutionResultLiveLogEntry.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ExecutionResultLiveLogEntry
@@ -1121,9 +1085,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-ExecutionSummaryStatus.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-ExecutionSummaryStatus
@@ -1158,9 +1119,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Complete-ExecutionSummary.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Complete-ExecutionSummary
@@ -1198,9 +1156,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ExecutionSummaryResults.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ExecutionSummaryResults
@@ -1211,9 +1166,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Write-ExecutionSummaryToLog
 	{
@@ -1293,9 +1245,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Sync-DefaultsControlsFromExecutionSummary.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Sync-DefaultsControlsFromExecutionSummary

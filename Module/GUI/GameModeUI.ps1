@@ -1,11 +1,8 @@
-﻿# Game Mode profile definitions, plan builders, and UI state management
+# Game Mode profile definitions, plan builders, and UI state management
 
 	<#
 	    .SYNOPSIS
 	    Internal function Update-GameModeStatusText.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-GameModeStatusText
@@ -44,9 +41,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GameModeManifestEntries.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GameModeManifestEntries
@@ -77,9 +71,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GamingPreviewGroupSortOrder.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GamingPreviewGroupSortOrder
@@ -107,9 +98,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GameModePreviewSectionInfo.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GameModePreviewSectionInfo
@@ -144,9 +132,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GameModeToggleStateLabel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GameModeToggleStateLabel
@@ -166,9 +151,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GameModeProfileDefaultSelection.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GameModeProfileDefaultSelection
@@ -212,9 +194,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-GameModePlanEntry.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-GameModePlanEntry
@@ -293,9 +272,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GameModeUndoRunList.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GameModeUndoRunList
@@ -336,9 +312,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Build-GameModeAdvancedPlanEntries.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Build-GameModeAdvancedPlanEntries
@@ -390,9 +363,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Build-GameModePlan.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Build-GameModePlan
@@ -469,9 +439,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Test-TweakEditableInGameModeTab.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-TweakEditableInGameModeTab
@@ -512,9 +479,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Sync-GameModePlanToGamingControls.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Sync-GameModePlanToGamingControls
@@ -663,9 +627,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Sync-GameModePlanFromGamingControls.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Sync-GameModePlanFromGamingControls
@@ -846,9 +807,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Clear-GameModePlan.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Clear-GameModePlan
@@ -872,9 +830,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-GameModeProfile.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-GameModeProfile
@@ -952,9 +907,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-GameModeState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-GameModeState
@@ -1082,9 +1034,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-GameModeAdvancedPanel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-GameModeAdvancedPanel
@@ -1424,9 +1373,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-GameModeLandingPanel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-GameModeLandingPanel
@@ -1702,9 +1648,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-GameModeComparisonPanel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-GameModeComparisonPanel

@@ -1,4 +1,4 @@
-﻿<#
+<#
 	.SYNOPSIS
 	Internal validation tool for tweak metadata files under Module/Data.
 
@@ -63,9 +63,6 @@ $gameModeReviewedCrossCategoryAllowlist = @(Get-GameModeReviewedCrossCategoryAll
 <#
     .SYNOPSIS
     Internal function Test-PresetCommandIsRemovalOperation.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-PresetCommandIsRemovalOperation
@@ -127,9 +124,6 @@ function Test-PresetCommandIsRemovalOperation
 <#
     .SYNOPSIS
     Internal function Test-ManifestEntryHasNonEmptyPropertyValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-ManifestEntryHasNonEmptyPropertyValue
@@ -156,9 +150,6 @@ function Test-ManifestEntryHasNonEmptyPropertyValue
 <#
     .SYNOPSIS
     Internal function ConvertTo-NormalizedManifestParameterName.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-NormalizedManifestParameterName
@@ -182,9 +173,6 @@ function ConvertTo-NormalizedManifestParameterName
 <#
     .SYNOPSIS
     Internal function Test-ManifestEntryHasReversibleToggleParameters.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-ManifestEntryHasReversibleToggleParameters
@@ -204,9 +192,6 @@ function Test-ManifestEntryHasReversibleToggleParameters
 <#
     .SYNOPSIS
     Internal function Test-ManifestEntryHasReversibleChoiceDefaults.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-ManifestEntryHasReversibleChoiceDefaults
@@ -261,9 +246,6 @@ function Test-ManifestEntryHasReversibleChoiceDefaults
 <#
     .SYNOPSIS
     Internal function Get-GameModeEntryScopeCategory.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GameModeEntryScopeCategory
@@ -289,9 +271,6 @@ function Get-GameModeEntryScopeCategory
 <#
     .SYNOPSIS
     Internal function Test-GameModeEntryReviewedForAllowlist.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-GameModeEntryReviewedForAllowlist
@@ -318,9 +297,6 @@ function Test-GameModeEntryReviewedForAllowlist
 <#
     .SYNOPSIS
     Internal function Test-GameModeEntryHasEnabledDefaults.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-GameModeEntryHasEnabledDefaults
@@ -356,9 +332,6 @@ function Test-GameModeEntryHasEnabledDefaults
 <#
     .SYNOPSIS
     Internal function Test-GameModeEntryEligibleForProfileDefaults.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-GameModeEntryEligibleForProfileDefaults

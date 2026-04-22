@@ -1,13 +1,10 @@
-﻿# Support bundle helper slice for Baseline.
+# Support bundle helper slice for Baseline.
 # Builds a portable, operator-facing archive with environment, audit,
 # compliance, and execution context for troubleshooting and enterprise review.
 
 <#
     .SYNOPSIS
     Internal function Export-BaselineSupportBundle.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineSupportBundleDeepLinks

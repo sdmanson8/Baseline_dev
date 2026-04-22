@@ -20,13 +20,6 @@
 	.NOTES
 	Machine-wide
 #>
-<#
-    .SYNOPSIS
-    Internal function EventViewerCustomView.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function EventViewerCustomView
 {
@@ -666,13 +659,6 @@ function WindowsSandbox
 
 	.NOTES
 	Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function WindowsScriptHost.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function WindowsScriptHost

@@ -3,9 +3,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiPresetDebugLogger.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiPresetDebugLogger
@@ -22,9 +19,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Resolve-TabPresetContext
 	{
@@ -109,9 +103,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Initialize-TabPresetApplicationState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Initialize-TabPresetApplicationState
@@ -168,9 +159,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-TabPresetSharedUiState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-TabPresetSharedUiState
@@ -210,9 +198,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Clear-GuiSelectableControlState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Clear-GuiSelectableControlState
@@ -275,9 +260,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiChoiceOptions.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiChoiceOptions
@@ -311,9 +293,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Apply-TabPresetSelections.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Apply-TabPresetSelections
@@ -714,9 +693,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Write-TabPresetUnmatchedEntryWarnings.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Write-TabPresetUnmatchedEntryWarnings
@@ -752,9 +728,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Ensure-SafePresetRestorePointSelection.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Ensure-SafePresetRestorePointSelection
@@ -822,9 +795,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Complete-TabPresetApplication.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Complete-TabPresetApplication
@@ -927,9 +897,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-TabPreset.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-TabPreset

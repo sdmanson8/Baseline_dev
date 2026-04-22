@@ -3,9 +3,6 @@
 <#
     .SYNOPSIS
     Internal function Convert-JsonManifestValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Convert-JsonManifestValue
@@ -52,9 +49,6 @@ function Convert-JsonManifestValue
 <#
     .SYNOPSIS
     Internal function ConvertTo-NormalizedParameterName.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-NormalizedParameterName
@@ -79,9 +73,6 @@ function ConvertTo-NormalizedParameterName
 <#
     .SYNOPSIS
     Internal function ConvertTo-TweakRiskLevel.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-TweakRiskLevel
@@ -105,9 +96,6 @@ function ConvertTo-TweakRiskLevel
 <#
     .SYNOPSIS
     Internal function ConvertTo-TweakPresetTier.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-TweakPresetTier
@@ -146,9 +134,6 @@ function ConvertTo-TweakPresetTier
 <#
     .SYNOPSIS
     Internal function ConvertTo-TweakWorkflowSensitivity.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-TweakWorkflowSensitivity
@@ -176,9 +161,6 @@ function ConvertTo-TweakWorkflowSensitivity
 <#
     .SYNOPSIS
     Internal function Convert-ToWhyThisMattersText.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Convert-ToWhyThisMattersText
@@ -214,9 +196,6 @@ function Convert-ToWhyThisMattersText
 <#
     .SYNOPSIS
     Internal function Write-ManifestValidationWarning.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-ManifestValidationWarning
@@ -242,9 +221,6 @@ function Write-ManifestValidationWarning
 <#
     .SYNOPSIS
     Internal function Import-TweakManifestFromData.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Import-TweakManifestFromData
@@ -437,9 +413,6 @@ function Import-TweakManifestFromData
 <#
     .SYNOPSIS
     Internal function Test-TweakManifestEntryField.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-TweakManifestEntryField
@@ -471,9 +444,6 @@ function Test-TweakManifestEntryField
 <#
     .SYNOPSIS
     Internal function Get-TweakManifestEntryValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-TweakManifestEntryValue
@@ -500,9 +470,6 @@ function Get-TweakManifestEntryValue
 <#
     .SYNOPSIS
     Internal function Get-TweakManifestDefaultCommand.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-TweakManifestDefaultCommand
@@ -711,9 +678,6 @@ function Get-TweakManifestDefaultCommand
 <#
     .SYNOPSIS
     Internal function Get-ManifestEntryByFunction.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ManifestEntryByFunction
@@ -746,9 +710,6 @@ function Get-ManifestEntryByFunction
 <#
     .SYNOPSIS
     Internal function Get-ValidScenarioTagCatalog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ValidScenarioTagCatalog
@@ -801,9 +762,6 @@ function Get-ValidScenarioTagCatalog
 <#
     .SYNOPSIS
     Internal function Get-ValidGamingPreviewGroups.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ValidGamingPreviewGroups
@@ -824,9 +782,6 @@ function Get-ValidGamingPreviewGroups
 <#
     .SYNOPSIS
     Internal function Get-ValidGameModeProfileNames.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ValidGameModeProfileNames
@@ -842,9 +797,6 @@ function Get-ValidGameModeProfileNames
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Test-TweakManifestIntegrity
 {
@@ -1154,9 +1106,6 @@ function Test-TweakManifestIntegrity
 <#
     .SYNOPSIS
     Internal function Get-TweakRestartGroups.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-TweakRestartGroups
@@ -1201,9 +1150,6 @@ function Get-TweakRestartGroups
 <#
     .SYNOPSIS
     Internal function Get-TweakDependencyInfo.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-TweakDependencyInfo

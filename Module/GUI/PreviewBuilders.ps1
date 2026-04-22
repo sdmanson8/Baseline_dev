@@ -344,9 +344,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-WindowsDefaultRunList.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-WindowsDefaultRunList
 	{
@@ -612,9 +609,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-CategoryDefaultRunList.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-CategoryDefaultRunList
 	{
@@ -646,9 +640,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-TweakSelectionSummary.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-TweakSelectionSummary
 	{
@@ -848,9 +839,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-SelectedTweakPreview.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Show-SelectedTweakPreview
 	{
@@ -986,9 +974,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-LocalizedPreviewResults.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-LocalizedPreviewResults
 	{
@@ -1036,9 +1021,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Confirm-HighRiskTweakRun.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Confirm-HighRiskTweakRun
 	{
@@ -1205,9 +1187,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ExecutionPreviewResults.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-ExecutionPreviewResults
 	{
@@ -1216,9 +1195,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function Get-TweakPreviewNarrative.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 		function Get-TweakPreviewNarrative
 		{
@@ -1462,9 +1438,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Write-ExecutionPreviewToLog.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Write-ExecutionPreviewToLog
 	{

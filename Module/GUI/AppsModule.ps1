@@ -7,9 +7,6 @@
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-ApplicationEntityType
 {
@@ -112,9 +109,6 @@ function Get-ApplicationEntityType
 <#
     .SYNOPSIS
     Internal function Test-ApplicationExecutionSupport.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-ApplicationExecutionSupport
@@ -221,9 +215,6 @@ function Test-ApplicationExecutionSupport
 <#
     .SYNOPSIS
     Internal function Get-ApplicationCatalogIdentityKey.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ApplicationCatalogIdentityKey
@@ -290,9 +281,6 @@ function Get-ApplicationCatalogIdentityKey
 <#
     .SYNOPSIS
     Internal function Get-ApplicationExecutionState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ApplicationExecutionState
@@ -610,9 +598,6 @@ function Get-ApplicationExecutionState
 <#
     .SYNOPSIS
     Internal function Get-ApplicationCacheSnapshot.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ApplicationCacheSnapshot
@@ -661,9 +646,6 @@ function Get-ApplicationCacheSnapshot
 <#
     .SYNOPSIS
     Internal function Get-BaselineApplicationsCatalog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineApplicationsCatalog
@@ -875,9 +857,6 @@ function Get-BaselineApplicationsCatalog
 <#
     .SYNOPSIS
     Internal function Set-AppsActionControlsEnabled.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-AppsActionControlsEnabled
@@ -962,9 +941,6 @@ function Set-AppsActionControlsEnabled
 <#
     .SYNOPSIS
     Internal function Initialize-AppsSelectionState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Initialize-AppsSelectionState
@@ -993,9 +969,6 @@ function Initialize-AppsSelectionState
 <#
     .SYNOPSIS
     Internal function Initialize-AppsQueuedActionState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Initialize-AppsQueuedActionState
@@ -1029,9 +1002,6 @@ function Initialize-AppsQueuedActionState
 <#
     .SYNOPSIS
     Internal function Sync-AppsQueuedActionControls.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Sync-AppsQueuedActionControls
@@ -1113,9 +1083,6 @@ function Sync-AppsQueuedActionControls
 <#
     .SYNOPSIS
     Internal function Get-QueuedAppsProfileActions.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-QueuedAppsProfileActions
@@ -1162,9 +1129,6 @@ function Get-QueuedAppsProfileActions
 <#
     .SYNOPSIS
     Internal function Set-AppQueuedAction.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-AppQueuedAction
@@ -1209,9 +1173,6 @@ function Set-AppQueuedAction
 <#
     .SYNOPSIS
     Internal function Get-AppQueuedAction.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-AppQueuedAction
@@ -1243,9 +1204,6 @@ function Get-AppQueuedAction
 <#
     .SYNOPSIS
     Internal function Clear-AppsQueuedActions.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Clear-AppsQueuedActions
@@ -1267,9 +1225,6 @@ function Clear-AppsQueuedActions
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Start-AppsModuleQueuedActionAsync
 {
@@ -1390,9 +1345,6 @@ function Start-AppsModuleQueuedActionAsync
 <#
     .SYNOPSIS
     Internal function Get-SelectedAppsCatalogItems.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-SelectedAppsCatalogItems
@@ -1432,9 +1384,6 @@ function Get-SelectedAppsCatalogItems
 <#
     .SYNOPSIS
     Internal function Update-AppsSelectionSummary.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Update-AppsSelectionSummary
@@ -1614,9 +1563,6 @@ function Update-AppsSelectionSummary
 <#
     .SYNOPSIS
     Internal function Set-AppSelectionState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-AppSelectionState
@@ -1651,9 +1597,6 @@ function Set-AppSelectionState
 <#
     .SYNOPSIS
     Internal function Clear-AppSelectionState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Clear-AppSelectionState
@@ -1691,9 +1634,6 @@ function Clear-AppSelectionState
 <#
     .SYNOPSIS
     Internal function Ensure-SheenProgressBarType.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Ensure-SheenProgressBarType
@@ -1889,9 +1829,6 @@ public class SheenProgressBar : Control
 <#
     .SYNOPSIS
     Internal function New-SharedProgressBarHost.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-SharedProgressBarHost
@@ -1931,9 +1868,6 @@ function New-SharedProgressBarHost
 <#
     .SYNOPSIS
     Internal function Set-SheenProgressBarTheme.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-SheenProgressBarTheme
@@ -1973,9 +1907,6 @@ function Set-SheenProgressBarTheme
 <#
     .SYNOPSIS
     Internal function Set-SharedProgressBarState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-SharedProgressBarState
@@ -2077,9 +2008,6 @@ function Set-SharedProgressBarState
 <#
     .SYNOPSIS
     Internal function Initialize-AppsProgressSection.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Initialize-AppsProgressSection
@@ -2128,9 +2056,6 @@ function Initialize-AppsProgressSection
 <#
     .SYNOPSIS
     Internal function Build-AppsViewCards.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Build-AppsViewCards
@@ -2334,7 +2259,7 @@ function Build-AppsViewCards
 	}
 	if ($Script:AppsProgressBar)
 	{
-		try { $Script:AppsProgressBar.IsIndeterminate = $true } catch { $null = $_ }
+		try { $Script:AppsProgressBar.IsIndeterminate = $true } catch { Write-GuiRuntimeWarning -Context 'Build-AppsViewCards:ProgressBar' -Message $_.Exception.Message }
 	}
 
 	foreach ($app in @($sortedCatalog))
@@ -2715,7 +2640,14 @@ function Build-AppsViewCards
 			$primaryButton.Add_Click({
 				param($buttonSender, $buttonEventArgs)
 				$null = $buttonEventArgs
-				& $startAppsModuleActionAsyncCommand -Action $capturedPrimaryAction -Application $appCapture
+				try
+				{
+					& $startAppsModuleActionAsyncCommand -Action $capturedPrimaryAction -Application $appCapture
+				}
+				catch
+				{
+					$null = & $Script:ShowGuiRuntimeFailureScript -Context 'AppPrimaryButton' -Exception $_.Exception -ShowDialog
+				}
 			}.GetNewClosure())
 			[void]$buttonRow.Children.Add($primaryButton)
 
@@ -2738,10 +2670,17 @@ function Build-AppsViewCards
 				Set-GuiButtonIconContent -Button $updateButton -IconName 'ArrowSync' -Text (Get-UxLocalizedString -Key 'Update' -Fallback 'Update') -IconSize 14 -Gap 6 -TextFontSize 11 -ToolTip $updateButton.ToolTip
 				[void]$Script:AppsActionButtons.Add($updateButton)
 					$updateButton.Add_Click({
-						param($buttonSender, $buttonEventArgs)
-						$null = $buttonEventArgs
+					param($buttonSender, $buttonEventArgs)
+					$null = $buttonEventArgs
+					try
+					{
 						& $startAppsModuleActionAsyncCommand -Action 'Update' -Application $appCapture
-					}.GetNewClosure())
+					}
+					catch
+					{
+						$null = & $Script:ShowGuiRuntimeFailureScript -Context 'AppUpdateButton' -Exception $_.Exception -ShowDialog
+					}
+				}.GetNewClosure())
 				[void]$buttonRow.Children.Add($updateButton)
 			}
 
@@ -2829,7 +2768,7 @@ function Build-AppsViewCards
 		}
 		catch
 		{
-			$null = $_
+			Write-GuiRuntimeWarning -Context 'Build-AppsViewCards:ProgressBarReset' -Message $_.Exception.Message
 		}
 	}
 	$Script:AppsViewBuildSignature = $renderSignature
@@ -2839,9 +2778,6 @@ function Build-AppsViewCards
 <#
     .SYNOPSIS
     Internal function Start-AppsCacheRefresh.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Start-AppsCacheRefresh
@@ -3058,9 +2994,6 @@ function Start-AppsCacheRefresh
 <#
     .SYNOPSIS
     Internal function Start-AppsModuleActionAsync.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Start-AppsModuleActionAsync
@@ -3122,9 +3055,6 @@ function Start-AppsModuleActionAsync
 <#
     .SYNOPSIS
     Internal function Start-AppsModuleBatchActionAsync.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Start-AppsModuleBatchActionAsync
@@ -3174,9 +3104,6 @@ function Start-AppsModuleBatchActionAsync
 <#
     .SYNOPSIS
     Internal function Set-GuiAppsMode.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-GuiAppsMode

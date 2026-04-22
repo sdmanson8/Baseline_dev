@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Focused integration test for a single registry-based tweak function.
 
@@ -74,9 +74,6 @@ $failed = 0
 <#
     .SYNOPSIS
     Internal function Write-TestResult.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-TestResult

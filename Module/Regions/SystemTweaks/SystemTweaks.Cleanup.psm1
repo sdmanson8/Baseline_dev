@@ -1,4 +1,4 @@
-﻿using module ..\..\Logging.psm1
+using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
 <#
@@ -156,13 +156,6 @@ Invoke-CleanupOperation -All
 
 .NOTES
 Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function Invoke-CleanupOperation.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-CleanupOperation

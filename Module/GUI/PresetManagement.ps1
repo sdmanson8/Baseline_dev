@@ -3,9 +3,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-PresetButton.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-PresetButton
@@ -30,9 +27,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-PresetButtonContent.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-PresetButtonContent
@@ -73,9 +67,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-WhyThisMattersButton.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-WhyThisMattersButton
@@ -186,9 +177,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-WhyThisMattersBlock.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-WhyThisMattersBlock
@@ -249,9 +237,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-PrimaryTabManifestIndexes.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-PrimaryTabManifestIndexes
@@ -275,9 +260,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-PresetTierRank.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-PresetTierRank
@@ -299,9 +281,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiPresetPolicyIssues.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiPresetPolicyIssues
@@ -448,9 +427,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function ConvertTo-GuiPresetName.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function ConvertTo-GuiPresetName
@@ -471,9 +447,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Initialize-GuiSelectionStateStores.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Initialize-GuiSelectionStateStores
@@ -493,9 +466,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiPresetNumericRangeArgumentText.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiPresetNumericRangeArgumentText
@@ -593,9 +563,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Copy-GuiExplicitSelectionDefinition.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Copy-GuiExplicitSelectionDefinition
@@ -683,9 +650,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiExplicitSelectionDefinition.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiExplicitSelectionDefinition
@@ -701,9 +665,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Set-GuiExplicitSelectionDefinition
 	{
@@ -725,9 +686,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Remove-GuiExplicitSelectionDefinition.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Remove-GuiExplicitSelectionDefinition
@@ -744,9 +702,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Resolve-GuiPresetFilePath
 	{
@@ -792,9 +747,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiPresetEntries.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiPresetEntries
@@ -994,9 +946,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiSelectionDefinitionFromCommands.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiSelectionDefinitionFromCommands
@@ -1248,9 +1197,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-GuiPresetSelection.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-GuiPresetSelection
@@ -1306,9 +1252,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-GuiScenarioProfileSelection.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-GuiScenarioProfileSelection
@@ -1364,9 +1307,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Test-TweakMatchesPresetTier.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-TweakMatchesPresetTier
@@ -1385,9 +1325,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-GuiPresetCommandsPath
 	{
@@ -1426,9 +1363,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Import-GuiPresetSelectionMap.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Import-GuiPresetSelectionMap
@@ -1755,9 +1689,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiPresetDefinition.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiPresetDefinition
@@ -1816,9 +1747,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-FilterSelections.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-FilterSelections
@@ -1889,9 +1817,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Clear-InvisibleSelectionState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Clear-InvisibleSelectionState

@@ -31,7 +31,7 @@
       "Impact": "High",
       "Safe": false,
       "RequiresRestart": false,
-      "WhyThisMatters": "Controls whether apps are allowed to run and update in the background when they are not in focus. Disabling saves CPU and memory. This is a high-risk change that may be difficult or impossible to reverse.",
+      "WhyThisMatters": "When disabled, UWP apps do not receive updates, notifications, or trigger background tasks while not in the foreground. Live tile data and push notifications will stop refreshing.",
       "PresetTier": "Advanced",
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "High"
@@ -68,7 +68,7 @@
       "Impact": "Medium",
       "Safe": false,
       "RequiresRestart": false,
-      "WhyThisMatters": "Removes Copilot, Recall, and all related Windows AI components. Reinstalling requires winget or Microsoft Store access.",
+      "WhyThisMatters": "Removes Copilot, Recall, and the related Windows AI component packages. Reinstallation requires winget or Microsoft Store access.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Manual",
       "CompatibilitySensitivity": "Medium"
@@ -102,7 +102,7 @@
       "Impact": "Low",
       "Safe": true,
       "RequiresRestart": true,
-      "WhyThisMatters": "Prevents Cortana from launching automatically at startup. Cortana can still be opened manually if needed.",
+      "WhyThisMatters": "Prevents Cortana from registering a startup entry. Cortana can still be launched manually; this only stops it from starting automatically with Windows.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Medium"
@@ -137,7 +137,7 @@
       "Impact": "High",
       "Safe": false,
       "RequiresRestart": false,
-      "WhyThisMatters": "Applies Group Policy settings to disable telemetry, shopping assistant, collections, Copilot sidebar, and other optional Edge extras. This is a high-risk change that may be difficult or impossible to reverse.",
+      "WhyThisMatters": "Writes Group Policy values to disable Edge telemetry, the shopping assistant, Collections, the Copilot sidebar, and other optional features. Does not affect browsing, sync, or extensions.",
       "PresetTier": "Advanced",
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Medium"
@@ -171,7 +171,7 @@
       "Impact": "Low",
       "Safe": true,
       "RequiresRestart": false,
-      "WhyThisMatters": "Controls whether the new Outlook app is available. Disable to keep using the classic Mail and Calendar apps instead.",
+      "WhyThisMatters": "Removes or disables the new Outlook (formerly Mail & Calendar) app. Disabling reverts to the classic Win32 Outlook or Mail app.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Medium"
@@ -205,7 +205,7 @@
       "Impact": "High",
       "Safe": false,
       "RequiresRestart": false,
-      "WhyThisMatters": "Master switch for the entire Windows notification system. Disabling stops all app notifications and hides the notification center. This is a high-risk change that may be difficult or impossible to reverse.",
+      "WhyThisMatters": "Disables the entire Windows notification system. No app will be able to deliver toasts or badge updates, and the Action Center will be empty.",
       "PresetTier": "Advanced",
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Medium"
@@ -240,7 +240,7 @@
       "Impact": "High",
       "Safe": false,
       "RequiresRestart": false,
-      "WhyThisMatters": "Reverts the Start Menu to the pre-24H2 layout on Windows 11 24H2 builds. May affect compatibility with future Windows updates. This is a high-risk change that may be difficult or impossible to reverse.",
+      "WhyThisMatters": "Rolls back the Start Menu layout introduced in Windows 11 24H2. Applied via a registry key that may be reset by future Windows updates.",
       "PresetTier": "Advanced",
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Medium"
@@ -276,7 +276,7 @@
       "Impact": "High",
       "Safe": false,
       "RequiresRestart": false,
-      "WhyThisMatters": "Opens a selection dialog to remove or restore selected Windows Store apps. Some removals are one-way, and even supported restore paths can still require Microsoft Store, winget, or manual reinstall follow-up. This is a high-risk package operation rather than a simple toggle.",
+      "WhyThisMatters": "Opens a selection dialog to remove or restore Store apps in bulk. Some removals are one-way or require winget, Microsoft Store, or manual reinstall to reverse.",
       "PresetTier": "Advanced",
       "RecoveryLevel": "Manual",
       "CompatibilitySensitivity": "Medium"

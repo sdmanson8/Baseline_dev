@@ -123,9 +123,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Write-GuiThemeFallbackWarning.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Write-GuiThemeFallbackWarning
@@ -163,9 +160,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiFallbackColor.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiFallbackColor
@@ -188,9 +182,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Repair-GuiThemePalette.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Repair-GuiThemePalette
@@ -273,9 +264,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function ConvertTo-GuiBrush.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function ConvertTo-GuiBrush
@@ -328,9 +316,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-SafeBrushConverter.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-SafeBrushConverter

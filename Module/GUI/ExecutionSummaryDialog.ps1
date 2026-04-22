@@ -1,4 +1,4 @@
-﻿# ──────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────
 # ExecutionSummaryDialog.ps1
 # Execution-summary dialog wrapper extracted from Show-TweakGUI
 # (GUI.psm1).  Dot-sourced inside Show-TweakGUI so all $Script:
@@ -8,9 +8,6 @@
 <#
     .SYNOPSIS
     Internal function Show-ExecutionSummaryDialog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Show-ExecutionSummaryDialog

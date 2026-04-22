@@ -6,9 +6,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-CardHoverResources.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-CardHoverResources
@@ -45,9 +42,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Add-CardHoverEffects.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Add-CardHoverEffects
@@ -133,9 +127,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Ensure-PendingLinkedStateCollections.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Ensure-PendingLinkedStateCollections
@@ -184,9 +175,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Test-TweakRowVisible.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-TweakRowVisible
@@ -233,9 +221,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-TweakRowCard.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-TweakRowCard
@@ -275,9 +260,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-TweakNamePanel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-TweakNamePanel
@@ -354,9 +336,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-TweakHeaderBadgesPanel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-TweakHeaderBadgesPanel
@@ -470,9 +449,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-TweakDefaultToggleState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-TweakDefaultToggleState
@@ -493,9 +469,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-TweakDefaultChoiceSelectedIndex.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-TweakDefaultChoiceSelectedIndex
@@ -530,9 +503,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-TweakDefaultNumericRangeValues.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-TweakDefaultNumericRangeValues
@@ -569,9 +539,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-TweakDefaultDateSelection.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-TweakDefaultDateSelection
@@ -602,9 +569,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-TweakDefaultActionState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-TweakDefaultActionState
@@ -625,9 +589,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Invoke-TweakRowResetToDefaults.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Invoke-TweakRowResetToDefaults
@@ -803,9 +764,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-TweakResetButton.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-TweakResetButton
@@ -834,9 +792,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Add-TweakMetadataDetails.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Add-TweakMetadataDetails
@@ -912,9 +867,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Add-TweakWhyBlockDetails.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Add-TweakWhyBlockDetails
@@ -950,9 +902,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GameModePlanEntryForTweak.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GameModePlanEntryForTweak
@@ -979,9 +928,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ToggleInitialCheckedState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ToggleInitialCheckedState
@@ -1018,9 +964,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ActionInitialCheckedState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ActionInitialCheckedState
@@ -1054,9 +997,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ChoiceInitialSelectedIndex.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ChoiceInitialSelectedIndex
@@ -1093,9 +1033,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-NumericRangeInitialCheckedState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-NumericRangeInitialCheckedState
@@ -1137,9 +1074,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-NumericRangeInitialValue.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-NumericRangeInitialValue
@@ -1207,9 +1141,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function ConvertTo-GuiDateTimeValue.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function ConvertTo-GuiDateTimeValue
@@ -1244,9 +1175,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-DateInitialRunState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-DateInitialRunState
@@ -1303,9 +1231,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-DateInitialSelectedDate.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-DateInitialSelectedDate
@@ -1386,9 +1311,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Register-GuiDateSelectionHandlers.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Register-GuiDateSelectionHandlers
@@ -1514,9 +1436,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Finalize-DateRow.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Finalize-DateRow
@@ -1545,9 +1464,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-DateTweakRow.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-DateTweakRow
@@ -1628,9 +1544,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Apply-PendingLinkedToggleState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Apply-PendingLinkedToggleState
@@ -1657,9 +1570,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ToggleLikeCheckBox.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ToggleLikeCheckBox
@@ -1683,9 +1593,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ToggleLikeHeaderGrid.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ToggleLikeHeaderGrid
@@ -1733,9 +1640,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ChoiceHeaderGrid.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ChoiceHeaderGrid
@@ -1764,9 +1668,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ToggleStatusRow.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ToggleStatusRow
@@ -1848,9 +1749,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Register-ToggleStatusHandlers.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Register-ToggleStatusHandlers
@@ -1886,9 +1784,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Register-GuiLinkedToggleHandlers.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Register-GuiLinkedToggleHandlers
@@ -1915,9 +1810,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Register-GuiToggleExplicitSelectionHandlers.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Register-GuiToggleExplicitSelectionHandlers
@@ -1978,9 +1870,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Register-GuiActionSelectionHandlers.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Register-GuiActionSelectionHandlers
@@ -2028,9 +1917,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Register-GuiChoiceSelectionHandler.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Register-GuiChoiceSelectionHandler
@@ -2076,9 +1962,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Register-GuiNumericRangeSelectionHandlers.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Register-GuiNumericRangeSelectionHandlers
@@ -2233,9 +2116,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Finalize-ToggleLikeRow.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Finalize-ToggleLikeRow
@@ -2266,9 +2146,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Finalize-NumericRangeRow.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Finalize-NumericRangeRow
@@ -2298,9 +2175,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ToggleTweakRow.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ToggleTweakRow
@@ -2347,9 +2221,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ChoiceTweakRow.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ChoiceTweakRow
@@ -2419,9 +2290,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-NumericRangeTweakRow.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-NumericRangeTweakRow
@@ -2559,9 +2427,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ActionTweakRow.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ActionTweakRow
@@ -2636,9 +2501,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Build-TweakRow.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Build-TweakRow

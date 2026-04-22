@@ -1,4 +1,4 @@
-﻿using module ..\..\Logging.psm1
+using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
 <#
@@ -24,13 +24,6 @@ using module ..\..\SharedHelpers.psm1
 
 	.NOTES
 	Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function Set-Association.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-Association
@@ -327,9 +320,6 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 		<#
 		    .SYNOPSIS
 		    Internal function Write-ExtensionKeys.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Write-ExtensionKeys
@@ -492,9 +482,6 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 		<#
 		    .SYNOPSIS
 		    Internal function Write-AdditionalKeys.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Write-AdditionalKeys
@@ -637,9 +624,6 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 		<#
 		    .SYNOPSIS
 		    Internal function Get-Hash.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Get-Hash
@@ -800,9 +784,6 @@ public static long MakeLong(uint left, uint right)
 			<#
 			    .SYNOPSIS
 			    Internal function Get-KeyLastWriteTime.
-
-			    .DESCRIPTION
-			    Internal implementation helper used by Baseline.
 			#>
 
 			function Get-KeyLastWriteTime ($SubKey)
@@ -816,9 +797,6 @@ public static long MakeLong(uint left, uint right)
 			<#
 			    .SYNOPSIS
 			    Internal function .
-
-			    .DESCRIPTION
-			    Internal implementation helper used by Baseline.
 			#>
 			function Get-DataArray
 			{
@@ -839,9 +817,6 @@ public static long MakeLong(uint left, uint right)
 			<#
 			    .SYNOPSIS
 			    Internal function Get-PatentHash.
-
-			    .DESCRIPTION
-			    Internal implementation helper used by Baseline.
 			#>
 
 			function Get-PatentHash
@@ -1300,13 +1275,6 @@ function Import-Associations
 
 	.NOTES
 	Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function Set-UserShellFolderLocation.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-UserShellFolderLocation
@@ -2105,13 +2073,6 @@ public extern static int SHSetKnownFolderPath(ref Guid folderId, uint flags, Int
 
 	.NOTES
 	Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function WinPrtScrFolder.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function WinPrtScrFolder

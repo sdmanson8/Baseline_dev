@@ -11,18 +11,12 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function LogInfo.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function LogInfo {}
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function LogWarning {}
 }

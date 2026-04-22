@@ -86,13 +86,6 @@ function Request-GuiSystemSelection
 	.NOTES
 	Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function WindowsCapabilities.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function WindowsCapabilities
 {
@@ -259,9 +252,6 @@ function WindowsCapabilities
 	<#
 	    .SYNOPSIS
 	    Internal function Test-CapabilityPatternMatch.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-CapabilityPatternMatch
@@ -290,9 +280,6 @@ function WindowsCapabilities
 	<#
 	    .SYNOPSIS
 	    Internal function Get-CheckboxClicked.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-CheckboxClicked
@@ -338,9 +325,6 @@ function WindowsCapabilities
 	<#
 	    .SYNOPSIS
 	    Internal function Test-CapabilitySeedSelected.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-CapabilitySeedSelected
@@ -363,9 +347,6 @@ function WindowsCapabilities
 	<#
 	    .SYNOPSIS
 	    Internal function Get-SelectedCapabilityList.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-SelectedCapabilityList
@@ -376,9 +357,6 @@ function WindowsCapabilities
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-SelectedCapabilityNames
 	{
@@ -392,9 +370,6 @@ function WindowsCapabilities
 	<#
 	    .SYNOPSIS
 	    Internal function UninstallButton.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function UninstallButton
@@ -457,9 +432,6 @@ function WindowsCapabilities
 	<#
 	    .SYNOPSIS
 	    Internal function InstallButton.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function InstallButton
@@ -529,9 +501,6 @@ function WindowsCapabilities
 	<#
 	    .SYNOPSIS
 	    Internal function Confirm-WindowsCapabilitiesSelection.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Confirm-WindowsCapabilitiesSelection
@@ -585,9 +554,6 @@ function WindowsCapabilities
 	<#
 	    .SYNOPSIS
 	    Internal function Get-CapabilityFriendlyName.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-CapabilityFriendlyName
@@ -616,9 +582,6 @@ function WindowsCapabilities
 	<#
 	    .SYNOPSIS
 	    Internal function New-CapabilityInfoIcon.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-CapabilityInfoIcon
@@ -643,9 +606,6 @@ function WindowsCapabilities
 	<#
 	    .SYNOPSIS
 	    Internal function Add-CapabilityControl.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Add-CapabilityControl
@@ -938,13 +898,6 @@ function WindowsCapabilities
 	.NOTES
 	Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function WindowsFeatures.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function WindowsFeatures
 {
@@ -1111,9 +1064,6 @@ function WindowsFeatures
 	<#
 	    .SYNOPSIS
 	    Internal function Test-FeaturePatternMatch.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-FeaturePatternMatch
@@ -1142,9 +1092,6 @@ function WindowsFeatures
 	<#
 	    .SYNOPSIS
 	    Internal function Get-CheckboxClicked.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-CheckboxClicked
@@ -1189,9 +1136,6 @@ function WindowsFeatures
 	<#
 	    .SYNOPSIS
 	    Internal function Test-FeatureSeedSelected.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-FeatureSeedSelected
@@ -1214,9 +1158,6 @@ function WindowsFeatures
 	<#
 	    .SYNOPSIS
 	    Internal function Get-SelectedFeatureList.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-SelectedFeatureList
@@ -1227,9 +1168,6 @@ function WindowsFeatures
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-SelectedFeatureNames
 	{
@@ -1243,9 +1181,6 @@ function WindowsFeatures
 	<#
 	    .SYNOPSIS
 	    Internal function DisableButton.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function DisableButton
@@ -1290,9 +1225,6 @@ function WindowsFeatures
 	<#
 	    .SYNOPSIS
 	    Internal function EnableButton.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function EnableButton
@@ -1337,9 +1269,6 @@ function WindowsFeatures
 	<#
 	    .SYNOPSIS
 	    Internal function Confirm-WindowsFeaturesSelection.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Confirm-WindowsFeaturesSelection
@@ -1415,9 +1344,6 @@ function WindowsFeatures
 	<#
 	    .SYNOPSIS
 	    Internal function Get-FeatureFriendlyName.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-FeatureFriendlyName
@@ -1440,9 +1366,6 @@ function WindowsFeatures
 	<#
 	    .SYNOPSIS
 	    Internal function New-FeatureInfoIcon.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-FeatureInfoIcon
@@ -1467,9 +1390,6 @@ function WindowsFeatures
 	<#
 	    .SYNOPSIS
 	    Internal function Add-FeatureControl.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Add-FeatureControl

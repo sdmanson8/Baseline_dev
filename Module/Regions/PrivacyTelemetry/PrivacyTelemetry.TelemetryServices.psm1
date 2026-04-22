@@ -23,13 +23,6 @@ using module ..\..\SharedHelpers.psm1
 	.NOTES
 	Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function DiagTrackService.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function DiagTrackService
 {
@@ -204,13 +197,6 @@ function DiagnosticDataLevel
 	.NOTES
 	Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function Request-GuiScheduledTasksSelection.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function Request-GuiScheduledTasksSelection
 {
@@ -268,9 +254,6 @@ function Request-GuiScheduledTasksSelection
 <#
     .SYNOPSIS
     Internal function ScheduledTasks.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ScheduledTasks
@@ -371,9 +354,6 @@ function ScheduledTasks
 	<#
 	    .SYNOPSIS
 	    Internal function Get-CheckboxClicked.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-CheckboxClicked
@@ -419,9 +399,6 @@ function ScheduledTasks
 	<#
 	    .SYNOPSIS
 	    Internal function Test-ScheduledTaskSeedSelected.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-ScheduledTaskSeedSelected
@@ -444,9 +421,6 @@ function ScheduledTasks
 	<#
 	    .SYNOPSIS
 	    Internal function Get-SelectedScheduledTaskList.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-SelectedScheduledTaskList
@@ -457,9 +431,6 @@ function ScheduledTasks
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-SelectedScheduledTaskNames
 	{
@@ -473,9 +444,6 @@ function ScheduledTasks
 	<#
 	    .SYNOPSIS
 	    Internal function Invoke-ScheduledTasksOperation.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Invoke-ScheduledTasksOperation
@@ -506,9 +474,6 @@ function ScheduledTasks
 	<#
 	    .SYNOPSIS
 	    Internal function Confirm-ScheduledTasksSelection.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Confirm-ScheduledTasksSelection
@@ -559,9 +524,6 @@ function ScheduledTasks
 	<#
 	    .SYNOPSIS
 	    Internal function Add-TaskControl.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Add-TaskControl
@@ -967,13 +929,6 @@ function ErrorReporting
 
     .NOTES
     Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function WAPPush.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function WAPPush

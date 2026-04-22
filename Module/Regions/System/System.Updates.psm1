@@ -399,13 +399,6 @@ function FeatureUpdateDeferral
 	.NOTES
 	Machine-wide
 #>
-<#
-    .SYNOPSIS
-    Internal function QualityUpdateDeferral.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function QualityUpdateDeferral
 {
@@ -597,13 +590,6 @@ function WindowsUpdateSecurityOnlyMode
 
 	.NOTES
 	Machine-wide
-#>
-<#
-    .SYNOPSIS
-    Internal function WindowsUpdatePause.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function WindowsUpdatePause
@@ -843,13 +829,6 @@ function RestartNotification
 	.NOTES
 	Machine-wide
 #>
-<#
-    .SYNOPSIS
-    Internal function UpdateNotificationLevel.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function UpdateNotificationLevel
 {
@@ -1041,13 +1020,6 @@ function SaveRestartableApps
 
 	.NOTES
 	Machine-wide
-#>
-<#
-    .SYNOPSIS
-    Internal function RecommendedTroubleshooting.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function RecommendedTroubleshooting
@@ -1295,13 +1267,6 @@ function StoreSearchResults
 	Requires an elevated PowerShell session.
 	High risk.
 	Restart required.
-#>
-<#
-    .SYNOPSIS
-    Internal function WindowsUpdate.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function WindowsUpdate

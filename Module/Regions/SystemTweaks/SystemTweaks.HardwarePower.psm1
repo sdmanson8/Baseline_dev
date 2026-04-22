@@ -26,13 +26,6 @@
 
 	Use only if you understand the implications.
 #>
-<#
-    .SYNOPSIS
-    Internal function RazerBlock.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function RazerBlock
 {
@@ -437,13 +430,6 @@ Teredo is an IPv6 tunneling protocol used for NAT traversal.
 Disabling it may reduce network latency for some applications.
 However, some games and peer-to-peer applications rely on Teredo for connectivity.
 Xbox Live and certain multiplayer games may not function correctly without Teredo.
-#>
-<#
-    .SYNOPSIS
-    Internal function Teredo.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Teredo

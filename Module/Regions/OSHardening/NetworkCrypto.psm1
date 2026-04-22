@@ -25,13 +25,6 @@
     .NOTES
     Machine-wide
 #>
-<#
-    .SYNOPSIS
-    Internal function RemoteCommands.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function RemoteCommands {
 	[CmdletBinding()]
@@ -167,13 +160,6 @@ function KeyExchanges
 
     .NOTES
     Machine-wide
-#>
-<#
-    .SYNOPSIS
-    Internal function Protocols.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Protocols

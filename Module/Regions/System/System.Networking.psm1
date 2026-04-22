@@ -176,13 +176,6 @@ function CurrentNetwork
 	.NOTES
 	Machine-wide
 #>
-<#
-    .SYNOPSIS
-    Internal function DnsProvider.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function DnsProvider
 {
@@ -1042,13 +1035,6 @@ function OpenSSHServer
 
 	.NOTES
 	Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function NetworkAdaptersSavePower.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function NetworkAdaptersSavePower

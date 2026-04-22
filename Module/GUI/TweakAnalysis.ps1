@@ -3,9 +3,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Test-TweakRemovalOperation.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-TweakRemovalOperation
@@ -37,9 +34,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Test-TweakPackageOperation.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-TweakPackageOperation
@@ -76,9 +70,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-TweakScenarioSignals.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-TweakScenarioSignals
@@ -161,9 +152,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Test-TweakIsSelected.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-TweakIsSelected
@@ -250,9 +238,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Test-TweakIsRestorable.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-TweakIsRestorable
@@ -270,9 +255,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Test-TweakIsGamingRelated
 	{
@@ -285,9 +267,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-TweakFocusGroup.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-TweakFocusGroup
@@ -324,9 +303,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-TweakInclusionReason.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-TweakInclusionReason
@@ -369,9 +345,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-TweakBlastRadiusText.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-TweakBlastRadiusText

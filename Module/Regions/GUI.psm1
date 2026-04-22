@@ -1,4 +1,4 @@
-﻿using module ..\Logging.psm1
+using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 using module ..\GUICommon.psm1
 using module ..\GUIExecution.psm1
@@ -11,9 +11,6 @@ $Script:GuiFontSizeWarnings = [System.Collections.Generic.HashSet[string]]::new(
 <#
     .SYNOPSIS
     Internal function Get-GuiSafeFontSize.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 # --- Extracted subsystem modules (dot-sourced so shared $Script: state
@@ -38,9 +35,6 @@ function Get-GuiSafeFontSize
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function New-SafeThickness
 {
@@ -63,9 +57,6 @@ function New-SafeThickness
 <#
     .SYNOPSIS
     Internal function New-WpfSetter.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-WpfSetter
@@ -126,9 +117,6 @@ function New-WpfSetter
 <#
     .SYNOPSIS
     Internal function Test-GuiObjectField.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-GuiObjectField
@@ -154,9 +142,6 @@ function Test-GuiObjectField
 <#
     .SYNOPSIS
     Internal function Get-GuiObjectField.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiObjectField
@@ -182,9 +167,6 @@ function Get-GuiObjectField
 <#
     .SYNOPSIS
     Internal function Get-GuiRuntimeFailureDetails.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiRuntimeFailureDetails
@@ -255,9 +237,6 @@ function Get-GuiRuntimeFailureDetails
 <#
     .SYNOPSIS
     Internal function Show-GuiRuntimeFailure.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Show-GuiRuntimeFailure
@@ -311,9 +290,6 @@ function Show-GuiRuntimeFailure
 <#
     .SYNOPSIS
     Internal function Write-GuiPresetDebug.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-GuiPresetDebug
@@ -359,9 +335,6 @@ $Script:GuiPresetDebugScript = ${function:Write-GuiPresetDebug}
 <#
     .SYNOPSIS
     Internal function Write-GuiRuntimeWarning.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-GuiRuntimeWarning
@@ -451,26 +424,17 @@ $Script:ManifestLoadedFromData = $false
 <#
     .SYNOPSIS
     Internal function Test-IsSafeModeUX.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-IsSafeModeUX { return ([bool]$Script:SafeMode) }
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Test-IsExpertModeUX { return ([bool]$Script:AdvancedMode) }
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Test-GuiRunInProgress { return [bool]$Script:RunInProgress }
 
@@ -649,9 +613,6 @@ function Show-TweakGUI
 	<#
 	    .SYNOPSIS
 	    Internal function Resolve-GuiPrimaryTabForTweak.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Resolve-GuiPrimaryTabForTweak
@@ -1415,13 +1376,6 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 	    Write-TweakProgress -Action "Downloading installer" -Completed $i -Total $chunks.Count
 	    # ... download chunk ...
 	}
-#>
-<#
-    .SYNOPSIS
-    Internal function Write-TweakProgress.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-TweakProgress

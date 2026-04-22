@@ -4,9 +4,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Test-GuiObjectField.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Test-GuiObjectField { param([object]$Object, [string]$FieldName) if ($null -eq $Object) { return $false }; if ($Object -is [System.Collections.IDictionary]) { return $Object.Contains($FieldName) }; return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName]) }
@@ -22,9 +19,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Write-GuiRuntimeWarning {
         param(
@@ -185,9 +179,6 @@ Describe 'Register-GuiEventHandler' {
         <#
             .SYNOPSIS
             Internal function Get-TestGuiGreeting.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Get-TestGuiGreeting {
@@ -209,9 +200,6 @@ Describe 'Register-GuiEventHandler' {
         <#
             .SYNOPSIS
             Internal function Get-TestGuiInner.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Get-TestGuiInner {
@@ -225,9 +213,6 @@ Describe 'Register-GuiEventHandler' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Invoke-TestGuiOuter {
             param(

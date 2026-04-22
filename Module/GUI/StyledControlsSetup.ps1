@@ -68,9 +68,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function Invoke-GuiEvents.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Invoke-GuiEvents
@@ -88,9 +85,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function .
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 		function Close-GuiMainWindow
 		{

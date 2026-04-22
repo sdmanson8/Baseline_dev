@@ -3,9 +3,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Invoke-GuiSystemScan.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Invoke-GuiSystemScan
@@ -13,9 +10,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function .
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 		function Get-GuiEnvironmentSummaryText
 		{
@@ -41,9 +35,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function Test-GuiManifestToggleNeedsAttention.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Test-GuiManifestToggleNeedsAttention
@@ -71,9 +62,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function Test-GuiAnyPathExists.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Test-GuiAnyPathExists
@@ -95,9 +83,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function Get-GuiDetectedToolLabels.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Get-GuiDetectedToolLabels
@@ -148,9 +133,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function Get-GuiEnvironmentRecommendationData.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Get-GuiEnvironmentRecommendationData

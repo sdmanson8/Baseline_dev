@@ -5,9 +5,6 @@
 <#
     .SYNOPSIS
     Internal function Get-AuditLogPath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-AuditLogPath
@@ -24,9 +21,6 @@ function Get-AuditLogPath
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-BaselineAuditRetentionDays
 {
@@ -52,9 +46,6 @@ function Get-BaselineAuditRetentionDays
 <#
     .SYNOPSIS
     Internal function Get-BaselineAuditRetentionCutoff.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineAuditRetentionCutoff
@@ -69,9 +60,6 @@ function Get-BaselineAuditRetentionCutoff
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Invoke-BaselineAuditRetentionPolicy
 {
@@ -90,9 +78,6 @@ function Invoke-BaselineAuditRetentionPolicy
 <#
     .SYNOPSIS
     Internal function Write-AuditRecord.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-AuditRecord
@@ -147,9 +132,6 @@ function Write-AuditRecord
 <#
     .SYNOPSIS
     Internal function Get-AuditLog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-AuditLog
@@ -215,9 +197,6 @@ function Get-AuditLog
 <#
     .SYNOPSIS
     Internal function Export-AuditReport.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Export-AuditReport
@@ -361,9 +340,6 @@ function Export-AuditReport
 <#
     .SYNOPSIS
     Internal function Clear-AuditLog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Clear-AuditLog

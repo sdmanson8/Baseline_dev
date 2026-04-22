@@ -3,9 +3,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-LocalizedTabHeader.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-LocalizedTabHeader
@@ -33,9 +30,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-PrimaryTabHeaders.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-PrimaryTabHeaders
@@ -75,9 +69,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-PrimaryTabVisuals.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-PrimaryTabVisuals
@@ -111,9 +102,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Add-PrimaryTabHoverEffects.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Add-PrimaryTabHoverEffects
@@ -169,9 +157,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-PrimaryTabItem.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-PrimaryTabItem
@@ -190,9 +175,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Initialize-SearchResultsTab
 	{
@@ -206,9 +188,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Remove-SearchResultsTab.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Remove-SearchResultsTab
@@ -228,9 +207,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-SearchResultsTabState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-SearchResultsTabState

@@ -1,9 +1,6 @@
-﻿<#
+<#
     .SYNOPSIS
     Internal function Get-GuiSettingsProfileDirectory.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-GuiSettingsProfileDirectory
 {
@@ -43,9 +40,6 @@ function Get-GuiSettingsProfileDirectory
 <#
     .SYNOPSIS
     Internal function Get-GuiLastRunFilePath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-GuiLastRunFilePath
 {
@@ -55,9 +49,6 @@ function Get-GuiLastRunFilePath
 <#
     .SYNOPSIS
     Internal function Get-GuiInterruptedRunFilePath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-GuiInterruptedRunFilePath
 {
@@ -67,9 +58,6 @@ function Get-GuiInterruptedRunFilePath
 <#
     .SYNOPSIS
     Internal function Get-GuiSessionStatePath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-GuiSessionStatePath
 {
@@ -83,9 +71,6 @@ function Get-GuiSessionStatePath
 <#
     .SYNOPSIS
     Internal function Save-GuiSessionStateDocument.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Save-GuiSessionStateDocument
 {
@@ -118,9 +103,6 @@ function Save-GuiSessionStateDocument
 <#
     .SYNOPSIS
     Internal function Read-GuiSessionStateDocument.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Read-GuiSessionStateDocument
 {
@@ -162,9 +144,6 @@ function Read-GuiSessionStateDocument
 <#
     .SYNOPSIS
     Internal function Show-GuiSettingsSaveDialog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Show-GuiSettingsSaveDialog
 {
@@ -188,9 +167,6 @@ function Show-GuiSettingsSaveDialog
 <#
     .SYNOPSIS
     Internal function Show-GuiFileOpenDialog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Show-GuiFileOpenDialog
 {
@@ -226,9 +202,6 @@ function Show-GuiFileOpenDialog
 <#
     .SYNOPSIS
     Internal function Show-GuiSettingsOpenDialog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Show-GuiSettingsOpenDialog
 {
@@ -245,9 +218,6 @@ function Show-GuiSettingsOpenDialog
 <#
     .SYNOPSIS
     Internal function Write-GuiSettingsProfileDocument.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Write-GuiSettingsProfileDocument
 {
@@ -266,9 +236,6 @@ function Write-GuiSettingsProfileDocument
 <#
     .SYNOPSIS
     Internal function Read-GuiSettingsProfileDocument.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Read-GuiSettingsProfileDocument
 {

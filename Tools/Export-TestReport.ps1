@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Runs all test layers and exports a machine-readable JSON report.
 
@@ -68,9 +68,6 @@ $report = [ordered]@{
 <#
     .SYNOPSIS
     Internal function Invoke-TestLayer.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-TestLayer
@@ -144,9 +141,6 @@ function Invoke-TestLayer
 <#
     .SYNOPSIS
     Internal function Invoke-PesterLayer.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-PesterLayer
@@ -217,9 +211,6 @@ function Invoke-PesterLayer
 <#
     .SYNOPSIS
     Internal function Test-TestLayerFailureState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-TestLayerFailureState

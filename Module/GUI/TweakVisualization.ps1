@@ -3,9 +3,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-TweakVisualMetadata.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-TweakVisualMetadata
@@ -360,9 +357,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function New-TweakMetadataChipPanel.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function New-TweakMetadataChipPanel
@@ -502,9 +496,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-SectionHeader.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-SectionHeader
@@ -523,9 +514,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function New-SearchResultsSummary
 	{
@@ -612,9 +600,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-CautionSection.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-CautionSection
@@ -718,9 +703,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function Add-ExecutionLogLine.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Add-ExecutionLogLine
@@ -798,9 +780,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function Test-ExecutionSkipMessage.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Test-ExecutionSkipMessage
@@ -817,9 +796,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Show-GuiFileSaveDialog
 	{

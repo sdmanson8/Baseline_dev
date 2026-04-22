@@ -3,9 +3,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Initialize-GameModeState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Initialize-GameModeState
@@ -35,9 +32,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Reset-GameModeState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Reset-GameModeState
@@ -60,9 +54,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Sync-GameModeContextState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Sync-GameModeContextState
@@ -103,9 +94,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Test-HasGameModeTweaks.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-HasGameModeTweaks
@@ -118,9 +106,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Test-IsGameModeRun
 	{
@@ -136,9 +121,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Test-IsGameModeActive.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-IsGameModeActive
@@ -151,9 +133,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-GameModeProfile
 	{
@@ -165,9 +144,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GameModePlan.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GameModePlan
@@ -180,9 +156,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-GameModeDecisionOverrides
 	{
@@ -194,9 +167,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ExecutionGameModeContext.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ExecutionGameModeContext
@@ -209,9 +179,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Set-ExecutionGameModeContext
 	{

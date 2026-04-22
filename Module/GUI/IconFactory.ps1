@@ -1,9 +1,6 @@
 <#
     .SYNOPSIS
     Internal function Initialize-GuiIconSystem.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Initialize-GuiIconSystem
@@ -49,9 +46,6 @@ function Initialize-GuiIconSystem
 <#
     .SYNOPSIS
     Internal function Test-GuiIconsAvailable.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-GuiIconsAvailable
@@ -66,9 +60,6 @@ function Test-GuiIconsAvailable
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Test-GuiPositiveFontSize
 {
@@ -88,9 +79,6 @@ function Test-GuiPositiveFontSize
 <#
     .SYNOPSIS
     Internal function Get-GuiStatusBrushByKind.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiStatusBrushByKind
@@ -124,9 +112,6 @@ function Get-GuiStatusBrushByKind
 <#
     .SYNOPSIS
     Internal function Resolve-GuiBrushInput.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-GuiBrushInput
@@ -173,9 +158,6 @@ function Resolve-GuiBrushInput
 <#
     .SYNOPSIS
     Internal function New-GuiIconTextBlock.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-GuiIconTextBlock
@@ -235,9 +217,6 @@ function New-GuiIconTextBlock
 <#
     .SYNOPSIS
     Internal function New-GuiLabeledIconContent.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-GuiLabeledIconContent
@@ -310,9 +289,6 @@ function New-GuiLabeledIconContent
 <#
     .SYNOPSIS
     Internal function Set-GuiButtonIconContent.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-GuiButtonIconContent
@@ -358,9 +334,6 @@ function Set-GuiButtonIconContent
 <#
     .SYNOPSIS
     Internal function New-GuiStatusIconLabel.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-GuiStatusIconLabel
@@ -403,9 +376,6 @@ function New-GuiStatusIconLabel
 <#
     .SYNOPSIS
     Internal function Set-GuiTabHeaderWithIcon.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-GuiTabHeaderWithIcon
@@ -432,9 +402,6 @@ function Set-GuiTabHeaderWithIcon
 <#
     .SYNOPSIS
     Internal function Get-GuiPrimaryTabIconName.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiPrimaryTabIconName
@@ -464,9 +431,6 @@ function Get-GuiPrimaryTabIconName
 <#
     .SYNOPSIS
     Internal function Set-TextOrIconContent.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-TextOrIconContent
@@ -510,9 +474,6 @@ function Set-TextOrIconContent
 <#
     .SYNOPSIS
     Internal function New-GamingGroupHeader.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-GamingGroupHeader
@@ -545,9 +506,6 @@ function New-GamingGroupHeader
 <#
     .SYNOPSIS
     Internal function Get-GuiPresetIconName.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiPresetIconName
@@ -572,9 +530,6 @@ function Get-GuiPresetIconName
 <#
     .SYNOPSIS
     Internal function Get-GuiPreflightIconGlyph.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiPreflightIconGlyph
@@ -598,9 +553,6 @@ function Get-GuiPreflightIconGlyph
 <#
     .SYNOPSIS
     Internal function Get-GuiSummaryCardIconName.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiSummaryCardIconName

@@ -3,9 +3,6 @@
 <#
     .SYNOPSIS
     Internal function Get-AdvancedStartupDesktopDirectory.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-AdvancedStartupDesktopDirectory
@@ -24,9 +21,6 @@ function Get-AdvancedStartupDesktopDirectory
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-AdvancedStartupDownloadsDirectory
 {
@@ -50,9 +44,6 @@ function Get-AdvancedStartupDownloadsDirectory
 <#
     .SYNOPSIS
     Internal function Get-AdvancedStartupAssetPath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-AdvancedStartupAssetPath
@@ -84,9 +75,6 @@ function Get-AdvancedStartupAssetPath
 <#
     .SYNOPSIS
     Internal function Get-AdvancedStartupIconLocation.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-AdvancedStartupIconLocation
@@ -142,9 +130,6 @@ function Get-AdvancedStartupIconLocation
 <#
     .SYNOPSIS
     Internal function Enable-AdvancedStartupWindowsRecoveryEnvironment.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Enable-AdvancedStartupWindowsRecoveryEnvironment
@@ -172,9 +157,6 @@ function Enable-AdvancedStartupWindowsRecoveryEnvironment
 <#
     .SYNOPSIS
     Internal function Get-AdvancedStartupCommandPath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-AdvancedStartupCommandPath
@@ -209,9 +191,6 @@ function Get-AdvancedStartupCommandPath
 <#
     .SYNOPSIS
     Internal function Set-AdvancedStartupCommandFile.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-AdvancedStartupCommandFile
@@ -232,9 +211,6 @@ function Set-AdvancedStartupCommandFile
 <#
     .SYNOPSIS
     Internal function Get-AdvancedStartupShortcutArguments.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-AdvancedStartupShortcutArguments

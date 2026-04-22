@@ -183,13 +183,6 @@ function UpdateMSRT
     .NOTES
     Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function Microphone.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function Microphone
 {
@@ -893,13 +886,6 @@ function TailoredExperiences
 
     .NOTES
     Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function UWPSwapFile.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function UWPSwapFile

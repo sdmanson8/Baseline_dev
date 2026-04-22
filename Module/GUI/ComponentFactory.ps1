@@ -1,11 +1,8 @@
-﻿# WPF component factory functions: info icons, badges, status pills, scenario tags
+# WPF component factory functions: info icons, badges, status pills, scenario tags
 
 	<#
 	    .SYNOPSIS
 	    Internal function Build-InfoIconTooltipContent.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Build-InfoIconTooltipContent
@@ -357,9 +354,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-InfoIcon.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-InfoIcon
@@ -438,9 +432,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ImpactBadge.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ImpactBadge
@@ -467,9 +458,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-RiskBadge.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-RiskBadge
@@ -518,9 +506,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-TroubleshootingOnlyBadge.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-TroubleshootingOnlyBadge
@@ -538,9 +523,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function New-StatusPill
 	{
@@ -569,9 +551,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Format-TweakScenarioTag.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Format-TweakScenarioTag

@@ -4,9 +4,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Get-BaselineDisplayVersion.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Get-BaselineDisplayVersion { return '4.0.0-beta' }

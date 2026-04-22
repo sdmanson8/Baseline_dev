@@ -1,4 +1,4 @@
-﻿using module ..\Logging.psm1
+using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 #region Applications
@@ -6,9 +6,6 @@ using module ..\SharedHelpers.psm1
 <#
     .SYNOPSIS
     Internal function Test-ApplicationCatalogField.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-ApplicationCatalogField
@@ -34,9 +31,6 @@ function Test-ApplicationCatalogField
 <#
     .SYNOPSIS
     Internal function Get-ApplicationCatalogFieldValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ApplicationCatalogFieldValue
@@ -62,9 +56,6 @@ function Get-ApplicationCatalogFieldValue
 <#
     .SYNOPSIS
     Internal function Get-PackageManagerAvailabilityStateValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-PackageManagerAvailabilityStateValue
@@ -100,9 +91,6 @@ function Get-PackageManagerAvailabilityStateValue
 <#
     .SYNOPSIS
     Internal function Resolve-ApplicationExecutionRoute.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-ApplicationExecutionRoute
@@ -509,9 +497,6 @@ function Resolve-ApplicationExecutionRoute
 <#
     .SYNOPSIS
     Internal function Save-ChocolateyBootstrapScript.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Save-ChocolateyBootstrapScript
@@ -537,9 +522,6 @@ function Save-ChocolateyBootstrapScript
 <#
     .SYNOPSIS
     Internal function Test-BaselineEnvironmentFlagEnabled.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-BaselineEnvironmentFlagEnabled
@@ -570,9 +552,6 @@ function Test-BaselineEnvironmentFlagEnabled
 <#
     .SYNOPSIS
     Internal function Test-ChocolateyBootstrapInteractiveHost.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-ChocolateyBootstrapInteractiveHost
@@ -621,9 +600,6 @@ function Test-ChocolateyBootstrapInteractiveHost
 <#
     .SYNOPSIS
     Internal function Confirm-ChocolateyBootstrapExecution.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Confirm-ChocolateyBootstrapExecution
@@ -686,9 +662,6 @@ function Confirm-ChocolateyBootstrapExecution
 <#
     .SYNOPSIS
     Internal function ConvertTo-ApplicationCommandLiteral.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-ApplicationCommandLiteral
@@ -732,9 +705,6 @@ function ConvertTo-ApplicationCommandLiteral
 <#
     .SYNOPSIS
     Internal function Assert-ApplicationCommandAstIsSafe.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Assert-ApplicationCommandAstIsSafe
@@ -817,9 +787,6 @@ function Assert-ApplicationCommandAstIsSafe
 <#
     .SYNOPSIS
     Internal function ConvertTo-ApplicationCommandInvocation.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-ApplicationCommandInvocation
@@ -901,9 +868,6 @@ function ConvertTo-ApplicationCommandInvocation
 <#
     .SYNOPSIS
     Internal function Invoke-WingetInstall.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-WingetInstall
@@ -976,9 +940,6 @@ function Invoke-WingetInstall
 <#
     .SYNOPSIS
     Internal function Invoke-WingetUninstall.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-WingetUninstall
@@ -1050,9 +1011,6 @@ function Invoke-WingetUninstall
 <#
     .SYNOPSIS
     Internal function Invoke-WingetUpdate.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-WingetUpdate
@@ -1124,9 +1082,6 @@ function Invoke-WingetUpdate
 <#
     .SYNOPSIS
     Internal function Invoke-ChocolateyBootstrapInstall.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-ChocolateyBootstrapInstall
@@ -1167,9 +1122,6 @@ function Invoke-ChocolateyBootstrapInstall
 <#
     .SYNOPSIS
     Internal function Invoke-ChocoInstall.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-ChocoInstall
@@ -1232,9 +1184,6 @@ function Invoke-ChocoInstall
 <#
     .SYNOPSIS
     Internal function Invoke-ChocoUninstall.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-ChocoUninstall
@@ -1297,9 +1246,6 @@ function Invoke-ChocoUninstall
 <#
     .SYNOPSIS
     Internal function Invoke-ChocoUpdate.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-ChocoUpdate
@@ -1362,9 +1308,6 @@ function Invoke-ChocoUpdate
 <#
     .SYNOPSIS
     Internal function Invoke-WingetUpdateAll.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-WingetUpdateAll
@@ -1430,9 +1373,6 @@ function Invoke-WingetUpdateAll
 <#
     .SYNOPSIS
     Internal function Invoke-ChocoUpdateAll.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-ChocoUpdateAll
@@ -1498,9 +1438,6 @@ function Invoke-ChocoUpdateAll
 <#
     .SYNOPSIS
     Internal function Invoke-StoreInstall.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-StoreInstall
@@ -1581,9 +1518,6 @@ function Invoke-StoreInstall
 <#
     .SYNOPSIS
     Internal function Invoke-DirectUrlInstall.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-DirectUrlInstall
@@ -1670,9 +1604,6 @@ function Invoke-DirectUrlInstall
 <#
     .SYNOPSIS
     Internal function Invoke-CommandInstall.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-CommandInstall
@@ -1757,9 +1688,6 @@ function Invoke-CommandInstall
 <#
     .SYNOPSIS
     Internal function Invoke-ApplicationAction.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-ApplicationAction
@@ -1991,13 +1919,6 @@ function Invoke-ApplicationAction
 	.NOTES
 	Machine-wide
 #>
-<#
-    .SYNOPSIS
-    Internal function AppInstall.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function AppInstall
 {
@@ -2139,9 +2060,6 @@ function Get-InstalledAppCache
 <#
     .SYNOPSIS
     Internal function Get-InstalledChocolateyAppCache.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-InstalledChocolateyAppCache
@@ -2196,9 +2114,6 @@ function Get-InstalledChocolateyAppCache
 <#
     .SYNOPSIS
     Internal function Get-AvailableAppUpdateCache.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-AvailableAppUpdateCache
@@ -2298,9 +2213,6 @@ function Get-AvailableAppUpdateCache
 <#
     .SYNOPSIS
     Internal function Get-AvailableChocolateyUpdateCache.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-AvailableChocolateyUpdateCache

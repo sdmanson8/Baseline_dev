@@ -1,4 +1,4 @@
-﻿# Centralized GUI layout constants -- keeps magic numbers in one place for consistency.
+# Centralized GUI layout constants -- keeps magic numbers in one place for consistency.
 $Script:GuiLayout = @{
 	# Font sizes (px)
 	FontSizeTitle         = 16
@@ -73,9 +73,6 @@ $Script:GuiDialogDefaultWidth = $Script:GuiLayout.DialogDefaultWidth
 <#
     .SYNOPSIS
     Internal function Get-GuiLayout.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-GuiLayout
 {
@@ -85,9 +82,6 @@ function Get-GuiLayout
 <#
     .SYNOPSIS
     Internal function Get-GuiSafeFontSize.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-GuiSafeFontSize
 {

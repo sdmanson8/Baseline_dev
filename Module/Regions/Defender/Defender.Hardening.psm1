@@ -25,13 +25,6 @@ using module ..\..\SharedHelpers.psm1
 	Not applicable to Windows Server.
 	Not supported on VMs or VDI environments.
 #>
-<#
-    .SYNOPSIS
-    Internal function DefenderAppGuard.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function DefenderAppGuard
 {
@@ -322,13 +315,6 @@ function ExploitProtectionPolicy
 
 	.NOTES
 	Machine-wide
-#>
-<#
-    .SYNOPSIS
-    Internal function LocalSecurityAuthority.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function LocalSecurityAuthority

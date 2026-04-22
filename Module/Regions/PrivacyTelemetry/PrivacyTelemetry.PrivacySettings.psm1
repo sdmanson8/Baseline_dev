@@ -255,13 +255,6 @@ function AutoRebootOnCrash
     .NOTES
     Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function UpdateRestart.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function UpdateRestart
 {
@@ -1074,13 +1067,6 @@ function MapUpdates
     .NOTES
     Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function Camera.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function Camera
 {
@@ -1422,13 +1408,6 @@ function SleepTimeout
 
     .NOTES
     Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function UpdateDriver.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function UpdateDriver

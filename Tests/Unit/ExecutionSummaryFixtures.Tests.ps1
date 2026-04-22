@@ -25,9 +25,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Load-Fixture.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Load-Fixture {

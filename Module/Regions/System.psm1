@@ -1,4 +1,4 @@
-﻿using module ..\Logging.psm1
+using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 # Sub-modules extracted for maintainability
@@ -224,13 +224,6 @@ function AppsSilentInstalling
 
 	.NOTES
 	Machine-wide
-#>
-<#
-    .SYNOPSIS
-    Internal function AdminApprovalMode.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function AdminApprovalMode
@@ -1204,9 +1197,6 @@ function RegistryBackup
 <#
     .SYNOPSIS
     Internal function StickyShift.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function StickyShift

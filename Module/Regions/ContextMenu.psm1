@@ -827,9 +827,6 @@ function UseStoreOpenWith
 <#
 	.SYNOPSIS
 	Internal function Get-WindowsTerminalSettingsPath.
-
-	.DESCRIPTION
-	Internal implementation helper used by Baseline.
 #>
 function Get-WindowsTerminalSettingsPath
 {

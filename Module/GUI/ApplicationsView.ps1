@@ -3,9 +3,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function ConvertTo-AppPackageSourcePreference.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function ConvertTo-AppPackageSourcePreference
@@ -28,9 +25,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Initialize-AppPackageSourcePreferenceState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Initialize-AppPackageSourcePreferenceState
@@ -48,9 +42,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-AppsViewRenderSignature
 	{
@@ -93,9 +84,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-AppsCacheRefreshPromptText.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-AppsCacheRefreshPromptText
@@ -109,9 +97,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-AppsPackageManagerAvailabilityState
 	{
@@ -166,9 +151,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-AppsPackageManagerAvailabilitySignature.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-AppsPackageManagerAvailabilitySignature
@@ -183,9 +165,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Update-AppsPackageManagerBanner
 	{
@@ -220,9 +199,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ApplicationCacheSignature.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ApplicationCacheSignature
@@ -277,9 +253,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-AppPackageSourcePreferenceControls.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-AppPackageSourcePreferenceControls
@@ -318,9 +291,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-AppPackageSourcePreferenceState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-AppPackageSourcePreferenceState
@@ -350,9 +320,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Initialize-AppActionStateStore.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Initialize-AppActionStateStore
@@ -369,9 +336,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-AppActionStateKey
 	{
@@ -418,9 +382,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-AppActionState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-AppActionState
@@ -450,9 +411,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-AppActionState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-AppActionState
@@ -496,9 +454,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Clear-AppActionState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Clear-AppActionState
@@ -523,9 +478,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-AppActionStatesQueued.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-AppActionStatesQueued
@@ -571,9 +523,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Sync-AppActionStatesFromExecutionResult.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Sync-AppActionStatesFromExecutionResult
@@ -689,9 +638,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Initialize-AppCategoryFilterState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Initialize-AppCategoryFilterState
@@ -713,9 +659,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-AppCategoryFilterValues.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-AppCategoryFilterValues
@@ -745,9 +688,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-FilteredApplicationsCatalogItems.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-FilteredApplicationsCatalogItems
@@ -819,9 +759,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-AppCategoryFilterList.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-AppCategoryFilterList
@@ -889,9 +826,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-AppCategoryFilterState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-AppCategoryFilterState

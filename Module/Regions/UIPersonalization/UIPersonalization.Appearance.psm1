@@ -173,13 +173,6 @@ function StartupSound
 	.NOTES
 	Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function SoundDuckingPreference.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function SoundDuckingPreference
 {

@@ -9,9 +9,6 @@
 <#
     .SYNOPSIS
     Internal function ConvertTo-StateCaptureComparableText.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-StateCaptureComparableText
@@ -52,9 +49,6 @@ function ConvertTo-StateCaptureComparableText
 <#
     .SYNOPSIS
     Internal function Get-TweakCurrentStateValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-TweakCurrentStateValue
@@ -100,9 +94,6 @@ function Get-TweakCurrentStateValue
 <#
     .SYNOPSIS
     Internal function New-SystemStateSnapshot.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-SystemStateSnapshot
@@ -186,9 +177,6 @@ function New-SystemStateSnapshot
 <#
     .SYNOPSIS
     Internal function Compare-SystemStateSnapshots.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Compare-SystemStateSnapshots
@@ -292,9 +280,6 @@ function Compare-SystemStateSnapshots
 <#
     .SYNOPSIS
     Internal function Export-SystemStateSnapshot.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Export-SystemStateSnapshot
@@ -323,9 +308,6 @@ function Export-SystemStateSnapshot
 <#
     .SYNOPSIS
     Internal function Import-SystemStateSnapshot.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Import-SystemStateSnapshot
@@ -366,9 +348,6 @@ function Import-SystemStateSnapshot
 <#
     .SYNOPSIS
     Internal function Limit-SnapshotDirectory.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Limit-SnapshotDirectory
@@ -406,9 +385,6 @@ function Limit-SnapshotDirectory
 <#
     .SYNOPSIS
     Internal function Get-TweakPlannedStateValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-TweakPlannedStateValue

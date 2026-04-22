@@ -27,13 +27,6 @@ LanmanWorkstationGuestAuthPolicy -Enable
 .NOTES
 Machine-wide
 #>
-<#
-    .SYNOPSIS
-    Internal function LanmanWorkstationGuestAuthPolicy.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function LanmanWorkstationGuestAuthPolicy
 {
@@ -74,9 +67,6 @@ function LanmanWorkstationGuestAuthPolicy
 <#
     .SYNOPSIS
     Internal function Set-SystemTweaksRegistryValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-SystemTweaksRegistryValue
@@ -116,9 +106,6 @@ function Set-SystemTweaksRegistryValue
 <#
     .SYNOPSIS
     Internal function Remove-SystemTweaksRegistryValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Remove-SystemTweaksRegistryValue
@@ -139,9 +126,6 @@ function Remove-SystemTweaksRegistryValue
 <#
     .SYNOPSIS
     Internal function Test-Windows11SmbDuplicateSidIssue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-Windows11SmbDuplicateSidIssue
@@ -757,13 +741,6 @@ Machine-wide
 Requires an elevated PowerShell session.
 Medium risk.
 Restart required.
-#>
-<#
-    .SYNOPSIS
-    Internal function SharedPrinterConnectionErrors.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function SharedPrinterConnectionErrors

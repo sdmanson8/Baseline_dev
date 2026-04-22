@@ -36,34 +36,22 @@ namespace WinAPI {
     <#
         .SYNOPSIS
         Internal function LogWarning.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function LogWarning { param([string]$Message) $script:lastTaskbarWarning = $Message }
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function LogInfo {}
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Set-RegistryValueSafe {}
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Invoke-UCPDBypassed {
         param([scriptblock]$ScriptBlock)

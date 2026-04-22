@@ -8,9 +8,6 @@
 <#
     .SYNOPSIS
     Internal function Get-DirectUndoCommandForEntry.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-DirectUndoCommandForEntry
@@ -231,9 +228,6 @@ function Get-DirectUndoCommandForEntry
 <#
     .SYNOPSIS
     Internal function Test-ShouldRecommendRestorePoint.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-ShouldRecommendRestorePoint

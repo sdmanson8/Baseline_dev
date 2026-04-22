@@ -1,11 +1,8 @@
-﻿# Shared helper slice for Baseline.
+# Shared helper slice for Baseline.
 
 <#
     .SYNOPSIS
     Internal function Initialize-ForegroundWindowInterop.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Initialize-ForegroundWindowInterop
@@ -36,9 +33,6 @@ namespace WinAPI
 <#
     .SYNOPSIS
     Internal function Initialize-ConsoleWindowInterop.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Initialize-ConsoleWindowInterop
@@ -68,9 +62,6 @@ namespace WinAPI
 <#
     .SYNOPSIS
     Internal function Get-ConsoleHandle.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ConsoleHandle
@@ -83,9 +74,6 @@ function Get-ConsoleHandle
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Hide-ConsoleWindow
 {
@@ -103,9 +91,6 @@ function Hide-ConsoleWindow
 <#
     .SYNOPSIS
     Internal function Show-ConsoleWindow.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Show-ConsoleWindow
@@ -124,9 +109,6 @@ function Show-ConsoleWindow
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Test-InteractiveHost
 {
@@ -150,9 +132,6 @@ function Test-InteractiveHost
 <#
     .SYNOPSIS
     Internal function Initialize-WpfWindowForeground.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Initialize-WpfWindowForeground
@@ -257,9 +236,6 @@ function Initialize-WpfWindowForeground
 <#
     .SYNOPSIS
     Internal function Get-WindowsVersionData.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-WindowsVersionData
@@ -314,9 +290,6 @@ function Get-WindowsVersionData
 <#
     .SYNOPSIS
     Internal function Get-OSInfo.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-OSInfo
@@ -358,9 +331,6 @@ function Get-OSInfo
 <#
     .SYNOPSIS
     Internal function Get-BaselineValidationMatrixSummary.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineValidationMatrixSummary
@@ -450,9 +420,6 @@ function Get-BaselineValidationMatrixSummary
 <#
     .SYNOPSIS
     Internal function Get-BaselineValidationEvidenceReport.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineValidationEvidenceReport
@@ -642,9 +609,6 @@ function Get-BaselineValidationEvidenceReport
 <#
     .SYNOPSIS
     Internal function ConvertTo-WindowsDisplayVersionComparable.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-WindowsDisplayVersionComparable
@@ -672,9 +636,6 @@ function ConvertTo-WindowsDisplayVersionComparable
 <#
     .SYNOPSIS
     Internal function Test-Windows11FeatureBranchSupport.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-Windows11FeatureBranchSupport
@@ -726,9 +687,6 @@ function Test-Windows11FeatureBranchSupport
 <#
     .SYNOPSIS
     Internal function Show-BootstrapLoadingSplash.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Show-BootstrapLoadingSplash
@@ -843,7 +801,7 @@ function Show-BootstrapLoadingSplash
 	Background="Transparent"
 	Foreground="$splashFg"
 	FontFamily="FluentSystemIcons"
-	ShowInTaskbar="False"
+	ShowInTaskbar="True"
 	Topmost="True"
 	WindowStyle="None"
 	AllowsTransparency="True">
@@ -1060,9 +1018,6 @@ namespace WinAPI {
 <#
     .SYNOPSIS
     Internal function Initialize-BaselineProcessIdentity.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Initialize-BaselineProcessIdentity
@@ -1109,9 +1064,6 @@ namespace WinAPI
 <#
     .SYNOPSIS
     Internal function Format-BaselineDownloadStatus.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Format-BaselineDownloadStatus
@@ -1153,9 +1105,6 @@ function Format-BaselineDownloadStatus
 <#
     .SYNOPSIS
     Internal function Set-BootstrapLoadingSplashState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-BootstrapLoadingSplashState
@@ -1286,9 +1235,6 @@ function Set-BootstrapLoadingSplashState
 <#
     .SYNOPSIS
     Internal function Close-LoadingSplashWindow.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Close-LoadingSplashWindow
@@ -1380,9 +1326,6 @@ function Close-LoadingSplashWindow
 <#
     .SYNOPSIS
     Internal function Compare-BaselineReleaseVersions.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Compare-BaselineReleaseVersions
@@ -1583,9 +1526,6 @@ function Compare-BaselineReleaseVersions
 <#
     .SYNOPSIS
     Internal function Get-BaselineLatestReleaseEntry.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineLatestReleaseEntry
@@ -1676,9 +1616,6 @@ function Get-BaselineLatestReleaseEntry
 <#
     .SYNOPSIS
     Internal function Invoke-BaselineAutoUpdate.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-BaselineAutoUpdate
@@ -1869,9 +1806,6 @@ del /f /q "%~f0"
 <#
     .SYNOPSIS
     Internal function Show-Menu.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Show-Menu
@@ -1967,9 +1901,6 @@ function Show-Menu
 <#
     .SYNOPSIS
     Internal function Get-LocalizedShellString.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-LocalizedShellString
@@ -2021,9 +1952,6 @@ function Get-LocalizedShellString
 <#
     .SYNOPSIS
     Internal function Restart-Script.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Restart-Script
@@ -2120,9 +2048,6 @@ function Restart-Script
 <#
     .SYNOPSIS
     Internal function Get-BaselineDisplayVersion.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineDisplayVersion
@@ -2158,9 +2083,6 @@ function Get-BaselineDisplayVersion
 <#
     .SYNOPSIS
     Internal function Get-TweakSkipLabel.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-TweakSkipLabel
@@ -2233,9 +2155,6 @@ function Invoke-UCPDBypassed
 <#
     .SYNOPSIS
     Internal function Get-UCPDTemporaryPowerShellPath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-UCPDTemporaryPowerShellPath
@@ -2254,9 +2173,6 @@ function Get-UCPDTemporaryPowerShellPath
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Set-BaselineOperationMode
 {
@@ -2280,9 +2196,6 @@ function Set-BaselineOperationMode
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-BaselineOperationMode
 {
@@ -2303,9 +2216,6 @@ function Get-BaselineOperationMode
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Test-BaselineReadOnlyMode
 {
@@ -2316,9 +2226,6 @@ function Test-BaselineReadOnlyMode
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Assert-BaselineWriteAllowed
 {
@@ -2340,9 +2247,6 @@ function Assert-BaselineWriteAllowed
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Initialize-BaselineMarkdownRuntime
 {
@@ -2394,9 +2298,6 @@ function Initialize-BaselineMarkdownRuntime
 <#
     .SYNOPSIS
     Internal function Test-BaselineMarkdownRuntimeReady.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-BaselineMarkdownRuntimeReady
@@ -2435,9 +2336,6 @@ function Test-BaselineMarkdownRuntimeReady
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function ConvertFrom-BaselineMarkdownToFlowDocument
 {
@@ -2465,9 +2363,6 @@ function ConvertFrom-BaselineMarkdownToFlowDocument
 <#
     .SYNOPSIS
     Internal function ConvertFrom-BaselineMarkdownToHtml.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function ConvertFrom-BaselineMarkdownToHtml
 {
@@ -2596,9 +2491,6 @@ $bodyHtml
 <#
     .SYNOPSIS
     Internal function Initialize-BaselineWebView2Runtime.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Initialize-BaselineWebView2Runtime
 {
@@ -2681,9 +2573,6 @@ function Initialize-BaselineWebView2Runtime
 <#
     .SYNOPSIS
     Internal function Test-BaselineWebView2RuntimeReady.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Test-BaselineWebView2RuntimeReady
 {

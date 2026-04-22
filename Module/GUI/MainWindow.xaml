@@ -303,13 +303,13 @@
 					<MenuItem Name="MenuHelpStartGuide" Header="Getting Started"/>
 					<MenuItem Name="MenuHelpReadme" Header="Readme"/>
 					<MenuItem Name="MenuHelpFAQ" Header="FAQ"/>
-					<MenuItem Name="MenuHelpChangelog" Header="Changelog"/>
+					<MenuItem Name="MenuHelpChangelog" Header="Release Notes"/>
 					<Separator/>
 					<MenuItem Name="MenuHelpCheckForUpdate" Header="Check for Updates..."/>
 					<Separator/>
 					<MenuItem Name="MenuHelpReleaseStatus" Header="Release Status..."/>
 					<MenuItem Name="MenuHelpTroubleshooting" Header="Troubleshooting Guide..."/>
-					<MenuItem Name="MenuHelpAbout" Header="About Baseline"/>
+					<MenuItem Name="MenuHelpAbout" Header="About"/>
 				</MenuItem>
 			</Menu>
 		</Border>

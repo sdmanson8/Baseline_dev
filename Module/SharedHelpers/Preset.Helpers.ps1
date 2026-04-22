@@ -5,9 +5,6 @@
 <#
     .SYNOPSIS
     Internal function ConvertTo-HeadlessPresetName.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function ConvertTo-HeadlessPresetName
 {
@@ -46,9 +43,6 @@ function ConvertTo-HeadlessPresetName
 <#
     .SYNOPSIS
     Internal function Resolve-HeadlessEnvironmentPreset.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Resolve-HeadlessEnvironmentPreset
 {
@@ -68,9 +62,6 @@ function Resolve-HeadlessEnvironmentPreset
 <#
     .SYNOPSIS
     Internal function Get-HeadlessPresetValidFunctionSet.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-HeadlessPresetValidFunctionSet
 {
@@ -147,9 +138,6 @@ function Get-HeadlessPresetValidFunctionSet
 <#
     .SYNOPSIS
     Internal function Assert-HeadlessPresetCommandListValid.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Assert-HeadlessPresetCommandListValid
 {
@@ -203,9 +191,6 @@ function Assert-HeadlessPresetCommandListValid
 <#
     .SYNOPSIS
     Internal function Get-HeadlessPresetCommandList.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-HeadlessPresetCommandList
 {

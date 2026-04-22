@@ -4,9 +4,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Get-UxLocalizedString.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Get-UxLocalizedString {
@@ -27,9 +24,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Resolve-GuiPrimaryTabForTweak.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Resolve-GuiPrimaryTabForTweak {
@@ -61,42 +55,27 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function script.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function script:Test-GuiObjectField { param([object]$Object, [string]$FieldName) return ($null -ne $Object -and $Object.PSObject.Properties[$FieldName]) }
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function script:Test-TweakRemovalOperation { param([object]$Tweak) return ($Tweak.Tags -contains 'removal') }
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function script:Test-TweakIsSelected { param([object]$Tweak, [object]$StateSource) return ($StateSource.IsChecked -eq $true) }
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function script:Test-TweakIsRestorable { param([object]$Tweak) return ($Tweak.Restorable -eq $true) }
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function script:Test-TweakIsGamingRelated { param([object]$Tweak) return ($Tweak.Tags -contains 'gaming') }
 

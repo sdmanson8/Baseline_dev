@@ -42,9 +42,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Get-BaselineLocalizedString.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Get-BaselineLocalizedString {
@@ -65,9 +62,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Get-UxLocalizedString.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Get-UxLocalizedString {
@@ -88,9 +82,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Get-GuiCurrentTheme.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Get-GuiCurrentTheme {
@@ -100,9 +91,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function New-SafeBrushConverter {
         param (
@@ -120,9 +108,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Get-SelectedAppsCatalogItems.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Get-SelectedAppsCatalogItems {
@@ -132,9 +117,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Resolve-WinGetExecutable {
         return 'winget.exe'
@@ -143,9 +125,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Resolve-ChocolateyExecutable {
         return 'choco.exe'
@@ -154,9 +133,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Resolve-ApplicationPackageId {
         param([string]$PackageId)
@@ -166,9 +142,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Test-WinGetAvailable.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Test-WinGetAvailable {
@@ -183,9 +156,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Test-ChocolateyAvailable {
         param (
@@ -199,43 +169,28 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Write-ConsoleStatus.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Write-ConsoleStatus { param([object]$Action) }
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function LogInfo { param([object]$Message) }
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function LogWarning { param([object]$Message) }
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function LogError { param([object]$Message) }
 
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Reset-ChocolateyAvailabilityState { }
 
@@ -249,9 +204,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Start-GuiAppExecutionRun {
         param (
@@ -946,9 +898,6 @@ Describe 'AppUpdate' {
         <#
             .SYNOPSIS
             Internal function Resolve-ApplicationPackageId.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Resolve-ApplicationPackageId

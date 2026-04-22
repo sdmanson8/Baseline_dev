@@ -22,9 +22,6 @@ function PostActions
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-PostActionRequirement
 	{
@@ -50,9 +47,6 @@ function PostActions
 	<#
 	    .SYNOPSIS
 	    Internal function Invoke-PostActionStep.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Invoke-PostActionStep
@@ -94,9 +88,6 @@ function PostActions
 	<#
 	    .SYNOPSIS
 	    Internal function Invoke-PostActionProcess.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Invoke-PostActionProcess
@@ -180,9 +171,6 @@ function PostActions
 	<#
 	    .SYNOPSIS
 	    Internal function Invoke-PostActionPowerShellProcess.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Invoke-PostActionPowerShellProcess

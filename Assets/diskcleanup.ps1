@@ -58,9 +58,6 @@ if ($LogFilePath) {
 <#
     .SYNOPSIS
     Internal function Get-LogFilePath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-LogFilePath {
@@ -74,9 +71,6 @@ function Get-LogFilePath {
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Write-FileSafely {
     param(
@@ -127,9 +121,6 @@ namespace WinAPI
 <#
     .SYNOPSIS
     Internal function Set-LowDiskChecksDisabled.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-LowDiskChecksDisabled {
@@ -166,9 +157,6 @@ function Set-LowDiskChecksDisabled {
 <#
     .SYNOPSIS
     Internal function Close-DiskSpaceNotificationWindow.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Close-DiskSpaceNotificationWindow {
@@ -195,9 +183,6 @@ function Close-DiskSpaceNotificationWindow {
 <#
     .SYNOPSIS
     Internal function Close-CleanupProcessWindow.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Close-CleanupProcessWindow {
@@ -226,9 +211,6 @@ function Close-CleanupProcessWindow {
 <#
     .SYNOPSIS
     Internal function Wait-CleanupProcessAndDismissNotification.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Wait-CleanupProcessAndDismissNotification {
@@ -291,9 +273,6 @@ function Wait-CleanupProcessAndDismissNotification {
 <#
     .SYNOPSIS
     Internal function Invoke-BuiltInSilentCleanup.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-BuiltInSilentCleanup {

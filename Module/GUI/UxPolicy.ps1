@@ -1,4 +1,4 @@
-﻿# Mode presentation helpers - Safe Mode gets beginner-focused wording while
+# Mode presentation helpers - Safe Mode gets beginner-focused wording while
 # the existing full-detail views keep the original wording.
 # The execution engine is the same in all views; these only change what the user sees.
 #
@@ -9,9 +9,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Test-IsSafeModeUX.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-IsSafeModeUX
@@ -22,9 +19,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Test-IsExpertModeUX
 	{
@@ -34,9 +28,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-UxOnboardingMode
 	{
@@ -55,9 +46,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxLocalizedString.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxLocalizedString
@@ -111,9 +99,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxString.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxString
@@ -135,9 +120,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxBilingualLocalizedString.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxBilingualLocalizedString
@@ -161,9 +143,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxToggleStateLabel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxToggleStateLabel
@@ -183,9 +162,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxExecutionSummaryDialogStrings.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxExecutionSummaryDialogStrings
@@ -203,9 +179,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-UxExecutionPlaceholderText
 	{
@@ -224,9 +197,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxEmptyTabStateMessage.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxEmptyTabStateMessage
@@ -276,9 +246,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxRecommendedPresetName.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxRecommendedPresetName
@@ -299,9 +266,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxFirstRunPrimaryActionLabel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxFirstRunPrimaryActionLabel
@@ -318,9 +282,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-UxPresetLoadedStatusText
 	{
@@ -334,9 +295,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxStartGuideButtonLabel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxStartGuideButtonLabel
@@ -352,9 +310,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-UxHelpButtonLabel
 	{
@@ -364,9 +319,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxOpenHelpActionLabel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxOpenHelpActionLabel
@@ -377,9 +329,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-UxPreviewButtonLabel
 	{
@@ -389,9 +338,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-UxFirstRunDialogTitle
 	{
@@ -406,9 +352,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxHelpDialogTitle.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxHelpDialogTitle
@@ -419,9 +362,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-UxHelpDialogSubtitle
 	{
@@ -464,9 +404,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxExpertGameModeHelpSections.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxExpertGameModeHelpSections
@@ -527,9 +464,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxRunActionLabel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxRunActionLabel
@@ -540,9 +474,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-UxPreviewButtonToolTip
 	{
@@ -567,9 +498,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxRunActionToolTip.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxRunActionToolTip
@@ -596,9 +524,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxRunPathContext.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxRunPathContext
@@ -626,9 +551,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxRunPathConfirmationMessage.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxRunPathConfirmationMessage
@@ -660,9 +582,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxUndoSelectionActionLabel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxUndoSelectionActionLabel
@@ -678,9 +597,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-UxUndoProfileActionLabel
 	{
@@ -695,9 +611,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxScenarioHeading.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxScenarioHeading
@@ -713,9 +626,6 @@
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-UxQuickStartSteps
 {
@@ -751,9 +661,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxHelpGettingStartedLines.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxHelpGettingStartedLines
@@ -792,9 +699,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxUndoAndRestoreLines.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxUndoAndRestoreLines
@@ -820,9 +724,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxImportExportLines.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxImportExportLines
@@ -844,9 +745,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxFirstRunWelcomeMessage.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxFirstRunWelcomeMessage
@@ -929,9 +827,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxPresetDisplayName.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxPresetDisplayName
@@ -953,9 +848,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxPresetEmphasisText.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxPresetEmphasisText
@@ -979,9 +871,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxPresetSummaryText.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxPresetSummaryText
@@ -1004,9 +893,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxConfirmationMessage.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxConfirmationMessage
@@ -1117,9 +1003,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxHumanReadableSummary.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxHumanReadableSummary
@@ -1168,9 +1051,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxPreviewSummaryParts.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxPreviewSummaryParts
@@ -1377,9 +1257,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxPreviewSummaryCards.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxPreviewSummaryCards
@@ -1595,9 +1472,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxRestoreDefaultsConfirmation.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxRestoreDefaultsConfirmation
@@ -1634,9 +1508,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxPostRunNextStepsText.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxPostRunNextStepsText
@@ -1700,9 +1571,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxPostRunCountsText.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxPostRunCountsText
@@ -1732,9 +1600,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxRemoteManagementHelpLines.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxRemoteManagementHelpLines
@@ -1770,9 +1635,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Get-UxHelpSections.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-UxHelpSections
@@ -1971,9 +1833,6 @@ function Get-UxQuickStartSteps
 	<#
 	    .SYNOPSIS
 	    Internal function Test-UxShouldSkipLowRiskConfirmation.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-UxShouldSkipLowRiskConfirmation

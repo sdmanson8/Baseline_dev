@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Runs the internal validation suite and appends all output to a log file.
 
@@ -29,9 +29,6 @@ if (-not $LogFile)
 <#
     .SYNOPSIS
     Internal function Append-Log.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Append-Log

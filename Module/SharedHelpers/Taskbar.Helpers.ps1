@@ -3,9 +3,6 @@
 <#
     .SYNOPSIS
     Internal function Initialize-NewsInterestsTaskbarHashInterop.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Initialize-NewsInterestsTaskbarHashInterop
@@ -32,9 +29,6 @@ public static extern int HashData(byte[] pbData, int cbData, byte[] piet, int ou
 <#
     .SYNOPSIS
     Internal function Get-NewsInterestsTaskbarHashValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-NewsInterestsTaskbarHashValue
@@ -70,9 +64,6 @@ function Get-NewsInterestsTaskbarHashValue
 <#
     .SYNOPSIS
     Internal function Set-UCPDBypassedRegistryDWordValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-UCPDBypassedRegistryDWordValue
@@ -107,9 +98,6 @@ New-ItemProperty -Path '$escapedPath' -Name '$escapedName' -PropertyType DWord -
 <#
     .SYNOPSIS
     Internal function Set-NewsInterestsTaskbarViewMode.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-NewsInterestsTaskbarViewMode
@@ -144,9 +132,6 @@ function Set-NewsInterestsTaskbarViewMode
 <#
     .SYNOPSIS
     Internal function Get-TaskbarPinnedItems.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-TaskbarPinnedItems
@@ -197,9 +182,6 @@ function Get-TaskbarPinnedItems
 <#
     .SYNOPSIS
     Internal function Get-TaskbarPinnedMatches.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-TaskbarPinnedMatches
@@ -239,9 +221,6 @@ function Get-TaskbarPinnedMatches
 <#
     .SYNOPSIS
     Internal function Invoke-TaskbarUnpin.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-TaskbarUnpin
@@ -290,9 +269,6 @@ function Invoke-TaskbarUnpin
 <#
     .SYNOPSIS
     Internal function Get-TaskbarUnpinVerbCandidates.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-TaskbarUnpinVerbCandidates
@@ -323,9 +299,6 @@ function Get-TaskbarUnpinVerbCandidates
 <#
     .SYNOPSIS
     Internal function Remove-TaskbarPinnedLink.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Remove-TaskbarPinnedLink
@@ -358,9 +331,6 @@ function Remove-TaskbarPinnedLink
 <#
     .SYNOPSIS
     Internal function Invoke-TaskbarUnpinWithFallback.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-TaskbarUnpinWithFallback
@@ -386,9 +356,6 @@ function Invoke-TaskbarUnpinWithFallback
 <#
     .SYNOPSIS
     Internal function Remove-TaskbarPinnedLinksByPattern.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Remove-TaskbarPinnedLinksByPattern
@@ -447,9 +414,6 @@ function Remove-TaskbarPinnedLinksByPattern
 <#
     .SYNOPSIS
     Internal function Invoke-ARM64ShellUnpin.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-ARM64ShellUnpin

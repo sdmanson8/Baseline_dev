@@ -34,13 +34,6 @@ if (Test-Path $uiSubModuleRoot)
     .NOTES
     Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function ClearRecentFiles.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function ClearRecentFiles
 {
@@ -123,13 +116,6 @@ function ClearRecentFiles
 
     .NOTES
     Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function RecentFiles.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function RecentFiles

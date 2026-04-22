@@ -1,9 +1,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function Set-GUITheme.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Set-GUITheme

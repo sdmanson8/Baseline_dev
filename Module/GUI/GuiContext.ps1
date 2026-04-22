@@ -1,12 +1,9 @@
-﻿# GUI context hashtable ($Script:Ctx) - groups $Script: variables by category.
+# GUI context hashtable ($Script:Ctx) - groups $Script: variables by category.
 # Loaded first in Show-TweakGUI. Direct $Script: access still works everywhere.
 
 	<#
 	    .SYNOPSIS
 	    Internal function New-GuiContext.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-GuiContext
@@ -139,9 +136,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiContext.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiContext
@@ -188,9 +182,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-GuiContext.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-GuiContext
@@ -241,9 +232,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Sync-GuiContextFromScriptState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Sync-GuiContextFromScriptState
@@ -299,9 +287,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiMode.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiMode
@@ -317,9 +302,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Test-GuiModeActive
 	{
@@ -344,9 +326,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-GuiMode.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-GuiMode
@@ -386,9 +365,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiActivePreset.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiActivePreset { return $Script:ActivePresetName }
@@ -399,27 +375,18 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-GuiCurrentTheme { return $Script:CurrentTheme }
 
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-GuiCurrentThemeName { return $Script:CurrentThemeName }
 
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-GuiStatusToneColor
 	{
@@ -442,9 +409,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Invoke-GuiDispatcherAction.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Invoke-GuiDispatcherAction
@@ -493,9 +457,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-GuiStatusText.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-GuiStatusText
@@ -536,49 +497,31 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiCurrentPrimaryTab.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiCurrentPrimaryTab { return $Script:Ctx.UI.CurrentPrimaryTab }
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Set-GuiCurrentPrimaryTab { param($Tab) $Script:Ctx.UI.CurrentPrimaryTab = $Tab }
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-GuiLastStandardPrimaryTab { return $Script:Ctx.UI.LastStandardPrimaryTab }
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Set-GuiLastStandardPrimaryTab { param($Tab) $Script:Ctx.UI.LastStandardPrimaryTab = $Tab }
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-GuiCurrentStatusTone { return $Script:Ctx.Theme.CurrentTone }
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Set-GuiCurrentStatusTone { param([string]$Tone) $Script:Ctx.Theme.CurrentTone = $Tone }

@@ -1,11 +1,8 @@
-﻿# Shared helper slice for Baseline.
+# Shared helper slice for Baseline.
 
 <#
     .SYNOPSIS
     Internal function Update-ProcessPathFromRegistry.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Update-ProcessPathFromRegistry
@@ -19,9 +16,6 @@ function Update-ProcessPathFromRegistry
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-ApplicationPackageIdCandidates
 {
@@ -46,9 +40,6 @@ function Get-ApplicationPackageIdCandidates
 <#
     .SYNOPSIS
     Internal function Resolve-ApplicationPackageId.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-ApplicationPackageId
@@ -70,9 +61,6 @@ function Resolve-ApplicationPackageId
 <#
     .SYNOPSIS
     Internal function Test-ApplicationPackageIdInCache.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-ApplicationPackageIdInCache
@@ -102,9 +90,6 @@ function Test-ApplicationPackageIdInCache
 <#
     .SYNOPSIS
     Internal function Write-PackageHelperWarning.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-PackageHelperWarning
@@ -130,9 +115,6 @@ function Write-PackageHelperWarning
 <#
     .SYNOPSIS
     Internal function Resolve-WinGetExecutable.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-WinGetExecutable
@@ -157,9 +139,6 @@ function Resolve-WinGetExecutable
 <#
     .SYNOPSIS
     Internal function Get-WinGetVersion.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-WinGetVersion
@@ -194,9 +173,6 @@ function Get-WinGetVersion
 <#
     .SYNOPSIS
     Internal function Reset-WinGetAvailabilityState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Reset-WinGetAvailabilityState
@@ -208,9 +184,6 @@ function Reset-WinGetAvailabilityState
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Test-WinGetAvailable
 {
@@ -252,9 +225,6 @@ function Test-WinGetAvailable
 <#
     .SYNOPSIS
     Internal function Resolve-ChocolateyExecutable.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-ChocolateyExecutable
@@ -285,9 +255,6 @@ function Resolve-ChocolateyExecutable
 <#
     .SYNOPSIS
     Internal function Get-ChocolateyVersion.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ChocolateyVersion
@@ -322,9 +289,6 @@ function Get-ChocolateyVersion
 <#
     .SYNOPSIS
     Internal function Reset-ChocolateyAvailabilityState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Reset-ChocolateyAvailabilityState
@@ -336,9 +300,6 @@ function Reset-ChocolateyAvailabilityState
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Test-ChocolateyAvailable
 {
@@ -380,9 +341,6 @@ function Test-ChocolateyAvailable
 <#
     .SYNOPSIS
     Internal function Test-BaselineEnvironmentFlagEnabled.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-BaselineEnvironmentFlagEnabled
@@ -413,9 +371,6 @@ function Test-BaselineEnvironmentFlagEnabled
 <#
     .SYNOPSIS
     Internal function Test-ChocolateyBootstrapInteractiveHost.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-ChocolateyBootstrapInteractiveHost
@@ -464,9 +419,6 @@ function Test-ChocolateyBootstrapInteractiveHost
 <#
     .SYNOPSIS
     Internal function Confirm-ChocolateyBootstrapExecution.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Confirm-ChocolateyBootstrapExecution
@@ -502,9 +454,6 @@ function Confirm-ChocolateyBootstrapExecution
 <#
     .SYNOPSIS
     Internal function Get-PackageManagerBootstrapLogLines.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-PackageManagerBootstrapLogLines
@@ -530,9 +479,6 @@ function Get-PackageManagerBootstrapLogLines
 <#
     .SYNOPSIS
     Internal function Get-PackageManagerBootstrapFailureSummary.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-PackageManagerBootstrapFailureSummary
@@ -561,9 +507,6 @@ function Get-PackageManagerBootstrapFailureSummary
 <#
     .SYNOPSIS
     Internal function Get-WinGetBootstrapInstallerMetadata.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-WinGetBootstrapInstallerMetadata
@@ -585,9 +528,6 @@ function Get-WinGetBootstrapInstallerMetadata
 <#
     .SYNOPSIS
     Internal function Get-WinGetBootstrapInstallerArguments.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-WinGetBootstrapInstallerArguments
@@ -603,9 +543,6 @@ function Get-WinGetBootstrapInstallerArguments
 <#
     .SYNOPSIS
     Internal function Invoke-WinGetBootstrap.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-WinGetBootstrap
@@ -808,9 +745,6 @@ function Invoke-WinGetBootstrap
 <#
     .SYNOPSIS
     Internal function Invoke-ChocolateyBootstrap.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-ChocolateyBootstrap
@@ -975,9 +909,6 @@ function Invoke-ChocolateyBootstrap
 <#
     .SYNOPSIS
     Internal function Invoke-DownloadFile.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-DownloadFile
@@ -1056,9 +987,6 @@ function Invoke-DownloadFile
 <#
     .SYNOPSIS
     Internal function Get-BaselineLatestReleaseAssetUrl.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineLatestReleaseAssetUrl
@@ -1104,9 +1032,6 @@ function Get-BaselineLatestReleaseAssetUrl
 <#
     .SYNOPSIS
     Internal function Save-BaselineExecutable.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Save-BaselineExecutable
@@ -1145,9 +1070,6 @@ function Save-BaselineExecutable
 <#
     .SYNOPSIS
     Internal function Set-DownloadSecurityProtocol.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-DownloadSecurityProtocol
@@ -1166,9 +1088,6 @@ function Set-DownloadSecurityProtocol
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Assert-FileHash
 {
@@ -1229,9 +1148,6 @@ function Assert-FileHash
 <#
     .SYNOPSIS
     Internal function Assert-AuthenticodeSignature.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Assert-AuthenticodeSignature
@@ -1282,9 +1198,6 @@ function Assert-AuthenticodeSignature
 <#
     .SYNOPSIS
     Internal function Get-PowerShellInstallerArchitecture.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-PowerShellInstallerArchitecture
@@ -1306,9 +1219,6 @@ function Get-PowerShellInstallerArchitecture
 <#
     .SYNOPSIS
     Internal function Resolve-PowerShellInstallerUri.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-PowerShellInstallerUri
@@ -1345,9 +1255,6 @@ function Resolve-PowerShellInstallerUri
 <#
     .SYNOPSIS
     Internal function Get-OneDriveSetupPath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-OneDriveSetupPath
@@ -1382,9 +1289,6 @@ function Get-OneDriveSetupPath
 <#
     .SYNOPSIS
     Internal function ConvertTo-NormalizedVersion.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-NormalizedVersion
@@ -1431,9 +1335,6 @@ function ConvertTo-NormalizedVersion
 <#
     .SYNOPSIS
     Internal function Get-InstalledVCRedistVersion.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-InstalledVCRedistVersion
@@ -1474,9 +1375,6 @@ function Get-InstalledVCRedistVersion
 <#
     .SYNOPSIS
     Internal function Get-InstalledDotNetRuntimeVersion.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-InstalledDotNetRuntimeVersion
@@ -1523,9 +1421,6 @@ function Get-InstalledDotNetRuntimeVersion
 <#
     .SYNOPSIS
     Internal function Get-LatestDotNetRuntimeRelease.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-LatestDotNetRuntimeRelease
@@ -1580,9 +1475,6 @@ function Get-LatestDotNetRuntimeRelease
 <#
     .SYNOPSIS
     Internal function Install-VCRedist.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Install-VCRedist
@@ -1772,9 +1664,6 @@ function Install-VCRedist
 <#
     .SYNOPSIS
     Internal function Install-DotNetRuntimeVersion.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Install-DotNetRuntimeVersion
@@ -1921,9 +1810,6 @@ function Install-DotNetRuntimeVersion
 <#
     .SYNOPSIS
     Internal function Install-DotNetRuntimes.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Install-DotNetRuntimes

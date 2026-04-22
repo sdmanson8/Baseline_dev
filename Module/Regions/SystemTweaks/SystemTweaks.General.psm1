@@ -20,13 +20,6 @@ PerformanceTuning -Modules System
 .NOTES
 Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function PerformanceTuning.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function PerformanceTuning
 {
@@ -145,13 +138,6 @@ function PerformanceTuning
 	- Violate Adobe license terms depending on usage
 
 	Use only if you understand the implications.
-#>
-<#
-    .SYNOPSIS
-    Internal function AdobeNetworkBlock.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function AdobeNetworkBlock

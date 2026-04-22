@@ -225,11 +225,11 @@
   "GuiMenuHelpDocumentationOpened": "Documentation opened in the themed popup.",
   "GuiMenuHelpDocumentationFailed": "Unable to open the README popup. Check the installed directory for README.md.",
   "GuiMenuHelpDocumentationMissing": "README.md file not found.",
-  "GuiMenuHelpChangelog": "Changelog",
+  "GuiMenuHelpChangelog": "Release Notes",
   "GuiMenuHelpChangelogMissing": "Changelog file not found.",
   "GuiMenuHelpCheckForUpdate": "Check for Updates...",
   "GuiMenuHelpCheckForUpdateUnavailable": "Update check is not available.",
-  "GuiMenuHelpAbout": "About Baseline",
+  "GuiMenuHelpAbout": "About",
   "GuiChkSelectedOnly": "Selected only",
   "GuiChkSelectedOnlyTip": "Show only tweaks that are currently selected in the GUI.",
   "GuiChoiceAdvanced": "Advanced",
@@ -2421,3 +2421,4 @@
   "WindowsComponentBroken": "{0} broken or removed from Windows. Reinstall Windows using only a genuine ISO image.",
   "WindowsFeaturesTitle": "Windows features"
 }
+

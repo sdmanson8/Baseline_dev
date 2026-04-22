@@ -5,9 +5,6 @@
 <#
     .SYNOPSIS
     Internal function Register-BaselineScheduledTask.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Register-BaselineScheduledTask
@@ -139,9 +136,6 @@ function Register-BaselineScheduledTask
 <#
     .SYNOPSIS
     Internal function Unregister-BaselineScheduledTask.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Unregister-BaselineScheduledTask
@@ -175,9 +169,6 @@ function Unregister-BaselineScheduledTask
 <#
     .SYNOPSIS
     Internal function Get-BaselineScheduledTasks.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineScheduledTasks
@@ -221,9 +212,6 @@ function Get-BaselineScheduledTasks
 <#
     .SYNOPSIS
     Internal function Test-BaselineScheduledTaskExists.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-BaselineScheduledTaskExists

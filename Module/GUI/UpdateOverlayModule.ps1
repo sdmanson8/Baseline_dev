@@ -1,4 +1,4 @@
-﻿# Update Overlay module: extracted from Module/Regions/GUI.psm1 during Phase 2
+# Update Overlay module: extracted from Module/Regions/GUI.psm1 during Phase 2
 # decomposition. Provides the Baseline self-update overlay (progress bar,
 # update-check dialog, import overlay, download driver). Dot-sourced so all
 # $Script: state resolves against GUI.psm1 module scope.
@@ -7,9 +7,6 @@
 <#
     .SYNOPSIS
     Internal function Initialize-BaselineUpdateOverlay.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Initialize-BaselineUpdateOverlay
@@ -32,9 +29,6 @@ function Initialize-BaselineUpdateOverlay
 <#
     .SYNOPSIS
     Internal function Show-BaselineUpdateOverlay.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Show-BaselineUpdateOverlay
@@ -86,9 +80,6 @@ function Show-BaselineUpdateOverlay
 <#
     .SYNOPSIS
     Internal function Show-BaselineUpdateCheckDialog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Show-BaselineUpdateCheckDialog
@@ -212,9 +203,6 @@ function Show-BaselineUpdateCheckDialog
 <#
     .SYNOPSIS
     Internal function Show-BaselineImportOverlay.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Show-BaselineImportOverlay
@@ -232,9 +220,6 @@ function Show-BaselineImportOverlay
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Hide-BaselineUpdateOverlay
 {
@@ -250,9 +235,6 @@ function Hide-BaselineUpdateOverlay
 <#
     .SYNOPSIS
     Internal function Start-BaselineDownload.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Start-BaselineDownload

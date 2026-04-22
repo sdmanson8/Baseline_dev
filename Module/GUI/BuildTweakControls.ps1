@@ -46,9 +46,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function Update-CurrentTabContent.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Update-CurrentTabContent
@@ -173,9 +170,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-SecondaryActionGroupStyle.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-SecondaryActionGroupStyle
@@ -192,9 +186,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Set-StaticButtonStyle
 	{
@@ -226,9 +217,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-StaticControlTabOrder.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-StaticControlTabOrder

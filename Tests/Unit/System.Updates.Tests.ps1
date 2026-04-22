@@ -26,9 +26,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
         <#
             .SYNOPSIS
             Internal function UpdateAutoDownload.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function UpdateAutoDownload {
@@ -45,9 +42,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function UpdateDriver {
             param(
@@ -63,9 +57,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
         <#
             .SYNOPSIS
             Internal function UpdateRestart.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function UpdateRestart {
@@ -82,9 +73,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function FeatureUpdateDeferral {
             param(
@@ -100,9 +88,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
         <#
             .SYNOPSIS
             Internal function QualityUpdateDeferral.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function QualityUpdateDeferral {
@@ -121,9 +106,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Write-ConsoleStatus {
             param(
@@ -135,9 +117,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
         <#
             .SYNOPSIS
             Internal function LogInfo.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function LogInfo {
@@ -147,9 +126,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogError {
             param([string]$Message)
@@ -199,9 +175,6 @@ Describe 'WindowsUpdatePause' {
         <#
             .SYNOPSIS
             Internal function Write-ConsoleStatus.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Write-ConsoleStatus {
@@ -214,9 +187,6 @@ Describe 'WindowsUpdatePause' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogInfo {
             param([string]$Message)
@@ -226,9 +196,6 @@ Describe 'WindowsUpdatePause' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogError {
             param([string]$Message)
@@ -238,9 +205,6 @@ Describe 'WindowsUpdatePause' {
         <#
             .SYNOPSIS
             Internal function Test-Path.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Test-Path {
@@ -251,9 +215,6 @@ Describe 'WindowsUpdatePause' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function New-Item {
             param(
@@ -268,9 +229,6 @@ Describe 'WindowsUpdatePause' {
         <#
             .SYNOPSIS
             Internal function New-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function New-ItemProperty {
@@ -294,9 +252,6 @@ Describe 'WindowsUpdatePause' {
         <#
             .SYNOPSIS
             Internal function Remove-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Remove-ItemProperty {
@@ -365,9 +320,6 @@ Describe 'UpdateNotificationLevel' {
         <#
             .SYNOPSIS
             Internal function Write-ConsoleStatus.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Write-ConsoleStatus {
@@ -380,9 +332,6 @@ Describe 'UpdateNotificationLevel' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogInfo {
             param([string]$Message)
@@ -392,9 +341,6 @@ Describe 'UpdateNotificationLevel' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogError {
             param([string]$Message)
@@ -404,9 +350,6 @@ Describe 'UpdateNotificationLevel' {
         <#
             .SYNOPSIS
             Internal function Test-Path.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Test-Path {
@@ -417,9 +360,6 @@ Describe 'UpdateNotificationLevel' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function New-Item {
             param(
@@ -434,9 +374,6 @@ Describe 'UpdateNotificationLevel' {
         <#
             .SYNOPSIS
             Internal function New-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function New-ItemProperty {
@@ -460,9 +397,6 @@ Describe 'UpdateNotificationLevel' {
         <#
             .SYNOPSIS
             Internal function Remove-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Remove-ItemProperty {
@@ -555,9 +489,6 @@ Describe 'FeatureUpdateDeferral' {
         <#
             .SYNOPSIS
             Internal function Write-ConsoleStatus.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Write-ConsoleStatus {
@@ -570,9 +501,6 @@ Describe 'FeatureUpdateDeferral' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogInfo {
             param([string]$Message)
@@ -582,9 +510,6 @@ Describe 'FeatureUpdateDeferral' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogError {
             param([string]$Message)
@@ -594,9 +519,6 @@ Describe 'FeatureUpdateDeferral' {
         <#
             .SYNOPSIS
             Internal function Test-Path.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Test-Path {
@@ -607,9 +529,6 @@ Describe 'FeatureUpdateDeferral' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function New-Item {
             param(
@@ -624,9 +543,6 @@ Describe 'FeatureUpdateDeferral' {
         <#
             .SYNOPSIS
             Internal function New-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function New-ItemProperty {
@@ -650,9 +566,6 @@ Describe 'FeatureUpdateDeferral' {
         <#
             .SYNOPSIS
             Internal function Remove-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Remove-ItemProperty {
@@ -713,9 +626,6 @@ Describe 'QualityUpdateDeferral' {
         <#
             .SYNOPSIS
             Internal function Write-ConsoleStatus.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Write-ConsoleStatus {
@@ -728,9 +638,6 @@ Describe 'QualityUpdateDeferral' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogInfo {
             param([string]$Message)
@@ -740,9 +647,6 @@ Describe 'QualityUpdateDeferral' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogError {
             param([string]$Message)
@@ -752,9 +656,6 @@ Describe 'QualityUpdateDeferral' {
         <#
             .SYNOPSIS
             Internal function Test-Path.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Test-Path {
@@ -765,9 +666,6 @@ Describe 'QualityUpdateDeferral' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function New-Item {
             param(
@@ -782,9 +680,6 @@ Describe 'QualityUpdateDeferral' {
         <#
             .SYNOPSIS
             Internal function New-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function New-ItemProperty {
@@ -808,9 +703,6 @@ Describe 'QualityUpdateDeferral' {
         <#
             .SYNOPSIS
             Internal function Remove-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Remove-ItemProperty {
@@ -888,9 +780,6 @@ Describe 'DownloadUpdatesOverMeteredConnection' {
         <#
             .SYNOPSIS
             Internal function Write-ConsoleStatus.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Write-ConsoleStatus {
@@ -903,9 +792,6 @@ Describe 'DownloadUpdatesOverMeteredConnection' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogInfo {
             param([string]$Message)
@@ -915,9 +801,6 @@ Describe 'DownloadUpdatesOverMeteredConnection' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogError {
             param([string]$Message)
@@ -927,9 +810,6 @@ Describe 'DownloadUpdatesOverMeteredConnection' {
         <#
             .SYNOPSIS
             Internal function Test-Path.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Test-Path {
@@ -940,9 +820,6 @@ Describe 'DownloadUpdatesOverMeteredConnection' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function New-Item {
             param(
@@ -957,9 +834,6 @@ Describe 'DownloadUpdatesOverMeteredConnection' {
         <#
             .SYNOPSIS
             Internal function New-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function New-ItemProperty {
@@ -1021,9 +895,6 @@ Describe 'StoreAppAutoDownload' {
         <#
             .SYNOPSIS
             Internal function Write-ConsoleStatus.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Write-ConsoleStatus {
@@ -1036,9 +907,6 @@ Describe 'StoreAppAutoDownload' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogInfo {
             param([string]$Message)
@@ -1048,9 +916,6 @@ Describe 'StoreAppAutoDownload' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogError {
             param([string]$Message)
@@ -1060,9 +925,6 @@ Describe 'StoreAppAutoDownload' {
         <#
             .SYNOPSIS
             Internal function Test-Path.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Test-Path {
@@ -1073,9 +935,6 @@ Describe 'StoreAppAutoDownload' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function New-Item {
             param(
@@ -1090,9 +949,6 @@ Describe 'StoreAppAutoDownload' {
         <#
             .SYNOPSIS
             Internal function New-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function New-ItemProperty {
@@ -1155,9 +1011,6 @@ Describe 'StoreSearchResults' {
         <#
             .SYNOPSIS
             Internal function Write-ConsoleStatus.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Write-ConsoleStatus {
@@ -1170,9 +1023,6 @@ Describe 'StoreSearchResults' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogInfo {
             param([string]$Message)
@@ -1182,9 +1032,6 @@ Describe 'StoreSearchResults' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogWarning {
             param([string]$Message)
@@ -1193,9 +1040,6 @@ Describe 'StoreSearchResults' {
         <#
             .SYNOPSIS
             Internal function LogError.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function LogError {
@@ -1206,9 +1050,6 @@ Describe 'StoreSearchResults' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Test-Path {
             param([string]$LiteralPath)
@@ -1218,9 +1059,6 @@ Describe 'StoreSearchResults' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function icacls {
             param(
@@ -1296,9 +1134,6 @@ Describe 'WindowsUpdate' {
         <#
             .SYNOPSIS
             Internal function Write-ConsoleStatus.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Write-ConsoleStatus {
@@ -1318,9 +1153,6 @@ Describe 'WindowsUpdate' {
         <#
             .SYNOPSIS
             Internal function LogInfo.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function LogInfo {
@@ -1331,9 +1163,6 @@ Describe 'WindowsUpdate' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogWarning {
             param([string]$Message)
@@ -1343,9 +1172,6 @@ Describe 'WindowsUpdate' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogError {
             param([string]$Message)
@@ -1355,9 +1181,6 @@ Describe 'WindowsUpdate' {
         <#
             .SYNOPSIS
             Internal function Stop-Service.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Stop-Service {
@@ -1375,9 +1198,6 @@ Describe 'WindowsUpdate' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Set-Service {
             [CmdletBinding(PositionalBinding = $false)]
@@ -1397,9 +1217,6 @@ Describe 'WindowsUpdate' {
         <#
             .SYNOPSIS
             Internal function Start-Service.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Start-Service {
@@ -1416,9 +1233,6 @@ Describe 'WindowsUpdate' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Remove-Item {
             [CmdletBinding(PositionalBinding = $false)]
@@ -1439,9 +1253,6 @@ Describe 'WindowsUpdate' {
         <#
             .SYNOPSIS
             Internal function Rename-Item.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Rename-Item {
@@ -1462,9 +1273,6 @@ Describe 'WindowsUpdate' {
         <#
             .SYNOPSIS
             Internal function Remove-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Remove-ItemProperty {
@@ -1486,9 +1294,6 @@ Describe 'WindowsUpdate' {
         <#
             .SYNOPSIS
             Internal function Set-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Set-ItemProperty {
@@ -1511,9 +1316,6 @@ Describe 'WindowsUpdate' {
         <#
             .SYNOPSIS
             Internal function Start-Process.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Start-Process {
@@ -1537,9 +1339,6 @@ Describe 'WindowsUpdate' {
         <#
             .SYNOPSIS
             Internal function Get-BitsTransfer.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Get-BitsTransfer {
@@ -1561,9 +1360,6 @@ Describe 'WindowsUpdate' {
         <#
             .SYNOPSIS
             Internal function Remove-BitsTransfer.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Remove-BitsTransfer {
@@ -1584,9 +1380,6 @@ Describe 'WindowsUpdate' {
         <#
             .SYNOPSIS
             Internal function New-Object.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function New-Object {

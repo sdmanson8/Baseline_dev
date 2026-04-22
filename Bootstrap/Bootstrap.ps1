@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Download and install Baseline from GitHub.
 
@@ -41,9 +41,6 @@ $ProgressPreference = 'SilentlyContinue'
 <#
     .SYNOPSIS
     Internal function Enable-Tls12.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Enable-Tls12
@@ -70,9 +67,6 @@ function Enable-Tls12
 <#
     .SYNOPSIS
     Internal function Resolve-BootstrapPreset.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-BootstrapPreset
@@ -99,9 +93,6 @@ function Resolve-BootstrapPreset
 <#
     .SYNOPSIS
     Internal function Invoke-DownloadFile.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-DownloadFile
@@ -133,9 +124,6 @@ function Invoke-DownloadFile
 <#
     .SYNOPSIS
     Internal function Get-BootstrapFileSha256.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BootstrapFileSha256
@@ -179,9 +167,6 @@ function Get-BootstrapFileSha256
 <#
     .SYNOPSIS
     Internal function Get-BootstrapReleaseIntegrityManifest.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BootstrapReleaseIntegrityManifest
@@ -213,9 +198,6 @@ function Get-BootstrapReleaseIntegrityManifest
 <#
     .SYNOPSIS
     Internal function Get-BootstrapReleaseAssetSha256.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BootstrapReleaseAssetSha256
@@ -241,9 +223,6 @@ function Get-BootstrapReleaseAssetSha256
 <#
     .SYNOPSIS
     Internal function Assert-BootstrapReleaseAssetHash.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Assert-BootstrapReleaseAssetHash
@@ -331,9 +310,6 @@ function Find-InstalledBaselineExecutable
 <#
     .SYNOPSIS
     Internal function Compare-BootstrapReleaseVersions.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Compare-BootstrapReleaseVersions
@@ -481,9 +457,6 @@ function Compare-BootstrapReleaseVersions
 <#
     .SYNOPSIS
     Internal function Get-BootstrapLatestRelease.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BootstrapLatestRelease

@@ -31,13 +31,6 @@ using module ..\SharedHelpers.psm1
 	.NOTES
 	Machine-wide
 #>
-<#
-    .SYNOPSIS
-    Internal function OneDrive.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function OneDrive
 {
@@ -64,9 +57,6 @@ function OneDrive
 	<#
 	    .SYNOPSIS
 	    Internal function Get-OneDriveSetupPath.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-OneDriveSetupPath

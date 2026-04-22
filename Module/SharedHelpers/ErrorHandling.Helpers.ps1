@@ -1,11 +1,8 @@
-﻿# Shared helper slice for Baseline -- error handling, classification, and user-facing error info.
+# Shared helper slice for Baseline -- error handling, classification, and user-facing error info.
 
 <#
     .SYNOPSIS
     Internal function Remove-HandledErrorRecord.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Remove-HandledErrorRecord
@@ -49,9 +46,6 @@ function Remove-HandledErrorRecord
 <#
     .SYNOPSIS
     Internal function Test-IgnorableErrorMessage.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-IgnorableErrorMessage
@@ -160,9 +154,6 @@ function Test-IgnorableErrorMessage
 <#
     .SYNOPSIS
     Internal function Test-IgnorableErrorRecord.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-IgnorableErrorRecord
@@ -189,9 +180,6 @@ function Test-IgnorableErrorRecord
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-NewUnhandledErrorRecords
 {
@@ -240,9 +228,6 @@ function Get-NewUnhandledErrorRecords
 <#
     .SYNOPSIS
     Internal function Invoke-SilencedProgress.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-SilencedProgress
@@ -274,9 +259,6 @@ function Invoke-SilencedProgress
 <#
     .SYNOPSIS
     Internal function Get-BaselineErrorCatalog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineErrorCatalog
@@ -346,9 +328,6 @@ function Get-BaselineErrorCatalog
 <#
     .SYNOPSIS
     Internal function Get-BaselineExceptionMessageChain.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineExceptionMessageChain
@@ -397,9 +376,6 @@ function Get-BaselineExceptionMessageChain
 <#
     .SYNOPSIS
     Internal function Resolve-BaselineErrorCode.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-BaselineErrorCode
@@ -459,9 +435,6 @@ function Resolve-BaselineErrorCode
 <#
     .SYNOPSIS
     Internal function Resolve-BaselineErrorStageDescription.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-BaselineErrorStageDescription
@@ -497,9 +470,6 @@ function Resolve-BaselineErrorStageDescription
 <#
     .SYNOPSIS
     Internal function Get-BaselineErrorInfo.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineErrorInfo
@@ -543,9 +513,6 @@ function Get-BaselineErrorInfo
 <#
     .SYNOPSIS
     Internal function Format-BaselineErrorDialogMessage.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Format-BaselineErrorDialogMessage

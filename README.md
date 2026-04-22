@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <strong>Controlled, auditable Windows configuration for power users and IT professionals.</strong>
+  PowerShell-based Windows configuration with manifest-driven tweaks, GUI, audit trails, and headless automation.
 </p>
 
 <p align="center">
@@ -78,16 +78,14 @@ It includes:
 
 ## Why Baseline is different
 
-Most Windows tweak repos optimize for either maximum aggression or maximum simplicity. Baseline optimizes for **trust**:
+Most Windows tweak tools are opaque script blocks with no metadata, no preview, and no way to track what changed. Baseline structures everything through manifests:
 
 - **Manifest-backed metadata** — every tweak carries risk labels, restart flags, reversibility metadata, and recovery guidance instead of living in opaque script blocks
 - **Preview-first execution** — pre-flight checks, plan summary, and visual diff before anything runs
 - **Configuration tracking** — compliance drift detection, system state snapshots, configuration profiles, and append-only audit trails
 - **Preset semantics** — four named presets with clear scope and honest warnings instead of a single "run everything" button
 - **Scenario modes** — purpose-built profiles for Game Mode, Workstation, Privacy, and Recovery that stay separate from the core preset ladder
-- **Controlled opinionation** — headless presets, scheduled automation, and logging for repeatable setups instead of one-off script runs
-
-The goal is not to strip Windows as aggressively as possible. The goal is to give power users a controlled, auditable way to apply and track Windows configuration changes over time.
+- **Headless support** — scheduled automation and logging for repeatable setups without the GUI
 
 ## Presets
 

@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Smoke-test script for Baseline source validation.
 
@@ -37,9 +37,6 @@ $skipped = 0
 <#
     .SYNOPSIS
     Internal function Write-TestResult.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-TestResult
@@ -67,9 +64,6 @@ function Write-TestResult
 <#
     .SYNOPSIS
     Internal function Import-NewInstallerPackageFunctions.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Import-NewInstallerPackageFunctions
 {
@@ -679,9 +673,6 @@ $presetFunctions = @{}
 <#
     .SYNOPSIS
     Internal function Get-PresetFunctionName.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-PresetFunctionName

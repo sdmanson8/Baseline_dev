@@ -1,4 +1,4 @@
-﻿# Remote targeting helper slice for Baseline.
+# Remote targeting helper slice for Baseline.
 # Provides multi-machine compliance checking and profile application over
 # PowerShell Remoting (WinRM / PSSession). Each function accepts an array of
 # computer names and operates in parallel per-session.
@@ -37,9 +37,6 @@ if (-not $Script:CachedRemoteSessionIdleTimeoutMinutes)
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteCredentialScopeKey.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineRemoteCredentialScopeKey
@@ -74,9 +71,6 @@ function Get-BaselineRemoteCredentialScopeKey
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteSessionKey.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineRemoteSessionKey
@@ -99,9 +93,6 @@ function Get-BaselineRemoteSessionKey
 <#
     .SYNOPSIS
     Internal function ConvertTo-BaselineRemoteTransportSettingsValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-BaselineRemoteTransportSettingsValue
@@ -162,9 +153,6 @@ function ConvertTo-BaselineRemoteTransportSettingsValue
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteTransportSettingsSignature.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineRemoteTransportSettingsSignature
@@ -210,9 +198,6 @@ function Get-BaselineRemoteTransportSettingsSignature
 <#
     .SYNOPSIS
     Internal function New-BaselineRemoteSessionCacheEntry.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-BaselineRemoteSessionCacheEntry
@@ -248,9 +233,6 @@ function New-BaselineRemoteSessionCacheEntry
 <#
     .SYNOPSIS
     Internal function Test-BaselineRemoteSessionCacheEntry.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-BaselineRemoteSessionCacheEntry
@@ -322,9 +304,6 @@ function Test-BaselineRemoteSessionCacheEntry
 <#
     .SYNOPSIS
     Internal function Remove-BaselineRemoteSessionCacheEntry.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Remove-BaselineRemoteSessionCacheEntry
@@ -354,9 +333,6 @@ function Remove-BaselineRemoteSessionCacheEntry
 <#
     .SYNOPSIS
     Internal function Invoke-BaselineRemoteSessionCacheMaintenance.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-BaselineRemoteSessionCacheMaintenance
@@ -408,9 +384,6 @@ function Invoke-BaselineRemoteSessionCacheMaintenance
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteTargetTerminalState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineRemoteTargetTerminalState
@@ -475,9 +448,6 @@ function Get-BaselineRemoteTargetTerminalState
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteTargetState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineRemoteTargetState
@@ -549,9 +519,6 @@ function Get-BaselineRemoteTargetState
 <#
     .SYNOPSIS
     Internal function New-BaselineRemoteTargetStateTransition.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-BaselineRemoteTargetStateTransition
@@ -586,9 +553,6 @@ function New-BaselineRemoteTargetStateTransition
 <#
     .SYNOPSIS
     Internal function Add-BaselineRemoteTargetStateTransition.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Add-BaselineRemoteTargetStateTransition
@@ -621,9 +585,6 @@ function Add-BaselineRemoteTargetStateTransition
 <#
     .SYNOPSIS
     Internal function Clear-BaselineRemoteSessionCache.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Clear-BaselineRemoteSessionCache
@@ -672,9 +633,6 @@ function Clear-BaselineRemoteSessionCache
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteSession.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineRemoteSession
@@ -779,9 +737,6 @@ function Get-BaselineRemoteSession
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteSessionSummary.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineRemoteSessionSummary
@@ -851,9 +806,6 @@ function Get-BaselineRemoteSessionSummary
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteOrchestrationHistoryPath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineRemoteOrchestrationHistoryPath
@@ -876,9 +828,6 @@ function Get-BaselineRemoteOrchestrationHistoryPath
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteFailureProfile.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineRemoteFailureProfile
@@ -1157,9 +1106,6 @@ function Write-BaselineRemoteAttemptHistoryRecord
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteOrchestrationHistory.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineRemoteOrchestrationHistory
@@ -1239,9 +1185,6 @@ function Get-BaselineRemoteOrchestrationHistory
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteOrchestrationSummary.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineRemoteOrchestrationSummary
@@ -1288,9 +1231,6 @@ function Get-BaselineRemoteOrchestrationSummary
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteOrchestrationDetails.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineRemoteOrchestrationDetails
@@ -1380,9 +1320,6 @@ function Get-BaselineRemoteOrchestrationDetails
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteRunSummaries.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineRemoteRunSummaries
@@ -2387,9 +2324,6 @@ function Search-BaselineRemoteOrchestrationHistory
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteTargetLifecycleState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineRemoteTargetLifecycleState
@@ -2459,9 +2393,6 @@ function Get-BaselineRemoteTargetLifecycleState
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteOrchestrationReconciliation.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineRemoteOrchestrationReconciliation
@@ -2660,9 +2591,6 @@ function Get-BaselineRemoteOrchestrationReconciliation
 <#
     .SYNOPSIS
     Internal function Invoke-BaselineRemoteEntryWithRetry.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-BaselineRemoteEntryWithRetry
@@ -2735,9 +2663,6 @@ function Invoke-BaselineRemoteEntryWithRetry
 <#
     .SYNOPSIS
     Internal function Invoke-BaselineRemoteRetryDelay.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-BaselineRemoteRetryDelay
@@ -2757,9 +2682,6 @@ function Invoke-BaselineRemoteRetryDelay
 <#
     .SYNOPSIS
     Internal function Test-BaselineRemoteOrchestrationAllowed.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-BaselineRemoteOrchestrationAllowed
@@ -2821,9 +2743,6 @@ function Test-BaselineRemoteOrchestrationAllowed
 <#
     .SYNOPSIS
     Internal function Write-BaselineRemoteOrchestrationRecord.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-BaselineRemoteOrchestrationRecord
@@ -2896,9 +2815,6 @@ function Write-BaselineRemoteOrchestrationRecord
 <#
     .SYNOPSIS
     Internal function Write-BaselineRemoteOrchestrationSummaryRecord.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-BaselineRemoteOrchestrationSummaryRecord
@@ -3333,9 +3249,6 @@ function Clear-BaselineRemoteResumeCheckpoint
 <#
     .SYNOPSIS
     Internal function Write-BaselineRemoteCheckpointWarning.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-BaselineRemoteCheckpointWarning
@@ -3359,9 +3272,6 @@ function Write-BaselineRemoteCheckpointWarning
 <#
     .SYNOPSIS
     Internal function Invoke-BaselineRemoteCheckpointAction.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-BaselineRemoteCheckpointAction
@@ -3516,9 +3426,6 @@ function Resume-BaselineRemoteOrchestration
 <#
     .SYNOPSIS
     Internal function Test-BaselineRemoteConnectivity.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-BaselineRemoteConnectivity
@@ -3726,9 +3633,6 @@ function Test-BaselineRemoteConnectivity
 <#
     .SYNOPSIS
     Internal function Invoke-BaselineRemoteCompliance.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-BaselineRemoteCompliance
@@ -4147,9 +4051,6 @@ function Invoke-BaselineRemoteCompliance
 <#
     .SYNOPSIS
     Internal function Invoke-BaselineRemoteApply.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-BaselineRemoteApply

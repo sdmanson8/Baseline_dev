@@ -6,9 +6,6 @@ using module ..\SharedHelpers.psm1
 <#
     .SYNOPSIS
     Internal function Get-OptimizationScratchDirectory.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-OptimizationScratchDirectory
@@ -25,9 +22,6 @@ function Get-OptimizationScratchDirectory
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-OptimizationAssetPath
 {
@@ -56,9 +50,6 @@ function Get-OptimizationAssetPath
 <#
     .SYNOPSIS
     Internal function Import-LegacyRegistryAsset.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Import-LegacyRegistryAsset

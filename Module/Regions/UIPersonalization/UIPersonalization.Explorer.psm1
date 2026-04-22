@@ -274,13 +274,6 @@ function TaskManagerDetails
 	.NOTES
 	Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function ControlPanelView.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function ControlPanelView
 {
@@ -1670,13 +1663,6 @@ function OneDriveFileExplorerAd
 	.NOTES
 	Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function OpenFileExplorerTo.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function OpenFileExplorerTo
 {
@@ -1999,13 +1985,6 @@ RecentShortcuts -Disable
 
 .NOTES
 Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function RecentShortcuts.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function RecentShortcuts

@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Internal shared helper loader module for Baseline.
 
@@ -80,9 +80,6 @@ $ExecutionContext.SessionState.Module.OnRemove = {
 <#
     .SYNOPSIS
     Internal function ConvertTo-PowerSchemeDisplayValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-PowerSchemeDisplayValue
@@ -133,9 +130,6 @@ function ConvertTo-PowerSchemeDisplayValue
 <#
     .SYNOPSIS
     Internal function ConvertTo-PowerSchemeSystemValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-PowerSchemeSystemValue
@@ -186,9 +180,6 @@ function ConvertTo-PowerSchemeSystemValue
 <#
     .SYNOPSIS
     Internal function Get-GuiNumericRangeValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiNumericRangeValue
@@ -283,9 +274,6 @@ function Get-GuiNumericRangeValue
 <#
     .SYNOPSIS
     Internal function Format-GuiNumericRangeValueText.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Format-GuiNumericRangeValueText
@@ -334,9 +322,6 @@ function Format-GuiNumericRangeValueText
 <#
     .SYNOPSIS
     Internal function Format-GuiPowerSchemeValueText.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Format-GuiPowerSchemeValueText
@@ -431,9 +416,6 @@ function Format-GuiPowerSchemeValueText
 <#
     .SYNOPSIS
     Internal function Get-GuiNumericRangeChannelValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiNumericRangeChannelValue
@@ -498,9 +480,6 @@ function Get-GuiNumericRangeChannelValue
 <#
     .SYNOPSIS
     Internal function Get-CurrentPowerSchemeGuid.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-CurrentPowerSchemeGuid
@@ -532,9 +511,6 @@ function Get-CurrentPowerSchemeGuid
 <#
     .SYNOPSIS
     Internal function Get-PowerSchemeSettingValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-PowerSchemeSettingValue
@@ -593,9 +569,6 @@ function Get-PowerSchemeSettingValue
 <#
     .SYNOPSIS
     Internal function Set-PowerSchemeSettingValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-PowerSchemeSettingValue

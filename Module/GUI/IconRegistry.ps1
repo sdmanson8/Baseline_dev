@@ -1,9 +1,6 @@
 <#
     .SYNOPSIS
     Internal function Get-GuiIconFontPath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiIconFontPath
@@ -58,9 +55,6 @@ function Get-GuiIconFontPath
 <#
     .SYNOPSIS
     Internal function Get-GuiIconFontFamilyName.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiIconFontFamilyName
@@ -75,9 +69,6 @@ function Get-GuiIconFontFamilyName
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function ConvertTo-GuiIconGlyph
 {
@@ -104,9 +95,6 @@ function ConvertTo-GuiIconGlyph
 <#
     .SYNOPSIS
     Internal function Get-GuiIconGlyph.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiIconGlyph
@@ -226,9 +214,6 @@ function Get-GuiIconGlyph
 <#
     .SYNOPSIS
     Internal function Get-GuiApplicationIconName.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiApplicationIconName

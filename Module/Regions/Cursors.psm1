@@ -34,13 +34,6 @@ using module ..\SharedHelpers.psm1
 	.NOTES
 	Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function Expand-CursorArchiveFolder.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 function Expand-CursorArchiveFolder
 {
 	param
@@ -68,9 +61,6 @@ function Expand-CursorArchiveFolder
 <#
     .SYNOPSIS
     Internal function Cursors.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Cursors

@@ -34,9 +34,6 @@
 <#
     .SYNOPSIS
     Internal function Get-ScenarioProfileDefinitions.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ScenarioProfileDefinitions
@@ -98,9 +95,6 @@ function Get-ScenarioProfileDefinitions
 <#
     .SYNOPSIS
     Internal function Resolve-ScenarioProfileDefinition.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-ScenarioProfileDefinition
@@ -129,9 +123,6 @@ function Resolve-ScenarioProfileDefinition
 <#
     .SYNOPSIS
     Internal function Get-ScenarioProfileValidationIssues.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ScenarioProfileValidationIssues
@@ -214,9 +205,6 @@ function Get-ScenarioProfileValidationIssues
 <#
     .SYNOPSIS
     Internal function Get-ScenarioProfilePlan.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ScenarioProfilePlan
@@ -286,9 +274,6 @@ function Get-ScenarioProfilePlan
 <#
     .SYNOPSIS
     Internal function Get-ScenarioProfileCommandList.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ScenarioProfileCommandList

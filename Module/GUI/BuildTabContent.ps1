@@ -1,4 +1,4 @@
-﻿	$Script:CurrentPrimaryTab = $null
+	$Script:CurrentPrimaryTab = $null
 	$Script:SubTabControls = @{}
 
 
@@ -8,9 +8,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Add-TabSectionsToPanel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Add-TabSectionsToPanel
@@ -117,9 +114,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Save-TabContentCacheEntry.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Save-TabContentCacheEntry
@@ -158,9 +152,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-TabPreBuildAction.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-TabPreBuildAction
@@ -185,9 +176,6 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 	<#
 	    .SYNOPSIS
 	    Internal function Build-TabContent.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Build-TabContent

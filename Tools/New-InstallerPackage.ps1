@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Internal build tool for creating the Baseline setup executable with Inno Setup.
 
@@ -32,9 +32,6 @@ $ErrorActionPreference = 'Stop'
 <#
     .SYNOPSIS
     Internal function Resolve-IsccPath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Resolve-IsccPath
 {
@@ -91,9 +88,6 @@ function Resolve-IsccPath
 <#
     .SYNOPSIS
     Internal function Get-InstallerPayloadEntries.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-InstallerPayloadEntries
 {
@@ -119,9 +113,6 @@ function Get-InstallerPayloadEntries
 <#
     .SYNOPSIS
     Internal function Get-InstallerBuildLayout.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-InstallerBuildLayout
 {
@@ -153,9 +144,6 @@ function Get-InstallerBuildLayout
 <#
     .SYNOPSIS
     Internal function Get-InstallerPayloadPathBudgetReport.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-InstallerPayloadPathBudgetReport
 {
@@ -224,9 +212,6 @@ function Get-InstallerPayloadPathBudgetReport
 <#
     .SYNOPSIS
     Internal function Get-InstallerLocalizationDefinitions.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-InstallerLocalizationDefinitions
 {
@@ -287,9 +272,6 @@ function Get-InstallerLocalizationDefinitions
 <#
     .SYNOPSIS
     Internal function Import-InstallerLocalizationTable.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Import-InstallerLocalizationTable
 {
@@ -403,9 +385,6 @@ function Import-InstallerLocalizationTable
 <#
     .SYNOPSIS
     Internal function Get-InstallerLocalizationSource.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-InstallerLocalizationSource
 {
@@ -483,9 +462,6 @@ function Get-InstallerLocalizationSource
 <#
     .SYNOPSIS
     Internal function Get-InstallerLocaleCodes.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-InstallerLocaleCodes
 {
@@ -516,9 +492,6 @@ function Get-InstallerLocaleCodes
 <#
     .SYNOPSIS
     Internal function ConvertTo-InnoStringLiteral.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function ConvertTo-InnoStringLiteral
 {
@@ -535,9 +508,6 @@ function ConvertTo-InnoStringLiteral
 <#
     .SYNOPSIS
     Internal function ConvertTo-StringMap.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function ConvertTo-StringMap
 {
@@ -559,9 +529,6 @@ function ConvertTo-StringMap
 <#
     .SYNOPSIS
     Internal function Initialize-InstallerLocalizationWorkspace.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Initialize-InstallerLocalizationWorkspace
 {
@@ -624,9 +591,6 @@ function Initialize-InstallerLocalizationWorkspace
 <#
     .SYNOPSIS
     Internal function Get-InstallerLocalizationCacheKey.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-InstallerLocalizationCacheKey
 {
@@ -652,9 +616,6 @@ function Get-InstallerLocalizationCacheKey
 <#
     .SYNOPSIS
     Internal function Invoke-InstallerLocalizationTranslation.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Invoke-InstallerLocalizationTranslation
 {
@@ -750,9 +711,6 @@ function Invoke-InstallerLocalizationTranslation
 <#
     .SYNOPSIS
     Internal function New-InstallerLocalizationFunction.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function New-InstallerLocalizationFunction
 {

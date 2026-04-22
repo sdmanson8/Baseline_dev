@@ -1,4 +1,4 @@
-﻿using module ..\Logging.psm1
+using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 #region Gaming
@@ -24,13 +24,6 @@ using module ..\SharedHelpers.psm1
 
 	.NOTES
 	Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function GPUScheduling.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function GPUScheduling
@@ -503,13 +496,6 @@ function GamingGpuPriority
 
 	.NOTES
 	Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function XboxGameBar.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function XboxGameBar
@@ -1713,13 +1699,6 @@ function DesktopComposition
 	.NOTES
 	Machine-wide
 #>
-<#
-    .SYNOPSIS
-    Internal function XboxAuthManager.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function XboxAuthManager
 {
@@ -1826,13 +1805,6 @@ function XboxAuthManager
 	.NOTES
 	Machine-wide
 #>
-<#
-    .SYNOPSIS
-    Internal function XboxGameSave.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function XboxGameSave
 {
@@ -1938,13 +1910,6 @@ function XboxGameSave
 
 	.NOTES
 	Machine-wide
-#>
-<#
-    .SYNOPSIS
-    Internal function XboxNetworking.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function XboxNetworking

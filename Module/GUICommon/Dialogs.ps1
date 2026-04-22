@@ -1,9 +1,6 @@
-﻿<#
+<#
     .SYNOPSIS
     Internal function Show-ThemedDialog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Show-ThemedDialog
 {
@@ -224,9 +221,6 @@ function Show-ThemedDialog
 <#
     .SYNOPSIS
     Internal function New-DialogSummaryCard.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function New-DialogSummaryCard
 {
@@ -345,9 +339,6 @@ function New-DialogSummaryCard
 <#
     .SYNOPSIS
     Internal function New-DialogSummaryCardsPanel.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function New-DialogSummaryCardsPanel
 {
@@ -385,9 +376,6 @@ function New-DialogSummaryCardsPanel
 <#
     .SYNOPSIS
     Internal function New-DialogMetadataPill.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function New-DialogMetadataPill
 {
@@ -471,9 +459,6 @@ function New-DialogMetadataPill
 <#
     .SYNOPSIS
     Internal function New-DialogMetadataPillPanel.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function New-DialogMetadataPillPanel
 {

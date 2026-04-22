@@ -23,13 +23,6 @@ using module ..\..\SharedHelpers.psm1
 	.NOTES
 	Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function Hibernation.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function Hibernation
 {
@@ -108,13 +101,6 @@ function Hibernation
 
 	.NOTES
 	Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function PowerPlan.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function PowerPlan
@@ -219,13 +205,6 @@ function PowerPlan
 	.NOTES
 	Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function ProcessorMinimumState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function ProcessorMinimumState
 {
@@ -292,13 +271,6 @@ function ProcessorMinimumState
 
 	.NOTES
 	Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function ProcessorMaximumState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ProcessorMaximumState
@@ -569,13 +541,6 @@ function ProcessorPerformanceDecreaseThreshold
 
 	.NOTES
 	Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function ProcessorPerformanceBoostMode.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ProcessorPerformanceBoostMode
@@ -1120,9 +1085,6 @@ function MultimediaVideoPlaybackQualityBias
 <#
     .SYNOPSIS
     Internal function Set-PowerSchemeSettingVisibility.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-PowerSchemeSettingVisibility
@@ -1145,9 +1107,6 @@ function Set-PowerSchemeSettingVisibility
 <#
     .SYNOPSIS
     Internal function Set-PowerSchemeNumericRangeSetting.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-PowerSchemeNumericRangeSetting
@@ -1237,9 +1196,6 @@ function Set-PowerSchemeNumericRangeSetting
 <#
     .SYNOPSIS
     Internal function Set-PowerSchemeChoiceSetting.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-PowerSchemeChoiceSetting

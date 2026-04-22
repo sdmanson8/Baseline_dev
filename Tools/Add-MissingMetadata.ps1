@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Adds missing metadata fields (Impact, Safe, RequiresRestart, WhyThisMatters, PresetTier,
     CompatibilitySensitivity) to all Module/Data/*.json tweak entries.
@@ -138,9 +138,6 @@ $conservativeGamingMetadataMap = @{
 <#
     .SYNOPSIS
     Internal function Get-RequiresRestart.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-RequiresRestart {
@@ -166,9 +163,6 @@ function Get-RequiresRestart {
 <#
     .SYNOPSIS
     Internal function Get-PresetTier.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-PresetTier {
@@ -214,9 +208,6 @@ function Get-PresetTier {
 <#
     .SYNOPSIS
     Internal function Get-WhyThisMatters.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-WhyThisMatters {
@@ -257,9 +248,6 @@ function Get-WhyThisMatters {
 <#
     .SYNOPSIS
     Internal function Test-HasConservativeGamingMetadataValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-HasConservativeGamingMetadataValue {
@@ -277,9 +265,6 @@ function Test-HasConservativeGamingMetadataValue {
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-ConservativeGamingMetadataValue {
     param(

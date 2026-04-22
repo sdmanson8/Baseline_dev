@@ -41,9 +41,6 @@ Describe 'Privacy telemetry registry toggles' {
 		<#
 		    .SYNOPSIS
 		    Internal function Write-ConsoleStatus.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Write-ConsoleStatus {
@@ -56,9 +53,6 @@ Describe 'Privacy telemetry registry toggles' {
 		<#
 		    .SYNOPSIS
 		    Internal function .
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 		function LogInfo {
 			param([string]$Message)
@@ -68,9 +62,6 @@ Describe 'Privacy telemetry registry toggles' {
 		<#
 		    .SYNOPSIS
 		    Internal function .
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 		function LogError {
 			param([string]$Message)
@@ -80,9 +71,6 @@ Describe 'Privacy telemetry registry toggles' {
 		<#
 		    .SYNOPSIS
 		    Internal function Test-Path.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Test-Path {
@@ -93,9 +81,6 @@ Describe 'Privacy telemetry registry toggles' {
 		<#
 		    .SYNOPSIS
 		    Internal function .
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 		function New-Item {
 			param(
@@ -110,9 +95,6 @@ Describe 'Privacy telemetry registry toggles' {
 		<#
 		    .SYNOPSIS
 		    Internal function New-ItemProperty.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function New-ItemProperty {
@@ -136,9 +118,6 @@ Describe 'Privacy telemetry registry toggles' {
 		<#
 		    .SYNOPSIS
 		    Internal function Remove-ItemProperty.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Remove-ItemProperty {

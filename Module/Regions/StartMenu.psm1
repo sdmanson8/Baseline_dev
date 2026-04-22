@@ -356,13 +356,6 @@ function WebSearch
 	.NOTES
 	Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function StartLayout.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function StartLayout
 {

@@ -1,4 +1,4 @@
-﻿# ──────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────
 # StyleManagement.ps1
 # Theme / styling helpers extracted from Show-TweakGUI (GUI.psm1).
 # Dot-sourced inside Show-TweakGUI so all $Script: and local UI
@@ -8,9 +8,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-ButtonChrome.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-ButtonChrome
@@ -187,9 +184,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-WindowCaptionButtonStyle.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-WindowCaptionButtonStyle
@@ -300,9 +294,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-HeaderToggleStyle.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-HeaderToggleStyle
@@ -517,9 +508,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-HeaderToggleControlsStyle.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-HeaderToggleControlsStyle
@@ -534,9 +522,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Update-WindowMinWidthFromHeader
 	{
@@ -571,9 +556,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-HeaderModeStateText.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-HeaderModeStateText
@@ -619,9 +601,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-GuiMenuBarLocalization.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-GuiMenuBarLocalization
@@ -673,9 +652,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-GuiMenuBarTheme.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-GuiMenuBarTheme
@@ -749,9 +725,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-GuiScrollBarTheme.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-GuiScrollBarTheme
@@ -814,9 +787,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-GuiDuplicateActionVisibility.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-GuiDuplicateActionVisibility
@@ -843,9 +813,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-GuiLocalizationStrings.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-GuiLocalizationStrings
@@ -1070,9 +1037,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-ThemedDialog.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-ThemedDialog
@@ -1100,9 +1064,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-SearchInputStyle.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-SearchInputStyle
@@ -1135,9 +1096,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-LanguageSearchInputStyle.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-LanguageSearchInputStyle
@@ -1161,9 +1119,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-ChoiceComboStyle.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-ChoiceComboStyle
@@ -1358,9 +1313,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-FilterControlStyle.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-FilterControlStyle
@@ -1408,9 +1360,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-SearchControlsEnabled.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-SearchControlsEnabled
@@ -1433,9 +1382,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-GuiActionButtonsEnabled.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-GuiActionButtonsEnabled

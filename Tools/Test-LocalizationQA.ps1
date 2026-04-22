@@ -33,9 +33,6 @@ $LocaleFilePattern = '^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*\.json$'
 <#
     .SYNOPSIS
     Internal function Resolve-LocalizationFilePath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-LocalizationFilePath
@@ -120,9 +117,6 @@ $ExemptKeys = @(
 <#
     .SYNOPSIS
     Internal function Get-LocalizationStringMap.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-LocalizationStringMap
@@ -144,9 +138,6 @@ function Get-LocalizationStringMap
 <#
     .SYNOPSIS
     Internal function Get-LocalizationPlaceholderTokens.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-LocalizationPlaceholderTokens
@@ -162,9 +153,6 @@ function Get-LocalizationPlaceholderTokens
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Test-LocalizationPlaceholderParity
 {
@@ -184,9 +172,6 @@ function Test-LocalizationPlaceholderParity
 <#
     .SYNOPSIS
     Internal function Get-LocalizationKeySetHash.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-LocalizationKeySetHash
@@ -215,9 +200,6 @@ function Get-LocalizationKeySetHash
 <#
     .SYNOPSIS
     Internal function Get-LocaleContentHash.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-LocaleContentHash
@@ -244,9 +226,6 @@ function Get-LocaleContentHash
 <#
     .SYNOPSIS
     Internal function Get-LocalizationTermMatchKeys.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-LocalizationTermMatchKeys
@@ -289,9 +268,6 @@ function Get-LocalizationTermMatchKeys
 <#
     .SYNOPSIS
     Internal function Get-LocalizationTerminologyPolicy.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-LocalizationTerminologyPolicy
@@ -316,9 +292,6 @@ function Get-LocalizationTerminologyPolicy
 <#
     .SYNOPSIS
     Internal function Get-LocalizationSchema.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-LocalizationSchema

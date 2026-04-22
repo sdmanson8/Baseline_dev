@@ -1,9 +1,6 @@
-﻿<#
+<#
     .SYNOPSIS
     Internal function Initialize-GuiWindowChromeInterop.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Initialize-GuiWindowChromeInterop
 {
@@ -69,9 +66,6 @@ namespace WinAPI
 <#
     .SYNOPSIS
     Internal function Restore-WindowSystemMenu.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Restore-WindowSystemMenu
 {
@@ -122,9 +116,6 @@ function Restore-WindowSystemMenu
 <#
     .SYNOPSIS
     Internal function Invoke-GuiWindowChromeThemeUpdate.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Invoke-GuiWindowChromeThemeUpdate
 {
@@ -213,9 +204,6 @@ function Invoke-GuiWindowChromeThemeUpdate
 <#
     .SYNOPSIS
     Internal function Set-GuiWindowChromeTheme.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Set-GuiWindowChromeTheme
 {
@@ -312,9 +300,6 @@ function Set-GuiWindowChromeTheme
 <#
     .SYNOPSIS
     Internal function ConvertTo-RoundedWindow.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function ConvertTo-RoundedWindow
 {
@@ -387,9 +372,6 @@ function ConvertTo-RoundedWindow
 <#
     .SYNOPSIS
     Internal function Complete-RoundedWindow.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Complete-RoundedWindow
 {

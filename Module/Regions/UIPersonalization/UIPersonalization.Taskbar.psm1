@@ -1,12 +1,9 @@
-﻿using module ..\..\Logging.psm1
+using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
 <#
 	.SYNOPSIS
 	Internal function Ensure-TaskbarRegistryPath.
-
-	.DESCRIPTION
-	Internal implementation helper used by Baseline.
 #>
 
 function Ensure-TaskbarRegistryPath
@@ -214,13 +211,6 @@ function TaskbarWidgets
 
 	.NOTES
 	Current user
-#>
-<#
-    .SYNOPSIS
-    Internal function TaskbarSearch.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function TaskbarSearch
@@ -520,13 +510,6 @@ function TaskViewButton
 	.NOTES
 	Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function TaskbarCombine.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function TaskbarCombine
 {
@@ -642,13 +625,6 @@ function TaskbarCombine
 	.NOTES
 	Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function UnpinTaskbarShortcuts.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function UnpinTaskbarShortcuts
 {
@@ -673,9 +649,6 @@ function UnpinTaskbarShortcuts
 	<#
 	    .SYNOPSIS
 	    Internal function Get-TaskbarPinnedItems.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-TaskbarPinnedItems
@@ -697,9 +670,6 @@ function UnpinTaskbarShortcuts
 	<#
 	    .SYNOPSIS
 	    Internal function Get-TaskbarPinnedMatches.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-TaskbarPinnedMatches
@@ -733,9 +703,6 @@ function UnpinTaskbarShortcuts
 	<#
 	    .SYNOPSIS
 	    Internal function Invoke-TaskbarUnpin.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Invoke-TaskbarUnpin
@@ -782,9 +749,6 @@ function UnpinTaskbarShortcuts
 	<#
 	    .SYNOPSIS
 	    Internal function Remove-TaskbarPinnedLink.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Remove-TaskbarPinnedLink
@@ -816,9 +780,6 @@ function UnpinTaskbarShortcuts
 	<#
 	    .SYNOPSIS
 	    Internal function Invoke-TaskbarUnpinWithFallback.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Invoke-TaskbarUnpinWithFallback
@@ -840,9 +801,6 @@ function UnpinTaskbarShortcuts
 	<#
 	    .SYNOPSIS
 	    Internal function Remove-TaskbarPinnedLinksByPattern.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Remove-TaskbarPinnedLinksByPattern
@@ -895,9 +853,6 @@ function UnpinTaskbarShortcuts
 	<#
 	    .SYNOPSIS
 	    Internal function Invoke-ARM64ShellUnpin.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Invoke-ARM64ShellUnpin

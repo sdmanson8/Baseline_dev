@@ -1,12 +1,9 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
     <#
         .SYNOPSIS
         Internal function Test-GuiObjectField.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Test-GuiObjectField { param([object]$Object, [string]$FieldName) if ($null -eq $Object) { return $false }; if ($Object -is [System.Collections.IDictionary]) { return $Object.Contains($FieldName) }; return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName]) }
@@ -44,9 +41,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Get-SelectedTweakRunList.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Get-SelectedTweakRunList {
@@ -56,9 +50,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Get-ManifestEntryByFunction {
         param (
@@ -72,9 +63,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Get-GameModePlan {
         return @($script:GameModePlan)
@@ -83,9 +71,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Update-GameModeStatusText.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Update-GameModeStatusText {
@@ -119,9 +104,6 @@ Describe 'Game Mode plan merge' {
         <#
             .SYNOPSIS
             Internal function Get-UxLocalizedString.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Get-UxLocalizedString {
@@ -274,9 +256,6 @@ Describe 'Set-GameModeProfile' {
         <#
             .SYNOPSIS
             Internal function Import-GameModeAdvancedData.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Import-GameModeAdvancedData {
@@ -286,9 +265,6 @@ Describe 'Set-GameModeProfile' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Get-UxLocalizedString {
             param (
@@ -302,9 +278,6 @@ Describe 'Set-GameModeProfile' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogInfo {
             param ([string]$Message)
@@ -313,9 +286,6 @@ Describe 'Set-GameModeProfile' {
         <#
             .SYNOPSIS
             Internal function Get-GameModeDecisionOverridesText.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Get-GameModeDecisionOverridesText {

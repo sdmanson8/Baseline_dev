@@ -114,13 +114,6 @@ function LockScreen
 	.NOTES
 	Machine-wide
 #>
-<#
-    .SYNOPSIS
-    Internal function LockScreenRS1.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function LockScreenRS1
 {
@@ -228,9 +221,6 @@ function LockScreenRS1
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function LockScreenBlur
 {
@@ -294,9 +284,6 @@ function LockScreenBlur
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function NetworkFromLockScreen
 {
@@ -360,9 +347,6 @@ function NetworkFromLockScreen
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function ShutdownFromLockScreen
 {

@@ -1,4 +1,4 @@
-﻿	#region Theme toggle handler
+	#region Theme toggle handler
 	Register-GuiEventHandler -Source $ChkTheme -EventName 'Checked' -Handler ({
 		Invoke-CapturedFunction -Name 'Set-GUITheme' -Parameters @{ Theme = $Script:LightTheme }
 	}) | Out-Null
@@ -133,7 +133,14 @@
 
 		if ($previewResult -and $previewResult -eq (& $getUxRunActionLabelCommand))
 		{
-			& $startGuiExecutionRunCommand -TweakList $tweakList -Mode 'Run' -ExecutionTitle $(if (& $testIsGameModeRunCommand -TweakList $tweakList) { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunningGameMode' -Fallback 'Running Game Mode Workflow' } else { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunning' -Fallback 'Running Selected Tweaks' })
+			try
+			{
+				& $startGuiExecutionRunCommand -TweakList $tweakList -Mode 'Run' -ExecutionTitle $(if (& $testIsGameModeRunCommand -TweakList $tweakList) { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunningGameMode' -Fallback 'Running Game Mode Workflow' } else { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunning' -Fallback 'Running Selected Tweaks' })
+			}
+			catch
+			{
+				$null = & $Script:ShowGuiRuntimeFailureScript -Context 'BtnPreviewRun' -Exception $_.Exception -ShowDialog
+			}
 			return
 		}
 	}) | Out-Null
@@ -197,7 +204,14 @@
 			# Restore point creation is now handled by the pre-flight checks system.
 			# See Test-PreflightRestorePointCreation in PreflightChecks.ps1.
 
-			& $startGuiExecutionRunCommand -TweakList $tweakList -Mode 'Run' -ExecutionTitle $(if (& $testIsGameModeRunCommand -TweakList $tweakList) { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunningGameMode' -Fallback 'Running Game Mode Workflow' } else { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunning' -Fallback 'Running Selected Tweaks' })
+			try
+			{
+				& $startGuiExecutionRunCommand -TweakList $tweakList -Mode 'Run' -ExecutionTitle $(if (& $testIsGameModeRunCommand -TweakList $tweakList) { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunningGameMode' -Fallback 'Running Game Mode Workflow' } else { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunning' -Fallback 'Running Selected Tweaks' })
+			}
+			catch
+			{
+				$null = & $Script:ShowGuiRuntimeFailureScript -Context 'BtnRun' -Exception $_.Exception -ShowDialog
+			}
 		}) | Out-Null
 
 		if ($BtnUpdateAllApps)
@@ -210,7 +224,14 @@
 						-Buttons @('Cancel', 'Update All') `
 						-AccentButton 'Update All'
 					if ($confirmation -ne 'Update All') { return }
-					& $startAppsModuleActionAsyncCommand -Action 'UpdateAll'
+					try
+					{
+						& $startAppsModuleActionAsyncCommand -Action 'UpdateAll'
+					}
+					catch
+					{
+						$null = & $Script:ShowGuiRuntimeFailureScript -Context 'BtnUpdateAllApps' -Exception $_.Exception -ShowDialog
+					}
 				}
 			}) | Out-Null
 		}
@@ -267,7 +288,14 @@
 		{
 			Register-GuiEventHandler -Source $BtnScanInstalledApps -EventName 'Click' -Handler ({
 				if (-not $Script:AppsModeActive) { return }
-				& $startAppsCacheRefreshCommand
+				try
+				{
+					& $startAppsCacheRefreshCommand
+				}
+				catch
+				{
+					$null = & $Script:ShowGuiRuntimeFailureScript -Context 'BtnScanInstalledApps' -Exception $_.Exception -ShowDialog
+				}
 			}) | Out-Null
 		}
 
@@ -312,7 +340,14 @@
 				return
 			}
 
-			& $startGuiExecutionRunCommand -TweakList $defaultsTweakList -Mode 'Defaults' -ExecutionTitle (& $getUxLocalizedStringCapture -Key 'GuiExecTitleRestoringDefaults' -Fallback 'Restoring Windows Defaults')
+			try
+			{
+				& $startGuiExecutionRunCommand -TweakList $defaultsTweakList -Mode 'Defaults' -ExecutionTitle (& $getUxLocalizedStringCapture -Key 'GuiExecTitleRestoringDefaults' -Fallback 'Restoring Windows Defaults')
+			}
+			catch
+			{
+				$null = & $Script:ShowGuiRuntimeFailureScript -Context 'BtnDefaults' -Exception $_.Exception -ShowDialog
+			}
 		}) | Out-Null
 
 	# Per-page "Reset to defaults" buttons.
@@ -348,9 +383,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Invoke-PageResetToDefaults.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Invoke-PageResetToDefaults
@@ -496,9 +528,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Sync-UxActionButtonText.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Sync-UxActionButtonText
@@ -565,9 +594,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-RunPathContextLabel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-RunPathContextLabel

@@ -11,9 +11,6 @@
 <#
     .SYNOPSIS
     Internal function Test-SystemCompliance.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-SystemCompliance
@@ -224,9 +221,6 @@ function Test-SystemCompliance
 <#
     .SYNOPSIS
     Internal function Get-DriftedEntries.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-DriftedEntries
@@ -252,9 +246,6 @@ function Get-DriftedEntries
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-ComplianceFixList
 {
@@ -369,9 +360,6 @@ function Get-ComplianceFixList
 <#
     .SYNOPSIS
     Internal function Export-ComplianceReport.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Export-ComplianceReport

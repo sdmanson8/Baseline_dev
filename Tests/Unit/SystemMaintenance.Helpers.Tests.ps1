@@ -11,26 +11,17 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Remove-HandledErrorRecord.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Remove-HandledErrorRecord {}
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Get-WinEvent {}
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function LogWarning { param([string]$Message) $script:lastSystemMaintenanceWarning = $Message }
 }

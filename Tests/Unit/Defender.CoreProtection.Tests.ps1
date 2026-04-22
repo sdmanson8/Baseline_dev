@@ -29,9 +29,6 @@ Describe 'DNSoverHTTPS' {
         <#
             .SYNOPSIS
             Internal function Write-ConsoleStatus.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Write-ConsoleStatus {
@@ -51,9 +48,6 @@ Describe 'DNSoverHTTPS' {
         <#
             .SYNOPSIS
             Internal function LogInfo.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function LogInfo {
@@ -64,9 +58,6 @@ Describe 'DNSoverHTTPS' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogWarning {
             param([string]$Message)
@@ -76,9 +67,6 @@ Describe 'DNSoverHTTPS' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogError {
             param([string]$Message)
@@ -88,9 +76,6 @@ Describe 'DNSoverHTTPS' {
         <#
             .SYNOPSIS
             Internal function Get-CimInstance.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Get-CimInstance {
@@ -104,9 +89,6 @@ Describe 'DNSoverHTTPS' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Get-NetAdapter {
             param([switch]$Physical)
@@ -119,9 +101,6 @@ Describe 'DNSoverHTTPS' {
         <#
             .SYNOPSIS
             Internal function Set-DnsClientServerAddress.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Set-DnsClientServerAddress {
@@ -146,9 +125,6 @@ Describe 'DNSoverHTTPS' {
         <#
             .SYNOPSIS
             Internal function Test-Path.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Test-Path {
@@ -160,9 +136,6 @@ Describe 'DNSoverHTTPS' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function New-Item {
             param(
@@ -177,9 +150,6 @@ Describe 'DNSoverHTTPS' {
         <#
             .SYNOPSIS
             Internal function New-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function New-ItemProperty {
@@ -203,9 +173,6 @@ Describe 'DNSoverHTTPS' {
         <#
             .SYNOPSIS
             Internal function Set-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Set-ItemProperty {
@@ -226,9 +193,6 @@ Describe 'DNSoverHTTPS' {
         <#
             .SYNOPSIS
             Internal function Remove-Item.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Remove-Item {
@@ -247,9 +211,6 @@ Describe 'DNSoverHTTPS' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Clear-DnsClientCache {
             param([object]$ErrorAction)
@@ -260,9 +221,6 @@ Describe 'DNSoverHTTPS' {
         <#
             .SYNOPSIS
             Internal function Register-DnsClient.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Register-DnsClient {
@@ -274,9 +232,6 @@ Describe 'DNSoverHTTPS' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Get-ChildItem {
             param(

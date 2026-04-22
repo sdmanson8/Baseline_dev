@@ -8,9 +8,6 @@
 <#
     .SYNOPSIS
     Internal function New-BaselineOperatorPolicy.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-BaselineOperatorPolicy
@@ -46,9 +43,6 @@ function New-BaselineOperatorPolicy
 <#
     .SYNOPSIS
     Internal function Test-BaselineOperatorChangeWindow.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-BaselineOperatorChangeWindow
@@ -100,9 +94,6 @@ function Test-BaselineOperatorChangeWindow
 <#
     .SYNOPSIS
     Internal function Test-BaselineKillSwitch.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-BaselineKillSwitch
@@ -121,9 +112,6 @@ function Test-BaselineKillSwitch
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Invoke-BaselineKillSwitch
 {
@@ -153,9 +141,6 @@ function Invoke-BaselineKillSwitch
 <#
     .SYNOPSIS
     Internal function Clear-BaselineKillSwitch.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Clear-BaselineKillSwitch
@@ -173,9 +158,6 @@ function Clear-BaselineKillSwitch
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Test-BaselineOperatorRunPolicy
 {
@@ -299,9 +281,6 @@ function Test-BaselineOperatorRunPolicy
 <#
     .SYNOPSIS
     Internal function Format-BaselineOperatorPolicyDecision.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Format-BaselineOperatorPolicyDecision

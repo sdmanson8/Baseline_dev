@@ -45,9 +45,6 @@ function Get-BaselineEnterpriseActionMaturityCatalogData
 <#
     .SYNOPSIS
     Internal function Get-BaselineFeatureMaturityLevels.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineFeatureMaturityLevels
@@ -62,9 +59,6 @@ function Get-BaselineFeatureMaturityLevels
 <#
     .SYNOPSIS
     Internal function ConvertTo-BaselineFeatureMaturityLevel.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-BaselineFeatureMaturityLevel
@@ -101,9 +95,6 @@ function ConvertTo-BaselineFeatureMaturityLevel
 <#
     .SYNOPSIS
     Internal function Get-BaselineFeatureMaturityRank.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineFeatureMaturityRank
@@ -128,9 +119,6 @@ function Get-BaselineFeatureMaturityRank
 <#
     .SYNOPSIS
     Internal function Test-BaselineFeatureMaturityAtLeast.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-BaselineFeatureMaturityAtLeast
@@ -153,9 +141,6 @@ function Test-BaselineFeatureMaturityAtLeast
 <#
     .SYNOPSIS
     Internal function Get-BaselineEnterpriseActionMaturityCatalog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineEnterpriseActionMaturityCatalog
@@ -184,9 +169,6 @@ function Get-BaselineEnterpriseActionMaturityCatalog
 <#
     .SYNOPSIS
     Internal function Test-BaselineEnterpriseActionMaturityGate.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-BaselineEnterpriseActionMaturityGate
@@ -241,9 +223,6 @@ function Test-BaselineEnterpriseActionMaturityGate
 <#
     .SYNOPSIS
     Internal function Get-BaselineFeatureMaturityReport.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineFeatureMaturityReport

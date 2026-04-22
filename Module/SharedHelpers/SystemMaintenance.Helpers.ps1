@@ -3,9 +3,6 @@
 <#
     .SYNOPSIS
     Internal function Test-Windows11SmbDuplicateSidIssue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-Windows11SmbDuplicateSidIssue
@@ -38,9 +35,6 @@ function Test-Windows11SmbDuplicateSidIssue
 <#
     .SYNOPSIS
     Internal function Get-MinimumRecommendedMemoryCompressionRamGB.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-MinimumRecommendedMemoryCompressionRamGB
@@ -52,9 +46,6 @@ function Get-MinimumRecommendedMemoryCompressionRamGB
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Invoke-AdditionalServiceOptimizations
 {

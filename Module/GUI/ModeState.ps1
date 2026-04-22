@@ -7,9 +7,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-SafeModeState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-SafeModeState
@@ -101,9 +98,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-AdvancedModeState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-AdvancedModeState

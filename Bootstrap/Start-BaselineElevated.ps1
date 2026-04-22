@@ -26,9 +26,6 @@ $ErrorActionPreference = 'Stop'
 <#
     .SYNOPSIS
     Internal function New-BaselineLauncherArgumentList.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-BaselineLauncherArgumentList
@@ -49,9 +46,6 @@ function New-BaselineLauncherArgumentList
 <#
     .SYNOPSIS
     Internal function Start-BaselineElevated.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Start-BaselineElevated

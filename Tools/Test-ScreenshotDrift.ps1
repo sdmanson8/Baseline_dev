@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Validates screenshot manifest freshness and flags potentially stale screenshots.
 
@@ -56,9 +56,6 @@ $warned = 0
 <#
     .SYNOPSIS
     Internal function Write-DriftResult.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-DriftResult

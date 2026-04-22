@@ -57,9 +57,6 @@ function ConvertTo-NormalizedVersion
 <#
     .SYNOPSIS
     Internal function Get-InstalledVCRedistVersion.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-InstalledVCRedistVersion
@@ -99,9 +96,6 @@ function Get-InstalledVCRedistVersion
 <#
     .SYNOPSIS
     Internal function Get-InstalledDotNetRuntimeVersion.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-InstalledDotNetRuntimeVersion
@@ -147,9 +141,6 @@ function Get-InstalledDotNetRuntimeVersion
 <#
     .SYNOPSIS
     Internal function Get-LatestDotNetRuntimeRelease.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-LatestDotNetRuntimeRelease
@@ -203,9 +194,6 @@ function Get-LatestDotNetRuntimeRelease
 <#
     .SYNOPSIS
     Internal function Install-VCRedist.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Install-VCRedist

@@ -1,4 +1,4 @@
-﻿<#
+<#
 	.SYNOPSIS
 	Generate curated preset JSON files from manifest metadata.
 
@@ -100,9 +100,6 @@ $balancedAllowedTiers = @('Minimal', 'Safe', 'Basic', 'Balanced')
 <#
     .SYNOPSIS
     Internal function Expand-ManifestRecords.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Expand-ManifestRecords
@@ -144,9 +141,6 @@ $manifest = @(Expand-ManifestRecords -Value (Import-TweakManifestFromData))
 <#
     .SYNOPSIS
     Internal function Test-TweakField.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-TweakField
@@ -172,9 +166,6 @@ function Test-TweakField
 <#
     .SYNOPSIS
     Internal function Get-TweakFieldValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-TweakFieldValue
@@ -200,9 +191,6 @@ function Get-TweakFieldValue
 <#
     .SYNOPSIS
     Internal function Get-PresetCommandLine.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-PresetCommandLine
@@ -217,9 +205,6 @@ function Get-PresetCommandLine
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function ConvertTo-PresetParameterName
 	{
@@ -242,9 +227,6 @@ function Get-PresetCommandLine
 	<#
 	    .SYNOPSIS
 	    Internal function ConvertTo-PresetArgumentText.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function ConvertTo-PresetArgumentText
@@ -284,9 +266,6 @@ function Get-PresetCommandLine
 	<#
 	    .SYNOPSIS
 	    Internal function Get-PresetExtraArgumentFragments.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-PresetExtraArgumentFragments
@@ -428,9 +407,6 @@ function Get-PresetCommandLine
 <#
     .SYNOPSIS
     Internal function Test-PresetEntryIncluded.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-PresetEntryIncluded

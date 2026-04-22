@@ -1,4 +1,4 @@
-﻿using module ..\Logging.psm1
+using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 #region UWP apps
@@ -95,13 +95,6 @@ function BackgroundApps
 
 	.NOTES
 	Machine-wide
-#>
-<#
-    .SYNOPSIS
-    Internal function Copilot.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Copilot
@@ -334,13 +327,6 @@ The Copilot sidebar extension will be blocked via extension blocklist.
 First run experience and insider promotions will be hidden.
 These changes apply system-wide and may affect all Edge user profiles.
 #>
-<#
-    .SYNOPSIS
-    Internal function EdgeDebloat.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function EdgeDebloat
 {
@@ -514,13 +500,6 @@ This will completely disable Windows notifications.
 You will not receive app alerts, system warnings, reminders, or calendar events.
 The notification tray and calendar flyout will not function.
 #>
-<#
-    .SYNOPSIS
-    Internal function Notifications.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function Notifications
 {
@@ -580,13 +559,6 @@ Current user
 
 .CAUTION
 Reverting the Start Menu may break future Windows updates that depend on the new layout.
-#>
-<#
-    .SYNOPSIS
-    Internal function RevertStartMenu.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function RevertStartMenu
@@ -774,13 +746,6 @@ function RevertStartMenu
 	.NOTES
 	Use `-ForAllUsers` for machine-wide package provisioning changes where supported
 #>
-<#
-    .SYNOPSIS
-    Internal function UWPApps.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function UWPApps
 {
@@ -840,9 +805,6 @@ function UWPApps
 	<#
 	    .SYNOPSIS
 	    Internal function Request-GuiUWPAppsSelection.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Request-GuiUWPAppsSelection
@@ -906,9 +868,6 @@ function UWPApps
 		<#
 		    .SYNOPSIS
 		    Internal function Set-UWPAppsExecutionResult.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Set-UWPAppsExecutionResult
@@ -934,9 +893,6 @@ function UWPApps
 		<#
 		    .SYNOPSIS
 		    Internal function Set-UWPAppsPickerSurface.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Set-UWPAppsPickerSurface
@@ -1254,9 +1210,6 @@ function UWPApps
             <#
                 .SYNOPSIS
                 Internal function Get-MissingAppxPackages.
-
-                .DESCRIPTION
-                Internal implementation helper used by Baseline.
             #>
 
             function Get-MissingAppxPackages
@@ -1348,9 +1301,6 @@ function UWPApps
             <#
                 .SYNOPSIS
                 Internal function CheckBoxForAllUsersClick.
-
-                .DESCRIPTION
-                Internal implementation helper used by Baseline.
             #>
 
             function CheckBoxForAllUsersClick
@@ -1365,9 +1315,6 @@ function UWPApps
             <#
                 .SYNOPSIS
                 Internal function .
-
-                .DESCRIPTION
-                Internal implementation helper used by Baseline.
             #>
             function ButtonInstallClick
             {
@@ -1633,9 +1580,6 @@ function UWPApps
             <#
                 .SYNOPSIS
                 Internal function Add-Control.
-
-                .DESCRIPTION
-                Internal implementation helper used by Baseline.
             #>
 
             function Add-Control
@@ -1690,9 +1634,6 @@ function UWPApps
             <#
                 .SYNOPSIS
                 Internal function CheckBoxClick.
-
-                .DESCRIPTION
-                Internal implementation helper used by Baseline.
             #>
 
             function CheckBoxClick
@@ -1712,9 +1653,6 @@ function UWPApps
             <#
                 .SYNOPSIS
                 Internal function CheckBoxSelectAllClick.
-
-                .DESCRIPTION
-                Internal implementation helper used by Baseline.
             #>
 
             function CheckBoxSelectAllClick
@@ -1745,9 +1683,6 @@ function UWPApps
             <#
                 .SYNOPSIS
                 Internal function ButtonInstallSetIsEnabled.
-
-                .DESCRIPTION
-                Internal implementation helper used by Baseline.
             #>
 
             function ButtonInstallSetIsEnabled
@@ -2122,9 +2057,6 @@ function UWPApps
 			<#
 			    .SYNOPSIS
 			    Internal function Get-AppxBundle.
-
-			    .DESCRIPTION
-			    Internal implementation helper used by Baseline.
 			#>
 
 			function Get-AppxBundle
@@ -2191,9 +2123,6 @@ function UWPApps
 			<#
 			    .SYNOPSIS
 			    Internal function New-UwpAppsInfoIcon.
-
-			    .DESCRIPTION
-			    Internal implementation helper used by Baseline.
 			#>
 
 			function New-UwpAppsInfoIcon
@@ -2220,9 +2149,6 @@ function UWPApps
 			<#
 			    .SYNOPSIS
 			    Internal function Add-Control.
-
-			    .DESCRIPTION
-			    Internal implementation helper used by Baseline.
 			#>
 
 			function Add-Control
@@ -2343,9 +2269,6 @@ function UWPApps
 			<#
 			    .SYNOPSIS
 			    Internal function CheckBoxForAllUsersClick.
-
-			    .DESCRIPTION
-			    Internal implementation helper used by Baseline.
 			#>
 
 			function CheckBoxForAllUsersClick
@@ -2361,9 +2284,6 @@ function UWPApps
 			<#
 			    .SYNOPSIS
 			    Internal function .
-
-			    .DESCRIPTION
-			    Internal implementation helper used by Baseline.
 			#>
 			function ButtonUninstallClick
 			{
@@ -2495,9 +2415,6 @@ function UWPApps
 			<#
 			    .SYNOPSIS
 			    Internal function CheckBoxClick.
-
-			    .DESCRIPTION
-			    Internal implementation helper used by Baseline.
 			#>
 
 			function CheckBoxClick
@@ -2519,9 +2436,6 @@ function UWPApps
 			<#
 			    .SYNOPSIS
 			    Internal function CheckBoxSelectAllClick.
-
-			    .DESCRIPTION
-			    Internal implementation helper used by Baseline.
 			#>
 
 			function CheckBoxSelectAllClick
@@ -2566,9 +2480,6 @@ function UWPApps
 			<#
 			    .SYNOPSIS
 			    Internal function ButtonUninstallSetIsEnabled.
-
-			    .DESCRIPTION
-			    Internal implementation helper used by Baseline.
 			#>
 
 			function ButtonUninstallSetIsEnabled

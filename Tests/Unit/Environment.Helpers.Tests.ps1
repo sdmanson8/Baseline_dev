@@ -1,12 +1,9 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
     <#
         .SYNOPSIS
         Internal function Get-BaselineLocalizedString.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Get-BaselineLocalizedString {
@@ -27,9 +24,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Get-BaselineBilingualString.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Get-BaselineBilingualString {
@@ -50,26 +44,17 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function LogInfo.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function LogInfo { param([object]$Message) }
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function LogWarning { param([object]$Message) }
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function LogError { param([object]$Message) }
 
@@ -92,9 +77,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Set-DownloadSecurityProtocol { }
 }
@@ -168,6 +150,13 @@ Describe 'Compare-BaselineReleaseVersions' {
 
     It 'normalizes display-version prerelease text in parentheses' {
         (Compare-BaselineReleaseVersions -LeftVersion 'v4.0.0 (beta)' -RightVersion 'v4.0.0-beta') | Should -Be 0
+    }
+}
+
+Describe 'Show-BootstrapLoadingSplash' {
+    It 'shows the splash in the taskbar when minimized' {
+        $script:EnvironmentHelpersContent | Should -Match 'ShowInTaskbar="True"'
+        $script:EnvironmentHelpersContent | Should -Not -Match 'ShowInTaskbar="False"'
     }
 }
 

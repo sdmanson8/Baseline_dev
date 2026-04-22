@@ -4,18 +4,12 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Test-GuiObjectField.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Test-GuiObjectField { param([object]$Object, [string]$FieldName) if ($null -eq $Object) { return $false }; if ($Object -is [System.Collections.IDictionary]) { return $Object.Contains($FieldName) }; return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName]) }
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Get-GuiObjectField { param([object]$Object, [string]$FieldName) if ($null -eq $Object) { return $null }; if ($Object -is [System.Collections.IDictionary]) { return $Object[$FieldName] }; if ($Object.PSObject -and $Object.PSObject.Properties[$FieldName]) { return $Object.PSObject.Properties[$FieldName].Value }; return $null }
     $filePath = Join-Path $PSScriptRoot '../../Module/GUI/TweakRowFactory.ps1'
@@ -32,9 +26,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Get-GameModePlan {
         return @($script:TestGameModePlan)
@@ -43,9 +34,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Get-GuiExplicitSelectionDefinition.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Get-GuiExplicitSelectionDefinition {

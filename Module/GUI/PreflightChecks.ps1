@@ -4,9 +4,6 @@
 <#
     .SYNOPSIS
     Internal function New-PreflightCheckResult.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-PreflightCheckResult
@@ -345,9 +342,6 @@ function Get-BaselineRiskCategorySummaryText
 <#
     .SYNOPSIS
     Internal function Get-BaselinePreflightContract.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselinePreflightContract
@@ -455,9 +449,6 @@ function Get-BaselinePreflightContract
 <#
     .SYNOPSIS
     Internal function Test-PreflightAdminElevation.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-PreflightAdminElevation
@@ -483,9 +474,6 @@ function Test-PreflightAdminElevation
 <#
     .SYNOPSIS
     Internal function Test-PreflightDiskSpace.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-PreflightDiskSpace
@@ -512,9 +500,6 @@ function Test-PreflightDiskSpace
 <#
     .SYNOPSIS
     Internal function Test-PreflightVSS.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-PreflightVSS
@@ -541,9 +526,6 @@ function Test-PreflightVSS
 <#
     .SYNOPSIS
     Internal function Test-PreflightEventLog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-PreflightEventLog
@@ -566,9 +548,6 @@ function Test-PreflightEventLog
 <#
     .SYNOPSIS
     Internal function Test-PreflightWMI.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-PreflightWMI
@@ -587,9 +566,6 @@ function Test-PreflightWMI
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Test-PreflightSystemRestore
 {
@@ -630,9 +606,6 @@ function Test-PreflightSystemRestore
 <#
     .SYNOPSIS
     Internal function Test-PreflightManagedPolicyEnvironment.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-PreflightManagedPolicyEnvironment
@@ -707,9 +680,6 @@ function Test-PreflightManagedPolicyEnvironment
 <#
     .SYNOPSIS
     Internal function Test-PreflightPendingReboot.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-PreflightPendingReboot
@@ -756,9 +726,6 @@ function Test-PreflightPendingReboot
 <#
     .SYNOPSIS
     Internal function Test-PreflightWinRMReachability.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-PreflightWinRMReachability
@@ -821,9 +788,6 @@ function Test-PreflightWinRMReachability
 <#
     .SYNOPSIS
     Internal function Test-PreflightRestorePointCreation.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-PreflightRestorePointCreation
@@ -852,9 +816,6 @@ function Test-PreflightRestorePointCreation
 <#
     .SYNOPSIS
     Internal function Invoke-PreflightChecks.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-PreflightChecks
@@ -906,9 +867,6 @@ function Invoke-PreflightChecks
 <#
     .SYNOPSIS
     Internal function Show-PreflightResultsDialog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Show-PreflightResultsDialog

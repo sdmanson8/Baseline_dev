@@ -1,9 +1,6 @@
-﻿<#
+<#
     .SYNOPSIS
     Internal function Add-GuiPopupWindowChrome.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Add-GuiPopupWindowChrome
 {
@@ -372,9 +369,6 @@ function Add-GuiPopupWindowChrome
 <#
     .SYNOPSIS
     Internal function Register-GuiPopupThemeWindow.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Register-GuiPopupThemeWindow
 {
@@ -457,9 +451,6 @@ function Register-GuiPopupThemeWindow
 <#
     .SYNOPSIS
     Internal function Set-GuiPopupWindowProgress.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Set-GuiPopupWindowProgress
 {
@@ -533,9 +524,6 @@ function Set-GuiPopupWindowProgress
 <#
     .SYNOPSIS
     Internal function Set-GuiPopupWindowTheme.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Set-GuiPopupWindowTheme
 {
@@ -687,9 +675,6 @@ function Set-GuiPopupWindowTheme
 <#
     .SYNOPSIS
     Internal function Update-GuiPopupWindowThemes.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Update-GuiPopupWindowThemes
 {
@@ -752,9 +737,6 @@ function Update-GuiPopupWindowThemes
 <#
     .SYNOPSIS
     Internal function Start-GuiPopupCommandAsync.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Start-GuiPopupCommandAsync
 {

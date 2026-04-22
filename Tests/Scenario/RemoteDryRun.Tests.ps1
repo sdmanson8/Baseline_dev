@@ -16,9 +16,6 @@ BeforeAll {
         <#
             .SYNOPSIS
             Internal function Global.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Global:Get-UxLocalizedString { param([string]$Key, [string]$Fallback = $Key) return $Fallback }

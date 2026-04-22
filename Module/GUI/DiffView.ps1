@@ -1,4 +1,4 @@
-﻿# ──────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────
 # DiffView.ps1
 # Visual diff dialog showing "Current State -> After Run" for each
 # selected tweak.  Dot-sourced inside Show-TweakGUI so all $Script:
@@ -8,9 +8,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Build-TweakDiffData.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Build-TweakDiffData
@@ -210,9 +207,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-DiffViewDialog.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-DiffViewDialog
@@ -710,9 +704,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-DiffViewFromSelection.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-DiffViewFromSelection

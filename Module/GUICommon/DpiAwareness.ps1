@@ -1,9 +1,6 @@
-﻿<#
+<#
     .SYNOPSIS
     Internal function Initialize-GuiDpiAwareness.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Initialize-GuiDpiAwareness
 {

@@ -3,9 +3,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Set-GuiControlProperty.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-GuiControlProperty
@@ -88,9 +85,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-ScopedGuiRuntimeFailure.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-ScopedGuiRuntimeFailure
@@ -138,9 +132,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Invoke-GuiSafeAction.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Invoke-GuiSafeAction
@@ -174,9 +165,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Ensure-GuiEventHandlerStore.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Ensure-GuiEventHandlerStore
@@ -190,9 +178,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-GuiEventAccessorMethod
 	{
@@ -230,9 +215,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Register-GuiEventHandler.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Register-GuiEventHandler
@@ -340,9 +322,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function Unregister-GuiEventHandler.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Unregister-GuiEventHandler
@@ -382,9 +361,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function Unregister-GuiEventHandlers.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function Unregister-GuiEventHandlers
@@ -418,9 +394,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiRuntimeCommand.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiRuntimeCommand
@@ -463,9 +436,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiFunctionCapture.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiFunctionCapture
@@ -520,9 +490,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Invoke-CapturedFunction.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Invoke-CapturedFunction
@@ -573,9 +540,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Clear-GuiWindowRuntimeState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Clear-GuiWindowRuntimeState

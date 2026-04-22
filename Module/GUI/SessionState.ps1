@@ -3,9 +3,6 @@
 <#
     .SYNOPSIS
     Internal function Resolve-GuiModePreference.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-GuiModePreference
@@ -40,9 +37,6 @@ function Resolve-GuiModePreference
 <#
     .SYNOPSIS
     Internal function Get-GuiRemoteTargetContext.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiRemoteTargetContext
@@ -91,9 +85,6 @@ function Get-GuiRemoteTargetContext
 <#
     .SYNOPSIS
     Internal function Test-GuiRemoteTargetConnected.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-GuiRemoteTargetConnected
@@ -105,9 +96,6 @@ function Test-GuiRemoteTargetConnected
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Set-GuiRemoteTargetContext
 {
@@ -151,9 +139,6 @@ function Set-GuiRemoteTargetContext
 <#
     .SYNOPSIS
     Internal function Clear-GuiRemoteTargetContext.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Clear-GuiRemoteTargetContext
@@ -188,9 +173,6 @@ function Clear-GuiRemoteTargetContext
 <#
     .SYNOPSIS
     Internal function Prompt-GuiRemoteTargetConnection.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Prompt-GuiRemoteTargetConnection
@@ -251,9 +233,6 @@ function Prompt-GuiRemoteTargetConnection
 <#
     .SYNOPSIS
     Internal function Test-GuiRemoteTargetApproval.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-GuiRemoteTargetApproval
@@ -288,9 +267,6 @@ function Test-GuiRemoteTargetApproval
 <#
     .SYNOPSIS
     Internal function Set-GuiRemoteTargetApprovalList.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-GuiRemoteTargetApprovalList
@@ -324,9 +300,6 @@ function Set-GuiRemoteTargetApprovalList
 <#
     .SYNOPSIS
     Internal function Clear-GuiRemoteTargetApprovalList.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Clear-GuiRemoteTargetApprovalList
@@ -345,9 +318,6 @@ function Clear-GuiRemoteTargetApprovalList
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-GuiRemoteTargetPolicyDirectory
 {
@@ -372,9 +342,6 @@ function Get-GuiRemoteTargetPolicyDirectory
 <#
     .SYNOPSIS
     Internal function Export-GuiRemoteTargetApprovalPolicy.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Export-GuiRemoteTargetApprovalPolicy
@@ -423,9 +390,6 @@ function Export-GuiRemoteTargetApprovalPolicy
 <#
     .SYNOPSIS
     Internal function Import-GuiRemoteTargetApprovalPolicy.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Import-GuiRemoteTargetApprovalPolicy
@@ -482,9 +446,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 <#
     .SYNOPSIS
     Internal function Save-GuiUndoSnapshot.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Save-GuiUndoSnapshot
@@ -498,9 +459,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-GuiSettingsSnapshot
 	{
@@ -647,9 +605,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function Restore-GuiSettingsSnapshot.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Restore-GuiSettingsSnapshot
@@ -1112,9 +1067,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function Restore-GuiSnapshot.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Restore-GuiSnapshot
@@ -1150,9 +1102,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function Get-GuiSettingsProfileDirectory.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-GuiSettingsProfileDirectory
@@ -1164,9 +1113,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-GuiSessionStatePath
 	{
@@ -1177,9 +1123,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-GuiFirstRunWelcomeMarkerPath
 	{
@@ -1190,9 +1133,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function Test-GuiFirstRunWelcomePending.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-GuiFirstRunWelcomePending
@@ -1204,9 +1144,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Complete-GuiFirstRunWelcome
 	{
@@ -1234,9 +1171,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function Import-GuiLastRunProfile.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Import-GuiLastRunProfile
@@ -1263,9 +1197,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function Import-GuiInterruptedRunProfile.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Import-GuiInterruptedRunProfile
@@ -1292,9 +1223,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function Clear-GuiLastRunProfile.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Clear-GuiLastRunProfile
@@ -1319,9 +1247,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function Clear-GuiInterruptedRunProfile.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Clear-GuiInterruptedRunProfile
@@ -1346,9 +1271,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function Save-GuiInterruptedRunProfile.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Save-GuiInterruptedRunProfile
@@ -1393,9 +1315,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function Save-GuiSessionState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Save-GuiSessionState
@@ -1407,9 +1326,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Restore-GuiSessionState
 	{
@@ -1437,9 +1353,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function Export-GuiSettingsProfile.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Export-GuiSettingsProfile
@@ -1471,9 +1384,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 	<#
 	    .SYNOPSIS
 	    Internal function Import-GuiSettingsProfile.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Import-GuiSettingsProfile

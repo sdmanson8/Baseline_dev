@@ -50,9 +50,6 @@ $excludeGlobs = [string[]]@($manifest.excludeGlobs)
 <#
     .SYNOPSIS
     Internal function Convert-ToRelativePath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Convert-ToRelativePath {
@@ -68,9 +65,6 @@ function Convert-ToRelativePath {
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Test-AnyWildcardMatch {
     param(

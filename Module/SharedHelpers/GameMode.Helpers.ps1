@@ -10,9 +10,6 @@
 <#
     .SYNOPSIS
     Internal function Get-GameModeAllowlist.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GameModeAllowlist
@@ -46,9 +43,6 @@ function Get-GameModeAllowlist
 <#
     .SYNOPSIS
     Internal function Write-GameModeDataWarning.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-GameModeDataWarning
@@ -74,9 +68,6 @@ function Write-GameModeDataWarning
 <#
     .SYNOPSIS
     Internal function Read-GameModeJsonDataFile.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Read-GameModeJsonDataFile
@@ -125,9 +116,6 @@ function Read-GameModeJsonDataFile
 <#
     .SYNOPSIS
     Internal function Get-GameModeReviewedCrossCategoryAllowlist.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GameModeReviewedCrossCategoryAllowlist
@@ -143,9 +131,6 @@ function Get-GameModeReviewedCrossCategoryAllowlist
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Import-GameModeAllowlistData
 {
@@ -193,9 +178,6 @@ function Import-GameModeAllowlistData
 <#
     .SYNOPSIS
     Internal function Import-GameModeAdvancedData.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Import-GameModeAdvancedData
@@ -231,9 +213,6 @@ function Import-GameModeAdvancedData
 <#
     .SYNOPSIS
     Internal function Get-GameModeAdvancedFunctions.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GameModeAdvancedFunctions
@@ -256,9 +235,6 @@ function Get-GameModeAdvancedFunctions
 <#
     .SYNOPSIS
     Internal function Test-GameModeAdvancedProfileDefaultSelection.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-GameModeAdvancedProfileDefaultSelection
@@ -313,9 +289,6 @@ function Test-GameModeAdvancedProfileDefaultSelection
 <#
     .SYNOPSIS
     Internal function Resolve-GameModeAllowlistToggleParam.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-GameModeAllowlistToggleParam
@@ -372,9 +345,6 @@ function Resolve-GameModeAllowlistToggleParam
 <#
     .SYNOPSIS
     Internal function Get-GameModeEntryScopeCategory.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GameModeEntryScopeCategory
@@ -407,9 +377,6 @@ function Get-GameModeEntryScopeCategory
 <#
     .SYNOPSIS
     Internal function Test-GameModeAllowlistEntryReviewed.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-GameModeAllowlistEntryReviewed
@@ -442,9 +409,6 @@ function Test-GameModeAllowlistEntryReviewed
 <#
     .SYNOPSIS
     Internal function Test-GameModeProfileDefaultEligible.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-GameModeProfileDefaultEligible
@@ -489,9 +453,6 @@ function Test-GameModeProfileDefaultEligible
 <#
     .SYNOPSIS
     Internal function Test-GameModeManifestDefaultEnabled.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-GameModeManifestDefaultEnabled
@@ -545,9 +506,6 @@ function Test-GameModeManifestDefaultEnabled
 <#
     .SYNOPSIS
     Internal function Import-GameModeProfileData.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Import-GameModeProfileData
@@ -583,9 +541,6 @@ function Import-GameModeProfileData
 <#
     .SYNOPSIS
     Internal function Get-GameModeProfileDefinitions.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GameModeProfileDefinitions
@@ -597,9 +552,6 @@ function Get-GameModeProfileDefinitions
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-GameModeDecisionPromptKeyCatalog
 {
@@ -621,9 +573,6 @@ function Get-GameModeDecisionPromptKeyCatalog
 <#
     .SYNOPSIS
     Internal function Test-GameModeProfileDefaultSelection.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-GameModeProfileDefaultSelection
@@ -669,9 +618,6 @@ function Test-GameModeProfileDefaultSelection
 <#
     .SYNOPSIS
     Internal function Resolve-GameModeDecisionToggleParam.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-GameModeDecisionToggleParam
@@ -729,9 +675,6 @@ function Resolve-GameModeDecisionToggleParam
 <#
     .SYNOPSIS
     Internal function Test-GameModeDecisionPromptRequired.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-GameModeDecisionPromptRequired
@@ -763,9 +706,6 @@ function Test-GameModeDecisionPromptRequired
 <#
     .SYNOPSIS
     Internal function Get-GameModeDecisionPromptDefinition.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GameModeDecisionPromptDefinition
@@ -844,9 +784,6 @@ function Get-GameModeDecisionPromptDefinition
 <#
     .SYNOPSIS
     Internal function Get-GameModeDecisionPromptDefinitions.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GameModeDecisionPromptDefinitions
@@ -915,9 +852,6 @@ function Get-GameModeDecisionPromptDefinitions
 <#
     .SYNOPSIS
     Internal function Merge-GameModeSelectionState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Merge-GameModeSelectionState
@@ -1042,9 +976,6 @@ function Merge-GameModeSelectionState
 <#
     .SYNOPSIS
     Internal function Get-GameModeSelectionSet.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GameModeSelectionSet
@@ -1072,9 +1003,6 @@ function Get-GameModeSelectionSet
 <#
     .SYNOPSIS
     Internal function Get-GameModeDecisionOverridesText.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GameModeDecisionOverridesText
@@ -1106,9 +1034,6 @@ function Get-GameModeDecisionOverridesText
 <#
     .SYNOPSIS
     Internal function Get-GameModeProfilePlan.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GameModeProfilePlan
@@ -1185,9 +1110,6 @@ function Get-GameModeProfilePlan
 <#
     .SYNOPSIS
     Internal function Get-GameModeProfileCommandList.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GameModeProfileCommandList
@@ -1211,9 +1133,6 @@ function Get-GameModeProfileCommandList
 <#
     .SYNOPSIS
     Internal function Resolve-ValidatedGameModeDecisionOverrides.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-ValidatedGameModeDecisionOverrides

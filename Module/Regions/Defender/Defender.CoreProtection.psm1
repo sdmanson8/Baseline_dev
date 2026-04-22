@@ -512,13 +512,6 @@ function DismissSmartScreenFilter
 	.NOTES
 	Machine-wide
 #>
-<#
-    .SYNOPSIS
-    Internal function DNSoverHTTPS.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function DNSoverHTTPS
 {
@@ -656,9 +649,6 @@ function DNSoverHTTPS
 	<#
 	    .SYNOPSIS
 	    Internal function Get-DnsOverHttpsAdapterTargets.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-DnsOverHttpsAdapterTargets
@@ -680,9 +670,6 @@ function DNSoverHTTPS
 	<#
 	    .SYNOPSIS
 	    Internal function Get-DnsOverHttpsServerConfiguration.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-DnsOverHttpsServerConfiguration
@@ -708,9 +695,6 @@ function DNSoverHTTPS
 	<#
 	    .SYNOPSIS
 	    Internal function Set-DnsOverHttpsInterfaceRegistryValues.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-DnsOverHttpsInterfaceRegistryValues

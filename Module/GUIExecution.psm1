@@ -25,9 +25,6 @@ function Write-GuiExecutionCleanupWarning
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Update-GuiRunStateCounter
 {
@@ -52,9 +49,6 @@ function Update-GuiRunStateCounter
 <#
     .SYNOPSIS
     Internal function Get-GuiExecutionOutcome.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiExecutionOutcome
@@ -99,9 +93,6 @@ function Get-GuiExecutionOutcome
 <#
     .SYNOPSIS
     Internal function Test-GuiExecutionAppliedOutcome.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-GuiExecutionAppliedOutcome
@@ -116,9 +107,6 @@ function Test-GuiExecutionAppliedOutcome
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function New-GuiExecutionAppliedTweakMetadata
 {
@@ -166,9 +154,6 @@ function New-GuiExecutionAppliedTweakMetadata
 <#
     .SYNOPSIS
     Internal function Get-GuiExecutionSummaryPayload.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GuiExecutionSummaryPayload
@@ -234,9 +219,6 @@ function Get-GuiExecutionSummaryPayload
 <#
     .SYNOPSIS
     Internal function Start-GuiExecutionWorker.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Start-GuiExecutionWorker
@@ -566,9 +548,6 @@ function Start-GuiExecutionWorker
 <#
     .SYNOPSIS
     Internal function Start-GuiAppExecutionWorker.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Start-GuiAppExecutionWorker
@@ -823,9 +802,6 @@ function Start-GuiAppExecutionWorker
 <#
     .SYNOPSIS
     Internal function Request-GuiExecutionWorkerStop.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Request-GuiExecutionWorkerStop
@@ -862,9 +838,6 @@ function Request-GuiExecutionWorkerStop
 <#
     .SYNOPSIS
     Internal function Stop-GuiExecutionWorkerAsync.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Stop-GuiExecutionWorkerAsync
@@ -949,9 +922,6 @@ function Stop-GuiExecutionWorkerAsync
 <#
     .SYNOPSIS
     Internal function Stop-GuiExecutionWorker.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Stop-GuiExecutionWorker
@@ -1019,9 +989,6 @@ function Stop-GuiExecutionWorker
 <#
     .SYNOPSIS
     Internal function Complete-GuiExecutionWorker.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Complete-GuiExecutionWorker

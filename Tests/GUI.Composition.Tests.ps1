@@ -1,4 +1,4 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
     # Load WPF assemblies so types like [System.Windows.Controls.Button] resolve
@@ -11,9 +11,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Import-AstFunctions.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Import-AstFunctions {
@@ -37,9 +34,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Test-GuiObjectField.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Test-GuiObjectField {
@@ -51,9 +45,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Get-GuiObjectField {
         param([object]$Object, [string]$FieldName)
@@ -351,9 +342,6 @@ Describe 'Theme menu state (W-1g)' {
         <#
             .SYNOPSIS
             Internal function script.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function script:Get-UxLocalizedString {
@@ -407,9 +395,6 @@ Describe 'Safe Mode visibility (W-1h)' {
         <#
             .SYNOPSIS
             Internal function script.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function script:Get-UxLocalizedString {
@@ -431,9 +416,6 @@ Describe 'Safe Mode visibility (W-1h)' {
         <#
             .SYNOPSIS
             Internal function script.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function script:Test-GuiModeActive {
@@ -449,9 +431,6 @@ Describe 'Safe Mode visibility (W-1h)' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function script:Set-GuiMode {
             param([string]$ViewMode)
@@ -462,9 +441,6 @@ Describe 'Safe Mode visibility (W-1h)' {
         <#
             .SYNOPSIS
             Internal function script.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function script:Invoke-GuiStateTransition {
@@ -661,9 +637,6 @@ Describe 'Menu localization refresh (W-1j)' {
         <#
             .SYNOPSIS
             Internal function script.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function script:Get-UxLocalizedString {

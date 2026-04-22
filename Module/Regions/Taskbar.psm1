@@ -4,9 +4,6 @@ using module ..\SharedHelpers.psm1
 <#
     .SYNOPSIS
     Internal function Ensure-TaskbarRegistryPath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Ensure-TaskbarRegistryPath
@@ -28,9 +25,6 @@ function Ensure-TaskbarRegistryPath
 <#
     .SYNOPSIS
     Internal function NewsInterests.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function NewsInterests
@@ -106,9 +100,6 @@ function NewsInterests
 <#
     .SYNOPSIS
     Internal function TaskbarAlignment.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function TaskbarAlignment
@@ -172,9 +163,6 @@ function TaskbarAlignment
 <#
     .SYNOPSIS
     Internal function TaskbarWidgets.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function TaskbarWidgets
@@ -247,9 +235,6 @@ function TaskbarWidgets
 <#
     .SYNOPSIS
     Internal function TaskbarSearch.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function TaskbarSearch
@@ -365,9 +350,6 @@ function TaskbarSearch
 <#
     .SYNOPSIS
     Internal function SearchHighlights.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function SearchHighlights
@@ -434,9 +416,6 @@ function SearchHighlights
 <#
     .SYNOPSIS
     Internal function TaskViewButton.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function TaskViewButton
@@ -505,9 +484,6 @@ function TaskViewButton
 <#
     .SYNOPSIS
     Internal function TaskbarCombine.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function TaskbarCombine
@@ -599,9 +575,6 @@ function TaskbarCombine
 <#
     .SYNOPSIS
     Internal function UnpinTaskbarShortcuts.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function UnpinTaskbarShortcuts
@@ -914,9 +887,6 @@ function UnpinTaskbarShortcuts
 <#
     .SYNOPSIS
     Internal function TaskbarEndTask.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function TaskbarEndTask
@@ -981,9 +951,6 @@ function TaskbarEndTask
 <#
     .SYNOPSIS
     Internal function MeetNow.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function MeetNow

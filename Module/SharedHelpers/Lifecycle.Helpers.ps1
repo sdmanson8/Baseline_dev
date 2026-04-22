@@ -5,9 +5,6 @@
 <#
     .SYNOPSIS
     Internal function Get-BaselineLifecycleComparableVersion.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineLifecycleComparableVersion
@@ -52,9 +49,6 @@ function Get-BaselineLifecycleComparableVersion
 <#
     .SYNOPSIS
     Internal function Get-BaselineReleaseArtifactVerification.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineReleaseArtifactVerification
@@ -190,9 +184,6 @@ function Get-BaselineReleaseArtifactVerification
 <#
     .SYNOPSIS
     Internal function Assert-BaselineReleaseArtifactVerification.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Assert-BaselineReleaseArtifactVerification
@@ -230,9 +221,6 @@ function Assert-BaselineReleaseArtifactVerification
 <#
     .SYNOPSIS
     Internal function Import-BaselineRollbackProfile.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Import-BaselineRollbackProfile
@@ -280,9 +268,6 @@ function Import-BaselineRollbackProfile
 <#
     .SYNOPSIS
     Internal function New-BaselineLifecyclePlaybook.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-BaselineLifecyclePlaybook
@@ -400,9 +385,6 @@ function New-BaselineLifecyclePlaybook
 <#
     .SYNOPSIS
     Internal function Invoke-BaselineLifecyclePlaybook.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-BaselineLifecyclePlaybook
@@ -544,9 +526,6 @@ function Invoke-BaselineLifecyclePlaybook
 <#
     .SYNOPSIS
     Internal function New-BaselineIncidentReproductionPack.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-BaselineIncidentReproductionPack

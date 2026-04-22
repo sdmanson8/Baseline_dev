@@ -1,9 +1,6 @@
-﻿<#
+<#
     .SYNOPSIS
     Internal function Test-GuiObjectField.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Test-GuiObjectField
 {
@@ -16,9 +13,6 @@ function Test-GuiObjectField
 <#
     .SYNOPSIS
     Internal function Get-GuiObjectField.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-GuiObjectField
 {

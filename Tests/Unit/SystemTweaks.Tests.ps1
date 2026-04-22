@@ -34,9 +34,6 @@ Describe 'LanmanWorkstationGuestAuthPolicy' {
         <#
             .SYNOPSIS
             Internal function Write-ConsoleStatus.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Write-ConsoleStatus {
@@ -49,9 +46,6 @@ Describe 'LanmanWorkstationGuestAuthPolicy' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogInfo {
             param([string]$Message)
@@ -61,9 +55,6 @@ Describe 'LanmanWorkstationGuestAuthPolicy' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogError {
             param([string]$Message)
@@ -72,9 +63,6 @@ Describe 'LanmanWorkstationGuestAuthPolicy' {
         <#
             .SYNOPSIS
             Internal function Set-Policy.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Set-Policy {

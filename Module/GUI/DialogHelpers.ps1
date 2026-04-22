@@ -1,4 +1,4 @@
-﻿# ──────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────
 # DialogHelpers.ps1
 # Shared dialog builders and dialog-scoped UI helpers extracted from
 # Show-TweakGUI (GUI.psm1). Dot-sourced inside Show-TweakGUI so all
@@ -13,9 +13,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-BaselineScrollBarStyleXaml.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-BaselineScrollBarStyleXaml
@@ -128,9 +125,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Resolve-BaselineChangelogPath.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Resolve-BaselineChangelogPath
@@ -212,9 +206,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Resolve-BaselineReadmePath.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Resolve-BaselineReadmePath
@@ -295,10 +286,185 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-RiskDecisionDialog.
+	    Internal function Set-BaselineReadmeInlineTheme.
+	#>
 
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
+	function Set-BaselineReadmeInlineTheme
+	{
+		param(
+			[object]$Inline,
+			[System.Windows.Media.Brush]$TextPrimaryBrush,
+			[System.Windows.Media.Brush]$CodeBackgroundBrush,
+			[System.Windows.Media.Brush]$CodeForegroundBrush,
+			[System.Windows.Media.FontFamily]$MonoFont,
+			[bool]$WithinCodeBlock = $false
+		)
+
+		if (-not $Inline) { return }
+
+		$isCodeInline = (-not $WithinCodeBlock) -and $Inline.PSObject.Properties['Background'] -and ($null -ne $Inline.Background)
+		if ($WithinCodeBlock -or $isCodeInline)
+		{
+			if ($Inline.PSObject.Properties['Background'])
+			{
+				$Inline.Background = if ($WithinCodeBlock) { [System.Windows.Media.Brushes]::Transparent } else { $CodeBackgroundBrush }
+			}
+			if ($Inline.PSObject.Properties['Foreground'])
+			{
+				$Inline.Foreground = $CodeForegroundBrush
+			}
+			if ($Inline.PSObject.Properties['FontFamily'])
+			{
+				$Inline.FontFamily = $MonoFont
+			}
+		}
+		elseif ($Inline.PSObject.Properties['Foreground'])
+		{
+			$Inline.Foreground = $TextPrimaryBrush
+		}
+
+		if ($Inline.PSObject.Properties['Inlines'] -and $Inline.Inlines)
+		{
+			foreach ($childInline in @($Inline.Inlines))
+			{
+				Set-BaselineReadmeInlineTheme `
+					-Inline $childInline `
+					-TextPrimaryBrush $TextPrimaryBrush `
+					-CodeBackgroundBrush $CodeBackgroundBrush `
+					-CodeForegroundBrush $CodeForegroundBrush `
+					-MonoFont $MonoFont `
+					-WithinCodeBlock:$WithinCodeBlock
+			}
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Set-BaselineReadmeBlockTheme.
+	#>
+
+	function Set-BaselineReadmeBlockTheme
+	{
+		param(
+			[object]$Block,
+			[System.Windows.Media.Brush]$TextPrimaryBrush,
+			[System.Windows.Media.Brush]$CodeBackgroundBrush,
+			[System.Windows.Media.Brush]$CodeForegroundBrush,
+			[System.Windows.Media.Brush]$BorderBrush,
+			[System.Windows.Media.FontFamily]$MonoFont
+		)
+
+		if (-not $Block) { return }
+
+		$isCodeBlock = ($Block -is [System.Windows.Documents.Paragraph]) -and $Block.PSObject.Properties['Background'] -and ($null -ne $Block.Background)
+		if ($isCodeBlock)
+		{
+			$Block.Background = $CodeBackgroundBrush
+			$Block.Foreground = $CodeForegroundBrush
+			$Block.FontFamily = $MonoFont
+			if ($Block.PSObject.Properties['BorderBrush']) { $Block.BorderBrush = $BorderBrush }
+			if ($Block.PSObject.Properties['BorderThickness']) { $Block.BorderThickness = [System.Windows.Thickness]::new(1) }
+			if ($Block.PSObject.Properties['Padding']) { $Block.Padding = [System.Windows.Thickness]::new(8) }
+		}
+		elseif ($Block.PSObject.Properties['Foreground'])
+		{
+			$Block.Foreground = $TextPrimaryBrush
+		}
+
+		if ($Block -is [System.Windows.Documents.Paragraph])
+		{
+			foreach ($inline in @($Block.Inlines))
+			{
+				Set-BaselineReadmeInlineTheme `
+					-Inline $inline `
+					-TextPrimaryBrush $TextPrimaryBrush `
+					-CodeBackgroundBrush $CodeBackgroundBrush `
+					-CodeForegroundBrush $CodeForegroundBrush `
+					-MonoFont $MonoFont `
+					-WithinCodeBlock:$isCodeBlock
+			}
+		}
+
+		if ($Block.PSObject.Properties['Blocks'] -and $Block.Blocks)
+		{
+			foreach ($childBlock in @($Block.Blocks))
+			{
+				Set-BaselineReadmeBlockTheme `
+					-Block $childBlock `
+					-TextPrimaryBrush $TextPrimaryBrush `
+					-CodeBackgroundBrush $CodeBackgroundBrush `
+					-CodeForegroundBrush $CodeForegroundBrush `
+					-BorderBrush $BorderBrush `
+					-MonoFont $MonoFont
+			}
+		}
+
+		if ($Block -is [System.Windows.Documents.List])
+		{
+			foreach ($listItem in @($Block.ListItems))
+			{
+				foreach ($childBlock in @($listItem.Blocks))
+				{
+					Set-BaselineReadmeBlockTheme `
+						-Block $childBlock `
+						-TextPrimaryBrush $TextPrimaryBrush `
+						-CodeBackgroundBrush $CodeBackgroundBrush `
+						-CodeForegroundBrush $CodeForegroundBrush `
+						-BorderBrush $BorderBrush `
+						-MonoFont $MonoFont
+				}
+			}
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Set-BaselineReadmeFlowDocumentTheme.
+	#>
+
+	function Set-BaselineReadmeFlowDocumentTheme
+	{
+		param(
+			[System.Windows.Documents.FlowDocument]$Document,
+			[hashtable]$ActiveTheme,
+			[object]$BrushConverter,
+			[double]$ReadmeFontSize
+		)
+
+		if (-not $Document -or -not $ActiveTheme -or -not $BrushConverter) { return }
+
+		# Markdig.Wpf resolves its code styles during ToFlowDocument(), so changing
+		# resource keys after the document is created is too late. Force the final
+		# theme onto the rendered document directly so inline code and fenced blocks
+		# stay readable on both refresh and theme changes.
+		$textPrimaryBrush = $BrushConverter.ConvertFromString($ActiveTheme.TextPrimary)
+		$codeBackgroundBrush = $BrushConverter.ConvertFromString($ActiveTheme.HeaderBg)
+		$codeForegroundBrush = $BrushConverter.ConvertFromString($ActiveTheme.TextPrimary)
+		$borderBrush = $BrushConverter.ConvertFromString($ActiveTheme.BorderColor)
+		$monoFont = [System.Windows.Media.FontFamily]::new('Consolas, Courier New')
+		$uiFont = [System.Windows.Media.FontFamily]::new('Segoe UI')
+
+		$Document.Background = [System.Windows.Media.Brushes]::Transparent
+		$Document.Foreground = $textPrimaryBrush
+		$Document.PagePadding = [System.Windows.Thickness]::new(0)
+		$Document.FontFamily = $uiFont
+		$Document.FontSize = [double]$ReadmeFontSize
+
+		foreach ($topLevelBlock in @($Document.Blocks))
+		{
+			Set-BaselineReadmeBlockTheme `
+				-Block $topLevelBlock `
+				-TextPrimaryBrush $textPrimaryBrush `
+				-CodeBackgroundBrush $codeBackgroundBrush `
+				-CodeForegroundBrush $codeForegroundBrush `
+				-BorderBrush $borderBrush `
+				-MonoFont $monoFont
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Show-RiskDecisionDialog.
 	#>
 
 	function Show-RiskDecisionDialog
@@ -328,9 +494,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-GuiSettingsImportDialog.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-GuiSettingsImportDialog
@@ -554,9 +717,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-GuiAuditSettingsDialog.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-GuiAuditSettingsDialog
@@ -755,9 +915,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-GuiRemoteConsoleDialog.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-GuiRemoteConsoleDialog
@@ -2249,9 +2406,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-GuiReleaseStatusDialog.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-GuiReleaseStatusDialog
@@ -2660,9 +2814,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-GuiTroubleshootingGuideDialog.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-GuiTroubleshootingGuideDialog
@@ -2888,9 +3039,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-GuiFaqDialog.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-GuiFaqDialog
@@ -3080,9 +3228,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-HelpDialog.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-HelpDialog
@@ -3494,9 +3639,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-FirstRunWelcomeDialog.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-FirstRunWelcomeDialog
@@ -3562,9 +3704,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-LogDialog.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-LogDialog
@@ -3850,9 +3989,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-ChangelogDialog.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-ChangelogDialog
@@ -4045,9 +4181,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-ReadmeDialog.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-ReadmeDialog
@@ -4339,6 +4472,7 @@
 			$Document.PagePadding = [System.Windows.Thickness]::new(0)
 			$Document.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI')
 			$Document.FontSize = [double]$readmeFontSize
+			Set-BaselineReadmeFlowDocumentTheme -Document $Document -ActiveTheme $activeTheme -BrushConverter $bc -ReadmeFontSize $readmeFontSize
 			$readmeFlowViewer.Document = $Document
 			$readmeFlowViewer.Visibility = [System.Windows.Visibility]::Visible
 			if ($readmeWebHost) { $readmeWebHost.Visibility = [System.Windows.Visibility]::Collapsed }
@@ -4479,9 +4613,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Show-GuidedSetupWizard.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Show-GuidedSetupWizard

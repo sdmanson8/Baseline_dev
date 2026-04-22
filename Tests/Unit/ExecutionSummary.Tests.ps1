@@ -4,18 +4,12 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Test-GuiObjectField.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Test-GuiObjectField { param([object]$Object, [string]$FieldName) if ($null -eq $Object) { return $false }; if ($Object -is [System.Collections.IDictionary]) { return $Object.Contains($FieldName) }; return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName]) }
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function Get-UxLocalizedString {
         param(
@@ -35,9 +29,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Get-UxBilingualLocalizedString.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Get-UxBilingualLocalizedString {

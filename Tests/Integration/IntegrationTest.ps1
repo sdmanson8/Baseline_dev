@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     VM-based integration test runner for Baseline.
 
@@ -57,9 +57,6 @@ $script:Results  = [System.Collections.Generic.List[pscustomobject]]::new()
 <#
     .SYNOPSIS
     Internal function Write-TestResult.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-TestResult
@@ -97,9 +94,6 @@ function Write-TestResult
 <#
     .SYNOPSIS
     Internal function Assert-IsAdministrator.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Assert-IsAdministrator
@@ -115,9 +109,6 @@ function Assert-IsAdministrator
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Assert-IsWindows
 {
@@ -133,9 +124,6 @@ function Assert-IsWindows
 <#
     .SYNOPSIS
     Internal function Import-BaselineModules.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Import-BaselineModules
@@ -160,9 +148,6 @@ function Import-BaselineModules
 <#
     .SYNOPSIS
     Internal function New-IntegrationRestorePoint.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-IntegrationRestorePoint
@@ -192,9 +177,6 @@ function New-IntegrationRestorePoint
 <#
     .SYNOPSIS
     Internal function Get-RegistryValueSnapshot.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-RegistryValueSnapshot
@@ -242,9 +224,6 @@ function Get-RegistryValueSnapshot
 <#
     .SYNOPSIS
     Internal function Restore-RegistryValueSnapshot.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Restore-RegistryValueSnapshot
@@ -275,9 +254,6 @@ function Restore-RegistryValueSnapshot
 <#
     .SYNOPSIS
     Internal function Restore-RegistryValueSnapshots.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Restore-RegistryValueSnapshots
@@ -314,9 +290,6 @@ function Restore-RegistryValueSnapshots
 <#
     .SYNOPSIS
     Internal function Get-CompositeRegistryValueEntry.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-CompositeRegistryValueEntry
@@ -361,9 +334,6 @@ function Get-CompositeRegistryValueEntry
 <#
     .SYNOPSIS
     Internal function Test-RegistryValueMatches.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-RegistryValueMatches
@@ -439,9 +409,6 @@ function Test-RegistryValueMatches
 <#
     .SYNOPSIS
     Internal function Get-GpuSchedulingSupportStatus.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-GpuSchedulingSupportStatus
@@ -479,9 +446,6 @@ function Get-GpuSchedulingSupportStatus
 <#
     .SYNOPSIS
     Internal function Invoke-RegistryTests.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-RegistryTests
@@ -644,9 +608,6 @@ function Invoke-RegistryTests
 <#
     .SYNOPSIS
     Internal function Invoke-ServiceTests.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-ServiceTests
@@ -725,9 +686,6 @@ function Invoke-ServiceTests
 <#
     .SYNOPSIS
     Internal function Invoke-PackageTests.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-PackageTests
@@ -781,9 +739,6 @@ function Invoke-PackageTests
 <#
     .SYNOPSIS
     Internal function Invoke-GroupPolicyTests.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-GroupPolicyTests
@@ -886,9 +841,6 @@ function Invoke-GroupPolicyTests
 <#
     .SYNOPSIS
     Internal function Invoke-GameModeTests.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-GameModeTests

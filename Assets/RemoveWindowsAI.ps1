@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Admin utility for disabling and removing Windows AI features such as Copilot, Recall, and related packages.
 
@@ -218,9 +218,6 @@ Add-Type -AssemblyName System.Windows.Forms
 <#
     .SYNOPSIS
     Internal function RunTrusted.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function RunTrusted {
@@ -233,9 +230,6 @@ function RunTrusted {
     <#
         .SYNOPSIS
         Internal function .
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
     function RunAsTI {
         param(
@@ -317,9 +311,6 @@ function RunTrusted {
  <#
      .SYNOPSIS
      Internal function M.
-
-     .DESCRIPTION
-     Internal implementation helper used by Baseline.
  #>
 
  function M($1,$2,$3){$M."G`etMethod"($1,[type[]]$2).invoke(0,$3)};$H=@();$Z,(4*$Z+16)|%{$H+=M "AllocHG`lobal" $I $_}
@@ -332,9 +323,6 @@ function RunTrusted {
  <#
      .SYNOPSIS
      Internal function .
-
-     .DESCRIPTION
-     Internal implementation helper used by Baseline.
  #>
  function L($1,$2,$3){sp 'HKLM\Software\Classes\AppID\{CDCBCFCA-3CDC-436f-A4E2-0E02075250C2}' 'RunAs' $3
   $b=[Text.Encoding]::Unicode.GetBytes("\Registry\User\$1");F 'RegSetValueEx' @($2,'SymbolicLinkValue',0,6,[byte[]]$b,$b.Length)}
@@ -433,9 +421,6 @@ $command
 <#
     .SYNOPSIS
     Internal function Write-Status.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-Status {
@@ -480,9 +465,6 @@ Set-LogFile -Path $script:ActiveLogFilePath
 <#
     .SYNOPSIS
     Internal function Get-LogFilePath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-LogFilePath {
@@ -493,9 +475,6 @@ function Get-LogFilePath {
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Write-FileSafely {
     param(
@@ -544,9 +523,6 @@ $Global:tempDir = ([System.IO.Path]::GetTempPath())
 <#
     .SYNOPSIS
     Internal function CreateRestorePoint.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function CreateRestorePoint {
@@ -631,9 +607,6 @@ function CreateRestorePoint {
 <#
     .SYNOPSIS
     Internal function Set-UwpAppRegistryEntry.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-UwpAppRegistryEntry {
@@ -759,9 +732,6 @@ function Set-UwpAppRegistryEntry {
 <#
     .SYNOPSIS
     Internal function Invoke-TrustedRegistryWrite.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Invoke-TrustedRegistryWrite {
@@ -825,9 +795,6 @@ if (`$LASTEXITCODE -eq 0) {
 <#
     .SYNOPSIS
     Internal function Set-RemoveWindowsAIRegistryValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-RemoveWindowsAIRegistryValue {
@@ -878,9 +845,6 @@ function Set-RemoveWindowsAIRegistryValue {
 <#
     .SYNOPSIS
     Internal function Disable-Registry-Keys.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Disable-Registry-Keys {
@@ -1456,9 +1420,6 @@ Windows Registry Editor Version 5.00
 <#
     .SYNOPSIS
     Internal function Remove-Voice-Access.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Remove-Voice-Access {
@@ -1506,9 +1467,6 @@ function Remove-Voice-Access {
 <#
     .SYNOPSIS
     Internal function Install-NOAIPackage.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Install-NOAIPackage {
@@ -1653,9 +1611,6 @@ function Install-NOAIPackage {
 <#
     .SYNOPSIS
     Internal function Disable-Copilot-Policies.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Disable-Copilot-Policies {
@@ -1726,9 +1681,6 @@ function Disable-Copilot-Policies {
 <#
     .SYNOPSIS
     Internal function DownloadAppxPackage.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function DownloadAppxPackage {
@@ -1769,9 +1721,6 @@ function DownloadAppxPackage {
     <#
         .SYNOPSIS
         Internal function Get-LatestAppxPackages.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Get-LatestAppxPackages {
@@ -1840,9 +1789,6 @@ function DownloadAppxPackage {
     <#
         .SYNOPSIS
         Internal function Get-AppxPackageKey.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Get-AppxPackageKey {
@@ -2008,9 +1954,6 @@ function DownloadAppxPackage {
 <#
     .SYNOPSIS
     Internal function Remove-AI-Appx-Packages.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Remove-AI-Appx-Packages {
@@ -2307,9 +2250,6 @@ foreach ($choice in $aipackages) {
 <#
     .SYNOPSIS
     Internal function Remove-Recall-Optional-Feature.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Remove-Recall-Optional-Feature {
@@ -2353,9 +2293,6 @@ function Remove-Recall-Optional-Feature {
 <#
     .SYNOPSIS
     Internal function Remove-AI-CBS-Packages.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Remove-AI-CBS-Packages {
@@ -2408,9 +2345,6 @@ function Remove-AI-CBS-Packages {
 <#
     .SYNOPSIS
     Internal function Remove-AI-Files.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Remove-AI-Files {
@@ -3000,9 +2934,6 @@ Write-Status -msg 'Removing AI From Component Store (WinSxS) - '
 <#
     .SYNOPSIS
     Internal function Hide-AI-Components.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Hide-AI-Components {
@@ -3053,9 +2984,6 @@ function Hide-AI-Components {
 <#
     .SYNOPSIS
     Internal function Disable-Notepad-Rewrite.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Disable-Notepad-Rewrite {
@@ -3089,9 +3017,6 @@ Windows Registry Editor Version 5.00
 <#
     .SYNOPSIS
     Internal function Remove-Recall-Tasks.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Remove-Recall-Tasks {
@@ -3405,9 +3330,6 @@ else {
     <#
         .SYNOPSIS
         Internal function Add-iOSToggleToUI.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Add-iOSToggleToUI {

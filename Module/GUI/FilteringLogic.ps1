@@ -1,11 +1,8 @@
-﻿# Tweak filtering, visibility, and category filter management
+# Tweak filtering, visibility, and category filter management
 
 	<#
 	    .SYNOPSIS
 	    Internal function Test-TweakVisibleInSafeMode.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-TweakVisibleInSafeMode
@@ -47,9 +44,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Test-TweakVisibleInCurrentMode.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-TweakVisibleInCurrentMode
@@ -88,9 +82,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-AvailableCategoryFilters.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-AvailableCategoryFilters
@@ -133,9 +124,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-CategoryFilterList.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-CategoryFilterList
@@ -224,9 +212,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-RiskFilterList.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-RiskFilterList
@@ -295,9 +280,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-CurrentFilterSummaryItems.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-CurrentFilterSummaryItems
@@ -443,9 +425,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Test-TweakMatchesCurrentFilters.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Test-TweakMatchesCurrentFilters

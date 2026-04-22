@@ -3,9 +3,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Save-CurrentTabScrollOffset.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Save-CurrentTabScrollOffset
@@ -19,9 +16,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Restore-CurrentTabScrollOffset
 	{
@@ -37,9 +31,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Update-MainContentPanelWidth.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Update-MainContentPanelWidth
@@ -61,9 +52,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Clear-TabContentCache.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Clear-TabContentCache
@@ -104,9 +92,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Sync-GuiControlState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Sync-GuiControlState
@@ -149,9 +134,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Restore-CachedTabContent.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Restore-CachedTabContent
@@ -214,9 +196,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-TabContentMainPanel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-TabContentMainPanel
@@ -234,9 +213,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Get-TabContentGroupedTweaks
 	{
@@ -299,9 +275,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-TabContentBuildContext.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-TabContentBuildContext

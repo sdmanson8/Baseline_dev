@@ -3,9 +3,6 @@
 <#
     .SYNOPSIS
     Internal function Set-Policy.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-Policy
@@ -88,9 +85,6 @@ function Set-Policy
 <#
     .SYNOPSIS
     Internal function Get-CurrentWindowsUserSid.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-CurrentWindowsUserSid
@@ -109,9 +103,6 @@ function Get-CurrentWindowsUserSid
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function ConvertTo-NativeRegistryPath
 {
@@ -161,9 +152,6 @@ function ConvertTo-NativeRegistryPath
 <#
     .SYNOPSIS
     Internal function ConvertTo-RegExeValueType.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-RegExeValueType
@@ -191,9 +179,6 @@ function ConvertTo-RegExeValueType
 <#
     .SYNOPSIS
     Internal function Dismount-RegistryHive.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Dismount-RegistryHive
@@ -238,9 +223,6 @@ function Dismount-RegistryHive
 <#
     .SYNOPSIS
     Internal function Mount-RegistryHive.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Mount-RegistryHive
@@ -292,9 +274,6 @@ function Mount-RegistryHive
 <#
     .SYNOPSIS
     Internal function Test-RegistryValueEquivalent.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-RegistryValueEquivalent
@@ -380,9 +359,6 @@ function Test-RegistryValueEquivalent
 <#
     .SYNOPSIS
     Internal function Set-RegistryValueSafe.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-RegistryValueSafe
@@ -512,9 +488,6 @@ function Set-RegistryValueSafe
 <#
     .SYNOPSIS
     Internal function Remove-RegistryValueSafe.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Remove-RegistryValueSafe
@@ -561,9 +534,6 @@ function Remove-RegistryValueSafe
 <#
     .SYNOPSIS
     Internal function ConvertTo-RegistryCompositeStringValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-RegistryCompositeStringValue
@@ -640,9 +610,6 @@ function ConvertTo-RegistryCompositeStringValue
 <#
     .SYNOPSIS
     Internal function Set-RegistryCompositeStringValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-RegistryCompositeStringValue
@@ -707,9 +674,6 @@ function Set-RegistryCompositeStringValue
 <#
     .SYNOPSIS
     Internal function Set-SystemTweaksRegistryValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-SystemTweaksRegistryValue
@@ -737,9 +701,6 @@ function Set-SystemTweaksRegistryValue
 <#
     .SYNOPSIS
     Internal function Remove-SystemTweaksRegistryValue.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Remove-SystemTweaksRegistryValue

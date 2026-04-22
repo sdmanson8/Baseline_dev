@@ -80,9 +80,6 @@ foreach ($functionName in @(
 <#
     .SYNOPSIS
     Internal function global.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function global:ConvertTo-BaselineInteractivePresetName
@@ -109,9 +106,6 @@ function global:ConvertTo-BaselineInteractivePresetName
 <#
     .SYNOPSIS
     Internal function global.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function global:Get-BaselineInteractivePresetNames
@@ -133,9 +127,6 @@ function global:Get-BaselineInteractivePresetNames
 <#
     .SYNOPSIS
     Internal function global.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function global:Get-BaselineInteractivePresetCommandList
@@ -228,9 +219,6 @@ function global:Get-BaselineInteractivePresetCommandList
 <#
     .SYNOPSIS
     Internal function global.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function global:Baseline

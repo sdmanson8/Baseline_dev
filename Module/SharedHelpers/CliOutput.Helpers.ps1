@@ -6,9 +6,6 @@
 <#
     .SYNOPSIS
     Internal function Set-BaselineCliOutputFormat.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Set-BaselineCliOutputFormat
@@ -29,9 +26,6 @@ function Set-BaselineCliOutputFormat
 <#
     .SYNOPSIS
     Internal function Get-BaselineCliOutputFormat.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineCliOutputFormat
@@ -50,9 +44,6 @@ function Get-BaselineCliOutputFormat
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Format-BaselineCliResult
 {
@@ -117,9 +108,6 @@ function Format-BaselineCliResult
 <#
     .SYNOPSIS
     Internal function Write-BaselineCliEvent.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-BaselineCliEvent

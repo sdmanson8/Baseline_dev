@@ -1,4 +1,4 @@
-﻿<#
+<#
 	.SYNOPSIS
 	WPF GUI for Windows 10 & Windows 11 fine-tuning and automating the routine tasks
 
@@ -165,9 +165,6 @@ $Script:LaunchTracePath = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline-
 <#
     .SYNOPSIS
     Internal function Write-LaunchTrace.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-LaunchTrace
@@ -189,9 +186,6 @@ Write-LaunchTrace 'Bootstrap start'
 <#
     .SYNOPSIS
     Internal function Test-BaselineAdministrator.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-BaselineAdministrator
@@ -213,9 +207,6 @@ function Test-BaselineAdministrator
 <#
     .SYNOPSIS
     Internal function ConvertTo-BaselineCommandLineLiteral.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-BaselineCommandLineLiteral
@@ -267,9 +258,6 @@ function ConvertTo-BaselineCommandLineLiteral
 <#
     .SYNOPSIS
     Internal function ConvertTo-ValidatedTargetComputerList.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-ValidatedTargetComputerList
@@ -312,9 +300,6 @@ function ConvertTo-ValidatedTargetComputerList
 <#
     .SYNOPSIS
     Internal function New-BaselineElevationArgumentList.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-BaselineElevationArgumentList
@@ -498,9 +483,6 @@ Write-LaunchTrace 'Bootstrap files verified'
 <#
     .SYNOPSIS
     Internal function Get-BaselineBootstrapSessionStatePath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineBootstrapSessionStatePath
@@ -527,9 +509,6 @@ function Get-BaselineBootstrapSessionStatePath
 <#
     .SYNOPSIS
     Internal function Resolve-BaselineBootstrapUICulture.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Resolve-BaselineBootstrapUICulture
@@ -778,9 +757,6 @@ catch
 <#
     .SYNOPSIS
     Internal function Get-ErrorDetailText.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ErrorDetailText
@@ -903,9 +879,6 @@ if ($TargetComputer)
 <#
     .SYNOPSIS
     Internal function Get-HeadlessCommandInvocation.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-HeadlessCommandInvocation
@@ -1252,9 +1225,6 @@ if ($ApplyProfile)
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ApplyProfileApplicationIdentityKey.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ApplyProfileApplicationIdentityKey
@@ -1333,9 +1303,6 @@ if ($ApplyProfile)
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ApplyProfileApplicationsCatalog.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ApplyProfileApplicationsCatalog
@@ -1383,9 +1350,6 @@ if ($ApplyProfile)
 	<#
 	    .SYNOPSIS
 	    Internal function Resolve-ApplyProfileAppActionEntry.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Resolve-ApplyProfileAppActionEntry

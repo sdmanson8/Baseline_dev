@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Internal logging module for Baseline.
 
@@ -56,9 +56,6 @@ $script:SessionStatistics = @{
 <#
     .SYNOPSIS
     Internal function Get-BaselineLogDirectory.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineLogDirectory {
@@ -87,9 +84,6 @@ function Get-BaselineLogDirectory {
 <#
     .SYNOPSIS
     Internal function Write-UILogWarning.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-UILogWarning {
@@ -120,9 +114,6 @@ function Write-UILogWarning {
 <#
     .SYNOPSIS
     Internal function Send-UILogEntry.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Send-UILogEntry {
@@ -158,9 +149,6 @@ function Send-UILogEntry {
 <#
     .SYNOPSIS
     Internal function Reset-LogStatistics.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Reset-LogStatistics {
@@ -174,9 +162,6 @@ function Reset-LogStatistics {
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Set-LogMode {
     param(
@@ -194,9 +179,6 @@ function Set-LogMode {
 <#
     .SYNOPSIS
     Internal function Clear-LogMode.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Clear-LogMode {
@@ -244,9 +226,6 @@ function Set-LogFile {
 <#
     .SYNOPSIS
     Internal function Add-PendingLogMessage.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Add-PendingLogMessage {
     param(
@@ -272,9 +251,6 @@ function Add-PendingLogMessage {
 <#
     .SYNOPSIS
     Internal function Restore-PendingLogMessages.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Restore-PendingLogMessages {
     param(
@@ -300,9 +276,6 @@ function Restore-PendingLogMessages {
 <#
     .SYNOPSIS
     Internal function Write-PendingLogMessagesToFile.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Write-PendingLogMessagesToFile {
     param(
@@ -533,9 +506,6 @@ function Write-BaselineError {
 <#
     .SYNOPSIS
     Internal function Get-LogStatistics.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-LogStatistics {
@@ -549,9 +519,6 @@ function Get-LogStatistics {
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Set-UILogHandler {
     param(
@@ -564,9 +531,6 @@ function Set-UILogHandler {
 <#
     .SYNOPSIS
     Internal function Clear-UILogHandler.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Clear-UILogHandler {
@@ -576,9 +540,6 @@ function Clear-UILogHandler {
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Write-ConsoleStatus {
     [CmdletBinding()]
@@ -659,9 +620,6 @@ function Write-ConsoleStatus {
 <#
     .SYNOPSIS
     Internal function Initialize-SessionStatistics.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Initialize-SessionStatistics {
@@ -695,9 +653,6 @@ function Initialize-SessionStatistics {
 <#
     .SYNOPSIS
     Internal function Update-SessionStatistics.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Update-SessionStatistics {
@@ -733,9 +688,6 @@ function Update-SessionStatistics {
 <#
     .SYNOPSIS
     Internal function Add-SessionStatistic.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Add-SessionStatistic {
@@ -765,9 +717,6 @@ function Add-SessionStatistic {
 <#
     .SYNOPSIS
     Internal function .
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Get-SessionStatistics {
     $lockTaken = $false
@@ -789,9 +738,6 @@ function Get-SessionStatistics {
 <#
     .SYNOPSIS
     Internal function Write-SessionSummaryToLog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-SessionSummaryToLog {

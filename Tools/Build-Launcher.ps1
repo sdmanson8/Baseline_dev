@@ -50,9 +50,6 @@ if (-not (Test-Path -LiteralPath $builtExe -PathType Leaf))
 <#
     .SYNOPSIS
     Internal function Get-PeMachine.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-PeMachine

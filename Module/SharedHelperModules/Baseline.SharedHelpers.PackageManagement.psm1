@@ -1,6 +1,6 @@
 <#
     .SYNOPSIS
-    Wrapper module for PackageManagement.Helpers.ps1.
+    Named module boundary for PackageManagement.Helpers.ps1 — exposes its functions through the module system.
 
     .DESCRIPTION
     Loads the shared helper slice into an explicitly named module so the helper

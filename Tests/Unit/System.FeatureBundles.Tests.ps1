@@ -22,9 +22,6 @@ Describe 'Feature bundle wrappers' {
         <#
             .SYNOPSIS
             Internal function Write-ConsoleStatus.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Write-ConsoleStatus {
@@ -44,9 +41,6 @@ Describe 'Feature bundle wrappers' {
         <#
             .SYNOPSIS
             Internal function LogInfo.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function LogInfo {
@@ -57,9 +51,6 @@ Describe 'Feature bundle wrappers' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogError {
             param([string]$Message)
@@ -69,9 +60,6 @@ Describe 'Feature bundle wrappers' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Invoke-SilencedProgress {
             param([scriptblock]$ScriptBlock)
@@ -81,9 +69,6 @@ Describe 'Feature bundle wrappers' {
         <#
             .SYNOPSIS
             Internal function Enable-WindowsOptionalFeature.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Enable-WindowsOptionalFeature {
@@ -107,9 +92,6 @@ Describe 'Feature bundle wrappers' {
         <#
             .SYNOPSIS
             Internal function Disable-WindowsOptionalFeature.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Disable-WindowsOptionalFeature {
@@ -132,9 +114,6 @@ Describe 'Feature bundle wrappers' {
         <#
             .SYNOPSIS
             Internal function nfsadmin.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function nfsadmin {
@@ -152,9 +131,6 @@ Describe 'Feature bundle wrappers' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Set-ItemProperty {
             param(

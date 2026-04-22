@@ -53,9 +53,6 @@ Describe 'First-run welcome state' {
         <#
             .SYNOPSIS
             Internal function Get-GuiSettingsProfileDirectory.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Get-GuiSettingsProfileDirectory {
@@ -66,9 +63,6 @@ Describe 'First-run welcome state' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogWarning {
             param ([string]$Message)

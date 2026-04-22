@@ -950,13 +950,6 @@ function MeetNow
 	.NOTES
 	Current user
 #>
-<#
-    .SYNOPSIS
-    Internal function NewsInterests.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
-#>
 
 function NewsInterests
 {

@@ -6,9 +6,6 @@
 <#
     .SYNOPSIS
     Internal function Get-BaselineDataDirectory.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineDataDirectory
@@ -40,9 +37,6 @@ function Get-BaselineDataDirectory
 <#
     .SYNOPSIS
     Internal function Write-BaselineDocument.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Write-BaselineDocument
@@ -101,9 +95,6 @@ function Write-BaselineDocument
 <#
     .SYNOPSIS
     Internal function Read-BaselineDocument.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Read-BaselineDocument
@@ -150,9 +141,6 @@ function Read-BaselineDocument
 <#
     .SYNOPSIS
     Internal function Add-BaselineAuditRecord.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Add-BaselineAuditRecord
@@ -228,9 +216,6 @@ function Add-BaselineAuditRecord
 <#
     .SYNOPSIS
     Internal function Read-BaselineAuditLog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Read-BaselineAuditLog
@@ -298,9 +283,6 @@ function Read-BaselineAuditLog
 <#
     .SYNOPSIS
     Internal function Test-BaselineDocumentSchema.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-BaselineDocumentSchema

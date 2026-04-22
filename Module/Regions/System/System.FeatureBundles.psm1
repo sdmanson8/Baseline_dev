@@ -95,9 +95,6 @@ function Set-OptionalFeatureBundleState
 <#
     .SYNOPSIS
     Internal function LegacyMediaBundle.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function LegacyMediaBundle
@@ -130,9 +127,6 @@ function LegacyMediaBundle
 <#
     .SYNOPSIS
     Internal function NfsBundle.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function NfsBundle
@@ -171,9 +165,6 @@ function NfsBundle
 <#
     .SYNOPSIS
     Internal function HyperVManagementTools.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function HyperVManagementTools

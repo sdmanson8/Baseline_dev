@@ -8,9 +8,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ObservableState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ObservableState

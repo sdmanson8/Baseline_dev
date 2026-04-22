@@ -1,11 +1,8 @@
-﻿# Internal execution orchestration: abort handling, view transitions, rollback, run setup, and completion.
+# Internal execution orchestration: abort handling, view transitions, rollback, run setup, and completion.
 
 	<#
 	    .SYNOPSIS
 	    Internal function Set-RunAbortDisposition.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Set-RunAbortDisposition
@@ -33,9 +30,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-RunAbortDisposition.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-RunAbortDisposition
@@ -82,9 +76,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Reset-RunAbortState.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Reset-RunAbortState
@@ -96,9 +87,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function Build-WhatChangedSummaryText
 	{
@@ -162,9 +150,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ExecutionResumeCandidateList.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ExecutionResumeCandidateList
@@ -184,9 +169,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Confirm-RemoteMultiTargetApply.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Confirm-RemoteMultiTargetApply
@@ -212,9 +194,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Confirm-RemoteTargetApproval.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Confirm-RemoteTargetApproval
@@ -251,9 +230,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ExecutionViewHeader.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ExecutionViewHeader
@@ -288,9 +264,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ExecutionViewProgressSection.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ExecutionViewProgressSection
@@ -372,9 +345,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ExecutionViewLogBox.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ExecutionViewLogBox
@@ -405,9 +375,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Enter-ExecutionView.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Enter-ExecutionView
@@ -483,9 +450,6 @@
 	    <#
 	        .SYNOPSIS
 	        Internal function Exit-ExecutionView.
-
-	        .DESCRIPTION
-	        Internal implementation helper used by Baseline.
 	    #>
 
 	    function Exit-ExecutionView
@@ -594,9 +558,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Start-GuiAppExecutionRun.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Start-GuiAppExecutionRun
@@ -1097,16 +1058,13 @@
 			$Script:BgAsync = $null
 			$Script:ExecutionMode = $null
 			$Script:RunState = $null
-			throw
+			$null = & $Script:ShowGuiRuntimeFailureScript -Context 'Start-GuiAppExecutionRun' -Exception $_.Exception -ShowDialog
 		}
 	}
 
 	<#
 	    .SYNOPSIS
 	    Internal function Copy-ExecutionTweakExtraArgs.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Copy-ExecutionTweakExtraArgs
@@ -1141,9 +1099,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Resolve-InteractiveRunSelections.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Resolve-InteractiveRunSelections
@@ -1163,9 +1118,6 @@
 		<#
 		    .SYNOPSIS
 		    Internal function New-ResolvedExecutionTweak.
-
-		    .DESCRIPTION
-		    Internal implementation helper used by Baseline.
 		#>
 
 		function New-ResolvedExecutionTweak
@@ -1214,9 +1166,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ExecutionRollbackCommandList.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ExecutionRollbackCommandList
@@ -1246,9 +1195,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Export-ExecutionRollbackProfile.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Export-ExecutionRollbackProfile
@@ -1283,9 +1229,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Complete-GuiExecutionRun.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Complete-GuiExecutionRun
@@ -1870,9 +1813,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Start-GuiExecutionRun.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Start-GuiExecutionRun
@@ -2725,16 +2665,15 @@
 					$Script:ExecutionTimerErrorShown = $true
 					LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionOuterCatch' -Fallback '[Timer] OUTER CATCH: {0}' -FormatArgs @($_.Exception.Message))
 					LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionUpdateFailedDetail' -Fallback 'Execution UI update failed: {0}' -FormatArgs @($_.Exception.Message))
-					try { Set-GuiStatusText -Text (Get-UxLocalizedString -Key 'GuiLogExecutionAppTimerUpdateFailed' -Fallback '' -FormatArgs @($_.Exception.Message)) -Tone 'caution' } catch { $null = $_ }
-					# Restore the GUI if the timer is already stopped or run is finished to prevent
-					# the execution view from being permanently stuck.
-					$timerStopped = (-not $Script:ExecutionRunTimer)
-					$runFinished = ($Script:RunState -and $Script:RunState['Done'])
-					if ($timerStopped -or $runFinished -or $Script:RunInProgress -eq $false -or $Script:AbortRequested)
-					{
-						try { Exit-ExecutionView } catch { $null = $_ }
-					}
 				}
+				if ($Script:ExecutionRunTimer)
+				{
+					try { $Script:ExecutionRunTimer.Stop() } catch { $null = $_ }
+					try { $Script:ExecutionRunTimer.Dispose() } catch { $null = $_ }
+					$Script:ExecutionRunTimer = $null
+				}
+				try { Exit-ExecutionView } catch { $null = $_ }
+				$null = & $Script:ShowGuiRuntimeFailureScript -Context 'ExecutionTimer' -Exception $_.Exception -ShowDialog
 			}
 		}
 		$executionPumpTickFn = $Script:ExecutionPumpTickFn
@@ -2752,9 +2691,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ActiveTweakRunList.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ActiveTweakRunList

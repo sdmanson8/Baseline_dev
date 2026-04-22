@@ -1,11 +1,8 @@
-﻿# Preset/scenario UI builder functions: button definitions, panels, filters, selection bars, and recommendation display
+# Preset/scenario UI builder functions: button definitions, panels, filters, selection bars, and recommendation display
 
 	<#
 	    .SYNOPSIS
 	    Internal function Register-GuiCommandButtonAction.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Register-GuiCommandButtonAction
@@ -45,9 +42,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-PresetButtonLabel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-PresetButtonLabel
@@ -69,9 +63,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-PresetButtonTooltip.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-PresetButtonTooltip
@@ -114,9 +105,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-TabPresetButtonDefinitions.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-TabPresetButtonDefinitions
@@ -194,9 +182,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ScenarioRecommendationLookup.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ScenarioRecommendationLookup
@@ -219,9 +204,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Sync-ActivePresetButtonChrome.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Sync-ActivePresetButtonChrome
@@ -279,9 +261,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-TabPresetButtonsPanel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-TabPresetButtonsPanel
@@ -346,9 +325,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ScenarioProfileButtonsPanel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ScenarioProfileButtonsPanel
@@ -413,9 +389,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ScenarioRecommendationPanel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ScenarioRecommendationPanel
@@ -459,9 +432,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-SystemScanActionRow.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-SystemScanActionRow
@@ -492,9 +462,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-TabPresetPanel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-TabPresetPanel
@@ -599,9 +566,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Add-TabContentLeadPanel.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Add-TabContentLeadPanel
@@ -778,9 +742,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-ActiveTabFilterItems.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-ActiveTabFilterItems
@@ -801,9 +762,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-ActiveFiltersBanner.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-ActiveFiltersBanner
@@ -845,9 +803,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function New-EmptyTabStateCard.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function New-EmptyTabStateCard
@@ -876,9 +831,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function Get-TabContentIndexArray.
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 
 	function Get-TabContentIndexArray
@@ -897,9 +849,6 @@
 	<#
 	    .SYNOPSIS
 	    Internal function .
-
-	    .DESCRIPTION
-	    Internal implementation helper used by Baseline.
 	#>
 	function New-TabSelectionBar
 	{

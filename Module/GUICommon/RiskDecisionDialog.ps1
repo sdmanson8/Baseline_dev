@@ -1,9 +1,6 @@
-﻿<#
+<#
     .SYNOPSIS
     Internal function Show-RiskDecisionDialog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Show-RiskDecisionDialog
 {

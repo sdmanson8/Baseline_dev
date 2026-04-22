@@ -1,4 +1,4 @@
-﻿# NOTE: This function is ~700 lines and contains duplicated status-styling logic
+# NOTE: This function is ~700 lines and contains duplicated status-styling logic
 # for each outcome state. A future refactor should extract:
 #   1. A status-styling lookup table (OutcomeState -> color/icon/label)
 #   2. A card/row builder helper to reduce per-status boilerplate
@@ -7,9 +7,6 @@
 <#
     .SYNOPSIS
     Internal function Show-ExecutionSummaryDialog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 function Show-ExecutionSummaryDialog
 {

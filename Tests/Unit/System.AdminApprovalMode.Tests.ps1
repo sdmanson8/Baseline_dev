@@ -21,9 +21,6 @@ Describe 'AdminApprovalMode' {
         <#
             .SYNOPSIS
             Internal function Write-ConsoleStatus.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Write-ConsoleStatus {
@@ -36,9 +33,6 @@ Describe 'AdminApprovalMode' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogInfo {
             param([string]$Message)
@@ -48,9 +42,6 @@ Describe 'AdminApprovalMode' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogError {
             param([string]$Message)
@@ -60,9 +51,6 @@ Describe 'AdminApprovalMode' {
         <#
             .SYNOPSIS
             Internal function New-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function New-ItemProperty {
@@ -86,9 +74,6 @@ Describe 'AdminApprovalMode' {
         <#
             .SYNOPSIS
             Internal function Set-Policy.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Set-Policy {

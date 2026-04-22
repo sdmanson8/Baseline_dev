@@ -9,9 +9,6 @@ $Script:ConfigProfileSchemaVersion = 2
 <#
     .SYNOPSIS
     Internal function ConvertTo-ConfigurationProfileValueText.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertTo-ConfigurationProfileValueText
@@ -127,9 +124,6 @@ function ConvertTo-ConfigurationProfileValueText
 <#
     .SYNOPSIS
     Internal function New-ConfigurationProfile.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function New-ConfigurationProfile
@@ -359,9 +353,6 @@ function New-ConfigurationProfile
 <#
     .SYNOPSIS
     Internal function Export-ConfigurationProfile.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Export-ConfigurationProfile
@@ -394,9 +385,6 @@ function Export-ConfigurationProfile
 <#
     .SYNOPSIS
     Internal function Import-ConfigurationProfile.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Import-ConfigurationProfile
@@ -457,9 +445,6 @@ function Import-ConfigurationProfile
 <#
     .SYNOPSIS
     Internal function Test-ConfigurationProfileCompatibility.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-ConfigurationProfileCompatibility
@@ -562,9 +547,6 @@ function Test-ConfigurationProfileCompatibility
 <#
     .SYNOPSIS
     Internal function Compare-ConfigurationProfiles.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Compare-ConfigurationProfiles
@@ -671,9 +653,6 @@ function Compare-ConfigurationProfiles
 <#
     .SYNOPSIS
     Internal function Get-ProfileEntryComparisonKey.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-ProfileEntryComparisonKey
@@ -718,9 +697,6 @@ function Get-ProfileEntryComparisonKey
 <#
     .SYNOPSIS
     Internal function ConvertFrom-PresetToProfile.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function ConvertFrom-PresetToProfile

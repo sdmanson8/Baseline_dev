@@ -1,4 +1,4 @@
-﻿# Group Policy conflict-detection helper slice for Baseline.
+# Group Policy conflict-detection helper slice for Baseline.
 #
 # Compares each tweak's intended registry write against the policy hives
 # (HKLM/HKCU \SOFTWARE\Policies\...) so we can warn the user that an enforced
@@ -17,9 +17,6 @@ $Script:CachedBaselineGpoPolicyHiveRoots = @(
 <#
     .SYNOPSIS
     Internal function Test-BaselineGpoPolicyPath.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Test-BaselineGpoPolicyPath
@@ -52,9 +49,6 @@ function Test-BaselineGpoPolicyPath
 <#
     .SYNOPSIS
     Internal function Get-BaselineGpoPolicyValueState.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineGpoPolicyValueState
@@ -111,9 +105,6 @@ function Get-BaselineGpoPolicyValueState
 <#
     .SYNOPSIS
     Internal function Get-BaselineGpoEnvironmentSummary.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineGpoEnvironmentSummary
@@ -179,9 +170,6 @@ function Get-BaselineGpoEnvironmentSummary
 <#
     .SYNOPSIS
     Internal function Get-BaselineGpoConflictForEntry.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineGpoConflictForEntry
@@ -252,9 +240,6 @@ function Get-BaselineGpoConflictForEntry
 <#
     .SYNOPSIS
     Internal function Get-BaselineGpoConflictReport.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Get-BaselineGpoConflictReport
@@ -301,9 +286,6 @@ function Get-BaselineGpoConflictReport
 <#
     .SYNOPSIS
     Internal function Format-BaselineGpoConflictReport.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Format-BaselineGpoConflictReport

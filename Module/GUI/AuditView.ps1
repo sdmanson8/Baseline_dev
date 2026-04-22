@@ -4,9 +4,6 @@
 <#
     .SYNOPSIS
     Internal function Show-AuditLogDialog.
-
-    .DESCRIPTION
-    Internal implementation helper used by Baseline.
 #>
 
 function Show-AuditLogDialog

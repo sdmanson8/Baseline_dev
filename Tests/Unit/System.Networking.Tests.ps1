@@ -23,9 +23,6 @@ Describe 'DeliveryOptimization' {
         <#
             .SYNOPSIS
             Internal function Write-ConsoleStatus.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Write-ConsoleStatus {
@@ -38,9 +35,6 @@ Describe 'DeliveryOptimization' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogInfo {
             param([string]$Message)
@@ -50,9 +44,6 @@ Describe 'DeliveryOptimization' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogError {
             param([string]$Message)
@@ -62,9 +53,6 @@ Describe 'DeliveryOptimization' {
         <#
             .SYNOPSIS
             Internal function Set-Policy.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Set-Policy {
@@ -88,9 +76,6 @@ Describe 'DeliveryOptimization' {
         <#
             .SYNOPSIS
             Internal function Test-Path.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Test-Path {
@@ -101,9 +86,6 @@ Describe 'DeliveryOptimization' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function New-Item {
             param(
@@ -118,9 +100,6 @@ Describe 'DeliveryOptimization' {
         <#
             .SYNOPSIS
             Internal function New-ItemProperty.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function New-ItemProperty {
@@ -144,9 +123,6 @@ Describe 'DeliveryOptimization' {
         <#
             .SYNOPSIS
             Internal function Delete-DeliveryOptimizationCache.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Delete-DeliveryOptimizationCache {
@@ -226,9 +202,6 @@ Describe 'DnsProvider' {
             <#
                 .SYNOPSIS
                 Internal function Write-ConsoleStatus.
-
-                .DESCRIPTION
-                Internal implementation helper used by Baseline.
             #>
 
             function Write-ConsoleStatus {
@@ -248,9 +221,6 @@ Describe 'DnsProvider' {
             <#
                 .SYNOPSIS
                 Internal function LogInfo.
-
-                .DESCRIPTION
-                Internal implementation helper used by Baseline.
             #>
 
             function LogInfo {
@@ -261,9 +231,6 @@ Describe 'DnsProvider' {
             <#
                 .SYNOPSIS
                 Internal function .
-
-                .DESCRIPTION
-                Internal implementation helper used by Baseline.
             #>
             function LogWarning {
                 param([string]$Message)
@@ -273,9 +240,6 @@ Describe 'DnsProvider' {
             <#
                 .SYNOPSIS
                 Internal function .
-
-                .DESCRIPTION
-                Internal implementation helper used by Baseline.
             #>
             function LogError {
                 param([string]$Message)
@@ -285,9 +249,6 @@ Describe 'DnsProvider' {
             <#
                 .SYNOPSIS
                 Internal function Get-NetAdapter.
-
-                .DESCRIPTION
-                Internal implementation helper used by Baseline.
             #>
 
             function Get-NetAdapter {
@@ -308,9 +269,6 @@ Describe 'DnsProvider' {
             <#
                 .SYNOPSIS
                 Internal function Set-DnsClientServerAddress.
-
-                .DESCRIPTION
-                Internal implementation helper used by Baseline.
             #>
 
             function Set-DnsClientServerAddress {
@@ -355,9 +313,6 @@ Describe 'NtpServerOverride' {
         <#
             .SYNOPSIS
             Internal function Write-ConsoleStatus.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Write-ConsoleStatus {
@@ -370,9 +325,6 @@ Describe 'NtpServerOverride' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogInfo {
             param([string]$Message)
@@ -382,9 +334,6 @@ Describe 'NtpServerOverride' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogError {
             param([string]$Message)
@@ -394,9 +343,6 @@ Describe 'NtpServerOverride' {
         <#
             .SYNOPSIS
             Internal function Start-Service.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Start-Service {
@@ -411,9 +357,6 @@ Describe 'NtpServerOverride' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Restart-Service {
             param(
@@ -427,9 +370,6 @@ Describe 'NtpServerOverride' {
         <#
             .SYNOPSIS
             Internal function w32tm.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function w32tm {
@@ -483,9 +423,6 @@ Describe 'OpenSSHServer' {
         <#
             .SYNOPSIS
             Internal function Write-ConsoleStatus.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Write-ConsoleStatus {
@@ -505,9 +442,6 @@ Describe 'OpenSSHServer' {
         <#
             .SYNOPSIS
             Internal function LogInfo.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function LogInfo {
@@ -518,9 +452,6 @@ Describe 'OpenSSHServer' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function LogError {
             param([string]$Message)
@@ -530,9 +461,6 @@ Describe 'OpenSSHServer' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Get-WindowsCapability {
             param(
@@ -550,9 +478,6 @@ Describe 'OpenSSHServer' {
         <#
             .SYNOPSIS
             Internal function Add-WindowsCapability.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Add-WindowsCapability {
@@ -568,9 +493,6 @@ Describe 'OpenSSHServer' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Set-Service {
             param(
@@ -585,9 +507,6 @@ Describe 'OpenSSHServer' {
         <#
             .SYNOPSIS
             Internal function Start-Service.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Start-Service {
@@ -602,9 +521,6 @@ Describe 'OpenSSHServer' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Get-NetFirewallRule {
             param(
@@ -621,9 +537,6 @@ Describe 'OpenSSHServer' {
         <#
             .SYNOPSIS
             Internal function New-NetFirewallRule.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function New-NetFirewallRule {
@@ -644,9 +557,6 @@ Describe 'OpenSSHServer' {
         <#
             .SYNOPSIS
             Internal function Test-Path.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Test-Path {
@@ -657,9 +567,6 @@ Describe 'OpenSSHServer' {
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function New-Item {
             param(
@@ -675,9 +582,6 @@ Describe 'OpenSSHServer' {
         <#
             .SYNOPSIS
             Internal function Get-Content.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Get-Content {
@@ -697,9 +601,6 @@ Match Group administrators
         <#
             .SYNOPSIS
             Internal function Set-Content.
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
 
         function Set-Content {
@@ -717,9 +618,6 @@ Match Group administrators
         <#
             .SYNOPSIS
             Internal function .
-
-            .DESCRIPTION
-            Internal implementation helper used by Baseline.
         #>
         function Restart-Service {
             param(

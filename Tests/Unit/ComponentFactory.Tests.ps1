@@ -4,9 +4,6 @@ BeforeAll {
     <#
         .SYNOPSIS
         Internal function Get-UxLocalizedString.
-
-        .DESCRIPTION
-        Internal implementation helper used by Baseline.
     #>
 
     function Get-UxLocalizedString {
