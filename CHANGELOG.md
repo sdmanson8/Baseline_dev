@@ -83,7 +83,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   - Localized gaming profile names and descriptions: Casual Gaming, Competitive Gaming, Streaming / Content, Troubleshooting.
   - Localized splash screen "Please wait - opening GUI..." text (when localization data is available).
 - Localized pause/resume button labels and running/paused status text.
-- 125 locale files now carry full key coverage against the English source (2,421 keys per file). Translations are machine-assisted and still undergoing QA; quality varies by locale and some non-Latin locales are known to contain residual encoding corruption from an earlier import pass — those are flagged in `dev_docs/locale_audit_2026-04-22.md` and scheduled for re-translation.
+- 124 locale files now carry full key coverage against the English source (2,421 keys per file). Translations are machine-assisted and still undergoing QA; quality varies by locale and some non-Latin locales are known to contain residual encoding corruption from an earlier import pass — those are flagged in `dev_docs/locale_audit_2026-04-22.md` and scheduled for re-translation.
 - Added 79 new languages.
 - Completed the Apps view localization and chrome coverage, including UWP install/uninstall prompts, help/log viewers, compliance rows, system feature rows, and scheduled-task rows.
 - Application catalog and execution overhaul
@@ -93,7 +93,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   - Added separate WinGet and Chocolatey installed/update caches, then wired the Apps view to show installed, update-available, and unsupported states from that mixed model.
   - Reworked install, uninstall, update, and batch actions to route through the shared execution worker with friendly display names and mixed-package support.
   - Kept the card-based Apps UI while preserving single-item buttons, per-card selection checkboxes, and bulk actions for selected entries.
-
+    
 ---
 
 ## 3.0.0-beta | 2026-04-06
