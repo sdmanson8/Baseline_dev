@@ -9,6 +9,7 @@ using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Text;
 
@@ -82,7 +83,7 @@ namespace Baseline.RunLauncher
                     launcherPath = Path.Combine(AppContext.BaseDirectory, "Baseline.exe");
                 }
                 launcherPath = Path.GetFullPath(launcherPath);
-                var hydratedRoot = EnsureHydratedRuntime();
+                var hydratedRoot = EnsureHydratedRuntime(launcherPath);
                 var stateRoot = ResolveStateRoot(AppContext.BaseDirectory, out var portableMode);
                 var launcherScript = Path.Combine(hydratedRoot, LauncherRelativePath);
 
@@ -107,7 +108,7 @@ namespace Baseline.RunLauncher
         /// Ensures the embedded runtime payload is extracted and ready to execute.
         /// </summary>
         /// <returns>The hydrated runtime root directory.</returns>
-        private static string EnsureHydratedRuntime()
+        private static string EnsureHydratedRuntime(string launcherPath)
         {
             var asm = Assembly.GetExecutingAssembly();
             var payloadResources = GetEmbeddedPayloadResourceNames(asm);
@@ -116,8 +117,9 @@ namespace Baseline.RunLauncher
                 throw new InvalidOperationException("Embedded runtime payload is missing.");
             }
 
+            var launcherFingerprint = GetLauncherCacheFingerprint(launcherPath);
             var scriptRoot = AppContext.BaseDirectory;
-            if (IsRuntimeReady(scriptRoot, payloadResources)) return scriptRoot;
+            if (IsRuntimeReady(scriptRoot, payloadResources, launcherFingerprint)) return scriptRoot;
 
             var version = GetBundleVersion(asm);
             var buildId = GetBundleBuildId(asm);
@@ -128,13 +130,13 @@ namespace Baseline.RunLauncher
             }
 
             var cacheRoot = Path.Combine(localAppData, "Baseline", RuntimeCacheFolderName);
-            var runtimeRoot = Path.Combine(cacheRoot, version, RuntimeCacheSchema, buildId);
-            if (IsRuntimeReady(runtimeRoot, payloadResources)) return runtimeRoot;
+            var runtimeRoot = Path.Combine(cacheRoot, version, RuntimeCacheSchema, buildId, launcherFingerprint);
+            if (IsRuntimeReady(runtimeRoot, payloadResources, launcherFingerprint)) return runtimeRoot;
 
             Directory.CreateDirectory(cacheRoot);
             using (var hydrationLock = new FileStream(Path.Combine(cacheRoot, ".hydrate.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
             {
-                if (IsRuntimeReady(runtimeRoot, payloadResources)) return runtimeRoot;
+                if (IsRuntimeReady(runtimeRoot, payloadResources, launcherFingerprint)) return runtimeRoot;
 
                 var runtimeParent = Path.GetDirectoryName(runtimeRoot);
                 if (!string.IsNullOrWhiteSpace(runtimeParent))
@@ -162,7 +164,12 @@ namespace Baseline.RunLauncher
                     }
                 }
 
-                File.WriteAllText(Path.Combine(staging, HydrationSentinel), RuntimeCacheSchema + Environment.NewLine + version + Environment.NewLine + buildId + Environment.NewLine);
+                File.WriteAllText(
+                    Path.Combine(staging, HydrationSentinel),
+                    RuntimeCacheSchema + Environment.NewLine +
+                    version + Environment.NewLine +
+                    buildId + Environment.NewLine +
+                    launcherFingerprint + Environment.NewLine);
                 Directory.Move(staging, runtimeRoot);
             }
 
@@ -331,14 +338,29 @@ namespace Baseline.RunLauncher
         /// <param name="root">The runtime root path.</param>
         /// <param name="payloadResources">The embedded runtime payload resource names.</param>
         /// <returns>True when the runtime sentinel is present.</returns>
-        private static bool IsRuntimeReady(string root, string[] payloadResources)
+        private static bool IsRuntimeReady(string root, string[] payloadResources, string launcherFingerprint)
         {
             if (!Directory.Exists(root) || payloadResources.Length == 0)
             {
                 return false;
             }
 
-            if (!File.Exists(Path.Combine(root, HydrationSentinel)))
+            var sentinelPath = Path.Combine(root, HydrationSentinel);
+            if (!File.Exists(sentinelPath))
+            {
+                return false;
+            }
+
+            var sentinelLines = File.ReadAllLines(sentinelPath);
+            if (sentinelLines.Length != 4)
+            {
+                return false;
+            }
+
+            if (!string.Equals(sentinelLines[0], RuntimeCacheSchema, StringComparison.Ordinal) ||
+                string.IsNullOrWhiteSpace(sentinelLines[1]) ||
+                string.IsNullOrWhiteSpace(sentinelLines[2]) ||
+                !string.Equals(sentinelLines[3], launcherFingerprint, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
@@ -347,6 +369,27 @@ namespace Baseline.RunLauncher
                 .Select(GetPayloadRelativePath)
                 .Select(relativePath => Path.Combine(root, relativePath))
                 .All(File.Exists);
+        }
+
+        /// <summary>
+        /// Computes a cache fingerprint for the launcher executable contents.
+        /// </summary>
+        /// <param name="launcherPath">The launcher executable path.</param>
+        /// <returns>The executable fingerprint used to invalidate stale caches.</returns>
+        private static string GetLauncherCacheFingerprint(string launcherPath)
+        {
+            if (string.IsNullOrWhiteSpace(launcherPath))
+            {
+                throw new ArgumentException("Launcher path is required.", nameof(launcherPath));
+            }
+
+            using (var stream = new FileStream(launcherPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var sha256 = SHA256.Create())
+            {
+                var hash = sha256.ComputeHash(stream);
+                var fingerprint = BitConverter.ToString(hash).Replace("-", string.Empty);
+                return fingerprint.Substring(0, 12);
+            }
         }
 
         /// <summary>

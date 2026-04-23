@@ -18,7 +18,7 @@ const targetLocales = new Set(
         .filter(Boolean),
 );
 const unfinishedLocales = new Set(
-    (process.env.LOCALIZATION_UNFINISHED_LOCALES || 'chr.json')
+    (process.env.LOCALIZATION_UNFINISHED_LOCALES || '')
         .split(',')
         .map((locale) => locale.trim())
         .filter(Boolean),

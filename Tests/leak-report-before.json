@@ -142,14 +142,6 @@
       "missing_keys": 0,
       "sample_leak_keys": []
     },
-    "chr.json": {
-      "path": "Localizations\\Cherokee\\chr.json",
-      "leak_count": 0,
-      "exempt_matches": 323,
-      "invariant_matches": 0,
-      "missing_keys": 0,
-      "sample_leak_keys": []
-    },
     "ckb.json": {
       "path": "Localizations\\Kurdish (Sorani)\\ckb.json",
       "leak_count": 0,

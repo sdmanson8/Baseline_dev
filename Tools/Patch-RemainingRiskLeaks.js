@@ -3,8 +3,8 @@
 // Patches the residual exact-English leaks in the 22 risk-category keys that
 // Fill-LocalizationLeaks.js could not handle:
 //   - Single "Logs" word in af, ga, ha, is, wo (Google echoed it back)
-//   - Full key sets in chr (Cherokee), nn (Norwegian Nynorsk),
-//     prs (Dari), quc (K'iche') — unsupported by translate.googleapis.com.
+//   - Full key sets in nn (Norwegian Nynorsk), prs (Dari), quc (K'iche')
+//     — unsupported by translate.googleapis.com.
 
 const fs = require('fs');
 const path = require('path');
@@ -26,30 +26,6 @@ const PATCHES = {
     },
     'Wolof/wo.json': {
         'GuiPreflightRiskCategoryLogsLabel': 'Tëralinu log'
-    },
-    'Cherokee/chr.json': {
-        'GuiPreflightRiskCategoryDocsLabel': 'ᎤᏍᏆᏂᎪᏗ ᏂᎦᏛᎢ',
-        'GuiPreflightRiskCategoryHeading': 'ᎤᏠᏱ ᏚᏃᏟᏍᏔᏅᎢ:',
-        'GuiPreflightRiskCategoryLogHintPartial': 'ᎬᏔᏂ RunId {0} ᎾᎿ ᎠᏓᏅᏖᏗ ᏗᏃᏟᏍᏗ ᎤᏰᎸᎢ ᎤᎵᏍᎪᎸᏔᏅ ᏗᏍᏆᏂᎪᏔᏅᎢ ᎤᎾᏛᏁᏗ ᏂᎦᏛᎢ.',
-        'GuiPreflightRiskCategoryLogHintPolicy': 'ᎯᏯᎪᏩᏛ ᎤᏬᏟᏗ ᎠᎵᏍᎦᏃᏗ ᏗᏠᎯᏍᏗ ᎾᎿ ᎤᎾᎵᎢᏍᏙᏗ (PolicyConflictSignals).',
-        'GuiPreflightRiskCategoryLogHintReboot': 'ᎤᏃᏟᏍᏗ ᎠᏤᏃᏔᏅᎢ ᏚᏃᏟᏍᏔᏅᎢ ᎾᎿ PreflightChecks ᎾᎿ ᎠᏓᏅᏖᏗ.',
-        'GuiPreflightRiskCategoryLogHintWinRM': 'ᎯᏩᏛᎲᏍᎩ WinRM ᏥᏚᏬᏟᏗ ᎾᎿ ᎢᎸᎯᏳ ᎠᏓᏅᏖᏗ ᎠᎴ ᎤᎾᎵᎢᏍᏙᏗ ᏗᏃᏟᏍᏗ.',
-        'GuiPreflightRiskCategoryLogsLabel': 'ᏗᏃᏟᏍᏗ',
-        'GuiPreflightRiskCategoryManagedName': 'ᎤᏬᏟᏗ ᎤᏍᏗ ᎤᏬᏟᏗ',
-        'GuiPreflightRiskCategoryManagedPassed': 'ᎥᏝ ᎤᏬᏟᏗ ᎤᏍᏗ ᏚᏠᎯᏍᏗ ᎤᎵᏍᎦᏃᏗ.',
-        'GuiPreflightRiskCategoryNone': 'ᎥᏝ ᎠᎵᏍᎦᏃᏗ ᏚᏠᎯᏍᏗ ᎢᎬᏪᏯ ᎤᎵᏍᎦᏃᏗ.',
-        'GuiPreflightRiskCategoryPartialName': 'ᏍᏆᏂᎪᏔᏅ ᎢᏗᎶᏏ ᎤᏍᏆᏂᎪᏗ',
-        'GuiPreflightRiskCategoryPartialPassed': 'ᎥᏝ ᏍᏆᏂᎪᏔᏅ ᎢᏗᎶᏏ ᏗᏃᏟᏍᏔᏅᎢ ᎾᎿ 7 ᎢᎦ.',
-        'GuiPreflightRiskCategoryPartialSummary': '{0} ᎤᎵᎶᎯ ᏗᎶᏏ ᏗᎶᏘᎨ ᏍᏆᏂᎪᏔᏅ ᎢᏗᎶᏏ (ᎤᎵᎶᎯ: {1}, ᎠᎵᏍᎦᏃᏗ {2}).',
-        'GuiPreflightRiskCategoryRebootName': 'ᎤᏃᏟᏍᏗ ᎠᏤᏃᏔᏅᎢ',
-        'GuiPreflightRiskCategoryRebootPassed': 'ᎥᏝ ᎤᏃᏟᏍᏗ ᎠᏤᏃᏔᏅᎢ ᎤᎵᏍᎦᏃᏗ.',
-        'GuiPreflightRiskCategorySummary': 'ᎤᏠᏱ ᏚᏃᏟᏍᏔᏅᎢ: {0}.',
-        'GuiPreflightRiskCategoryWinRMName': 'WinRM ᎤᎵᎶᏗᏍᏗ',
-        'GuiPreflightRiskCategoryWinRMPassed': 'ᏂᎦᏛ ᏗᏠᏯᏍᏔᏅᎢ ᎤᎵᎶᏗᏍᏗ ᎬᏔᏂ WinRM.',
-        'GuiPreflightRiskCategoryWinRMVariabilityName': 'WinRM ᎤᎵᎶᏗᏍᏗ ᎤᏯᏔᎯ',
-        'GuiPreflightWinRMPartialCoverage': 'WinRM ᏍᏆᏂᎪᏔᏅ ᏚᎵᎶᎩ: {0} ᎾᎿ {1} ᏗᏠᏯᏍᏔᏅᎢ ᎤᎵᎶᏗᏍᏗ. ᎥᏝ ᎤᎵᎶᏗᏍᏗ: {2}',
-        'GuiPreviewRiskCategoryDocsLabel': 'ᎤᏍᏆᏂᎪᏗ ᏂᎦᏛᎢ',
-        'GuiPreviewRiskCategoryHeading': 'ᎤᏍᏆᏂᎪᏗ ᏗᏠᏯᏍᏗ ᎤᎵᏍᎦᏃᏗ ᏥᏯ ᎠᎵᏍᎦᏃᏗ:'
     },
     'Norwegian Nynorsk/nn.json': {
         'GuiPreflightRiskCategoryDocsLabel': 'Utbetringsrettleiing',

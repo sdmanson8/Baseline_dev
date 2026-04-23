@@ -607,56 +607,10 @@ function Confirm-ChocolateyBootstrapExecution
 	[CmdletBinding()]
 	param()
 
-	$bootstrapScriptUrl = 'https://community.chocolatey.org/install.ps1'
-	$approvalVariableName = 'BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP'
-	if (Test-BaselineEnvironmentFlagEnabled -Name $approvalVariableName)
-	{
-		return
-	}
-
-	$approvalTitle = Get-BaselineLocalizedString -Key 'Progress_Choco_BootstrapApprovalTitle' -Fallback 'Approve Chocolatey bootstrap'
-	$approvalMessage = Get-BaselineLocalizedString -Key 'Progress_Choco_BootstrapApprovalMessage' -Fallback ("Baseline can install Chocolatey by downloading and running Chocolatey's official bootstrap script.`n`nURL: {0}`n`nThis script is not bundled with Baseline or integrity-pinned by this repository. Review and approve it before continuing.`n`nFor reviewed headless automation, set {1}=1 for this process before launching Baseline." -f $bootstrapScriptUrl, $approvalVariableName)
-	$approvalFailureMessage = Get-BaselineLocalizedString -Key 'Progress_Choco_BootstrapApprovalRequired' -Fallback ("Chocolatey bootstrap requires explicit operator approval before Baseline runs {0}. Review the script and approve it in an interactive session, or set {1}=1 for this process after review." -f $bootstrapScriptUrl, $approvalVariableName)
-
-	$showThemedDialog = Get-Command -Name 'GUICommon\Show-ThemedDialog' -ErrorAction SilentlyContinue
-	$approveLabel = 'Approve and Continue'
-	if ($showThemedDialog -and (Test-Path -Path Variable:\Script:CurrentTheme) -and (Test-Path -Path Function:\Set-ButtonChrome))
-	{
-		$useDarkMode = $true
-		if (Test-Path -Path Variable:\Script:CurrentThemeName)
-		{
-			$useDarkMode = ($Script:CurrentThemeName -eq 'Dark')
-		}
-
-		$dialogResult = GUICommon\Show-ThemedDialog `
-			-Theme $Script:CurrentTheme `
-			-ApplyButtonChrome ${function:Set-ButtonChrome} `
-			-Title $approvalTitle `
-			-Message $approvalMessage `
-			-Buttons @('Cancel', $approveLabel) `
-			-AccentButton $approveLabel `
-			-UseDarkMode $useDarkMode
-
-		if ($dialogResult -eq $approveLabel)
-		{
-			return
-		}
-
-		throw $approvalFailureMessage
-	}
-
-	if (Test-ChocolateyBootstrapInteractiveHost)
-	{
-		$approveChoice = New-Object -TypeName System.Management.Automation.Host.ChoiceDescription -ArgumentList '&Approve and Continue', 'Download and run the Chocolatey bootstrap script now.'
-		$cancelChoice = New-Object -TypeName System.Management.Automation.Host.ChoiceDescription -ArgumentList '&Cancel', 'Stop before downloading and executing the Chocolatey bootstrap script.'
-		$selectedIndex = $Host.UI.PromptForChoice($approvalTitle, $approvalMessage, @($approveChoice, $cancelChoice), 1)
-		if ($selectedIndex -eq 0)
-		{
-			return
-		}
-	}
-
-	throw $approvalFailureMessage
+	# Approval gate removed — Chocolatey bootstrap runs unconditionally like
+	# WinGet. The downloaded install.ps1 is Chocolatey's official script; the
+	# caller has already chosen to run Baseline, which implies the approval.
+	return
 }
 
 <#
@@ -866,6 +820,61 @@ function ConvertTo-ApplicationCommandInvocation
 }
 
 <#
+	.SYNOPSIS
+	Internal function Invoke-StreamingProcess.
+	.DESCRIPTION
+	Runs an external process with no visible window. Stdout and stderr are drained
+	asynchronously so the subprocess never blocks on a full pipe, but the lines are
+	DISCARDED instead of being surfaced in the GUI log. Callers log high-level
+	outcomes (Installing X..., Successfully installed X, Failed to install X) only.
+	Returns the exit code.
+#>
+
+function Invoke-StreamingProcess
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)][string]$FilePath,
+		[Parameter(Mandatory = $true)][string[]]$ArgumentList
+	)
+
+	$quotedArgs = foreach ($arg in $ArgumentList)
+	{
+		if ([string]::IsNullOrEmpty($arg)) { '""' }
+		elseif ($arg -match '[\s"]') { '"' + ($arg -replace '"', '\"') + '"' }
+		else { $arg }
+	}
+
+	$psi = [System.Diagnostics.ProcessStartInfo]::new()
+	$psi.FileName = $FilePath
+	$psi.Arguments = ($quotedArgs -join ' ')
+	$psi.UseShellExecute = $false
+	$psi.CreateNoWindow = $true
+	$psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+	$psi.RedirectStandardOutput = $true
+	$psi.RedirectStandardError = $true
+
+	$process = [System.Diagnostics.Process]::new()
+	$process.StartInfo = $psi
+	[void]$process.Start()
+
+	# Drain both pipes to /dev/null in parallel — we just need to prevent the
+	# subprocess from blocking on a full pipe. Reading to end is sufficient and
+	# no LogInfo/LogWarning is emitted per line, keeping the GUI log clean.
+	$stdoutTask = $process.StandardOutput.ReadToEndAsync()
+	$stderrTask = $process.StandardError.ReadToEndAsync()
+
+	$process.WaitForExit()
+
+	try { $null = $stdoutTask.GetAwaiter().GetResult() } catch { $null = $_ }
+	try { $null = $stderrTask.GetAwaiter().GetResult() } catch { $null = $_ }
+
+	$exitCode = [int]$process.ExitCode
+	try { $process.Dispose() } catch { $null = $_ }
+	return $exitCode
+}
+
+<#
     .SYNOPSIS
     Internal function Invoke-WingetInstall.
 #>
@@ -910,28 +919,27 @@ function Invoke-WingetInstall
 	}
 
 	Write-ConsoleStatus -Action (Get-BaselineLocalizedString -Key 'Progress_WinGet_StartingInstallation' -Fallback 'Starting installation of {0}...' -FormatArgs @($DisplayName))
-	LogInfo (Get-BaselineLocalizedString -Key 'Progress_Installing' -Fallback 'Installing {0}...' -FormatArgs @($DisplayName))
 
 	try
 	{
-		$result = Start-Process -FilePath $wingetPath -ArgumentList @(
+		$exitCode = Invoke-StreamingProcess -FilePath $wingetPath -ArgumentList @(
 			'install', '--id', $WinGetId, '--exact', '--silent',
 			'--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity'
-		) -Wait -PassThru -ErrorAction Stop
+		)
 
-		if ($result.ExitCode -eq 0)
+		if ($exitCode -eq 0)
 		{
-			LogInfo (Get-BaselineLocalizedString -Key 'Progress_WinGet_InstalledSuccess' -Fallback 'Successfully installed {0}' -FormatArgs @($DisplayName))
+			LogInfo ("{0} Install - Success" -f $DisplayName)
 			return
 		}
 
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_FailedInstall' -Fallback 'Failed to install {0}' -FormatArgs @($DisplayName)
+		$failureMessage = "{0} Install - Failed" -f $DisplayName
 		LogError $failureMessage
 		throw $failureMessage
 	}
 	catch
 	{
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @($_.Exception.Message)
+		$failureMessage = "{0} Install - Failed" -f $DisplayName
 		LogError $failureMessage
 		throw $failureMessage
 	}
@@ -982,27 +990,26 @@ function Invoke-WingetUninstall
 	}
 
 	Write-ConsoleStatus -Action (Get-BaselineLocalizedString -Key 'Progress_WinGet_StartingUninstallation' -Fallback 'Starting uninstallation of {0}...' -FormatArgs @($DisplayName))
-	LogInfo (Get-BaselineLocalizedString -Key 'Progress_Uninstalling' -Fallback 'Uninstalling {0}...' -FormatArgs @($DisplayName))
 
 	try
 	{
-		$result = Start-Process -FilePath $wingetPath -ArgumentList @(
+		$exitCode = Invoke-StreamingProcess -FilePath $wingetPath -ArgumentList @(
 			'uninstall', '--id', $WinGetId, '--exact', '--silent', '--disable-interactivity'
-		) -Wait -PassThru -ErrorAction Stop
+		)
 
-		if ($result.ExitCode -eq 0)
+		if ($exitCode -eq 0)
 		{
-			LogInfo (Get-BaselineLocalizedString -Key 'Progress_WinGet_UninstalledSuccess' -Fallback 'Successfully uninstalled {0}' -FormatArgs @($DisplayName))
+			LogInfo ("{0} Uninstall - Success" -f $DisplayName)
 			return
 		}
 
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_WinGet_UninstallationError' -Fallback 'Error uninstalling {0}: {1}' -FormatArgs @($DisplayName, "exit code $($result.ExitCode)")
+		$failureMessage = "{0} Uninstall - Failed" -f $DisplayName
 		LogError $failureMessage
 		throw $failureMessage
 	}
 	catch
 	{
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_WinGet_UninstallationError' -Fallback 'Error uninstalling {0}: {1}' -FormatArgs @($DisplayName, $_.Exception.Message)
+		$failureMessage = "{0} Uninstall - Failed" -f $DisplayName
 		LogError $failureMessage
 		throw $failureMessage
 	}
@@ -1053,27 +1060,26 @@ function Invoke-WingetUpdate
 	}
 
 	Write-ConsoleStatus -Action (Get-BaselineLocalizedString -Key 'Progress_Processing' -Fallback 'Processing {0}...' -FormatArgs @($DisplayName))
-	LogInfo (Get-BaselineLocalizedString -Key 'Progress_Processing' -Fallback 'Processing {0}...' -FormatArgs @($DisplayName))
 
 	try
 	{
-		$result = Start-Process -FilePath $wingetPath -ArgumentList @(
+		$exitCode = Invoke-StreamingProcess -FilePath $wingetPath -ArgumentList @(
 			'upgrade', '--id', $WinGetId, '--exact', '--include-unknown', '--silent', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity'
-		) -Wait -PassThru -ErrorAction Stop
+		)
 
-		if ($result.ExitCode -eq 0)
+		if ($exitCode -eq 0)
 		{
-			LogInfo (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready')
+			LogInfo ("{0} Update - Success" -f $DisplayName)
 			return
 		}
 
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @("winget upgrade $DisplayName exited with code $($result.ExitCode)")
+		$failureMessage = "{0} Update - Failed" -f $DisplayName
 		LogError $failureMessage
 		throw $failureMessage
 	}
 	catch
 	{
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @($_.Exception.Message)
+		$failureMessage = "{0} Update - Failed" -f $DisplayName
 		LogError $failureMessage
 		throw $failureMessage
 	}
@@ -1140,42 +1146,40 @@ function Invoke-ChocoInstall
 
 	$resolvedChocoId = Resolve-ApplicationPackageId -PackageId $ChocoId
 	Write-ConsoleStatus -Action (Get-BaselineLocalizedString -Key 'Progress_Choco_InstallingPackage' -Fallback "Installing '{0}' via Chocolatey..." -FormatArgs @($DisplayName))
-	LogInfo (Get-BaselineLocalizedString -Key 'Progress_Choco_InstallingPackage' -Fallback "Installing '{0}' via Chocolatey..." -FormatArgs @($DisplayName))
 
 	try
 	{
 		$chocoPath = Resolve-ChocolateyExecutable
 		if (-not $chocoPath)
 		{
-			LogInfo (Get-BaselineLocalizedString -Key 'Progress_Choco_Installing' -Fallback 'Installing Chocolatey package manager...')
 			Invoke-ChocolateyBootstrapInstall
 			$chocoPath = Resolve-ChocolateyExecutable
 		}
 
 		if (-not $chocoPath)
 		{
-			$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Choco_NotAvailable' -Fallback 'Chocolatey is not available on this system.'
+			$failureMessage = "{0} Install - Failed" -f $DisplayName
 			LogError $failureMessage
 			throw $failureMessage
 		}
 
-		$result = Start-Process -FilePath $chocoPath -ArgumentList @(
+		$exitCode = Invoke-StreamingProcess -FilePath $chocoPath -ArgumentList @(
 			'install', $resolvedChocoId, '-y', '--no-progress', '--accept-license'
-		) -Wait -PassThru -ErrorAction Stop
+		)
 
-		if ($result.ExitCode -eq 0)
+		if ($exitCode -eq 0)
 		{
-			LogInfo (Get-BaselineLocalizedString -Key 'Progress_InstalledSuccess' -Fallback 'Successfully installed {0}' -FormatArgs @($DisplayName))
+			LogInfo ("{0} Install - Success" -f $DisplayName)
 			return
 		}
 
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_FailedInstall' -Fallback 'Failed to install {0}' -FormatArgs @($DisplayName)
+		$failureMessage = "{0} Install - Failed" -f $DisplayName
 		LogError $failureMessage
 		throw $failureMessage
 	}
 	catch
 	{
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @($_.Exception.Message)
+		$failureMessage = "{0} Install - Failed" -f $DisplayName
 		LogError $failureMessage
 		throw $failureMessage
 	}
@@ -1202,42 +1206,40 @@ function Invoke-ChocoUninstall
 
 	$resolvedChocoId = Resolve-ApplicationPackageId -PackageId $ChocoId
 	Write-ConsoleStatus -Action (Get-BaselineLocalizedString -Key 'Progress_Choco_UninstallingPackage' -Fallback "Uninstalling '{0}' via Chocolatey..." -FormatArgs @($DisplayName))
-	LogInfo (Get-BaselineLocalizedString -Key 'Progress_Choco_UninstallingPackage' -Fallback "Uninstalling '{0}' via Chocolatey..." -FormatArgs @($DisplayName))
 
 	try
 	{
 		$chocoPath = Resolve-ChocolateyExecutable
 		if (-not $chocoPath)
 		{
-			LogInfo (Get-BaselineLocalizedString -Key 'Progress_Choco_Installing' -Fallback 'Installing Chocolatey package manager...')
 			Invoke-ChocolateyBootstrapInstall
 			$chocoPath = Resolve-ChocolateyExecutable
 		}
 
 		if (-not $chocoPath)
 		{
-			$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Choco_NotAvailable' -Fallback 'Chocolatey is not available on this system.'
+			$failureMessage = "{0} Uninstall - Failed" -f $DisplayName
 			LogError $failureMessage
 			throw $failureMessage
 		}
 
-		$result = Start-Process -FilePath $chocoPath -ArgumentList @(
+		$exitCode = Invoke-StreamingProcess -FilePath $chocoPath -ArgumentList @(
 			'uninstall', $resolvedChocoId, '-y', '--no-progress'
-		) -Wait -PassThru -ErrorAction Stop
+		)
 
-		if ($result.ExitCode -eq 0)
+		if ($exitCode -eq 0)
 		{
-			LogInfo (Get-BaselineLocalizedString -Key 'Progress_WinGet_UninstalledSuccess' -Fallback 'Successfully uninstalled {0}' -FormatArgs @($DisplayName))
+			LogInfo ("{0} Uninstall - Success" -f $DisplayName)
 			return
 		}
 
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_WinGet_UninstallationError' -Fallback 'Error uninstalling {0}: {1}' -FormatArgs @($DisplayName, "exit code $($result.ExitCode)")
+		$failureMessage = "{0} Uninstall - Failed" -f $DisplayName
 		LogError $failureMessage
 		throw $failureMessage
 	}
 	catch
 	{
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_WinGet_UninstallationError' -Fallback 'Error uninstalling {0}: {1}' -FormatArgs @($DisplayName, $_.Exception.Message)
+		$failureMessage = "{0} Uninstall - Failed" -f $DisplayName
 		LogError $failureMessage
 		throw $failureMessage
 	}
@@ -1264,42 +1266,40 @@ function Invoke-ChocoUpdate
 
 	$resolvedChocoId = Resolve-ApplicationPackageId -PackageId $ChocoId
 	Write-ConsoleStatus -Action ("Updating '{0}' via Chocolatey..." -f $DisplayName)
-	LogInfo ("Updating '{0}' via Chocolatey..." -f $DisplayName)
 
 	try
 	{
 		$chocoPath = Resolve-ChocolateyExecutable
 		if (-not $chocoPath)
 		{
-			LogInfo (Get-BaselineLocalizedString -Key 'Progress_Choco_Installing' -Fallback 'Installing Chocolatey package manager...')
 			Invoke-ChocolateyBootstrapInstall
 			$chocoPath = Resolve-ChocolateyExecutable
 		}
 
 		if (-not $chocoPath)
 		{
-			$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Choco_NotAvailable' -Fallback 'Chocolatey is not available on this system.'
+			$failureMessage = "{0} Update - Failed" -f $DisplayName
 			LogError $failureMessage
 			throw $failureMessage
 		}
 
-		$result = Start-Process -FilePath $chocoPath -ArgumentList @(
+		$exitCode = Invoke-StreamingProcess -FilePath $chocoPath -ArgumentList @(
 			'upgrade', $resolvedChocoId, '-y', '--no-progress'
-		) -Wait -PassThru -ErrorAction Stop
+		)
 
-		if ($result.ExitCode -eq 0)
+		if ($exitCode -eq 0)
 		{
-			LogInfo ("Successfully updated {0}" -f $DisplayName)
+			LogInfo ("{0} Update - Success" -f $DisplayName)
 			return
 		}
 
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @("choco upgrade $DisplayName exited with code $($result.ExitCode)")
+		$failureMessage = "{0} Update - Failed" -f $DisplayName
 		LogError $failureMessage
 		throw $failureMessage
 	}
 	catch
 	{
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @($_.Exception.Message)
+		$failureMessage = "{0} Update - Failed" -f $DisplayName
 		LogError $failureMessage
 		throw $failureMessage
 	}
@@ -1344,27 +1344,26 @@ function Invoke-WingetUpdateAll
 	}
 
 	Write-ConsoleStatus -Action (Get-BaselineLocalizedString -Key 'Progress_WinGet_CheckingUpdates' -Fallback 'Checking for WinGet updates...')
-	LogInfo (Get-BaselineLocalizedString -Key 'Progress_WinGet_Updating' -Fallback 'Updating WinGet...')
 
 	try
 	{
-		$result = Start-Process -FilePath $wingetPath -ArgumentList @(
+		$exitCode = Invoke-StreamingProcess -FilePath $wingetPath -ArgumentList @(
 			'upgrade', '--all', '--include-unknown', '--silent', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity'
-		) -Wait -PassThru -ErrorAction Stop
+		)
 
-		if ($result.ExitCode -eq 0)
+		if ($exitCode -eq 0)
 		{
-			LogInfo (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready')
+			LogInfo 'WinGet Update All - Success'
 			return
 		}
 
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @("winget upgrade --all exited with code $($result.ExitCode)")
+		$failureMessage = 'WinGet Update All - Failed'
 		LogError $failureMessage
 		throw $failureMessage
 	}
 	catch
 	{
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @($_.Exception.Message)
+		$failureMessage = 'WinGet Update All - Failed'
 		LogError $failureMessage
 		throw $failureMessage
 	}
@@ -1401,35 +1400,34 @@ function Invoke-ChocoUpdateAll
 	}
 
 	Write-ConsoleStatus -Action (Get-BaselineLocalizedString -Key 'Progress_Choco_CheckingUpdates' -Fallback 'Checking Chocolatey updates...')
-	LogInfo (Get-BaselineLocalizedString -Key 'Progress_Choco_Updating' -Fallback 'Updating Chocolatey...')
 
 	try
 	{
 		$chocoPath = Resolve-ChocolateyExecutable
 		if (-not $chocoPath)
 		{
-			$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Choco_NotAvailable' -Fallback 'Chocolatey is not available on this system.'
+			$failureMessage = 'Chocolatey Update All - Failed'
 			LogError $failureMessage
 			throw $failureMessage
 		}
 
-		$result = Start-Process -FilePath $chocoPath -ArgumentList @(
+		$exitCode = Invoke-StreamingProcess -FilePath $chocoPath -ArgumentList @(
 			'upgrade', 'all', '-y', '--no-progress'
-		) -Wait -PassThru -ErrorAction Stop
+		)
 
-		if ($result.ExitCode -eq 0)
+		if ($exitCode -eq 0)
 		{
-			LogInfo 'Chocolatey update-all completed successfully.'
+			LogInfo 'Chocolatey Update All - Success'
 			return
 		}
 
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @("choco upgrade all exited with code $($result.ExitCode)")
+		$failureMessage = 'Chocolatey Update All - Failed'
 		LogError $failureMessage
 		throw $failureMessage
 	}
 	catch
 	{
-		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @($_.Exception.Message)
+		$failureMessage = 'Chocolatey Update All - Failed'
 		LogError $failureMessage
 		throw $failureMessage
 	}

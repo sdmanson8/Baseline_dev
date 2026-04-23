@@ -15,7 +15,7 @@
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param (
 			[System.Windows.Controls.Primitives.ButtonBase]$Button,
-			[ValidateSet('Primary', 'Preview', 'Danger', 'DangerSubtle', 'Secondary', 'Subtle', 'Selection')]
+			[ValidateSet('Primary', 'Preview', 'Danger', 'DangerSubtle', 'Secondary', 'Subtle', 'Selection', 'SegmentNeutral')]
 			[string]$Variant = 'Secondary',
 			[switch]$Compact,
 			[switch]$Muted
@@ -87,15 +87,46 @@
 			}
 			'Subtle'
 			{
-				$normalBg     = & $getSafeColor -ColorName 'TabBg' -DefaultColor '#2F3445'
-				$hoverBg      = & $getSafeColor -ColorName 'TabHoverBg' -DefaultColor '#3670B8'
-				$pressBg      = & $getSafeColor -ColorName 'TabActiveBg' -DefaultColor '#3670B8'
-				$normalBorder = & $getSafeColor -ColorName 'BorderColor' -DefaultColor '#4C556D'
-				$foreground   = if ($Muted) {
-					& $getSafeColor -ColorName 'TextSecondary' -DefaultColor '#9CA3AF'
-				} else {
-					& $getSafeColor -ColorName 'TextPrimary' -DefaultColor '#CDD6F4'
+				if ($Muted)
+				{
+					# Passive / unselected Subtle — keep the existing weak chrome so
+					# Clear Search, Refresh, footer buttons, unselected filter pills,
+					# etc. don't grow heavier.
+					$normalBg     = & $getSafeColor -ColorName 'TabBg' -DefaultColor '#2F3445'
+					$hoverBg      = & $getSafeColor -ColorName 'TabHoverBg' -DefaultColor '#3670B8'
+					$pressBg      = & $getSafeColor -ColorName 'TabActiveBg' -DefaultColor '#3670B8'
+					$normalBorder = & $getSafeColor -ColorName 'BorderColor' -DefaultColor '#4C556D'
+					$foreground   = & $getSafeColor -ColorName 'TextSecondary' -DefaultColor '#9CA3AF'
 				}
+				else
+				{
+					# Non-muted Subtle — used as the selected-neutral pill (Source=All,
+					# View=Cards, View=List). TabBg + BorderColor is too close to the
+					# parent panel to read as a pill, so step the fill one shade
+					# brighter and use a distinctly stronger neutral-cool border at
+					# 2px so the silhouette is unmistakable without going accent.
+					$normalBg     = & $getSafeColor -ColorName 'SecondaryButtonHoverBg' -DefaultColor '#39415A'
+					$hoverBg      = & $getSafeColor -ColorName 'TabHoverBg' -DefaultColor '#3670B8'
+					$pressBg      = & $getSafeColor -ColorName 'TabActiveBg' -DefaultColor '#3670B8'
+					$normalBorder = & $getSafeColor -ColorName 'ActiveTabBorder' -DefaultColor '#89B4FA'
+					$foreground   = & $getSafeColor -ColorName 'TextPrimary' -DefaultColor '#CDD6F4'
+					$borderThickness = 2
+				}
+			}
+			'SegmentNeutral'
+			{
+				# Neutral "selected" state for segmented controls (e.g. Source=All,
+				# View=Cards/List). Must still read as a real pill — distinct
+				# fill AND visible border — but non-accent so WinGet/Chocolatey
+				# keep the accent to themselves. Use a stronger neutral-selected
+				# fill than the generic secondary chrome so "All" never blends
+				# into the panel.
+				$normalBg     = & $getSafeColor -ColorName 'SecondaryButtonHoverBg' -DefaultColor '#39415A'
+				$hoverBg      = & $getSafeColor -ColorName 'SecondaryButtonHoverBg' -DefaultColor '#39415A'
+				$pressBg      = & $getSafeColor -ColorName 'SecondaryButtonHoverBg' -DefaultColor '#39415A'
+				$normalBorder = & $getSafeColor -ColorName 'ActiveTabBorder' -DefaultColor '#89B4FA'
+				$foreground   = & $getSafeColor -ColorName 'TextPrimary' -DefaultColor '#CDD6F4'
+				$borderThickness = 2
 			}
 			default
 			{
@@ -171,11 +202,16 @@
 		[void]($tmpl.Triggers.Add($disabledTrigger))
 		if ($Button -is [System.Windows.Controls.Primitives.ToggleButton])
 		{
+			# Keep checked ToggleButtons in their declared variant chrome instead of
+			# overriding them with the generic pressed/focus styling. Without this,
+			# neutral segmented selections (e.g. Source=All, View=Cards) lose their
+			# pill silhouette and read like plain text.
 			$checkedTrigger = New-Object System.Windows.Trigger
 			$checkedTrigger.Property = [System.Windows.Controls.Primitives.ToggleButton]::IsCheckedProperty
 			$checkedTrigger.Value = $true
-			[void]($checkedTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BackgroundProperty) -Value $pressBgBrush -TargetName 'Bd')))
-			[void]($checkedTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BorderBrushProperty) -Value $focusBorderBrush -TargetName 'Bd')))
+			[void]($checkedTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BackgroundProperty) -Value $normalBgBrush -TargetName 'Bd')))
+			[void]($checkedTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BorderBrushProperty) -Value $normalBorderBrush -TargetName 'Bd')))
+			[void]($checkedTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BorderThicknessProperty) -Value (New-SafeThickness -Uniform $borderThickness) -TargetName 'Bd')))
 			[void]($tmpl.Triggers.Add($checkedTrigger))
 		}
 		$Button.Template = $tmpl
@@ -777,6 +813,13 @@
 			& $setBrush -Key 'ScrollBarThumbBrush'       -ColorValue $theme.ScrollThumb
 			& $setBrush -Key 'ScrollBarThumbHoverBrush'  -ColorValue $(if ($theme.ScrollThumbHover)  { $theme.ScrollThumbHover }  else { $theme.ScrollThumb })
 			& $setBrush -Key 'ScrollBarThumbActiveBrush' -ColorValue $(if ($theme.ScrollThumbActive) { $theme.ScrollThumbActive } else { $theme.ScrollThumb })
+			# Tokens consumed by AppsFilterRadioStyle (MainWindow.xaml). Kept in
+			# this resource-push path so the radio dials track the active theme.
+			& $setBrush -Key 'RadioForeground'   -ColorValue $theme.TextPrimary
+			& $setBrush -Key 'RadioRingNormal'   -ColorValue $theme.BorderColor
+			& $setBrush -Key 'RadioRingHover'    -ColorValue $(if ($theme.AccentHover) { $theme.AccentHover } else { $theme.AccentBlue })
+			& $setBrush -Key 'RadioRingChecked'  -ColorValue $theme.AccentBlue
+			& $setBrush -Key 'RadioDotFill'      -ColorValue $theme.AccentBlue
 		}
 		catch
 		{
@@ -853,11 +896,24 @@
 		}
 		if ($Script:NavModeTweaks)
 		{
-			Set-GuiButtonIconContent -Button $Script:NavModeTweaks -IconName 'SystemTab' -Text (Get-UxLocalizedString -Key 'Nav_Optimize' -Fallback 'System Tweaks') -ToolTip (Get-UxLocalizedString -Key 'Nav_OptimizeTooltip' -Fallback 'Show the tweak configuration view.') -IconSize 14 -Gap 6 -TextFontSize 11
+			$tweaksTip = (Get-UxLocalizedString -Key 'Nav_OptimizeTooltip' -Fallback "Configure Windows system behavior.`nStage changes, preview the plan, then apply in a controlled run.")
+			Set-GuiButtonIconContent -Button $Script:NavModeTweaks -IconName 'SystemTab' -Text (Get-UxLocalizedString -Key 'Nav_Optimize' -Fallback 'System Tweaks') -ToolTip $tweaksTip -IconSize 14 -Gap 6 -TextFontSize 11
+			[System.Windows.Controls.ToolTipService]::SetInitialShowDelay($Script:NavModeTweaks, 350)
+			[System.Windows.Controls.ToolTipService]::SetShowDuration($Script:NavModeTweaks, 15000)
 		}
 		if ($Script:NavModeApps)
 		{
-			Set-GuiButtonIconContent -Button $Script:NavModeApps -IconName 'AppsTab' -Text (Get-UxLocalizedString -Key 'Nav_SoftwareAndApps' -Fallback 'Software & Apps') -ToolTip (Get-UxLocalizedString -Key 'Nav_SoftwareAndAppsTooltip' -Fallback 'Show the application catalog.') -IconSize 14 -Gap 6 -TextFontSize 11
+			$appsTip = (Get-UxLocalizedString -Key 'Nav_SoftwareAndAppsTooltip' -Fallback "Install, update, or uninstall applications via WinGet or Chocolatey.`nQueue actions across many apps, then Apply Changes as a batch.")
+			Set-GuiButtonIconContent -Button $Script:NavModeApps -IconName 'AppsTab' -Text (Get-UxLocalizedString -Key 'Nav_SoftwareAndApps' -Fallback 'Software & Apps') -ToolTip $appsTip -IconSize 14 -Gap 6 -TextFontSize 11
+			[System.Windows.Controls.ToolTipService]::SetInitialShowDelay($Script:NavModeApps, 350)
+			[System.Windows.Controls.ToolTipService]::SetShowDuration($Script:NavModeApps, 15000)
+		}
+		if ($Script:ModeSubtitle)
+		{
+			$modeSubtitleKey = if ($Script:AppsModeActive) { 'Nav_SoftwareAndAppsSubtitle' } else { 'Nav_OptimizeSubtitle' }
+			$modeSubtitleFallback = if ($Script:AppsModeActive) { 'Manage installed applications' } else { 'Configure system behavior' }
+			$Script:ModeSubtitle.Text = (Get-UxLocalizedString -Key $modeSubtitleKey -Fallback $modeSubtitleFallback)
+			$Script:ModeSubtitle.HorizontalAlignment = if ($Script:AppsModeActive) { [System.Windows.HorizontalAlignment]::Right } else { [System.Windows.HorizontalAlignment]::Left }
 		}
 		if ($Script:BtnUpdateAllApps)
 		{
@@ -865,19 +921,15 @@
 		}
 		if ($Script:BtnInstallSelectedApps)
 		{
-			Set-GuiButtonIconContent -Button $Script:BtnInstallSelectedApps -IconName 'ArrowDownload' -Text (Get-UxLocalizedString -Key 'GuiAppsInstallSelected' -Fallback 'Install Selected') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsInstallSelectedTip' -Fallback 'Install every checked application.') -IconSize 14 -Gap 6 -TextFontSize 11
+			Set-GuiButtonIconContent -Button $Script:BtnInstallSelectedApps -IconName 'ArrowDownload' -Text (Get-UxLocalizedString -Key 'GuiAppsQueueInstall' -Fallback 'Queue Install') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsQueueInstallTip' -Fallback 'Stage installs for every checked app. They run when you click Apply Changes.') -IconSize 14 -Gap 6 -TextFontSize 11
 		}
 		if ($Script:BtnUninstallSelectedApps)
 		{
-			Set-GuiButtonIconContent -Button $Script:BtnUninstallSelectedApps -IconName 'Delete' -Text (Get-UxLocalizedString -Key 'GuiAppsUninstallSelected' -Fallback 'Uninstall Selected') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsUninstallSelectedTip' -Fallback 'Uninstall every checked application.') -IconSize 14 -Gap 6 -TextFontSize 11
+			Set-GuiButtonIconContent -Button $Script:BtnUninstallSelectedApps -IconName 'Delete' -Text (Get-UxLocalizedString -Key 'GuiAppsQueueUninstall' -Fallback 'Queue Uninstall') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsQueueUninstallTip' -Fallback 'Stage uninstalls for every checked app. They run when you click Apply Changes.') -IconSize 14 -Gap 6 -TextFontSize 11
 		}
 		if ($Script:BtnUpdateSelectedApps)
 		{
-			Set-GuiButtonIconContent -Button $Script:BtnUpdateSelectedApps -IconName 'ArrowSync' -Text (Get-UxLocalizedString -Key 'GuiAppsUpdateSelected' -Fallback 'Update Selected') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsUpdateSelectedTip' -Fallback 'Update every checked application.') -IconSize 14 -Gap 6 -TextFontSize 11
-		}
-		if ($Script:BtnClearAppSelection)
-		{
-			Set-GuiButtonIconContent -Button $Script:BtnClearAppSelection -IconName 'Clear' -Text (Get-UxLocalizedString -Key 'GuiAppsClearSelection' -Fallback 'Clear Selection') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsClearSelectionTip' -Fallback 'Clear all checked applications.') -IconSize 14 -Gap 6 -TextFontSize 11
+			Set-GuiButtonIconContent -Button $Script:BtnUpdateSelectedApps -IconName 'ArrowSync' -Text (Get-UxLocalizedString -Key 'GuiAppsQueueUpdate' -Fallback 'Queue Update') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsQueueUpdateTip' -Fallback 'Stage updates for every checked app. They run when you click Apply Changes.') -IconSize 14 -Gap 6 -TextFontSize 11
 		}
 		if ($Script:BtnScanInstalledApps)
 		{
@@ -885,15 +937,27 @@
 		}
 		if ($Script:AppsSourceLabel)
 		{
-			$Script:AppsSourceLabel.Text = (Get-UxLocalizedString -Key 'GuiAppsSourceLabel' -Fallback 'Package source')
+			$Script:AppsSourceLabel.Text = (Get-UxLocalizedString -Key 'GuiAppsSourceLabel' -Fallback 'Source') + ':'
 		}
-		if ($Script:BtnAppsSourceWinGet)
+		if (Get-Command -Name 'Update-AppSourceFilterControls' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			Set-GuiButtonIconContent -Button $Script:BtnAppsSourceWinGet -IconName 'Package' -Text (Get-UxLocalizedString -Key 'GuiAppsSourceWinGet' -Fallback 'WinGet') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsSourceWinGetTip' -Fallback 'Prefer WinGet when both package sources are available.') -IconSize 14 -Gap 6 -TextFontSize 11
+			Update-AppSourceFilterControls
 		}
-		if ($Script:BtnAppsSourceChocolatey)
+		if ($Script:AppsViewModeLabel)
 		{
-			Set-GuiButtonIconContent -Button $Script:BtnAppsSourceChocolatey -IconName 'Package' -Text (Get-UxLocalizedString -Key 'GuiAppsSourceChocolatey' -Fallback 'Chocolatey') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsSourceChocolateyTip' -Fallback 'Prefer Chocolatey when both package sources are available.') -IconSize 14 -Gap 6 -TextFontSize 11
+			$Script:AppsViewModeLabel.Text = (Get-UxLocalizedString -Key 'GuiAppsViewModeLabel' -Fallback 'View') + ':'
+		}
+		if ($Script:BtnAppsViewCards)
+		{
+			$Script:BtnAppsViewCards.ToolTip = (Get-UxLocalizedString -Key 'GuiAppsViewModeCardsTip' -Fallback 'Show apps as a grid of cards.')
+		}
+		if ($Script:BtnAppsViewList)
+		{
+			$Script:BtnAppsViewList.ToolTip = (Get-UxLocalizedString -Key 'GuiAppsViewModeListTip' -Fallback 'Show apps in a vertical list.')
+		}
+		if (Get-Command -Name 'Update-AppsViewModeControls' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-AppsViewModeControls
 		}
 
 		# Search area
@@ -907,13 +971,13 @@
 		{
 			$TxtLanguageSearchPlaceholder.Text = (Get-UxLocalizedString -Key 'GuiLanguageSearchPlaceholder' -Fallback 'Search languages...')
 		}
-		if ($Script:AppsCategoryLabel)
+		if ($Script:AppsStatusLabel)
 		{
-			$Script:AppsCategoryLabel.Text = (Get-UxLocalizedString -Key 'GuiCategoryFilterLabel' -Fallback 'Category')
+			$Script:AppsStatusLabel.Text = (Get-UxLocalizedString -Key 'GuiAppsStatusFilterLabel' -Fallback 'Installed') + ':'
 		}
-		if ($Script:CmbAppsCategoryFilter)
+		if ($Script:CmbAppsStatusFilter)
 		{
-			$Script:CmbAppsCategoryFilter.ToolTip = (Get-UxLocalizedString -Key 'GuiAppsCategoryTooltip' -Fallback 'Filter applications by category.')
+			$Script:CmbAppsStatusFilter.ToolTip = (Get-UxLocalizedString -Key 'GuiAppsStatusFilterTooltip' -Fallback 'Filter applications by installed or update-available status.')
 		}
 
 		# Checkboxes
@@ -947,6 +1011,10 @@
 		{
 			Update-AppPackageSourcePreferenceControls
 		}
+		if (Get-Command -Name 'Update-AppSourceFilterControls' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-AppSourceFilterControls
+		}
 
 		# Filter labels
 		if ($Script:RiskFilterLabel)     { $Script:RiskFilterLabel.Text = (Get-UxLocalizedString -Key 'GuiRiskFilterLabel' -Fallback 'Risk') }
@@ -961,6 +1029,17 @@
 			$Script:BtnFilterToggle.Content = $(
 				$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$filtersText $arrow" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
 				if ($fc) { $fc } else { "$filtersText $arrow" }
+			)
+		}
+
+		# Apps filter toggle button
+		if ($Script:BtnAppsFilterToggle)
+		{
+			$appsFiltersText = (Get-UxLocalizedString -Key 'GuiBtnAppsFilterToggle' -Fallback 'Filter')
+			$appsArrow = if ($Script:AppsFilterOptionsPanel -and $Script:AppsFilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Visible) { [char]0x25BE } else { [char]0x25B8 }
+			$Script:BtnAppsFilterToggle.Content = $(
+				$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$appsFiltersText $appsArrow" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
+				if ($fc) { $fc } else { "$appsFiltersText $appsArrow" }
 			)
 		}
 
@@ -1320,9 +1399,30 @@
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ()
 		$bc = New-SafeBrushConverter -Context 'Set-FilterControlStyle'
+		$sharedFilterLabelFontSize = 12
+		$sharedFilterLabelFontWeight = [System.Windows.FontWeights]::SemiBold
 		if ($RiskFilterLabel) { $RiskFilterLabel.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
 		if ($CategoryFilterLabel) { $CategoryFilterLabel.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
-		if ($Script:AppsCategoryLabel) { $Script:AppsCategoryLabel.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
+		if ($Script:AppsStatusLabel)
+		{
+			$Script:AppsStatusLabel.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextPrimary)
+			$Script:AppsStatusLabel.FontSize = $sharedFilterLabelFontSize
+			$Script:AppsStatusLabel.FontWeight = $sharedFilterLabelFontWeight
+		}
+		if ($Script:AppsSourceLabel)
+		{
+			$Script:AppsSourceLabel.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextPrimary)
+			$Script:AppsSourceLabel.FontSize = $sharedFilterLabelFontSize
+			$Script:AppsSourceLabel.FontWeight = $sharedFilterLabelFontWeight
+		}
+		if ($Script:AppsViewModeLabel)
+		{
+			$Script:AppsViewModeLabel.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextPrimary)
+			$Script:AppsViewModeLabel.FontSize = $sharedFilterLabelFontSize
+			$Script:AppsViewModeLabel.FontWeight = $sharedFilterLabelFontWeight
+		}
+		if ($Script:AppsFilterViewDivider) { $Script:AppsFilterViewDivider.Background = $bc.ConvertFromString($Script:CurrentTheme.BorderColor) }
+		if ($Script:AppsActionSeparator1) { $Script:AppsActionSeparator1.Background = $bc.ConvertFromString($Script:CurrentTheme.BorderColor) }
 		if ($ChkSelectedOnly) { $ChkSelectedOnly.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
 		if ($ChkHighRiskOnly) { $ChkHighRiskOnly.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
 		if ($ChkRestorableOnly) { $ChkRestorableOnly.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
@@ -1330,9 +1430,10 @@
 		if ($ChkSafeMode) { $ChkSafeMode.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
 		if ($ChkGameMode) { $ChkGameMode.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
 		if ($BtnFilterToggle) { $BtnFilterToggle.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
+		if ($Script:BtnAppsFilterToggle) { $Script:BtnAppsFilterToggle.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
 		if ($CmbRiskFilter) { Set-ChoiceComboStyle -Combo $CmbRiskFilter }
 		if ($CmbCategoryFilter) { Set-ChoiceComboStyle -Combo $CmbCategoryFilter }
-		if ($CmbAppsCategoryFilter) { Set-ChoiceComboStyle -Combo $CmbAppsCategoryFilter }
+		if ($CmbAppsStatusFilter) { Set-ChoiceComboStyle -Combo $CmbAppsStatusFilter }
 		if ($TxtLanguageState) { $TxtLanguageState.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
 		if ($LanguagePopupBorder)
 		{

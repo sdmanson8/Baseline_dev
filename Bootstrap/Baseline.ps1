@@ -595,14 +595,59 @@ Write-LaunchTrace ('CLI output format set to {0}.' -f $OutputFormat)
 
 # Resolve the running Baseline version early so headless lifecycle ops can
 # stamp it into playbooks/incident packs before the GUI/auto-update path runs.
-try
+function Resolve-BaselineCurrentVersion
 {
-	$Script:CurrentAppVersion = (Import-PowerShellDataFile -LiteralPath (Join-Path $Script:ModuleRoot 'Baseline.psd1')).ModuleVersion
+	$psdPath = Join-Path $Script:ModuleRoot 'Baseline.psd1'
+	try
+	{
+		if (Test-Path -LiteralPath $psdPath -PathType Leaf)
+		{
+			$data = Import-PowerShellDataFile -LiteralPath $psdPath
+			if ($data -and -not [string]::IsNullOrWhiteSpace([string]$data.ModuleVersion))
+			{
+				return [string]$data.ModuleVersion
+			}
+			Write-LaunchTrace ('Version lookup: Baseline.psd1 at {0} missing ModuleVersion' -f $psdPath)
+		}
+		else
+		{
+			Write-LaunchTrace ('Version lookup: Baseline.psd1 not found at {0}' -f $psdPath)
+		}
+	}
+	catch
+	{
+		Write-LaunchTrace ('Version lookup via Baseline.psd1 failed: {0}' -f $_.Exception.Message)
+	}
+
+	# Fall back to the launcher assembly metadata. The Baseline.exe PE stamps
+	# AssemblyInformationalVersion at build time, so even if the embedded
+	# Baseline.psd1 cannot be read we can still recover the real version.
+	try
+	{
+		$exePath = [string]$env:BASELINE_LAUNCHER_PATH
+		if (-not [string]::IsNullOrWhiteSpace($exePath) -and (Test-Path -LiteralPath $exePath -PathType Leaf))
+		{
+			$info = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($exePath)
+			$candidate = $info.ProductVersion
+			if ([string]::IsNullOrWhiteSpace($candidate)) { $candidate = $info.FileVersion }
+			if (-not [string]::IsNullOrWhiteSpace($candidate))
+			{
+				$plus = $candidate.IndexOf('+')
+				if ($plus -gt 0) { $candidate = $candidate.Substring(0, $plus) }
+				return [string]$candidate
+			}
+		}
+	}
+	catch
+	{
+		Write-LaunchTrace ('Version lookup via launcher assembly failed: {0}' -f $_.Exception.Message)
+	}
+
+	return '0.0.0'
 }
-catch
-{
-	$Script:CurrentAppVersion = '0.0.0'
-}
+
+$Script:CurrentAppVersion = Resolve-BaselineCurrentVersion
+Write-LaunchTrace ('Baseline current version resolved: {0}' -f $Script:CurrentAppVersion)
 
 if (-not [string]::IsNullOrWhiteSpace([string]$LifecycleOperation))
 {
@@ -738,7 +783,7 @@ Write-LaunchTrace 'Bootstrap splash shown'
 $Global:LoadingSplash = $Script:BootstrapSplash
 if ([string]::IsNullOrWhiteSpace([string]$Script:CurrentAppVersion) -or $Script:CurrentAppVersion -eq '0.0.0')
 {
-	$Script:CurrentAppVersion = (Import-PowerShellDataFile -LiteralPath (Join-Path $Script:ModuleRoot 'Baseline.psd1')).ModuleVersion
+	$Script:CurrentAppVersion = Resolve-BaselineCurrentVersion
 }
 Invoke-BaselineAutoUpdate -Splash $Script:BootstrapSplash -CurrentVersion $Script:CurrentAppVersion
 Write-LaunchTrace 'Auto-update checked'

@@ -8,7 +8,7 @@ source_file="en-US.json"
 locale_file_pattern='^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*\.json$'
 translate_host_ip="${TRANSLATE_HOST_IP:-}"
 term_tokens="${LOCALIZATION_TERMS:-Tweaks,Game Mode}"
-unfinished_locales="${LOCALIZATION_UNFINISHED_LOCALES:-chr.json}"
+unfinished_locales="${LOCALIZATION_UNFINISHED_LOCALES:-}"
 
 find_locale_file() {
     local file_name="$1"

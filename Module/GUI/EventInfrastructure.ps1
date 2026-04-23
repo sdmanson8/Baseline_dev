@@ -102,11 +102,29 @@
 		} else { @() }
 
 		$errorText = Get-GuiRuntimeFailureDetails -Context $Context -Exception $Exception -DebugTrail $debugTrail
-		if (Get-Command -Name 'LogError' -CommandType Function -ErrorAction SilentlyContinue)
+		$loggedViaCommand = $false
+		if (Get-Command -Name 'LogError' -ErrorAction SilentlyContinue)
 		{
-			LogError $errorText
+			try { LogError $errorText; $loggedViaCommand = $true } catch { $loggedViaCommand = $false }
 		}
-		else
+		if (-not $loggedViaCommand -and $Global:LogFilePath)
+		{
+			# Last-resort direct append: the LogError alias may not be
+			# resolvable inside a WPF dispatcher closure, and Write-Warning
+			# vanishes when the console is hidden. Write straight to the file
+			# so GUI-GENERIC-001 reports always leave a trail.
+			try
+			{
+				$timestamp = Get-Date -Format 'dd-MM-yyyy HH:mm'
+				$line = "$timestamp ERROR: $errorText"
+				Add-Content -LiteralPath $Global:LogFilePath -Value $line -Encoding UTF8 -ErrorAction Stop
+			}
+			catch
+			{
+				Write-Warning $errorText
+			}
+		}
+		elseif (-not $loggedViaCommand)
 		{
 			Write-Warning $errorText
 		}
@@ -583,7 +601,6 @@
 		$Script:ExecutionProgressText = $null
 		$Script:ExecutionSubProgressBar = $null
 		$Script:ExecutionSubProgressText = $null
-		$Script:AppsProgressContainer = $null
 		$Script:TxtAppsProgressText = $null
 		$Script:AppsProgressHost = $null
 		$Script:AppsProgressBar = $null

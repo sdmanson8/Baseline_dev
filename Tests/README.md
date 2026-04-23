@@ -134,7 +134,7 @@ Headless Pester tests that validate GUI contracts without rendering WPF windows:
 - **Dialog creation contracts** — verifies `Show-PlanSummaryDialog`, `Show-ThemedDialog`, `Show-ExecutionSummaryDialog` exist
 - **Icon fallback behavior** — validates text-only fallback when icon font is unavailable
 - **Preview count generation** — validates `Get-TweakVisualMetadata` returns MatchesDesired, StateLabel, StateTone
-- **Button chrome variants** — confirms all documented variants (Primary, Preview, Danger, DangerSubtle, Secondary, Subtle, Selection) are accepted
+- **Button chrome variants** — confirms all documented variants (Primary, Preview, Danger, DangerSubtle, Secondary, Subtle, Selection, SegmentNeutral) are accepted
 - **Theme management** — validates DarkTheme and LightTheme contain required color keys
 
 Run locally: `Invoke-Pester ./Tests/GUI.Composition.Tests.ps1 -Output Detailed`

@@ -93,10 +93,54 @@
 			)
 		}
 	})
-	$null = Register-GuiEventHandler -Source $CmbAppsCategoryFilter -EventName 'SelectionChanged' -Handler ({
+	if ($Script:AppsCategoryTabs)
+	{
+		$null = Register-GuiEventHandler -Source $Script:AppsCategoryTabs -EventName 'SelectionChanged' -Handler ({
+			param($appsTabSender, $appsTabEventArgs)
+			if (-not $appsTabEventArgs) { return }
+			if ($appsTabEventArgs.Source -ne $Script:AppsCategoryTabs) { return }
+			if ($Script:AppsFilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
+			$selectedAppTab = $Script:AppsCategoryTabs.SelectedItem
+			$selectedAppCategory = if ($selectedAppTab -and $selectedAppTab.Tag) { [string]$selectedAppTab.Tag } else { 'All' }
+			Set-AppCategoryFilterState -Category $selectedAppCategory
+		})
+	}
+	if ($Script:BtnAppsFilterToggle -and $Script:AppsFilterOptionsPanel)
+	{
+		$null = Register-GuiEventHandler -Source $Script:BtnAppsFilterToggle -EventName 'Click' -Handler ({
+			if ($Script:AppsFilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Collapsed)
+			{
+				$Script:AppsFilterOptionsPanel.Visibility = [System.Windows.Visibility]::Visible
+				$Script:BtnAppsFilterToggle.Content = $(
+					$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnAppsFilterToggle' -Fallback 'Filter') $([char]0x25BE)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
+					if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnAppsFilterToggle' -Fallback 'Filter') $([char]0x25BE)" }
+				)
+			}
+			else
+			{
+				$Script:AppsFilterOptionsPanel.Visibility = [System.Windows.Visibility]::Collapsed
+				$Script:BtnAppsFilterToggle.Content = $(
+					$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnAppsFilterToggle' -Fallback 'Filter') $([char]0x25B8)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
+					if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnAppsFilterToggle' -Fallback 'Filter') $([char]0x25B8)" }
+				)
+			}
+		})
+	}
+	$null = Register-GuiEventHandler -Source $CmbAppsStatusFilter -EventName 'SelectionChanged' -Handler ({
 		if ($Script:AppsFilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
-		$selectedAppCategory = if ($CmbAppsCategoryFilter.SelectedIndex -ge 0 -and $Script:AppsCategoryFilterInternalValues -and $CmbAppsCategoryFilter.SelectedIndex -lt $Script:AppsCategoryFilterInternalValues.Count) { $Script:AppsCategoryFilterInternalValues[$CmbAppsCategoryFilter.SelectedIndex] } else { 'All' }
-		Set-AppCategoryFilterState -Category $selectedAppCategory
+		$selectedAppStatus = if ($CmbAppsStatusFilter.SelectedIndex -ge 0 -and $Script:AppsStatusFilterInternalValues -and $CmbAppsStatusFilter.SelectedIndex -lt $Script:AppsStatusFilterInternalValues.Count) { $Script:AppsStatusFilterInternalValues[$CmbAppsStatusFilter.SelectedIndex] } else { 'All' }
+		Set-AppStatusFilterState -Status $selectedAppStatus
+		if ($selectedAppStatus -ne 'All' -and $Script:AppsFilterOptionsPanel -and $Script:AppsFilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Collapsed)
+		{
+			$Script:AppsFilterOptionsPanel.Visibility = [System.Windows.Visibility]::Visible
+			if ($Script:BtnAppsFilterToggle)
+			{
+				$Script:BtnAppsFilterToggle.Content = $(
+					$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnAppsFilterToggle' -Fallback 'Filter') $([char]0x25BE)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
+					if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnAppsFilterToggle' -Fallback 'Filter') $([char]0x25BE)" }
+				)
+			}
+		}
 	})
 	$null = Register-GuiEventHandler -Source $ChkSelectedOnly -EventName 'Checked' -Handler ({
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }

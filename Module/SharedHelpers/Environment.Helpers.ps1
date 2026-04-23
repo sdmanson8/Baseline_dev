@@ -686,6 +686,95 @@ function Test-Windows11FeatureBranchSupport
 
 <#
     .SYNOPSIS
+    Internal function Get-BaselineWindowsThemePreference.
+#>
+
+function Get-BaselineWindowsThemePreference
+{
+	param ()
+
+	$personalizePath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+	try
+	{
+		$themeSettings = Get-ItemProperty -LiteralPath $personalizePath -ErrorAction Stop
+		foreach ($propertyName in @('AppsUseLightTheme', 'SystemUsesLightTheme'))
+		{
+			if ($themeSettings.PSObject.Properties[$propertyName])
+			{
+				return if ([int]$themeSettings.$propertyName -eq 1) { 'Light' } else { 'Dark' }
+			}
+		}
+	}
+	catch
+	{
+		$null = $_
+	}
+
+	return $null
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-BaselineStartupThemeName.
+#>
+
+function Get-BaselineStartupThemeName
+{
+	param ()
+
+	$sessionPath = $null
+	try
+	{
+		$stateRoot = [System.Environment]::GetEnvironmentVariable('BASELINE_STATE_ROOT')
+		if (-not [string]::IsNullOrWhiteSpace([string]$stateRoot))
+		{
+			$sessionBaseDir = Join-Path $stateRoot 'Profiles'
+		}
+		elseif ($env:LOCALAPPDATA)
+		{
+			$sessionBaseDir = Join-Path $env:LOCALAPPDATA 'Baseline\Profiles'
+		}
+		else
+		{
+			$sessionBaseDir = Join-Path $env:TEMP 'Baseline\Profiles'
+		}
+
+		$sessionPath = Join-Path $sessionBaseDir 'Baseline-last-session.json'
+		if (Test-Path -LiteralPath $sessionPath -PathType Leaf)
+		{
+			$sessionJson = Get-Content -LiteralPath $sessionPath -Raw -ErrorAction Stop | ConvertFrom-BaselineJson -Depth 16
+			$sessionTheme = $null
+			if ($sessionJson -and $sessionJson.State -and $sessionJson.State.Theme)
+			{
+				$sessionTheme = [string]$sessionJson.State.Theme
+			}
+			elseif ($sessionJson -and $sessionJson.Theme)
+			{
+				$sessionTheme = [string]$sessionJson.Theme
+			}
+
+			if ($sessionTheme -in @('Light', 'Dark'))
+			{
+				return $sessionTheme
+			}
+		}
+	}
+	catch
+	{
+		$null = $_
+	}
+
+	$windowsTheme = Get-BaselineWindowsThemePreference
+	if ($windowsTheme -in @('Light', 'Dark'))
+	{
+		return $windowsTheme
+	}
+
+	return 'Dark'
+}
+
+<#
+    .SYNOPSIS
     Internal function Show-BootstrapLoadingSplash.
 #>
 
@@ -700,18 +789,8 @@ function Show-BootstrapLoadingSplash
 	{
 		Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase -ErrorAction Stop
 
-		# Check saved session for theme preference
-		$useLightTheme = $false
-		try
-		{
-			$sessionPath = Join-Path $env:LOCALAPPDATA 'Baseline\Profiles\Baseline-last-session.json'
-			if (Test-Path -LiteralPath $sessionPath)
-			{
-				$sessionJson = Get-Content -LiteralPath $sessionPath -Raw -ErrorAction Stop | ConvertFrom-BaselineJson -Depth 16
-				if ($sessionJson.State -and $sessionJson.State.Theme -eq 'Light') { $useLightTheme = $true }
-			}
-		}
-		catch { }
+		# Match the last saved session first, then fall back to the current Windows theme.
+		$useLightTheme = ((Get-BaselineStartupThemeName) -eq 'Light')
 
 			$syncHash = [hashtable]::Synchronized(@{
 				Window     = $null
@@ -849,7 +928,7 @@ function Show-BootstrapLoadingSplash
 				<ProgressBar Name="ProgressBar"
 					Width="320" Height="4"
 					Margin="0,12,0,0"
-					Visibility="Collapsed"
+					Visibility="Visible"
 					IsIndeterminate="True"
 					Foreground="$splashAccent"
 					Background="$splashBorder"/>
@@ -1644,6 +1723,15 @@ function Invoke-BaselineAutoUpdate
 		return
 	}
 
+	# If we couldn't determine our own version, refuse to auto-update. Without a
+	# trustworthy current version every published release looks "newer" and we
+	# would silently downgrade the user.
+	if ([string]::IsNullOrWhiteSpace([string]$CurrentVersion) -or $CurrentVersion -eq '0.0.0')
+	{
+		LogWarning ('Skipping auto-update check: current Baseline version could not be determined (reported: "{0}"). Refusing to compare against GitHub releases to avoid downgrading.' -f $CurrentVersion)
+		return
+	}
+
 	try
 	{
 		Set-DownloadSecurityProtocol
@@ -1663,7 +1751,7 @@ function Invoke-BaselineAutoUpdate
 		if (-not $isNewer)
 		{
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_AlreadyUpToDate' -Fallback 'Already up to date (latest: {0}).' -FormatArgs @($latestTag))
-			[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...') -HideProgressBar)
+			[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...') -Indeterminate)
 			return
 		}
 
@@ -1799,7 +1887,7 @@ del /f /q "%~f0"
 	finally
 	{
 		# Restore splash to normal idle state if we didn't exit
-		try { [void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...') -HideProgressBar) } catch { }
+		try { [void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...') -Indeterminate) } catch { }
 	}
 }
 

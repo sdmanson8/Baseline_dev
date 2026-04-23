@@ -22,21 +22,45 @@ from pathlib import Path
 
 MARKERS = ("Ã", "Â", "â€", "#U00", "#x00", "Ã¢â‚¬")
 
+# Python's built-in cp1252 codec treats these five bytes as undefined and
+# refuses to encode their U+00xx counterparts. .NET / Windows cp1252 keeps
+# them as pass-through (byte == codepoint). That difference is why a lot of
+# valid mojibake looked "irrecoverable" on the previous pass.
+CP1252_PASSTHROUGH = {0x81, 0x8D, 0x8F, 0x90, 0x9D}
+
 
 def looks_like_mojibake(s: str) -> bool:
     return any(m in s for m in MARKERS)
 
 
+def _encode_cp1252_permissive(s: str) -> bytes:
+    out = bytearray()
+    for c in s:
+        cp = ord(c)
+        if cp in CP1252_PASSTHROUGH:
+            out.append(cp)
+        else:
+            # May raise UnicodeEncodeError; caller handles.
+            out.extend(c.encode("cp1252"))
+    return bytes(out)
+
+
 def _decode_once(s: str) -> str | None:
-    # Try cp1252 first (handles smart quotes, Å‘, Å½, etc.), then fall back
-    # to latin-1 for strings whose bytes fit pure ISO-8859-1.
-    for codec in ("cp1252", "latin-1"):
-        try:
-            recovered = s.encode(codec).decode("utf-8")
-        except (UnicodeEncodeError, UnicodeDecodeError):
-            continue
+    # Try permissive cp1252 first (handles smart quotes + the 5 pass-through
+    # bytes that .NET's cp1252 keeps but Python's strict codec rejects), then
+    # fall back to latin-1 for strings whose bytes fit pure ISO-8859-1.
+    try:
+        recovered = _encode_cp1252_permissive(s).decode("utf-8")
         if recovered != s:
             return recovered
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        pass
+    try:
+        recovered = s.encode("latin-1").decode("utf-8")
+        if recovered != s:
+            return recovered
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        pass
     return None
 
 

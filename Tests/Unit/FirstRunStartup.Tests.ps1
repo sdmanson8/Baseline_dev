@@ -86,8 +86,9 @@ Describe 'First-run startup command wiring' {
         $chocolateyCommands | Should -Not -BeNullOrEmpty
     }
 
-    It 'requires the explicit approval flag before queueing Chocolatey startup bootstrap jobs' {
-        $initialSetupContent | Should -Match "Test-BaselineEnvironmentFlagEnabled\s+-Name\s+'BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP'"
+    It 'queues the Chocolatey startup bootstrap job unconditionally (no approval gate)' {
+        $initialSetupContent | Should -Not -Match "Test-BaselineEnvironmentFlagEnabled\s+-Name\s+'BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP'"
+        $initialSetupContent | Should -Match "Start-Job\s+-Name\s+'ChocolateyBootstrap'"
     }
 
     It 'uses the shared reviewed winget-install metadata instead of duplicating the release pin' {

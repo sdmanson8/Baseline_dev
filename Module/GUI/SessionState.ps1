@@ -499,7 +499,8 @@ function Import-GuiRemoteTargetApprovalPolicy
 			SearchText = $searchText
 			AppsSearchText = $appsSearchText
 			AuditRetentionDays = if ($Script:AuditRetentionDays) { [int]$Script:AuditRetentionDays } else { 90 }
-			AppsPackageSourcePreference = if ($Script:AppsPackageSourcePreference) { [string]$Script:AppsPackageSourcePreference } else { 'winget' }
+			AppsPackageSourcePreference = if ($Script:AppsPackageSourcePreference) { [string]$Script:AppsPackageSourcePreference } else { 'auto' }
+			AppsSourceFilter = if ($Script:AppsSourceFilter) { [string]$Script:AppsSourceFilter } else { 'All' }
 			PinnedBaselineVersion = if ($Script:PinnedBaselineVersion) { [string]$Script:PinnedBaselineVersion } else { $null }
 			AppsQueuedActions = @(
 				if ($Script:AppsQueuedActions -is [System.Collections.Generic.Dictionary[string, string]])
@@ -527,6 +528,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			RiskFilter = if ($Script:RiskFilter) { [string]$Script:RiskFilter } else { 'All' }
 			CategoryFilter = if ($Script:CategoryFilter) { [string]$Script:CategoryFilter } else { 'All' }
 			AppsCategoryFilter = if ($Script:AppsCategoryFilter) { [string]$Script:AppsCategoryFilter } else { 'All' }
+			AppsStatusFilter = if ($Script:AppsStatusFilter) { [string]$Script:AppsStatusFilter } else { 'All' }
 			SelectedOnlyFilter = [bool]$Script:SelectedOnlyFilter
 			HighRiskOnlyFilter = [bool]$Script:HighRiskOnlyFilter
 			RestorableOnlyFilter = [bool]$Script:RestorableOnlyFilter
@@ -747,7 +749,10 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$desiredSearch = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'SearchText')) { [string]$Snapshot.SearchText } else { '' }
 		$desiredAppsSearch = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsSearchText')) { [string]$Snapshot.AppsSearchText } else { '' }
 		$desiredAuditRetentionDays = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AuditRetentionDays')) { [int]$Snapshot.AuditRetentionDays } else { 90 }
-		$desiredAppsPackageSourcePreference = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsPackageSourcePreference') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsPackageSourcePreference)) { [string]$Snapshot.AppsPackageSourcePreference } else { 'winget' }
+		$desiredAppsPackageSourcePreference = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsPackageSourcePreference') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsPackageSourcePreference)) { [string]$Snapshot.AppsPackageSourcePreference } else { 'auto' }
+		$desiredAppsSourceFilter = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsSourceFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsSourceFilter)) { [string]$Snapshot.AppsSourceFilter } else { 'All' }
+		$allowedAppsSourceFilter = @('All', 'winget', 'choco')
+		if ($allowedAppsSourceFilter -notcontains $desiredAppsSourceFilter) { $desiredAppsSourceFilter = 'All' }
 		$desiredAppsQueuedActions = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsQueuedActions') -and $null -ne $Snapshot.AppsQueuedActions) { @($Snapshot.AppsQueuedActions) } else { @() }
 		$desiredPinnedBaselineVersion = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'PinnedBaselineVersion') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.PinnedBaselineVersion)) { [string]$Snapshot.PinnedBaselineVersion } else { $null }
 		$desiredSafe = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'SafeMode')) { [bool]$Snapshot.SafeMode } else { $false }
@@ -765,6 +770,9 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$desiredRisk = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RiskFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.RiskFilter)) { [string]$Snapshot.RiskFilter } else { 'All' }
 		$desiredCategory = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'CategoryFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.CategoryFilter)) { [string]$Snapshot.CategoryFilter } else { 'All' }
 		$desiredAppsCategory = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsCategoryFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsCategoryFilter)) { [string]$Snapshot.AppsCategoryFilter } else { 'All' }
+		$desiredAppsStatus = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsStatusFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsStatusFilter)) { [string]$Snapshot.AppsStatusFilter } else { 'All' }
+		$allowedAppsStatus = @('All', 'Installed', 'NotInstalled', 'UpdateAvailable')
+		if ($allowedAppsStatus -notcontains $desiredAppsStatus) { $desiredAppsStatus = 'All' }
 		$desiredSelectedOnly = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'SelectedOnlyFilter')) { [bool]$Snapshot.SelectedOnlyFilter } else { $false }
 		$desiredHighRiskOnly = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'HighRiskOnlyFilter')) { [bool]$Snapshot.HighRiskOnlyFilter } else { $false }
 		$desiredRestorableOnly = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RestorableOnlyFilter')) { [bool]$Snapshot.RestorableOnlyFilter } else { $false }
@@ -906,6 +914,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			$Script:Ctx.UI.PinnedBaselineVersion = $desiredPinnedBaselineVersion
 		}
 		$Script:AppsPackageSourcePreference = $desiredAppsPackageSourcePreference
+		$Script:AppsSourceFilter = $desiredAppsSourceFilter
 		Initialize-AppsQueuedActionState
 		$Script:AppsQueuedActions.Clear()
 		foreach ($queuedAction in @($desiredAppsQueuedActions))
@@ -962,18 +971,31 @@ function Import-GuiRemoteTargetApprovalPolicy
 			try
 			{
 				$Script:AppsCategoryFilter = $desiredAppsCategory
-				if ($CmbAppsCategoryFilter -and $CmbAppsCategoryFilter.Items.Count -gt 0)
+				if ($Script:AppsCategoryTabs -and $Script:AppsCategoryFilterInternalValues -and $Script:AppsCategoryFilterInternalValues.Count -gt 0)
 				{
-					if ($CmbAppsCategoryFilter.Items.Contains($desiredAppsCategory))
+					if ($Script:AppsCategoryFilterInternalValues.Contains($desiredAppsCategory))
 					{
-						$found = $CmbAppsCategoryFilter.Items.IndexOf($desiredAppsCategory)
-						if ($found -ge 0) { $CmbAppsCategoryFilter.SelectedIndex = [int]$found }
+						$found = $Script:AppsCategoryFilterInternalValues.IndexOf($desiredAppsCategory)
+						if ($found -ge 0) { $Script:AppsCategoryTabs.SelectedIndex = [int]$found }
 					}
 					else
 					{
-						[int]$idx = 0
-						$CmbAppsCategoryFilter.SelectedIndex = $idx
+						$Script:AppsCategoryTabs.SelectedIndex = 0
 						$Script:AppsCategoryFilter = 'All'
+					}
+				}
+				$Script:AppsStatusFilter = $desiredAppsStatus
+				if ($CmbAppsStatusFilter -and $Script:AppsStatusFilterInternalValues -and $Script:AppsStatusFilterInternalValues.Count -gt 0)
+				{
+					if ($Script:AppsStatusFilterInternalValues.Contains($desiredAppsStatus))
+					{
+						$foundStatus = $Script:AppsStatusFilterInternalValues.IndexOf($desiredAppsStatus)
+						if ($foundStatus -ge 0) { $CmbAppsStatusFilter.SelectedIndex = [int]$foundStatus }
+					}
+					else
+					{
+						$CmbAppsStatusFilter.SelectedIndex = 0
+						$Script:AppsStatusFilter = 'All'
 					}
 				}
 			}
@@ -992,6 +1014,14 @@ function Import-GuiRemoteTargetApprovalPolicy
 		if (Get-Command -Name 'Update-AppPackageSourcePreferenceControls' -CommandType Function -ErrorAction SilentlyContinue)
 		{
 			Update-AppPackageSourcePreferenceControls
+		}
+		if (Get-Command -Name 'Update-AppSourceFilterControls' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-AppSourceFilterControls
+		}
+		if (Get-Command -Name 'Update-AppsViewModeControls' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-AppsViewModeControls
 		}
 
 		if ([string]::IsNullOrWhiteSpace($desiredSearch) -and $desiredTab)

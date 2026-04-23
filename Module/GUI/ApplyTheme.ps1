@@ -38,8 +38,10 @@
 		if ($BtnMinimize) { Set-WindowCaptionButtonStyle -Button $BtnMinimize }
 		if ($BtnMaximize) { Set-WindowCaptionButtonStyle -Button $BtnMaximize }
 		if ($BtnClose) { Set-WindowCaptionButtonStyle -Button $BtnClose -Variant 'Close' }
-		if ($Script:NavModeTweaks) { Set-ButtonChrome -Button $Script:NavModeTweaks -Variant 'Subtle' -Compact -Muted }
-		if ($Script:NavModeApps) { Set-ButtonChrome -Button $Script:NavModeApps -Variant 'Subtle' -Compact -Muted }
+		if (Get-Command -Name 'Update-GuiNavModeChrome' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			try { Update-GuiNavModeChrome } catch { $null = $_ }
+		}
 		if ($Script:BtnUpdateAllApps) { Set-ButtonChrome -Button $Script:BtnUpdateAllApps -Variant 'Primary' -Compact }
 		if ($Script:BtnDownloadYes) { Set-ButtonChrome -Button $Script:BtnDownloadYes -Variant 'Primary' }
 		if ($Script:BtnDownloadNo) { Set-ButtonChrome -Button $Script:BtnDownloadNo -Variant 'Secondary' }
@@ -73,7 +75,6 @@
 			$Script:UpdateDialogCard.BorderBrush = $bc.ConvertFromString($Theme.BorderColor)
 		}
 		if ($Script:CustomPBarContainer) { $Script:CustomPBarContainer.Background = $bc.ConvertFromString($Theme.CardBorder) }
-		if ($Script:AppsProgressContainer) { $Script:AppsProgressContainer.Background = $bc.ConvertFromString($Theme.CardBorder) }
 		foreach ($progressBar in @($Script:CustomProgressBar, $Script:ExecutionProgressBar, $Script:AppsProgressBar, $Script:PresetProgressBar))
 		{
 			if ($progressBar)
@@ -98,6 +99,10 @@
 		Set-FilterControlStyle
 		Set-StaticButtonStyle
 		Update-PrimaryTabVisuals
+		if (Get-Command -Name 'Update-AppsCategoryTabVisuals' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-AppsCategoryTabVisuals
+		}
 		if (Get-Command -Name 'Update-GuiMenuBarTheme' -CommandType Function -ErrorAction SilentlyContinue)
 		{
 			Update-GuiMenuBarTheme

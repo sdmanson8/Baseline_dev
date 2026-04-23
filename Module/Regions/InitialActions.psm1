@@ -1,6 +1,44 @@
 ﻿using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
+# Appx cmdlets fail with "The type initializer for '<Module>' threw an exception"
+# in the minimal embedded runspace the Baseline launcher creates. Fall back to the
+# WinRT PackageManager so presence checks still work. Returns $null when neither
+# path produces a conclusive answer (caller should treat that as "unknown", not
+# "missing", to avoid a false "Windows is broken" warning).
+function Test-BaselineAppxPackagePresence
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory = $true)]
+		[string]
+		$Name
+	)
+
+	try
+	{
+		Import-Module Appx -DisableNameChecking -ErrorAction Stop -WarningAction SilentlyContinue | Out-Null
+		$package = Get-AppxPackage -Name $Name -WarningAction SilentlyContinue -ErrorAction Stop
+		return [bool]$package
+	}
+	catch
+	{
+		# Fall through to WinRT probe.
+	}
+
+	try
+	{
+		$packageManager = [Windows.Management.Deployment.PackageManager, Windows.Web, ContentType=WindowsRuntime]::new()
+		$match = $packageManager.FindPackages() | Where-Object { $_.Id.Name -eq $Name } | Select-Object -First 1
+		return [bool]$match
+	}
+	catch
+	{
+		return $null
+	}
+}
+
 #region InitialActions
 <#
 	.SYNOPSIS
@@ -424,16 +462,10 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 	}
 	else
 	{
-		try
+		$featurePackPresent = Test-BaselineAppxPackagePresence -Name 'MicrosoftWindows.Client.CBS'
+		if ($featurePackPresent -eq $false)
 		{
-			if (-not (Get-AppxPackage -Name MicrosoftWindows.Client.CBS -WarningAction SilentlyContinue -ErrorAction Stop))
-			{
-				LogWarning (Get-BaselineBilingualString -Key 'WindowsComponentBroken' -Fallback '{0} is broken or removed from Windows. Reinstall Windows using only a genuine ISO image.' -FormatArgs @('Windows Feature Experience Pack'))
-			}
-		}
-		catch
-		{
-			LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_FeatureExperiencePackCheckFailed' -Fallback 'Windows Feature Experience Pack check could not be completed: {0}' -FormatArgs @($_.Exception.Message))
+			LogWarning (Get-BaselineBilingualString -Key 'WindowsComponentBroken' -Fallback '{0} is broken or removed from Windows. Reinstall Windows using only a genuine ISO image.' -FormatArgs @('Windows Feature Experience Pack'))
 		}
 	}
 
@@ -452,16 +484,10 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 	}
 	else
 	{
-		try
+		$storePresent = Test-BaselineAppxPackagePresence -Name 'Microsoft.WindowsStore'
+		if ($storePresent -eq $false)
 		{
-			if (-not (Get-AppxPackage -Name Microsoft.WindowsStore -WarningAction SilentlyContinue -ErrorAction Stop))
-			{
-				LogWarning (Get-BaselineBilingualString -Key 'WindowsComponentBroken' -Fallback '{0} is broken or removed from Windows. Reinstall Windows using only a genuine ISO image.' -FormatArgs @('Microsoft Store'))
-			}
-		}
-		catch
-		{
-			LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_MicrosoftStorePresenceCheckFailed' -Fallback 'Microsoft Store presence check could not be completed: {0}' -FormatArgs @($_.Exception.Message))
+			LogWarning (Get-BaselineBilingualString -Key 'WindowsComponentBroken' -Fallback '{0} is broken or removed from Windows. Reinstall Windows using only a genuine ISO image.' -FormatArgs @('Microsoft Store'))
 		}
 	}
 
@@ -833,7 +859,7 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 
 			if (Get-Command -Name 'Set-BootstrapLoadingSplashState' -CommandType Function -ErrorAction SilentlyContinue)
 			{
-				Set-BootstrapLoadingSplashState -Splash $Global:LoadingSplash -StatusText $splashLoadingText -HideProgressBar
+				Set-BootstrapLoadingSplashState -Splash $Global:LoadingSplash -StatusText $splashLoadingText -Indeterminate
 			}
 			else
 			{

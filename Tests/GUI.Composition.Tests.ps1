@@ -242,6 +242,7 @@ Describe 'Button chrome variants (W-1d)' {
         @{ Variant = 'Secondary' }
         @{ Variant = 'Subtle' }
         @{ Variant = 'Selection' }
+        @{ Variant = 'SegmentNeutral' }
     ) {
         $btn = [System.Windows.Controls.Button]::new()
         # Should not throw for any valid variant

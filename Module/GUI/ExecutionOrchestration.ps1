@@ -740,6 +740,10 @@
 			AppOutcome       = $null
 			AppResult        = $null
 			LogQueue         = [System.Collections.Concurrent.ConcurrentQueue[object]]::new()
+			Action           = $Action
+			Application      = $Application
+			SelectedApps     = @($selectedApps)
+			WasAppsModeActive = $wasAppsModeActive
 		})
 
 		Set-Variable -Name 'GUIRunState' -Scope Global -Value $Script:RunState['LogQueue']
@@ -796,7 +800,7 @@
 			$Script:ExecutionRunspace = $Script:ExecutionWorker.Runspace
 			$Script:ExecutionRunPowerShell = $Script:ExecutionWorker.PowerShell
 
-			$appDrainQueue = {
+			$Script:AppDrainQueue = {
 				param([switch]$Final)
 
 				$qEntry = $null
@@ -850,6 +854,7 @@
 								$fatalMessage = if ([string]::IsNullOrWhiteSpace([string]$qEntry.Error)) { 'Unexpected fatal app run error.' } else { [string]$qEntry.Error }
 								$Script:RunState['AppOutcome'] = 'Failed'
 								Add-ExecutionLogLine -Text ("Fatal app error: {0}" -f $fatalMessage) -Level 'ERROR'
+								try { LogError ("Fatal app error: {0}" -f $fatalMessage) } catch { $null = $_ }
 								$diagnosticText = if ((Test-GuiObjectField -Object $qEntry -FieldName 'Diagnostic')) { [string]$qEntry.Diagnostic } else { $null }
 								if (-not [string]::IsNullOrWhiteSpace($diagnosticText))
 								{
@@ -858,6 +863,7 @@
 										if (-not [string]::IsNullOrWhiteSpace([string]$diagnosticLine))
 										{
 											Add-ExecutionLogLine -Text $diagnosticLine -Level 'ERROR'
+											try { LogError $diagnosticLine } catch { $null = $_ }
 										}
 									}
 								}
@@ -882,14 +888,14 @@
 						$qEntry = $null
 					}
 				}
-			}.GetNewClosure()
+			}
 
 			$Script:ExecutionPumpTickFn = {
 				try
 				{
 					if (-not $Script:RunInProgress -or -not $Script:RunState) { return }
 
-					& $appDrainQueue
+					& $Script:AppDrainQueue
 
 					if ($Script:BgAsync -and -not $Script:BgAsync.IsCompleted -and -not $Script:RunState['Done']) { return }
 
@@ -899,7 +905,7 @@
 						try { $Script:ExecutionRunTimer.Dispose() } catch { $null = $_ }
 					}
 
-					& $appDrainQueue
+					& $Script:AppDrainQueue
 
 					GUIExecution\Complete-GuiExecutionWorker -Worker $Script:ExecutionWorker
 					$Script:ExecutionWorker = $null
@@ -939,11 +945,18 @@
 					$Script:ExecutionMode = $null
 					Exit-ExecutionView
 
-					if ((Get-Command -Name 'Sync-AppActionStatesFromExecutionResult' -CommandType Function -ErrorAction SilentlyContinue) -and $Action -in @('Install', 'Uninstall', 'Update'))
+					$runAction = [string]$Script:RunState['Action']
+					$runApplication = $Script:RunState['Application']
+					$runSelectedApps = @($Script:RunState['SelectedApps'])
+					$runPreferredSource = [string]$Script:RunState['PreferredSource']
+					$runWasAppsModeActive = [bool]$Script:RunState['WasAppsModeActive']
+					$runAppResult = $Script:RunState['AppResult']
+
+					if ((Get-Command -Name 'Sync-AppActionStatesFromExecutionResult' -CommandType Function -ErrorAction SilentlyContinue) -and $runAction -in @('Install', 'Uninstall', 'Update'))
 					{
 						try
 						{
-							Sync-AppActionStatesFromExecutionResult -Action $Action -Application $Application -SelectedApps @($selectedApps) -Result $Script:RunState['AppResult'] -PreferredSource $PreferredSource
+							Sync-AppActionStatesFromExecutionResult -Action $runAction -Application $runApplication -SelectedApps @($runSelectedApps) -Result $runAppResult -PreferredSource $runPreferredSource
 						}
 						catch
 						{
@@ -951,9 +964,9 @@
 						}
 					}
 
-					if ($wasAppsModeActive)
+					if ($runWasAppsModeActive)
 					{
-						if ($Action -in @('Install', 'Uninstall', 'Update', 'UpdateAll'))
+						if ($runAction -in @('Install', 'Uninstall', 'Update', 'UpdateAll'))
 						{
 							Start-AppsCacheRefresh
 						}
@@ -975,9 +988,11 @@
 					try { Exit-ExecutionView } catch { $null = $_ }
 					try
 					{
-						if ($wasAppsModeActive)
+						$runCatchAction = if ($Script:RunState) { [string]$Script:RunState['Action'] } else { $null }
+						$runCatchWasAppsModeActive = if ($Script:RunState) { [bool]$Script:RunState['WasAppsModeActive'] } else { $false }
+						if ($runCatchWasAppsModeActive)
 						{
-							if ($Action -in @('Install', 'Uninstall', 'Update', 'UpdateAll'))
+							if ($runCatchAction -in @('Install', 'Uninstall', 'Update', 'UpdateAll'))
 							{
 								Start-AppsCacheRefresh
 							}
@@ -1012,17 +1027,14 @@
 					$Script:ExecutionMode = $null
 					$Script:RunState = $null
 				}
-			}.GetNewClosure()
-			$executionPumpTickFn = $Script:ExecutionPumpTickFn
+			}
 
 			$runTimer = New-Object System.Windows.Threading.DispatcherTimer
 			$runTimer.Interval = [TimeSpan]::FromMilliseconds(100)
-			$runTimer.Add_Tick({
-				& $executionPumpTickFn
-			}.GetNewClosure())
+			$runTimer.Add_Tick({ & $Script:ExecutionPumpTickFn })
 			$Script:ExecutionRunTimer = $runTimer
 			$runTimer.Start()
-			& $executionPumpTickFn
+			& $Script:ExecutionPumpTickFn
 		}
 		catch
 		{

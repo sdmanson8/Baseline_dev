@@ -4130,6 +4130,63 @@
 		Set-ButtonChrome -Button $btnClose -Variant 'Primary' -Compact
 		$btnClose.IsCancel = $true
 
+		$resolveCurrentChangelogVersion = {
+			try
+			{
+				$versionCmd = Get-Command -Name 'Get-BaselineDisplayVersion' -CommandType Function -ErrorAction SilentlyContinue
+				if ($versionCmd)
+				{
+					$displayVersion = & $versionCmd
+					if (-not [string]::IsNullOrWhiteSpace([string]$displayVersion))
+					{
+						$m = [regex]::Match([string]$displayVersion, 'v?(\d+\.\d+\.\d+)(?:\s*\(([^)]+)\))?')
+						if ($m.Success)
+						{
+							$base = $m.Groups[1].Value
+							if ($m.Groups[2].Success -and -not [string]::IsNullOrWhiteSpace($m.Groups[2].Value))
+							{
+								return ('{0}-{1}' -f $base, $m.Groups[2].Value.Trim())
+							}
+							return $base
+						}
+					}
+				}
+			}
+			catch { $null = $_ }
+			return $null
+		}
+
+		$extractChangelogVersionSection = {
+			param (
+				[string]$Raw,
+				[string]$Version
+			)
+			if ([string]::IsNullOrWhiteSpace($Raw) -or [string]::IsNullOrWhiteSpace($Version))
+			{
+				return $Raw
+			}
+			$lines = $Raw -split "`r?`n"
+			$escaped = [regex]::Escape($Version)
+			$startPattern = '^##\s+' + $escaped + '(?=\s|\||$)'
+			$nextPattern = '^##\s+'
+			$startIdx = -1
+			for ($i = 0; $i -lt $lines.Length; $i++)
+			{
+				if ($lines[$i] -match $startPattern) { $startIdx = $i; break }
+			}
+			if ($startIdx -lt 0) { return $Raw }
+			$endIdx = $lines.Length - 1
+			for ($j = $startIdx + 1; $j -lt $lines.Length; $j++)
+			{
+				if ($lines[$j] -match $nextPattern) { $endIdx = $j - 1; break }
+			}
+			while ($endIdx -gt $startIdx -and ($lines[$endIdx].Trim() -eq '---' -or [string]::IsNullOrWhiteSpace($lines[$endIdx])))
+			{
+				$endIdx--
+			}
+			return ($lines[$startIdx..$endIdx] -join "`r`n")
+		}
+
 		$loadChangelogContent = {
 			$resolvedPath = if ([string]::IsNullOrWhiteSpace([string]$ChangelogPath)) { Resolve-BaselineChangelogPath } else { $ChangelogPath }
 			$txtChangelogPath.Text = if ([string]::IsNullOrWhiteSpace([string]$resolvedPath)) { '' } else { $resolvedPath }
@@ -4153,7 +4210,17 @@
 				$resolvedFullPath = [System.IO.Path]::GetFullPath($resolvedPath)
 				$txtChangelogPath.Text = $resolvedFullPath
 				$txtChangelogContent.Foreground = $bc.ConvertFromString($theme.TextSecondary)
-				$txtChangelogContent.Text = [System.IO.File]::ReadAllText($resolvedFullPath)
+				$rawContent = [System.IO.File]::ReadAllText($resolvedFullPath)
+				$currentVersion = & $resolveCurrentChangelogVersion
+				$displayContent = if (-not [string]::IsNullOrWhiteSpace([string]$currentVersion))
+				{
+					& $extractChangelogVersionSection -Raw $rawContent -Version $currentVersion
+				}
+				else
+				{
+					$rawContent
+				}
+				$txtChangelogContent.Text = $displayContent
 				$txtChangelogContent.ScrollToHome()
 			}
 			catch

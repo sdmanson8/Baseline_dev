@@ -1054,8 +1054,17 @@ function Show-TweakGUI
 	$Script:ClearInvisibleSelectionStateScript = ${function:Clear-InvisibleSelectionState}
 	$Script:UpdateHeaderModeStateTextScript = ${function:Update-HeaderModeStateText}
 
-	# Apply initial theme
-	Set-GUITheme -Theme $Script:DarkTheme
+	# Apply initial theme based on the saved session, then Windows theme when no session exists.
+	$initialThemeName = 'Dark'
+	try
+	{
+		$initialThemeName = Get-BaselineStartupThemeName
+	}
+	catch
+	{
+		$null = $_
+	}
+	Set-GUITheme -Theme $(if ($initialThemeName -eq 'Light') { $Script:LightTheme } else { $Script:DarkTheme })
 	Set-StaticButtonStyle
 
 	# Wire icon content for primary action buttons
@@ -1068,7 +1077,7 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 	if ($BtnLanguage)   { Set-GuiButtonIconContent -Button $BtnLanguage   -IconName 'Language'       -Text (Get-UxLocalizedString -Key 'GuiBtnLanguage' -Fallback 'Language') -ToolTip (Get-UxLocalizedString -Key 'GuiBtnLanguageTooltip' -Fallback 'Change language') -IconSize 14 -Gap 6 -TextFontSize 11 }
 	if ($Script:BtnClearSearch) { Set-GuiButtonIconContent -Button $Script:BtnClearSearch -IconName 'Clear'         -Text (Get-UxLocalizedString -Key 'GuiBtnClearSearch' -Fallback 'Clear') -ToolTip (Get-UxLocalizedString -Key 'GuiActionClearSearchTooltip' -Fallback 'Clear search text and active filters.') -IconSize 14 -Gap 6 -TextFontSize 11 }
 	if ($Script:BtnApplyQueuedActions) { Set-GuiButtonIconContent -Button $Script:BtnApplyQueuedActions -IconName 'RunTweaks' -Text (Get-UxLocalizedString -Key 'GuiAppsApplyQueued' -Fallback 'Apply Changes') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsApplyQueuedTip' -Fallback 'Apply queued install and uninstall changes.') -IconSize 14 -Gap 6 -TextFontSize 11 }
-	if ($Script:BtnClearQueuedActions) { Set-GuiButtonIconContent -Button $Script:BtnClearQueuedActions -IconName 'Clear' -Text (Get-UxLocalizedString -Key 'GuiAppsClearQueued' -Fallback 'Clear Changes') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsClearQueuedTip' -Fallback 'Clear all queued app changes without applying them.') -IconSize 14 -Gap 6 -TextFontSize 11 }
+	if ($Script:BtnClearQueuedActions) { Set-GuiButtonIconContent -Button $Script:BtnClearQueuedActions -IconName 'Clear' -Text (Get-UxLocalizedString -Key 'GuiAppsReset' -Fallback 'Reset') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsResetTip' -Fallback 'Clear all queued changes and checked applications.') -IconSize 14 -Gap 6 -TextFontSize 11 }
 	if ($Script:BtnScanInstalledApps) { Set-GuiButtonIconContent -Button $Script:BtnScanInstalledApps -IconName 'Search' -Text (Get-UxLocalizedString -Key 'GuiAppsScanInstalledApps' -Fallback 'Scan Installed Apps') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsScanInstalledAppsTip' -Fallback 'Scan installed apps to update install status.') -IconSize 14 -Gap 6 -TextFontSize 11 }
 
 	Set-StaticControlTabOrder

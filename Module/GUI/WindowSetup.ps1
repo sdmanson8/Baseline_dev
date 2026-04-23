@@ -187,6 +187,8 @@
 	$TxtLanguageState = $Form.FindName("TxtLanguageState")
 	$ChkSafeMode   = $Form.FindName("ChkSafeMode")
 	$ChkGameMode   = $Form.FindName("ChkGameMode")
+	$SafeModeGroup = $Form.FindName("SafeModeGroup")
+	$ThemeToggleGroup = $Form.FindName("ThemeToggleGroup")
 	$TxtAdvancedModeState = $Form.FindName("TxtAdvancedModeState")
 	$TxtThemeState = $Form.FindName("TxtThemeState")
 	$BtnStartHere  = $Form.FindName("BtnStartHere")
@@ -211,6 +213,7 @@
 	$FilterOptionsPanel = $Form.FindName("FilterOptionsPanel")
 	$NavModeTweaks = $Form.FindName("NavModeTweaks")
 	$NavModeApps = $Form.FindName("NavModeApps")
+	$ModeSubtitle = $Form.FindName("ModeSubtitle")
 	$TweaksView = $Form.FindName("TweaksView")
 	$AppsView = $Form.FindName("AppsView")
 	$AppsScroll = $Form.FindName("AppsScroll")
@@ -219,20 +222,27 @@
 	$TxtAppCacheStatus = $Form.FindName("TxtAppCacheStatus")
 	$AppsPackageManagerBanner = $Form.FindName("AppsPackageManagerBanner")
 	$TxtAppsPackageManagerBanner = $Form.FindName("TxtAppsPackageManagerBanner")
-	$AppsCategoryLabel = $Form.FindName("AppsCategoryLabel")
+	$AppsCategoryTabs = $Form.FindName("AppsCategoryTabs")
+	$BtnAppsFilterToggle = $Form.FindName("BtnAppsFilterToggle")
+	$AppsFilterOptionsPanel = $Form.FindName("AppsFilterOptionsPanel")
 	$AppsSourceLabel = $Form.FindName("AppsSourceLabel")
-	$CmbAppsCategoryFilter = $Form.FindName("CmbAppsCategoryFilter")
+	$AppsStatusLabel = $Form.FindName("AppsStatusLabel")
+	$CmbAppsStatusFilter = $Form.FindName("CmbAppsStatusFilter")
 	$TxtAppSelectionStatus = $Form.FindName("TxtAppSelectionStatus")
 	$BtnInstallSelectedApps = $Form.FindName("BtnInstallSelectedApps")
 	$BtnUninstallSelectedApps = $Form.FindName("BtnUninstallSelectedApps")
 	$BtnUpdateSelectedApps = $Form.FindName("BtnUpdateSelectedApps")
 	$BtnApplyQueuedActions = $Form.FindName("BtnApplyQueuedActions")
 	$BtnClearQueuedActions = $Form.FindName("BtnClearQueuedActions")
-	$BtnClearAppSelection = $Form.FindName("BtnClearAppSelection")
 	$BtnScanInstalledApps = $Form.FindName("BtnScanInstalledApps")
-	$BtnAppsSourceWinGet = $Form.FindName("BtnAppsSourceWinGet")
-	$BtnAppsSourceChocolatey = $Form.FindName("BtnAppsSourceChocolatey")
-	$AppsProgressContainer = $Form.FindName("AppsProgressContainer")
+	$AppsActionSeparator1 = $Form.FindName("AppsActionSeparator1")
+	$BtnAppsSourceFilterAll = $Form.FindName("BtnAppsSourceFilterAll")
+	$BtnAppsSourceFilterWinGet = $Form.FindName("BtnAppsSourceFilterWinGet")
+	$BtnAppsSourceFilterChocolatey = $Form.FindName("BtnAppsSourceFilterChocolatey")
+	$AppsFilterViewDivider = $Form.FindName("AppsFilterViewDivider")
+	$AppsViewModeLabel = $Form.FindName("AppsViewModeLabel")
+	$BtnAppsViewCards = $Form.FindName("BtnAppsViewCards")
+	$BtnAppsViewList = $Form.FindName("BtnAppsViewList")
 	$TxtAppsProgressText = $Form.FindName("TxtAppsProgressText")
 	$UpdateDialogOverlay = $Form.FindName("UpdateDialogOverlay")
 	$UpdateDialogCard = $Form.FindName("UpdateDialogCard")
@@ -264,8 +274,12 @@
 	$MenuActionsCheckCompliance = $Form.FindName("MenuActionsCheckCompliance")
 	$MenuActionsScanSystem      = $Form.FindName("MenuActionsScanSystem")
 	$MenuActionsAuditLog        = $Form.FindName("MenuActionsAuditLog")
+	$MenuActionsSep1            = $Form.FindName("MenuActionsSep1")
+	$MenuActionsSep2            = $Form.FindName("MenuActionsSep2")
+	$MenuActionsSep3            = $Form.FindName("MenuActionsSep3")
 	$MenuView                   = $Form.FindName("MenuView")
 	$MenuViewSafeMode           = $Form.FindName("MenuViewSafeMode")
+	$MenuViewSepSafeMode        = $Form.FindName("MenuViewSepSafeMode")
 	$MenuViewFilters            = $Form.FindName("MenuViewFilters")
 	$MenuViewLogsPanel          = $Form.FindName("MenuViewLogsPanel")
 	$MenuViewTheme              = $Form.FindName("MenuViewTheme")
@@ -279,6 +293,7 @@
 	$MenuToolsRemoteConsole = $Form.FindName("MenuToolsRemoteConsole")
 	$MenuToolsOperatorConsole = $Form.FindName("MenuToolsOperatorConsole")
 	$MenuToolsRemoteSessionStatus = $Form.FindName("MenuToolsRemoteSessionStatus")
+	$MenuToolsSepApps           = $Form.FindName("MenuToolsSepApps")
 	$MenuHelp                   = $Form.FindName("MenuHelp")
 	$MenuHelpStartGuide         = $Form.FindName("MenuHelpStartGuide")
 	$MenuHelpReadme             = $Form.FindName("MenuHelpReadme")
@@ -300,6 +315,7 @@
 	$Script:MenuTools                    = $MenuTools
 	$Script:MenuHelp                     = $MenuHelp
 	$Script:MenuViewSafeMode             = $MenuViewSafeMode
+	$Script:MenuViewSepSafeMode          = $MenuViewSepSafeMode
 	$Script:MenuViewFilters              = $MenuViewFilters
 	$Script:MenuViewTheme                = $MenuViewTheme
 	$Script:MenuActionsCheckCompliance   = $MenuActionsCheckCompliance
@@ -326,6 +342,10 @@
 	$Script:MenuToolsRemoteConsole = $MenuToolsRemoteConsole
 	$Script:MenuToolsOperatorConsole = $MenuToolsOperatorConsole
 	$Script:MenuToolsRemoteSessionStatus = $MenuToolsRemoteSessionStatus
+	$Script:MenuActionsSep1              = $MenuActionsSep1
+	$Script:MenuActionsSep2              = $MenuActionsSep2
+	$Script:MenuActionsSep3              = $MenuActionsSep3
+	$Script:MenuToolsSepApps             = $MenuToolsSepApps
 	$Script:MenuHelpStartGuide           = $MenuHelpStartGuide
 	$Script:MenuHelpReadme               = $MenuHelpReadme
 	$Script:MenuHelpFAQ                  = $MenuHelpFAQ
@@ -335,6 +355,8 @@
 
 	$Script:PrimaryTabHost = $PrimaryTabHost
 	$Script:ExpertModeBanner = $ExpertModeBanner
+	$Script:SafeModeGroup = $SafeModeGroup
+	$Script:ThemeToggleGroup = $ThemeToggleGroup
 	$Script:SearchLabel = $SearchLabel
 	$Script:TxtSearch = $TxtSearch
 	$Script:TxtSearchPlaceholder = $TxtSearchPlaceholder
@@ -355,6 +377,7 @@
 	$Script:BtnHelp = $BtnHelp
 	$Script:NavModeTweaks = $NavModeTweaks
 	$Script:NavModeApps = $NavModeApps
+	$Script:ModeSubtitle = $ModeSubtitle
 	$Script:TweaksView = $TweaksView
 	$Script:AppsView = $AppsView
 	$Script:AppsScroll = $AppsScroll
@@ -363,20 +386,27 @@
 	$Script:TxtAppCacheStatus = $TxtAppCacheStatus
 	$Script:AppsPackageManagerBanner = $AppsPackageManagerBanner
 	$Script:TxtAppsPackageManagerBanner = $TxtAppsPackageManagerBanner
-	$Script:AppsCategoryLabel = $AppsCategoryLabel
+	$Script:AppsCategoryTabs = $AppsCategoryTabs
+	$Script:BtnAppsFilterToggle = $BtnAppsFilterToggle
+	$Script:AppsFilterOptionsPanel = $AppsFilterOptionsPanel
 	$Script:AppsSourceLabel = $AppsSourceLabel
-	$Script:CmbAppsCategoryFilter = $CmbAppsCategoryFilter
+	$Script:AppsStatusLabel = $AppsStatusLabel
+	$Script:CmbAppsStatusFilter = $CmbAppsStatusFilter
 	$Script:TxtAppSelectionStatus = $TxtAppSelectionStatus
 	$Script:BtnInstallSelectedApps = $BtnInstallSelectedApps
 	$Script:BtnUninstallSelectedApps = $BtnUninstallSelectedApps
 	$Script:BtnUpdateSelectedApps = $BtnUpdateSelectedApps
 	$Script:BtnApplyQueuedActions = $BtnApplyQueuedActions
 	$Script:BtnClearQueuedActions = $BtnClearQueuedActions
-	$Script:BtnClearAppSelection = $BtnClearAppSelection
 	$Script:BtnScanInstalledApps = $BtnScanInstalledApps
-	$Script:BtnAppsSourceWinGet = $BtnAppsSourceWinGet
-	$Script:BtnAppsSourceChocolatey = $BtnAppsSourceChocolatey
-	$Script:AppsProgressContainer = $AppsProgressContainer
+	$Script:AppsActionSeparator1 = $AppsActionSeparator1
+	$Script:BtnAppsSourceFilterAll = $BtnAppsSourceFilterAll
+	$Script:BtnAppsSourceFilterWinGet = $BtnAppsSourceFilterWinGet
+	$Script:BtnAppsSourceFilterChocolatey = $BtnAppsSourceFilterChocolatey
+	$Script:AppsFilterViewDivider = $AppsFilterViewDivider
+	$Script:AppsViewModeLabel = $AppsViewModeLabel
+	$Script:BtnAppsViewCards = $BtnAppsViewCards
+	$Script:BtnAppsViewList = $BtnAppsViewList
 	$Script:TxtAppsProgressText = $TxtAppsProgressText
 	$Script:UpdateDialogOverlay = $UpdateDialogOverlay
 	$Script:UpdateDialogCard = $UpdateDialogCard
@@ -424,6 +454,9 @@
 	$Script:AppsCacheRefreshInProgress = $false
 	$Script:AppsOperationInProgress = $false
 	$Script:AppsCategoryFilter = 'All'
+	$Script:AppsStatusFilter = 'All'
+	$Script:AppsViewMode = 'Cards'
+	$Script:AppsViewModeUiUpdating = $false
 	$Script:AppsFilterUiUpdating = $false
 	$Script:AppsProgressHost = $null
 	$Script:AppsProgressBar = $null
@@ -436,7 +469,7 @@
 	$Script:AppsSelectionUiUpdating = $false
 	$Script:AppsQueuedActionUiUpdating = $false
 	$Script:AppActionStates = @{}
-	foreach ($bulkButton in @($BtnInstallSelectedApps, $BtnUninstallSelectedApps, $BtnUpdateSelectedApps, $BtnApplyQueuedActions, $BtnClearQueuedActions, $BtnClearAppSelection, $BtnScanInstalledApps))
+	foreach ($bulkButton in @($BtnInstallSelectedApps, $BtnUninstallSelectedApps, $BtnUpdateSelectedApps, $BtnApplyQueuedActions, $BtnClearQueuedActions, $BtnScanInstalledApps))
 	{
 		if ($bulkButton)
 		{
@@ -449,7 +482,9 @@
 	Initialize-BaselineUpdateOverlay
 	$Script:SearchText = ''
 	$Script:AppsSearchText = ''
-	$Script:AppsPackageSourcePreference = 'winget'
+	$Script:AppsPackageSourcePreference = 'auto'
+	$Script:AppsSourceFilter = 'All'
+	$Script:AppsSourceFilterUiUpdating = $false
 	$Script:SearchResultsTabTag = '__SEARCH_RESULTS__'
 	$Script:LastStandardPrimaryTab = $null
 	$Script:TabScrollOffsets = @{}
@@ -565,6 +600,7 @@
 	$Script:CategoryFilter = 'All'
 	$Script:CategoryFilterInternalValues = [System.Collections.Generic.List[string]]::new()
 	$Script:AppsCategoryFilterInternalValues = [System.Collections.Generic.List[string]]::new()
+	$Script:AppsStatusFilterInternalValues = [System.Collections.Generic.List[string]]::new()
 	$Script:SelectedOnlyFilter = $false
 	$Script:HighRiskOnlyFilter = $false
 	$Script:RestorableOnlyFilter = $false

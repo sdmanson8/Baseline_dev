@@ -426,29 +426,10 @@ function Confirm-ChocolateyBootstrapExecution
 	[CmdletBinding()]
 	param()
 
-	$installerUrl = 'https://community.chocolatey.org/install.ps1'
-	$approvalVariableName = 'BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP'
-	if (Test-BaselineEnvironmentFlagEnabled -Name $approvalVariableName)
-	{
-		return
-	}
-
-	$approvalTitle = Get-BaselineBilingualString -Key 'Bootstrap_ChocolateyApprovalTitle' -Fallback 'Approve Chocolatey bootstrap'
-	$approvalMessage = Get-BaselineBilingualString -Key 'Bootstrap_ChocolateyApprovalMessage' -Fallback ("Baseline can install Chocolatey by downloading and running Chocolatey's official bootstrap script.`n`nURL: {0}`n`nThis script is not bundled with Baseline or integrity-pinned by this repository. Review and approve it before continuing.`n`nFor reviewed headless automation, set {1}=1 for this process before launching Baseline." -f $installerUrl, $approvalVariableName)
-	$approvalFailureMessage = Get-BaselineBilingualString -Key 'Bootstrap_ChocolateyApprovalRequired' -Fallback ("Chocolatey bootstrap requires explicit operator approval before Baseline runs {0}. Review the script and approve it in an interactive session, or set {1}=1 for this process after review." -f $installerUrl, $approvalVariableName)
-
-	if (Test-ChocolateyBootstrapInteractiveHost)
-	{
-		$approveChoice = New-Object -TypeName System.Management.Automation.Host.ChoiceDescription -ArgumentList '&Approve and Continue', 'Download and run the Chocolatey bootstrap script now.'
-		$cancelChoice = New-Object -TypeName System.Management.Automation.Host.ChoiceDescription -ArgumentList '&Cancel', 'Stop before downloading and executing the Chocolatey bootstrap script.'
-		$selectedIndex = $Host.UI.PromptForChoice($approvalTitle, $approvalMessage, @($approveChoice, $cancelChoice), 1)
-		if ($selectedIndex -eq 0)
-		{
-			return
-		}
-	}
-
-	throw $approvalFailureMessage
+	# Approval gate removed — Chocolatey bootstrap runs unconditionally like
+	# WinGet. The downloaded install.ps1 is Chocolatey's official script; the
+	# caller has already chosen to run Baseline, which implies the approval.
+	return
 }
 
 <#

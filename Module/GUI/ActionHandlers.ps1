@@ -69,11 +69,13 @@
 		$testGuiRunInProgressCapture = $Script:TestGuiRunInProgressScript
 		$startAppsCacheRefreshCommand = Get-GuiRuntimeCommand -Name 'Start-AppsCacheRefresh' -CommandType 'Function'
 		$setAppPackageSourcePreferenceStateCommand = Get-GuiRuntimeCommand -Name 'Set-AppPackageSourcePreferenceState' -CommandType 'Function'
+		$setAppSourceFilterStateCommand = Get-GuiRuntimeCommand -Name 'Set-AppSourceFilterState' -CommandType 'Function'
 		$startAppsModuleActionAsyncCommand = Get-GuiRuntimeCommand -Name 'Start-AppsModuleActionAsync' -CommandType 'Function'
 		$startAppsModuleBatchActionAsyncCommand = Get-GuiRuntimeCommand -Name 'Start-AppsModuleBatchActionAsync' -CommandType 'Function'
 		$clearAppSelectionStateCommand = Get-GuiRuntimeCommand -Name 'Clear-AppSelectionState' -CommandType 'Function'
 		$startAppsModuleQueuedActionAsyncCommand = Get-GuiRuntimeCommand -Name 'Start-AppsModuleQueuedActionAsync' -CommandType 'Function'
 		$clearAppsQueuedActionsCommand = Get-GuiRuntimeCommand -Name 'Clear-AppsQueuedActions' -CommandType 'Function'
+		$setAppQueuedActionCommand = Get-GuiRuntimeCommand -Name 'Set-AppQueuedAction' -CommandType 'Function'
 		$getQueuedAppsProfileActionsCommand = Get-GuiRuntimeCommand -Name 'Get-QueuedAppsProfileActions' -CommandType 'Function'
 		if (-not $startAppsCacheRefreshCommand) { throw 'Start-AppsCacheRefresh not found.' }
 		if (-not $setAppPackageSourcePreferenceStateCommand) { throw 'Set-AppPackageSourcePreferenceState not found.' }
@@ -236,19 +238,94 @@
 			}) | Out-Null
 		}
 
-		if ($BtnAppsSourceWinGet)
+		# Source filter pills are RadioButtons in one group, so we still route
+		# clicks through Set-AppSourceFilterState to keep the source filter state
+		# normalized and to refresh the app list consistently.
+		if ($BtnAppsSourceFilterAll)
 		{
-			Register-GuiEventHandler -Source $BtnAppsSourceWinGet -EventName 'Checked' -Handler ({
-				if (-not $Script:AppsModeActive -or $Script:AppsSourceUiUpdating) { return }
-				& $setAppPackageSourcePreferenceStateCommand -Source 'winget'
+			Register-GuiEventHandler -Source $BtnAppsSourceFilterAll -EventName 'Click' -Handler ({
+				if (-not $Script:AppsModeActive -or $Script:AppsSourceFilterUiUpdating) { return }
+				if ([string]$Script:AppsSourceFilter -eq 'All')
+				{
+					$Script:AppsSourceFilterUiUpdating = $true
+					try { $Script:BtnAppsSourceFilterAll.IsChecked = $true } finally { $Script:AppsSourceFilterUiUpdating = $false }
+					return
+				}
+				& $setAppSourceFilterStateCommand -Source 'All'
 			}) | Out-Null
 		}
 
-		if ($BtnAppsSourceChocolatey)
+		if ($BtnAppsSourceFilterWinGet)
 		{
-			Register-GuiEventHandler -Source $BtnAppsSourceChocolatey -EventName 'Checked' -Handler ({
-				if (-not $Script:AppsModeActive -or $Script:AppsSourceUiUpdating) { return }
-				& $setAppPackageSourcePreferenceStateCommand -Source 'choco'
+			Register-GuiEventHandler -Source $BtnAppsSourceFilterWinGet -EventName 'Click' -Handler ({
+				if (-not $Script:AppsModeActive -or $Script:AppsSourceFilterUiUpdating) { return }
+				if ([string]$Script:AppsSourceFilter -eq 'winget')
+				{
+					$Script:AppsSourceFilterUiUpdating = $true
+					try { $Script:BtnAppsSourceFilterWinGet.IsChecked = $true } finally { $Script:AppsSourceFilterUiUpdating = $false }
+					return
+				}
+				& $setAppSourceFilterStateCommand -Source 'winget'
+			}) | Out-Null
+		}
+
+		if ($BtnAppsSourceFilterChocolatey)
+		{
+			Register-GuiEventHandler -Source $BtnAppsSourceFilterChocolatey -EventName 'Click' -Handler ({
+				if (-not $Script:AppsModeActive -or $Script:AppsSourceFilterUiUpdating) { return }
+				if ([string]$Script:AppsSourceFilter -eq 'choco')
+				{
+					$Script:AppsSourceFilterUiUpdating = $true
+					try { $Script:BtnAppsSourceFilterChocolatey.IsChecked = $true } finally { $Script:AppsSourceFilterUiUpdating = $false }
+					return
+				}
+				& $setAppSourceFilterStateCommand -Source 'choco'
+			}) | Out-Null
+		}
+
+		if ($BtnAppsViewCards)
+		{
+			Register-GuiEventHandler -Source $BtnAppsViewCards -EventName 'Click' -Handler ({
+				if ($Script:AppsViewModeUiUpdating) { return }
+				if ([string]$Script:AppsViewMode -eq 'Cards')
+				{
+					$Script:AppsViewModeUiUpdating = $true
+					try { $Script:BtnAppsViewCards.IsChecked = $true } finally { $Script:AppsViewModeUiUpdating = $false }
+					return
+				}
+				$Script:AppsViewMode = 'Cards'
+				$Script:AppsViewBuildSignature = $null
+				if (Get-Command -Name 'Update-AppsViewModeControls' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Update-AppsViewModeControls
+				}
+				if ($Script:AppsModeActive -and (Get-Command -Name 'Build-AppsViewCards' -CommandType Function -ErrorAction SilentlyContinue))
+				{
+					Build-AppsViewCards
+				}
+			}) | Out-Null
+		}
+
+		if ($BtnAppsViewList)
+		{
+			Register-GuiEventHandler -Source $BtnAppsViewList -EventName 'Click' -Handler ({
+				if ($Script:AppsViewModeUiUpdating) { return }
+				if ([string]$Script:AppsViewMode -eq 'List')
+				{
+					$Script:AppsViewModeUiUpdating = $true
+					try { $Script:BtnAppsViewList.IsChecked = $true } finally { $Script:AppsViewModeUiUpdating = $false }
+					return
+				}
+				$Script:AppsViewMode = 'List'
+				$Script:AppsViewBuildSignature = $null
+				if (Get-Command -Name 'Update-AppsViewModeControls' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Update-AppsViewModeControls
+				}
+				if ($Script:AppsModeActive -and (Get-Command -Name 'Build-AppsViewCards' -CommandType Function -ErrorAction SilentlyContinue))
+				{
+					Build-AppsViewCards
+				}
 			}) | Out-Null
 		}
 
@@ -256,7 +333,12 @@
 		{
 			Register-GuiEventHandler -Source $BtnInstallSelectedApps -EventName 'Click' -Handler ({
 				if (-not $Script:AppsModeActive) { return }
-				& $startAppsModuleBatchActionAsyncCommand -Action 'Install'
+				if (-not $Script:SelectedAppIds) { return }
+				foreach ($id in @($Script:SelectedAppIds))
+				{
+					if ([string]::IsNullOrWhiteSpace([string]$id)) { continue }
+					try { Set-AppQueuedAction -AppId $id -Action 'Install' } catch { $null = $_ }
+				}
 			}) | Out-Null
 		}
 
@@ -264,7 +346,12 @@
 		{
 			Register-GuiEventHandler -Source $BtnUninstallSelectedApps -EventName 'Click' -Handler ({
 				if (-not $Script:AppsModeActive) { return }
-				& $startAppsModuleBatchActionAsyncCommand -Action 'Uninstall'
+				if (-not $Script:SelectedAppIds) { return }
+				foreach ($id in @($Script:SelectedAppIds))
+				{
+					if ([string]::IsNullOrWhiteSpace([string]$id)) { continue }
+					try { Set-AppQueuedAction -AppId $id -Action 'Uninstall' } catch { $null = $_ }
+				}
 			}) | Out-Null
 		}
 
@@ -272,15 +359,12 @@
 		{
 			Register-GuiEventHandler -Source $BtnUpdateSelectedApps -EventName 'Click' -Handler ({
 				if (-not $Script:AppsModeActive) { return }
-				& $startAppsModuleBatchActionAsyncCommand -Action 'Update'
-			}) | Out-Null
-		}
-
-		if ($BtnClearAppSelection)
-		{
-			Register-GuiEventHandler -Source $BtnClearAppSelection -EventName 'Click' -Handler ({
-				if (-not $Script:AppsModeActive) { return }
-				& $clearAppSelectionStateCommand
+				if (-not $Script:SelectedAppIds) { return }
+				foreach ($id in @($Script:SelectedAppIds))
+				{
+					if ([string]::IsNullOrWhiteSpace([string]$id)) { continue }
+					try { Set-AppQueuedAction -AppId $id -Action 'Update' } catch { $null = $_ }
+				}
 			}) | Out-Null
 		}
 
@@ -312,12 +396,13 @@
 			}) | Out-Null
 		}
 
-		# Clear queued-action selections without running anything.
+		# Reset: clear queued actions and uncheck all selected apps in one go.
 		if ($BtnClearQueuedActions)
 		{
 			Register-GuiEventHandler -Source $BtnClearQueuedActions -EventName 'Click' -Handler ({
 				if (-not $Script:AppsModeActive) { return }
 				if ($clearAppsQueuedActionsCommand) { & $clearAppsQueuedActionsCommand }
+				if ($clearAppSelectionStateCommand) { & $clearAppSelectionStateCommand }
 			}) | Out-Null
 		}
 

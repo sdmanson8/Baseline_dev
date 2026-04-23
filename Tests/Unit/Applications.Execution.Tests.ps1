@@ -525,7 +525,7 @@ Describe 'Chocolatey bootstrap' {
         Remove-Variable -Name ChocolateyBootstrapExecuted -Scope Global -ErrorAction SilentlyContinue
     }
 
-    It 'downloads the Chocolatey bootstrap to disk only after approval' {
+    It 'downloads the Chocolatey bootstrap to disk and executes it' {
         $script:BootstrapScriptPath = Join-Path $TestDrive 'choco-install.ps1'
         Set-Content -LiteralPath $script:BootstrapScriptPath -Value '$Global:ChocolateyBootstrapExecuted = $true'
         Mock Save-ChocolateyBootstrapScript { $script:BootstrapScriptPath }
@@ -551,38 +551,11 @@ Describe 'Chocolatey bootstrap' {
             $ExecutionPolicy -eq 'RemoteSigned' -and $Scope -eq 'Process' -and $Force
         }
     }
-
-    It 'stops before downloading when approval is denied' {
-        Mock Confirm-ChocolateyBootstrapExecution { throw 'Chocolatey bootstrap requires explicit operator approval.' }
-        Mock Save-ChocolateyBootstrapScript { throw 'download should not be reached' }
-
-        { Invoke-ChocolateyBootstrapInstall } | Should -Throw '*explicit operator approval*'
-
-        Should -Invoke Save-ChocolateyBootstrapScript -Times 0
-        Should -Invoke Set-ExecutionPolicy -Times 0
-    }
 }
 
 Describe 'Chocolatey bootstrap approval' {
-    BeforeEach {
-        Remove-Item Env:\BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP -ErrorAction SilentlyContinue
-    }
-
-    AfterEach {
-        Remove-Item Env:\BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP -ErrorAction SilentlyContinue
-        Remove-Item Function:\Test-ChocolateyBootstrapInteractiveHost -ErrorAction SilentlyContinue
-    }
-
-    It 'accepts an explicit environment opt-in for reviewed automation' {
-        $env:BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP = '1'
-
+    It 'runs without throwing (approval gate removed)' {
         { Confirm-ChocolateyBootstrapExecution } | Should -Not -Throw
-    }
-
-    It 'throws when no approval path is available' {
-        function Test-ChocolateyBootstrapInteractiveHost { return $false }
-
-        { Confirm-ChocolateyBootstrapExecution } | Should -Throw '*BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP=1*'
     }
 }
 

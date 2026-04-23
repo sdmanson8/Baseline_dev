@@ -635,25 +635,55 @@ function Start-GuiAppExecutionWorker
 	$bgRunspace.SessionStateProxy.SetVariable('packageManagerAvailabilityState', $PackageManagerAvailabilityState)
 
 	$worker = [powershell]::Create().AddScript({
+		# Dedicated worker trace file — survives process termination and bypasses
+		# the pump entirely, so we can see exactly which step the worker dies on.
+		$bgTracePath = Join-Path $env:TEMP 'Baseline-AppWorker-trace.txt'
+		function Write-BgTrace { param([string]$Message) try { "$([DateTime]::UtcNow.ToString('o'))`t$Message" | Out-File -FilePath $bgTracePath -Append -Encoding UTF8 -Force } catch { $null = $_ } }
+		Write-BgTrace "--- worker start ---"
 		try
 		{
 			$Global:GUIMode = $true
 			$Script:RunState = $runState
+			Write-BgTrace "GUIMode set, RunState assigned"
 
-			$bgHelperPath = Join-Path (Split-Path $bgLoaderPath -Parent) 'SharedHelpers\Localization.Helpers.ps1'
+			# $bgLoaderPath = Module\Regions\Applications.psm1, so the Module
+			# root is two levels up. The previous join produced
+			# Module\Regions\SharedHelpers\Localization.Helpers.ps1 (doesn't
+			# exist) — dot-sourcing threw, the worker died before it could
+			# run winget, and only the UI-thread "Starting installation…" line
+			# was ever written to disk.
+			$bgModuleRoot = Split-Path -Parent (Split-Path -Parent $bgLoaderPath)
+			$bgHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Localization.Helpers.ps1'
+			$bgJsonHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Json.Helpers.ps1'
+			Write-BgTrace ("bgLoaderPath={0}" -f $bgLoaderPath)
+			Write-BgTrace ("bgModuleRoot={0}" -f $bgModuleRoot)
+			Write-BgTrace ("bgHelperPath={0} exists={1}" -f $bgHelperPath, (Test-Path $bgHelperPath))
+			Write-BgTrace ("bgJsonHelperPath={0} exists={1}" -f $bgJsonHelperPath, (Test-Path $bgJsonHelperPath))
+			# Import-BaselineLocalization calls ConvertFrom-BaselineJson, which
+			# lives in Json.Helpers.ps1. It must be dot-sourced FIRST, otherwise
+			# the worker dies with "CommandNotFoundException: ConvertFrom-BaselineJson"
+			# before reaching Invoke-ApplicationAction.
+			. $bgJsonHelperPath
+			Write-BgTrace "dot-sourced Json.Helpers"
 			. $bgHelperPath
+			Write-BgTrace "dot-sourced Localization.Helpers"
 			$Global:Localization = Import-BaselineLocalization -BaseDirectory $bgLocDir -UICulture $bgUICulture
+			Write-BgTrace "Import-BaselineLocalization done"
 			[void](Set-BaselineThreadCulture -UICulture $bgUICulture)
+			Write-BgTrace "Set-BaselineThreadCulture done"
 
 			# Module import must be side-effect-free (no Write-Host, no state mutation)
 			# because this runs in a fresh background runspace.
 			try
 			{
+				Write-BgTrace "Import-Module Applications.psm1 START"
 				Import-Module $bgLoaderPath -Force -Global -ErrorAction Stop
+				Write-BgTrace "Import-Module Applications.psm1 DONE"
 			}
 			catch
 			{
 				$importError = $_.Exception.Message
+				Write-BgTrace ("Import-Module FAILED: {0}" -f $importError)
 				if ($Script:RunState -and $Script:RunState['LogQueue'])
 				{
 					$Script:RunState['LogQueue'].Enqueue([PSCustomObject]@{
@@ -675,6 +705,7 @@ function Start-GuiAppExecutionWorker
 			{
 				Clear-UILogHandler
 			}
+			Write-BgTrace ("Log plumbing configured. runAction={0} winget={1} choco={2} displayName={3} appPresent={4} selCount={5}" -f $runAction, $packageId, $chocolateyId, $displayName, ($null -ne $application), @($selectedApps).Count)
 
 			if ($selectedApps -and @($selectedApps).Count -gt 0 -and $runAction -in @('Install', 'Uninstall', 'Update'))
 			{
@@ -694,7 +725,9 @@ function Start-GuiAppExecutionWorker
 			}
 			elseif ($application -and $runAction -in @('Install', 'Uninstall', 'Update'))
 			{
+				Write-BgTrace "Invoke-ApplicationAction START"
 				Invoke-ApplicationAction -Action $runAction -Application $application -PreferredSource $preferredSource -PackageManagerAvailabilityState $packageManagerAvailabilityState
+				Write-BgTrace "Invoke-ApplicationAction DONE"
 			}
 			else
 			{
@@ -718,6 +751,9 @@ function Start-GuiAppExecutionWorker
 		}
 		catch
 		{
+			Write-BgTrace ("FATAL CATCH: type={0} msg={1}" -f $_.Exception.GetType().FullName, $_.Exception.Message)
+			if ($_.ScriptStackTrace) { Write-BgTrace ("ScriptStackTrace: {0}" -f [string]$_.ScriptStackTrace) }
+			if ($_.InvocationInfo -and $_.InvocationInfo.PositionMessage) { Write-BgTrace ("PositionMessage: {0}" -f [string]$_.InvocationInfo.PositionMessage) }
 			if ($Script:RunState -and [string]::IsNullOrWhiteSpace([string]$Script:RunState['AppOutcome']))
 			{
 				$Script:RunState['AppOutcome'] = 'Failed'

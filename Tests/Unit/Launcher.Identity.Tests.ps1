@@ -34,11 +34,14 @@ Describe 'Launcher identity host' {
         $script:LauncherProgramContent | Should -Not -Match 'powershell\.exe'
     }
 
-    It 'keys the hydrated runtime cache by build identity as well as version' {
+    It 'keys the hydrated runtime cache by build identity, version, and launcher fingerprint' {
         $script:LauncherProgramContent | Should -Match 'ManifestModule\.ModuleVersionId\.ToString\("N"\)'
-        $script:LauncherProgramContent | Should -Not -Match 'Substring\(0,\s*12\)'
+        $script:LauncherProgramContent | Should -Match 'Substring\(0,\s*12\)'
         $script:LauncherProgramContent | Should -Match 'RuntimeCacheSchema\s*=\s*"4"'
-        $script:LauncherProgramContent | Should -Match 'Path\.Combine\(cacheRoot, version, RuntimeCacheSchema, buildId\)'
+        $script:LauncherProgramContent | Should -Match 'Path\.Combine\(cacheRoot, version, RuntimeCacheSchema, buildId, launcherFingerprint\)'
+        $script:LauncherProgramContent | Should -Match 'GetLauncherCacheFingerprint\(launcherPath\)'
+        $script:LauncherProgramContent | Should -Match 'SHA256\.Create\(\)'
+        $script:LauncherProgramContent | Should -Match 'sentinelLines\.Length != 4'
     }
 
     It 'embeds shared helper wrapper modules and validates the full payload before cache reuse' {
@@ -56,7 +59,7 @@ Describe 'Launcher identity host' {
         $script:LauncherProgramContent | Should -Match 'RuntimeCacheFolderName\s*=\s*"RC"'
         $script:LauncherProgramContent | Should -Match 'StagingSuffix\s*=\s*"\.s"'
 
-        $runtimeRoot = 'C:\Users\Administrator\AppData\Local\Baseline\RC\4.0.0\4\00000000000000000000000000000000.s'
+        $runtimeRoot = 'C:\Users\Administrator\AppData\Local\Baseline\RC\4.0.0\4\00000000000000000000000000000000.s\000000000000'
         $payloadRoots = @(
             @{ Root = Join-Path $script:RepoRoot 'Bootstrap'; Prefix = 'Bootstrap\' },
             @{ Root = Join-Path $script:RepoRoot 'Module'; Prefix = 'Module\' },

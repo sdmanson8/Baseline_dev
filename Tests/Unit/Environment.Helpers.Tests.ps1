@@ -135,6 +135,40 @@ Describe 'Get-BaselineDisplayVersion' {
     }
 }
 
+Describe 'Get-BaselineStartupThemeName' {
+    It 'prefers the saved session theme over the Windows theme' {
+        Mock Test-Path { $true } -ParameterFilter { $LiteralPath -like '*Baseline-last-session.json' }
+        Mock Get-Content { '{}' } -ParameterFilter { $LiteralPath -like '*Baseline-last-session.json' }
+        Mock ConvertFrom-BaselineJson {
+            [pscustomobject]@{
+                State = @{
+                    Theme = 'Dark'
+                }
+            }
+        }
+        Mock Get-ItemProperty {
+            [pscustomobject]@{
+                AppsUseLightTheme   = 1
+                SystemUsesLightTheme = 1
+            }
+        }
+
+        Get-BaselineStartupThemeName | Should -Be 'Dark'
+    }
+
+    It 'falls back to the current Windows theme when no saved session exists' {
+        Mock Test-Path { $false } -ParameterFilter { $LiteralPath -like '*Baseline-last-session.json' }
+        Mock Get-ItemProperty {
+            [pscustomobject]@{
+                AppsUseLightTheme    = 1
+                SystemUsesLightTheme = 0
+            }
+        }
+
+        Get-BaselineStartupThemeName | Should -Be 'Light'
+    }
+}
+
 Describe 'Compare-BaselineReleaseVersions' {
     It 'treats a newer major version as higher even when an older prerelease appears first' {
         (Compare-BaselineReleaseVersions -LeftVersion 'v4.0.0-beta' -RightVersion 'v3.0.0-beta') | Should -BeGreaterThan 0

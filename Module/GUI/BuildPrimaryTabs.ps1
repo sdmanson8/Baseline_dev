@@ -188,7 +188,6 @@
 				'zh-Hant' = @{ Native = '繁體中文';              English = 'Chinese (Traditional)' }
 				'as'      = @{ Native = 'অসমীয়া';              English = 'Assamese' }
 				'bn-BD'   = @{ Native = 'বাংলা (বাংলাদেশ)';     English = 'Bengali (Bangladesh)' }
-				'chr'     = @{ Native = 'ᏣᎳᎩ';                English = 'Cherokee' }
 				'ckb'     = @{ Native = 'کوردیی ناوەندی';       English = 'Central Kurdish' }
 				'cy'      = @{ Native = 'Cymraeg';             English = 'Welsh' }
 				'ha'      = @{ Native = 'Hausa';               English = 'Hausa' }

@@ -231,7 +231,7 @@ function CheckWinGet
 			}
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerAlreadyInstalled' -Fallback '{0} is already installed and working. Version: {1}' -FormatArgs @('WinGet', $wingetVersion))
 			Write-ConsoleStatus -Status success
-			& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready') -HideProgressBar
+			& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready') -Indeterminate
 			return
 		}
 
@@ -311,7 +311,7 @@ function CheckWinGet
 			{
 				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerValidationSucceeded' -Fallback '{0} validation succeeded. Version: {1}' -FormatArgs @('WinGet', $wingetVersion))
 				Write-ConsoleStatus -Status success
-				& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready') -HideProgressBar
+				& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready') -Indeterminate
 				return
 			}
 
@@ -319,7 +319,7 @@ function CheckWinGet
 			{
 				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationCompletedButUnavailable' -Fallback '{0} installation completed, but {1} is not available in the current session yet. A new session may be required.' -FormatArgs @('WinGet', 'winget.exe'))
 				Write-ConsoleStatus -Status success
-				& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready') -HideProgressBar
+				& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready') -Indeterminate
 				return
 			}
 
@@ -354,19 +354,19 @@ function CheckWinGet
 				{
 					LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairSucceeded' -Fallback '{0} repair succeeded. Version: {1}' -FormatArgs @('WinGet', $wingetVersion))
 					Write-ConsoleStatus -Status success
-					& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready') -HideProgressBar
+					& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready') -Indeterminate
 					return
 				}
 
 				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairCompletedButUnavailable' -Fallback '{0} repair completed but {1} still not resolvable in this session.' -FormatArgs @('WinGet', 'winget.exe'))
 				Write-ConsoleStatus -Status success
-				& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready') -HideProgressBar
+				& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready') -Indeterminate
 			}
 			catch
 			{
 				LogError (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairFailed' -Fallback '{0} repair also failed: {1}' -FormatArgs @('WinGet', $_))
 				Write-ConsoleStatus -Status failed
-				& $updateStartupSplashState -HideProgressBar
+				& $updateStartupSplashState -Indeterminate
 			}
 			return
 		}
@@ -535,38 +535,22 @@ function Initialize-PackageManagersBootstrap
 		}
 		else
 		{
-			if (-not (Test-BaselineEnvironmentFlagEnabled -Name 'BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP'))
+			try
 			{
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_SkippingChocolateyStartupBootstrapApprovalRequired' -Fallback 'Skipping automatic Chocolatey bootstrap during startup because explicit approval is required. Chocolatey will be installed on demand after approval.')
+				$jobs += Start-Job -Name 'ChocolateyBootstrap' -ScriptBlock $jobScriptBlock -ArgumentList @('Chocolatey', $loggingModulePath, $sharedHelpersModulePath, $logFilePath)
+			}
+			catch
+			{
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_FailedToStartPackageManagerBootstrapJob' -Fallback 'Failed to start {0} bootstrap job: {1}' -FormatArgs @('Chocolatey', $_.Exception.Message))
 				[void]$results.Add([pscustomobject]@{
 					PackageManager = 'Chocolatey'
 					Available      = $false
 					Installed      = $false
 					Repaired       = $false
 					Version        = $null
-					Success        = $true
-					Error          = $null
+					Success        = $false
+					Error          = $_.Exception.Message
 				})
-			}
-			else
-			{
-				try
-				{
-					$jobs += Start-Job -Name 'ChocolateyBootstrap' -ScriptBlock $jobScriptBlock -ArgumentList @('Chocolatey', $loggingModulePath, $sharedHelpersModulePath, $logFilePath)
-				}
-				catch
-				{
-					LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_FailedToStartPackageManagerBootstrapJob' -Fallback 'Failed to start {0} bootstrap job: {1}' -FormatArgs @('Chocolatey', $_.Exception.Message))
-					[void]$results.Add([pscustomobject]@{
-						PackageManager = 'Chocolatey'
-						Available      = $false
-						Installed      = $false
-						Repaired       = $false
-						Version        = $null
-						Success        = $false
-						Error          = $_.Exception.Message
-					})
-				}
 			}
 		}
 
@@ -691,7 +675,7 @@ function Initialize-PackageManagersBootstrap
 			}
 		}
 
-		& $updateStartupSplashState -HideProgressBar
+		& $updateStartupSplashState -Indeterminate
 	}
 }
 

@@ -1,32 +1,59 @@
-"""Count residual mojibake markers per locale after the Fix-LocaleMojibake pass."""
+"""Count residual mojibake per locale after Fix-LocaleMojibake.
+
+A string is "mojibake-looking" only if it contains a high-confidence signature:
+a cp1252/latin-1 re-encode of plausible UTF-8 bytes. We re-encode the string
+through cp1252 (with our 5-byte pass-through patch) and check whether the
+resulting byte stream *validly decodes as UTF-8*. If it does — and the decoded
+form differs from the original — the string is still double-encoded. Pure
+native-diacritic text (é, ñ, ç, ä...) will encode to cp1252 cleanly but the
+bytes won't form a valid UTF-8 multi-byte sequence, so it won't false-positive.
+"""
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-MARKERS = ("Ã", "Â", "â€", "Å", "Ð", "Ñ", "ã", "ä", "å", "æ", "ç", "è", "é", "ê", "ë", "ì", "í", "î", "ï", "ð")
+CP1252_PASSTHROUGH = {0x81, 0x8D, 0x8F, 0x90, 0x9D}
 
 
-def count_mojibake(obj) -> int:
+def _encode_cp1252_permissive(s: str) -> bytes:
+    out = bytearray()
+    for c in s:
+        cp = ord(c)
+        if cp in CP1252_PASSTHROUGH:
+            out.append(cp)
+        else:
+            out.extend(c.encode("cp1252"))
+    return bytes(out)
+
+
+def is_mojibake(s: str) -> bool:
+    if not s or "�" in s:
+        return "�" in s  # U+FFFD always counts as damage
+    try:
+        b = _encode_cp1252_permissive(s)
+    except UnicodeEncodeError:
+        return False
+    try:
+        recovered = b.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    if recovered == s:
+        return False
+    # Require at least two high-bit chars to avoid coincidental ASCII-adjacent
+    # inputs that happen to form a valid UTF-8 decode.
+    if sum(1 for c in s if ord(c) >= 0x80) < 2:
+        return False
+    return True
+
+
+def count_in(obj) -> int:
     if isinstance(obj, str):
-        # Only count sequences of 2+ "mojibake-looking" chars in a row,
-        # so legitimate single diacritics in e.g. Afrikaans don't inflate.
-        if len(obj) < 2:
-            return 0
-        hits = 0
-        i = 0
-        while i < len(obj) - 1:
-            a, b = obj[i], obj[i + 1]
-            if (a in MARKERS and 0x80 <= ord(b) <= 0xFF) or (0x80 <= ord(a) <= 0xFF and b in MARKERS):
-                hits += 1
-                i += 2
-            else:
-                i += 1
-        return hits
+        return 1 if is_mojibake(obj) else 0
     if isinstance(obj, dict):
-        return sum(count_mojibake(v) for v in obj.values())
+        return sum(count_in(v) for v in obj.values())
     if isinstance(obj, list):
-        return sum(count_mojibake(v) for v in obj)
+        return sum(count_in(v) for v in obj)
     return 0
 
 
@@ -39,7 +66,7 @@ def main():
             data = json.loads(p.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             continue
-        rows.append((count_mojibake(data), p.relative_to(root).as_posix()))
+        rows.append((count_in(data), p.relative_to(root).as_posix()))
     rows.sort(reverse=True)
     residual = [r for r in rows if r[0] > 0]
     clean = [r for r in rows if r[0] == 0]

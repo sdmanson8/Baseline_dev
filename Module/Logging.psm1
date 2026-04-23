@@ -344,7 +344,17 @@ function Write-LogMessage {
         [switch]$ShowConsole  # Changed from NoConsole to ShowConsole (default off)
     )
     
-    if (-not $script:LogFilePath) { return }
+    # If the module-scoped path was reset (e.g. by a -Force re-import), fall
+    # back to the global path the bootstrap published. Without this, errors
+    # raised from GUI event handlers vanish silently — see GUI-GENERIC-001
+    # diagnosis where the dialog appeared but no log line was written.
+    if (-not $script:LogFilePath) {
+        if ($global:LogFilePath) {
+            $script:LogFilePath = $global:LogFilePath
+        } else {
+            return
+        }
+    }
 
     if ([string]::IsNullOrWhiteSpace($Message)) {
     return
