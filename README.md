@@ -2,7 +2,7 @@
 
 <p align="center">
   <kbd>
-    <a href="https://github.com/sdmanson8/Baseline/releases/latest"><img src="https://img.shields.io/badge/Download_Beta-green?labelColor=151B23&color=151B23&style=for-the-badge"></a>
+    <a href="https://github.com/sdmanson8/Baseline_dev/releases/latest"><img src="https://img.shields.io/badge/Download_Beta-green?labelColor=151B23&color=151B23&style=for-the-badge"></a>
   </kbd>
 </p>
 
@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  Baseline is a manifest-driven platform for applying, tracking, and reversing Windows configuration changes — with a full GUI, compliance drift detection, audit trails, snapshot/restore, and headless automation. Localization ships with 125 locale files at full key coverage; translation quality is machine-assisted and under active QA.
+  Baseline is a manifest-driven platform for applying, tracking, and reversing Windows configuration changes — with a full GUI, compliance drift detection, audit trails, snapshot/restore, and headless automation. Localization ships with 124 locale files at full key coverage; translation quality is machine-assisted and under active QA.
 </p>
 
 <p align="center">
@@ -198,7 +198,7 @@ Windows 11 Non-Interactive
 
 ## Installation & trust
 
-Download `Baseline-<version>.zip` from the [GitHub Releases](https://github.com/sdmanson8/Baseline/releases) page. The zip contains `Baseline-setup-<version>.exe`, which runs either as a per-machine installer or as a portable extract — you choose on the first wizard page.
+Download `Baseline-<version>.zip` from the [GitHub Releases](https://github.com/sdmanson8/Baseline_dev/releases) page. The zip contains `Baseline-setup-<version>.exe`, which runs either as a per-machine installer or as a portable extract — you choose on the first wizard page.
 
 > **Baseline 4.x public preview releases ship unsigned.** Code signing (HSM-held certificate, timestamp authority) is planned but not in place yet. See [dev_docs/Installer-Signing-Policy.md](dev_docs/Installer-Signing-Policy.md) for the full posture and the `-AllowUnsignedPreview` / `BASELINE_PREVIEW_UNSIGNED` opt-in used by the lifecycle tooling.
 
@@ -253,17 +253,6 @@ Once 4.x is promoted to a signed release channel, this section and the policy do
 
 > **Note:** Headless runs may require `Set-ExecutionPolicy Bypass -Scope Process` if your execution policy blocks unsigned scripts.
 
-### Chocolatey bootstrap approval
-
-Some application-catalog actions install Chocolatey by downloading and running
-Chocolatey's official bootstrap script from
-`https://community.chocolatey.org/install.ps1`.
-
-Baseline now requires explicit operator approval before it runs that script.
-Interactive sessions show a confirmation prompt. For reviewed headless
-automation, set `BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP=1` for the current process
-before launching Baseline.
-
 ### Dry run (preview without applying)
 
 ```powershell
@@ -299,7 +288,7 @@ Baseline remote targeting is GUI-capable for connected targets and includes the 
 For convenience, you can download and install directly from GitHub:
 
 ```powershell
-iwr https://raw.githubusercontent.com/sdmanson8/Baseline/main/Bootstrap/Bootstrap.ps1 -UseBasicParsing | iex
+iwr https://raw.githubusercontent.com/sdmanson8/Baseline_dev/main/Bootstrap/Bootstrap.ps1 -UseBasicParsing | iex
 ```
 
 The bootstrap pulls the latest release zip from GitHub, downloads the matching `Baseline-<version>.zip.sha256.json` manifest, verifies SHA-256 for both the zip and the extracted `Baseline-setup-<version>.exe`, and then runs the installer. After the installer exits, if an installed `Baseline.exe` can be found it is launched (honoring `-Preset` / `BASELINE_PRESET`). If it cannot be found, launch Baseline from the Start Menu.
@@ -331,7 +320,7 @@ To run a preset through the raw bootstrap flow, set `BASELINE_PRESET` first:
 
 ```powershell
 $env:BASELINE_PRESET = 'Basic'
-iwr https://raw.githubusercontent.com/sdmanson8/Baseline/main/Bootstrap/Bootstrap.ps1 -UseBasicParsing | iex
+iwr https://raw.githubusercontent.com/sdmanson8/Baseline_dev/main/Bootstrap/Bootstrap.ps1 -UseBasicParsing | iex
 ```
 
 The bootstrap flow downloads the release zip to `%USERPROFILE%\Downloads\Baseline-Bootstrap`, runs the bundled setup installer, then launches the installed `Baseline.exe`. When `BASELINE_PRESET` is present, the preset is forwarded into the noninteractive runner after install.
