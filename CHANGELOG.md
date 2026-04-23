@@ -6,28 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
-## 4.0.0 | 2026-04-17
-
-### Changed
-
-- Release contract is now enforced end-to-end. The Bootstrap self-update path selects exactly one release zip and one matching `.zip.sha256.json` manifest via anchored regex (`^Baseline(?:-portable)?-(v?\d+\.\d+\.\d+(?:-[a-zA-Z0-9]+)?)\.zip$`) instead of a fuzzy `*.zip` glob, and CI now fails the build before artifact upload if `dist\` does not contain exactly one zip/manifest pair that matches the same pattern.
-- Taskbar Widgets tweak no longer executes registry or policy mutations after its own "Skipped: WebExperience package absent" log line. Both the non-personalization and `UIPersonalization` variants now return immediately on the skip branch.
-- GPU Hardware-Accelerated Scheduling detection no longer relies on a double-negated `-notmatch "Virtual"` check. Both sides of the condition share a new `Test-IsVirtualMachine` helper in `SharedHelpers/Environment.Helpers.ps1` (exported via `Baseline.SharedHelpers.Environment`) that inspects `Win32_ComputerSystem.Model` against the full list of VM signatures (VMware, VBOX, KVM, QEMU, Xen, Hyper-V).
-- `Tools/New-ReleasePackage.ps1` now only hashes the installer and emits the `.zip.sha256.json` manifest inside the `ShouldProcess` branch and with `Test-Path` guards, so `-WhatIf` no longer throws by trying to hash a non-existent archive.
-
-### Fixed
-
-- The themed Readme viewer now repaints correctly on open and on live theme toggle. A new `$setMarkdownViewerTheme` closure applies the active foreground to the `FlowDocumentScrollViewer` and to every block in the document, restoring readability on both the text and FlowDocument rendering paths that previously ignored the theme brush.
-
-### Added
-
-- `Tests/Unit/Bootstrap.ReleaseIntegrity.Tests.ps1` — asserts the Bootstrap release-contract regex, manifest hash lookup, and algorithm-unsupported failure paths.
-- `Tests/Unit/Environment.Helpers.Tests.ps1` — new `Describe 'Test-IsVirtualMachine'` block with cases for generic Virtual Machine model strings, VMware/VBOX, physical hardware, and CIM failure.
-- `Tests/Unit/Taskbar.Region.Tests.ps1` and `Tests/Unit/UIPersonalization.Taskbar.Tests.ps1` — skip-path tests that assert no registry or policy writes occur when the WebExperience package is absent.
-
----
-
-## 4.0.0-beta | 2026-04-14
+## 4.0.0 | 2026-04-23
 
 ### Changed
 
@@ -44,9 +23,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Shared popup chrome now repaints live when Light or Dark mode is toggled so borderless dialogs follow the active theme instead of staying on their startup colors.
 - Delivery Optimization now writes `DODownloadMode = 99` for the disabled state so the backend matches the GUI policy detection path instead of clearing into an ambiguous non-policy state.
 - Feature update deferral and quality update deferral now live in the existing updates module, with manifest and preset wiring for the 365-day feature policy and the selectable quality-deferral dropdown (`Default`, `4 days`, `7 days`).
+- Release contract is now enforced end-to-end. The Bootstrap self-update path selects exactly one release zip and one matching `.zip.sha256.json` manifest via anchored regex (`^Baseline(?:-portable)?-(v?\d+\.\d+\.\d+(?:-[a-zA-Z0-9]+)?)\.zip$`) instead of a fuzzy `*.zip` glob, and CI now fails the build before artifact upload if `dist\` does not contain exactly one zip/manifest pair that matches the same pattern.
+- Taskbar Widgets tweak no longer executes registry or policy mutations after its own "Skipped: WebExperience package absent" log line. Both the non-personalization and `UIPersonalization` variants now return immediately on the skip branch.
+- GPU Hardware-Accelerated Scheduling detection no longer relies on a double-negated `-notmatch "Virtual"` check. Both sides of the condition share a new `Test-IsVirtualMachine` helper in `SharedHelpers/Environment.Helpers.ps1` (exported via `Baseline.SharedHelpers.Environment`) that inspects `Win32_ComputerSystem.Model` against the full list of VM signatures (VMware, VBOX, KVM, QEMU, Xen, Hyper-V).
+- `Tools/New-ReleasePackage.ps1` now only hashes the installer and emits the `.zip.sha256.json` manifest inside the `ShouldProcess` branch and with `Test-Path` guards, so `-WhatIf` no longer throws by trying to hash a non-existent archive.
+
+### Fixed
+
+- GUI composition and menu localization now stay aligned after runtime refreshes.
+- Localization schema metadata now matches the current en-US key set after the logs-label rename.
+- Launcher elevation metadata now matches the bootstrap path by requesting administrator rights.
+- Manifest validation data now matches the current region ownership and recovery classifications.
+- Test report export now resolves the repository root from the live invocation directory so `Export-TestReport.ps1` and `Run-ValidationSuite.ps1` report the same passing test totals as the direct validation runs.
+- Popup pickers for UWP Apps, Windows Features, and Scheduled Tasks transparent windows fixed (#1).
+- Language switching no longer throws in deferred WPF dispatcher callbacks; the language selector now invokes captured localization helpers for the empty-state text and language-changed log message.
+- Execution orchestration no longer throws when a `DispatcherTimer` tick fires after cleanup clears the mutable pump function; both execution paths now invoke a captured tick handler.
+- The themed Readme viewer now repaints correctly on open and on live theme toggle. A new `$setMarkdownViewerTheme` closure applies the active foreground to the `FlowDocumentScrollViewer` and to every block in the document, restoring readability on both the text and FlowDocument rendering paths that previously ignored the theme brush.
 
 ### Added
 
+- `Tests/Unit/Bootstrap.ReleaseIntegrity.Tests.ps1` — asserts the Bootstrap release-contract regex, manifest hash lookup, and algorithm-unsupported failure paths.
+- `Tests/Unit/Environment.Helpers.Tests.ps1` — new `Describe 'Test-IsVirtualMachine'` block with cases for generic Virtual Machine model strings, VMware/VBOX, physical hardware, and CIM failure.
+- `Tests/Unit/Taskbar.Region.Tests.ps1` and `Tests/Unit/UIPersonalization.Taskbar.Tests.ps1` — skip-path tests that assert no registry or policy writes occur when the WebExperience package is absent.
 - Hardened the managed remote workflow path with WinRM preflight checks, structured CLI output, read-only enforcement gates, GPO conflict reporting, operator policy safeguards, release status visibility, support bundle export, and incident reproduction pack generation.
 - Expanded the headless lifecycle dispatcher to cover `Upgrade`, `Downgrade`, `Rollback`, `IncidentPack`, and `GpoConflictReport` verbs for managed deployments.
 - Added desktop-session CI on `windows-2022` so the embedded PowerShell host is validated in the same environment used by GUI-heavy automation.
@@ -95,17 +93,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   - Added separate WinGet and Chocolatey installed/update caches, then wired the Apps view to show installed, update-available, and unsupported states from that mixed model.
   - Reworked install, uninstall, update, and batch actions to route through the shared execution worker with friendly display names and mixed-package support.
   - Kept the card-based Apps UI while preserving single-item buttons, per-card selection checkboxes, and bulk actions for selected entries.
-
-### Fixed
-
-- GUI composition and menu localization now stay aligned after runtime refreshes.
-- Localization schema metadata now matches the current en-US key set after the logs-label rename.
-- Launcher elevation metadata now matches the bootstrap path by requesting administrator rights.
-- Manifest validation data now matches the current region ownership and recovery classifications.
-- Test report export now resolves the repository root from the live invocation directory so `Export-TestReport.ps1` and `Run-ValidationSuite.ps1` report the same passing test totals as the direct validation runs.
-- Popup pickers for UWP Apps, Windows Features, and Scheduled Tasks transparent windows fixed (#1).
-- Language switching no longer throws in deferred WPF dispatcher callbacks; the language selector now invokes captured localization helpers for the empty-state text and language-changed log message.
-- Execution orchestration no longer throws when a `DispatcherTimer` tick fires after cleanup clears the mutable pump function; both execution paths now invoke a captured tick handler.
 
 ---
 
