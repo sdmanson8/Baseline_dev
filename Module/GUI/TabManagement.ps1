@@ -36,20 +36,28 @@
 	{
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ()
+
+		$searchQuery = if ($null -eq $Script:SearchText) { '' } else { [string]$Script:SearchText.Trim() }
 		foreach ($tab in $PrimaryTabs.Items)
 		{
 			if (-not ($tab -is [System.Windows.Controls.TabItem])) { continue }
 			$pKey = [string]$tab.Tag
 			if ([string]::IsNullOrWhiteSpace($pKey) -or $pKey -eq $Script:SearchResultsTabTag) { continue }
 
-			# Count tweaks for this tab
+			# Count tweaks for this tab using the same visibility and filter rules
+			# that the content renderer uses. This keeps the header badge aligned with
+			# what the user can actually see after mode/search/filter/preset changes.
 			$tweakCount = 0
 			for ($i = 0; $i -lt $Script:TweakManifest.Count; $i++)
 			{
-				if ((Resolve-GuiPrimaryTabForTweak -Tweak $Script:TweakManifest[$i]) -eq $pKey)
+				$tweak = $Script:TweakManifest[$i]
+				if (-not $tweak) { continue }
+				$stateSource = if ($Script:Controls -and $Script:Controls.ContainsKey($i)) { $Script:Controls[$i] } else { $null }
+				if (-not (Test-TweakMatchesCurrentFilters -Tweak $tweak -PrimaryTab $pKey -SearchQuery $searchQuery -StateSource $stateSource -TweakIndex $i))
 				{
-					$tweakCount++
+					continue
 				}
+				$tweakCount++
 			}
 
 			$displayName = Get-LocalizedTabHeader -PrimaryTab $pKey

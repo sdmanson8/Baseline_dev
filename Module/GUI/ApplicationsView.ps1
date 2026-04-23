@@ -12,13 +12,14 @@
 			[string]$Source
 		)
 
-		$normalizedSource = if ([string]::IsNullOrWhiteSpace([string]$Source)) { 'winget' } else { [string]$Source.Trim().ToLowerInvariant() }
+		$normalizedSource = if ([string]::IsNullOrWhiteSpace([string]$Source)) { 'auto' } else { [string]$Source.Trim().ToLowerInvariant() }
 		switch ($normalizedSource)
 		{
+			'auto' { return 'auto' }
 			'winget' { return 'winget' }
 			'choco' { return 'choco' }
 			'chocolatey' { return 'choco' }
-			default { return 'winget' }
+			default { return 'auto' }
 		}
 	}
 
@@ -52,6 +53,7 @@
 
 		Initialize-AppPackageSourcePreferenceState
 		Initialize-AppCategoryFilterState
+		Initialize-AppStatusFilterState
 
 		$searchQuery = if ($Script:AppsModeActive) { [string]$Script:AppsSearchText } else { [string]$Script:SearchText }
 		$themeName = if ([string]::IsNullOrWhiteSpace([string]$Script:CurrentThemeName)) { 'Dark' } else { [string]$Script:CurrentThemeName }
@@ -71,7 +73,9 @@
 			"Mode=$([bool]$Script:AppsModeActive)"
 			"Search=$searchQuery"
 			"Category=$([string]$Script:AppsCategoryFilter)"
+			"Status=$([string]$Script:AppsStatusFilter)"
 			"Source=$([string](ConvertTo-AppPackageSourcePreference -Source $Script:AppsPackageSourcePreference))"
+			"SourceFilter=$([string]$Script:AppsSourceFilter)"
 			"Loaded=$([bool]$Script:AppsViewLoaded)"
 			"Dirty=$([bool]$Script:AppsViewDirty)"
 			"Refresh=$([bool]$Script:AppsCacheRefreshInProgress)"
@@ -261,30 +265,135 @@
 		param ()
 
 		Initialize-AppPackageSourcePreferenceState
+	}
 
-		if (-not $Script:BtnAppsSourceWinGet -and -not $Script:BtnAppsSourceChocolatey)
+	<#
+	    .SYNOPSIS
+	    Internal function Update-AppSourceFilterControls.
+	#>
+
+	function Update-AppSourceFilterControls
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param ()
+
+		if (-not $Script:BtnAppsSourceFilterAll -and -not $Script:BtnAppsSourceFilterWinGet -and -not $Script:BtnAppsSourceFilterChocolatey)
 		{
 			return
 		}
 
-		$selectedSource = ConvertTo-AppPackageSourcePreference -Source $Script:AppsPackageSourcePreference
-		$Script:AppsSourceUiUpdating = $true
+		$allowed = @('All', 'winget', 'choco')
+		$current = if ([string]::IsNullOrWhiteSpace([string]$Script:AppsSourceFilter)) { 'All' } else { [string]$Script:AppsSourceFilter }
+		if ($allowed -notcontains $current) { $current = 'All'; $Script:AppsSourceFilter = 'All' }
+
+		$allText = Get-UxLocalizedString -Key 'GuiAppsSourceFilterAll' -Fallback 'All'
+		$wingetText = Get-UxLocalizedString -Key 'GuiAppsSourceFilterWinGet' -Fallback 'WinGet'
+		$chocoText = Get-UxLocalizedString -Key 'GuiAppsSourceFilterChocolatey' -Fallback 'Chocolatey'
+		$allTip = Get-UxLocalizedString -Key 'GuiAppsSourceFilterAllTip' -Fallback 'Show apps from any package source.'
+		$wingetTip = Get-UxLocalizedString -Key 'GuiAppsSourceFilterWinGetTip' -Fallback 'Show only apps available through WinGet.'
+		$chocoTip = Get-UxLocalizedString -Key 'GuiAppsSourceFilterChocolateyTip' -Fallback 'Show only apps available through Chocolatey.'
+
+		# Layout + chrome come from AppsFilterRadioStyle in MainWindow.xaml — only
+		# sync dynamic state (IsChecked, localized Content, ToolTip) here.
+		$Script:AppsSourceFilterUiUpdating = $true
 		try
 		{
-			if ($Script:BtnAppsSourceWinGet)
+			if ($Script:BtnAppsSourceFilterAll)
 			{
-				try { $Script:BtnAppsSourceWinGet.IsChecked = ($selectedSource -eq 'winget') } catch { $null = $_ }
-				Set-ButtonChrome -Button $Script:BtnAppsSourceWinGet -Variant $(if ($selectedSource -eq 'winget') { 'Selection' } else { 'Subtle' }) -Compact
+				$isOn = ($current -eq 'All')
+				try { $Script:BtnAppsSourceFilterAll.IsChecked = $isOn } catch { $null = $_ }
+				$Script:BtnAppsSourceFilterAll.Content = $allText
+				$Script:BtnAppsSourceFilterAll.ToolTip = $allTip
 			}
-			if ($Script:BtnAppsSourceChocolatey)
+			if ($Script:BtnAppsSourceFilterWinGet)
 			{
-				try { $Script:BtnAppsSourceChocolatey.IsChecked = ($selectedSource -eq 'choco') } catch { $null = $_ }
-				Set-ButtonChrome -Button $Script:BtnAppsSourceChocolatey -Variant $(if ($selectedSource -eq 'choco') { 'Selection' } else { 'Subtle' }) -Compact
+				$isOn = ($current -eq 'winget')
+				try { $Script:BtnAppsSourceFilterWinGet.IsChecked = $isOn } catch { $null = $_ }
+				$Script:BtnAppsSourceFilterWinGet.Content = $wingetText
+				$Script:BtnAppsSourceFilterWinGet.ToolTip = $wingetTip
+			}
+			if ($Script:BtnAppsSourceFilterChocolatey)
+			{
+				$isOn = ($current -eq 'choco')
+				try { $Script:BtnAppsSourceFilterChocolatey.IsChecked = $isOn } catch { $null = $_ }
+				$Script:BtnAppsSourceFilterChocolatey.Content = $chocoText
+				$Script:BtnAppsSourceFilterChocolatey.ToolTip = $chocoTip
 			}
 		}
 		finally
 		{
-			$Script:AppsSourceUiUpdating = $false
+			$Script:AppsSourceFilterUiUpdating = $false
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Update-AppsViewModeControls.
+	#>
+
+	function Update-AppsViewModeControls
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param ()
+
+		if (-not $Script:BtnAppsViewCards -and -not $Script:BtnAppsViewList)
+		{
+			return
+		}
+
+		$current = if ([string]::IsNullOrWhiteSpace([string]$Script:AppsViewMode)) { 'Cards' } else { [string]$Script:AppsViewMode }
+		if ($current -ne 'List') { $current = 'Cards' }
+
+		# Layout + chrome come from AppsFilterRadioStyle in MainWindow.xaml — only
+		# sync dynamic state (IsChecked) here.
+		$Script:AppsViewModeUiUpdating = $true
+		try
+		{
+			if ($Script:BtnAppsViewCards)
+			{
+				$isOn = ($current -eq 'Cards')
+				try { $Script:BtnAppsViewCards.IsChecked = $isOn } catch { $null = $_ }
+			}
+			if ($Script:BtnAppsViewList)
+			{
+				$isOn = ($current -eq 'List')
+				try { $Script:BtnAppsViewList.IsChecked = $isOn } catch { $null = $_ }
+			}
+		}
+		finally
+		{
+			$Script:AppsViewModeUiUpdating = $false
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Set-AppSourceFilterState.
+	#>
+
+	function Set-AppSourceFilterState
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param (
+			[string]$Source = 'All'
+		)
+
+		$allowed = @('All', 'winget', 'choco')
+		$normalized = if ([string]::IsNullOrWhiteSpace([string]$Source)) { 'All' } else { [string]$Source.Trim() }
+		if ($normalized -eq 'chocolatey') { $normalized = 'choco' }
+		if ($allowed -notcontains $normalized) { $normalized = 'All' }
+
+		if ($Script:AppsSourceFilter -eq $normalized)
+		{
+			Update-AppSourceFilterControls
+			return
+		}
+
+		$Script:AppsSourceFilter = $normalized
+		Update-AppSourceFilterControls
+		if ($Script:AppsModeActive)
+		{
+			Build-AppsViewCards
 		}
 	}
 
@@ -682,7 +791,7 @@
 				Sort-Object -Unique
 		)
 
-		return @('All') + $categories
+		return $categories
 	}
 
 	<#
@@ -766,20 +875,20 @@
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ()
 
-		if (-not $CmbAppsCategoryFilter)
+		if (-not $Script:AppsCategoryTabs)
 		{
 			return
 		}
 
 		Initialize-AppCategoryFilterState
 
-		$currentValue = if ($Script:AppsCategoryFilterInternalValues -and $CmbAppsCategoryFilter.SelectedIndex -ge 0 -and $CmbAppsCategoryFilter.SelectedIndex -lt $Script:AppsCategoryFilterInternalValues.Count) { $Script:AppsCategoryFilterInternalValues[$CmbAppsCategoryFilter.SelectedIndex] } elseif (-not [string]::IsNullOrWhiteSpace([string]$Script:AppsCategoryFilter)) { [string]$Script:AppsCategoryFilter.Trim() } else { 'All' }
+		$currentValue = if (-not [string]::IsNullOrWhiteSpace([string]$Script:AppsCategoryFilter)) { [string]$Script:AppsCategoryFilter.Trim() } else { 'All' }
 		$values = @(Get-AppCategoryFilterValues)
 
 		$Script:AppsFilterUiUpdating = $true
 		try
 		{
-			$CmbAppsCategoryFilter.Items.Clear()
+			$Script:AppsCategoryTabs.Items.Clear()
 			$Script:AppsCategoryFilterInternalValues = [System.Collections.Generic.List[string]]::new()
 			$appsCatLocKeyMap = @{
 				'All'           = 'GuiAppsCategoryAll'
@@ -797,30 +906,201 @@
 				'Security'      = 'GuiAppsCategorySecurity'
 				'Utilities'     = 'GuiAppsCategoryUtilities'
 			}
-			foreach ($value in $values)
+			$appsCatIconMap = @{
+				'All'            = 'Apps'
+				'Browsers'       = 'Globe'
+				'Communication'  = 'Chat'
+				'Compression'    = 'Archive'
+				'Development'    = 'WindowDevTools'
+				'Documents'      = 'Document'
+				'FileManagement' = 'Folder'
+				'Gaming'         = 'Games'
+				'Imaging'        = 'Image'
+				'Media'          = 'Video'
+				'RemoteAccess'   = 'PhoneDesktop'
+				'Runtimes'       = 'Box'
+				'Security'       = 'Shield'
+				'Utilities'      = 'Toolbox'
+			}
+			$selectedIndex = 0
+			for ($i = 0; $i -lt $values.Count; $i++)
 			{
+				$value = $values[$i]
 				$locKey = if ($appsCatLocKeyMap.ContainsKey($value)) { $appsCatLocKeyMap[$value] } else { $null }
 				$displayValue = if ($locKey) { Get-UxLocalizedString -Key $locKey -Fallback $value } else { $value }
-				[void]$CmbAppsCategoryFilter.Items.Add($displayValue)
+				$iconName = if ($appsCatIconMap.ContainsKey($value)) { $appsCatIconMap[$value] } else { 'Apps' }
+
+				$tabItem = New-Object System.Windows.Controls.TabItem
+				if ($iconName -and (Get-Command -Name 'New-GuiLabeledIconContent' -CommandType Function -ErrorAction SilentlyContinue))
+				{
+					$tabItem.Header = New-GuiLabeledIconContent -IconName $iconName -Text $displayValue -IconSize 16 -Gap 6 -AllowTextOnlyFallback
+				}
+				else
+				{
+					$tabItem.Header = $displayValue
+				}
+				$tabItem.Tag = $value
+				$tabItem | Add-Member -NotePropertyName 'AppsDisplayName' -NotePropertyValue $displayValue -Force
+				$tabItem | Add-Member -NotePropertyName 'AppsIconName' -NotePropertyValue $iconName -Force
+				if ($Script:CurrentTheme)
+				{
+					try { $tabItem.Foreground = ConvertTo-GuiBrush -Color $Script:CurrentTheme.TextPrimary -Context 'AppsCategoryTabs/Foreground' } catch { $null = $_ }
+					try { $tabItem.Background = ConvertTo-GuiBrush -Color $Script:CurrentTheme.TabBg -Context 'AppsCategoryTabs/Background' } catch { $null = $_ }
+				}
+				$tabItem.Padding = [System.Windows.Thickness]::new(14, 7, 14, 7)
+				[void]$Script:AppsCategoryTabs.Items.Add($tabItem)
 				[void]$Script:AppsCategoryFilterInternalValues.Add($value)
+				Add-AppsCategoryTabHoverEffects -Tab $tabItem
+				if ($value -eq $currentValue) { $selectedIndex = $i }
 			}
 
 			if ($Script:AppsCategoryFilterInternalValues.Contains($currentValue))
 			{
-				$found = $Script:AppsCategoryFilterInternalValues.IndexOf($currentValue)
-				if ($found -ge 0) { $CmbAppsCategoryFilter.SelectedIndex = [int]$found }
+				$Script:AppsCategoryTabs.SelectedIndex = [int]$selectedIndex
 				$Script:AppsCategoryFilter = $currentValue
 			}
-			else
+			elseif ($Script:AppsCategoryFilterInternalValues.Count -gt 0)
 			{
-				$CmbAppsCategoryFilter.SelectedIndex = 0
-				$Script:AppsCategoryFilter = 'All'
+				$Script:AppsCategoryTabs.SelectedIndex = 0
+				$Script:AppsCategoryFilter = [string]$Script:AppsCategoryFilterInternalValues[0]
 			}
 		}
 		finally
 		{
 			$Script:AppsFilterUiUpdating = $false
 		}
+
+		Update-AppsCategoryTabVisuals
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Update-AppsCategoryTabVisuals.
+	#>
+
+	function Update-AppsCategoryTabVisuals
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param ()
+		if (-not $Script:AppsCategoryTabs) { return }
+		$bc = New-SafeBrushConverter -Context 'Update-AppsCategoryTabVisuals'
+		foreach ($tab in $Script:AppsCategoryTabs.Items)
+		{
+			if (-not ($tab -is [System.Windows.Controls.TabItem])) { continue }
+			$tab.BorderThickness = [System.Windows.Thickness]::new(0, 0, 0, 1)
+			$tab.Padding = [System.Windows.Thickness]::new(14, 7, 14, 7)
+			if ($tab -eq $Script:AppsCategoryTabs.SelectedItem)
+			{
+				$tab.Background = $bc.ConvertFromString($Script:CurrentTheme.TabActiveBg)
+				$tab.Foreground = $bc.ConvertFromString('#FFFFFF')
+				$tab.FontWeight = [System.Windows.FontWeights]::SemiBold
+				$tab.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.ActiveTabIndicator)
+				$tab.BorderThickness = [System.Windows.Thickness]::new(0, 3, 0, 3)
+			}
+			else
+			{
+				$tab.Background = $bc.ConvertFromString($Script:CurrentTheme.TabBg)
+				$tab.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextMuted)
+				$tab.FontWeight = [System.Windows.FontWeights]::Normal
+				$tab.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.BorderColor)
+			}
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Update-AppsCategoryTabCounts.
+	#>
+
+	function Update-AppsCategoryTabCounts
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param ()
+		if (-not $Script:AppsCategoryTabs -or $Script:AppsCategoryTabs.Items.Count -eq 0) { return }
+
+		$activeSearchQuery = if ($Script:AppsModeActive) { [string]$Script:AppsSearchText } else { [string]$Script:SearchText }
+		$catalog = @(Get-AppsCatalogItemsBySearchStatusAndSourceFilters -SearchQuery $activeSearchQuery)
+		$counts = @{}
+		foreach ($entry in $catalog)
+		{
+			$cat = if ([string]::IsNullOrWhiteSpace([string]$entry.SubCategory)) { 'Other' } else { [string]$entry.SubCategory.Trim() }
+			if (-not $counts.ContainsKey($cat)) { $counts[$cat] = 0 }
+			$counts[$cat]++
+		}
+
+		foreach ($tab in $Script:AppsCategoryTabs.Items)
+		{
+			if (-not ($tab -is [System.Windows.Controls.TabItem])) { continue }
+			$tag = [string]$tab.Tag
+			if ([string]::IsNullOrWhiteSpace($tag)) { continue }
+			$tabCount = if ($counts.ContainsKey($tag)) { [int]$counts[$tag] } else { 0 }
+			$displayName = if ($tab.PSObject.Properties['AppsDisplayName']) { [string]$tab.AppsDisplayName } else { $tag }
+			$iconName = if ($tab.PSObject.Properties['AppsIconName']) { [string]$tab.AppsIconName } else { $null }
+			$headerText = "$displayName ($tabCount)"
+			if ($iconName -and (Get-Command -Name 'New-GuiLabeledIconContent' -CommandType Function -ErrorAction SilentlyContinue))
+			{
+				$tab.Header = New-GuiLabeledIconContent -IconName $iconName -Text $headerText -IconSize 16 -Gap 6 -AllowTextOnlyFallback
+			}
+			else
+			{
+				$tab.Header = $headerText
+			}
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Add-AppsCategoryTabHoverEffects.
+	#>
+
+	function Add-AppsCategoryTabHoverEffects
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param ([System.Windows.Controls.TabItem]$Tab)
+		if (-not $Tab) { return }
+		$setGuiControlPropertyScript = ${function:Set-GuiControlProperty}
+		$invokeGuiSafeActionScript = ${function:Invoke-GuiSafeAction}
+		$newSafeBrushConverterScript = $Script:NewSafeBrushConverterScript
+		$newSafeThicknessScript = ${function:New-SafeThickness}
+		$updateAppsCategoryTabVisualsScript = ${function:Update-AppsCategoryTabVisuals}
+
+		$mouseEnterHandler = {
+			if ($Tab -eq $Script:AppsCategoryTabs.SelectedItem) { return }
+			$bc = & $newSafeBrushConverterScript -Context 'Add-AppsCategoryTabHoverEffects/MouseEnter'
+
+			$hoverBgColor = if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.TabHoverBg)) { [string]$Script:CurrentTheme.TabHoverBg } else { '#3670B8' }
+			$textPrimaryColor = '#FFFFFF'
+			$focusRingColor = if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.FocusRing)) { [string]$Script:CurrentTheme.FocusRing } else { '#C9DEFF' }
+
+			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'Background' -Value ($bc.ConvertFromString($hoverBgColor)) -Context 'Add-AppsCategoryTabHoverEffects/MouseEnter/Background')
+			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'Foreground' -Value ($bc.ConvertFromString($textPrimaryColor)) -Context 'Add-AppsCategoryTabHoverEffects/MouseEnter/Foreground')
+			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'BorderBrush' -Value ($bc.ConvertFromString($focusRingColor)) -Context 'Add-AppsCategoryTabHoverEffects/MouseEnter/BorderBrush')
+		}.GetNewClosure()
+		Register-GuiEventHandler -Source $Tab -EventName 'MouseEnter' -Handler ({
+			& $invokeGuiSafeActionScript -Context 'Add-AppsCategoryTabHoverEffects/MouseEnter' -Action $mouseEnterHandler
+		}.GetNewClosure())
+
+		$refreshTabVisualsHandler = {
+			& $updateAppsCategoryTabVisualsScript
+		}.GetNewClosure()
+		Register-GuiEventHandler -Source $Tab -EventName 'MouseLeave' -Handler ({
+			& $invokeGuiSafeActionScript -Context 'Add-AppsCategoryTabHoverEffects/MouseLeave' -Action $refreshTabVisualsHandler
+		}.GetNewClosure())
+
+		$gotFocusHandler = {
+			if ($Tab -eq $Script:AppsCategoryTabs.SelectedItem) { return }
+			$bc = & $newSafeBrushConverterScript -Context 'Add-AppsCategoryTabHoverEffects/GotFocus'
+			$focusRingColor = if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.FocusRing)) { [string]$Script:CurrentTheme.FocusRing } else { '#C9DEFF' }
+			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'BorderBrush' -Value ($bc.ConvertFromString($focusRingColor)) -Context 'Add-AppsCategoryTabHoverEffects/GotFocus/BorderBrush')
+			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'BorderThickness' -Value (& $newSafeThicknessScript -Bottom 3) -Context 'Add-AppsCategoryTabHoverEffects/GotFocus/BorderThickness')
+		}.GetNewClosure()
+		Register-GuiEventHandler -Source $Tab -EventName 'GotKeyboardFocus' -Handler ({
+			& $invokeGuiSafeActionScript -Context 'Add-AppsCategoryTabHoverEffects/GotFocus' -Action $gotFocusHandler
+		}.GetNewClosure())
+
+		Register-GuiEventHandler -Source $Tab -EventName 'LostKeyboardFocus' -Handler ({
+			& $invokeGuiSafeActionScript -Context 'Add-AppsCategoryTabHoverEffects/LostFocus' -Action $refreshTabVisualsHandler
+		}.GetNewClosure())
 	}
 
 	<#
@@ -839,6 +1119,146 @@
 
 		$normalizedCategory = if ([string]::IsNullOrWhiteSpace($Category)) { 'All' } else { [string]$Category.Trim() }
 		$Script:AppsCategoryFilter = $normalizedCategory
+
+		Update-AppsCategoryTabVisuals
+
+		if ($Script:AppsModeActive)
+		{
+			Build-AppsViewCards
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Initialize-AppStatusFilterState.
+	#>
+
+	function Initialize-AppStatusFilterState
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param ()
+
+		$allowed = @('All', 'Installed', 'NotInstalled', 'UpdateAvailable')
+		if ([string]::IsNullOrWhiteSpace([string]$Script:AppsStatusFilter) -or $allowed -notcontains [string]$Script:AppsStatusFilter)
+		{
+			$Script:AppsStatusFilter = 'All'
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Update-AppStatusFilterList.
+	#>
+
+	function Update-AppStatusFilterList
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param ()
+
+		$statusCombo = if ($Script:CmbAppsStatusFilter) { $Script:CmbAppsStatusFilter } else { $CmbAppsStatusFilter }
+		if (-not $statusCombo)
+		{
+			return
+		}
+
+		Initialize-AppStatusFilterState
+
+		$values = @('All', 'Installed', 'NotInstalled', 'UpdateAvailable')
+		$locKeyMap = @{
+			'All'             = 'GuiAppsStatusFilterAll'
+			'Installed'       = 'GuiAppsStatusFilterInstalled'
+			'NotInstalled'    = 'GuiAppsStatusFilterNotInstalled'
+			'UpdateAvailable' = 'GuiAppsStatusFilterUpdateAvailable'
+		}
+		$fallbackMap = @{
+			'All'             = 'All'
+			'Installed'       = 'Installed'
+			'NotInstalled'    = 'Not Installed'
+			'UpdateAvailable' = 'Updates Available'
+		}
+
+		$currentValue = if ($Script:AppsStatusFilterInternalValues -and $statusCombo.SelectedIndex -ge 0 -and $statusCombo.SelectedIndex -lt $Script:AppsStatusFilterInternalValues.Count) { $Script:AppsStatusFilterInternalValues[$statusCombo.SelectedIndex] } elseif (-not [string]::IsNullOrWhiteSpace([string]$Script:AppsStatusFilter)) { [string]$Script:AppsStatusFilter.Trim() } else { 'All' }
+
+		$Script:AppsFilterUiUpdating = $true
+		try
+		{
+			$statusCombo.Items.Clear()
+			$Script:AppsStatusFilterInternalValues = [System.Collections.Generic.List[string]]::new()
+			if (Get-Command -Name 'Set-ChoiceComboStyle' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				try { Set-ChoiceComboStyle -Combo $statusCombo } catch { $null = $_ }
+			}
+			$statusBrushConverter = New-SafeBrushConverter -Context 'Update-AppStatusFilterList'
+			$statusForeground = $null
+			if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.TextPrimary))
+			{
+				try { $statusForeground = $statusBrushConverter.ConvertFromString([string]$Script:CurrentTheme.TextPrimary) } catch { $statusForeground = $null }
+			}
+			if (-not $statusForeground)
+			{
+				try { $statusForeground = $statusBrushConverter.ConvertFromString('#CDD6F4') } catch { $statusForeground = $null }
+			}
+			foreach ($value in $values)
+			{
+				if ($value -eq 'UpdateAvailable')
+				{
+					$separator = New-Object System.Windows.Controls.Separator
+					$separator.IsHitTestVisible = $false
+					$separator.Focusable = $false
+					[void]$statusCombo.Items.Add($separator)
+					[void]$Script:AppsStatusFilterInternalValues.Add($null)
+				}
+				$locKey = $locKeyMap[$value]
+				$fallback = $fallbackMap[$value]
+				$displayValue = Get-UxLocalizedString -Key $locKey -Fallback $fallback
+				if ([string]::IsNullOrWhiteSpace([string]$displayValue)) { $displayValue = $fallback }
+				$item = New-Object System.Windows.Controls.ComboBoxItem
+				$item.Content = [string]$displayValue
+				if ($statusForeground)
+				{
+					try { $item.Foreground = $statusForeground } catch { $null = $_ }
+					try { $item.SetValue([System.Windows.Documents.TextElement]::ForegroundProperty, $statusForeground) } catch { $null = $_ }
+				}
+				[void]$statusCombo.Items.Add($item)
+				[void]$Script:AppsStatusFilterInternalValues.Add($value)
+			}
+
+			if ($Script:AppsStatusFilterInternalValues.Contains($currentValue))
+			{
+				$found = $Script:AppsStatusFilterInternalValues.IndexOf($currentValue)
+				if ($found -ge 0) { $statusCombo.SelectedIndex = [int]$found }
+				$Script:AppsStatusFilter = $currentValue
+			}
+			else
+			{
+				$statusCombo.SelectedIndex = 0
+				$Script:AppsStatusFilter = 'All'
+			}
+		}
+		finally
+		{
+			$Script:AppsFilterUiUpdating = $false
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Set-AppStatusFilterState.
+	#>
+
+	function Set-AppStatusFilterState
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param (
+			[string]$Status = 'All'
+		)
+
+		Initialize-AppStatusFilterState
+
+		$allowed = @('All', 'Installed', 'NotInstalled', 'UpdateAvailable')
+		$normalized = if ([string]::IsNullOrWhiteSpace($Status)) { 'All' } else { [string]$Status.Trim() }
+		if ($allowed -notcontains $normalized) { $normalized = 'All' }
+		$Script:AppsStatusFilter = $normalized
 
 		if ($Script:AppsModeActive)
 		{

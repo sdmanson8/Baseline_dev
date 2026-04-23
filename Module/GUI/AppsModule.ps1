@@ -108,6 +108,117 @@ function Get-ApplicationEntityType
 
 <#
     .SYNOPSIS
+    Internal function Get-AppsCatalogItemsBySearchStatusAndSourceFilters.
+#>
+
+function Get-AppsCatalogItemsBySearchStatusAndSourceFilters
+{
+	[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+	param (
+		[string]$SearchQuery = $null
+	)
+
+	$catalog = @(Get-BaselineApplicationsCatalog)
+	if ($catalog.Count -eq 0)
+	{
+		return @()
+	}
+
+	$activeSearchQuery = if ([string]::IsNullOrWhiteSpace([string]$SearchQuery)) { '' } else { [string]$SearchQuery.Trim() }
+	$searchTerms = @()
+	if (-not [string]::IsNullOrWhiteSpace($activeSearchQuery))
+	{
+		$searchTerms = @(
+			$activeSearchQuery -split '\s+' |
+				Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+				ForEach-Object { [string]$_.Trim().ToLowerInvariant() }
+		)
+	}
+
+	$activeStatusFilter = if ([string]::IsNullOrWhiteSpace([string]$Script:AppsStatusFilter)) { 'All' } else { [string]$Script:AppsStatusFilter.Trim() }
+	$installedWingetCache = $null
+	$installedChocolateyCache = $null
+	$wingetUpdateCache = $null
+	$chocolateyUpdateCache = $null
+	if ($activeStatusFilter -ne 'All')
+	{
+		try
+		{
+			$installedCacheSnapshot = Get-ApplicationCacheSnapshot -CacheState $Script:InstalledAppsCache
+			$installedWingetCache = $installedCacheSnapshot.WinGet
+			$installedChocolateyCache = $installedCacheSnapshot.Chocolatey
+			$wingetUpdateCache = $installedCacheSnapshot.WinGetUpdates
+			$chocolateyUpdateCache = $installedCacheSnapshot.ChocolateyUpdates
+		}
+		catch { $null = $_ }
+	}
+
+	$activeSourceFilter = if ([string]::IsNullOrWhiteSpace([string]$Script:AppsSourceFilter)) { 'All' } else { [string]$Script:AppsSourceFilter.Trim() }
+
+	$matchesSearch = {
+		param($entry)
+		if ($searchTerms.Count -eq 0) { return $true }
+		$searchIndex = if ((Test-GuiObjectField -Object $entry -FieldName 'SearchIndex')) { [string]$entry.SearchIndex } else { $null }
+		if ([string]::IsNullOrWhiteSpace($searchIndex)) { return $false }
+		foreach ($term in @($searchTerms))
+		{
+			if ($searchIndex.IndexOf($term, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) { return $false }
+		}
+		return $true
+	}
+
+	$matchesStatus = {
+		param($entry)
+		if ($activeStatusFilter -eq 'All') { return $true }
+		$entryState = Get-ApplicationExecutionState -Entry $entry -WinGetInstalledCache $installedWingetCache -ChocolateyInstalledCache $installedChocolateyCache -WinGetUpdateCache $wingetUpdateCache -ChocolateyUpdateCache $chocolateyUpdateCache -PreferredSource $Script:AppsPackageSourcePreference
+		switch ($activeStatusFilter)
+		{
+			'Installed'       { return [bool]$entryState.IsInstalled }
+			'NotInstalled'    { return -not [bool]$entryState.IsInstalled }
+			'UpdateAvailable' { return [bool]$entryState.UpdateAvailable }
+			default           { return $true }
+		}
+	}
+
+	$matchesSource = {
+		param($entry)
+		if ($activeSourceFilter -eq 'All') { return $true }
+		$entryWinGetId = $null
+		$entryChocoId = $null
+		if ($entry.PSObject.Properties['WinGetId'] -and -not [string]::IsNullOrWhiteSpace([string]$entry.WinGetId))
+		{
+			$entryWinGetId = [string]$entry.WinGetId
+		}
+		elseif ($entry.ExtraArgs -and $entry.ExtraArgs.PSObject.Properties['WinGetId'])
+		{
+			$entryWinGetId = [string]$entry.ExtraArgs.WinGetId
+		}
+		if ($entry.PSObject.Properties['ChocoId'] -and -not [string]::IsNullOrWhiteSpace([string]$entry.ChocoId))
+		{
+			$entryChocoId = [string]$entry.ChocoId
+		}
+		elseif ($entry.ExtraArgs -and $entry.ExtraArgs.PSObject.Properties['ChocoId'])
+		{
+			$entryChocoId = [string]$entry.ExtraArgs.ChocoId
+		}
+		switch ($activeSourceFilter)
+		{
+			'winget' { return -not [string]::IsNullOrWhiteSpace($entryWinGetId) }
+			'choco'  { return -not [string]::IsNullOrWhiteSpace($entryChocoId) }
+			default  { return $true }
+		}
+	}
+
+	return @(
+		$catalog |
+			Where-Object {
+				(& $matchesSearch $_) -and (& $matchesStatus $_) -and (& $matchesSource $_)
+			}
+	)
+}
+
+<#
+    .SYNOPSIS
     Internal function Test-ApplicationExecutionSupport.
 #>
 
@@ -878,17 +989,33 @@ function Set-AppsActionControlsEnabled
 			}
 		}
 	}
-	if ($Script:CmbAppsCategoryFilter)
+	if ($Script:AppsCategoryTabs)
 	{
-		try { $Script:CmbAppsCategoryFilter.IsEnabled = $Enabled } catch { $null = $_ }
+		try { $Script:AppsCategoryTabs.IsEnabled = $Enabled } catch { $null = $_ }
 	}
-	if ($Script:BtnAppsSourceWinGet)
+	if ($Script:CmbAppsStatusFilter)
 	{
-		try { $Script:BtnAppsSourceWinGet.IsEnabled = $Enabled } catch { $null = $_ }
+		try { $Script:CmbAppsStatusFilter.IsEnabled = $Enabled } catch { $null = $_ }
 	}
-	if ($Script:BtnAppsSourceChocolatey)
+	if ($Script:BtnAppsSourceFilterAll)
 	{
-		try { $Script:BtnAppsSourceChocolatey.IsEnabled = $Enabled } catch { $null = $_ }
+		try { $Script:BtnAppsSourceFilterAll.IsEnabled = $Enabled } catch { $null = $_ }
+	}
+	if ($Script:BtnAppsSourceFilterWinGet)
+	{
+		try { $Script:BtnAppsSourceFilterWinGet.IsEnabled = $Enabled } catch { $null = $_ }
+	}
+	if ($Script:BtnAppsSourceFilterChocolatey)
+	{
+		try { $Script:BtnAppsSourceFilterChocolatey.IsEnabled = $Enabled } catch { $null = $_ }
+	}
+	if ($Script:BtnAppsViewCards)
+	{
+		try { $Script:BtnAppsViewCards.IsEnabled = $Enabled } catch { $null = $_ }
+	}
+	if ($Script:BtnAppsViewList)
+	{
+		try { $Script:BtnAppsViewList.IsEnabled = $Enabled } catch { $null = $_ }
 	}
 	if ($Script:BtnApplyQueuedActions)
 	{
@@ -1055,17 +1182,57 @@ function Sync-AppsQueuedActionControls
 
 			try
 			{
-				if ($controls.PSObject.Properties['Install'] -and $controls.Install)
+				# Legacy radio-style controls (kept for backwards compatibility).
+				if ($controls.PSObject.Properties['Install'] -and $controls.Install -and $controls.Install -is [System.Windows.Controls.Primitives.ToggleButton])
 				{
 					$controls.Install.IsChecked = ([string]$action -eq 'Install')
 				}
-				if ($controls.PSObject.Properties['Uninstall'] -and $controls.Uninstall)
+				if ($controls.PSObject.Properties['Uninstall'] -and $controls.Uninstall -and $controls.Uninstall -is [System.Windows.Controls.Primitives.ToggleButton])
 				{
 					$controls.Uninstall.IsChecked = ([string]$action -eq 'Uninstall')
 				}
-				if ($controls.PSObject.Properties['DoNothing'] -and $controls.DoNothing)
+				if ($controls.PSObject.Properties['DoNothing'] -and $controls.DoNothing -and $controls.DoNothing -is [System.Windows.Controls.Primitives.ToggleButton])
 				{
 					$controls.DoNothing.IsChecked = ([string]$action -eq 'DoNothing')
+				}
+
+				# Card primary/update button chrome + queued badge.
+				$primaryButton = if ($controls.PSObject.Properties['PrimaryButton']) { $controls.PrimaryButton } else { $null }
+				$updateButton  = if ($controls.PSObject.Properties['UpdateButton'])  { $controls.UpdateButton }  else { $null }
+				$primaryKind   = if ($controls.PSObject.Properties['PrimaryActionKind']) { [string]$controls.PrimaryActionKind } else { '' }
+				$badge         = if ($controls.PSObject.Properties['Badge']) { $controls.Badge } else { $null }
+				$badgeText     = if ($controls.PSObject.Properties['BadgeText']) { $controls.BadgeText } else { $null }
+
+				if ($primaryButton)
+				{
+					$primaryQueued = ($primaryKind -and [string]$action -eq $primaryKind)
+					$primaryVariant = if ($primaryQueued) { 'Subtle' } else { 'Primary' }
+					try { Set-ButtonChrome -Button $primaryButton -Variant $primaryVariant -Compact } catch { $null = $_ }
+				}
+				if ($updateButton)
+				{
+					$updateQueued = ([string]$action -eq 'Update')
+					$updateVariant = if ($updateQueued) { 'Subtle' } else { 'Secondary' }
+					try { Set-ButtonChrome -Button $updateButton -Variant $updateVariant -Compact } catch { $null = $_ }
+				}
+				if ($badge -and $badgeText)
+				{
+					if ([string]$action -eq 'DoNothing' -or [string]::IsNullOrWhiteSpace([string]$action))
+					{
+						$badge.Visibility = [System.Windows.Visibility]::Collapsed
+					}
+					else
+					{
+						$badgeLabel = switch ([string]$action)
+						{
+							'Install'   { (Get-UxLocalizedString -Key 'GuiAppsQueuedInstall'   -Fallback 'Queued: Install') }
+							'Uninstall' { (Get-UxLocalizedString -Key 'GuiAppsQueuedUninstall' -Fallback 'Queued: Uninstall') }
+							'Update'    { (Get-UxLocalizedString -Key 'GuiAppsQueuedUpdate'    -Fallback 'Queued: Update') }
+							default     { (Get-UxLocalizedString -Key 'GuiAppsQueued' -Fallback 'Queued') }
+						}
+						$badgeText.Text = $badgeLabel
+						$badge.Visibility = [System.Windows.Visibility]::Visible
+					}
 				}
 			}
 			catch
@@ -1149,7 +1316,7 @@ function Set-AppQueuedAction
 		[string]$AppId,
 
 		[Parameter(Mandatory)]
-		[ValidateSet('Install', 'Uninstall', 'DoNothing')]
+		[ValidateSet('Install', 'Uninstall', 'Update', 'DoNothing')]
 		[string]$Action
 	)
 
@@ -1253,6 +1420,7 @@ function Start-AppsModuleQueuedActionAsync
 
 	$installApps   = [System.Collections.Generic.List[object]]::new()
 	$uninstallApps = [System.Collections.Generic.List[object]]::new()
+	$updateApps    = [System.Collections.Generic.List[object]]::new()
 	foreach ($app in @($catalog))
 	{
 		if (-not $app) { continue }
@@ -1261,6 +1429,7 @@ function Start-AppsModuleQueuedActionAsync
 		{
 			'Install'   { [void]$installApps.Add($app) }
 			'Uninstall' { [void]$uninstallApps.Add($app) }
+			'Update'    { [void]$updateApps.Add($app) }
 		}
 	}
 
@@ -1272,6 +1441,10 @@ function Start-AppsModuleQueuedActionAsync
 	if ($uninstallApps.Count -gt 0)
 	{
 		[void]$taskQueue.Add([pscustomobject]@{ Action = 'Uninstall'; Apps = @($uninstallApps) })
+	}
+	if ($updateApps.Count -gt 0)
+	{
+		[void]$taskQueue.Add([pscustomobject]@{ Action = 'Update'; Apps = @($updateApps) })
 	}
 
 	if ($taskQueue.Count -eq 0)
@@ -1391,7 +1564,7 @@ function Update-AppsSelectionSummary
 	[CmdletBinding()]
 	param ()
 
-	if (-not $Script:TxtAppSelectionStatus -and -not $Script:BtnInstallSelectedApps -and -not $Script:BtnUninstallSelectedApps -and -not $Script:BtnUpdateSelectedApps -and -not $Script:BtnClearAppSelection -and -not $Script:BtnScanInstalledApps -and -not $Script:BtnApplyQueuedActions -and -not $Script:BtnClearQueuedActions)
+	if (-not $Script:TxtAppSelectionStatus -and -not $Script:BtnInstallSelectedApps -and -not $Script:BtnUninstallSelectedApps -and -not $Script:BtnUpdateSelectedApps -and -not $Script:BtnScanInstalledApps -and -not $Script:BtnApplyQueuedActions -and -not $Script:BtnClearQueuedActions)
 	{
 		return
 	}
@@ -1413,9 +1586,9 @@ function Update-AppsSelectionSummary
 	{
 		$selectionLabel = switch ($selectedCount)
 		{
-			0 { (Get-UxLocalizedString -Key 'GuiAppsNoSelection' -Fallback 'No apps selected') }
-			1 { (Get-UxLocalizedString -Key 'GuiAppsSingleSelected' -Fallback '1 app selected') }
-			default { (Get-UxLocalizedString -Key 'GuiAppsMultipleSelected' -Fallback '{0} apps selected' -FormatArgs @($selectedCount)) }
+			0 { (Get-UxLocalizedString -Key 'GuiAppsNoSelection' -Fallback '0 selected') }
+			1 { (Get-UxLocalizedString -Key 'GuiAppsSingleSelected' -Fallback '1 selected') }
+			default { (Get-UxLocalizedString -Key 'GuiAppsMultipleSelected' -Fallback '{0} selected' -FormatArgs @($selectedCount)) }
 		}
 		if ($queuedCount -gt 0)
 		{
@@ -1493,33 +1666,17 @@ function Update-AppsSelectionSummary
 		if ($Script:BtnInstallSelectedApps)
 		{
 			$Script:BtnInstallSelectedApps.IsEnabled = (-not $Script:AppsOperationInProgress) -and (-not $Script:AppsCacheRefreshInProgress) -and ($selectedCount -gt 0)
-			$Script:BtnInstallSelectedApps.ToolTip = if ($installDisabledTooltip) { $installDisabledTooltip } else { (Get-UxLocalizedString -Key 'GuiAppsInstallSelectedTip' -Fallback 'Install every checked application.') }
+			$Script:BtnInstallSelectedApps.ToolTip = if ($installDisabledTooltip) { $installDisabledTooltip } else { (Get-UxLocalizedString -Key 'GuiAppsQueueInstallTip' -Fallback 'Stage installs for every checked app. They run when you click Apply Changes.') }
 		}
 		if ($Script:BtnUninstallSelectedApps)
 		{
 			$Script:BtnUninstallSelectedApps.IsEnabled = (-not $Script:AppsOperationInProgress) -and (-not $Script:AppsCacheRefreshInProgress) -and $cacheReady -and ($selectedCount -gt 0)
-			$Script:BtnUninstallSelectedApps.ToolTip = if ($catalogActionDisabledTooltip) { $catalogActionDisabledTooltip } else { (Get-UxLocalizedString -Key 'GuiAppsUninstallSelectedTip' -Fallback 'Uninstall every checked application.') }
+			$Script:BtnUninstallSelectedApps.ToolTip = if ($catalogActionDisabledTooltip) { $catalogActionDisabledTooltip } else { (Get-UxLocalizedString -Key 'GuiAppsQueueUninstallTip' -Fallback 'Stage uninstalls for every checked app. They run when you click Apply Changes.') }
 		}
 		if ($Script:BtnUpdateSelectedApps)
 		{
 			$Script:BtnUpdateSelectedApps.IsEnabled = (-not $Script:AppsOperationInProgress) -and (-not $Script:AppsCacheRefreshInProgress) -and $cacheReady -and ($selectedCount -gt 0)
-			$Script:BtnUpdateSelectedApps.ToolTip = if ($catalogActionDisabledTooltip) { $catalogActionDisabledTooltip } else { (Get-UxLocalizedString -Key 'GuiAppsUpdateSelectedTip' -Fallback 'Update every checked application.') }
-		}
-		if ($Script:BtnClearAppSelection)
-		{
-			$Script:BtnClearAppSelection.IsEnabled = (-not $Script:AppsOperationInProgress) -and (-not $Script:AppsCacheRefreshInProgress) -and ($selectedCount -gt 0)
-			$Script:BtnClearAppSelection.ToolTip = if ($selectedCount -eq 0)
-			{
-				(Get-UxLocalizedString -Key 'GuiAppsClearSelectionEmptyTip' -Fallback 'No apps are selected.')
-			}
-			elseif ($Script:AppsOperationInProgress -or $Script:AppsCacheRefreshInProgress)
-			{
-				(Get-UxLocalizedString -Key 'GuiAppsClearSelectionBusyTip' -Fallback 'Wait for the current app action to finish before clearing the selection.')
-			}
-			else
-			{
-				(Get-UxLocalizedString -Key 'GuiAppsClearSelectionTip' -Fallback 'Clear all checked applications.')
-			}
+			$Script:BtnUpdateSelectedApps.ToolTip = if ($catalogActionDisabledTooltip) { $catalogActionDisabledTooltip } else { (Get-UxLocalizedString -Key 'GuiAppsQueueUpdateTip' -Fallback 'Stage updates for every checked app. They run when you click Apply Changes.') }
 		}
 		if ($Script:BtnScanInstalledApps)
 		{
@@ -1544,10 +1701,10 @@ function Update-AppsSelectionSummary
 		}
 		if ($Script:BtnClearQueuedActions)
 		{
-			$Script:BtnClearQueuedActions.IsEnabled = (-not $Script:AppsOperationInProgress) -and (-not $Script:AppsCacheRefreshInProgress) -and ($queuedCount -gt 0)
-			$Script:BtnClearQueuedActions.ToolTip = if ($queuedCount -eq 0)
+			$Script:BtnClearQueuedActions.IsEnabled = (-not $Script:AppsOperationInProgress) -and (-not $Script:AppsCacheRefreshInProgress) -and (($queuedCount -gt 0) -or ($selectedCount -gt 0))
+			$Script:BtnClearQueuedActions.ToolTip = if ($queuedCount -eq 0 -and $selectedCount -eq 0)
 			{
-				(Get-UxLocalizedString -Key 'GuiAppsClearQueuedEmptyTip' -Fallback 'No queued app changes to clear.')
+				(Get-UxLocalizedString -Key 'GuiAppsResetEmptyTip' -Fallback 'Nothing to reset.')
 			}
 			elseif ($Script:AppsOperationInProgress -or $Script:AppsCacheRefreshInProgress)
 			{
@@ -1555,7 +1712,7 @@ function Update-AppsSelectionSummary
 			}
 			else
 			{
-				(Get-UxLocalizedString -Key 'GuiAppsClearQueuedTip' -Fallback 'Clear all queued app changes without applying them.')
+				(Get-UxLocalizedString -Key 'GuiAppsResetTip' -Fallback 'Clear all queued changes and checked applications.')
 			}
 		}
 	}
@@ -2096,6 +2253,21 @@ function Build-AppsViewCards
 		}
 	}
 	$Script:AppsWrapPanel.Children.Clear()
+	$appsViewModeActive = if ([string]::IsNullOrWhiteSpace([string]$Script:AppsViewMode)) { 'Cards' } else { [string]$Script:AppsViewMode }
+	if ($appsViewModeActive -eq 'List')
+	{
+		$Script:AppsWrapPanel.Orientation = [System.Windows.Controls.Orientation]::Vertical
+		$Script:AppsWrapPanel.ItemWidth = [double]::NaN
+		$Script:AppsWrapPanel.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+		$Script:AppsWrapPanel.Margin = [System.Windows.Thickness]::new(10, 10, 10, 10)
+	}
+	else
+	{
+		$Script:AppsWrapPanel.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+		$Script:AppsWrapPanel.ItemWidth = [double]::NaN
+		$Script:AppsWrapPanel.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
+		$Script:AppsWrapPanel.Margin = [System.Windows.Thickness]::new(10)
+	}
 	if ($Script:AppsActionButtons -is [System.Collections.Generic.List[object]])
 	{
 		$Script:AppsActionButtons.Clear()
@@ -2130,14 +2302,43 @@ function Build-AppsViewCards
 	}
 
 	Update-AppCategoryFilterList
+	Update-AppStatusFilterList
+	if (Get-Command -Name 'Update-AppsCategoryTabCounts' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		try { Update-AppsCategoryTabCounts } catch { $null = $_ }
+	}
 	$allCatalog = @(Get-BaselineApplicationsCatalog)
 	$activeSearchQuery = if ($Script:AppsModeActive) { [string]$Script:AppsSearchText } else { [string]$Script:SearchText }
-	$catalog = @(Get-FilteredApplicationsCatalogItems -SearchQuery $activeSearchQuery)
-	$installedCacheSnapshot = Get-ApplicationCacheSnapshot -CacheState $Script:InstalledAppsCache
-	$installedWingetCache = $installedCacheSnapshot.WinGet
-	$installedChocolateyCache = $installedCacheSnapshot.Chocolatey
-	$wingetUpdateCache = $installedCacheSnapshot.WinGetUpdates
-	$chocolateyUpdateCache = $installedCacheSnapshot.ChocolateyUpdates
+	$catalog = @(Get-AppsCatalogItemsBySearchStatusAndSourceFilters -SearchQuery $activeSearchQuery)
+
+	# Per Apps Filter spec: if a previously selected app has been hidden by the
+	# current filter combination, drop it from the selection set so bulk actions
+	# only operate on what the user can actually see.
+	if ($Script:SelectedAppIds -and $Script:SelectedAppIds.Count -gt 0)
+	{
+		$visibleKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+		foreach ($visibleEntry in $catalog)
+		{
+			if (-not $visibleEntry) { continue }
+			$visibleKey = Get-ApplicationCatalogIdentityKey -Entry $visibleEntry
+			if (-not [string]::IsNullOrWhiteSpace([string]$visibleKey))
+			{
+				[void]$visibleKeys.Add([string]$visibleKey)
+			}
+		}
+		$stale = @($Script:SelectedAppIds | Where-Object { -not $visibleKeys.Contains([string]$_) })
+		if ($stale.Count -gt 0)
+		{
+			foreach ($staleKey in $stale)
+			{
+				[void]$Script:SelectedAppIds.Remove([string]$staleKey)
+			}
+			if (Get-Command -Name 'Update-AppsSelectionSummary' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Update-AppsSelectionSummary
+			}
+		}
+	}
 	$cacheReady = [bool]($Script:AppsViewLoaded -and -not $Script:AppsViewDirty)
 	$cacheRefreshPrompt = if (Get-Command -Name 'Get-AppsCacheRefreshPromptText' -CommandType Function -ErrorAction SilentlyContinue)
 	{
@@ -2178,7 +2379,19 @@ function Build-AppsViewCards
 
 	if ($catalog.Count -eq 0)
 	{
-		$emptyMessage = if (-not [string]::IsNullOrWhiteSpace([string]$activeSearchQuery) -and ($Script:AppsCategoryFilter -and $Script:AppsCategoryFilter -ne 'All'))
+		$emptyMessage = if ($activeStatusFilter -eq 'Installed')
+		{
+			(Get-UxLocalizedString -Key 'GuiAppsEmptyStateNoInstalled' -Fallback 'No installed applications match the current filters.')
+		}
+		elseif ($activeStatusFilter -eq 'NotInstalled')
+		{
+			(Get-UxLocalizedString -Key 'GuiAppsEmptyStateNoNotInstalled' -Fallback 'Every application in the current filters is already installed.')
+		}
+		elseif ($activeStatusFilter -eq 'UpdateAvailable')
+		{
+			(Get-UxLocalizedString -Key 'GuiAppsEmptyStateNoUpdates' -Fallback 'No updates are available for the current filters.')
+		}
+		elseif (-not [string]::IsNullOrWhiteSpace([string]$activeSearchQuery) -and ($Script:AppsCategoryFilter -and $Script:AppsCategoryFilter -ne 'All'))
 		{
 			(Get-UxLocalizedString -Key 'GuiAppsEmptyStateSearchAndCategory' -Fallback 'No apps match your search in the selected category.')
 		}
@@ -2442,10 +2655,24 @@ function Build-AppsViewCards
 		{
 			'AppGeneric'
 		}
+		$appsViewModeLocal = if ([string]::IsNullOrWhiteSpace([string]$Script:AppsViewMode)) { 'Cards' } else { [string]$Script:AppsViewMode }
 		$card = [System.Windows.Controls.Border]::new()
-		$card.Width = 340
-		$card.Margin = [System.Windows.Thickness]::new(8)
-		$card.Padding = [System.Windows.Thickness]::new(16)
+		if ($appsViewModeLocal -eq 'List')
+		{
+			$listWidthBinding = [System.Windows.Data.Binding]::new('ActualWidth')
+			$listWidthBinding.Source = $Script:AppsWrapPanel
+			$listWidthBinding.Mode = [System.Windows.Data.BindingMode]::OneWay
+			$null = [System.Windows.Data.BindingOperations]::SetBinding($card, [System.Windows.Controls.Border]::WidthProperty, $listWidthBinding)
+			$card.Margin = [System.Windows.Thickness]::new(0, 4, 0, 4)
+			$card.Padding = [System.Windows.Thickness]::new(12, 8, 12, 8)
+			$card.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+		}
+		else
+		{
+			$card.Width = 340
+			$card.Margin = [System.Windows.Thickness]::new(8)
+			$card.Padding = [System.Windows.Thickness]::new(16)
+		}
 		$card.CornerRadius = [System.Windows.CornerRadius]::new(8)
 		$card.Background = $bc.ConvertFromString($theme.CardBg)
 		$card.BorderBrush = $bc.ConvertFromString($theme.CardBorder)
@@ -2492,12 +2719,11 @@ function Build-AppsViewCards
 			[void]$stack.Children.Add($subTitle)
 		}
 
-		if (-not [string]::IsNullOrWhiteSpace($entityType) -and $entityType -ne 'winget')
+		if (-not [string]::IsNullOrWhiteSpace($entityType) -and @('winget','choco') -notcontains $entityType)
 		{
 			$typeBadge = [System.Windows.Controls.TextBlock]::new()
 			$typeBadge.Text = switch ($entityType)
 			{
-				'choco' { (Get-UxLocalizedString -Key 'AppTypeBadgeChoco' -Fallback 'Chocolatey package') }
 				'uwp' { (Get-UxLocalizedString -Key 'AppTypeBadgeUWP' -Fallback 'UWP app') }
 				'feature' { (Get-UxLocalizedString -Key 'AppTypeBadgeFeature' -Fallback 'Windows feature') }
 				'system' { (Get-UxLocalizedString -Key 'AppTypeBadgeSystem' -Fallback 'System component') }
@@ -2518,17 +2744,6 @@ function Build-AppsViewCards
 			$description.Margin = [System.Windows.Thickness]::new(0, 8, 0, 0)
 			$description.Foreground = $bc.ConvertFromString($theme.TextSecondary)
 			[void]$stack.Children.Add($description)
-		}
-
-		if (-not [string]::IsNullOrWhiteSpace([string]$app.Detail))
-		{
-			$detail = [System.Windows.Controls.TextBlock]::new()
-			$detail.Text = [string]$app.Detail
-			$detail.TextWrapping = 'Wrap'
-			$detail.Margin = [System.Windows.Thickness]::new(0, 6, 0, 0)
-			$detail.FontSize = 10
-			$detail.Foreground = $bc.ConvertFromString($theme.TextMuted)
-			[void]$stack.Children.Add($detail)
 		}
 
 		$metadataItems = [System.Collections.Generic.List[object]]::new()
@@ -2560,25 +2775,13 @@ function Build-AppsViewCards
 
 			if ($supportsExecution)
 			{
-				if (-not $cacheReady)
-				{
-					$refreshNotice = [System.Windows.Controls.TextBlock]::new()
-					$refreshNotice.Text = $cacheRefreshPrompt
-					$refreshNotice.Margin = [System.Windows.Thickness]::new(0, 8, 0, 0)
-					$refreshNotice.TextWrapping = [System.Windows.TextWrapping]::Wrap
-					$refreshNotice.FontSize = 10
-					$refreshNotice.Foreground = $bc.ConvertFromString($theme.TextMuted)
-					$refreshNotice.ToolTip = $cacheRefreshPrompt
-					[void]$stack.Children.Add($refreshNotice)
-				}
-
 				$selectionRow = [System.Windows.Controls.DockPanel]::new()
 				$selectionRow.Margin = [System.Windows.Thickness]::new(0, 8, 0, 0)
-				$selectionRow.LastChildFill = $true
+				$selectionRow.LastChildFill = $false
 
 				$selectionCheckBox = [System.Windows.Controls.CheckBox]::new()
 				$selectionCheckBox.Content = (Get-UxLocalizedString -Key 'GuiAppsSelectLabel' -Fallback 'Select')
-				$selectionCheckBox.Margin = [System.Windows.Thickness]::new(12, 0, 0, 0)
+				$selectionCheckBox.Margin = [System.Windows.Thickness]::new(0)
 				$selectionCheckBox.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
 				$selectionCheckBox.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
 				$selectionCheckBox.ToolTip = (Get-UxLocalizedString -Key 'GuiAppsSelectTooltip' -Fallback 'Include this app in bulk actions.')
@@ -2596,19 +2799,6 @@ function Build-AppsViewCards
 				[System.Windows.Controls.DockPanel]::SetDock($selectionCheckBox, [System.Windows.Controls.Dock]::Right)
 				[void]$selectionRow.Children.Add($selectionCheckBox)
 				[void]$Script:AppsSelectionControls.Add($selectionCheckBox)
-
-				$statusRow = [System.Windows.Controls.TextBlock]::new()
-				$statusRow.Text = $statusLabel
-				$statusRow.Margin = [System.Windows.Thickness]::new(0)
-				$statusRow.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-				$statusRow.TextWrapping = [System.Windows.TextWrapping]::Wrap
-				$statusRow.FontSize = 10
-				$statusRow.Foreground = $bc.ConvertFromString($statusForeground)
-				if (-not [string]::IsNullOrWhiteSpace($statusTooltip))
-				{
-					$statusRow.ToolTip = $statusTooltip
-				}
-				[void]$selectionRow.Children.Add($statusRow)
 				[void]$stack.Children.Add($selectionRow)
 
 			$buttonRow = [System.Windows.Controls.WrapPanel]::new()
@@ -2618,19 +2808,47 @@ function Build-AppsViewCards
 			$appCapture = $app
 			$primaryActionKind = if ($isInstalled) { 'Uninstall' } else { 'Install' }
 			$primaryActionRequiresCache = ($primaryActionKind -ne 'Install')
+			$queuedActionForApp = Get-AppQueuedAction -AppId $selectionKeyCapture
 			$primaryButton = [System.Windows.Controls.Button]::new()
 			$primaryButton.Content = $primaryAction
 			$primaryButton.MinWidth = 88
 			$primaryButton.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
 			$primaryButton.Cursor = [System.Windows.Input.Cursors]::Hand
 			$primaryButton.IsEnabled = (-not $Script:AppsOperationInProgress) -and (-not $Script:AppsCacheRefreshInProgress) -and (-not $isAppActionBusy) -and ((-not $primaryActionRequiresCache) -or $cacheReady)
+			$appCardWinGetId = $null
+			$appCardChocoId = $null
+			if ($appCapture.PSObject.Properties['WinGetId'] -and -not [string]::IsNullOrWhiteSpace([string]$appCapture.WinGetId))
+			{
+				$appCardWinGetId = [string]$appCapture.WinGetId
+			}
+			elseif ($appCapture.ExtraArgs -and $appCapture.ExtraArgs.PSObject.Properties['WinGetId'] -and -not [string]::IsNullOrWhiteSpace([string]$appCapture.ExtraArgs.WinGetId))
+			{
+				$appCardWinGetId = [string]$appCapture.ExtraArgs.WinGetId
+			}
+			if ($appCapture.PSObject.Properties['ChocoId'] -and -not [string]::IsNullOrWhiteSpace([string]$appCapture.ChocoId))
+			{
+				$appCardChocoId = [string]$appCapture.ChocoId
+			}
+			elseif ($appCapture.ExtraArgs -and $appCapture.ExtraArgs.PSObject.Properties['ChocoId'] -and -not [string]::IsNullOrWhiteSpace([string]$appCapture.ExtraArgs.ChocoId))
+			{
+				$appCardChocoId = [string]$appCapture.ExtraArgs.ChocoId
+			}
+			$hasMultipleSources = (-not [string]::IsNullOrWhiteSpace($appCardWinGetId)) -and (-not [string]::IsNullOrWhiteSpace($appCardChocoId))
+
 			$primaryButton.ToolTip = if ($primaryActionKind -eq 'Install')
 			{
-				(Get-UxLocalizedString -Key 'Tooltip_InstallApplication' -Fallback 'Install this application.')
+				if ($hasMultipleSources -and -not [string]::IsNullOrWhiteSpace($selectedSourceLabel))
+				{
+					(Get-UxLocalizedString -Key 'GuiAppsQueueInstallViaSourceTip' -Fallback ('Will install via {0} (preferred). It runs when you click Apply Changes.' -f $selectedSourceLabel))
+				}
+				else
+				{
+					(Get-UxLocalizedString -Key 'Tooltip_QueueInstallApplication' -Fallback 'Stage an install for this app. It runs when you click Apply Changes.')
+				}
 			}
 			else
 			{
-				(Get-UxLocalizedString -Key 'Tooltip_UninstallApplication' -Fallback 'Uninstall this application.')
+				(Get-UxLocalizedString -Key 'Tooltip_QueueUninstallApplication' -Fallback 'Stage an uninstall for this app. It runs when you click Apply Changes.')
 			}
 			Set-ButtonChrome -Button $primaryButton -Variant 'Primary' -Compact
 			$primaryButtonIcon = if ($primaryActionKind -eq 'Install') { 'ArrowDownload' } else { 'Delete' }
@@ -2642,7 +2860,9 @@ function Build-AppsViewCards
 				$null = $buttonEventArgs
 				try
 				{
-					& $startAppsModuleActionAsyncCommand -Action $capturedPrimaryAction -Application $appCapture
+					$current = Get-AppQueuedAction -AppId $selectionKeyCapture
+					$desired = if ($current -eq $capturedPrimaryAction) { 'DoNothing' } else { $capturedPrimaryAction }
+					& $setAppQueuedActionCommand -AppId $selectionKeyCapture -Action $desired
 				}
 				catch
 				{
@@ -2651,6 +2871,7 @@ function Build-AppsViewCards
 			}.GetNewClosure())
 			[void]$buttonRow.Children.Add($primaryButton)
 
+			$updateButton = $null
 			if ($isInstalled -or $hasUpdateAvailable)
 			{
 				$updateButton = [System.Windows.Controls.Button]::new()
@@ -2660,21 +2881,23 @@ function Build-AppsViewCards
 				$updateButton.IsEnabled = -not $isAppActionBusy
 				$updateButton.ToolTip = if (-not [string]::IsNullOrWhiteSpace($selectedSourceLabel))
 				{
-					(Get-UxLocalizedString -Key 'GuiAppsUpdateSelectedViaSourceTip' -Fallback ('Update using {0}.' -f $selectedSourceLabel))
+					(Get-UxLocalizedString -Key 'GuiAppsQueueUpdateViaSourceTip' -Fallback ('Stage an update using {0}. It runs when you click Apply Changes.' -f $selectedSourceLabel))
 				}
 				else
 				{
-					(Get-UxLocalizedString -Key 'Tooltip_UpdateApplication' -Fallback 'Update this application.')
+					(Get-UxLocalizedString -Key 'Tooltip_QueueUpdateApplication' -Fallback 'Stage an update for this app. It runs when you click Apply Changes.')
 				}
 				Set-ButtonChrome -Button $updateButton -Variant 'Secondary' -Compact
 				Set-GuiButtonIconContent -Button $updateButton -IconName 'ArrowSync' -Text (Get-UxLocalizedString -Key 'Update' -Fallback 'Update') -IconSize 14 -Gap 6 -TextFontSize 11 -ToolTip $updateButton.ToolTip
 				[void]$Script:AppsActionButtons.Add($updateButton)
-					$updateButton.Add_Click({
+				$updateButton.Add_Click({
 					param($buttonSender, $buttonEventArgs)
 					$null = $buttonEventArgs
 					try
 					{
-						& $startAppsModuleActionAsyncCommand -Action 'Update' -Application $appCapture
+						$current = Get-AppQueuedAction -AppId $selectionKeyCapture
+						$desired = if ($current -eq 'Update') { 'DoNothing' } else { 'Update' }
+						& $setAppQueuedActionCommand -AppId $selectionKeyCapture -Action $desired
 					}
 					catch
 					{
@@ -2685,6 +2908,39 @@ function Build-AppsViewCards
 			}
 
 			[void]$stack.Children.Add($buttonRow)
+
+			# Queued-state badge, shown only when this app has a staged action.
+			$queuedBadge = [System.Windows.Controls.Border]::new()
+			$queuedBadge.Margin = [System.Windows.Thickness]::new(0, 8, 0, 0)
+			$queuedBadge.CornerRadius = [System.Windows.CornerRadius]::new(4)
+			$queuedBadge.Padding = [System.Windows.Thickness]::new(8, 3, 8, 3)
+			$queuedBadge.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
+			$queuedBadge.Background = $bc.ConvertFromString($theme.AccentBlue)
+			$queuedBadge.Visibility = [System.Windows.Visibility]::Collapsed
+			$queuedBadgeText = [System.Windows.Controls.TextBlock]::new()
+			$queuedBadgeText.FontSize = 11
+			$queuedBadgeText.FontWeight = [System.Windows.FontWeights]::SemiBold
+			$queuedBadgeText.Foreground = $bc.ConvertFromString($theme.ButtonPrimaryFg)
+			$queuedBadgeText.Text = ''
+			$queuedBadge.Child = $queuedBadgeText
+			[void]$stack.Children.Add($queuedBadge)
+
+			# Register controls so Sync-AppsQueuedActionControls can refresh button chrome
+			# and badge visibility whenever the staged action for this app changes.
+			if (-not [string]::IsNullOrWhiteSpace($selectionKeyCapture))
+			{
+				$Script:AppsQueuedActionControlMap[$selectionKeyCapture] = [pscustomobject]@{
+					PrimaryButton     = $primaryButton
+					PrimaryActionKind = $primaryActionKind
+					UpdateButton      = $updateButton
+					Badge             = $queuedBadge
+					BadgeText         = $queuedBadgeText
+				}
+				[void]$Script:AppsQueuedActionControls.Add([pscustomobject]@{
+					AppId = $selectionKeyCapture
+				})
+				Sync-AppsQueuedActionControls -AppId $selectionKeyCapture
+			}
 		}
 		else
 		{
@@ -2730,7 +2986,8 @@ function Build-AppsViewCards
 			Update-AppsSelectionSummary
 			return
 		}
-		$summaryText = if ($Script:AppsCategoryFilter -and $Script:AppsCategoryFilter -ne 'All')
+		$filterActive = ($Script:AppsCategoryFilter -and $Script:AppsCategoryFilter -ne 'All') -or ($activeStatusFilter -and $activeStatusFilter -ne 'All')
+		$summaryText = if ($filterActive)
 		{
 			if ($updateAvailableCount -gt 0)
 			{
@@ -2785,6 +3042,9 @@ function Start-AppsCacheRefresh
 	[CmdletBinding()]
 	param ()
 
+	$scanEntryTrace = Join-Path $env:TEMP 'Baseline-ScanEntry-trace.txt'
+	try { "$([DateTime]::UtcNow.ToString('o'))`tStart-AppsCacheRefresh entered (InProgress={0})" -f $Script:AppsCacheRefreshInProgress | Out-File -FilePath $scanEntryTrace -Append -Encoding UTF8 -Force } catch { $null = $_ }
+
 	if ($Script:AppsCacheRefreshInProgress)
 	{
 		return
@@ -2797,10 +3057,29 @@ function Start-AppsCacheRefresh
 	{
 		$Script:AppsProgressContainer.Visibility = [System.Windows.Visibility]::Visible
 	}
+	# Resolve every localized label here on the UI thread. The background
+	# runspace does NOT have Get-UxLocalizedString / Get-UxBilingualLocalizedString
+	# (they live in Module/GUI/UxPolicy.ps1 and aren't imported by
+	# Regions\Applications.psm1), so calling them inside the scriptblock throws
+	# "The term 'Get-UxLocalizedString' is not recognized" on the very first
+	# line — the runspace errors out, the timer flips to the failure path, and
+	# the user sees the Scan button grey out and come right back with zero
+	# progress rendered.
+	$phaseWinGetInstalled = Get-UxLocalizedString -Key 'Progress_CheckingInstallStatus' -Fallback 'Checking installation status...'
+	$phaseChocolateyInstalled = Get-UxLocalizedString -Key 'GuiAppsCacheRefreshScanningChocolateyInstalled' -Fallback 'Checking Chocolatey installation status...'
+	$phaseWinGetUpdates = Get-UxLocalizedString -Key 'Progress_WinGet_CheckingUpdates' -Fallback 'Checking for WinGet updates...'
+	$phaseChocolateyUpdates = Get-UxLocalizedString -Key 'GuiAppsCacheRefreshScanningChocolateyUpdates' -Fallback 'Checking Chocolatey update availability...'
+	$phaseComplete = Get-UxLocalizedString -Key 'GuiAppsCacheRefreshComplete' -Fallback 'Installed apps scanned.'
 	$syncHash = [hashtable]::Synchronized(@{
 		Completed    = 0
 		Total        = 4
-		CurrentAction = (Get-UxLocalizedString -Key 'Progress_CheckingInstallStatus' -Fallback 'Checking installation status...')
+		CurrentAction = $phaseWinGetInstalled
+		PhaseWinGetInstalled = $phaseWinGetInstalled
+		PhaseChocolateyInstalled = $phaseChocolateyInstalled
+		PhaseWinGetUpdates = $phaseWinGetUpdates
+		PhaseChocolateyUpdates = $phaseChocolateyUpdates
+		PhaseComplete = $phaseComplete
+		Warnings     = [System.Collections.Generic.List[string]]::new()
 		IsComplete   = $false
 		Error        = $null
 	})
@@ -2819,7 +3098,15 @@ function Start-AppsCacheRefresh
 	$appsSetSharedProgressBarStateCommand = Get-Command 'Set-SharedProgressBarState' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
 	$appsGetUxLocalizedStringCommand = Get-Command 'Get-UxLocalizedString' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
 	$appsBuildAppsViewCardsCommand = Get-Command 'Build-AppsViewCards' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
-	$appsLogErrorCommand = Get-Command 'LogError' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
+	# LogError is exported as an alias for Write-BaselineError (Logging.psm1);
+	# without -CommandType Function,Alias this lookup always misses and throws
+	# 'LogError not found.' from the guard below — surfaces as GUI-GENERIC-001
+	# when the user clicks Scan Installed Apps.
+	$appsLogErrorCommand = Get-Command 'LogError' -CommandType Function, Alias -ErrorAction SilentlyContinue | Select-Object -First 1
+	if (-not $appsLogErrorCommand)
+	{
+		$appsLogErrorCommand = Get-Command 'Write-BaselineError' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
+	}
 	$appsSetActionControlsEnabledCommand = Get-Command 'Set-AppsActionControlsEnabled' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
 
 	if (-not $appsGetApplicationCacheSnapshotCommand) { throw 'Get-ApplicationCacheSnapshot not found.' }
@@ -2831,22 +3118,33 @@ function Start-AppsCacheRefresh
 
 	$null = $ps.AddScript({
 		param ($ModulePath, $Sync)
-		Import-Module -Force -Name $ModulePath
+		$scanTracePath = Join-Path $env:TEMP 'Baseline-ScanWorker-trace.txt'
+		function Write-ScanTrace { param([string]$Message) try { "$([DateTime]::UtcNow.ToString('o'))`t$Message" | Out-File -FilePath $scanTracePath -Append -Encoding UTF8 -Force } catch { $null = $_ } }
+		Write-ScanTrace "--- scan worker start ---"
+		Write-ScanTrace ("ModulePath={0} exists={1}" -f $ModulePath, (Test-Path $ModulePath))
+		try
+		{
+		Write-ScanTrace "Import-Module Applications.psm1 START"
+		Import-Module -Force -Global -Name $ModulePath
+		Write-ScanTrace "Import-Module Applications.psm1 DONE"
 		$wingetCache = @{}
 		$chocolateyCache = @{}
 		$wingetUpdateCache = @{}
 		$chocolateyUpdateCache = @{}
 		$Sync.Total = 4
 		$Sync.Completed = 0
-		$Sync.CurrentAction = (Get-UxLocalizedString -Key 'Progress_CheckingInstallStatus' -Fallback 'Checking installation status...')
+		$Sync.CurrentAction = $Sync.PhaseWinGetInstalled
 		try
 		{
-			$Sync.CurrentAction = (Get-UxLocalizedString -Key 'Progress_CheckingInstallStatus' -Fallback 'Checking installation status...')
+			$Sync.CurrentAction = $Sync.PhaseWinGetInstalled
+			Write-ScanTrace "Get-InstalledAppCache START"
 			$wingetCache = Get-InstalledAppCache
+			Write-ScanTrace ("Get-InstalledAppCache DONE count={0}" -f (@($wingetCache.Keys).Count))
 		}
 		catch
 		{
-			LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogWinGetInstalledCacheRefreshFailed' -Fallback 'WinGet installed-cache scan failed: {0}' -FormatArgs @($_.Exception.Message))
+			Write-ScanTrace ("Get-InstalledAppCache FAILED: {0}" -f $_.Exception.Message)
+			[void]$Sync.Warnings.Add(("WinGet installed-cache scan failed: {0}" -f $_.Exception.Message))
 		}
 		finally
 		{
@@ -2854,12 +3152,15 @@ function Start-AppsCacheRefresh
 		}
 		try
 		{
-			$Sync.CurrentAction = (Get-UxLocalizedString -Key 'GuiAppsCacheRefreshScanningChocolateyInstalled' -Fallback 'Checking Chocolatey installation status...')
+			$Sync.CurrentAction = $Sync.PhaseChocolateyInstalled
+			Write-ScanTrace "Get-InstalledChocolateyAppCache START"
 			$chocolateyCache = Get-InstalledChocolateyAppCache
+			Write-ScanTrace ("Get-InstalledChocolateyAppCache DONE count={0}" -f (@($chocolateyCache.Keys).Count))
 		}
 		catch
 		{
-			LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogChocolateyInstalledCacheRefreshFailed' -Fallback 'Chocolatey installed-cache scan failed: {0}' -FormatArgs @($_.Exception.Message))
+			Write-ScanTrace ("Get-InstalledChocolateyAppCache FAILED: {0}" -f $_.Exception.Message)
+			[void]$Sync.Warnings.Add(("Chocolatey installed-cache scan failed: {0}" -f $_.Exception.Message))
 		}
 		finally
 		{
@@ -2867,12 +3168,15 @@ function Start-AppsCacheRefresh
 		}
 		try
 		{
-			$Sync.CurrentAction = (Get-UxLocalizedString -Key 'Progress_WinGet_CheckingUpdates' -Fallback 'Checking for WinGet updates...')
+			$Sync.CurrentAction = $Sync.PhaseWinGetUpdates
+			Write-ScanTrace "Get-AvailableAppUpdateCache START"
 			$wingetUpdateCache = Get-AvailableAppUpdateCache
+			Write-ScanTrace ("Get-AvailableAppUpdateCache DONE count={0}" -f (@($wingetUpdateCache.Keys).Count))
 		}
 		catch
 		{
-			LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogWinGetUpdateCacheRefreshFailed' -Fallback 'WinGet update-cache scan failed: {0}' -FormatArgs @($_.Exception.Message))
+			Write-ScanTrace ("Get-AvailableAppUpdateCache FAILED: {0}" -f $_.Exception.Message)
+			[void]$Sync.Warnings.Add(("WinGet update-cache scan failed: {0}" -f $_.Exception.Message))
 		}
 		finally
 		{
@@ -2880,36 +3184,60 @@ function Start-AppsCacheRefresh
 		}
 		try
 		{
-			$Sync.CurrentAction = (Get-UxLocalizedString -Key 'GuiAppsCacheRefreshScanningChocolateyUpdates' -Fallback 'Checking Chocolatey update availability...')
+			$Sync.CurrentAction = $Sync.PhaseChocolateyUpdates
+			Write-ScanTrace "Get-AvailableChocolateyUpdateCache START"
 			$chocolateyUpdateCache = Get-AvailableChocolateyUpdateCache
+			Write-ScanTrace ("Get-AvailableChocolateyUpdateCache DONE count={0}" -f (@($chocolateyUpdateCache.Keys).Count))
 		}
 		catch
 		{
-			LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogChocolateyUpdateCacheRefreshFailed' -Fallback 'Chocolatey update-cache scan failed: {0}' -FormatArgs @($_.Exception.Message))
+			Write-ScanTrace ("Get-AvailableChocolateyUpdateCache FAILED: {0}" -f $_.Exception.Message)
+			[void]$Sync.Warnings.Add(("Chocolatey update-cache scan failed: {0}" -f $_.Exception.Message))
 		}
 		finally
 		{
 			$Sync.Completed = 4
 		}
-		$Sync.CurrentAction = (Get-UxLocalizedString -Key 'GuiAppsCacheRefreshComplete' -Fallback 'Installed apps scanned.')
+		$Sync.CurrentAction = $Sync.PhaseComplete
+		Write-ScanTrace "--- scan worker complete ---"
 		[pscustomobject]@{
 			WinGet = $wingetCache
 			Chocolatey = $chocolateyCache
 			WinGetUpdates = $wingetUpdateCache
 			ChocolateyUpdates = $chocolateyUpdateCache
 		}
+		}
+		catch
+		{
+			Write-ScanTrace ("FATAL CATCH type={0} msg={1}" -f $_.Exception.GetType().FullName, $_.Exception.Message)
+			if ($_.ScriptStackTrace) { Write-ScanTrace ("ScriptStackTrace: {0}" -f [string]$_.ScriptStackTrace) }
+			if ($_.InvocationInfo -and $_.InvocationInfo.PositionMessage) { Write-ScanTrace ("PositionMessage: {0}" -f [string]$_.InvocationInfo.PositionMessage) }
+			$Sync.Error = ("{0}: {1}`n{2}" -f $_.Exception.GetType().FullName, $_.Exception.Message, [string]$_.ScriptStackTrace)
+			[void]$Sync.Warnings.Add(("Scan worker fatal: {0}" -f $_.Exception.Message))
+			throw
+		}
 	}).AddArgument($appModulePath).AddArgument($syncHash)
 
 	$asyncResult = $ps.BeginInvoke()
 	$timer = [System.Windows.Threading.DispatcherTimer]::new()
 	$timer.Interval = [TimeSpan]::FromMilliseconds(100)
+
+	# Pre-capture UI references and apps module scope as locals.
+	# GetNewClosure() rebinds the tick scriptblock to a new module whose
+	# $Script: scope is empty, so $Script:AppsProgressBar etc. would resolve
+	# to $null inside the tick. We snapshot them here so the closure captures
+	# them as regular locals.
+	$tickProgressBar = $Script:AppsProgressBar
+	$tickProgressText = $Script:TxtAppsProgressText
+	$tickCacheStatus = $Script:TxtAppCacheStatus
+	$appsScriptScope = $ExecutionContext.SessionState.Module
 	$timer.Add_Tick({
 		if ($syncHash.Error)
 		{
 			$timer.Stop()
-			if ($Script:TxtAppCacheStatus)
+			if ($tickCacheStatus)
 			{
-				$Script:TxtAppCacheStatus.Text = (Set-SharedProgressBarState -ProgressBar $Script:AppsProgressBar -ProgressText $Script:TxtAppsProgressText -Completed 0 -Total 1 -CurrentAction (Get-UxLocalizedString -Key 'GuiAppsCacheRefreshFailed' -Fallback 'Failed to scan installed applications.') -PassThruText)
+				$tickCacheStatus.Text = (& $appsSetSharedProgressBarStateCommand -ProgressBar $tickProgressBar -ProgressText $tickProgressText -Completed 0 -Total 1 -CurrentAction (& $appsGetUxLocalizedStringCommand -Key 'GuiAppsCacheRefreshFailed' -Fallback 'Failed to scan installed applications.') -PassThruText)
 			}
 			& $appsLogErrorCommand (& $appsGetUxLocalizedStringCommand -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @([string]$syncHash.Error))
 			try { $ps.Dispose() } catch { $null = $_ }
@@ -2917,12 +3245,12 @@ function Start-AppsCacheRefresh
 			return
 		}
 
-		if ($Script:AppsProgressBar -or $Script:TxtAppsProgressText)
+		if ($tickProgressBar -or $tickProgressText)
 		{
-			$progressText = & $appsSetSharedProgressBarStateCommand -ProgressBar $Script:AppsProgressBar -ProgressText $Script:TxtAppsProgressText -Completed $syncHash.Completed -Total $syncHash.Total -CurrentAction $syncHash.CurrentAction -PassThruText
-			if ($Script:TxtAppCacheStatus)
+			$progressText = & $appsSetSharedProgressBarStateCommand -ProgressBar $tickProgressBar -ProgressText $tickProgressText -Completed $syncHash.Completed -Total $syncHash.Total -CurrentAction $syncHash.CurrentAction -PassThruText
+			if ($tickCacheStatus)
 			{
-				$Script:TxtAppCacheStatus.Text = $progressText
+				$tickCacheStatus.Text = $progressText
 			}
 		}
 
@@ -2936,13 +3264,13 @@ function Start-AppsCacheRefresh
 		{
 			$cacheResult = @($ps.EndInvoke($asyncResult))
 			$cachePayload = if ($cacheResult.Count -gt 0) { $cacheResult[0] } else { $null }
-			if ($cachePayload -is [psobject])
+			$resolvedCache = if ($cachePayload -is [psobject])
 			{
-				$Script:InstalledAppsCache = & $appsGetApplicationCacheSnapshotCommand -CacheState $cachePayload
+				& $appsGetApplicationCacheSnapshotCommand -CacheState $cachePayload
 			}
 			elseif ($cachePayload -is [hashtable])
 			{
-				$Script:InstalledAppsCache = [pscustomobject]@{
+				[pscustomobject]@{
 					WinGet = $cachePayload
 					Chocolatey = @{}
 					WinGetUpdates = @{}
@@ -2951,38 +3279,56 @@ function Start-AppsCacheRefresh
 			}
 			else
 			{
-				$Script:InstalledAppsCache = [pscustomobject]@{
+				[pscustomobject]@{
 					WinGet = @{}
 					Chocolatey = @{}
 					WinGetUpdates = @{}
 					ChocolateyUpdates = @{}
 				}
 			}
-			$Script:AppsViewLoaded = $true
-			$Script:AppsViewDirty = $false
-			& $appsSetSharedProgressBarStateCommand -ProgressBar $Script:AppsProgressBar -ProgressText $Script:TxtAppsProgressText -Completed $syncHash.Total -Total $syncHash.Total -CurrentAction $syncHash.CurrentAction | Out-Null
+			# Write results back into the host module's script scope so the
+			# rest of the GUI (which does live in that scope) sees them.
+			& $appsScriptScope {
+				param ($cache)
+				$Script:InstalledAppsCache = $cache
+				$Script:AppsViewLoaded = $true
+				$Script:AppsViewDirty = $false
+			} $resolvedCache
+			& $appsSetSharedProgressBarStateCommand -ProgressBar $tickProgressBar -ProgressText $tickProgressText -Completed $syncHash.Total -Total $syncHash.Total -CurrentAction $syncHash.CurrentAction | Out-Null
+			if ($syncHash.Warnings -and $syncHash.Warnings.Count -gt 0)
+			{
+				foreach ($warning in $syncHash.Warnings)
+				{
+					if (Get-Command -Name 'LogWarning' -ErrorAction SilentlyContinue)
+					{
+						try { LogWarning $warning } catch { $null = $_ }
+					}
+				}
+			}
 			& $appsBuildAppsViewCardsCommand
 		}
 		catch
 		{
-			$Script:InstalledAppsCache = [pscustomobject]@{
-				WinGet = @{}
-				Chocolatey = @{}
-				WinGetUpdates = @{}
-				ChocolateyUpdates = @{}
+			& $appsScriptScope {
+				$Script:InstalledAppsCache = [pscustomobject]@{
+					WinGet = @{}
+					Chocolatey = @{}
+					WinGetUpdates = @{}
+					ChocolateyUpdates = @{}
+				}
+				$Script:AppsViewLoaded = $false
+				$Script:AppsViewDirty = $true
 			}
-			$Script:AppsViewLoaded = $false
-			$Script:AppsViewDirty = $true
-			$progressText = & $appsSetSharedProgressBarStateCommand -ProgressBar $Script:AppsProgressBar -ProgressText $Script:TxtAppsProgressText -Completed 0 -Total 1 -CurrentAction (& $appsGetUxLocalizedStringCommand -Key 'GuiAppsCacheRefreshFailed' -Fallback 'Failed to scan installed applications.') -PassThruText
-			if ($Script:TxtAppCacheStatus)
+			$progressText = & $appsSetSharedProgressBarStateCommand -ProgressBar $tickProgressBar -ProgressText $tickProgressText -Completed 0 -Total 1 -CurrentAction (& $appsGetUxLocalizedStringCommand -Key 'GuiAppsCacheRefreshFailed' -Fallback 'Failed to scan installed applications.') -PassThruText
+			if ($tickCacheStatus)
 			{
-				$Script:TxtAppCacheStatus.Text = $progressText
+				$tickCacheStatus.Text = $progressText
 			}
 			& $appsLogErrorCommand (& $appsGetUxLocalizedStringCommand -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @($_.Exception.Message))
 		}
 		finally
 		{
-			$Script:AppsCacheRefreshInProgress = $false
+			& $appsScriptScope { $Script:AppsCacheRefreshInProgress = $false }
 			& $appsSetActionControlsEnabledCommand -Enabled $true
 			try { $ps.Dispose() } catch { $null = $_ }
 			try { $runspace.Dispose() } catch { $null = $_ }
@@ -3103,6 +3449,93 @@ function Start-AppsModuleBatchActionAsync
 
 <#
     .SYNOPSIS
+    Applies active/inactive chrome to the top-nav mode radio buttons so the
+    segmented-control state is visually unambiguous.
+#>
+
+function Set-GuiNavButtonChrome
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		$Button,
+		[Parameter(Mandatory = $true)]
+		[bool]$IsActive
+	)
+
+	if (-not $Button) { return }
+
+	$theme = $Script:CurrentTheme
+	$bc = New-SafeBrushConverter -Context 'Set-GuiNavButtonChrome'
+
+	if ($IsActive)
+	{
+		$bgColor     = if ($theme -and $theme.ContainsKey('AccentBlue'))         { [string]$theme.AccentBlue }         else { '#3B82F6' }
+		$hoverColor  = if ($theme -and $theme.ContainsKey('AccentHover'))        { [string]$theme.AccentHover }        else { '#60A5FA' }
+		$borderColor = if ($theme -and $theme.ContainsKey('ActiveTabIndicator')) { [string]$theme.ActiveTabIndicator } else { '#4ADE80' }
+		$fgColor     = '#FFFFFF'
+		$thickness   = 2
+		$fontWeight  = [System.Windows.FontWeights]::SemiBold
+	}
+	else
+	{
+		$bgColor     = 'Transparent'
+		$hoverColor  = if ($theme -and $theme.ContainsKey('TabHoverBg'))      { [string]$theme.TabHoverBg }      else { '#3670B8' }
+		$borderColor = if ($theme -and $theme.ContainsKey('BorderColor'))     { [string]$theme.BorderColor }     else { '#4C556D' }
+		$fgColor     = if ($theme -and $theme.ContainsKey('TextSecondary'))   { [string]$theme.TextSecondary }   else { '#9CA3AF' }
+		$thickness   = 1
+		$fontWeight  = [System.Windows.FontWeights]::Normal
+	}
+
+	$bgBrush = $bc.ConvertFromString($bgColor)
+	$hoverBrush = $bc.ConvertFromString($hoverColor)
+	$borderBrush = $bc.ConvertFromString($borderColor)
+	$fgBrush = $bc.ConvertFromString($fgColor)
+
+	$Button.Template = $null
+	$Button.Background = $bgBrush
+	$Button.BorderBrush = $borderBrush
+	$Button.BorderThickness = [System.Windows.Thickness]::new($thickness)
+	$Button.Foreground = $fgBrush
+	$Button.FontWeight = $fontWeight
+	$Button.Cursor = [System.Windows.Input.Cursors]::Hand
+	$Button.FocusVisualStyle = $null
+
+	$tmpl = New-Object System.Windows.Controls.ControlTemplate($Button.GetType())
+	$bd = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.Border])
+	$bd.Name = 'Bd'
+	$bd.SetValue([System.Windows.Controls.Border]::CornerRadiusProperty, [System.Windows.CornerRadius]::new(5))
+	$bd.SetValue([System.Windows.Controls.Border]::PaddingProperty, [System.Windows.Thickness]::new(12, 5, 12, 5))
+	$bd.SetValue([System.Windows.Controls.Border]::BackgroundProperty, $bgBrush)
+	$bd.SetValue([System.Windows.Controls.Border]::BorderBrushProperty, $borderBrush)
+	$bd.SetValue([System.Windows.Controls.Border]::BorderThicknessProperty, [System.Windows.Thickness]::new($thickness))
+	$cp = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.ContentPresenter])
+	$cp.SetValue([System.Windows.Controls.ContentPresenter]::HorizontalAlignmentProperty, [System.Windows.HorizontalAlignment]::Center)
+	$cp.SetValue([System.Windows.Controls.ContentPresenter]::VerticalAlignmentProperty, [System.Windows.VerticalAlignment]::Center)
+	$bd.AppendChild($cp)
+	$tmpl.VisualTree = $bd
+
+	$hoverTrigger = New-Object System.Windows.Trigger
+	$hoverTrigger.Property = [System.Windows.UIElement]::IsMouseOverProperty
+	$hoverTrigger.Value = $true
+	[void]($hoverTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BackgroundProperty) -Value $hoverBrush -TargetName 'Bd')))
+	[void]($tmpl.Triggers.Add($hoverTrigger))
+
+	$Button.Template = $tmpl
+}
+
+function Update-GuiNavModeChrome
+{
+	[CmdletBinding()]
+	param ()
+
+	$appsActive = [bool]$Script:AppsModeActive
+	if ($Script:NavModeTweaks) { Set-GuiNavButtonChrome -Button $Script:NavModeTweaks -IsActive (-not $appsActive) }
+	if ($Script:NavModeApps) { Set-GuiNavButtonChrome -Button $Script:NavModeApps -IsActive $appsActive }
+}
+
+<#
+    .SYNOPSIS
     Internal function Set-GuiAppsMode.
 #>
 
@@ -3121,6 +3554,14 @@ function Set-GuiAppsMode
 	$Script:AppsModeActive = $Enable
 	if ($Script:NavModeTweaks) { $Script:NavModeTweaks.IsChecked = -not $Enable }
 	if ($Script:NavModeApps) { $Script:NavModeApps.IsChecked = $Enable }
+	try { Update-GuiNavModeChrome } catch { $null = $_ }
+	if ($Script:ModeSubtitle)
+	{
+		$subtitleKey = if ($Enable) { 'Nav_SoftwareAndAppsSubtitle' } else { 'Nav_OptimizeSubtitle' }
+		$subtitleFallback = if ($Enable) { 'Manage installed applications' } else { 'Configure system behavior' }
+		$Script:ModeSubtitle.Text = (Get-UxLocalizedString -Key $subtitleKey -Fallback $subtitleFallback)
+		$Script:ModeSubtitle.HorizontalAlignment = if ($Enable) { [System.Windows.HorizontalAlignment]::Right } else { [System.Windows.HorizontalAlignment]::Left }
+	}
 	if ($Enable -and (-not $Script:AppsProgressBar -or -not $Script:AppsProgressHost))
 	{
 		Initialize-AppsProgressSection
@@ -3154,7 +3595,68 @@ function Set-GuiAppsMode
 	if ($Script:TweaksView) { $Script:TweaksView.Visibility = if ($Enable) { $collapsed } else { $visible } }
 	if ($Script:AppsView) { $Script:AppsView.Visibility = if ($Enable) { $visible } else { $collapsed } }
 	if ($Script:PrimaryTabHost) { $Script:PrimaryTabHost.Visibility = if ($Enable) { $collapsed } else { $visible } }
-	if ($Script:ExpertModeBanner) { $Script:ExpertModeBanner.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:ExpertModeBanner)
+	{
+		$Script:ExpertModeBanner.Visibility = if ($Enable)
+		{
+			$collapsed
+		}
+		elseif ((Get-Command -Name 'Test-IsExpertModeUX' -CommandType Function -ErrorAction SilentlyContinue) -and (Test-IsExpertModeUX))
+		{
+			$visible
+		}
+		else
+		{
+			$collapsed
+		}
+	}
+
+	if ($Script:SafeModeGroup)
+	{
+		$Script:SafeModeGroup.Visibility = if ($Enable) { $collapsed } else { $visible }
+	}
+
+	if ($Script:ThemeToggleGroup)
+	{
+		$Script:ThemeToggleGroup.Visibility = $visible
+	}
+
+	# Tweaks-only menu items: hide while in Apps mode.
+	$tweaksOnlyMenu = @(
+		$Script:MenuActionsPreviewRun,
+		$Script:MenuActionsRunTweaks,
+		$Script:MenuActionsUndoLastRun,
+		$Script:MenuActionsRestoreDefaults,
+		$Script:MenuActionsCheckCompliance,
+		$Script:MenuActionsScanSystem,
+		$Script:MenuActionsAuditLog,
+		$Script:MenuActionsSep1,
+		$Script:MenuActionsSep2,
+		$Script:MenuActionsSep3,
+		$Script:MenuViewSafeMode,
+		$Script:MenuViewSepSafeMode,
+		$Script:MenuToolsApproveRemoteTargets,
+		$Script:MenuToolsSaveRemoteApprovalPolicy,
+		$Script:MenuToolsLoadRemoteApprovalPolicy,
+		$Script:MenuToolsRemoteConsole,
+		$Script:MenuToolsOperatorConsole,
+		$Script:MenuToolsRemoteSessionStatus
+	)
+	foreach ($item in $tweaksOnlyMenu)
+	{
+		if ($item) { $item.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	}
+
+	# Apps-only menu items: hide while in Tweaks mode.
+	$appsOnlyMenu = @(
+		$Script:MenuToolsAppsManager,
+		$Script:MenuToolsUpdateAllApps,
+		$Script:MenuToolsSepApps
+	)
+	foreach ($item in $appsOnlyMenu)
+	{
+		if ($item) { $item.Visibility = if ($Enable) { $visible } else { $collapsed } }
+	}
 
 	if ($Script:TxtSearch)
 	{
@@ -3177,6 +3679,10 @@ function Set-GuiAppsMode
 	{
 		Initialize-AppPackageSourcePreferenceState
 		Update-AppPackageSourcePreferenceControls
+		if (Get-Command -Name 'Update-AppSourceFilterControls' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-AppSourceFilterControls
+		}
 	}
 
 	foreach ($control in @($Script:BtnFilterToggle, $Script:FilterOptionsPanel))
@@ -3190,6 +3696,7 @@ function Set-GuiAppsMode
 	if ($Script:BtnPreviewRun) { $Script:BtnPreviewRun.Visibility = if ($Enable) { $collapsed } else { $visible } }
 	if ($Script:BtnDefaults) { $Script:BtnDefaults.Visibility = if ($Enable) { $collapsed } else { $visible } }
 	if ($Script:BtnRun) { $Script:BtnRun.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:BtnApplyQueuedActions) { $Script:BtnApplyQueuedActions.Visibility = if ($Enable) { $visible } else { $collapsed } }
 
 	if ($Enable)
 	{

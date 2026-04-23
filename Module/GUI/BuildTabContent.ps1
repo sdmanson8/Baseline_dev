@@ -190,6 +190,10 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 		{
 			$Script:CurrentPrimaryTab = $PrimaryTab
 			$Script:PresetStatusBadge = $null
+			if (Get-Command -Name 'Update-PrimaryTabHeaders' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				try { Update-PrimaryTabHeaders } catch { $null = $_ }
+			}
 			if (Restore-CachedTabContent -PrimaryTab $PrimaryTab)
 			{
 				return

@@ -119,6 +119,7 @@
 			if ([string]::IsNullOrWhiteSpace($targetTab)) { return }
 			$updateRiskFilterListScript = if ($Script:UpdateRiskFilterListScript) { $Script:UpdateRiskFilterListScript } else { ${function:Update-RiskFilterList} }
 			$updateCategoryFilterListScript = if ($Script:UpdateCategoryFilterListScript) { $Script:UpdateCategoryFilterListScript } else { ${function:Update-CategoryFilterList} }
+			$updatePrimaryTabHeadersScript = if ($Script:UpdatePrimaryTabHeadersScript) { $Script:UpdatePrimaryTabHeadersScript } else { ${function:Update-PrimaryTabHeaders} }
 			$updatePrimaryTabVisualsScript = if ($Script:UpdatePrimaryTabVisualsScript) { $Script:UpdatePrimaryTabVisualsScript } else { ${function:Update-PrimaryTabVisuals} }
 			$buildTabContentScript = if ($Script:BuildTabContentScript) { $Script:BuildTabContentScript } else { ${function:Build-TabContent} }
 			if ($updateRiskFilterListScript)
@@ -142,6 +143,14 @@
 				{
 					throw "Update-CurrentTabContent/UpdateCategoryFilterList for tab '$targetTab' failed: $($_.Exception.Message)"
 				}
+			}
+			try
+			{
+				& $updatePrimaryTabHeadersScript
+			}
+			catch
+			{
+				throw "Update-CurrentTabContent/UpdatePrimaryTabHeaders for tab '$targetTab' failed: $($_.Exception.Message)"
 			}
 			try
 			{
@@ -194,16 +203,25 @@
 		Set-ButtonChrome -Button $Script:BtnRun -Variant 'Primary'
 		if ($Script:BtnPreviewRun) { Set-ButtonChrome -Button $Script:BtnPreviewRun -Variant 'Preview' }
 		Set-ButtonChrome -Button $Script:BtnDefaults -Variant 'DangerSubtle'
-		if ($Script:BtnUpdateAllApps) { Set-ButtonChrome -Button $Script:BtnUpdateAllApps -Variant 'Primary' -Compact }
-		if ($Script:BtnAppsSourceWinGet) { Set-ButtonChrome -Button $Script:BtnAppsSourceWinGet -Variant 'Subtle' -Compact }
-		if ($Script:BtnAppsSourceChocolatey) { Set-ButtonChrome -Button $Script:BtnAppsSourceChocolatey -Variant 'Subtle' -Compact }
-		if ($Script:BtnInstallSelectedApps) { Set-ButtonChrome -Button $Script:BtnInstallSelectedApps -Variant 'Primary' -Compact }
+		if ($Script:BtnUpdateAllApps) { Set-ButtonChrome -Button $Script:BtnUpdateAllApps -Variant 'Secondary' -Compact }
+		# Apps Source + View filters are RadioButtons styled by AppsFilterRadioStyle
+		# (radio dials with checked-state animation). Set-ButtonChrome would
+		# overwrite the template with a pill, so leave them alone here and in the
+		# Update-* helpers below.
+		if (Get-Command -Name 'Update-AppSourceFilterControls' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-AppSourceFilterControls
+		}
+		if (Get-Command -Name 'Update-AppsViewModeControls' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-AppsViewModeControls
+		}
+		if ($Script:BtnInstallSelectedApps) { Set-ButtonChrome -Button $Script:BtnInstallSelectedApps -Variant 'Subtle' -Compact }
 		if ($Script:BtnUninstallSelectedApps) { Set-ButtonChrome -Button $Script:BtnUninstallSelectedApps -Variant 'DangerSubtle' -Compact }
-		if ($Script:BtnUpdateSelectedApps) { Set-ButtonChrome -Button $Script:BtnUpdateSelectedApps -Variant 'Secondary' -Compact }
+		if ($Script:BtnUpdateSelectedApps) { Set-ButtonChrome -Button $Script:BtnUpdateSelectedApps -Variant 'Subtle' -Compact }
 		if ($Script:BtnApplyQueuedActions) { Set-ButtonChrome -Button $Script:BtnApplyQueuedActions -Variant 'Primary' -Compact }
 		if ($Script:BtnClearQueuedActions) { Set-ButtonChrome -Button $Script:BtnClearQueuedActions -Variant 'Subtle' -Compact -Muted }
-		if ($Script:BtnClearAppSelection) { Set-ButtonChrome -Button $Script:BtnClearAppSelection -Variant 'Subtle' -Compact -Muted }
-		if ($Script:BtnScanInstalledApps) { Set-ButtonChrome -Button $Script:BtnScanInstalledApps -Variant 'Secondary' -Compact }
+		if ($Script:BtnScanInstalledApps) { Set-ButtonChrome -Button $Script:BtnScanInstalledApps -Variant 'Subtle' -Compact -Muted }
 		if ($Script:BtnStartHere) { Set-ButtonChrome -Button $Script:BtnStartHere -Variant 'Subtle' -Compact -Muted }
 		if ($Script:BtnHelp) { Set-ButtonChrome -Button $Script:BtnHelp -Variant 'Subtle' -Compact -Muted }
 		if ($BtnLanguage) { Set-ButtonChrome -Button $BtnLanguage -Variant 'Subtle' -Compact -Muted }
@@ -247,15 +265,17 @@
 			$Script:BtnPreviewRun,
 			$Script:BtnRun,
 			$Script:BtnUpdateAllApps,
-			$CmbAppsCategoryFilter,
-			$Script:BtnAppsSourceWinGet,
-			$Script:BtnAppsSourceChocolatey,
+			$Script:BtnAppsFilterToggle,
+			$Script:AppsCategoryTabs,
+			$CmbAppsStatusFilter,
+			$Script:BtnAppsSourceFilterAll,
+			$Script:BtnAppsSourceFilterWinGet,
+			$Script:BtnAppsSourceFilterChocolatey,
 			$Script:BtnInstallSelectedApps,
 			$Script:BtnUninstallSelectedApps,
 			$Script:BtnUpdateSelectedApps,
 			$Script:BtnApplyQueuedActions,
 			$Script:BtnClearQueuedActions,
-			$Script:BtnClearAppSelection,
 			$Script:BtnScanInstalledApps
 		))
 		{
