@@ -10,6 +10,7 @@ $Script:GuiFontSizeWarnings = [System.Collections.Generic.HashSet[string]]::new(
 # Load GUI subsystem scripts during module import so Show-TweakGUI can call their top-level functions.
 . (Join-Path $PSScriptRoot '..' | Join-Path -ChildPath 'GUI' | Join-Path -ChildPath 'AppsModule.ps1')
 . (Join-Path $PSScriptRoot '..' | Join-Path -ChildPath 'GUI' | Join-Path -ChildPath 'UpdateOverlayModule.ps1')
+. (Join-Path $PSScriptRoot '..' | Join-Path -ChildPath 'GUI' | Join-Path -ChildPath 'LanguageCatalog.ps1')
 <#
     .SYNOPSIS
     Return a validated font size for the current GUI layout.
@@ -955,28 +956,11 @@ Supports GUI primary tab for tweak handling inside Baseline.
 			return
 		}
 
-		# Show Save Session dialog while the main window is still alive to avoid
-		# the long delay caused by WPF teardown / GC when spawning a new window
-		# after ShowDialog() has returned.
 		if (-not $Script:ForceCloseCompleted)
 		{
-			$saveTitle = Get-UxLocalizedString -Key 'GuiSaveSessionTitle' -Fallback 'Save Session'
-			$saveMessage = Get-UxLocalizedString -Key 'GuiSaveSessionMessage' -Fallback 'Do you want to save your current selections for next launch?'
-			$saveBtnSave = Get-UxLocalizedString -Key 'GuiSaveSessionSave' -Fallback 'Save'
-			$saveBtnDiscard = Get-UxLocalizedString -Key 'GuiSaveSessionDiscard' -Fallback 'Discard'
-			$saveChoice = GUICommon\Show-ThemedDialog `
-				-Theme $Script:CurrentTheme `
-				-ApplyButtonChrome ${function:Set-ButtonChrome} `
-				-OwnerWindow $windowSource `
-				-Title $saveTitle `
-				-Message $saveMessage `
-				-Buttons @($saveBtnSave, $saveBtnDiscard) `
-				-UseDarkMode ($Script:CurrentThemeName -eq 'Dark') `
-				-AccentButton $saveBtnSave
-			if ($saveChoice -eq $saveBtnSave)
-			{
-				$null = Save-GuiSessionState
-			}
+			# Persist the current GUI session silently; restore-on-launch is
+			# controlled by the GUI settings toggle.
+			$null = Save-GuiSessionState
 		}
 	}) | Out-Null
 
@@ -1187,7 +1171,12 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 	Set-StaticControlTabOrder
 	Set-GuiActionButtonsEnabled -Enabled $true
 
-	$restoredGuiSession = Restore-GuiSessionState
+	$shouldRestoreLastSession = if ($null -ne $Script:RestoreLastSession) { [bool]$Script:RestoreLastSession } else { $true }
+	$restoredGuiSession = $false
+	if ($shouldRestoreLastSession)
+	{
+		$restoredGuiSession = Restore-GuiSessionState
+	}
 	Update-GuiLocalizationStrings
 	Update-PrimaryTabHeaders
 	if ($TxtLanguageState -and -not [string]::IsNullOrWhiteSpace([string]$Script:SelectedLanguage))

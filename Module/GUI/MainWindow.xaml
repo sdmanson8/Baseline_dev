@@ -362,8 +362,6 @@
 					<MenuItem Name="MenuActionsAuditLog" Header="Audit Log..."/>
 				</MenuItem>
 				<MenuItem Name="MenuView" Header="_View">
-					<MenuItem Name="MenuViewSafeMode" Header="Safe Mode" IsCheckable="True"/>
-					<Separator Name="MenuViewSepSafeMode"/>
 					<MenuItem Name="MenuViewFilters" Header="Show Filters Panel" IsCheckable="True"/>
 					<MenuItem Name="MenuViewLogsPanel" Header="Open Logs"/>
 					<MenuItem Name="MenuViewTheme" Header="Switch to Light Mode" IsCheckable="True"/>
@@ -421,11 +419,10 @@
 				<Grid.RowDefinitions>
 					<RowDefinition Height="Auto"/>
 					<RowDefinition Height="Auto"/>
-					<RowDefinition Height="Auto"/>
 				</Grid.RowDefinitions>
 				<Grid Grid.Row="0">
 					<Grid.ColumnDefinitions>
-						<ColumnDefinition Width="*" MinWidth="120"/>
+						<ColumnDefinition Width="*" MinWidth="200"/>
 						<ColumnDefinition Width="Auto"/>
 						<ColumnDefinition Width="Auto"/>
 						<ColumnDefinition Width="Auto"/>
@@ -438,7 +435,18 @@
 					</Grid.ColumnDefinitions>
 					<TextBlock Name="TitleText" Grid.Column="0"
 						FontSize="18" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,12,0"
-						TextTrimming="CharacterEllipsis"/>
+						TextTrimming="CharacterEllipsis" Visibility="Collapsed"/>
+					<Grid Grid.Column="0" Margin="0,0,12,0" VerticalAlignment="Center">
+						<TextBox Name="TxtSearch" Height="30" Padding="10,4,36,4" VerticalContentAlignment="Center" AutomationProperties.Name="Search tweaks"/>
+						<TextBlock Name="TxtSearchPlaceholder" Text=""
+							Margin="12,0,40,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+						<Button Name="BtnClearSearch" Content="" Cursor="Hand"
+							HorizontalAlignment="Right" VerticalAlignment="Center"
+							Width="26" Height="24" Margin="0,0,3,0" Padding="4,2"
+							Background="Transparent" BorderThickness="0"
+							AutomationProperties.Name="Clear search"/>
+						<TextBlock Name="SearchLabel" Visibility="Collapsed"/>
+					</Grid>
 					<Button Name="BtnStartHere" Grid.Column="2" Content=""
 						FontSize="11" Margin="0,0,8,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
 					<Button Name="BtnHelp" Grid.Column="3" Content=""
@@ -484,21 +492,7 @@
 						<TextBlock Name="TxtLanguageState" Margin="2,4,0,0" FontSize="10" Text="" ToolTip=""/>
 					</StackPanel>
 				</Grid>
-				<Grid Grid.Row="1" Margin="0,10,0,0">
-					<Grid.ColumnDefinitions>
-						<ColumnDefinition Width="Auto"/>
-						<ColumnDefinition Width="*"/>
-						<ColumnDefinition Width="Auto"/>
-					</Grid.ColumnDefinitions>
-					<TextBlock Name="SearchLabel" Grid.Column="0" Text="" Margin="0,0,10,0" VerticalAlignment="Center" FontSize="11"/>
-					<Grid Grid.Column="1" Margin="0,0,8,0">
-						<TextBox Name="TxtSearch" Height="30" Padding="10,4" VerticalContentAlignment="Center"/>
-						<TextBlock Name="TxtSearchPlaceholder" Text=""
-							Margin="12,0,36,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
-					</Grid>
-					<Button Name="BtnClearSearch" Grid.Column="2" Content="" FontSize="11" Padding="12,4" Cursor="Hand" Height="30"/>
-				</Grid>
-				<StackPanel Grid.Row="2" Margin="0,8,0,0" Orientation="Vertical">
+				<StackPanel Grid.Row="1" Margin="0,8,0,0" Orientation="Vertical">
 					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Margin="0,0,0,8">
 						<StackPanel Orientation="Horizontal" Margin="0,0,0,2">
 							<RadioButton Name="NavModeTweaks" Content="" IsChecked="True" FontSize="11" Margin="0,0,10,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>

@@ -334,6 +334,15 @@ Describe 'Show-BootstrapLoadingSplash' {
         $script:EnvironmentHelpersContent | Should -Not -Match 'ShowInTaskbar="False"'
     }
 
+    It 'can prime the updates step, status, and progress bar during construction' {
+        $script:EnvironmentHelpersContent | Should -Match '\[switch\]\$StartUpdatesPulse'
+        $script:EnvironmentHelpersContent | Should -Match 'splashLocCheckingForUpdates'
+        $script:EnvironmentHelpersContent | Should -Match 'bootstrapLoadingSplashStepCommand'
+        $script:EnvironmentHelpersContent | Should -Match 'bootstrapLoadingSplashStateCommand'
+        $script:EnvironmentHelpersContent | Should -Match '& \$bootstrapLoadingSplashStepCommand -Splash \$syncHash -StepId ''updates'' -Status ''in_progress'''
+        $script:EnvironmentHelpersContent | Should -Match '& \$bootstrapLoadingSplashStateCommand -Splash \$syncHash -StatusText \$splashLocCheckingForUpdates -Indeterminate'
+    }
+
     It 'uses a value-driven progress bar template with standard named parts' {
         $script:EnvironmentHelpersContent | Should -Match '<ProgressBar Name="ProgressBar"'
         $script:EnvironmentHelpersContent | Should -Match 'x:Name="PART_Track"'
@@ -649,8 +658,8 @@ Describe 'Bootstrap splash defaults' {
 
     It 'uses non-empty splash text fallbacks for initialization and idle restore' {
         ([regex]::Matches($script:EnvironmentHelpersContent, "Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait\.\.\.'")).Count | Should -Be 3
-        $script:EnvironmentHelpersContent | Should -Match "GuiSplashAutoClose' -Fallback 'This window will close automatically when ready\.'"
         $script:EnvironmentHelpersContent | Should -Match "GuiSplashSubtitle' -Fallback 'Windows Optimization & Hardening'"
+        $script:EnvironmentHelpersContent | Should -Not -Match 'GuiSplashAutoClose|autoCloseEsc|This window will close automatically when ready'
     }
 
     It 'keeps every English splash localization on the neutral loading text' {
@@ -688,6 +697,30 @@ Describe 'Bootstrap splash progress' {
         $progressBar.IsIndeterminate | Should -BeTrue
         $progressBar.Value | Should -Be 132
         $progressBar.Maximum | Should -Be 330
+    }
+
+    It 'shows the splash status line for indeterminate updates even when the status text is blank' {
+        $dispatcher = [TestSplashDispatcher]::new()
+        $statusText = [TestSplashElement]::new()
+        $subActionPanel = [TestSplashElement]::new()
+        $subActionPanel.Visibility = [System.Windows.Visibility]::Collapsed
+        $progressBar = [TestProgressBar]::new()
+        $progressBar.Visibility = [System.Windows.Visibility]::Collapsed
+        $progressBar.IsIndeterminate = $false
+
+        $splash = @{
+            Window = [pscustomobject]@{}
+            Dispatcher = $dispatcher
+            StatusText = $statusText
+            SubActionPanel = $subActionPanel
+            ProgressBar = $progressBar
+        }
+
+        Set-BootstrapLoadingSplashState -Splash $splash -StatusText ([string]::Empty) -Indeterminate | Should -BeTrue
+
+        $subActionPanel.Visibility | Should -Be ([System.Windows.Visibility]::Visible)
+        $progressBar.Visibility | Should -Be ([System.Windows.Visibility]::Visible)
+        $progressBar.IsIndeterminate | Should -BeTrue
     }
 
     It 'restores determinate mode before a splash step advances the bar' {

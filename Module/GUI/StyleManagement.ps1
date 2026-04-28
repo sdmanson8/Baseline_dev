@@ -680,7 +680,6 @@
 		if ($Script:MenuActionsCheckCompliance)  { $Script:MenuActionsCheckCompliance.Header  = (Get-UxLocalizedString -Key 'GuiMenuActionsCheckCompliance' -Fallback 'Check Compliance...') }
 		if ($Script:MenuActionsScanSystem)       { $Script:MenuActionsScanSystem.Header       = (Get-UxLocalizedString -Key 'GuiMenuActionsScanSystem' -Fallback 'Scan System') }
 		if ($Script:MenuActionsAuditLog)         { $Script:MenuActionsAuditLog.Header         = (Get-UxLocalizedString -Key 'GuiMenuActionsAuditLog' -Fallback 'Audit Log...') }
-		if ($Script:MenuViewSafeMode)            { $Script:MenuViewSafeMode.Header            = (Get-UxLocalizedString -Key 'GuiChkSafeMode' -Fallback 'Safe Mode') }
 		if ($Script:MenuViewFilters)             { $Script:MenuViewFilters.Header             = (Get-UxLocalizedString -Key 'GuiMenuViewFilters' -Fallback 'Show Filters Panel') }
 		if ($Script:MenuViewLogsPanel)           { $Script:MenuViewLogsPanel.Header           = (Get-UxLocalizedString -Key 'GuiMenuViewOpenLogs' -Fallback 'Open Logs') }
 		Update-HeaderModeStateText

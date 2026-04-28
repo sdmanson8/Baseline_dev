@@ -130,6 +130,14 @@ Describe 'GUI session snapshots' {
         $script:SafeMode = $false
         $script:GameMode = $false
         $script:DesignMode = $true
+        $script:AutoScanOnLaunch = $true
+        $script:RestoreLastSession = $false
+        $script:RequireRunConfirmation = $false
+        $script:PreviewBeforeRunDefault = $true
+        $script:AppsAutoUpdate = $true
+        $script:AppsSilentInstall = $false
+        $script:LoggingEnabled = $false
+        $script:ExperimentalFeatures = $true
         $script:RiskFilter = 'All'
         $script:CategoryFilter = 'All'
         $script:PlatformFilter = 'ThisDevice'
@@ -144,9 +152,17 @@ Describe 'GUI session snapshots' {
         $script:GameModePreviousPrimaryTab = $null
     }
 
-    It 'captures Design Mode in the GUI snapshot' {
+    It 'captures GUI preference fields in the GUI snapshot' {
         $snapshot = Get-GuiSettingsSnapshot
 
+        $snapshot.AutoScanOnLaunch | Should -Be $true
+        $snapshot.RestoreLastSession | Should -Be $false
+        $snapshot.RequireRunConfirmation | Should -Be $false
+        $snapshot.PreviewBeforeRunDefault | Should -Be $true
+        $snapshot.AppsAutoUpdate | Should -Be $true
+        $snapshot.AppsSilentInstall | Should -Be $false
+        $snapshot.LoggingEnabled | Should -Be $false
+        $snapshot.ExperimentalFeatures | Should -Be $true
         $snapshot.DesignMode | Should -Be $true
         $snapshot.HideUnavailableItems | Should -Be $true
     }

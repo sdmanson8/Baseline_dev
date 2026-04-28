@@ -50,7 +50,7 @@ Describe 'First-run startup command wiring' {
                 $guiContent | Should -Match "Get-Command 'Get-GuiFirstRunWelcomeMarkerPath'"
     }
 
-        It 'uses the same runtime-command pattern for the New Start Here action' {
+    It 'uses the same runtime-command pattern for the New Start Here action' {
 		$actionHandlersContent | Should -Match "Get-GuiRuntimeCommand -Name 'Show-ThemedDialog'"
 		$actionHandlersContent | Should -Match "Get-GuiRuntimeCommand -Name 'Show-HelpDialog'"
 		$actionHandlersContent | Should -Match "Get-GuiRuntimeCommand -Name 'Set-GuiPresetSelection'"
@@ -61,6 +61,11 @@ Describe 'First-run startup command wiring' {
         $actionHandlersContent | Should -Not -Match '\$welcomeMessage\s*=\s*Get-UxFirstRunWelcomeMessage'
         $actionHandlersContent | Should -Not -Match '\$choice\s*=\s*Show-ThemedDialog\s+-Title\s+''Welcome to Baseline'''
         $actionHandlersContent | Should -Match "Show-HelpDialog not found\."
+    }
+
+    It 'persists restore-last-session through the GUI preference store' {
+        $actionHandlersContent | Should -Match 'Get-BaselineUserPreference -Key ''RestoreLastSession'' -Default \$true'
+        $actionHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''RestoreLastSession'' -Value \$restoreLastSessionWanted'
     }
 
     It 'maps a missing help dialog function to the startup-command error code' {

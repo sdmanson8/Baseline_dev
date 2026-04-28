@@ -608,8 +608,6 @@ function Set-GuiAppsMode
 		$Script:MenuActionsSep1,
 		$Script:MenuActionsSep2,
 		$Script:MenuActionsSep3,
-		$Script:MenuViewSafeMode,
-		$Script:MenuViewSepSafeMode,
 		$Script:MenuToolsApproveRemoteTargets,
 		$Script:MenuToolsSaveRemoteApprovalPolicy,
 		$Script:MenuToolsLoadRemoteApprovalPolicy,

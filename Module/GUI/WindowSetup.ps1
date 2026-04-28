@@ -386,8 +386,6 @@
 	$MenuActionsSep2            = $Form.FindName("MenuActionsSep2")
 	$MenuActionsSep3            = $Form.FindName("MenuActionsSep3")
 	$MenuView                   = $Form.FindName("MenuView")
-	$MenuViewSafeMode           = $Form.FindName("MenuViewSafeMode")
-	$MenuViewSepSafeMode        = $Form.FindName("MenuViewSepSafeMode")
 	$MenuViewFilters            = $Form.FindName("MenuViewFilters")
 	$MenuViewLogsPanel          = $Form.FindName("MenuViewLogsPanel")
 	$MenuViewTheme              = $Form.FindName("MenuViewTheme")
@@ -429,8 +427,6 @@
 	$Script:MenuView                     = $MenuView
 	$Script:MenuTools                    = $MenuTools
 	$Script:MenuHelp                     = $MenuHelp
-	$Script:MenuViewSafeMode             = $MenuViewSafeMode
-	$Script:MenuViewSepSafeMode          = $MenuViewSepSafeMode
 	$Script:MenuViewFilters              = $MenuViewFilters
 	$Script:MenuViewTheme                = $MenuViewTheme
 	$Script:MenuActionsCheckCompliance   = $MenuActionsCheckCompliance
@@ -728,12 +724,14 @@
 	$Script:GamingOnlyFilter = $false
 	$Script:HideUnavailableItems = $true
 	$Script:DesignMode = $false
+	$Script:RestoreLastSession = $true
 	try
 	{
 		if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
 		{
 			$Script:HideUnavailableItems = [bool](Get-BaselineUserPreference -Key 'HideUnavailableItems' -Default $true)
 			$Script:DesignMode = [bool](Get-BaselineUserPreference -Key 'DesignMode' -Default $false)
+			$Script:RestoreLastSession = [bool](Get-BaselineUserPreference -Key 'RestoreLastSession' -Default $true)
 		}
 	}
 	catch
@@ -741,6 +739,7 @@
 		Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowSetup.LoadGuiPreferences'
 		$Script:HideUnavailableItems = $true
 		$Script:DesignMode = $false
+		$Script:RestoreLastSession = $true
 	}
 	$Script:SafeMode = $true
 	$Script:AdvancedMode = $false

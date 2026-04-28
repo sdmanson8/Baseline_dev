@@ -952,8 +952,12 @@ function Import-GuiRemoteTargetApprovalPolicy
 				}
 			)
 			ScanEnabled = $scanEnabled
+			AutoScanOnLaunch = [bool]$Script:AutoScanOnLaunch
+			RestoreLastSession = if ($null -ne $Script:RestoreLastSession) { [bool]$Script:RestoreLastSession } else { $true }
 			AdvancedMode = [bool]$Script:AdvancedMode
 			SafeMode = [bool]$Script:SafeMode
+			RequireRunConfirmation = if ($null -ne $Script:RequireRunConfirmation) { [bool]$Script:RequireRunConfirmation } else { $true }
+			PreviewBeforeRunDefault = [bool]$Script:PreviewBeforeRunDefault
 			GameMode = [bool]$Script:GameMode
 			GameModeProfile = if ($Script:GameModeProfile) { [string]$Script:GameModeProfile } else { $null }
 			GameModeCorePlan = @($Script:GameModeCorePlan)
@@ -968,6 +972,10 @@ function Import-GuiRemoteTargetApprovalPolicy
 			AppsStatusFilter = if ($Script:AppsStatusFilter) { [string]$Script:AppsStatusFilter } else { 'All' }
 			SelectedOnlyFilter = [bool]$Script:SelectedOnlyFilter
 			HideUnavailableItems = [bool]$Script:HideUnavailableItems
+			AppsAutoUpdate = [bool]$Script:AppsAutoUpdate
+			AppsSilentInstall = if ($null -ne $Script:AppsSilentInstall) { [bool]$Script:AppsSilentInstall } else { $true }
+			LoggingEnabled = if ($null -ne $Script:LoggingEnabled) { [bool]$Script:LoggingEnabled } else { $true }
+			ExperimentalFeatures = [bool]$Script:ExperimentalFeatures
 			DesignMode = [bool]$Script:DesignMode
 			HighRiskOnlyFilter = [bool]$Script:HighRiskOnlyFilter
 			RestorableOnlyFilter = [bool]$Script:RestorableOnlyFilter
@@ -1194,8 +1202,12 @@ function Import-GuiRemoteTargetApprovalPolicy
 		if ($allowedAppsSourceFilter -notcontains $desiredAppsSourceFilter) { $desiredAppsSourceFilter = 'All' }
 		$desiredAppsQueuedActions = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsQueuedActions') -and $null -ne $Snapshot.AppsQueuedActions) { @($Snapshot.AppsQueuedActions) } else { @() }
 		$desiredPinnedBaselineVersion = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'PinnedBaselineVersion') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.PinnedBaselineVersion)) { [string]$Snapshot.PinnedBaselineVersion } else { $null }
+		$desiredAutoScanOnLaunch = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AutoScanOnLaunch')) { [bool]$Snapshot.AutoScanOnLaunch } else { $false }
+		$desiredRestoreLastSession = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RestoreLastSession')) { [bool]$Snapshot.RestoreLastSession } else { $true }
 		$desiredSafe = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'SafeMode')) { [bool]$Snapshot.SafeMode } else { $false }
 		$desiredAdvanced = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AdvancedMode')) { [bool]$Snapshot.AdvancedMode } else { $false }
+		$desiredRequireRunConfirmation = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RequireRunConfirmation')) { [bool]$Snapshot.RequireRunConfirmation } else { $true }
+		$desiredPreviewBeforeRunDefault = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'PreviewBeforeRunDefault')) { [bool]$Snapshot.PreviewBeforeRunDefault } else { $false }
 		$desiredGameMode = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'GameMode')) { [bool]$Snapshot.GameMode } else { $false }
 		$desiredGameModeProfile = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'GameModeProfile')) { [string]$Snapshot.GameModeProfile } else { $null }
 		$desiredGameModeCorePlan = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'GameModeCorePlan')) { @($Snapshot.GameModeCorePlan) } else { @() }
@@ -1215,6 +1227,10 @@ function Import-GuiRemoteTargetApprovalPolicy
 		if ($allowedAppsStatus -notcontains $desiredAppsStatus) { $desiredAppsStatus = 'All' }
 		$desiredSelectedOnly = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'SelectedOnlyFilter')) { [bool]$Snapshot.SelectedOnlyFilter } else { $false }
 		$desiredHideUnavailableItems = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'HideUnavailableItems')) { [bool]$Snapshot.HideUnavailableItems } else { [bool]$Script:HideUnavailableItems }
+		$desiredAppsAutoUpdate = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsAutoUpdate')) { [bool]$Snapshot.AppsAutoUpdate } else { $false }
+		$desiredAppsSilentInstall = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsSilentInstall')) { [bool]$Snapshot.AppsSilentInstall } else { $true }
+		$desiredLoggingEnabled = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'LoggingEnabled')) { [bool]$Snapshot.LoggingEnabled } else { $true }
+		$desiredExperimentalFeatures = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'ExperimentalFeatures')) { [bool]$Snapshot.ExperimentalFeatures } else { $false }
 		$desiredDesignMode = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'DesignMode')) { [bool]$Snapshot.DesignMode } else { [bool]$Script:DesignMode }
 		$desiredHighRiskOnly = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'HighRiskOnlyFilter')) { [bool]$Snapshot.HighRiskOnlyFilter } else { $false }
 		$desiredRestorableOnly = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RestorableOnlyFilter')) { [bool]$Snapshot.RestorableOnlyFilter } else { $false }
@@ -1288,6 +1304,8 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$Script:FilterUiUpdating = $true
 		try
 		{
+			$Script:AutoScanOnLaunch = $desiredAutoScanOnLaunch
+			$Script:RestoreLastSession = $desiredRestoreLastSession
 			$Script:ScanEnabled = $desiredScan
 			$Script:EnvironmentRecommendationData = $null
 			$Script:EnvironmentSummaryText = $null
@@ -1364,6 +1382,12 @@ function Import-GuiRemoteTargetApprovalPolicy
 			$Script:FilterUiUpdating = $false
 		}
 
+		$Script:RequireRunConfirmation = $desiredRequireRunConfirmation
+		$Script:PreviewBeforeRunDefault = $desiredPreviewBeforeRunDefault
+		$Script:AppsAutoUpdate = $desiredAppsAutoUpdate
+		$Script:AppsSilentInstall = $desiredAppsSilentInstall
+		$Script:LoggingEnabled = $desiredLoggingEnabled
+		$Script:ExperimentalFeatures = $desiredExperimentalFeatures
 		$null = Set-PlatformFilterState -PlatformFilter $desiredPlatform
 		$null = Set-HideUnavailableItemsState -HideUnavailableItems $desiredHideUnavailableItems
 		$Script:SearchText = $desiredSearch

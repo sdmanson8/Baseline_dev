@@ -684,7 +684,6 @@ Describe 'Menu localization refresh (W-1j)' {
             'MenuActionsCheckCompliance',
             'MenuActionsScanSystem',
             'MenuActionsAuditLog',
-            'MenuViewSafeMode',
             'MenuViewFilters',
             'MenuViewLogsPanel',
             'MenuToolsAppsManager',
@@ -706,7 +705,6 @@ Describe 'Menu localization refresh (W-1j)' {
         $Script:MenuFileImportSettings = [System.Windows.Controls.MenuItem]::new()
         $Script:MenuViewLogsPanel = [System.Windows.Controls.MenuItem]::new()
         $Script:MenuViewTheme = [System.Windows.Controls.MenuItem]::new()
-        $Script:MenuViewSafeMode = [System.Windows.Controls.MenuItem]::new()
         $Script:ChkTheme = [System.Windows.Controls.CheckBox]::new()
         $Script:ChkTheme.IsChecked = $false
         $Script:MenuViewTheme.IsCheckable = $true
@@ -758,6 +756,5 @@ Describe 'Menu localization refresh (W-1j)' {
         [string]$Script:MenuViewLogsPanel.Header | Should -Be 'Ouvrir les journaux'
         [string]$Script:MenuViewTheme.Header | Should -Be 'Basculer vers le mode clair'
         [string]$Script:TxtThemeState.Text | Should -Be 'Theme : sombre'
-        [string]$Script:MenuViewSafeMode.Header | Should -Be 'Mode sans echec'
     }
 }

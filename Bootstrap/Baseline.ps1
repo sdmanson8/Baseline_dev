@@ -918,12 +918,12 @@ if ($shouldShowBootstrapSplash)
 		$Script:SingleInstanceMutexName = & $singleInstanceMutexCmd
 		$Script:SingleInstanceLock = & $singleInstanceLockCmd -MutexName $Script:SingleInstanceMutexName
 		$Script:SingleInstanceDecision = & $singleInstanceDecideCmd -LockResult $Script:SingleInstanceLock -RunningInstance $null
-		if ($Script:SingleInstanceDecision -and $Script:SingleInstanceDecision.Action -eq 'HandoffAndExit')
-		{
-			Write-LaunchTrace ('Single-instance handoff: {0}' -f [string]$Script:SingleInstanceDecision.Reason)
-			$Global:LASTEXITCODE = 0
-			if ($Script:IsEmbeddedHost) { return } else { exit 0 }
-		}
+if ($Script:SingleInstanceDecision -and $Script:SingleInstanceDecision.Action -eq 'HandoffAndExit')
+	{
+		Write-LaunchTrace ('Single-instance handoff: {0}' -f [string]$Script:SingleInstanceDecision.Reason)
+		$Global:LASTEXITCODE = 0
+		if ($Script:IsEmbeddedHost) { return } else { exit 0 }
+	}
 	}
 	catch
 	{
@@ -933,7 +933,13 @@ if ($shouldShowBootstrapSplash)
 		if ($Script:IsEmbeddedHost) { return } else { exit 2 }
 	}
 
-	$Script:BootstrapSplash = Show-BootstrapLoadingSplash
+	$shouldStartUpdatesPulse = (
+		$env:BASELINE_INSTALLER_MODE -ne '1' -and
+		$env:BASELINE_SKIP_UPDATE -ne '1' -and
+		-not [string]::IsNullOrWhiteSpace([string]$Script:CurrentAppVersion) -and
+		$Script:CurrentAppVersion -ne '0.0.0'
+	)
+	$Script:BootstrapSplash = Show-BootstrapLoadingSplash -StartUpdatesPulse:$shouldStartUpdatesPulse
 	Write-LaunchTrace 'Bootstrap splash shown'
 }
 else

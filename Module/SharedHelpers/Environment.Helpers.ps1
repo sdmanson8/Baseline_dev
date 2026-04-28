@@ -783,7 +783,9 @@ function Show-BootstrapLoadingSplash
 	<# .SYNOPSIS Displays a loading splash window in a background runspace. #>
 	[CmdletBinding()]
 	[OutputType([System.Object])]
-	param ()
+	param (
+		[switch]$StartUpdatesPulse
+	)
 
 	try
 	{
@@ -898,7 +900,6 @@ function Show-BootstrapLoadingSplash
 		# Pass localization strings for splash screen
 		$splashLocSubtitle = Get-BaselineLocalizedString -Key 'GuiSplashSubtitle' -Fallback 'Windows Optimization & Hardening'
 		$splashLocLoading = Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...'
-		$splashLocAutoClose = Get-BaselineLocalizedString -Key 'GuiSplashAutoClose' -Fallback 'This window will close automatically when ready.'
 		$splashLocStepUpdates    = Get-BaselineLocalizedString -Key 'Bootstrap_StepCheckingForUpdates' -Fallback 'Checking for Updates'
 		$splashLocStepSystem     = Get-BaselineLocalizedString -Key 'Bootstrap_StepRunningSystemChecks' -Fallback 'Running System Checks'
 		$splashLocStepWinget     = Get-BaselineLocalizedString -Key 'Bootstrap_StepCheckingWinget' -Fallback 'Checking WinGet'
@@ -906,12 +907,15 @@ function Show-BootstrapLoadingSplash
 		$splashLocStepFinalize   = Get-BaselineLocalizedString -Key 'Bootstrap_StepFinalizing' -Fallback 'Finalizing Baseline Configuration'
 		$runspace.SessionStateProxy.SetVariable('splashLocSubtitle', $splashLocSubtitle)
 		$runspace.SessionStateProxy.SetVariable('splashLocLoading', $splashLocLoading)
-		$runspace.SessionStateProxy.SetVariable('splashLocAutoClose', $splashLocAutoClose)
+		$runspace.SessionStateProxy.SetVariable('splashLocCheckingForUpdates', (Get-BaselineLocalizedString -Key 'Bootstrap_CheckingForUpdates' -Fallback 'Checking for updates...'))
 		$runspace.SessionStateProxy.SetVariable('splashLocStepUpdates', $splashLocStepUpdates)
 		$runspace.SessionStateProxy.SetVariable('splashLocStepSystem', $splashLocStepSystem)
 		$runspace.SessionStateProxy.SetVariable('splashLocStepWinget', $splashLocStepWinget)
 		$runspace.SessionStateProxy.SetVariable('splashLocStepChocolatey', $splashLocStepChocolatey)
 		$runspace.SessionStateProxy.SetVariable('splashLocStepFinalize', $splashLocStepFinalize)
+		$runspace.SessionStateProxy.SetVariable('startUpdatesPulse', [bool]$StartUpdatesPulse)
+		$runspace.SessionStateProxy.SetVariable('bootstrapLoadingSplashStateCommand', ${function:Set-BootstrapLoadingSplashState})
+		$runspace.SessionStateProxy.SetVariable('bootstrapLoadingSplashStepCommand', ${function:Set-BootstrapLoadingSplashStep})
 
 		$ps = [powershell]::Create()
 		$ps.Runspace = $runspace
@@ -922,7 +926,6 @@ function Show-BootstrapLoadingSplash
 
 				$subtitleEsc = [System.Security.SecurityElement]::Escape($splashLocSubtitle)
 				$loadingEsc = [System.Security.SecurityElement]::Escape($splashLocLoading)
-				$autoCloseEsc = [System.Security.SecurityElement]::Escape($splashLocAutoClose)
 				$stepUpdatesEsc = [System.Security.SecurityElement]::Escape($splashLocStepUpdates)
 				$stepSystemEsc = [System.Security.SecurityElement]::Escape($splashLocStepSystem)
 				$stepWingetEsc = [System.Security.SecurityElement]::Escape($splashLocStepWinget)
@@ -966,12 +969,11 @@ function Show-BootstrapLoadingSplash
 		</EventTrigger>
 	</Window.Triggers>
 	<Border Name="RootBorder" CornerRadius="8" Background="$($CurrentTheme.WindowBg)" BorderBrush="$($CurrentTheme.BorderColor)" BorderThickness="1">
-		<Grid>
-			<Grid.RowDefinitions>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="*"/>
-				<RowDefinition Height="Auto"/>
-			</Grid.RowDefinitions>
+			<Grid>
+				<Grid.RowDefinitions>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="*"/>
+				</Grid.RowDefinitions>
 			<Grid Grid.Row="0" Margin="10,6,6,0">
 				<Grid.ColumnDefinitions>
 					<ColumnDefinition Width="*"/>
@@ -1143,10 +1145,6 @@ function Show-BootstrapLoadingSplash
 					</ProgressBar.Template>
 				</ProgressBar>
 			</StackPanel>
-			<Border Grid.Row="2" Background="$splashFooterBg" Padding="12,8" CornerRadius="0,0,8,8">
-				<TextBlock FontSize="11" Foreground="$splashMuted" HorizontalAlignment="Center"
-					Text="$autoCloseEsc"/>
-			</Border>
 		</Grid>
 	</Border>
 </Window>
@@ -1319,6 +1317,21 @@ namespace WinAPI {
 						'finalize'   = 'pending'
 					}
 					$syncHash.SplashTheme = $SplashTheme
+					if ($startUpdatesPulse)
+					{
+						try
+						{
+							if ($bootstrapLoadingSplashStepCommand)
+							{
+								& $bootstrapLoadingSplashStepCommand -Splash $syncHash -StepId 'updates' -Status 'in_progress' -SubAction ''
+							}
+							if ($bootstrapLoadingSplashStateCommand)
+							{
+								& $bootstrapLoadingSplashStateCommand -Splash $syncHash -StatusText $splashLocCheckingForUpdates -Indeterminate
+							}
+						}
+						catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.StartUpdatesPulse' }
+					}
 
 					$splash.Add_ContentRendered({ $syncHash.IsReady = $true })
 				$splash.Add_Closed({
@@ -1581,14 +1594,21 @@ function Set-BootstrapLoadingSplashState
 					$progressBar = $window.FindName('ProgressBar')
 				}
 
-				if ($statusControl -and -not [string]::IsNullOrWhiteSpace([string]$StatusText))
+				$hasStatusText = -not [string]::IsNullOrWhiteSpace([string]$StatusText)
+				$showStatusLine = $hasStatusText -or [bool]$Indeterminate
+
+				if ($statusControl -and $hasStatusText)
 				{
 					$statusControl.Text = [string]$StatusText
+				}
+
+				if ($showStatusLine)
+				{
 					if ($subActionPanel)
 					{
 						$subActionPanel.Visibility = [System.Windows.Visibility]::Visible
 					}
-					else
+					elseif ($statusControl)
 					{
 						$statusControl.Visibility = [System.Windows.Visibility]::Visible
 					}
@@ -2474,7 +2494,7 @@ function Invoke-BaselineAutoUpdate
 		{
 			[void](Set-BootstrapLoadingSplashStep -Splash $Splash -StepId 'updates' -Status 'in_progress' -SubAction '')
 		}
-		[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'Bootstrap_CheckingForUpdates' -Fallback '') -Indeterminate)
+		[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'Bootstrap_CheckingForUpdates' -Fallback 'Checking for updates...') -Indeterminate)
 		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingForUpdatesVerbose' -Fallback 'Checking for updates (current version: {0})...' -FormatArgs @($CurrentVersion))
 
 		$apiUrl  = 'https://api.github.com/repos/sdmanson8/Baseline/releases'

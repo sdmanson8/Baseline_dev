@@ -124,7 +124,7 @@ function New-BaselineSessionLogPath {
     )
 
     $sessionDirectory = [System.IO.Path]::Combine($LogDirectory, $SessionStart.ToString('yyyy-MM-dd'))
-    $sessionFileName = '{0} Baseline - Utility for {1}.log' -f $SessionStart.ToString('HH-mm'), $OsName
+    $sessionFileName = '{0} Baseline - Utility for {1}.log' -f $SessionStart.ToString('HH-mm-ss'), $OsName
     return [System.IO.Path]::Combine($sessionDirectory, $sessionFileName)
 }
 

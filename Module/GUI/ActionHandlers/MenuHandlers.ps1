@@ -49,7 +49,13 @@
 				$currentPrefs = @{
 					Language = if ($Script:SelectedLanguage) { [string]$Script:SelectedLanguage } else { 'en' }
 					DefaultStartupMode = if ($Script:DefaultStartupMode) { [string]$Script:DefaultStartupMode } else { 'Safe' }
-					RestoreLastSession = if ($null -ne $Script:RestoreLastSession) { [bool]$Script:RestoreLastSession } else { $true }
+					RestoreLastSession = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) {
+						[bool](Get-BaselineUserPreference -Key 'RestoreLastSession' -Default $true)
+					}
+					else
+					{
+						if ($null -ne $Script:RestoreLastSession) { [bool]$Script:RestoreLastSession } else { $true }
+					}
 					AutoScanOnLaunch = [bool]$Script:AutoScanOnLaunch
 					HideUnavailableItems = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'HideUnavailableItems' -Default $true) } else { $true }
 					Theme = if ($Script:ThemePreference) { [string]$Script:ThemePreference } elseif ($Script:CurrentThemeName) { [string]$Script:CurrentThemeName } else { 'Dark' }
@@ -149,13 +155,12 @@
 				if ($result.ContainsKey('DefaultStartupMode')) { $Script:DefaultStartupMode = [string]$result.DefaultStartupMode }
 				if ($result.ContainsKey('RestoreLastSession'))
 				{
-					# Only update the in-memory flag. Save-GuiSessionState (run on
-					# close) persists the preference itself in the same JSON, and
-					# strips ephemeral fields when this flag is false. Calling
-					# Delete-GuiSessionState here would wipe the very file that
-					# stores RestoreLastSession=false, so on relaunch the default
-					# ($true) wins and the checkbox keeps re-enabling itself.
-					$Script:RestoreLastSession = [bool]$result.RestoreLastSession
+					$restoreLastSessionWanted = [bool]$result.RestoreLastSession
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'RestoreLastSession' -Value $restoreLastSessionWanted } catch { LogWarning ("Persist RestoreLastSession failed: {0}" -f $_.Exception.Message) }
+					}
+					$Script:RestoreLastSession = $restoreLastSessionWanted
 				}
 				if ($result.ContainsKey('AutoScanOnLaunch')) { $Script:AutoScanOnLaunch = [bool]$result.AutoScanOnLaunch }
 				if ($result.ContainsKey('HideUnavailableItems'))
@@ -389,20 +394,6 @@
 		}.GetNewClosure()) | Out-Null
 	}
 
-	# View menu - these are IsCheckable, sync with underlying controls
-	if ($MenuViewSafeMode -and $ChkSafeMode)
-	{
-		try { $MenuViewSafeMode.IsChecked = [bool]$ChkSafeMode.IsChecked } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuViewSafeMode.SetChecked' }
-		Register-GuiEventHandler -Source $MenuViewSafeMode -EventName 'Click' -Handler ({
-			try { $ChkSafeMode.IsChecked = [bool]$MenuViewSafeMode.IsChecked } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuViewSafeMode.SyncClick' }
-		}.GetNewClosure()) | Out-Null
-		Register-GuiEventHandler -Source $ChkSafeMode -EventName 'Checked' -Handler ({
-			try { $MenuViewSafeMode.IsChecked = $true } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuViewSafeMode.Checked' }
-		}.GetNewClosure()) | Out-Null
-		Register-GuiEventHandler -Source $ChkSafeMode -EventName 'Unchecked' -Handler ({
-			try { $MenuViewSafeMode.IsChecked = $false } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuViewSafeMode.Unchecked' }
-		}.GetNewClosure()) | Out-Null
-	}
 	if ($MenuViewFilters -and $BtnFilterToggle)
 	{
 		Register-GuiEventHandler -Source $MenuViewFilters -EventName 'Click' -Handler ({
@@ -740,7 +731,6 @@
 	if ($MenuActionsCheckCompliance)   { $MenuActionsCheckCompliance.Header   = (Get-UxLocalizedString -Key 'GuiMenuActionsCheckCompliance' -Fallback 'Check Compliance...') }
 	if ($MenuActionsScanSystem)        { $MenuActionsScanSystem.Header        = (Get-UxLocalizedString -Key 'GuiMenuActionsScanSystem' -Fallback 'Scan System') }
 	if ($MenuActionsAuditLog)          { $MenuActionsAuditLog.Header          = (Get-UxLocalizedString -Key 'GuiMenuActionsAuditLog' -Fallback 'Audit Log...') }
-	if ($MenuViewSafeMode)             { $MenuViewSafeMode.Header             = (Get-UxLocalizedString -Key 'GuiChkSafeMode' -Fallback 'Safe Mode') }
 	if ($MenuViewFilters)              { $MenuViewFilters.Header              = (Get-UxLocalizedString -Key 'GuiMenuViewFilters' -Fallback 'Show Filters Panel') }
 	if ($MenuViewLogsPanel)            { $MenuViewLogsPanel.Header            = (Get-UxLocalizedString -Key 'GuiMenuViewOpenLogs' -Fallback 'Open Logs') }
 	if ($MenuViewTheme)

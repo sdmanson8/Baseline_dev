@@ -14,4 +14,8 @@ Describe 'WindowSetup swallowed-exception routing' {
         $script:WindowSetupContent | Should -Match "Source 'WindowSetup\.LoadGuiPreferences'"
         $script:WindowSetupContent | Should -Match "Source 'WindowSetup\.ResolveLocalizationCandidate'"
     }
+
+    It 'loads the restore-last-session user preference during GUI startup' {
+        $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''RestoreLastSession'' -Default \$true'
+    }
 }

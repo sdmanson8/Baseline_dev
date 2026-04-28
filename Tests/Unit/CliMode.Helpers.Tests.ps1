@@ -129,6 +129,23 @@ Describe 'Bootstrap CLI intent wiring' {
         $script:BootstrapContent | Should -Match 'if \(\$shouldShowBootstrapSplash\)\s*\{[\s\S]*\$Script:BootstrapSplash = Show-BootstrapLoadingSplash'
     }
 
+    It 'primes the updates pulse from splash construction before the auto-update check runs' {
+        $script:BootstrapContent | Should -Match 'Show-BootstrapLoadingSplash -StartUpdatesPulse:\$shouldStartUpdatesPulse'
+        $startPulseIndex = $script:BootstrapContent.IndexOf('Show-BootstrapLoadingSplash -StartUpdatesPulse:$shouldStartUpdatesPulse')
+        $autoUpdateIndex = $script:BootstrapContent.IndexOf('Invoke-BaselineAutoUpdate -Splash $Script:BootstrapSplash -CurrentVersion $Script:CurrentAppVersion')
+
+        $startPulseIndex | Should -BeGreaterThan 0
+        $autoUpdateIndex | Should -BeGreaterThan 0
+        $startPulseIndex | Should -BeLessThan $autoUpdateIndex
+    }
+
+    It 'only primes the updates pulse when auto-update is eligible' {
+        $script:BootstrapContent | Should -Match '\$shouldStartUpdatesPulse = \('
+        $script:BootstrapContent | Should -Match '\$env:BASELINE_INSTALLER_MODE -ne ''1'''
+        $script:BootstrapContent | Should -Match '\$env:BASELINE_SKIP_UPDATE -ne ''1'''
+        $script:BootstrapContent | Should -Match '\$Script:CurrentAppVersion -ne ''0\.0\.0'''
+    }
+
     It 'fails closed when the GUI single-instance gate cannot run' {
         $script:BootstrapContent | Should -Not -Match 'SingleInstance gate threw, allowing run'
         $script:BootstrapContent | Should -Match 'SingleInstance gate failed'

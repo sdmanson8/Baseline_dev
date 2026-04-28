@@ -89,6 +89,14 @@ Describe 'GUI window chrome theming' {
         $guiContent | Should -Match 'GUICommon\\Set-GuiWindowChromeTheme -Window \$Form -UseDarkMode \(\$Script:CurrentThemeName -eq ''Dark''\)'
     }
 
+    It 'dot-sources the language catalog and removes the close-time save prompt' {
+        $guiContent | Should -Match 'LanguageCatalog\.ps1'
+        $guiContent | Should -Not -Match 'GuiSaveSessionTitle'
+        $guiContent | Should -Not -Match 'GuiSaveSessionMessage'
+        $guiContent | Should -Not -Match 'GuiSaveSessionSave'
+        $guiContent | Should -Not -Match 'GuiSaveSessionDiscard'
+    }
+
     It 'restyles custom caption buttons from the active theme' {
         $styleManagementContent | Should -Match 'function Set-WindowCaptionButtonStyle'
         $guiContent | Should -Match 'Set-WindowCaptionButtonStyle -Button \$BtnMinimize'

@@ -64,7 +64,7 @@ Describe 'New-BaselineSessionLogPath' {
         $path = New-BaselineSessionLogPath -LogDirectory $root -OsName 'Windows 11' -SessionStart $sessionStart
 
         $dateFolder = $sessionStart.ToString('yyyy-MM-dd')
-        $fileName = '{0} Baseline - Utility for Windows 11.log' -f $sessionStart.ToString('HH-mm')
+        $fileName = '{0} Baseline - Utility for Windows 11.log' -f $sessionStart.ToString('HH-mm-ss')
         $expectedPath = [System.IO.Path]::GetFullPath((Join-Path (Join-Path $root $dateFolder) $fileName))
 
         $path | Should -Be $expectedPath
