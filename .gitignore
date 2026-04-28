@@ -33,4 +33,4 @@ pester-full.log
 AGENTS.md
 todo.md
 .DS_Store
-*.zip.sha256
+*.zip.sha256.json
