@@ -108,7 +108,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Language switching no longer throws in deferred WPF dispatcher callbacks.
 - Execution orchestration no longer throws when a `DispatcherTimer` tick fires after cleanup.
 - Updated matching unit tests, including StartMenuApps, System, and System.FileAssociations paths.
-
 ---
 
 ## 3.1.0-beta | 2026-04-26
