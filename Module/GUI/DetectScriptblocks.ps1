@@ -1,6 +1,27 @@
 #region Detect & Visibility Scriptblocks
 # Detect scriptblocks keyed by Function name (cannot be stored in JSON).
 # Used by system-scan to determine current on/off state of a tweak.
+
+function Invoke-GuiDetectScriptblock
+{
+	param (
+		[scriptblock]$Detect,
+		[object]$DefaultValue = $false
+	)
+
+	if ($Script:DesignMode)
+	{
+		return $DefaultValue
+	}
+
+	if (-not $Detect)
+	{
+		return $DefaultValue
+	}
+
+	return (& $Detect)
+}
+
 $Script:DetectScriptblocks = @{
 	'DiagTrackService' = { (Get-Service DiagTrack -EA SilentlyContinue).StartType -ne "Disabled" }
 	'MaintenanceWakeUp' = {
@@ -11,7 +32,7 @@ $Script:DetectScriptblocks = @{
 	'SharedExperiences' = { (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\CDP" -Name RomeSdkChannelUserAuthzPolicy -EA SilentlyContinue).RomeSdkChannelUserAuthzPolicy -eq 1 }
 	'ClipboardHistory' = { (Get-ItemProperty "HKCU:\Software\Microsoft\Clipboard" -Name EnableClipboardHistory -EA SilentlyContinue).EnableClipboardHistory -eq 1 }
 	'Superfetch' = { (Get-Service SysMain -EA SilentlyContinue).StartType -ne "Disabled" }
-	'NTFSLongPaths' = { (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -EA SilentlyContinue).LongPathsEnabled -eq 1 }
+	'Win32LongPathLimit' = { (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -EA SilentlyContinue).LongPathsEnabled -eq 1 }
 	'SleepButton' = { (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FlyoutMenuSettings" -Name ShowSleepOption -EA SilentlyContinue).ShowSleepOption -eq 1 }
 	'FastStartup' = { (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power" -Name HiberbootEnabled -EA SilentlyContinue).HiberbootEnabled -eq 1 }
 	'AutoRebootOnCrash' = { (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl" -Name AutoReboot -EA SilentlyContinue).AutoReboot -eq 1 }
@@ -150,6 +171,9 @@ $Script:DetectScriptblocks = @{
 	'NavigationPaneExpand' = { (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name NavPaneExpandToCurrentFolder -EA SilentlyContinue).NavPaneExpandToCurrentFolder -eq 1 }
 	'LockScreen' = { (Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization" -Name NoLockScreen -EA SilentlyContinue).NoLockScreen -ne 1 }
 	'LockScreenRS1' = { (Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name DisableLockScreen -EA SilentlyContinue).DisableLockScreen -ne 1 }
+	'LockScreenCamera' = { (Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization" -Name NoLockScreenCamera -EA SilentlyContinue).NoLockScreenCamera -eq 1 }
+	'BlockDomainPINLogon' = { (Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name AllowDomainPINLogon -EA SilentlyContinue).AllowDomainPINLogon -eq 0 }
+	'MountManagerAutoMount' = { (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\MountMgr" -Name NoAutoMount -EA SilentlyContinue).NoAutoMount -eq 1 }
 	'NetworkFromLockScreen' = { (Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name DontDisplayNetworkSelectionUI -EA SilentlyContinue).DontDisplayNetworkSelectionUI -ne 1 }
 	'ShutdownFromLockScreen' = { (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name ShutdownWithoutLogon -EA SilentlyContinue).ShutdownWithoutLogon -eq 1 }
 	'AdminApprovalMode' = {
@@ -194,6 +218,7 @@ $Script:DetectScriptblocks = @{
 			}
 			catch
 			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.BlockStoreSearchResults.LoadIdentitySid'
 				$identitySid = $rule.IdentityReference.Value
 			}
 
@@ -315,14 +340,15 @@ $Script:DetectScriptblocks = @{
 	'RegistryBackup' = {
 		$periodicBackupEnabled = (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Configuration Manager" -Name EnablePeriodicBackup -EA SilentlyContinue).EnablePeriodicBackup -eq 1
 		$autoRegBackupTask = $false
-		try
-		{
-			$autoRegBackupTask = [bool](Get-ScheduledTask -TaskName 'AutoRegBackup' -ErrorAction SilentlyContinue)
-		}
-		catch
-		{
-			$autoRegBackupTask = $false
-		}
+			try
+			{
+				$autoRegBackupTask = [bool](Get-ScheduledTask -TaskName 'AutoRegBackup' -ErrorAction SilentlyContinue)
+			}
+			catch
+			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.RegistryBackup.LoadAutoRegBackupTask'
+				$autoRegBackupTask = $false
+			}
 		($periodicBackupEnabled -and $autoRegBackupTask)
 	}
 	'XboxGameBar' = { (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -Name AppCaptureEnabled -EA SilentlyContinue).AppCaptureEnabled -ne 0 }
@@ -332,8 +358,10 @@ $Script:DetectScriptblocks = @{
 	'WindowsGameMode' = { (Get-ItemProperty "HKCU:\Software\Microsoft\GameBar" -Name AutoGameModeEnabled -EA SilentlyContinue).AutoGameModeEnabled -ne 0 }
 	'MouseAcceleration' = { (Get-ItemProperty "HKCU:\Control Panel\Mouse" -Name MouseSpeed -EA SilentlyContinue).MouseSpeed -ne "0" }
 	'NaglesAlgorithm' = { -not ((Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\*" -Name TCPNoDelay -EA SilentlyContinue).TCPNoDelay -contains 1) }
-	'NetworkProtection' = { try { (Get-MpPreference -EA Stop).EnableNetworkProtection -eq 1 } catch { $false } }
+	'NetworkProtection' = { try { (Get-MpPreference -EA Stop).EnableNetworkProtection -eq 1 } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.NetworkProtection.LoadMpPreference'; $false } }
 	'DefenderSandbox' = { [System.Environment]::GetEnvironmentVariable("MP_FORCE_USE_SANDBOX","Machine") -eq "1" }
+	'DefenderScanCPULimit' = { try { (Get-MpPreference -EA Stop).ScanAvgCPULoadFactor -le 25 } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.DefenderScanCPULimit.LoadMpPreference'; $false } }
+	'DefenderSignatureUpdateInterval' = { try { $i = (Get-MpPreference -EA Stop).SignatureUpdateInterval; ($i -ge 1 -and $i -le 1) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.DefenderSignatureUpdateInterval.LoadMpPreference'; $false } }
 	'PowerShellModulesLogging' = { (Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging" -Name EnableModuleLogging -EA SilentlyContinue).EnableModuleLogging -eq 1 }
 	'PowerShellScriptsLogging' = { (Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging" -Name EnableScriptBlockLogging -EA SilentlyContinue).EnableScriptBlockLogging -eq 1 }
 	'AppsSmartScreen' = { (Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name EnableSmartScreen -EA SilentlyContinue).EnableSmartScreen -ne 0 }

@@ -4,8 +4,9 @@
 
 	.DESCRIPTION
 	Builds the Inno Setup installer (Baseline-setup-<version>.exe) via
-	New-InstallerPackage.ps1 then wraps it in a zip archive
-	(Baseline-<version>.zip) ready for GitHub Releases. It also emits
+	New-InstallerPackage.ps1 then wraps it with the verified bootstrap handoff
+	script and helpers in a zip archive (Baseline-<version>.zip) ready for
+	GitHub Releases. It also emits
 	(Baseline-<version>.zip.sha256.json), a manifest of SHA-256 hashes for the
 	release zip and installer. This is an internal shipping step for maintainers
 	and release automation.
@@ -64,6 +65,8 @@ function Get-ReleasePackageSha256
 $repoRoot             = Split-Path -Path $PSScriptRoot -Parent
 $moduleManifestPath   = Join-Path $repoRoot 'Module/Baseline.psd1'
 $newInstallerScript   = Join-Path $repoRoot 'Tools/New-InstallerPackage.ps1'
+$bootstrapInstallScript = Join-Path $repoRoot 'Bootstrap/Bootstrap.Install.ps1'
+$bootstrapHelpersScript = Join-Path $repoRoot 'Bootstrap/Helpers/Bootstrap.Helpers.ps1'
 
 # ── Resolve version ───────────────────────────────────────────────────────────
 
@@ -139,6 +142,14 @@ if ([string]::IsNullOrWhiteSpace($setupExePath) -or -not (Test-Path -LiteralPath
 {
 	throw "Installer was not produced. Expected path: $setupExePath"
 }
+if (-not (Test-Path -LiteralPath $bootstrapInstallScript -PathType Leaf))
+{
+	throw "Bootstrap install script was not found: $bootstrapInstallScript"
+}
+if (-not (Test-Path -LiteralPath $bootstrapHelpersScript -PathType Leaf))
+{
+	throw "Bootstrap helper script was not found: $bootstrapHelpersScript"
+}
 
 Write-Host "Installer built: $setupExePath" -ForegroundColor Green
 
@@ -153,6 +164,11 @@ if ($PSCmdlet.ShouldProcess($archivePath, 'Create Baseline release zip'))
 	{
 		New-Item -Path $stageFolder -ItemType Directory -Force | Out-Null
 		Copy-Item -LiteralPath $setupExePath -Destination $stageFolder -Force
+		$stageBootstrapRoot = Join-Path $stageFolder 'Bootstrap'
+		$stageBootstrapHelpersRoot = Join-Path $stageBootstrapRoot 'Helpers'
+		New-Item -Path $stageBootstrapHelpersRoot -ItemType Directory -Force | Out-Null
+		Copy-Item -LiteralPath $bootstrapInstallScript -Destination $stageBootstrapRoot -Force
+		Copy-Item -LiteralPath $bootstrapHelpersScript -Destination $stageBootstrapHelpersRoot -Force
 		Compress-Archive -LiteralPath $stageFolder -DestinationPath $archivePath -CompressionLevel Optimal -Force
 	}
 	finally
@@ -174,8 +190,10 @@ if ($PSCmdlet.ShouldProcess($archivePath, 'Create Baseline release zip'))
 			generatedUtc  = ([System.DateTime]::UtcNow.ToString('o'))
 			version       = $Version
 			files         = [ordered]@{
-				$resolvedArchiveName                           = Get-ReleasePackageSha256 -Path $archivePath
-				([System.IO.Path]::GetFileName($setupExePath)) = Get-ReleasePackageSha256 -Path $setupExePath
+				$resolvedArchiveName                               = Get-ReleasePackageSha256 -Path $archivePath
+				([System.IO.Path]::GetFileName($setupExePath))     = Get-ReleasePackageSha256 -Path $setupExePath
+				'Bootstrap/Bootstrap.Install.ps1'                  = Get-ReleasePackageSha256 -Path $bootstrapInstallScript
+				'Bootstrap/Helpers/Bootstrap.Helpers.ps1'          = Get-ReleasePackageSha256 -Path $bootstrapHelpersScript
 			}
 		}
 		$releaseHashManifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $hashManifestPath -Encoding UTF8

@@ -24,7 +24,7 @@
 		if (-not $ContentScroll -or [string]::IsNullOrWhiteSpace($TabKey)) { return }
 		$offset = if ($Script:TabScrollOffsets.ContainsKey($TabKey)) { [double]$Script:TabScrollOffsets[$TabKey] } else { 0 }
 		$null = Invoke-GuiDispatcherAction -Dispatcher $ContentScroll.Dispatcher -PriorityUsage 'RenderRefresh' -Action {
-			try { $ContentScroll.ScrollToVerticalOffset($offset) } catch { $null = $_ }
+			try { $ContentScroll.ScrollToVerticalOffset($offset) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ContentManagement.ScrollToVerticalOffset' }
 		}
 	}
 

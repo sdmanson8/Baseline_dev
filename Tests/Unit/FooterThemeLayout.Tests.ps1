@@ -35,10 +35,14 @@ Describe 'Footer and theme toggle layout' {
         $script:StyleContent | Should -Match 'Set-HeaderToggleStyle -CheckBox \$ChkTheme -Palette Theme'
     }
 
+    It 'routes seeded visible-if failures through Write-DebugSwallowedException' {
+        $script:GuiContent | Should -Match "BuildTweakControls\.SeedControlVisibility\.VisibleIf"
+    }
+
     It 'gives the footer a two-row action and status layout' {
-        $script:GuiContent | Should -Match '<Border Name="BottomBorder" Grid.Row="5" Padding="10,14,10,8" BorderThickness="0,1,0,0">'
+        $script:GuiContent | Should -Match '<Border Name="BottomBorder" Grid.Row="6" Padding="10,14,10,8" BorderThickness="0,1,0,0">'
         $script:GuiContent | Should -Match '<StackPanel Name="ActionButtonBar" Grid.Column="0"\s+Orientation="Vertical"'
-        $script:GuiContent | Should -Match '<TextBlock Name="RunPathContextLabel" Grid.Column="1"'
+        $script:GuiContent | Should -Match '<TextBlock Name="RunPathContextLabel" Grid.Column="2"'
     }
 
     It 'styles the footer and secondary action group from the active theme surfaces' {

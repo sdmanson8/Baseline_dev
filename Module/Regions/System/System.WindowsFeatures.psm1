@@ -1,6 +1,6 @@
 <#
     .SYNOPSIS
-    Internal admin utility for Windows feature and capability selection.
+    Configures Windows feature and capability selection.
 
     .DESCRIPTION
     Provides the GUI-facing request path for enabling or disabling Windows
@@ -68,6 +68,11 @@ function Request-GuiSystemSelection
 .SYNOPSIS
 	Optional features
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for optional features.
 	.PARAMETER Uninstall
 	Uninstall optional features
 
@@ -142,15 +147,15 @@ function WindowsCapabilities
 	}
 	$script:WindowsCapabilitiesSelectionResult = $null
 	$SelectedCapabilityNamesProvided = $PSBoundParameters.ContainsKey('SelectedCapabilityNames')
-	# Pattern lists are sourced from SharedHelpers/WindowsFeatures.Helpers.ps1
-	# so the seed-selection rules can be unit-tested without instantiating WPF.
+	# Selection defaults are defined in SharedHelpers/WindowsFeatures.Helpers.ps1 so
+	# unit tests can validate selection logic without starting WPF.
 	[string[]]$CheckedCapabilities = @(Get-WindowsCapabilityCheckedDefaults)
 	[string[]]$UncheckedCapabilities = @(Get-WindowsCapabilityUncheckedDefaults)
 	[string[]]$ExcludedCapabilities = @(Get-WindowsCapabilityExcludedDefaults)
 	#endregion Variables
 
 	#region XAML Markup
-	# The section defines the design of the upcoming dialog box
+	# This block defines the dialog XAML used at runtime.
 	[xml]$XAML = @"
 	<Window
 		xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -231,7 +236,17 @@ function WindowsCapabilities
 					}
 				}
 			}
-			catch { }
+			catch
+			{
+				if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Write-DebugSwallowedException -ErrorRecord $_ -Source 'System.WindowsFeatures.OptionalFeaturesPicker.ThemeColor'
+				}
+				else
+				{
+					Write-Verbose ("System.WindowsFeatures.OptionalFeaturesPicker.ThemeColor: {0}" -f $_.Exception.Message)
+				}
+			}
 
 			return $DefaultColor
 		}.GetNewClosure()
@@ -249,13 +264,24 @@ function WindowsCapabilities
 	}
 
 	#region Functions
-	<#
-	    .SYNOPSIS
-	    Internal function Test-CapabilityPatternMatch.
-	#>
-
 	function Test-CapabilityPatternMatch
 	{
+			<#
+			    .SYNOPSIS
+			    Test whether a Windows capability name matches any supplied pattern.
+
+			    .DESCRIPTION
+			    Returns $true when the capability name matches one of the wildcard patterns used by the Windows capability selection workflow.
+
+			    .PARAMETER CapabilityName
+			    Capability name to test.
+
+			    .PARAMETER Patterns
+			    Wildcard patterns to compare against the capability name.
+
+			    .EXAMPLE
+			    Test-CapabilityPatternMatch -CapabilityName 'OpenSSH.Client~~~~0.0.1.0' -Patterns 'OpenSSH*'
+			#>
 		param
 		(
 			[Parameter(Mandatory = $true)]
@@ -279,7 +305,12 @@ function WindowsCapabilities
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-CheckboxClicked.
+	    Gets checkbox clicked.
+
+	    
+.DESCRIPTION
+	    
+Supports checkbox clicked handling inside Baseline.
 	#>
 
 	function Get-CheckboxClicked
@@ -324,7 +355,12 @@ function WindowsCapabilities
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-CapabilitySeedSelected.
+	    Checks capability seed selected.
+
+	    
+.DESCRIPTION
+	    
+Supports capability seed selected handling inside Baseline.
 	#>
 
 	function Test-CapabilitySeedSelected
@@ -346,7 +382,12 @@ function WindowsCapabilities
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-SelectedCapabilityList.
+	    Gets selected capability list.
+
+	    
+.DESCRIPTION
+	    
+Supports selected capability list handling inside Baseline.
 	#>
 
 	function Get-SelectedCapabilityList
@@ -356,7 +397,12 @@ function WindowsCapabilities
 
 	<#
 	    .SYNOPSIS
-	    Internal function .
+	    Gets selected capability names.
+
+	    
+.DESCRIPTION
+	    
+Supports selected capability names handling inside Baseline.
 	#>
 	function Get-SelectedCapabilityNames
 	{
@@ -369,7 +415,12 @@ function WindowsCapabilities
 
 	<#
 	    .SYNOPSIS
-	    Internal function UninstallButton.
+	    Runs uninstall button.
+
+	    
+.DESCRIPTION
+	    
+Supports uninstall button handling inside Baseline.
 	#>
 
 	function UninstallButton
@@ -431,7 +482,12 @@ function WindowsCapabilities
 
 	<#
 	    .SYNOPSIS
-	    Internal function InstallButton.
+	    Runs install button.
+
+	    
+.DESCRIPTION
+	    
+Supports install button handling inside Baseline.
 	#>
 
 	function InstallButton
@@ -500,7 +556,12 @@ function WindowsCapabilities
 
 	<#
 	    .SYNOPSIS
-	    Internal function Confirm-WindowsCapabilitiesSelection.
+	    Confirms windows capabilities selection.
+
+	    
+.DESCRIPTION
+	    
+Supports windows capabilities selection handling inside Baseline.
 	#>
 
 	function Confirm-WindowsCapabilitiesSelection
@@ -548,12 +609,17 @@ function WindowsCapabilities
 		& $ButtonAdd_Click -CapabilityList $SelectedCapabilityList
 	}
 
-	# Friendly display names sourced from SharedHelpers/WindowsFeatures.Helpers.ps1
+	# Friendly display names live in SharedHelpers/WindowsFeatures.Helpers.ps1
 	$CapabilityFriendlyNames = Get-WindowsCapabilityFriendlyNameMap
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-CapabilityFriendlyName.
+	    Gets capability friendly name.
+
+	    
+.DESCRIPTION
+	    
+Supports capability friendly name handling inside Baseline.
 	#>
 
 	function Get-CapabilityFriendlyName
@@ -581,7 +647,12 @@ function WindowsCapabilities
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-CapabilityInfoIcon.
+	    Creates capability info icon.
+
+	    
+.DESCRIPTION
+	    
+Supports capability info icon handling inside Baseline.
 	#>
 
 	function New-CapabilityInfoIcon
@@ -605,7 +676,12 @@ function WindowsCapabilities
 
 	<#
 	    .SYNOPSIS
-	    Internal function Add-CapabilityControl.
+	    Adds capability control.
+
+	    
+.DESCRIPTION
+	    
+Supports capability control handling inside Baseline.
 	#>
 
 	function Add-CapabilityControl
@@ -880,6 +956,11 @@ function WindowsCapabilities
 	.SYNOPSIS
 	Windows features
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for windows features.
 	.PARAMETER Disable
 	Disable Windows features
 
@@ -954,14 +1035,14 @@ function WindowsFeatures
 	}
 	$script:WindowsFeaturesSelectionResult = $null
 	$SelectedFeatureNamesProvided = $PSBoundParameters.ContainsKey('SelectedFeatureNames')
-	# Pattern lists are sourced from SharedHelpers/WindowsFeatures.Helpers.ps1
+	# Selection defaults are defined in SharedHelpers/WindowsFeatures.Helpers.ps1.
 	# (also fixes a missing-comma bug between "Recall" and "WorkFolders-Client").
 	[string[]]$CheckedFeatures = @(Get-WindowsFeatureCheckedDefaults)
 	[string[]]$UncheckedFeatures = @(Get-WindowsFeatureUncheckedDefaults)
 	#endregion Variables
 
 	#region XAML Markup
-	# The section defines the design of the upcoming dialog box
+	# This block defines the dialog XAML used at runtime.
 	[xml]$XAML = @"
 	<Window
 		xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -1042,7 +1123,17 @@ function WindowsFeatures
 					}
 				}
 			}
-			catch { }
+			catch
+			{
+				if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Write-DebugSwallowedException -ErrorRecord $_ -Source 'System.WindowsFeatures.WindowsFeaturesPicker.ThemeColor'
+				}
+				else
+				{
+					Write-Verbose ("System.WindowsFeatures.WindowsFeaturesPicker.ThemeColor: {0}" -f $_.Exception.Message)
+				}
+			}
 
 			return $DefaultColor
 		}.GetNewClosure()
@@ -1063,7 +1154,12 @@ function WindowsFeatures
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-FeaturePatternMatch.
+	    Checks feature pattern match.
+
+	    
+.DESCRIPTION
+	    
+Supports feature pattern match handling inside Baseline.
 	#>
 
 	function Test-FeaturePatternMatch
@@ -1091,7 +1187,12 @@ function WindowsFeatures
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-CheckboxClicked.
+	    Gets checkbox clicked.
+
+	    
+.DESCRIPTION
+	    
+Supports checkbox clicked handling inside Baseline.
 	#>
 
 	function Get-CheckboxClicked
@@ -1135,7 +1236,12 @@ function WindowsFeatures
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-FeatureSeedSelected.
+	    Checks feature seed selected.
+
+	    
+.DESCRIPTION
+	    
+Supports feature seed selected handling inside Baseline.
 	#>
 
 	function Test-FeatureSeedSelected
@@ -1157,7 +1263,12 @@ function WindowsFeatures
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-SelectedFeatureList.
+	    Gets selected feature list.
+
+	    
+.DESCRIPTION
+	    
+Supports selected feature list handling inside Baseline.
 	#>
 
 	function Get-SelectedFeatureList
@@ -1167,7 +1278,12 @@ function WindowsFeatures
 
 	<#
 	    .SYNOPSIS
-	    Internal function .
+	    Gets selected feature names.
+
+	    
+.DESCRIPTION
+	    
+Supports selected feature names handling inside Baseline.
 	#>
 	function Get-SelectedFeatureNames
 	{
@@ -1180,7 +1296,12 @@ function WindowsFeatures
 
 	<#
 	    .SYNOPSIS
-	    Internal function DisableButton.
+	    Runs disable button.
+
+	    
+.DESCRIPTION
+	    
+Supports disable button handling inside Baseline.
 	#>
 
 	function DisableButton
@@ -1224,7 +1345,12 @@ function WindowsFeatures
 
 	<#
 	    .SYNOPSIS
-	    Internal function EnableButton.
+	    Runs enable button.
+
+	    
+.DESCRIPTION
+	    
+Supports enable button handling inside Baseline.
 	#>
 
 	function EnableButton
@@ -1268,7 +1394,12 @@ function WindowsFeatures
 
 	<#
 	    .SYNOPSIS
-	    Internal function Confirm-WindowsFeaturesSelection.
+	    Confirms windows features selection.
+
+	    
+.DESCRIPTION
+	    
+Supports windows features selection handling inside Baseline.
 	#>
 
 	function Confirm-WindowsFeaturesSelection
@@ -1343,7 +1474,12 @@ function WindowsFeatures
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-FeatureFriendlyName.
+	    Gets feature friendly name.
+
+	    
+.DESCRIPTION
+	    
+Supports feature friendly name handling inside Baseline.
 	#>
 
 	function Get-FeatureFriendlyName
@@ -1365,7 +1501,12 @@ function WindowsFeatures
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-FeatureInfoIcon.
+	    Creates feature info icon.
+
+	    
+.DESCRIPTION
+	    
+Supports feature info icon handling inside Baseline.
 	#>
 
 	function New-FeatureInfoIcon
@@ -1389,7 +1530,12 @@ function WindowsFeatures
 
 	<#
 	    .SYNOPSIS
-	    Internal function Add-FeatureControl.
+	    Adds feature control.
+
+	    
+.DESCRIPTION
+	    
+Supports feature control handling inside Baseline.
 	#>
 
 	function Add-FeatureControl

@@ -1,8 +1,17 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     $actionPath = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers.ps1'
-    $script:ActionContent = Get-Content -LiteralPath $actionPath -Raw -Encoding UTF8
+    $actionSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers'
+    $script:ActionContent = Get-BaselineTestSourceText -Path @(
+        $actionPath
+        (Join-Path $actionSplitRoot 'ThemeNavigationHandlers.ps1')
+        (Join-Path $actionSplitRoot 'ButtonHandlers.ps1')
+        (Join-Path $actionSplitRoot 'SystemScanFooterHandlers.ps1')
+        (Join-Path $actionSplitRoot 'MenuHandlers.ps1')
+    )
 }
 
 Describe 'Preview run handoff' {

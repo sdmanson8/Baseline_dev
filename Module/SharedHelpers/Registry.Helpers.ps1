@@ -1,4 +1,4 @@
-# Shared helper slice for Baseline -- registry operations, policy setting, and hive management.
+# Shared helpers for Baseline -- registry operations, policy setting, and hive management.
 
 <#
     .SYNOPSIS
@@ -160,7 +160,7 @@ function ConvertTo-RegExeValueType
 	param
 	(
 		[Parameter(Mandatory = $true)]
-		[ValidateSet('DWord', 'String', 'QWord', 'Binary', 'ExpandString', 'MultiString')]
+		[ValidateSet('DWord', 'String', 'QWord', 'Binary', 'ExpandString', 'MultiString', 'None')]
 		[string]
 		$Type
 	)
@@ -173,6 +173,7 @@ function ConvertTo-RegExeValueType
 		'Binary'       { return 'REG_BINARY' }
 		'ExpandString' { return 'REG_EXPAND_SZ' }
 		'MultiString'  { return 'REG_MULTI_SZ' }
+		'None'         { return 'REG_NONE' }
 	}
 }
 
@@ -305,6 +306,7 @@ function Test-RegistryValueEquivalent
 		'EXPANDSTRING' { 'ExpandString' }
 		'MULTISTRING'  { 'MultiString' }
 		'BINARY'       { 'Binary' }
+		'NONE'         { 'None' }
 		default        { $Type }
 	}
 
@@ -338,7 +340,7 @@ function Test-RegistryValueEquivalent
 			}
 			return $true
 		}
-		'BINARY'
+		{ $_ -in @('BINARY', 'NONE') }
 		{
 			$currentBytes = [byte[]]@($CurrentValue)
 			$desiredBytes = [byte[]]@($DesiredValue)
@@ -379,7 +381,7 @@ function Set-RegistryValueSafe
 		$Value,
 
 		[Parameter(Mandatory = $true)]
-		[ValidateSet('String', 'ExpandString', 'Binary', 'DWord', 'MultiString', 'QWord')]
+		[ValidateSet('String', 'ExpandString', 'Binary', 'DWord', 'MultiString', 'QWord', 'None')]
 		[string]
 		$Type,
 
@@ -496,39 +498,59 @@ function Remove-RegistryValueSafe
 	param
 	(
 		[Parameter(Mandatory = $true)]
-		[string]
+		[string[]]
 		$Path,
 
 		[Parameter(Mandatory = $true)]
-		[string]
+		[string[]]
 		$Name
 	)
 
-	if (Get-Command -Name 'Assert-BaselineWriteAllowed' -ErrorAction SilentlyContinue)
-	{
-		Assert-BaselineWriteAllowed -Operation ("Remove-RegistryValueSafe({0}\{1})" -f $Path, $Name)
-	}
+	$removedAny = $false
 
-	try
+	foreach ($singlePath in @($Path))
 	{
-		if (-not (Test-Path -Path $Path))
+		if ([string]::IsNullOrWhiteSpace([string]$singlePath))
 		{
-			return $false
+			continue
 		}
 
-		$existingProperty = Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue
-		if (-not ($existingProperty -and $existingProperty.PSObject.Properties[$Name]))
+		foreach ($singleName in @($Name))
 		{
-			return $false
-		}
+			if ([string]::IsNullOrWhiteSpace([string]$singleName))
+			{
+				continue
+			}
 
-		Remove-ItemProperty -Path $Path -Name $Name -Force -ErrorAction Stop | Out-Null
-		return $true
+			if (Get-Command -Name 'Assert-BaselineWriteAllowed' -ErrorAction SilentlyContinue)
+			{
+				Assert-BaselineWriteAllowed -Operation ("Remove-RegistryValueSafe({0}\{1})" -f $singlePath, $singleName)
+			}
+
+			try
+			{
+				if (-not (Test-Path -Path $singlePath))
+				{
+					continue
+				}
+
+				$existingProperty = Get-ItemProperty -Path $singlePath -ErrorAction SilentlyContinue
+				if (-not ($existingProperty -and $existingProperty.PSObject.Properties[$singleName]))
+				{
+					continue
+				}
+
+				Remove-ItemProperty -Path $singlePath -Name $singleName -Force -ErrorAction Stop | Out-Null
+				$removedAny = $true
+			}
+			catch
+			{
+				throw "Failed to remove registry value '$singleName' at '$singlePath': $($_.Exception.Message)"
+			}
+		}
 	}
-	catch
-	{
-		throw "Failed to remove registry value '$Name' at '$Path': $($_.Exception.Message)"
-	}
+
+	return $removedAny
 }
 
 <#
@@ -717,3 +739,4 @@ function Remove-SystemTweaksRegistryValue
 
 	return Remove-RegistryValueSafe -Path $Path -Name $Name
 }
+

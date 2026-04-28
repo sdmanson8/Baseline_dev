@@ -14,19 +14,23 @@ $Script:SharedHelpersModuleRoot = $PSScriptRoot
 $Script:SharedHelpersRepoRoot = Split-Path $PSScriptRoot -Parent
 
 # Load order still matters: Manifest depends on GameMode metadata helpers, so
-# GameMode must load first. The wrappers keep each helper in its own named
-# module while preserving a declared import order here in the loader.
+# GameMode must load first. SingleInstance relies on the ErrorHandling debug
+# helper, so it loads after ErrorHandling. The wrappers keep each helper in
+# its own named module while preserving a declared import order here in the
+# loader.
 $helperModulesRoot = Join-Path $PSScriptRoot 'SharedHelperModules'
 $HelperModuleNames = @(
     'Baseline.SharedHelpers.Json'
     'Baseline.SharedHelpers.Localization'
 	'Baseline.SharedHelpers.FeatureMaturity'
     'Baseline.SharedHelpers.ErrorHandling'
+    'Baseline.SharedHelpers.SingleInstance'
     'Baseline.SharedHelpers.Integrity'
     'Baseline.SharedHelpers.Registry'
     'Baseline.SharedHelpers.Environment'
     'Baseline.SharedHelpers.GameMode'
     'Baseline.SharedHelpers.Manifest'
+    'Baseline.SharedHelpers.PlatformSupport'
     'Baseline.SharedHelpers.ScenarioMode'
     'Baseline.SharedHelpers.Preset'
     'Baseline.SharedHelpers.Recovery'
@@ -42,12 +46,21 @@ $HelperModuleNames = @(
     'Baseline.SharedHelpers.AuditTrail'
     'Baseline.SharedHelpers.SupportBundle'
     'Baseline.SharedHelpers.Scheduler'
+    'Baseline.SharedHelpers.RemovalPersistence'
+    'Baseline.SharedHelpers.UserApps'
+    'Baseline.SharedHelpers.RansomwareFtype'
+    'Baseline.SharedHelpers.NetworkHardening'
+    'Baseline.SharedHelpers.BrowserPolicies'
+    'Baseline.SharedHelpers.AuthHardening'
     'Baseline.SharedHelpers.RemoteTarget'
     'Baseline.SharedHelpers.GroupPolicy'
     'Baseline.SharedHelpers.CliOutput'
     'Baseline.SharedHelpers.OperatorPolicy'
     'Baseline.SharedHelpers.InitialActions'
     'Baseline.SharedHelpers.WindowsFeatures'
+    'Baseline.SharedHelpers.WindowsUpdate'
+    'Baseline.SharedHelpers.WindowPosition'
+    'Baseline.SharedHelpers.Wsl'
 )
 
 foreach ($helperModuleName in $HelperModuleNames)
@@ -79,7 +92,12 @@ $ExecutionContext.SessionState.Module.OnRemove = {
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-PowerSchemeDisplayValue.
+    Converts values to power scheme display value.
+
+    
+.DESCRIPTION
+    
+Supports power scheme display value handling inside Baseline.
 #>
 
 function ConvertTo-PowerSchemeDisplayValue
@@ -129,7 +147,12 @@ function ConvertTo-PowerSchemeDisplayValue
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-PowerSchemeSystemValue.
+    Converts values to power scheme system value.
+
+    
+.DESCRIPTION
+    
+Supports power scheme system value handling inside Baseline.
 #>
 
 function ConvertTo-PowerSchemeSystemValue
@@ -179,7 +202,12 @@ function ConvertTo-PowerSchemeSystemValue
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiNumericRangeValue.
+    Gets GUI numeric range value.
+
+    
+.DESCRIPTION
+    
+Supports GUI numeric range value handling inside Baseline.
 #>
 
 function Get-GuiNumericRangeValue
@@ -273,7 +301,12 @@ function Get-GuiNumericRangeValue
 
 <#
     .SYNOPSIS
-    Internal function Format-GuiNumericRangeValueText.
+    Formats GUI numeric range value text.
+
+    
+.DESCRIPTION
+    
+Supports GUI numeric range value text handling inside Baseline.
 #>
 
 function Format-GuiNumericRangeValueText
@@ -321,7 +354,12 @@ function Format-GuiNumericRangeValueText
 
 <#
     .SYNOPSIS
-    Internal function Format-GuiPowerSchemeValueText.
+    Formats GUI power scheme value text.
+
+    
+.DESCRIPTION
+    
+Supports GUI power scheme value text handling inside Baseline.
 #>
 
 function Format-GuiPowerSchemeValueText
@@ -415,7 +453,12 @@ function Format-GuiPowerSchemeValueText
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiNumericRangeChannelValue.
+    Gets GUI numeric range channel value.
+
+    
+.DESCRIPTION
+    
+Supports GUI numeric range channel value handling inside Baseline.
 #>
 
 function Get-GuiNumericRangeChannelValue
@@ -479,7 +522,12 @@ function Get-GuiNumericRangeChannelValue
 
 <#
     .SYNOPSIS
-    Internal function Get-CurrentPowerSchemeGuid.
+    Gets current power scheme guid.
+
+    
+.DESCRIPTION
+    
+Supports current power scheme guid handling inside Baseline.
 #>
 
 function Get-CurrentPowerSchemeGuid
@@ -510,7 +558,12 @@ function Get-CurrentPowerSchemeGuid
 
 <#
     .SYNOPSIS
-    Internal function Get-PowerSchemeSettingValue.
+    Gets power scheme setting value.
+
+    
+.DESCRIPTION
+    
+Supports power scheme setting value handling inside Baseline.
 #>
 
 function Get-PowerSchemeSettingValue
@@ -568,7 +621,12 @@ function Get-PowerSchemeSettingValue
 
 <#
     .SYNOPSIS
-    Internal function Set-PowerSchemeSettingValue.
+    Sets power scheme setting value.
+
+    
+.DESCRIPTION
+    
+Supports power scheme setting value handling inside Baseline.
 #>
 
 function Set-PowerSchemeSettingValue
@@ -728,6 +786,7 @@ $ExportedFunctions = @(
     'Test-Windows11FeatureBranchSupport'
     'Show-BootstrapLoadingSplash'
     'Set-BootstrapLoadingSplashState'
+    'Set-BootstrapLoadingSplashStep'
     'Close-LoadingSplashWindow'
     'Show-Menu'
     'Restart-Script'
@@ -746,6 +805,14 @@ $ExportedFunctions = @(
     'Get-ValidGamingPreviewGroups'
     'Get-ValidGameModeProfileNames'
     'Test-TweakManifestIntegrity'
+    'Test-BaselineEditionInFamily'
+    'Get-BaselineServerReleaseFromBuild'
+    'Get-BaselineSystemPlatformInfo'
+    'ConvertTo-BaselinePlatformLabel'
+    'Test-BaselineEntryAvailable'
+    'Test-BaselineEntrySupportsExecution'
+    'Get-BaselineEntryAvailabilitySummary'
+    'Update-BaselineManifestAvailability'
     'Get-ManifestEntryByFunction'
     'Get-TweakManifestDefaultCommand'
     'Get-ScenarioProfileDefinitions'
@@ -754,6 +821,9 @@ $ExportedFunctions = @(
     'Get-ScenarioProfileCommandList'
     'ConvertTo-HeadlessPresetName'
     'Resolve-HeadlessEnvironmentPreset'
+    'Set-HeadlessPresetIncludedFunctionSet'
+    'Get-HeadlessPresetIncludedTweakLibraryPathSet'
+    'Set-HeadlessPresetIncludedTweakLibraryPathSet'
     'Get-HeadlessPresetCommandList'
     'Get-GameModeAllowlist'
     'Get-GameModeReviewedCrossCategoryAllowlist'
@@ -775,6 +845,7 @@ $ExportedFunctions = @(
     'Get-GameModeProfilePlan'
     'Get-GameModeProfileCommandList'
     'Get-DirectUndoCommandForEntry'
+    'Get-DirectUndoCommandLineForEntry'
     'Get-GuiNumericRangeValue'
     'Format-GuiNumericRangeValueText'
     'Format-GuiPowerSchemeValueText'
@@ -836,7 +907,9 @@ $ExportedFunctions = @(
     'Test-BaselineDocumentSchema'
     'New-ConfigurationProfile'
     'Export-ConfigurationProfile'
+    'Export-BaselineFirstLogonCommandSnippet'
     'Import-ConfigurationProfile'
+    'Import-ConfigurationProfileIncludeLibraries'
     'Test-ConfigurationProfileCompatibility'
     'Compare-ConfigurationProfiles'
     'ConvertFrom-PresetToProfile'
@@ -883,6 +956,49 @@ $ExportedFunctions = @(
     'Unregister-BaselineScheduledTask'
     'Get-BaselineScheduledTasks'
     'Test-BaselineScheduledTaskExists'
+    'Get-BaselineRemovalScriptDirectory'
+    'Test-BaselineRemovalPersistenceEntryName'
+    'Save-BaselineRemovalScript'
+    'Register-BaselineRemovalPersistenceTask'
+    'Unregister-BaselineRemovalPersistenceTask'
+    'Get-BaselineRemovalPersistenceTasks'
+    'Test-BaselineRemovalPersistenceTaskExists'
+    'Get-BaselineUserAppsDirectory'
+    'Test-BaselineUserAppEntry'
+    'Get-BaselineUserAppEntries'
+    'Merge-BaselineUserAppEntries'
+    'Save-BaselineUserAppEntriesFromProfile'
+    'Get-BaselineRansomwareFtypeExtensions'
+    'Get-BaselineRansomwareFtypeClassesRoot'
+    'Get-BaselineRansomwareFtypeBackupRoot'
+    'Get-BaselineRansomwareFtypeNotepadCommand'
+    'Get-BaselineFtypeAssociation'
+    'Set-BaselineRansomwareFtypeMitigation'
+    'Restore-BaselineRansomwareFtypeMitigation'
+    'Get-BaselineRansomwareFtypeStatus'
+    'Get-BaselineNetworkHardeningRegistrySettings'
+    'Get-BaselineNetworkHardeningBackupRoot'
+    'Set-BaselineNetworkHardeningRegistrySettings'
+    'Restore-BaselineNetworkHardeningRegistrySettings'
+    'Get-BaselineNetworkHardeningRegistryStatus'
+    'Get-BaselineNetBiosInterfacesRoot'
+    'Disable-BaselineNetBiosOverTcpip'
+    'Restore-BaselineNetBiosOverTcpip'
+    'Get-BaselineWinRMServiceBackupKey'
+    'Disable-BaselineWinRMService'
+    'Restore-BaselineWinRMService'
+    'Get-BaselineBrowserPolicySettings'
+    'Get-BaselineBrowserPolicyBackupRoot'
+    'ConvertTo-BaselineBrowserPolicyBackupKey'
+    'Set-BaselineBrowserPolicySettings'
+    'Restore-BaselineBrowserPolicySettings'
+    'Get-BaselineBrowserPolicyStatus'
+    'Get-BaselineAuthHardeningSettings'
+    'Get-BaselineAuthHardeningBackupRoot'
+    'ConvertTo-BaselineAuthHardeningBackupKey'
+    'Set-BaselineAuthHardeningSettings'
+    'Restore-BaselineAuthHardeningSettings'
+    'Get-BaselineAuthHardeningStatus'
     'Test-BaselineRemoteConnectivity'
     'Get-BaselineRemoteSession'
     'Clear-BaselineRemoteSessionCache'
@@ -965,6 +1081,10 @@ $ExportedFunctions = @(
     'Test-BaselineDefenderActiveByProductState'
     'Test-BaselineDefenderFullyEnabled'
     'Test-BaselineDefenderServicesHealthy'
+    'Resolve-BaselineSettingsAppsFeaturesHealthAssessment'
+    'Resolve-BaselineScreenSnippingHealthAssessment'
+    'Resolve-BaselineHostsCleanupPolicy'
+    'Resolve-BaselineHostTaintAssessment'
     'Get-WindowsCapabilityCheckedDefaults'
     'Get-WindowsCapabilityUncheckedDefaults'
     'Get-WindowsCapabilityExcludedDefaults'
@@ -975,6 +1095,11 @@ $ExportedFunctions = @(
     'Get-WindowsCapabilityFriendlyName'
     'Test-WindowsCapabilitySeedSelected'
     'Select-WindowsCapabilityVisible'
+    'Get-BaselineDisplayWorkAreas'
+    'Test-BaselineWindowRectVisible'
+    'Get-BaselineSavedWindowPlacement'
+    'Save-BaselineWindowPlacement'
+    'Resolve-BaselineWindowPlacement'
 )
 
 Export-ModuleMember -Function $ExportedFunctions

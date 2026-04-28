@@ -1,5 +1,10 @@
 {
   "Tab": "Security",
+  "PlatformSupportDefault": {
+    "Windows10": true,
+    "Windows11": true,
+    "Server": true
+  },
   "Entries": [
     {
       "Name": "Account Protection Warning",
@@ -33,7 +38,13 @@
       "WhyThisMatters": "Hides the recurring Windows Security nag to sign into a Microsoft account. Security posture is unchanged; this only removes the notification.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Windows Security account-protection prompts are a Windows client UI feature."
+      }
     },
     {
       "Name": "Apps SmartScreen",
@@ -67,7 +78,13 @@
       "WhyThisMatters": "When you run an unfamiliar executable, SmartScreen checks its reputation against Microsoft's cloud database and blocks or warns if it is unknown or flagged. Disabling means no reputation check runs before execution.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Medium"
+      "CompatibilitySensitivity": "Medium",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Windows Security SmartScreen prompts are a Windows client UI feature."
+      }
     },
     {
       "Name": "Boot Recovery",
@@ -172,7 +189,14 @@
       "WhyThisMatters": "Runs untrusted Edge tabs inside an isolated VM so a compromised tab cannot read host files or credentials. Requires hardware virtualization and adds per-tab startup latency.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Medium"
+      "CompatibilitySensitivity": "Medium",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "MinBuild": 16299,
+        "UnavailableReason": "Windows Defender Application Guard is not available on Windows Server."
+      }
     },
     {
       "Name": "Defender Cloud",
@@ -278,6 +302,76 @@
       "CompatibilitySensitivity": "Medium"
     },
     {
+      "Name": "Defender Scan CPU Limit",
+      "Function": "DefenderScanCPULimit",
+      "Type": "Toggle",
+      "Options": null,
+      "DisplayOptions": null,
+      "Default": true,
+      "WinDefault": false,
+      "Description": "Cap Defender scheduled-scan CPU at 25%",
+      "Detail": "Limits the average CPU load Microsoft Defender uses during scheduled scans. Reduces interactive responsiveness impact while still allowing scans to complete.",
+      "Caution": false,
+      "CautionReason": null,
+      "LinkedWith": null,
+      "Scannable": null,
+      "Restorable": true,
+      "OnParam": "Enable",
+      "OffParam": "Disable",
+      "ExtraArgs": null,
+      "SubCategory": null,
+      "SourceRegion": "Defender",
+      "WinDefaultDesc": "Defender uses up to 50% CPU for scheduled scans",
+      "Risk": "Low",
+      "Tags": [
+        "security",
+        "defender",
+        "performance"
+      ],
+      "Impact": "Low",
+      "Safe": true,
+      "RequiresRestart": false,
+      "WhyThisMatters": "Caps scheduled scans at 25% average CPU so Defender stays out of your way during interactive use. Scans simply take longer instead of monopolising the machine.",
+      "PresetTier": "Safe",
+      "RecoveryLevel": "Direct",
+      "CompatibilitySensitivity": "Low"
+    },
+    {
+      "Name": "Defender Signature Update Interval",
+      "Function": "DefenderSignatureUpdateInterval",
+      "Type": "Toggle",
+      "Options": null,
+      "DisplayOptions": null,
+      "Default": true,
+      "WinDefault": false,
+      "Description": "Check Defender signatures hourly",
+      "Detail": "Forces Microsoft Defender to check for signature updates every hour instead of relying on the default Windows Update cadence.",
+      "Caution": false,
+      "CautionReason": null,
+      "LinkedWith": null,
+      "Scannable": null,
+      "Restorable": true,
+      "OnParam": "Enable",
+      "OffParam": "Disable",
+      "ExtraArgs": null,
+      "SubCategory": null,
+      "SourceRegion": "Defender",
+      "WinDefaultDesc": "Defender signatures update on the default Windows Update cadence (~8 hours)",
+      "Risk": "Low",
+      "Tags": [
+        "security",
+        "defender",
+        "updates"
+      ],
+      "Impact": "Low",
+      "Safe": true,
+      "RequiresRestart": false,
+      "WhyThisMatters": "Hourly signature checks shrink the window between a new threat being identified and your machine recognising it. Adds a small bandwidth cost.",
+      "PresetTier": "Balanced",
+      "RecoveryLevel": "Direct",
+      "CompatibilitySensitivity": "Low"
+    },
+    {
       "Name": "Defender Tray Icon",
       "Function": "DefenderTrayIcon",
       "Type": "Toggle",
@@ -309,7 +403,13 @@
       "WhyThisMatters": "Cosmetic only — removing the tray icon does not disable or weaken Defender protection.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "The Windows Security tray icon is a Windows client UI feature."
+      }
     },
     {
       "Name": "DEP OptOut",
@@ -377,7 +477,13 @@
       "WhyThisMatters": "Suppresses the persistent Windows Security prompt to link a Microsoft account. Does not affect authentication or security policy.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Manual",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Windows Security Microsoft-account prompts are a Windows client UI feature."
+      }
     },
     {
       "Name": "Dismiss SmartScreen Filter Offer",
@@ -411,7 +517,13 @@
       "WhyThisMatters": "Suppresses the persistent Windows Security prompt to turn on SmartScreen. Does not change whether SmartScreen is actually enabled.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Manual",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Windows Security SmartScreen prompts are a Windows client UI feature."
+      }
     },
     {
       "Name": "DNS over HTTPS",
@@ -678,23 +790,24 @@
     {
       "Name": "LOLBin Firewall Rules",
       "Function": "LOLBinFirewallRules",
-      "Type": "Action",
+      "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
       "Default": false,
       "WinDefault": false,
-      "Description": "Configure LOLBin outbound firewall block rules",
-      "Detail": "Adds outbound firewall block rules for built-in Windows binaries commonly abused by malware (LOLBins) to phone home or download payloads.",
+      "Description": "Block outbound LOLBin firewall connections",
+      "Detail": "Adds outbound firewall block rules for built-in Windows binaries commonly abused by malware (LOLBins) to phone home or download payloads. All rules are tagged with the Baseline-LOLBin-Block group so disabling removes them in one shot.",
       "Caution": true,
       "CautionReason": "May break VPN or enterprise connectivity. Blocks outbound network access for LOLBins (certutil, mshta, wscript, cscript, etc.). May break administrative scripts, installers, certificate enrollment, troubleshooting tools, and enterprise deployment workflows that use these binaries.",
       "LinkedWith": null,
       "Scannable": null,
-      "Restorable": false,
-      "OnParam": null,
-      "OffParam": null,
+      "Restorable": true,
+      "OnParam": "Enable",
+      "OffParam": "Disable",
       "ExtraArgs": null,
       "SubCategory": null,
       "SourceRegion": "Defender",
+      "WinDefaultDesc": "LOLBin binaries are not blocked at the firewall",
       "Risk": "High",
       "Tags": [
         "security",
@@ -706,7 +819,7 @@
       "RequiresRestart": false,
       "WhyThisMatters": "Adds outbound block rules for built-in Windows binaries routinely abused to download payloads or phone home — certutil, bitsadmin, mshta, and similar. Verify that none of these binaries are required by your legitimate automation before applying.",
       "PresetTier": "Advanced",
-      "RecoveryLevel": "RestorePoint",
+      "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "High"
     },
     {
@@ -982,7 +1095,14 @@
       "WhyThisMatters": "Provisions a lightweight throwaway VM you can spin up on demand for testing untrusted software. Requires Windows Pro or higher and hardware virtualization. Everything inside is discarded when the sandbox window closes.",
       "PresetTier": "Advanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "MinBuild": 18362,
+        "UnavailableReason": "Windows Sandbox is not available on Windows Server."
+      }
     },
     {
       "Name": "Windows Script Host",

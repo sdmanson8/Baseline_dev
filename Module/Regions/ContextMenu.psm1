@@ -7,6 +7,11 @@ using module ..\SharedHelpers.psm1
 	.SYNOPSIS
 	The "Install" item for the Cabinet (.cab) filenames extensions context menu
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the "Install" item for the Cabinet (.cab) filenames extensions context menu.
 	.PARAMETER Show
 	Show the "Install" item in the Cabinet (.cab) filenames extensions context menu
 
@@ -90,6 +95,11 @@ function CABInstallContext
 	.SYNOPSIS
 	The "Compressed (zipped) Folder" item in the "New" context menu
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the "Compressed (zipped) Folder" item in the "New" context menu.
 	.PARAMETER Hide
 	Hide the "Compressed (zipped) Folder" item from the "New" context menu
 
@@ -171,6 +181,11 @@ function CompressedFolderNewContext
 	.SYNOPSIS
 	The "Edit with Clipchamp" item in the media files context menu
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the "Edit with Clipchamp" item in the media files context menu.
 	.PARAMETER Hide
 	Hide the "Edit with Clipchamp" item from the media files context menu
 
@@ -226,7 +241,7 @@ function EditWithClipchampContext
 				{
 					New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Force -ErrorAction Stop | Out-Null
 				}
-				New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Name "{8AB635F8-9A67-4698-AB99-784AD929F3B4}" -PropertyType String -Value "" -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Name "{8AB635F8-9A67-4698-AB99-784AD929F3B4}" -Type String -Value "" | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -257,6 +272,11 @@ function EditWithClipchampContext
 	.SYNOPSIS
 	The "Edit with Paint" item in the media files context menu
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the "Edit with Paint" item in the media files context menu.
 	.PARAMETER Hide
 	Hide the "Edit with Paint" item from the media files context menu
 
@@ -312,7 +332,7 @@ function EditWithPaintContext
 				{
 					New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Force -ErrorAction Stop | Out-Null
 				}
-				New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Name "{2430F218-B743-4FD6-97BF-5C76541B4AE9}" -PropertyType String -Value "" -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Name "{2430F218-B743-4FD6-97BF-5C76541B4AE9}" -Type String -Value "" | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -343,6 +363,11 @@ function EditWithPaintContext
 	.SYNOPSIS
 	The "Edit with Photos" item in the media files context menu
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the "Edit with Photos" item in the media files context menu.
 	.PARAMETER Hide
 	Hide the "Edit with Photos" item from the media files context menu
 
@@ -398,7 +423,7 @@ function EditWithPhotosContext
 				{
 					New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Force -ErrorAction Stop | Out-Null
 				}
-				New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Name "{BFE0E2A4-C70C-4AD7-AC3D-10D1ECEBB5B4}" -PropertyType String -Value "" -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Name "{BFE0E2A4-C70C-4AD7-AC3D-10D1ECEBB5B4}" -Type String -Value "" | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -429,6 +454,11 @@ function EditWithPhotosContext
 	.SYNOPSIS
 	The "Extract all" item in the Windows Installer (.msi) context menu
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the "Extract all" item in the Windows Installer (.msi) context menu.
 	.PARAMETER Show
 	Show the "Extract all" item in the Windows Installer (.msi) context menu
 
@@ -512,6 +542,11 @@ function MSIExtractContext
 	.SYNOPSIS
 	The "Open", "Print", and "Edit" items if more than 15 files selected
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the "Open", "Print", and "Edit" items if more than 15 files selected.
 	.PARAMETER Enable
 	Enable the "Open", "Print", and "Edit" items if more than 15 files selected
 
@@ -554,7 +589,7 @@ function MultipleInvokeContext
 			LogInfo "Enabling 'Open', 'Print', and 'Edit' items if more than 15 files selected"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer -Name MultipleInvokePromptMinimum -PropertyType DWord -Value 300 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" -Name MultipleInvokePromptMinimum -Type DWord -Value 300 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -585,6 +620,11 @@ function MultipleInvokeContext
 	.SYNOPSIS
 	The "Open in Windows Terminal" item in the folders context menu
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the "Open in Windows Terminal" item in the folders context menu.
 	.PARAMETER Hide
 	Hide the "Open in Windows Terminal" item in the folders context menu
 
@@ -654,7 +694,7 @@ function OpenWindowsTerminalContext
 				{
 					New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Force -ErrorAction Stop | Out-Null
 				}
-				New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Name "{9F156763-7844-4DC4-B2B1-901F640F5155}" -PropertyType String -Value "" -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Name "{9F156763-7844-4DC4-B2B1-901F640F5155}" -Type String -Value "" | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -670,6 +710,11 @@ function OpenWindowsTerminalContext
 	.SYNOPSIS
 	The "Print" item in the .bat and .cmd context menu
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the "Print" item in the .bat and .cmd context menu.
 	.PARAMETER Hide
 	Hide the "Print" item from the .bat and .cmd context menu
 
@@ -745,6 +790,11 @@ function PrintCMDContext
 	.SYNOPSIS
 	The "Look for an app in the Microsoft Store" item in the "Open with" dialog
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the "Look for an app in the Microsoft Store" item in the "Open with" dialog.
 	.PARAMETER Hide
 	Hide the "Look for an app in the Microsoft Store" item in the "Open with" dialog
 
@@ -795,7 +845,7 @@ function UseStoreOpenWith
 				{
 					New-Item -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer -Force -ErrorAction Stop | Out-Null
 				}
-				New-ItemProperty -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer -Name NoUseStoreOpenWith -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name NoUseStoreOpenWith -Type DWord -Value 1 | Out-Null
 				Set-Policy -Scope User -Path Software\Policies\Microsoft\Windows\Explorer -Name NoUseStoreOpenWith -Type DWORD -Value 1 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
@@ -826,7 +876,12 @@ function UseStoreOpenWith
 
 <#
 	.SYNOPSIS
-	Internal function Get-WindowsTerminalSettingsPath.
+	Gets windows terminal settings path.
+
+	
+.DESCRIPTION
+	
+Supports windows terminal settings path handling inside Baseline.
 #>
 function Get-WindowsTerminalSettingsPath
 {
@@ -852,6 +907,11 @@ function Get-WindowsTerminalSettingsPath
 	.SYNOPSIS
 	Open Windows Terminal in context menu as administrator
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for open Windows Terminal in context menu as administrator.
 	.PARAMETER Enable
 	Open Windows Terminal in context menu as administrator by default
 
@@ -1029,6 +1089,11 @@ function OpenWindowsTerminalAdminContext
 	.SYNOPSIS
 	Add "Take Ownership" to context menu
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for add "Take Ownership" to context menu.
 	.PARAMETER Add
 	Add "Take Ownership" entry to the context menu
 
@@ -1036,15 +1101,25 @@ function OpenWindowsTerminalAdminContext
 	Remove "Take Ownership" entry from the context menu
 
 	.EXAMPLE
-	Set-TakeOwnershipContextMenu -Add
+	TakeOwnershipContextMenu -Add
 
 	.EXAMPLE
-	Set-TakeOwnershipContextMenu -Remove
+	TakeOwnershipContextMenu -Remove
 
 	.NOTES
 	Computer policy. Adds UAC elevated context menu entry for taking file/folder ownership.
+
+	Defender ASR caveat:
+	The ASR rule "Block executable files unless trusted" (GUID
+	01443614-cd74-433a-b99e-2ecdc07bfc25) can block takeown.exe when the user
+	invokes the verb against an .exe target. Surfaces as Defender Operational
+	log Event 1121. Mitigation: add a takeown.exe exclusion to that ASR rule
+	via Add-MpPreference -AttackSurfaceReductionOnlyExclusions, or temporarily
+	switch the rule to AuditMode while taking ownership of executables.
+	Not fixable in code - this is Defender behavior; the toggle ships with
+	Caution=$true so the GUI surfaces the warning before the user applies it.
 #>
-function Set-TakeOwnershipContextMenu
+function TakeOwnershipContextMenu
 {
 	param
 	(
@@ -1116,10 +1191,43 @@ function Set-TakeOwnershipContextMenu
 	}
 }
 
+function Set-TakeOwnershipContextMenu
+{
+	param
+	(
+		[Parameter(
+			Mandatory = $true,
+			ParameterSetName = "Add"
+		)]
+		[switch]
+		$Add,
+
+		[Parameter(
+			Mandatory = $true,
+			ParameterSetName = "Remove"
+		)]
+		[switch]
+		$Remove
+	)
+
+	if ($Add)
+	{
+		TakeOwnershipContextMenu -Add
+		return
+	}
+
+	TakeOwnershipContextMenu -Remove
+}
+
 <#
 	.SYNOPSIS
 	Show/Hide file extensions in context menu
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for show/Hide file extensions in context menu.
 	.PARAMETER Enable
 	Add "Show/Hide file extensions" toggle to context menu
 

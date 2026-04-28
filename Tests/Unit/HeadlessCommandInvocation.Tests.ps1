@@ -1,7 +1,7 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
-    $filePath = Join-Path $PSScriptRoot '../../Bootstrap/Baseline.ps1'
+    $filePath = Join-Path $PSScriptRoot '../../Bootstrap/Helpers/Bootstrap.Helpers.ps1'
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {

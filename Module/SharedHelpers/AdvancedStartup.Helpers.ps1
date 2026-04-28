@@ -1,4 +1,4 @@
-# Shared helper slice for Baseline -- Advanced Startup shortcut and recovery environment helpers.
+# Shared helpers for Baseline -- Advanced Startup shortcut and recovery environment helpers.
 
 <#
     .SYNOPSIS
@@ -230,3 +230,4 @@ function Get-AdvancedStartupShortcutArguments
 	$encodedLauncherScript = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($launcherScript))
 	return "-NoProfile -WindowStyle Hidden -EncodedCommand $encodedLauncherScript"
 }
+

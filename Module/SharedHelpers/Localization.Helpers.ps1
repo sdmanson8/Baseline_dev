@@ -4,7 +4,7 @@
 
     .DESCRIPTION
     Replaces Import-LocalizedData with a JSON-based approach that supports
-    all Winhance language codes. Falls back through culture -> language -> en.
+    all Baseline language codes. Falls back through culture -> language -> en.
     Compatible with PowerShell 5.1+.
 #>
 
@@ -124,7 +124,7 @@ function Import-BaselineLocalization
         [string]$UICulture = $PSUICulture
     )
 
-    # Map PowerShell culture codes to Winhance-style JSON file names.
+    # Map PowerShell culture codes to Baseline-style JSON file names.
     # Tries exact match first (e.g. pt-BR), then language-only (e.g. pt),
     # then known mappings (e.g. zh-CN -> zh-Hans), then falls back to en.
     $cultureMap = @{

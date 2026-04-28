@@ -1,9 +1,5 @@
-# Recovery helper slice for Baseline.
-# Extracted from Manifest.Helpers.ps1 - contains direct undo command resolution
-# and restore point recommendation logic.
-#
-# Dependencies (from Manifest.Helpers.ps1, loaded first):
-#   Get-TweakManifestEntryValue, Write-ManifestValidationWarning
+# Recovery helpers for Baseline.
+# Resolve undo commands and related restore recommendations for tweak definitions.
 
 <#
     .SYNOPSIS
@@ -223,6 +219,61 @@ function Get-DirectUndoCommandForEntry
 	$fnName = if ($Entry.Function) { $Entry.Function } else { '(unknown)' }
 	Write-ManifestValidationWarning "No undo command could be determined for '$fnName' - selected param did not match OnParam/OffParam and WinDefault is absent."
 	return $null
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-DirectUndoCommandLineForEntry.
+#>
+
+function Get-DirectUndoCommandLineForEntry
+{
+	<# .SYNOPSIS Resolves the full direct undo/recovery command line for a tweak execution result. #>
+	param (
+		[object]$Entry,
+		[object]$ManifestEntry,
+		[array]$Manifest
+	)
+
+	if ($null -eq $Entry -or $null -eq $ManifestEntry)
+	{
+		return $null
+	}
+
+	$counterpartFunction = [string](Get-TweakManifestEntryValue -Entry $ManifestEntry -FieldName 'CounterpartFunction')
+	if (-not [string]::IsNullOrWhiteSpace($counterpartFunction))
+	{
+		if (-not $Manifest -or $Manifest.Count -eq 0)
+		{
+			$fnName = if ($Entry.Function) { $Entry.Function } else { '(unknown)' }
+			Write-ManifestValidationWarning "No undo command could be determined for '$fnName' - CounterpartFunction '$counterpartFunction' was declared but no manifest was supplied to resolve it."
+			return $null
+		}
+
+		$counterpartEntry = Get-ManifestEntryByFunction -Manifest $Manifest -Function $counterpartFunction
+		if (-not $counterpartEntry)
+		{
+			$fnName = if ($Entry.Function) { $Entry.Function } else { '(unknown)' }
+			Write-ManifestValidationWarning "No undo command could be determined for '$fnName' - CounterpartFunction '$counterpartFunction' was not found in the manifest."
+			return $null
+		}
+
+		return (Get-TweakManifestDefaultCommand -Entry $counterpartEntry)
+	}
+
+	$undoParam = Get-DirectUndoCommandForEntry -Entry $Entry -ManifestEntry $ManifestEntry
+	if ([string]::IsNullOrWhiteSpace([string]$undoParam))
+	{
+		return $null
+	}
+
+	$functionName = [string](Get-TweakManifestEntryValue -Entry $ManifestEntry -FieldName 'Function')
+	if ([string]::IsNullOrWhiteSpace($functionName))
+	{
+		return $null
+	}
+
+	return ('{0} -{1}' -f $functionName, [string]$undoParam)
 }
 
 <#

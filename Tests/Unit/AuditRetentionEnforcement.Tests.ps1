@@ -13,6 +13,7 @@ BeforeAll {
     $schedulerHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Scheduler.Helpers.ps1'
     $script:SharedHelpersRepoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     $script:SharedHelpersModuleRoot = Join-Path $script:SharedHelpersRepoRoot 'Module'
+    $script:AuditHelpersContent = Get-Content -LiteralPath $auditHelpersPath -Raw -Encoding UTF8
 
     $environmentAst = [System.Management.Automation.Language.Parser]::ParseFile($environmentHelpersPath, [ref]$null, [ref]$null)
     $environmentFunctions = $environmentAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
@@ -86,6 +87,10 @@ Describe 'Write-AuditRecord' {
         $record.Mode | Should -Be 'Profile'
         $record.ProfilePath | Should -Be 'C:\Temp\profile.json'
         $record.Details.Entries | Should -Be 3
+    }
+
+    It 'routes audit retention cleanup through Write-DebugSwallowedException' {
+        $script:AuditHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''AuditTrail\.Write-AuditRecord\.InvokeRetentionPolicy'''
     }
 
     It 'throws in ReadOnly mode before creating audit storage' {

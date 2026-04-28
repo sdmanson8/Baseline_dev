@@ -64,6 +64,14 @@ Describe 'Bootstrap release integrity helpers' {
         $script:bootstrapContent | Should -Match 'one SHA-256 manifest matching'
     }
 
+    It 'routes published-at parse failures through Write-DebugSwallowedException' {
+        $script:bootstrapContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Bootstrap\.Get-BootstrapLatestRelease\.ParsePublishedAt'''
+    }
+
+    It 'routes TLS setup failures through Write-DebugSwallowedException' {
+        $script:bootstrapContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Bootstrap\.Enable-Tls12'''
+    }
+
     It 'returns the expected SHA-256 for an asset in the manifest' {
         $result = Get-BootstrapReleaseAssetSha256 -ManifestPath $script:manifestPath -AssetName $script:archiveName
 

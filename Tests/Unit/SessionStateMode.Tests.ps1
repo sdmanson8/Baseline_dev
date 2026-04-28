@@ -4,15 +4,39 @@ BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/GUI/SessionState.ps1'
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
-    foreach ($fn in $functions) {
-        if ($fn.Name -in @(
+        foreach ($fn in $functions) {
+            if ($fn.Name -in @(
             'Resolve-GuiModePreference',
             'Get-GuiFirstRunWelcomeMarkerPath',
             'Test-GuiFirstRunWelcomePending',
-            'Complete-GuiFirstRunWelcome'
+            'Complete-GuiFirstRunWelcome',
+            'Get-GuiSettingsSnapshot'
         )) {
             Invoke-Expression $fn.Extent.Text
         }
+    }
+
+    function Test-GuiObjectField {
+        param(
+            [object]$Object,
+            [string]$FieldName
+        )
+
+        return ($null -ne $Object -and $Object.PSObject.Properties[$FieldName])
+    }
+
+    function Convert-JsonManifestValue {
+        param([object]$Value)
+        return $Value
+    }
+
+    function Copy-GuiExplicitSelectionDefinition {
+        param(
+            [object]$Definition,
+            [string]$FunctionName
+        )
+
+        return $Definition
     }
 }
 
@@ -85,5 +109,45 @@ Describe 'First-run welcome state' {
         Complete-GuiFirstRunWelcome | Should -Be $true
         (Test-Path -LiteralPath $markerPath) | Should -Be $true
         Test-GuiFirstRunWelcomePending | Should -Be $false
+    }
+}
+
+Describe 'GUI session snapshots' {
+    BeforeEach {
+        $script:CurrentThemeName = 'Dark'
+        $script:SearchText = ''
+        $script:AppsSearchText = ''
+        $script:AuditRetentionDays = 90
+        $script:AppsPackageSourcePreference = 'auto'
+        $script:AppsSourceFilter = 'All'
+        $script:PinnedBaselineVersion = $null
+        $script:AppsQueuedActions = [System.Collections.Generic.Dictionary[string,string]]::new()
+        $script:ExplicitPresetSelections = @()
+        $script:ExplicitPresetSelectionDefinitions = [ordered]@{}
+        $script:TweakManifest = @()
+        $script:Controls = @()
+        $script:AdvancedMode = $false
+        $script:SafeMode = $false
+        $script:GameMode = $false
+        $script:DesignMode = $true
+        $script:RiskFilter = 'All'
+        $script:CategoryFilter = 'All'
+        $script:PlatformFilter = 'ThisDevice'
+        $script:AppsCategoryFilter = 'All'
+        $script:AppsStatusFilter = 'All'
+        $script:SelectedOnlyFilter = $false
+        $script:HideUnavailableItems = $true
+        $script:HighRiskOnlyFilter = $false
+        $script:RestorableOnlyFilter = $false
+        $script:GamingOnlyFilter = $false
+        $script:LastStandardPrimaryTab = $null
+        $script:GameModePreviousPrimaryTab = $null
+    }
+
+    It 'captures Design Mode in the GUI snapshot' {
+        $snapshot = Get-GuiSettingsSnapshot
+
+        $snapshot.DesignMode | Should -Be $true
+        $snapshot.HideUnavailableItems | Should -Be $true
     }
 }

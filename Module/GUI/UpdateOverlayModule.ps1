@@ -1,7 +1,4 @@
-# Update Overlay module: extracted from Module/Regions/GUI.psm1 during Phase 2
-# decomposition. Provides the Baseline self-update overlay (progress bar,
-# update-check dialog, import overlay, download driver). Dot-sourced so all
-# $Script: state resolves against GUI.psm1 module scope.
+# Baseline update overlay helpers for progress, update checks, and import flows.
 
 
 <#
@@ -113,7 +110,7 @@ function Show-BaselineUpdateCheckDialog
 	{
 		$currentVersion = [string](Get-BaselineDisplayVersion)
 	}
-	catch { }
+	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.LoadCurrentVersion' }
 
 	Show-BaselineUpdateOverlay -Title $title -Description $checkingDescription -StatusText $checkingStatus -ShowButtons:$false -ShowProgressPct:$false -Indeterminate
 
@@ -129,7 +126,7 @@ function Show-BaselineUpdateCheckDialog
 			& $showSingleCloseButton
 			if ($Script:BtnDownloadYes)
 			{
-				if ($Script:UpdateCheckPrimaryClickEvent) { try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { } }
+				if ($Script:UpdateCheckPrimaryClickEvent) { try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckPrimaryClickEvent' } }
 				$Script:UpdateCheckPrimaryClickEvent = {
 					& $hideBaselineUpdateOverlayCommand
 				}.GetNewClosure()
@@ -147,7 +144,7 @@ function Show-BaselineUpdateCheckDialog
 			& $showSingleCloseButton
 			if ($Script:BtnDownloadYes)
 			{
-				if ($Script:UpdateCheckPrimaryClickEvent) { try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { } }
+				if ($Script:UpdateCheckPrimaryClickEvent) { try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckPrimaryClickEvent' } }
 				$Script:UpdateCheckPrimaryClickEvent = {
 					& $hideBaselineUpdateOverlayCommand
 				}.GetNewClosure()
@@ -164,9 +161,9 @@ function Show-BaselineUpdateCheckDialog
 			Show-BaselineUpdateOverlay -Title $title -Description $availableDescription -StatusText $availableStatus -PrimaryButtonText $openReleaseLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
 			if ($Script:BtnDownloadYes)
 			{
-				if ($Script:UpdateCheckPrimaryClickEvent) { try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { } }
+				if ($Script:UpdateCheckPrimaryClickEvent) { try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckPrimaryClickEvent' } }
 				$Script:UpdateCheckPrimaryClickEvent = {
-					try { Start-Process -FilePath $releasePageUrl -ErrorAction SilentlyContinue } catch { }
+					try { Start-Process -FilePath $releasePageUrl -ErrorAction SilentlyContinue } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.OpenReleasePage' }
 					& $hideBaselineUpdateOverlayCommand
 				}.GetNewClosure()
 				$Script:BtnDownloadYes.Add_Click($Script:UpdateCheckPrimaryClickEvent)
@@ -178,7 +175,7 @@ function Show-BaselineUpdateCheckDialog
 		& $showSingleCloseButton
 		if ($Script:BtnDownloadYes)
 		{
-			if ($Script:UpdateCheckPrimaryClickEvent) { try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { } }
+			if ($Script:UpdateCheckPrimaryClickEvent) { try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckPrimaryClickEvent' } }
 			$Script:UpdateCheckPrimaryClickEvent = {
 				& $hideBaselineUpdateOverlayCommand
 			}.GetNewClosure()
@@ -191,7 +188,7 @@ function Show-BaselineUpdateCheckDialog
 		& $showSingleCloseButton
 		if ($Script:BtnDownloadYes)
 		{
-			if ($Script:UpdateCheckPrimaryClickEvent) { try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { } }
+			if ($Script:UpdateCheckPrimaryClickEvent) { try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckPrimaryClickEvent' } }
 			$Script:UpdateCheckPrimaryClickEvent = {
 				& $hideBaselineUpdateOverlayCommand
 			}.GetNewClosure()
@@ -332,8 +329,8 @@ function Start-BaselineDownload
 			if ($Script:BtnDownloadYes) { $Script:BtnDownloadYes.Content = (Get-UxLocalizedString -Key 'GuiStatusDownloadRetry' -Fallback 'Retry') }
 			if ($Script:BtnDownloadYes) { $Script:BtnDownloadYes.IsEnabled = $true }
 			if ($Script:BtnDownloadNo) { $Script:BtnDownloadNo.IsEnabled = $true }
-			try { $ps.Dispose() } catch { $null = $_ }
-			try { $runspace.Dispose() } catch { $null = $_ }
+			try { $ps.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposePowerShell' }
+			try { $runspace.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposeRunspace' }
 			return
 		}
 
@@ -352,15 +349,15 @@ function Start-BaselineDownload
 
 			if ($Script:BtnDownloadYes -and $Script:DownloadStartEvent)
 			{
-				try { $Script:BtnDownloadYes.Remove_Click($Script:DownloadStartEvent) } catch { $null = $_ }
+				try { $Script:BtnDownloadYes.Remove_Click($Script:DownloadStartEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveDownloadStartEvent' }
 			}
 			if ($Script:BtnDownloadYes -and $Script:DownloadExtractEvent)
 			{
 				$Script:BtnDownloadYes.Add_Click($Script:DownloadExtractEvent)
 			}
 
-			try { $ps.Dispose() } catch { $null = $_ }
-			try { $runspace.Dispose() } catch { $null = $_ }
+			try { $ps.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposePowerShell' }
+			try { $runspace.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposeRunspace' }
 		}
 	}.GetNewClosure())
 

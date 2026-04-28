@@ -1,4 +1,4 @@
-﻿# Remote targeting helper slice for Baseline.
+# Remote targeting helpers for Baseline.
 # Provides multi-machine compliance checking and profile application over
 # PowerShell Remoting (WinRM / PSSession). Each function accepts an array of
 # computer names and operates in parallel per-session.
@@ -9,27 +9,27 @@
 #   Import-TweakManifestFromData       (Manifest.Helpers.ps1)
 #   Get-HeadlessPresetCommandList      (Preset.Helpers.ps1)
 
-if (-not $Script:CachedRemoteSessionCache)
+if (-not (Get-Variable -Name CachedRemoteSessionCache -Scope Script -ErrorAction SilentlyContinue) -or -not $Script:CachedRemoteSessionCache)
 {
 	$Script:CachedRemoteSessionCache = @{}
 }
 
-if (-not $Script:CachedRemoteOrchestrationHistoryPath)
+if (-not (Get-Variable -Name CachedRemoteOrchestrationHistoryPath -Scope Script -ErrorAction SilentlyContinue) -or -not $Script:CachedRemoteOrchestrationHistoryPath)
 {
 	$Script:CachedRemoteOrchestrationHistoryPath = $null
 }
 
-if (-not $Script:CachedRemoteOrchestrationDefaultRetryCount)
+if (-not (Get-Variable -Name CachedRemoteOrchestrationDefaultRetryCount -Scope Script -ErrorAction SilentlyContinue) -or -not $Script:CachedRemoteOrchestrationDefaultRetryCount)
 {
 	$Script:CachedRemoteOrchestrationDefaultRetryCount = 2
 }
 
-if (-not $Script:CachedRemoteOrchestrationDefaultRetryDelayMilliseconds)
+if (-not (Get-Variable -Name CachedRemoteOrchestrationDefaultRetryDelayMilliseconds -Scope Script -ErrorAction SilentlyContinue) -or -not $Script:CachedRemoteOrchestrationDefaultRetryDelayMilliseconds)
 {
 	$Script:CachedRemoteOrchestrationDefaultRetryDelayMilliseconds = 250
 }
 
-if (-not $Script:CachedRemoteSessionIdleTimeoutMinutes)
+if (-not (Get-Variable -Name CachedRemoteSessionIdleTimeoutMinutes -Scope Script -ErrorAction SilentlyContinue) -or -not $Script:CachedRemoteSessionIdleTimeoutMinutes)
 {
 	$Script:CachedRemoteSessionIdleTimeoutMinutes = 15
 }
@@ -324,7 +324,7 @@ function Remove-BaselineRemoteSessionCacheEntry
 	try { $session = $entry.Session } catch { $session = $entry }
 	if ($session)
 	{
-		try { Remove-PSSession -Session $session -ErrorAction SilentlyContinue } catch { }
+		try { Remove-PSSession -Session $session -ErrorAction SilentlyContinue } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Remove-BaselineRemoteSessionCacheEntry.RemovePSSession' }
 	}
 	$null = $Script:CachedRemoteSessionCache.Remove($Key)
 	return $entry
@@ -669,7 +669,7 @@ function Get-BaselineRemoteSession
 		$entry = $Script:CachedRemoteSessionCache[$key]
 		if (Test-BaselineRemoteSessionCacheEntry -Entry $entry -TransportKey $transportSignature.Hash -IdleTimeoutMinutes $IdleTimeoutMinutes)
 		{
-			try { $entry.LastUsedUtc = [datetime]::UtcNow } catch { }
+			try { $entry.LastUsedUtc = [datetime]::UtcNow } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Invoke-BaselineRemoteSessionCacheMaintenance.UpdateLastUsedUtc' }
 			$session = $entry.Session
 		}
 		else
@@ -1138,6 +1138,7 @@ function Get-BaselineRemoteOrchestrationHistory
 		}
 		catch
 		{
+			Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteOrchestrationHistory.ParseLine'
 			continue
 		}
 
@@ -1148,7 +1149,7 @@ function Get-BaselineRemoteOrchestrationHistory
 				$ts = [datetime]::Parse([string]$obj.Timestamp)
 				if ($ts -lt $Since) { continue }
 			}
-			catch { }
+			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteOrchestrationHistory.SinceTimestampParse' }
 		}
 
 		if (-not [string]::IsNullOrWhiteSpace($Operation) -and $obj.Operation -ne $Operation)
@@ -1687,7 +1688,7 @@ function Get-BaselineRemoteTargetFailureHistory
 	{
 		$filtered = @($records | Where-Object {
 			$ts = $null
-			try { $ts = [datetime]::Parse([string]$_.Timestamp) } catch { $ts = $null }
+			try { $ts = [datetime]::Parse([string]$_.Timestamp) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteOrchestrationSummary.SinceTimestampParse'; $ts = $null }
 			$ts -and $ts -ge $Since
 		})
 	}
@@ -1858,7 +1859,7 @@ function Get-BaselineRemoteApprovalDecisions
 		if ([string]::IsNullOrWhiteSpace($line)) { continue }
 
 		$obj = $null
-		try { $obj = $line | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop } catch { continue }
+		try { $obj = $line | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteRunSummaries.ParseLine'; continue }
 		if (-not $obj) { continue }
 
 		if (-not [string]::IsNullOrWhiteSpace($RunId) -and [string]$obj.RunId -ne $RunId) { continue }
@@ -1868,7 +1869,7 @@ function Get-BaselineRemoteApprovalDecisions
 		if ($PSBoundParameters.ContainsKey('Since') -and $obj.RecordedUtc)
 		{
 			$ts = $null
-			try { $ts = [datetime]::Parse([string]$obj.RecordedUtc) } catch { $ts = $null }
+			try { $ts = [datetime]::Parse([string]$obj.RecordedUtc) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteRunSummaries.SinceTimestampParse'; $ts = $null }
 			if ($ts -and $ts -lt $Since) { continue }
 		}
 
@@ -3140,12 +3141,12 @@ function Get-BaselineRemoteResumeCheckpoint
 		}
 		catch
 		{
+			Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteResumeCheckpoint.ParseLine'
 			continue
 		}
 	}
 	return @($results)
 }
-
 <#
     .SYNOPSIS
     Internal function Get-BaselineRemoteResumableRuns.
@@ -3217,10 +3218,8 @@ function Get-BaselineRemoteResumableRuns
 		$cp | Add-Member -NotePropertyName 'PendingTargets' -NotePropertyValue $pending -Force
 		[void]$results.Add($cp)
 	}
-
 	return @($results)
 }
-
 <#
     .SYNOPSIS
     Internal function Clear-BaselineRemoteResumeCheckpoint.
@@ -3425,6 +3424,293 @@ function Resume-BaselineRemoteOrchestration
 
 <#
     .SYNOPSIS
+    Internal function ConvertFrom-BaselineRemoteTargetInput.
+#>
+
+function ConvertFrom-BaselineRemoteTargetInput
+{
+	<#
+		.SYNOPSIS
+		Parses free-form computer-name input from the Connect dialog into
+		separate Targets and Invalid lists. Splits on commas, semicolons,
+		pipes, and whitespace. Deduplicates case-insensitively, preserving
+		the first spelling seen. Hostnames (RFC1123) and IPv4 addresses are
+		accepted; everything else is surfaced via the Invalid list so the
+		dialog can warn the user instead of silently dropping tokens.
+	#>
+	[CmdletBinding()]
+	[OutputType([pscustomobject])]
+	param (
+		[AllowNull()]
+		[AllowEmptyString()]
+		[string]$InputText
+	)
+
+	$targets = [System.Collections.Generic.List[string]]::new()
+	$invalid = [System.Collections.Generic.List[string]]::new()
+	$seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
+	if ([string]::IsNullOrWhiteSpace($InputText))
+	{
+		return [pscustomobject]@{
+			Targets = @($targets)
+			Invalid = @($invalid)
+		}
+	}
+
+	$hostPattern = '^(?=.{1,253}$)([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$'
+	$ipv4Pattern = '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+
+	foreach ($raw in ($InputText -split '[,;|\s]+'))
+	{
+		if ([string]::IsNullOrWhiteSpace($raw)) { continue }
+		$token = $raw.Trim()
+		if (-not $seen.Add($token)) { continue }
+
+		if (($token -match $hostPattern) -or ($token -match $ipv4Pattern))
+		{
+			$targets.Add($token)
+		}
+		else
+		{
+			$invalid.Add($token)
+		}
+	}
+
+	return [pscustomobject]@{
+		Targets = @($targets)
+		Invalid = @($invalid)
+	}
+}
+
+<#
+    .SYNOPSIS
+    Internal function New-BaselineRemoteTargetCredential.
+#>
+
+function New-BaselineRemoteTargetCredential
+{
+	<#
+		.SYNOPSIS
+		Builds a PSCredential from Connect-dialog username + SecureString
+		input, validating the username shape up front (DOMAIN\User or
+		user@domain — never both, never empty halves) so that bad input
+		surfaces as a UI-friendly ArgumentException rather than as an opaque
+		WinRM authentication failure later.
+	#>
+	[CmdletBinding()]
+	[OutputType([System.Management.Automation.PSCredential])]
+	param (
+		[Parameter(Mandatory)]
+		[AllowEmptyString()]
+		[AllowNull()]
+		[string]$Username,
+
+		[Parameter()]
+		[AllowNull()]
+		[System.Security.SecureString]$SecurePassword
+	)
+
+	if ([string]::IsNullOrWhiteSpace($Username))
+	{
+		throw [System.ArgumentException]::new('Username is required.', 'Username')
+	}
+
+	$u = $Username.Trim()
+	$hasBackslash = $u.Contains('\')
+	$hasAt = $u.Contains('@')
+
+	if ($hasBackslash -and $hasAt)
+	{
+		throw [System.ArgumentException]::new('Use either DOMAIN\Username or user@domain — not both.', 'Username')
+	}
+
+	if ($hasBackslash)
+	{
+		$parts = $u -split '\\'
+		if ($parts.Count -ne 2 -or [string]::IsNullOrWhiteSpace($parts[0]) -or [string]::IsNullOrWhiteSpace($parts[1]))
+		{
+			throw [System.ArgumentException]::new('DOMAIN\Username must contain exactly one backslash with a non-empty domain and user.', 'Username')
+		}
+	}
+	elseif ($hasAt)
+	{
+		$parts = $u -split '@'
+		if ($parts.Count -ne 2 -or [string]::IsNullOrWhiteSpace($parts[0]) -or [string]::IsNullOrWhiteSpace($parts[1]))
+		{
+			throw [System.ArgumentException]::new('user@domain must contain exactly one @ with non-empty parts.', 'Username')
+		}
+	}
+
+	$secure = if ($null -ne $SecurePassword) { $SecurePassword } else { New-Object System.Security.SecureString }
+	return [System.Management.Automation.PSCredential]::new($u, $secure)
+}
+
+<#
+    .SYNOPSIS
+    Internal function Format-BaselineRemoteConnectivityStatus.
+#>
+
+function Format-BaselineRemoteConnectivityStatus
+{
+	<#
+		.SYNOPSIS
+		Renders the per-target rows shown in the Connect dialog after a
+		Test Connection run. Each row carries ComputerName, State
+		('Reachable' / 'Unreachable' / 'Blocked'), Icon, and a Display
+		string the dialog prints verbatim. Entries without a ComputerName
+		are dropped silently — they belong to other parts of the
+		connectivity record, not the per-host status panel.
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter()]
+		[AllowNull()]
+		[object[]]$Result
+	)
+
+	if ($null -eq $Result)
+	{
+		return @()
+	}
+
+	$checkIcon = ([char]0x2714).ToString()
+	$crossIcon = ([char]0x274C).ToString()
+	$blockedIcon = ([char]0x26D4).ToString()
+	$arrow = ([char]0x2192).ToString()
+
+	$output = [System.Collections.Generic.List[pscustomobject]]::new()
+
+	foreach ($entry in @($Result))
+	{
+		if ($null -eq $entry) { continue }
+		$name = if ($entry.PSObject.Properties['ComputerName']) { [string]$entry.ComputerName } else { '' }
+		if ([string]::IsNullOrWhiteSpace($name)) { continue }
+
+		$blocked = $false
+		if ($entry.PSObject.Properties['BlockedByPolicy']) { $blocked = [bool]$entry.BlockedByPolicy }
+		$reachable = $false
+		if ($entry.PSObject.Properties['Reachable']) { $reachable = [bool]$entry.Reachable }
+		$errMsg = ''
+		if ($entry.PSObject.Properties['Error'] -and $entry.Error) { $errMsg = [string]$entry.Error }
+		$statusText = ''
+		if ($entry.PSObject.Properties['Status'] -and $entry.Status) { $statusText = [string]$entry.Status }
+
+		if ($blocked)
+		{
+			$state = 'Blocked'
+			$icon = $blockedIcon
+			$tail = if ($errMsg) { $errMsg } elseif ($statusText) { $statusText } else { 'Blocked by policy' }
+		}
+		elseif ($reachable)
+		{
+			$state = 'Reachable'
+			$icon = $checkIcon
+			$tail = if ($statusText) { $statusText } else { 'Reachable' }
+		}
+		else
+		{
+			$state = 'Unreachable'
+			$icon = $crossIcon
+			$tail = if ($errMsg) { $errMsg } elseif ($statusText) { $statusText } else { 'Unreachable' }
+		}
+
+		$display = ('{0} {1} {2} {3}' -f $name, $arrow, $icon, $tail).Trim()
+
+		$output.Add([pscustomobject]@{
+			ComputerName = $name
+			State        = $state
+			Icon         = $icon
+			Display      = $display
+		})
+	}
+
+	return @($output)
+}
+
+<#
+    .SYNOPSIS
+    Internal function ConvertTo-BaselineRemoteConnectionMethod.
+#>
+
+function ConvertTo-BaselineRemoteConnectionMethod
+{
+	<#
+		.SYNOPSIS
+		Folds the friendly Connect-dialog ComboBox labels and common
+		synonyms ('WinRM (HTTP)', 'wsman', 'PSRemoting', 'WinRM over
+		HTTPS', 'HTTPS', 'OpenSSH', etc.) down to the canonical tokens
+		'WinRM', 'WinRMHttps', and 'SSH'. Unknown values fall back to
+		'WinRM' so the dialog never produces a value the rest of the
+		pipeline can't consume.
+	#>
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[Parameter()]
+		[AllowNull()]
+		[AllowEmptyString()]
+		[string]$Method
+	)
+
+	if ([string]::IsNullOrWhiteSpace($Method))
+	{
+		return 'WinRM'
+	}
+
+	$key = $Method.Trim().ToLowerInvariant()
+	switch ($key)
+	{
+		'winrm'                            { return 'WinRM' }
+		'winrm (http)'                     { return 'WinRM' }
+		'wsman'                            { return 'WinRM' }
+		'psremoting'                       { return 'WinRM' }
+		'winrmhttps'                       { return 'WinRMHttps' }
+		'winrm over https'                 { return 'WinRMHttps' }
+		'winrm-ssl'                        { return 'WinRMHttps' }
+		'https'                            { return 'WinRMHttps' }
+		'ssh'                              { return 'SSH' }
+		'ssh (powershell over openssh)'    { return 'SSH' }
+		'openssh'                          { return 'SSH' }
+		default                            { return 'WinRM' }
+	}
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-BaselineRemoteConnectionMethodLabel.
+#>
+
+function Get-BaselineRemoteConnectionMethodLabel
+{
+	<#
+		.SYNOPSIS
+		Returns the short banner-friendly label for a connection method.
+		Normalizes the input via ConvertTo-BaselineRemoteConnectionMethod
+		first so callers can pass either a canonical token or a
+		dialog-friendly string.
+	#>
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[Parameter()]
+		[AllowNull()]
+		[AllowEmptyString()]
+		[string]$Method
+	)
+
+	$canonical = ConvertTo-BaselineRemoteConnectionMethod -Method $Method
+	switch ($canonical)
+	{
+		'WinRM'      { return 'WinRM' }
+		'WinRMHttps' { return 'WinRM/HTTPS' }
+		'SSH'        { return 'SSH' }
+		default      { return 'WinRM' }
+	}
+}
+
+<#
+    .SYNOPSIS
     Internal function Test-BaselineRemoteConnectivity.
 #>
 
@@ -3450,9 +3736,13 @@ function Test-BaselineRemoteConnectivity
 		[int]$MaxRetryCount = $(if ($Script:CachedRemoteOrchestrationDefaultRetryCount) { [int]$Script:CachedRemoteOrchestrationDefaultRetryCount } else { 2 }),
 
 		[Parameter()]
-		[int]$RetryDelayMilliseconds = $(if ($Script:CachedRemoteOrchestrationDefaultRetryDelayMilliseconds) { [int]$Script:CachedRemoteOrchestrationDefaultRetryDelayMilliseconds } else { 250 })
+		[int]$RetryDelayMilliseconds = $(if ($Script:CachedRemoteOrchestrationDefaultRetryDelayMilliseconds) { [int]$Script:CachedRemoteOrchestrationDefaultRetryDelayMilliseconds } else { 250 }),
+
+		[Parameter()]
+		[string]$ConnectionMethod = 'WinRM'
 	)
 
+	$canonicalMethod = ConvertTo-BaselineRemoteConnectionMethod -Method $ConnectionMethod
 	$policyGate = Test-BaselineRemoteOrchestrationAllowed -Operation 'ConnectivityTest'
 	$results = [System.Collections.Generic.List[pscustomobject]]::new()
 
@@ -3471,23 +3761,24 @@ function Test-BaselineRemoteConnectivity
 			$attemptStatus = if ($policyGate.Allowed) { 'Unreachable' } else { 'Blocked' }
 			[void](Add-BaselineRemoteTargetStateTransition -Transitions $targetStateHistory -Operation 'ConnectivityTest' -State 'Connecting' -Phase 'Connecting' -Timestamp $attemptStartedAt -Reason ("Attempt {0} started." -f $attempt))
 			$entry = [pscustomobject]@{
-				ComputerName    = $computer
-				RunId           = $runId
-				AttemptCount    = $attempt
-				RetryCount      = 0
-				Reachable       = $false
-				Status          = $attemptStatus
-				TerminalState   = 'Unknown'
-				LifecycleState  = Get-BaselineRemoteTargetLifecycleState -Operation 'ConnectivityTest' -Status $attemptStatus -Blocked (-not $policyGate.Allowed)
-				FailureCategory = $null
-				Retryable       = $false
-				RetryReason     = $null
-				BlockedByPolicy = (-not $policyGate.Allowed)
-				HistoryPath     = $null
-				DurationSeconds = 0
-				AttemptHistory  = $null
-				RetryAnalytics  = $null
-				Error           = if ($policyGate.Allowed) { $null } else { $policyGate.Reason }
+				ComputerName     = $computer
+				RunId            = $runId
+				AttemptCount     = $attempt
+				RetryCount       = 0
+				Reachable        = $false
+				Status           = $attemptStatus
+				TerminalState    = 'Unknown'
+				LifecycleState   = Get-BaselineRemoteTargetLifecycleState -Operation 'ConnectivityTest' -Status $attemptStatus -Blocked (-not $policyGate.Allowed)
+				FailureCategory  = $null
+				Retryable        = $false
+				RetryReason      = $null
+				BlockedByPolicy  = (-not $policyGate.Allowed)
+				HistoryPath      = $null
+				DurationSeconds  = 0
+				AttemptHistory   = $null
+				RetryAnalytics   = $null
+				ConnectionMethod = $canonicalMethod
+				Error            = if ($policyGate.Allowed) { $null } else { $policyGate.Reason }
 			}
 
 			$shouldRetry = $false
@@ -3496,13 +3787,46 @@ function Test-BaselineRemoteConnectivity
 			{
 				try
 				{
-					$wsmanParams = @{ ComputerName = $computer; ErrorAction = 'Stop' }
-					if ($Credential) { $wsmanParams.Credential = $Credential }
+					switch ($canonicalMethod)
+					{
+						'SSH'
+						{
+							$tcp = New-Object System.Net.Sockets.TcpClient
+							try
+							{
+								$async = $tcp.BeginConnect($computer, 22, $null, $null)
+								$wait = $async.AsyncWaitHandle.WaitOne(5000)
+								if (-not $wait)
+								{
+									throw 'SSH (TCP/22) connection timed out after 5 seconds.'
+								}
+								$tcp.EndConnect($async)
+								if (-not $tcp.Connected)
+								{
+									throw 'SSH (TCP/22) port did not accept the connection.'
+								}
+								$entry.Reachable = $true
+								$attemptStatus = 'Reachable'
+								[void](Add-BaselineRemoteTargetStateTransition -Transitions $targetStateHistory -Operation 'ConnectivityTest' -State 'Connected' -Phase 'Connected' -Timestamp ([datetime]::UtcNow) -Reason 'SSH port responded.')
+							}
+							finally
+							{
+								try { $tcp.Close() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Test-BaselineRemoteTargetConnectivity.TcpClose' }
+							}
+						}
+						default
+						{
+							$wsmanParams = @{ ComputerName = $computer; ErrorAction = 'Stop' }
+							if ($Credential) { $wsmanParams.Credential = $Credential }
+							if ($canonicalMethod -eq 'WinRMHttps') { $wsmanParams.UseSSL = $true }
 
-					$null = Test-WSMan @wsmanParams
-					$entry.Reachable = $true
-					$attemptStatus = 'Reachable'
-					[void](Add-BaselineRemoteTargetStateTransition -Transitions $targetStateHistory -Operation 'ConnectivityTest' -State 'Connected' -Phase 'Connected' -Timestamp ([datetime]::UtcNow) -Reason 'WinRM responded successfully.')
+							$null = Test-WSMan @wsmanParams
+							$entry.Reachable = $true
+							$attemptStatus = 'Reachable'
+							$reason = if ($canonicalMethod -eq 'WinRMHttps') { 'WinRM/HTTPS responded successfully.' } else { 'WinRM responded successfully.' }
+							[void](Add-BaselineRemoteTargetStateTransition -Transitions $targetStateHistory -Operation 'ConnectivityTest' -State 'Connected' -Phase 'Connected' -Timestamp ([datetime]::UtcNow) -Reason $reason)
+						}
+					}
 				}
 				catch
 				{
@@ -3629,7 +3953,6 @@ function Test-BaselineRemoteConnectivity
 
 	return @($results)
 }
-
 <#
     .SYNOPSIS
     Internal function Invoke-BaselineRemoteCompliance.
@@ -3695,7 +4018,11 @@ function Invoke-BaselineRemoteCompliance
 				$midRunGate = Test-BaselineRemoteOrchestrationAllowed -Operation 'RemoteCompliance'
 				if (-not $midRunGate.Allowed) { $cancelEngaged = $true }
 			}
-			catch { }
+			catch
+			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Invoke-BaselineRemoteCompliance.PolicyGate'
+				throw
+			}
 		}
 
 		if ($cancelEngaged)
@@ -4114,7 +4441,11 @@ function Invoke-BaselineRemoteApply
 				$midRunGate = Test-BaselineRemoteOrchestrationAllowed -Operation 'RemoteApply'
 				if (-not $midRunGate.Allowed) { $cancelEngaged = $true }
 			}
-			catch { }
+			catch
+			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Invoke-BaselineRemoteApply.PolicyGate'
+				throw
+			}
 		}
 
 		if ($cancelEngaged)
@@ -4546,3 +4877,4 @@ function Invoke-BaselineRemoteApply
 
 	return @($results)
 }
+

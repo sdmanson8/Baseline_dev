@@ -57,6 +57,7 @@ Describe 'UIPersonalization.Explorer toggle functions' {
         }
         function Set-RegistryValueSafe {
             param([string]$Path, [string]$Name, [object]$Value, [string]$Type)
+            if ($script:shouldThrow) { throw 'set-registryvaluesafe failed' }
             [void]$script:setRegistrySafeCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name; Value = $Value; Type = $Type })
         }
         function Remove-RegistryValueSafe {
@@ -82,8 +83,8 @@ Describe 'UIPersonalization.Explorer toggle functions' {
             FileDeleteConfirm -Enable
 
             $script:newItemCalls.Count | Should -Be 1
-            $script:setItemPropertyCalls[0].Name | Should -Be 'ConfirmFileDelete'
-            $script:setItemPropertyCalls[0].Value | Should -Be 1
+            $script:setRegistrySafeCalls[0].Name | Should -Be 'ConfirmFileDelete'
+            $script:setRegistrySafeCalls[0].Value | Should -Be 1
             $script:consoleStatuses[-1] | Should -Be 'success'
         }
 
@@ -97,14 +98,14 @@ Describe 'UIPersonalization.Explorer toggle functions' {
             $script:consoleStatuses[-1] | Should -Be 'success'
         }
 
-        It 'reports failed when Set-ItemProperty throws' {
+        It 'reports failed when Set-RegistryValueSafe throws' {
             $script:pathExists = $true
             $script:shouldThrow = $true
 
             FileDeleteConfirm -Enable
 
             $script:consoleStatuses[-1] | Should -Be 'failed'
-            $script:errorMessages[0] | Should -Match 'set-itemproperty failed'
+            $script:errorMessages[0] | Should -Match 'set-registryvaluesafe failed'
         }
     }
 
@@ -112,13 +113,13 @@ Describe 'UIPersonalization.Explorer toggle functions' {
         It 'writes HideFileExt=0 on Show (show extensions)' {
             FileExtensions -Show
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'HideFileExt' }).Value | Should -Be 0
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'HideFileExt' }).Value | Should -Be 0
         }
 
         It 'writes HideFileExt=1 on Hide (hide extensions)' {
             FileExtensions -Hide
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'HideFileExt' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'HideFileExt' }).Value | Should -Be 1
         }
     }
 
@@ -126,13 +127,13 @@ Describe 'UIPersonalization.Explorer toggle functions' {
         It 'writes Hidden=1 on Enable' {
             HiddenItems -Enable
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'Hidden' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'Hidden' }).Value | Should -Be 1
         }
 
         It 'writes Hidden=2 on Disable' {
             HiddenItems -Disable
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'Hidden' }).Value | Should -Be 2
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'Hidden' }).Value | Should -Be 2
         }
     }
 
@@ -140,20 +141,20 @@ Describe 'UIPersonalization.Explorer toggle functions' {
         It 'writes LaunchTo=1 on -ThisPC' {
             OpenFileExplorerTo -ThisPC
 
-            $script:newItemPropertyCalls[0].Name | Should -Be 'LaunchTo'
-            $script:newItemPropertyCalls[0].Value | Should -Be 1
+            $script:setRegistrySafeCalls[0].Name | Should -Be 'LaunchTo'
+            $script:setRegistrySafeCalls[0].Value | Should -Be 1
         }
 
         It 'writes LaunchTo=2 on -QuickAccess' {
             OpenFileExplorerTo -QuickAccess
 
-            $script:newItemPropertyCalls[0].Value | Should -Be 2
+            $script:setRegistrySafeCalls[0].Value | Should -Be 2
         }
 
         It 'writes LaunchTo=3 on -Downloads' {
             OpenFileExplorerTo -Downloads
 
-            $script:newItemPropertyCalls[0].Value | Should -Be 3
+            $script:setRegistrySafeCalls[0].Value | Should -Be 3
         }
     }
 
@@ -161,8 +162,8 @@ Describe 'UIPersonalization.Explorer toggle functions' {
         It 'writes JPEGImportQuality=100 on Max' {
             JPEGWallpapersQuality -Max
 
-            $script:newItemPropertyCalls[0].Name | Should -Be 'JPEGImportQuality'
-            $script:newItemPropertyCalls[0].Value | Should -Be 100
+            $script:setRegistrySafeCalls[0].Name | Should -Be 'JPEGImportQuality'
+            $script:setRegistrySafeCalls[0].Value | Should -Be 100
         }
 
         It 'removes JPEGImportQuality on Default when the value exists' {
@@ -209,13 +210,13 @@ Describe 'UIPersonalization.Explorer toggle functions' {
         It 'writes ShowSuperHidden=1 on Enable' {
             SuperHiddenFiles -Enable
 
-            ($script:setItemPropertyCalls | Where-Object { $_.Name -eq 'ShowSuperHidden' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'ShowSuperHidden' }).Value | Should -Be 1
         }
 
         It 'writes ShowSuperHidden=0 on Disable' {
             SuperHiddenFiles -Disable
 
-            ($script:setItemPropertyCalls | Where-Object { $_.Name -eq 'ShowSuperHidden' }).Value | Should -Be 0
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'ShowSuperHidden' }).Value | Should -Be 0
         }
     }
 
@@ -223,13 +224,13 @@ Describe 'UIPersonalization.Explorer toggle functions' {
         It 'writes AutoCheckSelect=1 on Enable' {
             CheckBoxes -Enable
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'AutoCheckSelect' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'AutoCheckSelect' }).Value | Should -Be 1
         }
 
         It 'writes AutoCheckSelect=0 on Disable' {
             CheckBoxes -Disable
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'AutoCheckSelect' }).Value | Should -Be 0
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'AutoCheckSelect' }).Value | Should -Be 0
         }
     }
 

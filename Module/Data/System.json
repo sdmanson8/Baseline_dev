@@ -1,5 +1,10 @@
 {
   "Tab": "System",
+  "PlatformSupportDefault": {
+    "Windows10": true,
+    "Windows11": true,
+    "Server": true
+  },
   "Entries": [
     {
       "Name": "Advanced Startup Desktop Shortcut",
@@ -67,7 +72,13 @@
       "WhyThisMatters": "Stops Windows from installing suggested apps in the background without prompting. Prevents sponsored apps from appearing after a clean install or reset.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Medium"
+      "CompatibilitySensitivity": "Medium",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Microsoft consumer experiences are a Windows client feature."
+      }
     },
     {
       "Name": "Active Hours",
@@ -104,7 +115,13 @@
       "WhyThisMatters": "Tells Windows not to initiate automatic restarts during your specified hours. Updates will still install; only the forced-restart window is restricted.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Active hours are a Windows client update feature."
+      }
     },
     {
       "Name": "Admin Approval Mode (UAC)",
@@ -400,7 +417,13 @@
       "WhyThisMatters": "Selects which terminal host opens when Command Prompt or PowerShell is launched from within Windows, such as from the Run dialog or context menus.",
       "PresetTier": "Advanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Default terminal application policy is supported on Windows 10/11 client editions."
+      }
     },
     {
       "Name": "Delivery Optimization",
@@ -595,7 +618,13 @@
       "WhyThisMatters": "Enrolls the PC in the earliest-available update wave. Useful for staying current on security patches; carries higher risk of receiving patches before widespread testing has surfaced regressions.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Windows Update rollout preference is a Windows client setting."
+      }
     },
     {
       "Name": "Download Updates Over Metered Connection",
@@ -630,7 +659,13 @@
       "WhyThisMatters": "Controls automatic update downloads when on a metered connection. Disabling prevents update traffic from counting against a data cap.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Windows Update metered-connection behavior is a Windows client setting."
+      }
     },
     {
       "Name": "Feature Update Deferral",
@@ -664,7 +699,13 @@
       "WhyThisMatters": "Delays major Windows version upgrades by up to 365 days. Useful for stability, but extended deferral can push the machine past a version's end-of-support date.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Feature update deferral is a Windows client Windows Update policy."
+      }
     },
     {
       "Name": "Quality Update Deferral Period",
@@ -706,7 +747,13 @@
       "WhyThisMatters": "Delays monthly security and quality patches by 4 or 7 days. Gives time for early adopters to surface patch regressions before you apply.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Quality update deferral is a Windows client Windows Update policy."
+      }
     },
     {
       "Name": "Hibernation",
@@ -743,6 +790,40 @@
       "CompatibilitySensitivity": "Low"
     },
     {
+      "Name": "Hybrid Sleep",
+      "Function": "HybridSleep",
+      "Type": "Toggle",
+      "Options": null,
+      "DisplayOptions": null,
+      "Default": false,
+      "WinDefault": true,
+      "Description": "Hybrid Sleep",
+      "Detail": "Combines Sleep and Hibernation by writing the session to disk while keeping the system in low-power S3. On wake the system resumes from RAM if power was retained, or from hiberfil.sys if power was lost. Mirrors the tracked Hybrid Sleep settings (powercfg subgroup SUB_SLEEP / setting HYBRIDSLEEP). Some hardware does not support Hybrid Sleep and the toggle becomes a no-op there.",
+      "Caution": false,
+      "CautionReason": null,
+      "LinkedWith": null,
+      "Scannable": null,
+      "Restorable": true,
+      "OnParam": "Enable",
+      "OffParam": "Disable",
+      "ExtraArgs": null,
+      "SubCategory": null,
+      "SourceRegion": "System",
+      "WinDefaultDesc": "Hybrid Sleep on (desktop default)",
+      "Risk": "Low",
+      "Tags": [
+        "power",
+        "sleep"
+      ],
+      "Impact": "Low",
+      "Safe": true,
+      "RequiresRestart": false,
+      "WhyThisMatters": "Disabling Hybrid Sleep lets the machine enter true Sleep (S3) without spending the time to write hiberfil.sys on every sleep transition — useful on desktops with reliable mains power. Laptops typically benefit from leaving it on so an unexpected battery loss does not cost an unsaved session.",
+      "PresetTier": "Balanced",
+      "RecoveryLevel": "Direct",
+      "CompatibilitySensitivity": "Low"
+    },
+    {
       "Name": "Home Groups",
       "Function": "HomeGroups",
       "Type": "Toggle",
@@ -774,7 +855,12 @@
       "WhyThisMatters": "Home Groups was removed in Windows 10 1803, but residual services may still be registered. This cleans up those leftover components.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": false,
+        "Server": false
+      }
     },
     {
       "Name": "Internet Connection Sharing",
@@ -808,11 +894,17 @@
       "WhyThisMatters": "Allows this PC to act as a NAT gateway, sharing its internet connection with other devices. Exposes a DHCP server and routing on the sharing adapter.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Internet Connection Sharing is not available on Windows Server."
+      }
     },
     {
       "Name": "Latest .NET Runtime for All Apps",
-      "Function": "LatestInstalled.NET",
+      "Function": "LatestInstalledNET",
       "Type": "Toggle",
       "Options": null,
       "DisplayOptions": null,
@@ -1210,17 +1302,19 @@
       "Options": [
         "Balanced",
         "High",
-        "Ultimate"
+        "Ultimate",
+        "Custom"
       ],
       "DisplayOptions": [
         "Balanced",
         "High Performance",
-        "Ultimate Performance"
+        "Ultimate Performance",
+        "Custom Power Plan"
       ],
       "Default": "High",
       "WinDefault": "Balanced",
       "Description": "Power plan selection",
-      "Detail": "Sets the Windows power plan. Balanced scales performance based on load. High Performance keeps the CPU at full speed. Ultimate Performance removes all power-saving throttling for maximum throughput. Ultimate Performance may not be available on all systems.",
+      "Detail": "Sets the Windows power plan. Balanced scales performance based on load. High Performance keeps the CPU at full speed. Ultimate Performance removes all power-saving throttling for maximum throughput. Custom Power Plan duplicates Ultimate Performance under a stable GUID (57696e68-616e-6365-506f-776572000000) so the plan is recognisable across runs. Ultimate Performance may not be available on all systems.",
       "Caution": false,
       "CautionReason": null,
       "LinkedWith": null,
@@ -1975,7 +2069,14 @@
       "WhyThisMatters": "Windows reserves a fixed disk allocation for updates, temp files, and OS caches. Disabling reclaims that space after the next feature update applies the change.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "MinBuild": 18362,
+        "UnavailableReason": "Reserved storage is not available on Windows Server."
+      }
     },
     {
       "Name": "Restart After Update",
@@ -2009,7 +2110,13 @@
       "WhyThisMatters": "Allows Windows to schedule an immediate restart once an update finishes installing rather than waiting for the next scheduled window.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Automatic restart-after-update behavior is a Windows client update setting."
+      }
     },
     {
       "Name": "Restart Required Notification",
@@ -2043,7 +2150,13 @@
       "WhyThisMatters": "Shows a persistent taskbar indicator when a pending update is waiting for a restart to complete installation.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Restart-required notifications are a Windows client update setting."
+      }
     },
     {
       "Name": "Update Notification Level",
@@ -2088,7 +2201,13 @@
       "WhyThisMatters": "Controls which Windows Update notifications are shown. Hiding them prevents restart prompts from appearing, which can lead to missed updates if not monitored elsewhere.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Windows Update notification levels are a Windows client experience setting."
+      }
     },
     {
       "Name": "Save Restartable Apps",
@@ -2121,7 +2240,13 @@
       "WhyThisMatters": "Windows saves the state of open apps at sign-out and reopens them automatically at the next sign-in.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Restartable-apps sign-in behavior is a Windows client feature."
+      }
     },
     {
       "Name": "Search App in Store for Unknown Ext.",
@@ -2189,7 +2314,13 @@
       "WhyThisMatters": "Suppresses Store app recommendations from appearing in Start menu app search results alongside locally installed apps.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Microsoft Store search results are not available on Windows Server."
+      }
     },
     {
       "Name": "SMB 1.0 Protocol",
@@ -2440,7 +2571,13 @@
       "WhyThisMatters": "Controls whether the Store automatically downloads and installs app updates in the background. Disabling pauses Store updates until you check manually.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Microsoft Store app updates are not available on Windows Server."
+      }
     },
     {
       "Name": "Verbose Startup/Shutdown Messages",
@@ -2620,7 +2757,13 @@
       "WhyThisMatters": "Installs or removes the Windows Media Player, Media Features, DirectPlay, and Legacy Components feature bundle. Needed for older games and applications that depend on these components.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Legacy media features are not available on Windows Server."
+      }
     },
     {
       "Name": "NFS",

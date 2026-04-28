@@ -26,6 +26,11 @@ BeforeAll {
 }
 
 Describe 'Preflight checks' {
+    AfterEach {
+        Remove-Item Function:\Test-IsDesignModeUX -ErrorAction SilentlyContinue
+        $Global:BaselineHostTaint = $null
+    }
+
     It 'includes a managed policy environment check in the preflight run' {
         $script:PreflightChecksContent | Should -Match 'function Test-PreflightManagedPolicyEnvironment'
         $script:PreflightChecksContent | Should -Match "GuiPreflightNamePolicies"
@@ -89,6 +94,52 @@ Describe 'Preflight checks' {
         $managedCategory.Count | Should -Be 1
         $managedCategory[0].Status | Should -Be 'Warning'
         $managedCategory[0].DocumentationPath | Should -Match 'Remediation/ManagedEndpoints'
+    }
+
+    It 'short-circuits to a passed contract in Design Mode' {
+        function Test-IsDesignModeUX {
+            return $true
+        }
+
+        $results = Invoke-PreflightChecks -RemoteTargets @('server01')
+
+        $results.Passed | Should -Be $true
+        $results.Status | Should -Be 'Passed'
+        @($results.AllResults).Count | Should -Be 0
+        @($results.RiskCategories).Count | Should -Be 0
+    }
+
+    It 'fails preflight when host taint is blocked' {
+        Mock Test-PreflightAdminElevation {
+            [pscustomobject]@{ Name = 'Administrator'; Key = 'AdminElevation'; Status = 'Passed'; Message = 'Running as administrator'; Category = 'Security'; Details = [ordered]@{ IsAdministrator = $true } }
+        }
+        Mock Test-PreflightDiskSpace { [pscustomobject]@{ Name = 'Disk space'; Status = 'Passed'; Message = 'OK'; Category = 'Storage' } }
+        Mock Test-PreflightVSS { [pscustomobject]@{ Name = 'VSS'; Status = 'Passed'; Message = 'OK'; Category = 'Services' } }
+        Mock Test-PreflightEventLog { [pscustomobject]@{ Name = 'EventLog'; Status = 'Passed'; Message = 'OK'; Category = 'Services' } }
+        Mock Test-PreflightWMI { [pscustomobject]@{ Name = 'WMI'; Status = 'Passed'; Message = 'OK'; Category = 'System' } }
+        Mock Test-PreflightSystemRestore { [pscustomobject]@{ Name = 'Restore'; Status = 'Passed'; Message = 'OK'; Category = 'System' } }
+        Mock Test-PreflightManagedPolicyEnvironment { [pscustomobject]@{ Name = 'Managed endpoint policy'; Key = 'ManagedPolicyEnvironment'; Status = 'Passed'; Message = 'OK'; Category = 'Security'; Details = [ordered]@{ DomainJoined = $false; ActivePolicyHives = @(); ConflictSignals = @() } } }
+        Mock Test-PreflightPendingReboot { [pscustomobject]@{ Name = 'Pending reboot'; Key = 'PendingReboot'; Status = 'Passed'; Message = 'No pending reboot detected'; Category = 'System'; Details = [ordered]@{ PendingReasons = @() } } }
+        Mock Test-PreflightWinRMReachability { [pscustomobject]@{ Name = 'WinRM reachability'; Key = 'WinRMReachability'; Status = 'Passed'; Message = 'WinRM not targeted'; Category = 'Services'; Details = [ordered]@{ TargetCount = 0; ReachableTargets = @(); UnreachableTargets = @(); ServiceStatus = 'Running' } } }
+
+        $Global:BaselineHostTaint = [pscustomobject]@{
+            Level         = 'Blocked'
+            BackdoorFound = $true
+            Detected      = @('Win 10 Tweaker')
+            AdvisoryUrls  = @('https://massgrave.dev/genuine-installation-media')
+        }
+
+        $results = Invoke-PreflightChecks
+
+        $results.Status | Should -Be 'Failed'
+        $results.Passed | Should -BeFalse
+        @($results.CriticalFailures | Where-Object Key -eq 'HostTaint').Count | Should -Be 1
+        $results.HostIntegrity.Status | Should -Be 'Failed'
+        $results.HostIntegrity.Summary | Should -Match 'Win 10 Tweaker'
+        $hostTaintRisk = @($results.RiskCategories | Where-Object Key -eq 'HostTaint')
+        $hostTaintRisk.Count | Should -Be 1
+        $hostTaintRisk[0].Status | Should -Be 'Failed'
+        @($hostTaintRisk[0].RemediationActions).Count | Should -BeGreaterThan 0
     }
 
     It 'exposes partial WinRM coverage as a Warning with a PartialCoverage flag' {
@@ -202,5 +253,14 @@ Describe 'Preflight checks' {
         $script:PreflightChecksContent | Should -Match 'function New-BaselineRiskCategory'
         $script:PreflightChecksContent | Should -Match 'function Get-BaselineRiskCategoryList'
         $script:PreflightChecksContent | Should -Match 'function Get-BaselinePartialSuccessRolloutRisk'
+    }
+
+    It 'routes non-fatal preflight fallbacks through Write-DebugSwallowedException' {
+        $script:PreflightChecksContent | Should -Match 'PreflightChecks\.Get-BaselinePartialSuccessRolloutRisk\.LoadOutcomes'
+        $script:PreflightChecksContent | Should -Match 'PreflightChecks\.TestPreflightManagedPolicyEnvironment\.LoadDomainJoined'
+        $script:PreflightChecksContent | Should -Match 'PreflightChecks\.TestPreflightManagedPolicyEnvironment\.TestPathPolicy'
+        $script:PreflightChecksContent | Should -Match 'PreflightChecks\.TestPreflightSystemRestore\.LoadSrpStatus'
+        $script:PreflightChecksContent | Should -Match 'PreflightChecks\.TestPreflightPendingReboot\.LoadPendingFileRenameOperations'
+        $script:PreflightChecksContent | Should -Match 'PreflightChecks\.TestPreflightPendingReboot\.LoadPostRebootReporting'
     }
 }

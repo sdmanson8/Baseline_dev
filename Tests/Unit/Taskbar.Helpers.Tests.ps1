@@ -2,6 +2,7 @@ Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Taskbar.Helpers.ps1'
+    $script:taskbarHelpersContent = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
@@ -108,6 +109,16 @@ Describe 'Get-NewsInterestsTaskbarHashValue' {
         $result = Get-NewsInterestsTaskbarHashValue -MachineId 'machine-id' -ViewMode 2
 
         $result | Should -Be 67305985
+    }
+}
+
+Describe 'Invoke-ARM64ShellUnpin cleanup' {
+    It 'routes ARM64 shell unpin cleanup failures through Write-DebugSwallowedException' {
+        $script:taskbarHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TaskbarHelpers\.Invoke-ARM64ShellUnpin\.DoIt'''
+        $script:taskbarHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TaskbarHelpers\.Invoke-ARM64ShellUnpin\.StopPowerShell'''
+        $script:taskbarHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TaskbarHelpers\.Invoke-ARM64ShellUnpin\.EndInvokePowerShell'''
+        $script:taskbarHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TaskbarHelpers\.Invoke-ARM64ShellUnpin\.DisposePowerShell'''
+        $script:taskbarHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TaskbarHelpers\.Invoke-ARM64ShellUnpin\.DisposeRunspace'''
     }
 }
 

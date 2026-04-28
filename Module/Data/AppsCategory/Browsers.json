@@ -1,5 +1,10 @@
 {
   "Tab": "Applications",
+  "PlatformSupportDefault": {
+    "Windows10": true,
+    "Windows11": true,
+    "Server": false
+  },
   "Entries": [
     {
       "Name": "Microsoft EdgeWebView",

@@ -1,5 +1,10 @@
 {
   "Tab": "Updates",
+  "PlatformSupportDefault": {
+    "Windows10": true,
+    "Windows11": true,
+    "Server": true
+  },
   "Entries": [
     {
       "Name": "Security Updates Only Mode",

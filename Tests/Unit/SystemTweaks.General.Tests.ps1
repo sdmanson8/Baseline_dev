@@ -28,7 +28,7 @@ Describe 'PerformanceTuning' {
         function LogError { param([string]$Message) [void]$script:errorMessages.Add($Message) }
 
         function Get-Command {
-            param([string]$Name, [object]$ErrorAction)
+            param([string]$Name)
             if ($Name -eq 'Invoke-SystemOptimizations') {
                 if ($script:legacyAvailable) { return { $script:legacyCalled = $true } }
                 return $null
@@ -82,9 +82,21 @@ Describe 'AdobeNetworkBlock' {
         $script:webCalls = [System.Collections.Generic.List[object]]::new()
         $script:moveCalls = [System.Collections.Generic.List[object]]::new()
         $script:removeCalls = [System.Collections.Generic.List[string]]::new()
+        $script:setContentCalls = [System.Collections.Generic.List[object]]::new()
         $script:ipconfigExit = 0
         $script:hostsExists = $true
         $script:backupExists = $true
+        $script:existingHostsContent = @(
+            '# Local hosts',
+            '127.0.0.1   localhost',
+            '0.0.0.0     ads.example.com   # StevenBlack entry'
+        )
+        $script:downloadedBlockContent = @(
+            '# Adobe block list header',
+            '0.0.0.0 activate.adobe.com',
+            '0.0.0.0 ads.example.com',
+            '0.0.0.0 lm.licenses.adobe.com'
+        )
 
         function Write-ConsoleStatus {
             param([string]$Action, [string]$Status)
@@ -95,6 +107,7 @@ Describe 'AdobeNetworkBlock' {
         function Test-Path {
             param([string]$Path)
             if ($Path -like '*.bak') { return $script:backupExists }
+            if ($Path -like '*BaselineAdobeBlock_*') { return $true }
             return $script:hostsExists
         }
         function Copy-Item {
@@ -118,21 +131,77 @@ Describe 'AdobeNetworkBlock' {
             param([Parameter(Position=0)][string]$Path, [Parameter(Position=1)][string]$Destination, [switch]$Force)
             [void]$script:moveCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Destination = $Destination })
         }
+        function Get-Content {
+            [CmdletBinding()]
+            param([string]$Path)
+            if ($Path -like '*BaselineAdobeBlock_*') { return $script:downloadedBlockContent }
+            return $script:existingHostsContent
+        }
+        function Set-Content {
+            [CmdletBinding()]
+            param([string]$Path, [object]$Value, [string]$Encoding, [switch]$Force)
+            [void]$script:setContentCalls.Add([pscustomobject]@{ Path = $Path; Value = $Value })
+        }
     }
 
     AfterEach {
-        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','Test-Path','Copy-Item','Invoke-WebRequest','ipconfig','Remove-Item','Move-Item')) {
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','Test-Path','Copy-Item','Invoke-WebRequest','ipconfig','Remove-Item','Move-Item','Get-Content','Set-Content')) {
             Microsoft.PowerShell.Management\Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }
 
-    It 'backs up hosts, downloads block list, flushes DNS on Enable' {
+    It 'backs up hosts, downloads to temp, merges block list, flushes DNS on Enable' {
         AdobeNetworkBlock -Enable
 
         $script:copyCalls.Count | Should -Be 1
         $script:webCalls.Count | Should -Be 1
         $script:webCalls[0].Uri | Should -Match 'Adobe-URL-Block-List'
+        # winutil #4106 fix: must NOT clobber the hosts file directly
+        $script:webCalls[0].OutFile | Should -Not -Be "$Env:SystemRoot\System32\drivers\etc\hosts"
+        $script:webCalls[0].OutFile | Should -Match 'BaselineAdobeBlock_'
+        $script:setContentCalls.Count | Should -Be 1
         $script:consoleStatuses[-1] | Should -Be 'success'
+    }
+
+    It 'preserves existing third-party hosts entries when merging (winutil #4106)' {
+        AdobeNetworkBlock -Enable
+
+        $written = [string[]]$script:setContentCalls[0].Value
+        # All pre-existing lines must survive the merge
+        $written | Should -Contain '127.0.0.1   localhost'
+        $written | Should -Contain '0.0.0.0     ads.example.com   # StevenBlack entry'
+        # Marker block must wrap our additions for idempotent re-runs
+        $written | Should -Contain '# BEGIN BASELINE-AdobeBlock'
+        $written | Should -Contain '# END BASELINE-AdobeBlock'
+        # New Adobe entries appended
+        $written | Should -Contain '0.0.0.0 activate.adobe.com'
+        $written | Should -Contain '0.0.0.0 lm.licenses.adobe.com'
+    }
+
+    It 'deduplicates: does not re-add block-list entries already present in hosts' {
+        AdobeNetworkBlock -Enable
+
+        $written = [string[]]$script:setContentCalls[0].Value
+        # ads.example.com appears in BOTH existing and downloaded — should appear exactly once
+        ($written | Where-Object { $_ -match 'ads\.example\.com' }).Count | Should -Be 1
+    }
+
+    It 'is idempotent: prior BEGIN/END marker block is stripped before re-merging' {
+        $script:existingHostsContent = @(
+            '127.0.0.1   localhost',
+            '',
+            '# BEGIN BASELINE-AdobeBlock',
+            '0.0.0.0 stale.adobe.com',
+            '# END BASELINE-AdobeBlock'
+        )
+
+        AdobeNetworkBlock -Enable
+
+        $written = [string[]]$script:setContentCalls[0].Value
+        # Stale entry from prior marker block must NOT survive
+        ($written | Where-Object { $_ -match 'stale\.adobe\.com' }).Count | Should -Be 0
+        # Fresh additions land inside a single new marker block
+        ($written | Where-Object { $_ -eq '# BEGIN BASELINE-AdobeBlock' }).Count | Should -Be 1
     }
 
     It 'reports failed when ipconfig returns a non-zero exit code' {
@@ -164,15 +233,15 @@ Describe 'BraveDebloat' {
         function LogInfo { param([string]$Message) }
         function Test-Path { param([string]$Path) return $script:bravePathExists }
         function New-Item {
-            param([string]$Path, [switch]$Force, [object]$ErrorAction)
+            param([string]$Path, [switch]$Force)
             [void]$script:newItemCalls.Add($Path)
         }
         function Set-ItemProperty {
-            param([string]$Path, [string]$LiteralPath, [string]$Name, [string]$Type, [object]$Value, [switch]$Force, [object]$ErrorAction)
+            param([string]$Path, [string]$LiteralPath, [string]$Name, [string]$Type, [object]$Value, [switch]$Force)
             [void]$script:setPropertyCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name; Value = $Value })
         }
         function Remove-ItemProperty {
-            param([string]$Path, [string]$Name, [switch]$Force, [object]$ErrorAction)
+            param([string]$Path, [string]$Name, [switch]$Force)
             [void]$script:removePropertyCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name })
         }
     }
@@ -217,9 +286,9 @@ Describe 'CrossDeviceResume (build-gated)' {
         function LogError { param([string]$Message) }
         function Test-Windows11FeatureBranchSupport { return $script:isSupported }
         function Test-Path { param([string]$Path) return $true }
-        function New-Item { param([string]$Path, [switch]$Force, [object]$ErrorAction) }
+        function New-Item { param([string]$Path, [switch]$Force) }
         function Set-ItemProperty {
-            param([string]$Path, [string]$LiteralPath, [string]$Name, [string]$Type, [object]$Value, [switch]$Force, [object]$ErrorAction)
+            param([string]$Path, [string]$LiteralPath, [string]$Name, [string]$Type, [object]$Value, [switch]$Force)
             [void]$script:setPropertyCalls.Add([pscustomobject]@{ Name = $Name; Value = $Value })
         }
     }

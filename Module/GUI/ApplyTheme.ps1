@@ -40,7 +40,7 @@
 		if ($BtnClose) { Set-WindowCaptionButtonStyle -Button $BtnClose -Variant 'Close' }
 		if (Get-Command -Name 'Update-GuiNavModeChrome' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			try { Update-GuiNavModeChrome } catch { $null = $_ }
+			try { Update-GuiNavModeChrome } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplyTheme.Set-GUITheme.UpdateGuiNavModeChrome' }
 		}
 		if ($Script:BtnUpdateAllApps) { Set-ButtonChrome -Button $Script:BtnUpdateAllApps -Variant 'Primary' -Compact }
 		if ($Script:BtnDownloadYes) { Set-ButtonChrome -Button $Script:BtnDownloadYes -Variant 'Primary' }
@@ -58,14 +58,17 @@
 		$BottomBorder.BorderBrush = $bc.ConvertFromString($Theme.BorderColor)
 		$TitleText.Foreground = $bc.ConvertFromString($Theme.TextPrimary)
 		$ScanLabel.Foreground = $bc.ConvertFromString($Theme.TextSecondary)
-		$currentStatusText = ''
-		if ($Script:GuiState)
+		$currentStatusText = if ($StatusText) { [string]$StatusText.Text } else { '' }
+		if ($Script:GuiState -and $Script:GuiState.PSObject.Methods['Get'])
 		{
-			try { $currentStatusText = [string](& $Script:GuiState.Get 'StatusText') } catch { $currentStatusText = '' }
-		}
-		elseif ($StatusText)
-		{
-			$currentStatusText = [string]$StatusText.Text
+			try
+			{
+				$currentStatusText = [string](& $Script:GuiState.Get 'StatusText')
+			}
+			catch
+			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplyTheme.Set-GUITheme.ReadStatusText'
+			}
 		}
 		Set-GuiStatusText -Text $currentStatusText -Tone $(if ($Script:CurrentStatusTone) { [string]$Script:CurrentStatusTone } else { 'muted' })
 		Set-HeaderToggleControlsStyle

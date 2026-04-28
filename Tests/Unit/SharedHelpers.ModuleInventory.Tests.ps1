@@ -26,10 +26,17 @@ Describe 'SharedHelpers helper module inventory' {
 
         $helperModules = @(Get-Module 'Baseline.SharedHelpers.*')
 
-        $helperModules.Count | Should -Be 30
+        $helperModules.Count | Should -Be 41
         $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.Manifest'
         $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.GameMode'
+        $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.SingleInstance'
         $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.RemoteTarget'
+        $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.RemovalPersistence'
+        $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.UserApps'
+        $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.NetworkHardening'
+        $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.BrowserPolicies'
+        $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.Json'
+        $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.WindowsUpdate'
     }
 
     It 'surfaces helper exports through Get-Module inventory' {
@@ -37,18 +44,37 @@ Describe 'SharedHelpers helper module inventory' {
 
         $manifestModule = Get-Module 'Baseline.SharedHelpers.Manifest'
         $gameModeModule = Get-Module 'Baseline.SharedHelpers.GameMode'
+        $singleInstanceModule = Get-Module 'Baseline.SharedHelpers.SingleInstance'
         $remoteTargetModule = Get-Module 'Baseline.SharedHelpers.RemoteTarget'
+        $initialActionsModule = Get-Module 'Baseline.SharedHelpers.InitialActions'
+        $windowsUpdateModule = Get-Module 'Baseline.SharedHelpers.WindowsUpdate'
+        $schedulerModule = Get-Module 'Baseline.SharedHelpers.Scheduler'
 
         $manifestModule.ExportedCommands.Keys | Should -Contain 'Get-TweakManifestEntryValue'
         $manifestModule.ExportedCommands.Keys | Should -Contain 'Import-TweakManifestFromData'
         $gameModeModule.ExportedCommands.Keys | Should -Contain 'Get-GameModeProfileDefinitions'
         $gameModeModule.ExportedCommands.Keys | Should -Contain 'Test-GameModeManifestDefaultEnabled'
+        $singleInstanceModule.ExportedCommands.Keys | Should -Contain 'Get-BaselineSingleInstanceMutexName'
+        $singleInstanceModule.ExportedCommands.Keys | Should -Contain 'Test-BaselineSingleInstanceLockAvailable'
+        $singleInstanceModule.ExportedCommands.Keys | Should -Contain 'Resolve-BaselineSingleInstanceDecision'
+        (Get-Module 'Baseline.SharedHelpers.PlatformSupport').ExportedCommands.Keys | Should -Contain 'Get-BaselinePlatformFilterOverride'
         $remoteTargetModule.ExportedCommands.Keys | Should -Contain 'Resume-BaselineRemoteOrchestration'
+        $initialActionsModule.ExportedCommands.Keys | Should -Contain 'Resolve-BaselineSettingsAppsFeaturesHealthAssessment'
+        $initialActionsModule.ExportedCommands.Keys | Should -Contain 'Resolve-BaselineScreenSnippingHealthAssessment'
+        $windowsUpdateModule.ExportedCommands.Keys | Should -Contain 'Get-WindowsUpdateList'
+        $windowsUpdateModule.ExportedCommands.Keys | Should -Contain 'Install-WindowsSecurityUpdates'
+        $windowsUpdateModule.ExportedCommands.Keys | Should -Contain 'Download-WindowsUpdates'
+        $windowsUpdateModule.ExportedCommands.Keys | Should -Contain 'Install-WindowsUpdates'
+        $windowsUpdateModule.ExportedCommands.Keys | Should -Contain 'Get-WindowsUpdateStatus'
+        $windowsUpdateModule.ExportedCommands.Keys | Should -Contain 'Get-WindowsUpdateCompliance'
+        $windowsUpdateModule.ExportedCommands.Keys | Should -Contain 'Invoke-BaselineWindowsUpdateScheduledRun'
+        $windowsUpdateModule.ExportedCommands.Keys | Should -Contain 'Get-WindowsUpdateHistory'
+        $schedulerModule.ExportedCommands.Keys | Should -Contain 'Register-BaselineWindowsUpdateScheduledRun'
     }
 
     It 'removes helper slice modules when SharedHelpers is unloaded' {
         Import-Module $script:ModulePath -Force
-        @(Get-Module 'Baseline.SharedHelpers.*').Count | Should -Be 30
+        @(Get-Module 'Baseline.SharedHelpers.*').Count | Should -Be 41
 
         Remove-Module SharedHelpers -Force
 

@@ -1,10 +1,29 @@
-# Configuration profile helper slice for Baseline.
+# Configuration profile helpers for Baseline.
 # Provides portable configuration profile creation, import/export, compatibility
 # checking, comparison, and conversion from existing presets.
 # Uses Write-BaselineDocument / Read-BaselineDocument patterns for persistence.
 
 $Script:ConfigProfileSchema = 'Baseline.ConfigProfile'
-$Script:ConfigProfileSchemaVersion = 2
+$Script:ConfigProfileSchemaVersion = 3
+
+function Write-ConfigProfileDebugSwallowedException
+{
+	param (
+		[Parameter(Mandatory)]
+		[System.Management.Automation.ErrorRecord]$ErrorRecord,
+
+		[Parameter(Mandatory)]
+		[string]$Source
+	)
+
+	if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Write-DebugSwallowedException -ErrorRecord $ErrorRecord -Source $Source
+		return
+	}
+
+	Write-Verbose ("{0}: {1}" -f $Source, $ErrorRecord.Exception.Message)
+}
 
 <#
     .SYNOPSIS
@@ -148,6 +167,10 @@ function New-ConfigurationProfile
 
 		[array]$AppActions = @(),
 
+		[array]$UserApps = @(),
+
+		[array]$IncludePaths = @(),
+
 		[Parameter(Mandatory)]
 		[string]$BaselineVersion,
 
@@ -171,7 +194,10 @@ function New-ConfigurationProfile
 			}
 		}
 	}
-	catch { }
+	catch
+	{
+		Write-ConfigProfileDebugSwallowedException -ErrorRecord $_ -Source 'ConfigProfile.New-ConfigurationProfile.WindowsVersionData'
+	}
 
 	try
 	{
@@ -181,10 +207,13 @@ function New-ConfigurationProfile
 			$edition = [string]$currentVersion.EditionID
 		}
 	}
-	catch { }
+	catch
+	{
+		Write-ConfigProfileDebugSwallowedException -ErrorRecord $_ -Source 'ConfigProfile.New-ConfigurationProfile.CurrentVersion'
+	}
 
 	# Build normalized entry list from selections.
-	$entries = [System.Collections.Generic.List[ordered]]::new()
+	$entries = [System.Collections.Generic.List[object]]::new()
 	foreach ($selection in @($Selections))
 	{
 		if ($null -eq $selection) { continue }
@@ -282,7 +311,7 @@ function New-ConfigurationProfile
 		$entries.Add($entry)
 	}
 
-	$appActionEntries = [System.Collections.Generic.List[ordered]]::new()
+	$appActionEntries = [System.Collections.Generic.List[object]]::new()
 	foreach ($appAction in @($AppActions))
 	{
 		if ($null -eq $appAction) { continue }
@@ -330,6 +359,79 @@ function New-ConfigurationProfile
 		}) | Out-Null
 	}
 
+	# Inline a snapshot of user-added external software entries so the profile
+	# is portable: importing on a different machine can restore the catalog
+	# definitions, not just selection state. Only fields that round-trip safely
+	# are copied — runtime annotations (Source, SourceFile) are stripped.
+	$userAppEntries = [System.Collections.Generic.List[object]]::new()
+	$userAppCarryFields = @('Name', 'SubCategory', 'Function', 'Description', 'Category', 'Risk', 'Restorable')
+	foreach ($userApp in @($UserApps))
+	{
+		if ($null -eq $userApp) { continue }
+
+		$resolveProp = {
+			param ($obj, $field)
+			if ($null -eq $obj) { return $null }
+			if ($obj -is [System.Collections.IDictionary])
+			{
+				if ($obj.Contains($field)) { return $obj[$field] }
+				return $null
+			}
+			if ($obj.PSObject -and $obj.PSObject.Properties[$field]) { return $obj.$field }
+			return $null
+		}
+
+		$nameValue = [string](& $resolveProp $userApp 'Name')
+		if ([string]::IsNullOrWhiteSpace($nameValue)) { continue }
+
+		$normalized = [ordered]@{}
+		foreach ($field in $userAppCarryFields)
+		{
+			$fieldValue = & $resolveProp $userApp $field
+			if ($null -ne $fieldValue) { $normalized[$field] = $fieldValue }
+		}
+
+		# Function defaults to AppInstall — Test-BaselineUserAppEntry rejects
+		# anything else, so stamping it explicitly here matches the security
+		# guard on the dialog's save path.
+		if (-not $normalized.Contains('Function') -or [string]::IsNullOrWhiteSpace([string]$normalized['Function']))
+		{
+			$normalized['Function'] = 'AppInstall'
+		}
+
+		$extraArgs = & $resolveProp $userApp 'ExtraArgs'
+		if ($null -ne $extraArgs)
+		{
+			$winGetId = [string](& $resolveProp $extraArgs 'WinGetId')
+			$chocoId = [string](& $resolveProp $extraArgs 'ChocoId')
+			$extraNormalized = [ordered]@{}
+			if (-not [string]::IsNullOrWhiteSpace($winGetId)) { $extraNormalized['WinGetId'] = $winGetId }
+			if (-not [string]::IsNullOrWhiteSpace($chocoId)) { $extraNormalized['ChocoId'] = $chocoId }
+			if ($extraNormalized.Count -gt 0)
+			{
+				$normalized['ExtraArgs'] = $extraNormalized
+			}
+		}
+
+		$userAppEntries.Add($normalized) | Out-Null
+	}
+
+	$includePathEntries = [System.Collections.Generic.List[string]]::new()
+	$includePathSeen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+	foreach ($includePath in @($IncludePaths))
+	{
+		if ([string]::IsNullOrWhiteSpace([string]$includePath))
+		{
+			continue
+		}
+
+		$normalizedIncludePath = ([string]$includePath).Trim()
+		if ($includePathSeen.Add($normalizedIncludePath))
+		{
+			[void]$includePathEntries.Add($normalizedIncludePath)
+		}
+	}
+
 	$profile = [ordered]@{
 		Schema             = $Script:ConfigProfileSchema
 		SchemaVersion      = $Script:ConfigProfileSchemaVersion
@@ -345,6 +447,8 @@ function New-ConfigurationProfile
 		}
 		Entries            = @($entries)
 		AppActions         = @($appActionEntries)
+		UserApps           = @($userAppEntries)
+		IncludePaths       = @($includePathEntries)
 	}
 
 	return [pscustomobject]$profile
@@ -380,6 +484,94 @@ function Export-ConfigurationProfile
 	$json = ConvertTo-Json -InputObject $Profile -Depth 16
 	$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 	[System.IO.File]::WriteAllText($FilePath, $json, $utf8NoBom)
+}
+
+<#
+    .SYNOPSIS
+    Internal function Export-BaselineFirstLogonCommandSnippet.
+#>
+
+function Export-BaselineFirstLogonCommandSnippet
+{
+	<#
+		.SYNOPSIS
+		Writes a FirstLogonCommands XML snippet for autounattend-based runs.
+
+		.DESCRIPTION
+		Generates a single SynchronousCommand entry that invokes Baseline with a
+		saved configuration profile path, then writes the snippet to disk as UTF-8
+		without a BOM. The output is intentionally a snippet, not a full unattend
+		document, so it can be pasted into an existing autounattend.xml.
+	#>
+	[CmdletBinding()]
+	[OutputType([pscustomobject])]
+	param (
+		[Parameter(Mandatory)]
+		[string]$ConfigPath,
+
+		[Parameter(Mandatory)]
+		[string]$FilePath,
+
+		[Parameter()]
+		[string]$BaselineExePath = 'Baseline.exe',
+
+		[Parameter()]
+		[string]$Description = 'Run Baseline configuration profile',
+
+		[Parameter()]
+		[ValidateRange(1, [int]::MaxValue)]
+		[int]$Order = 1
+	)
+
+	if ([string]::IsNullOrWhiteSpace($ConfigPath))
+	{
+		throw 'ConfigPath is required.'
+	}
+	if ([string]::IsNullOrWhiteSpace($FilePath))
+	{
+		throw 'FilePath is required.'
+	}
+	if ([string]::IsNullOrWhiteSpace($BaselineExePath))
+	{
+		throw 'BaselineExePath is required.'
+	}
+	if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf))
+	{
+		throw "Configuration profile not found: $ConfigPath"
+	}
+
+	$normalizedConfigPath = [System.IO.Path]::GetFullPath($ConfigPath)
+	$normalizedBaselineExePath = ([string]$BaselineExePath).Trim().Trim('"')
+	$commandLine = '{0} --configfile "{1}" --apply' -f $normalizedBaselineExePath, $normalizedConfigPath
+	$escapedCommandLine = [System.Security.SecurityElement]::Escape($commandLine)
+	$escapedDescription = [System.Security.SecurityElement]::Escape([string]$Description)
+
+	$xml = @"
+<FirstLogonCommands xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+  <SynchronousCommand wcm:action="add">
+    <Order>$Order</Order>
+    <Description>$escapedDescription</Description>
+    <CommandLine>$escapedCommandLine</CommandLine>
+  </SynchronousCommand>
+</FirstLogonCommands>
+"@
+
+	$parentDir = Split-Path -Path $FilePath -Parent
+	if (-not [string]::IsNullOrWhiteSpace($parentDir) -and -not (Test-Path -LiteralPath $parentDir))
+	{
+		[void](New-Item -Path $parentDir -ItemType Directory -Force)
+	}
+
+	$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+	[System.IO.File]::WriteAllText($FilePath, $xml, $utf8NoBom)
+
+	return [pscustomobject]@{
+		ConfigPath        = $normalizedConfigPath
+		FilePath          = $FilePath
+		BaselineExePath   = $normalizedBaselineExePath
+		CommandLine       = $commandLine
+		Xml               = $xml
+	}
 }
 
 <#
@@ -444,6 +636,48 @@ function Import-ConfigurationProfile
 
 <#
     .SYNOPSIS
+    Internal function Import-ConfigurationProfileIncludeLibraries.
+#>
+
+function Import-ConfigurationProfileIncludeLibraries
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[object]$Profile
+	)
+
+	if ($null -eq $Profile)
+	{
+		return
+	}
+
+	$includePaths = @()
+	if ($Profile.PSObject.Properties['IncludePaths'] -and $null -ne $Profile.IncludePaths)
+	{
+		$includePaths = @(
+			@($Profile.IncludePaths) |
+				Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+				ForEach-Object { ([string]$_).Trim() }
+		)
+	}
+
+	if ($includePaths.Count -eq 0)
+	{
+		return
+	}
+
+	$importHelper = Get-Command -Name 'Import-BaselineIncludedTweakLibraries' -CommandType Function -ErrorAction SilentlyContinue
+	if (-not $importHelper)
+	{
+		throw 'Import-BaselineIncludedTweakLibraries is not available to load profile include paths.'
+	}
+
+	& $importHelper -IncludePaths $includePaths
+}
+
+<#
+    .SYNOPSIS
     Internal function Test-ConfigurationProfileCompatibility.
 #>
 
@@ -491,7 +725,10 @@ function Test-ConfigurationProfileCompatibility
 			[void][int]::TryParse([string]$versionData.CurrentBuild, [ref]$currentBuild)
 		}
 	}
-	catch { }
+	catch
+	{
+		Write-ConfigProfileDebugSwallowedException -ErrorRecord $_ -Source 'ConfigProfile.Test-ConfigurationProfileCompatibility.WindowsVersionData'
+	}
 
 	if ($requiredBuild -gt 0 -and $currentBuild -gt 0 -and $currentBuild -lt $requiredBuild)
 	{
@@ -516,7 +753,10 @@ function Test-ConfigurationProfileCompatibility
 				$currentEdition = [string]$currentVersion.EditionID
 			}
 		}
-		catch { }
+		catch
+		{
+			Write-ConfigProfileDebugSwallowedException -ErrorRecord $_ -Source 'ConfigProfile.Test-ConfigurationProfileCompatibility.CurrentVersion'
+		}
 
 		if (-not [string]::IsNullOrWhiteSpace($currentEdition))
 		{
@@ -726,7 +966,7 @@ function ConvertFrom-PresetToProfile
 	$commandList = Get-HeadlessPresetCommandList -PresetName $PresetName -ModuleRoot $ModuleRoot
 
 	# Resolve each command line into a selection object.
-	$selections = [System.Collections.Generic.List[ordered]]::new()
+	$selections = [System.Collections.Generic.List[object]]::new()
 	foreach ($commandLine in @($commandList))
 	{
 		if ([string]::IsNullOrWhiteSpace([string]$commandLine)) { continue }
@@ -830,16 +1070,238 @@ function ConvertFrom-PresetToProfile
 	$baselineVersion = $null
 	if (Get-Command -Name 'Get-BaselineDisplayVersion' -ErrorAction SilentlyContinue)
 	{
-		try { $baselineVersion = Get-BaselineDisplayVersion } catch { }
+		try { $baselineVersion = Get-BaselineDisplayVersion } catch { Write-ConfigProfileDebugSwallowedException -ErrorRecord $_ -Source 'ConfigProfile.ConvertFrom-PresetToProfile.BaselineVersion' }
 	}
 	if ([string]::IsNullOrWhiteSpace($baselineVersion))
 	{
 		$baselineVersion = 'unknown'
 	}
 
+	$includePaths = @()
+	$includePathCmd = Get-Command -Name 'Get-HeadlessPresetIncludedTweakLibraryPathSet' -CommandType Function -ErrorAction SilentlyContinue
+	if ($includePathCmd)
+	{
+		$includePaths = @(& $includePathCmd)
+	}
+
 	return New-ConfigurationProfile `
 		-Name $PresetName `
 		-Selections @($selections) `
+		-IncludePaths $includePaths `
 		-BaselineVersion $baselineVersion `
 		-Description "Profile converted from preset '$PresetName'."
+}
+
+<#
+    .SYNOPSIS
+    Internal function ConvertFrom-BaselineConfigProfileToRunList.
+#>
+
+function ConvertFrom-BaselineConfigProfileToRunList
+{
+	<#
+		.SYNOPSIS
+		Projects an imported configuration profile's Entries[] back into
+		runlist-shaped hashtables keyed against the live tweak manifest.
+
+		.DESCRIPTION
+		Used by the GUI Import Config Profile flow to translate a portable
+		profile document into the same shape Get-SelectedTweakRunList emits
+		(Function, Type, Selection, ToggleParam, Value, SelectedValue,
+		NumericValue, ACValue, DCValue, ExtraArgs), so it can be fed to
+		Start-GuiExecutionRun without first having to mutate GUI controls.
+
+		Each profile entry is joined to the manifest by Function name; entries
+		without a manifest match are skipped (they cannot be run on this
+		Baseline build). Manifest fields supply the static metadata
+		(Index, Name, Risk, Category, RequiresRestart, OnParam/OffParam,
+		Options/DisplayOptions, NumericRange.Units), the profile entry
+		supplies the chosen value.
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[object]$Profile,
+
+		[Parameter(Mandatory)]
+		[array]$Manifest
+	)
+
+	$runList = [System.Collections.Generic.List[hashtable]]::new()
+
+	try
+	{
+		Import-ConfigurationProfileIncludeLibraries -Profile $Profile
+	}
+	catch
+	{
+		throw "Failed to import configuration profile include libraries before run-list conversion: $($_.Exception.Message)"
+	}
+
+	$profileEntries = @()
+	if ($Profile -and $Profile.PSObject.Properties['Entries']) { $profileEntries = @($Profile.Entries) }
+	if (-not $profileEntries -or $profileEntries.Count -eq 0)
+	{
+		return ,@($runList.ToArray())
+	}
+
+	for ($pi = 0; $pi -lt $profileEntries.Count; $pi++)
+	{
+		$pe = $profileEntries[$pi]
+		if (-not $pe) { continue }
+
+		$functionName = $null
+		if ($pe.PSObject.Properties['Function']) { $functionName = [string]$pe.Function }
+		if ([string]::IsNullOrWhiteSpace($functionName)) { continue }
+
+		# Locate the matching manifest entry and its index for run-list shape parity.
+		$manifestIndex = -1
+		$manifestEntry = $null
+		for ($mi = 0; $mi -lt @($Manifest).Count; $mi++)
+		{
+			$me = $Manifest[$mi]
+			if (-not $me) { continue }
+			$meFunction = [string](Get-TweakManifestEntryValue -Entry $me -FieldName 'Function')
+			if ([string]::IsNullOrWhiteSpace($meFunction)) { continue }
+			if ($meFunction.Equals($functionName, [System.StringComparison]::OrdinalIgnoreCase))
+			{
+				$manifestEntry = $me
+				$manifestIndex = $mi
+				break
+			}
+		}
+		if (-not $manifestEntry) { continue }
+
+		$entryType = if ($pe.PSObject.Properties['Type']) { [string]$pe.Type } else { 'Toggle' }
+		$manifestType = [string](Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'Type')
+		if ([string]::IsNullOrWhiteSpace($entryType) -and -not [string]::IsNullOrWhiteSpace($manifestType))
+		{
+			$entryType = $manifestType
+		}
+
+		$category = if ($pe.PSObject.Properties['Category']) { [string]$pe.Category } else { [string](Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'Category') }
+		$risk = [string](Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'Risk')
+		$restorable = (Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'Restorable')
+		$requiresRestart = [bool](Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'RequiresRestart')
+		$impact = (Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'Impact')
+		$presetTier = (Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'PresetTier')
+		$nameValue = [string](Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'Name')
+		$onParam = [string](Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'OnParam')
+		$offParam = [string](Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'OffParam')
+		$defaultValue = (Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'Default')
+
+		$row = [ordered]@{
+			Key             = [string]$manifestIndex
+			Index           = $manifestIndex
+			Name            = $nameValue
+			Function        = $functionName
+			Type            = $entryType
+			Category        = $category
+			Risk            = $risk
+			Restorable      = $restorable
+			RequiresRestart = $requiresRestart
+			Impact          = $impact
+			PresetTier      = $presetTier
+			IsChecked       = $true
+			ExtraArgs       = $null
+		}
+
+		$skipRow = $false
+		switch ($entryType)
+		{
+			'Choice'
+			{
+				$selectedRaw = $null
+				if ($pe.PSObject.Properties['SelectedValue']) { $selectedRaw = [string]$pe.SelectedValue }
+				elseif ($pe.PSObject.Properties['Value']) { $selectedRaw = [string]$pe.Value }
+
+				$options = (Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'Options')
+				$displayOptions = (Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'DisplayOptions')
+				if (-not $displayOptions) { $displayOptions = $options }
+				$selectedIdx = -1
+				if ($options -and -not [string]::IsNullOrWhiteSpace($selectedRaw))
+				{
+					$optionList = [object[]]@($options)
+					$selectedIdx = [array]::IndexOf($optionList, $selectedRaw)
+					if ($selectedIdx -lt 0 -and $displayOptions)
+					{
+						$selectedIdx = [array]::IndexOf([object[]]@($displayOptions), $selectedRaw)
+					}
+				}
+				if ($selectedIdx -lt 0) { $skipRow = $true; break }
+
+				$row.Selection      = [string]$displayOptions[$selectedIdx]
+				$row.Value          = $options[$selectedIdx]
+				$row.SelectedIndex  = [int]$selectedIdx
+				$row.SelectedValue  = [string]$displayOptions[$selectedIdx]
+				$row.DefaultIndex   = if ($options) { [array]::IndexOf([object[]]@($options), $defaultValue) } else { -1 }
+				$row.DefaultValue   = if ($null -ne $defaultValue) { [string]$defaultValue } else { $null }
+				$row.ExtraArgs      = (Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'ExtraArgs')
+			}
+			'NumericRange'
+			{
+				$numericRange = (Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'NumericRange')
+				$units = $null
+				if ($numericRange -and ($numericRange.PSObject.Properties['Units']))
+				{
+					$units = [string]$numericRange.Units
+				}
+
+				$acValue = if ($pe.PSObject.Properties['ACValue']) { $pe.ACValue } else { $null }
+				$dcValue = if ($pe.PSObject.Properties['DCValue']) { $pe.DCValue } else { $null }
+				$numericValue = if ($pe.PSObject.Properties['NumericValue']) { $pe.NumericValue } else { $null }
+				$valueObject = $null
+				if ($pe.PSObject.Properties['Value']) { $valueObject = $pe.Value }
+
+				if ($null -eq $valueObject -and ($null -ne $acValue -or $null -ne $dcValue))
+				{
+					$valueObject = [pscustomobject]@{ ACValue = $acValue; DCValue = $dcValue }
+				}
+				if ($null -eq $valueObject -and $null -ne $numericValue)
+				{
+					$valueObject = $numericValue
+				}
+
+				$row.Selection    = if ($null -ne $valueObject) { [string]$valueObject } else { '' }
+				$row.Value        = $valueObject
+				$row.NumericValue = $numericValue
+				$row.ACValue      = $acValue
+				$row.DCValue      = $dcValue
+				$row.Units        = $units
+				$row.DefaultValue = $defaultValue
+			}
+			'Date'
+			{
+				$dateValue = if ($pe.PSObject.Properties['Value']) { [string]$pe.Value } else { $null }
+				$runFlag = $true
+				if ($pe.PSObject.Properties['Run']) { $runFlag = [bool]$pe.Run }
+
+				$row.Run         = $runFlag
+				$row.Value       = $dateValue
+				$row.DateValue   = $dateValue
+				$row.DateParam   = if ($pe.PSObject.Properties['DateParam']) { [string]$pe.DateParam } else { [string](Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'DateParam') }
+				$row.Selection   = if ($runFlag -and -not [string]::IsNullOrWhiteSpace($dateValue)) { $dateValue } elseif ($runFlag) { 'Pause enabled' } else { 'Pause cleared' }
+				$row.ToggleParam = if ($runFlag) { if (-not [string]::IsNullOrWhiteSpace($onParam)) { $onParam } else { 'Enable' } } else { if (-not [string]::IsNullOrWhiteSpace($offParam)) { $offParam } else { 'Disable' } }
+				$row.IsChecked   = $runFlag
+				$row.DefaultValue = $defaultValue
+			}
+			default
+			{
+				# Toggle (or unspecified type — treat as Toggle).
+				$paramRaw = if ($pe.PSObject.Properties['Param']) { [string]$pe.Param } else { $null }
+				if ([string]::IsNullOrWhiteSpace($paramRaw)) { $skipRow = $true; break }
+
+				$row.Selection    = $paramRaw
+				$row.ToggleParam  = $paramRaw
+				$row.OnParam      = $onParam
+				$row.OffParam     = $offParam
+				$row.DefaultValue = if ($null -ne $defaultValue) { [bool]$defaultValue } else { $false }
+			}
+		}
+
+		if ($skipRow) { continue }
+		$runList.Add([hashtable]$row)
+	}
+
+	return ,@($runList.ToArray())
 }

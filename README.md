@@ -52,6 +52,10 @@ It includes:
 - logging, validation, and metadata tooling for maintainability
 - coverage across privacy, telemetry, security, Defender, UI, taskbar, Start menu, OneDrive, UWP apps, networking, gaming, and system behavior
 
+### Defender ASR note
+
+The Take Ownership context-menu toggle is a shell convenience feature. On systems with Microsoft Defender Attack Surface Reduction rules enabled, that shell extension can trigger Microsoft-documented ASR behavior. Review the Defender metadata and Preview Run output before enabling it on hardened endpoints.
+
 ## Supported platforms
 
 <table>
@@ -130,7 +134,7 @@ Baseline is intentionally opinionated about when it warns and when it stays cons
   - compliance drift detection with one-click "Fix Drift" remediation
   - append-only audit trail with timeline view and HTML/Markdown export
   - scheduled automation via Windows Scheduled Tasks
-  - multi-machine targeting via PowerShell Remoting (CLI preview, untested on Server)
+  - multi-machine targeting via PowerShell Remoting with CLI and GUI workflows (Server remains best-effort)
 
 - **UX clarity and safety**
   - automated pre-flight checks (admin, disk space, WMI, VSS, system restore)
@@ -157,7 +161,7 @@ Baseline is intentionally opinionated about when it warns and when it stays cons
   - compliance checks with JSON profile input
 
 - **Manifest-driven design**
-  - tweak metadata stored in JSON (~275 entries across 16 category files)
+  - tweak metadata stored in JSON (368 entries across 17 category files)
   - preset definitions stored separately from implementation
   - validation tooling for duplicate entries, missing metadata, and ownership mismatches
 
@@ -252,6 +256,82 @@ Once 4.x is promoted to a signed release channel, this section and the policy do
 ```
 
 > **Note:** Headless runs may require `Set-ExecutionPolicy Bypass -Scope Process` if your execution policy blocks unsigned scripts.
+
+### Unattended / scripted use
+
+Baseline ships a stable CLI surface for unattended automation (clean-install pipelines, MDT/SCCM, scheduled tasks). All flags work with `Baseline.exe` (the launcher forwards every argument straight to `Bootstrap\Baseline.ps1`) or with `Bootstrap\Baseline.ps1` directly.
+
+#### Apply an exported configuration profile
+
+```powershell
+.\Baseline.exe -ProfilePath .\baseline-profile.json
+```
+
+`-ProfilePath` alone implies apply — Baseline never silently no-ops a config-file argument. The run is headless: no GUI window, no modal dialogs, no input prompts.
+
+#### Export a first-logon command for autounattend
+
+Use the GUI's `Export First-Logon Command` action after you've saved a configuration profile. It prompts for the saved `*.json` profile path and writes an `autounattend.xml`-compatible `FirstLogonCommands` XML snippet that runs Baseline with that profile on first boot.
+
+The generated snippet wraps the selected path into a `Baseline.exe --configfile "<saved-profile.json>" --apply` command line and XML-escapes it for pasting into your answer file.
+
+Drop the generated XML and the saved profile onto install media together. If Baseline itself lives somewhere other than `Baseline.exe` on the target machine, update the generated `CommandLine` before you paste the snippet into your answer file.
+
+#### Apply a named preset unattended
+
+```powershell
+.\Baseline.exe -ApplyPreset Balanced
+```
+
+`-ApplyPreset <name>` is the unattended shortcut for "apply preset <name> with no GUI". For interactive use, the original `-Preset <name>` flag still works.
+
+#### List available presets
+
+```powershell
+.\Baseline.exe -ListPresets
+```
+
+Prints the preset catalog (Name / Description / Path / Tier) to stdout and exits 0. Safe to call from automation that needs to discover preset names; runs without loading the GUI or any heavy modules.
+
+#### Force headless on a regular run
+
+```powershell
+.\Baseline.exe -Preset Basic -NoGui
+```
+
+`-NoGui` forces headless even when no other intent flag is present. Errors are written to the launch trace and daily log; no `MessageBox` is ever shown.
+
+#### Redirect the daily log
+
+```powershell
+.\Baseline.exe -Preset Basic -LogPath C:\Logs\baseline-{date}.log
+```
+
+`-LogPath` accepts an absolute path, a relative path, or a directory. Missing parent directories are created on demand. If the override is unwritable, Baseline falls back to the default location (`%LOCALAPPDATA%\Baseline\UserState\Logs\`) with a warning.
+
+#### Exit codes
+
+Unattended runs emit structured exit codes so CI/CD or scheduled tasks can branch on the result:
+
+| Code | Meaning |
+|------|---------|
+| `0` | Clean — every selected tweak applied successfully (or no tweaks were selected) |
+| `1` | Partial — at least one tweak failed; daily log + classified errors describe which |
+| `2` | Preflight fail — Baseline could not run (single-instance gate denied, missing dependencies, malformed CLI args) |
+
+Exit codes are emitted from both the headless `-Functions` / `-ProfilePath` paths and the GUI-driven Apply path, so an embedded host (`Baseline.exe` invoked from a parent process) can read the result either way.
+
+#### Combining flags
+
+```powershell
+.\Baseline.exe -ProfilePath .\my-profile.json -LogPath C:\Logs\baseline.log -NoGui
+```
+
+```powershell
+.\Baseline.exe -ApplyPreset Minimal -DryRun
+```
+
+`-DryRun` works with every apply path and pins exit code `0`.
 
 ### Dry run (preview without applying)
 

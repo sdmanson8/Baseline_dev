@@ -149,18 +149,24 @@ jobs:
           Expand-Archive -LiteralPath $zip.FullName -DestinationPath $stage -Force
           $setup = Get-ChildItem -Path $stage -Filter 'Baseline-setup-*.exe' -Recurse -File -Depth 3 | Select-Object -First 1
           if (-not $setup) { throw "Release zip $($zip.FullName) does not contain Baseline-setup-*.exe (bootstrap would fail)." }
-          Write-Host "OK: $($zip.Name) -> $($setup.FullName)"
+          $bootstrapInstall = Get-ChildItem -Path $stage -Filter 'Bootstrap.Install.ps1' -Recurse -File -Depth 4 | Select-Object -First 1
+          if (-not $bootstrapInstall) { throw "Release zip $($zip.FullName) does not contain Bootstrap.Install.ps1 (verified bootstrap handoff would fail)." }
+          $bootstrapHelpers = Join-Path (Split-Path -Path $bootstrapInstall.FullName -Parent) 'Helpers\Bootstrap.Helpers.ps1'
+          if (-not (Test-Path -LiteralPath $bootstrapHelpers -PathType Leaf)) { throw "Release zip $($zip.FullName) does not contain Bootstrap\Helpers\Bootstrap.Helpers.ps1 beside Bootstrap.Install.ps1." }
+          Write-Host "OK: $($zip.Name) -> $($setup.FullName) and $($bootstrapInstall.FullName)"
 
-      - name: Validate bootstrap setup-exe probe matches artifact layout
+      - name: Validate bootstrap verified handoff probe matches artifact layout
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           $stage = Join-Path $env:RUNNER_TEMP 'release-validate'
           $bootstrapPath = Join-Path (Get-Location) 'Bootstrap\Bootstrap.ps1'
           $ast = [System.Management.Automation.Language.Parser]::ParseFile($bootstrapPath, [ref]$null, [ref]$null)
-          $fn = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Find-BootstrapSetupExecutable' }, $true) | Select-Object -First 1
-          if (-not $fn) { throw 'Find-BootstrapSetupExecutable is missing from Bootstrap.ps1' }
+          $fn = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Find-BootstrapInstallScript' }, $true) | Select-Object -First 1
+          if (-not $fn) { throw 'Find-BootstrapInstallScript is missing from Bootstrap.ps1' }
           Invoke-Expression $fn.Extent.Text
-          $resolved = Find-BootstrapSetupExecutable -ExtractRoot $stage
-          if (-not $resolved) { throw "Bootstrap probe could not find the setup exe under $stage" }
-          Write-Host "OK: bootstrap resolves $resolved"
+          $resolved = Find-BootstrapInstallScript -ExtractRoot $stage
+          if (-not $resolved) { throw "Bootstrap probe could not find Bootstrap.Install.ps1 under $stage" }
+          $helper = Join-Path (Split-Path -Path $resolved -Parent) 'Helpers\Bootstrap.Helpers.ps1'
+          if (-not (Test-Path -LiteralPath $helper -PathType Leaf)) { throw "Bootstrap handoff helper was not found beside $resolved" }
+          Write-Host "OK: bootstrap resolves verified handoff script $resolved"

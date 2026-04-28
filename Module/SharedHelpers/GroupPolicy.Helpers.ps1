@@ -1,4 +1,4 @@
-# Group Policy conflict-detection helper slice for Baseline.
+# Group Policy conflict-detection helpers for Baseline.
 #
 # Compares each tweak's intended registry write against the policy hives
 # (HKLM/HKCU \SOFTWARE\Policies\...) so we can warn the user that an enforced
@@ -92,10 +92,11 @@ function Get-BaselineGpoPolicyValueState
             $kind = $key.GetValueKind($Name)
             $result.Type = [string]$kind
         }
-        catch { }
+        catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'GroupPolicy.GetBaselineGpoPolicyValueState.GetValueKind' }
     }
     catch
     {
+        Write-DebugSwallowedException -ErrorRecord $_ -Source 'GroupPolicy.GetBaselineGpoPolicyValueState.LoadValue'
         $result.Exists = $false
     }
 
@@ -126,7 +127,7 @@ function Get-BaselineGpoEnvironmentSummary
         $domainJoined = [bool]$cs.PartOfDomain
         if ($domainJoined) { $domainName = [string]$cs.Domain }
     }
-    catch { }
+    catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'GroupPolicy.GetBaselineGpoEnvironmentSummary.LoadComputerSystem' }
 
     $mdmEnrolled = $false
     try
@@ -142,7 +143,7 @@ function Get-BaselineGpoEnvironmentSummary
             }
         }
     }
-    catch { }
+    catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'GroupPolicy.GetBaselineGpoEnvironmentSummary.LoadEnrollments' }
 
     $populated = [System.Collections.Generic.List[string]]::new()
     foreach ($root in $Script:CachedBaselineGpoPolicyHiveRoots)
@@ -155,7 +156,7 @@ function Get-BaselineGpoEnvironmentSummary
                 if ($children.Count -gt 0) { [void]$populated.Add($root) }
             }
         }
-        catch { }
+        catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'GroupPolicy.GetBaselineGpoEnvironmentSummary.ScanPolicyRoot' }
     }
 
     return [pscustomobject]@{
@@ -316,3 +317,4 @@ function Format-BaselineGpoConflictReport
 
     return $sb.ToString()
 }
+

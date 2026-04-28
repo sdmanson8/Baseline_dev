@@ -139,12 +139,12 @@ Describe 'Dialog creation contracts (W-1a)' {
             Should -Not -BeNullOrEmpty
     }
 
-    It 'Show-ThemedDialog function exists (exported from GUICommon)' {
+    It 'Show-ThemedDialog function exists (available in GUICommon)' {
         Get-Command -Name 'Show-ThemedDialog' -CommandType Function -ErrorAction SilentlyContinue |
             Should -Not -BeNullOrEmpty
     }
 
-    It 'Show-ExecutionSummaryDialog function exists (exported from GUICommon)' {
+    It 'Show-ExecutionSummaryDialog function exists (available in GUICommon)' {
         Get-Command -Name 'Show-ExecutionSummaryDialog' -CommandType Function -ErrorAction SilentlyContinue |
             Should -Not -BeNullOrEmpty
     }

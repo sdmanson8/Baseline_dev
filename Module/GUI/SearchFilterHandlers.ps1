@@ -3,6 +3,7 @@
 	$Script:SetSafeModeStateScript = ${function:Set-SafeModeState}
 	$Script:SetAdvancedModeStateScript = ${function:Set-AdvancedModeState}
 	$Script:SetGameModeStateScript = ${function:Set-GameModeState}
+	$Script:SetDesignModeStateScript = ${function:Set-DesignModeState}
 	$Script:SaveCurrentTabScrollOffsetScript = ${function:Save-CurrentTabScrollOffset}
 	$Script:UpdateMainContentPanelWidthScript = ${function:Update-MainContentPanelWidth}
 	$testGuiRunInProgressCapture = $Script:TestGuiRunInProgressScript
@@ -93,6 +94,27 @@
 			)
 		}
 	})
+	$null = Register-GuiEventHandler -Source $CmbPlatformFilter -EventName 'SelectionChanged' -Handler ({
+		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
+		$selectedPlatform = if ($CmbPlatformFilter.SelectedIndex -ge 0 -and $Script:PlatformFilterInternalValues -and $CmbPlatformFilter.SelectedIndex -lt $Script:PlatformFilterInternalValues.Count) { $Script:PlatformFilterInternalValues[$CmbPlatformFilter.SelectedIndex] } else { 'ThisDevice' }
+		Set-PlatformFilterState -PlatformFilter $selectedPlatform
+		if ($Script:UpdateCurrentTabContentScript)
+		{
+			& $Script:UpdateCurrentTabContentScript -SkipIdlePrebuild
+		}
+		elseif (Get-Command -Name 'Update-CurrentTabContent' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-CurrentTabContent -SkipIdlePrebuild
+		}
+		if ($selectedPlatform -ne 'ThisDevice' -and $FilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Collapsed)
+		{
+			$FilterOptionsPanel.Visibility = [System.Windows.Visibility]::Visible
+			$BtnFilterToggle.Content = $(
+				$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
+				if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" }
+			)
+		}
+	})
 	if ($Script:AppsCategoryTabs)
 	{
 		$null = Register-GuiEventHandler -Source $Script:AppsCategoryTabs -EventName 'SelectionChanged' -Handler ({
@@ -158,6 +180,30 @@
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
 		& $Script:GuiState.Set 'SelectedOnlyFilter' $false
 	})
+	$null = Register-GuiEventHandler -Source $ChkHideUnavailableItems -EventName 'Checked' -Handler ({
+		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
+		Set-HideUnavailableItemsState -HideUnavailableItems $true
+		if ($Script:UpdateCurrentTabContentScript)
+		{
+			& $Script:UpdateCurrentTabContentScript -SkipIdlePrebuild
+		}
+		elseif (Get-Command -Name 'Update-CurrentTabContent' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-CurrentTabContent -SkipIdlePrebuild
+		}
+	})
+	$null = Register-GuiEventHandler -Source $ChkHideUnavailableItems -EventName 'Unchecked' -Handler ({
+		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
+		Set-HideUnavailableItemsState -HideUnavailableItems $false
+		if ($Script:UpdateCurrentTabContentScript)
+		{
+			& $Script:UpdateCurrentTabContentScript -SkipIdlePrebuild
+		}
+		elseif (Get-Command -Name 'Update-CurrentTabContent' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-CurrentTabContent -SkipIdlePrebuild
+		}
+	})
 	$null = Register-GuiEventHandler -Source $ChkHighRiskOnly -EventName 'Checked' -Handler ({
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
 		& $Script:GuiState.Set 'HighRiskOnlyFilter' $true
@@ -222,6 +268,17 @@
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
 		& $Script:SetGameModeStateScript -Enabled $false
 	})
+	if ($ChkDesignMode)
+	{
+		$null = Register-GuiEventHandler -Source $ChkDesignMode -EventName 'Checked' -Handler ({
+			if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
+			& $Script:SetDesignModeStateScript -Enabled $true
+		})
+		$null = Register-GuiEventHandler -Source $ChkDesignMode -EventName 'Unchecked' -Handler ({
+			if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
+			& $Script:SetDesignModeStateScript -Enabled $false
+		})
+	}
 	$null = Register-GuiEventHandler -Source $BtnClearSearch -EventName 'Click' -Handler ({
 		$TxtSearch.Text = ''
 		[void]($TxtSearch.Focus())

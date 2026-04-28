@@ -4,6 +4,14 @@ BeforeAll {
     # Json helpers must load first — RemoteTarget calls ConvertFrom-BaselineJson.
     . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Json.Helpers.ps1')
 
+    function Write-DebugSwallowedException
+    {
+        param (
+            [object]$ErrorRecord,
+            [string]$Source
+        )
+    }
+
     $script:RemoteTargetHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/RemoteTarget.Helpers.ps1'
     $script:SharedHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers.psm1'
     $script:RemoteTargetHelpersContent = Get-Content -LiteralPath $script:RemoteTargetHelpersPath -Raw -Encoding UTF8

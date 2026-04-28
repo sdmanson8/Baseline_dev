@@ -94,7 +94,7 @@ function Restore-WindowSystemMenu
 			[void]([WinAPI.GuiWindowChrome]::SetWindowPos($hwnd, [IntPtr]::Zero, 0, 0, 0, 0, 0x27))
 		}
 	}
-	catch { }
+	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowChrome.Restore-WindowSystemMenu.ApplySystemMenu' }
 
 	# Build a WPF ContextMenu that mimics the standard system menu
 	try
@@ -110,7 +110,7 @@ function Restore-WindowSystemMenu
 		$target = if ($TitleBarElement) { $TitleBarElement } else { $Window }
 		$target.ContextMenu = $menu
 	}
-	catch { }
+	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowChrome.Restore-WindowSystemMenu.BuildContextMenu' }
 }
 
 <#
@@ -181,7 +181,7 @@ function Invoke-GuiWindowChromeThemeUpdate
 			$cornerPreference = 2
 			[void]([WinAPI.GuiWindowChrome]::DwmSetWindowAttribute($windowHandle, 33, [ref]$cornerPreference, 4))
 		}
-		catch { }
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowChrome.Invoke-GuiWindowChromeThemeUpdate.ApplyRoundedCorners' }
 	}
 
 	# Force non-client area repaint so title bar buttons update immediately
@@ -196,7 +196,7 @@ function Invoke-GuiWindowChromeThemeUpdate
 		# RDW_FRAME (0x400) | RDW_INVALIDATE (0x1) | RDW_UPDATENOW (0x100)
 		[void]([WinAPI.GuiWindowChrome]::RedrawWindow($windowHandle, [IntPtr]::Zero, [IntPtr]::Zero, 0x501))
 	}
-	catch { }
+	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowChrome.Invoke-GuiWindowChromeThemeUpdate.RepaintChrome' }
 
 	return $true
 }
@@ -234,7 +234,7 @@ function Set-GuiWindowChromeTheme
 	}
 	catch
 	{
-		$null = $_
+		Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowChrome.Set-GuiWindowChromeTheme.SetUseDarkModeProperty'
 	}
 
 	if (Invoke-GuiWindowChromeThemeUpdate -Window $Window -UseDarkMode:$resolvedUseDarkMode)
@@ -290,7 +290,7 @@ function Set-GuiWindowChromeTheme
 		}
 		catch
 		{
-			$null = $_
+			Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowChrome.Set-GuiWindowChromeTheme.SetSourceInitializedHandlerProperty'
 		}
 	}
 

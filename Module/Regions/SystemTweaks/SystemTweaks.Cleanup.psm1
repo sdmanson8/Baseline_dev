@@ -1,10 +1,15 @@
-﻿using module ..\..\Logging.psm1
+using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
 <#
 	.SYNOPSIS
-	Internal admin utility for disk cleanup and Windows update cleanup.
+	Configures disk cleanup and Windows update cleanup.
 
+
+	
+.DESCRIPTION
+	
+Applies Baseline's disk cleanup and Windows update cleanup in GUI and headless runs.
 .EXAMPLE
 DiskCleanup
 
@@ -18,7 +23,7 @@ function DiskCleanup
 	# Pass log file path to child process
 	[Environment]::SetEnvironmentVariable("diskcleanup", $global:LogFilePath, "Process")
 
-	$ScriptPath = Join-Path $PSScriptRoot "..\..\Assets\diskcleanup.ps1"
+	$ScriptPath = Join-Path $PSScriptRoot "diskcleanup.ps1"
 	$ScriptPath = [System.IO.Path]::GetFullPath($ScriptPath)
 
 	Start-Process powershell.exe `
@@ -30,6 +35,11 @@ function DiskCleanup
 .SYNOPSIS
 Apply additional service-related optimizations from the legacy performance preset.
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for apply additional service-related optimizations from the legacy performance preset..
 .EXAMPLE
 Invoke-AdditionalServiceOptimizations
 
@@ -139,6 +149,11 @@ function Invoke-AdditionalServiceOptimizations
 .SYNOPSIS
 Clean temporary files from the system.
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for clean temporary files from the system..
 .PARAMETER All
 Clean all temporary directories and caches.
 
@@ -347,6 +362,11 @@ function Invoke-CleanupOperation
 .SYNOPSIS
 Generate and display cleanup statistics.
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for generate and display cleanup statistics..
 .EXAMPLE
 Get-CleanupStats
 

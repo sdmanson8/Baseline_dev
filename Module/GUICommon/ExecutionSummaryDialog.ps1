@@ -414,7 +414,7 @@ function Show-ExecutionSummaryDialog
 
 	# Suspend layout while adding all result cards to avoid per-child
 	# Measure/Arrange cycles that make the dialog slow to open.
-	try { $listStack.BeginInit() } catch { <# non-fatal #> }
+	try { $listStack.BeginInit() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ExecutionSummaryDialog.Show-ExecutionSummaryDialog.ListStackBeginInit' }
 
 	# Limit the initial batch to keep dialog open time fast; remaining
 	# results are loaded when the user scrolls or clicks "Show all".
@@ -976,7 +976,7 @@ function Show-ExecutionSummaryDialog
 			$preBrushSectionLabel = $capturedPreBrushSectionLabel
 			$preBrushCautionText = $capturedPreBrushCautionText
 
-			try { $capturedListStack.BeginInit() } catch { <# non-fatal #> }
+			try { $capturedListStack.BeginInit() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ExecutionSummaryDialog.Show-ExecutionSummaryDialog.CapturedListStackBeginInit' }
 			foreach ($result in $remainingResults)
 			{
 				if ($isPreviewMode)
@@ -1045,7 +1045,7 @@ function Show-ExecutionSummaryDialog
 				$rowBorder.Child = $rowStack
 				[void]($capturedListStack.Children.Add($rowBorder))
 			}
-			try { $capturedListStack.EndInit() } catch { <# non-fatal #> }
+			try { $capturedListStack.EndInit() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ExecutionSummaryDialog.Show-ExecutionSummaryDialog.CapturedListStackEndInit' }
 		}.GetNewClosure())
 
 		[void]($listStack.Children.Add($showAllBtn))
@@ -1102,7 +1102,7 @@ function Show-ExecutionSummaryDialog
 		[void]($listStack.Children.Add($emptyBlock))
 	}
 
-	try { $listStack.EndInit() } catch { <# non-fatal #> }
+	try { $listStack.EndInit() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ExecutionSummaryDialog.Show-ExecutionSummaryDialog.ListStackEndInit' }
 	$listScroll.Content = $listStack
 	[void]($outerGrid.Children.Add($listScroll))
 	$buttonBorder = New-Object System.Windows.Controls.Border

@@ -13,13 +13,23 @@ BeforeAll {
     #>
     function Get-GuiObjectField { param([object]$Object, [string]$FieldName) if ($null -eq $Object) { return $null }; if ($Object -is [System.Collections.IDictionary]) { return $Object[$FieldName] }; if ($Object.PSObject -and $Object.PSObject.Properties[$FieldName]) { return $Object.PSObject.Properties[$FieldName].Value }; return $null }
     $filePath = Join-Path $PSScriptRoot '../../Module/GUI/TweakRowFactory.ps1'
-    $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
-    $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+    $splitRoot = Join-Path $PSScriptRoot '../../Module/GUI/TweakRowFactory'
+    $filePaths = @(
+        $filePath
+        (Join-Path $splitRoot 'RowStateDefaults.ps1')
+        (Join-Path $splitRoot 'MetadataDetails.ps1')
+        (Join-Path $splitRoot 'ControlFactories.ps1')
+    )
+    $script:FileContent = @($filePaths | ForEach-Object { Get-Content -LiteralPath $_ -Raw -Encoding UTF8 }) -join "`n"
     $script:FunctionTextByName = @{}
-    foreach ($fn in $functions) {
-        $script:FunctionTextByName[$fn.Name] = $fn.Extent.Text
-        if ($fn.Name -in @('Get-GameModePlanEntryForTweak', 'Get-ToggleInitialCheckedState', 'Get-ActionInitialCheckedState', 'Get-ChoiceInitialSelectedIndex', 'ConvertTo-GuiDateTimeValue', 'Get-DateInitialRunState', 'Get-DateInitialSelectedDate')) {
-            Invoke-Expression $fn.Extent.Text
+    foreach ($path in $filePaths) {
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$null)
+        $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+        foreach ($fn in $functions) {
+            $script:FunctionTextByName[$fn.Name] = $fn.Extent.Text
+            if ($fn.Name -in @('Get-GameModePlanEntryForTweak', 'Get-ToggleInitialCheckedState', 'Get-ActionInitialCheckedState', 'Get-ChoiceInitialSelectedIndex', 'ConvertTo-GuiDateTimeValue', 'Get-DateInitialRunState', 'Get-DateInitialSelectedDate')) {
+                Invoke-Expression $fn.Extent.Text
+            }
         }
     }
 
@@ -44,6 +54,22 @@ BeforeAll {
         }
 
         return $null
+    }
+}
+
+Describe 'Tweak row content pins' {
+    It 'routes tweak-row opacity updates through Write-DebugSwallowedException' {
+        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Update-TweakRowState\.CardOpacity'''
+    }
+
+    It 'routes hover and focus chrome updates through Write-DebugSwallowedException' {
+        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_MouseEnter'''
+        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_MouseLeave'''
+        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_PreviewMouseLeftButtonDown'''
+        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_PreviewMouseLeftButtonUp'''
+        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_GotKeyboardFocus'''
+        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_LostKeyboardFocus'''
+        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.UpdateChrome'''
     }
 }
 
@@ -112,6 +138,14 @@ Describe 'Tweak row initial state recovery' {
             })
 
             $result | Should -BeTrue
+        }
+    }
+
+    Describe 'New-ToggleLikeHeaderGrid accessibility' {
+        It 'binds explicit tweak descriptions into AutomationProperties.HelpText' {
+            $script:FunctionTextByName['New-ToggleLikeHeaderGrid'] | Should -Match '\[System\.Windows\.Automation\.AutomationProperties\]::SetHelpText\(\$CheckBox, \$helpText\)'
+            $script:FunctionTextByName['New-ToggleLikeHeaderGrid'] | Should -Match 'Get-UxString -Key \$Tweak\.DescriptionKey -Fallback \$Tweak\.Description'
+            $script:FunctionTextByName['New-ToggleLikeHeaderGrid'] | Should -Match '\[string\]\$Tweak\.Description'
         }
     }
 

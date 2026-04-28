@@ -1,13 +1,10 @@
 <#
     .SYNOPSIS
-    Pure-logic helpers extracted from Module/Regions/System/System.WindowsFeatures.psm1.
+    Windows features helpers for Baseline.
 
     .DESCRIPTION
-    The WindowsCapabilities and WindowsFeatures functions mix WPF/XAML UI,
-    DISM/CIM calls, and pattern-based selection lists into single 800-line
-    procedures. This file isolates the data and pure-logic decisions so the
-    seed-selection rules and friendly-name resolution can be unit-tested
-    without instantiating WPF.
+    Keep selection and naming rules here so feature-related tests can run
+    without loading the GUI runtime.
 #>
 
 <#

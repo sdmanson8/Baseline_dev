@@ -3,8 +3,13 @@ using module ..\..\SharedHelpers.psm1
 
 <#
 	.SYNOPSIS
-	Internal admin utility for Windows Defender Application Guard configuration.
+	Configures Windows Defender Application Guard configuration.
 
+
+	
+.DESCRIPTION
+	
+Applies Baseline's Windows Defender Application Guard configuration in GUI and headless runs.
 	.PARAMETER Enable
 	Enable Windows Defender Application Guard optional feature
 
@@ -111,27 +116,27 @@ function DefenderAppGuard
 	}
 }
 
-<#
-	.SYNOPSIS
-	Configure additional Defender Exploit Guard protections.
-
-	.DESCRIPTION
-	Updates Defender signatures, sets early launch related values, enables a set
-	of ASR rules, and applies system-wide exploit mitigations.
-
-	.EXAMPLE
-	DefenderExploitGuardPolicy
-
-	.NOTES
-	Machine-wide
-
-	.CAUTION
-	Advanced. Can block legitimate applications, Office automation, admin
-	tooling, scripts, or line-of-business workflows depending on how they
-	interact with Defender ASR and system mitigations.
-#>
 function DefenderExploitGuardPolicy
 {
+	<#
+		.SYNOPSIS
+		Configure additional Defender Exploit Guard protections.
+
+		.DESCRIPTION
+		Updates Defender signatures, sets early launch related values, enables a set
+		of ASR rules, and applies system-wide exploit mitigations.
+
+		.EXAMPLE
+		DefenderExploitGuardPolicy
+
+		.NOTES
+		Machine-wide
+
+		Caution:
+		Advanced. Can block legitimate applications, Office automation, admin
+		tooling, scripts, or line-of-business workflows depending on how they
+		interact with Defender ASR and system mitigations.
+	#>
 	Write-ConsoleStatus -Action "Configuring Defender Exploit Guard policies"
 	LogInfo "Configuring Defender Exploit Guard policies"
 	try
@@ -146,7 +151,7 @@ function DefenderExploitGuardPolicy
 		{
 			New-Item -Path "HKCU:\SOFTWARE\Microsoft\Windows Defender" -Force -ErrorAction Stop | Out-Null
 		}
-		Set-ItemProperty -LiteralPath "HKCU:\SOFTWARE\Microsoft\Windows Defender" -Name "PassiveMode" -Value 2 -ErrorAction Stop | Out-Null
+		Set-RegistryValueSafe -Path "HKCU:\SOFTWARE\Microsoft\Windows Defender" -Name "PassiveMode" -Type DWord -Value 2 | Out-Null
 
 		if (!(Test-Path "HKLM:\SYSTEM\CurrentControlSet\Policies\EarlyLaunch"))
 		{
@@ -183,6 +188,11 @@ function DefenderExploitGuardPolicy
 	.SYNOPSIS
 	Core Isolation Memory Integrity (Hypervisor-Enforced Code Integrity)
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for core Isolation Memory Integrity (Hypervisor-Enforced Code Integrity).
 	.PARAMETER Enable
 	Enable Memory Integrity (HVCI)
 
@@ -257,26 +267,26 @@ function CIMemoryIntegrity
 	}
 }
 
-<#
-	.SYNOPSIS
-	Import the Microsoft Defender Exploit Protection policy.
-
-	.DESCRIPTION
-	Downloads the Microsoft demo Exploit Protection policy XML, imports it with
-	Set-ProcessMitigation, and removes the temporary file.
-
-	.EXAMPLE
-	ExploitProtectionPolicy
-
-	.NOTES
-	Machine-wide
-
-	.CAUTION
-	Advanced. Imports a downloaded mitigation policy that can change exploit
-	protection behavior for applications across the system.
-#>
 function ExploitProtectionPolicy
 {
+	<#
+		.SYNOPSIS
+		Import the Microsoft Defender Exploit Protection policy.
+
+		.DESCRIPTION
+		Downloads the Microsoft demo Exploit Protection policy XML, imports it with
+		Set-ProcessMitigation, and removes the temporary file.
+
+		.EXAMPLE
+		ExploitProtectionPolicy
+
+		.NOTES
+		Machine-wide
+
+		Caution:
+		Advanced. Imports a downloaded mitigation policy that can change exploit
+		protection behavior for applications across the system.
+	#>
 	Write-ConsoleStatus -Action "Importing Exploit Protection policy"
 	LogInfo "Importing Exploit Protection policy"
 	try
@@ -298,6 +308,11 @@ function ExploitProtectionPolicy
 	.SYNOPSIS
 	Local Security Authority protection
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for local Security Authority protection.
 	.PARAMETER Enable
 	Enable Local Security Authority protection to prevent code injection without UEFI lock
 
@@ -403,6 +418,11 @@ function LocalSecurityAuthority
 	.SYNOPSIS
 	Enables or disables Data Execution Prevention (DEP) policy
 
+
+	
+.DESCRIPTION
+	
+Enables or disables Data Execution Prevention (DEP) policy in GUI and headless runs.
 	.PARAMETER Enable
 	Sets DEP to OptIn (default for most apps) (default value)
 
@@ -480,6 +500,11 @@ function DEPOptOut
 	.SYNOPSIS
 	Enables or disables automatic recovery mode during boot
 
+
+	
+.DESCRIPTION
+	
+Enables or disables automatic recovery mode during boot in GUI and headless runs.
 	.PARAMETER Enable
 	Enable automatic recovery mode on startup errors (default value)
 
@@ -563,6 +588,11 @@ function BootRecovery
 	.SYNOPSIS
 	Enables or disables the F8 boot menu on startup
 
+
+	
+.DESCRIPTION
+	
+Enables or disables the F8 boot menu on startup in GUI and headless runs.
 	.PARAMETER Enable
 	Enable the legacy F8 boot menu
 

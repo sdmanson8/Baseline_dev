@@ -1,7 +1,12 @@
 <#
 	.SYNOPSIS
-	Internal admin utility for account protection warning configuration.
+	Configures account protection warning configuration.
 
+
+	
+.DESCRIPTION
+	
+Applies Baseline's account protection warning configuration in GUI and headless runs.
 	.PARAMETER Enable
 	Enable account protection warning for Microsoft accounts
 
@@ -62,7 +67,7 @@ function AccountProtectionWarn
 				If (!(Test-Path "HKCU:\Software\Microsoft\Windows Security Health\State")) {
 					New-Item -Path "HKCU:\Software\Microsoft\Windows Security Health\State" -Force -ErrorAction Stop | Out-Null
 				}
-				Set-ItemProperty "HKCU:\Software\Microsoft\Windows Security Health\State" -Name "AccountProtection_MicrosoftAccount_Disconnected" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows Security Health\State" -Name "AccountProtection_MicrosoftAccount_Disconnected" -Type DWord -Value 1 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -78,6 +83,11 @@ function AccountProtectionWarn
 	.SYNOPSIS
 	Microsoft Defender SmartScreen
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for microsoft Defender SmartScreen.
 	.PARAMETER Disable
 	Disable apps and files checking within Microsoft Defender SmartScreen
 
@@ -159,6 +169,11 @@ function AppsSmartScreen
 	.SYNOPSIS
 	Windows Defender Cloud-delivered protection configuration
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for windows Defender Cloud-delivered protection configuration.
 	.PARAMETER Enable
 	Enable Windows Defender cloud protection (MAPS reporting and automatic sample submission default behavior) (default value)
 
@@ -238,6 +253,11 @@ function DefenderCloud
 	.SYNOPSIS
 	Sandboxing for Microsoft Defender
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for sandboxing for Microsoft Defender.
 	.PARAMETER Enable
 	Enable sandboxing for Microsoft Defender
 
@@ -318,8 +338,171 @@ function DefenderSandbox
 
 <#
 	.SYNOPSIS
+	Cap Microsoft Defender's CPU usage during scheduled scans.
+
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for cap Microsoft Defender's CPU usage during scheduled scans..
+	.PARAMETER Enable
+	Cap Defender scan CPU usage at 25% via Set-MpPreference -ScanAvgCPULoadFactor 25.
+
+	.PARAMETER Disable
+	Restore Defender's default scan CPU cap (50%) via Set-MpPreference -ScanAvgCPULoadFactor 50.
+
+	.EXAMPLE
+	DefenderScanCPULimit -Enable
+
+	.EXAMPLE
+	DefenderScanCPULimit -Disable
+
+	.NOTES
+	Machine-wide
+#>
+function DefenderScanCPULimit
+{
+	param
+	(
+		[Parameter(Mandatory = $true, ParameterSetName = 'Enable')]
+		[switch]
+		$Enable,
+
+		[Parameter(Mandatory = $true, ParameterSetName = 'Disable')]
+		[switch]
+		$Disable
+	)
+
+	if (-not $Script:DefenderEnabled)
+	{
+		LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
+		return
+	}
+
+	switch ($PSCmdlet.ParameterSetName)
+	{
+		'Enable'
+		{
+			Write-ConsoleStatus -Action 'Capping Defender scheduled-scan CPU at 25%'
+			LogInfo 'Capping Defender scheduled-scan CPU at 25%'
+			try
+			{
+				Set-MpPreference -ScanAvgCPULoadFactor 25 -ErrorAction Stop | Out-Null
+				Write-ConsoleStatus -Status success
+			}
+			catch
+			{
+				Write-ConsoleStatus -Status failed
+				LogError "Failed to cap Defender scan CPU usage: $($_.Exception.Message)"
+			}
+		}
+		'Disable'
+		{
+			Write-ConsoleStatus -Action 'Restoring Defender default scan CPU cap (50%)'
+			LogInfo 'Restoring Defender default scan CPU cap (50%)'
+			try
+			{
+				Set-MpPreference -ScanAvgCPULoadFactor 50 -ErrorAction Stop | Out-Null
+				Write-ConsoleStatus -Status success
+			}
+			catch
+			{
+				Write-ConsoleStatus -Status failed
+				LogError "Failed to restore Defender scan CPU cap: $($_.Exception.Message)"
+			}
+		}
+	}
+}
+
+<#
+	.SYNOPSIS
+	Microsoft Defender signature-definition update interval.
+
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for microsoft Defender signature-definition update interval..
+	.PARAMETER Enable
+	Check for Defender signature updates every hour
+	(Set-MpPreference -SignatureUpdateInterval 1).
+
+	.PARAMETER Disable
+	Restore the default signature-update interval (0 = managed by Windows Update,
+	typically every 8 hours).
+
+	.EXAMPLE
+	DefenderSignatureUpdateInterval -Enable
+
+	.EXAMPLE
+	DefenderSignatureUpdateInterval -Disable
+
+	.NOTES
+	Machine-wide
+#>
+function DefenderSignatureUpdateInterval
+{
+	param
+	(
+		[Parameter(Mandatory = $true, ParameterSetName = 'Enable')]
+		[switch]
+		$Enable,
+
+		[Parameter(Mandatory = $true, ParameterSetName = 'Disable')]
+		[switch]
+		$Disable
+	)
+
+	if (-not $Script:DefenderEnabled)
+	{
+		LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
+		return
+	}
+
+	switch ($PSCmdlet.ParameterSetName)
+	{
+		'Enable'
+		{
+			Write-ConsoleStatus -Action 'Checking Defender signatures hourly'
+			LogInfo 'Checking Defender signatures hourly'
+			try
+			{
+				Set-MpPreference -SignatureUpdateInterval 1 -ErrorAction Stop | Out-Null
+				Write-ConsoleStatus -Status success
+			}
+			catch
+			{
+				Write-ConsoleStatus -Status failed
+				LogError "Failed to set Defender signature update interval: $($_.Exception.Message)"
+			}
+		}
+		'Disable'
+		{
+			Write-ConsoleStatus -Action 'Restoring default Defender signature update interval'
+			LogInfo 'Restoring default Defender signature update interval'
+			try
+			{
+				Set-MpPreference -SignatureUpdateInterval 0 -ErrorAction Stop | Out-Null
+				Write-ConsoleStatus -Status success
+			}
+			catch
+			{
+				Write-ConsoleStatus -Status failed
+				LogError "Failed to restore Defender signature update interval: $($_.Exception.Message)"
+			}
+		}
+	}
+}
+
+<#
+	.SYNOPSIS
 	Windows Defender notification area (system tray) icon configuration
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for windows Defender notification area (system tray) icon configuration.
 	.PARAMETER Enable
 	Show Windows Defender (Windows Security) system tray icon (default value)
 
@@ -416,7 +599,7 @@ function DismissMSAccount
 	LogInfo "Dismissing Microsoft Defender offer in the Windows Security about signing in Microsoft account"
 	try
 	{
-		New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows Security Health\State" -Name AccountProtection_MicrosoftAccount_Disconnected -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+		Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows Security Health\State" -Name AccountProtection_MicrosoftAccount_Disconnected -Type DWord -Value 1 | Out-Null
 		Write-ConsoleStatus -Status success
 	}
 	catch
@@ -453,7 +636,7 @@ function DismissSmartScreenFilter
 	LogInfo "Disabling the SmartScreen filter for Microsoft Edge"
 	try
 	{
-		New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows Security Health\State" -Name AppAndBrowser_EdgeSmartScreenOff -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+		Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows Security Health\State" -Name AppAndBrowser_EdgeSmartScreenOff -Type DWord -Value 0 | Out-Null
 		Write-ConsoleStatus -Status success
 	}
 	catch
@@ -467,6 +650,11 @@ function DismissSmartScreenFilter
 	.SYNOPSIS
 	DNS-over-HTTPS provider presets and custom DNS-over-HTTPS configuration
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for dNS-over-HTTPS provider presets and custom DNS-over-HTTPS configuration.
 	.PARAMETER Enable
 	Enable DNS-over-HTTPS with a custom known server pair
 
@@ -648,7 +836,12 @@ function DNSoverHTTPS
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-DnsOverHttpsAdapterTargets.
+	    Gets DNS over HTTPS adapter targets.
+
+	    
+.DESCRIPTION
+	    
+Supports DNS over HTTPS adapter targets handling inside Baseline.
 	#>
 
 	function Get-DnsOverHttpsAdapterTargets
@@ -669,7 +862,12 @@ function DNSoverHTTPS
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-DnsOverHttpsServerConfiguration.
+	    Gets DNS over HTTPS server configuration.
+
+	    
+.DESCRIPTION
+	    
+Supports DNS over HTTPS server configuration handling inside Baseline.
 	#>
 
 	function Get-DnsOverHttpsServerConfiguration
@@ -694,7 +892,12 @@ function DNSoverHTTPS
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-DnsOverHttpsInterfaceRegistryValues.
+	    Sets DNS over HTTPS interface registry values.
+
+	    
+.DESCRIPTION
+	    
+Supports DNS over HTTPS interface registry values handling inside Baseline.
 	#>
 
 	function Set-DnsOverHttpsInterfaceRegistryValues
@@ -825,6 +1028,11 @@ function DNSoverHTTPS
 	.SYNOPSIS
 	Blocks or allows file downloads from the internet
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for blocks or allows file downloads from the internet.
 	.PARAMETER Enable
 	Enable blocking of file downloads (default value)
 
@@ -885,7 +1093,7 @@ function DownloadBlocking
 				If (!(Test-Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Attachments")) {
 					New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Attachments" -ErrorAction Stop | Out-Null
 				}
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Attachments" -Name "SaveZoneInformation" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Attachments" -Name "SaveZoneInformation" -Type DWord -Value 1 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch

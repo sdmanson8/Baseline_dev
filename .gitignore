@@ -8,6 +8,8 @@ _net48ref/
 *.msi
 *.nupkg
 *.snupkg
+vendor/
+scripts/
 
 # .NET build folders
 **/bin/
@@ -22,6 +24,7 @@ testResults.xml
 *.trx
 *.coverage
 *.coveragexml
+pester-full.log
 
 # Local agent metadata
 .claude/
@@ -29,3 +32,5 @@ testResults.xml
 .codex*/
 AGENTS.md
 todo.md
+.DS_Store
+*.zip.sha256

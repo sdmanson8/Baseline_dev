@@ -8,7 +8,7 @@ BeforeAll {
 
 Describe 'Adaptive primary tab layout' {
     It 'uses a stable horizontally scrollable single-row tab host for primary navigation' {
-        $script:GuiContent | Should -Match '<Grid Name="PrimaryTabHost" Grid.Row="2" Margin="8,4,8,0">'
+        $script:GuiContent | Should -Match '<Grid Name="PrimaryTabHost" Grid.Row="3" Margin="8,4,8,0">'
         $script:GuiContent | Should -Match '<ScrollViewer Name="PrimaryTabHeaderScroll"'
         $script:GuiContent | Should -Match 'HorizontalScrollBarVisibility="Auto"'
         $script:GuiContent | Should -Match '<StackPanel Name="HeaderPanel"'

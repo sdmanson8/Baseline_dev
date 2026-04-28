@@ -1,7 +1,7 @@
-﻿using module ..\Logging.psm1
+using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
-# Sub-modules extracted for maintainability
+# Load System region submodules during module import.
 $systemSubModuleRoot = Join-Path $PSScriptRoot 'System'
 if (Test-Path $systemSubModuleRoot)
 {
@@ -12,20 +12,23 @@ if (Test-Path $systemSubModuleRoot)
 }
 
 #region System
-<#
-.SYNOPSIS
-Create or remove the desktop shortcut that reboots into Advanced Startup.
-
-.EXAMPLE
-AdvancedStartupShortcut -Enable
-
-.EXAMPLE
-AdvancedStartupShortcut -Disable
-
-.NOTES
-Current user
-#>
 function AdvancedStartupShortcut {
+	<#
+	    .SYNOPSIS
+	    Create or remove the desktop shortcut that reboots into Advanced Startup.
+
+	    .DESCRIPTION
+	    Creates or removes the desktop shortcut and supporting command launcher that Baseline uses to send the machine into Windows Advanced Startup on the next reboot.
+
+	    .PARAMETER Enable
+	    Create the Advanced Startup desktop shortcut and its command launcher.
+
+	    .PARAMETER Disable
+	    Remove the Advanced Startup desktop shortcut and its command launcher.
+
+	    .EXAMPLE
+	    AdvancedStartupShortcut -Enable
+	#>
     [CmdletBinding(DefaultParameterSetName = 'Enable')]
     param(
         [Parameter(Mandatory = $true, ParameterSetName = 'Enable')]
@@ -115,6 +118,11 @@ function AdvancedStartupShortcut {
 	.SYNOPSIS
 	Automatic installing suggested apps
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for automatic installing suggested apps.
 	.PARAMETER Disable
 	Turn off automatic installing suggested apps
 
@@ -161,7 +169,7 @@ function AppsSilentInstalling
 			LogInfo "Disabling Automatic installing of suggested apps"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager -Name SilentInstalledAppsEnabled -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name SilentInstalledAppsEnabled -Type DWord -Value 0 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -176,7 +184,7 @@ function AppsSilentInstalling
 			LogInfo "Enabling Automatic installing of suggested apps"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager -Name SilentInstalledAppsEnabled -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name SilentInstalledAppsEnabled -Type DWord -Value 1 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -192,6 +200,11 @@ function AppsSilentInstalling
 	.SYNOPSIS
 	The User Account Control (UAC) behavior
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the User Account Control (UAC) behavior.
 	.PARAMETER PromptForCredentials
 	Prompt for credentials on the secure desktop
 
@@ -342,6 +355,11 @@ function AdminApprovalMode
 	.SYNOPSIS
 	AutoPlay for all media and devices
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for autoPlay for all media and devices.
 	.PARAMETER Disable
 	Don't use AutoPlay for all media and devices
 
@@ -377,7 +395,7 @@ function Autoplay
 	)
 
 	# Remove all policies in order to make changes visible in UI only if it's possible
-	Remove-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer, HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name NoDriveTypeAutoRun -Force -ErrorAction SilentlyContinue | Out-Null
+	Remove-RegistryValueSafe -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer, HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name NoDriveTypeAutoRun | Out-Null
 	Set-Policy -Scope Computer -Path SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name NoDriveTypeAutoRun -Type CLEAR | Out-Null
 	Set-Policy -Scope User -Path Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name NoDriveTypeAutoRun -Type CLEAR | Out-Null
 
@@ -387,14 +405,14 @@ function Autoplay
 		{
 			Write-ConsoleStatus -Action "Disabling AutoPlay for all media and devices"
 			LogInfo "Disabling AutoPlay for all media and devices"
-			New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers -Name DisableAutoplay -PropertyType DWord -Value 1 -Force | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers" -Name DisableAutoplay -Type DWord -Value 1 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 		"Enable"
 		{
 			Write-ConsoleStatus -Action "Enabling AutoPlay for all media and devices"
 			LogInfo "Enabling AutoPlay for all media and devices"
-			New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers -Name DisableAutoplay -PropertyType DWord -Value 0 -Force | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers" -Name DisableAutoplay -Type DWord -Value 0 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -404,6 +422,11 @@ function Autoplay
 	.SYNOPSIS
 	Stop error code when BSoD occurs
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for stop error code when BSoD occurs.
 	.PARAMETER Enable
 	Display Stop error code when BSoD occurs
 
@@ -477,6 +500,11 @@ function BSoDStopError
 	.SYNOPSIS
 	Caps Lock
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for caps Lock.
 	.PARAMETER Disable
 	Disable Caps Lock
 
@@ -512,7 +540,7 @@ function CapsLock
 		$Enable
 	)
 
-	Remove-ItemProperty -Path "HKCU:\Keyboard Layout" -Name Attributes -Force -ErrorAction SilentlyContinue | Out-Null
+	Remove-RegistryValueSafe -Path "HKCU:\Keyboard Layout" -Name Attributes | Out-Null
 
 	switch ($PSCmdlet.ParameterSetName)
 	{
@@ -537,6 +565,11 @@ function CapsLock
 	.SYNOPSIS
 	Override for default input method
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for override for default input method.
 	.PARAMETER English
 	Override for default input method: English
 
@@ -584,7 +617,7 @@ function InputMethod
 		{
 			Write-ConsoleStatus -Action "Setting override for default input method to use language list"
 			LogInfo "Setting override for default input method to use language list"
-			Remove-ItemProperty -Path "HKCU:\Control Panel\International\User Profile" -Name InputMethodOverride -Force -ErrorAction SilentlyContinue | Out-Null
+			Remove-RegistryValueSafe -Path "HKCU:\Control Panel\International\User Profile" -Name InputMethodOverride | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -594,6 +627,11 @@ function InputMethod
 	.SYNOPSIS
 	Default terminal app
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for default terminal app.
 	.PARAMETER WindowsTerminal
 	Set Windows Terminal as default terminal app to host the user interface for command-line applications
 
@@ -650,12 +688,12 @@ function DefaultTerminalApp
 					Get-ChildItem -Path "HKLM:\SOFTWARE\Classes\PackagedCom\Package\$PackageFullName\Class" | ForEach-Object -Process {
 						if ((Get-ItemPropertyValue -Path $_.PSPath -Name ServerId) -eq 0)
 						{
-							New-ItemProperty -Path "HKCU:\Console\%%Startup" -Name DelegationConsole -PropertyType String -Value $_.PSChildName -Force -ErrorAction SilentlyContinue | Out-Null
+							Set-RegistryValueSafe -Path "HKCU:\Console\%%Startup" -Name DelegationConsole -Type String -Value $_.PSChildName | Out-Null
 						}
 
 						if ((Get-ItemPropertyValue -Path $_.PSPath -Name ServerId) -eq 1)
 						{
-							New-ItemProperty -Path "HKCU:\Console\%%Startup" -Name DelegationTerminal -PropertyType String -Value $_.PSChildName -Force -ErrorAction SilentlyContinue | Out-Null
+							Set-RegistryValueSafe -Path "HKCU:\Console\%%Startup" -Name DelegationTerminal -Type String -Value $_.PSChildName | Out-Null
 						}
 					}
 				}
@@ -666,8 +704,8 @@ function DefaultTerminalApp
 		{
 			Write-ConsoleStatus -Action "Setting Windows Console Host as default terminal app"
 			LogInfo "Setting Windows Console Host as default terminal app"
-			New-ItemProperty -Path "HKCU:\Console\%%Startup" -Name DelegationConsole -PropertyType String -Value "{B23D10C0-E52E-411E-9D5B-C09FDF709C7D}" -Force -ErrorAction SilentlyContinue | Out-Null
-			New-ItemProperty -Path "HKCU:\Console\%%Startup" -Name DelegationTerminal -PropertyType String -Value "{B23D10C0-E52E-411E-9D5B-C09FDF709C7D}" -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Console\%%Startup" -Name DelegationConsole -Type String -Value "{B23D10C0-E52E-411E-9D5B-C09FDF709C7D}" | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Console\%%Startup" -Name DelegationTerminal -Type String -Value "{B23D10C0-E52E-411E-9D5B-C09FDF709C7D}" | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -677,6 +715,11 @@ function DefaultTerminalApp
 	.SYNOPSIS
 	Help look up via F1
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for help look up via F1.
 	.PARAMETER Disable
 	Disable help lookup via F1
 
@@ -721,7 +764,7 @@ function F1HelpPage
 			{
 				New-Item -Path "HKCU:\Software\Classes\Typelib\{8cec5860-07a1-11d9-b15e-000d56bfe6ee}\1.0\0\win64" -Force | Out-Null
 			}
-			New-ItemProperty -Path "HKCU:\Software\Classes\Typelib\{8cec5860-07a1-11d9-b15e-000d56bfe6ee}\1.0\0\win64" -Name "(default)" -PropertyType String -Value "" -Force | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Software\Classes\Typelib\{8cec5860-07a1-11d9-b15e-000d56bfe6ee}\1.0\0\win64" -Name "(default)" -Type String -Value "" | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 		"Enable"
@@ -738,6 +781,11 @@ function F1HelpPage
 	.SYNOPSIS
 	Use the latest installed .NET runtime for all apps usage
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for use the latest installed .NET runtime for all apps usage.
 	.PARAMETER Enable
 	Use the latest installed .NET runtime for all apps
 
@@ -745,15 +793,15 @@ function F1HelpPage
 	Do not use the latest installed .NET runtime for all apps (default value)
 
 	.EXAMPLE
-	LatestInstalled.NET -Enable
+	LatestInstalledNET -Enable
 
 	.EXAMPLE
-	LatestInstalled.NET -Disable
+	LatestInstalledNET -Disable
 
 	.NOTES
 	Machine-wide
 #>
-function LatestInstalled.NET
+function LatestInstalledNET
 {
 	param
 	(
@@ -784,7 +832,7 @@ function LatestInstalled.NET
 		}
 		"Disable"
 		{
-			# Write-Host: intentional — user-visible progress indicator
+			# Write-Host: intentional â€” user-visible progress indicator
 			Write-Host "Disabling the use of the latest installed .NET runtime for all apps -" -NoNewline
 			LogInfo "Disabling the use of the latest installed .NET runtime for all apps"
 			Remove-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework -Name OnlyUseLatestCLR -Force -ErrorAction Ignore | Out-Null
@@ -794,10 +842,43 @@ function LatestInstalled.NET
 	}
 }
 
+function LatestInstalled.NET
+{
+	param
+	(
+		[Parameter(
+			Mandatory = $true,
+			ParameterSetName = "Enable"
+		)]
+		[switch]
+		$Enable,
+
+		[Parameter(
+			Mandatory = $true,
+			ParameterSetName = "Disable"
+		)]
+		[switch]
+		$Disable
+	)
+
+	if ($Enable)
+	{
+		LatestInstalledNET -Enable
+		return
+	}
+
+	LatestInstalledNET -Disable
+}
+
 <#
 	.SYNOPSIS
 	How do you want to open this file prompt in Windows
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for how do you want to open this file prompt in Windows.
 	.PARAMETER Enable
 	Show How do you want to open this file prompt
 
@@ -874,6 +955,11 @@ function NewAppPrompt
 	.SYNOPSIS
 	Num Lock at startup
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for num Lock at startup.
 	.PARAMETER Enable
 	Enable Num Lock at startup
 
@@ -914,14 +1000,14 @@ function NumLock
 		{
 			Write-ConsoleStatus -Action "Enabling Num Lock at startup"
 			LogInfo "Enabling Num Lock at startup"
-			New-ItemProperty -Path "Registry::HKEY_USERS\.DEFAULT\Control Panel\Keyboard" -Name InitialKeyboardIndicators -PropertyType String -Value 2147483650 -Force | Out-Null
+			Set-RegistryValueSafe -Path "Registry::HKEY_USERS\.DEFAULT\Control Panel\Keyboard" -Name InitialKeyboardIndicators -Type String -Value 2147483650 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 		"Disable"
 		{
 			Write-ConsoleStatus -Action "Disabling Num Lock at startup"
 			LogInfo "Disabling Num Lock at startup"
-			New-ItemProperty -Path "Registry::HKEY_USERS\.DEFAULT\Control Panel\Keyboard" -Name InitialKeyboardIndicators -PropertyType String -Value 2147483648 -Force | Out-Null
+			Set-RegistryValueSafe -Path "Registry::HKEY_USERS\.DEFAULT\Control Panel\Keyboard" -Name InitialKeyboardIndicators -Type String -Value 2147483648 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -931,6 +1017,11 @@ function NumLock
 	.SYNOPSIS
 	Desktop shortcut creation upon Microsoft Edge update
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for desktop shortcut creation upon Microsoft Edge update.
 	.PARAMETER Channels
 	List Microsoft Edge channels to prevent desktop shortcut creation upon its update
 
@@ -1053,6 +1144,11 @@ function PreventEdgeShortcutCreation
 	.SYNOPSIS
 	Quality of Service (QoS) packet scheduler configuration on all network interfaces
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for quality of Service (QoS) packet scheduler configuration on all network interfaces.
 	.PARAMETER Enable
 	Enable QoS packet scheduler on all installed network interfaces (default value)
 
@@ -1110,6 +1206,11 @@ function QoS
 	.SYNOPSIS
 	Back up the system registry to %SystemRoot%\System32\config\RegBack folder when PC restarts and create a RegIdleBackup in the Task Scheduler task to manage subsequent backups
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for back up the system registry to %SystemRoot%\System32\config\RegBack folder when PC restarts and create a RegIdleBackup in the Task Scheduler task to manage subsequent backups.
 	.PARAMETER Enable
 	Back up the system registry to %SystemRoot%\System32\config\RegBack folder
 
@@ -1196,7 +1297,12 @@ function RegistryBackup
 
 <#
     .SYNOPSIS
-    Internal function StickyShift.
+    Runs sticky shift.
+
+    
+.DESCRIPTION
+    
+Supports sticky shift handling inside Baseline.
 #>
 
 function StickyShift
@@ -1224,14 +1330,14 @@ function StickyShift
 		{
 			Write-ConsoleStatus -Action "Disabling Sticky Shift"
 			LogInfo "Disabling Sticky Shift"
-			New-ItemProperty -Path "HKCU:\Control Panel\Accessibility\StickyKeys" -Name Flags -PropertyType String -Value 506 -Force | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Control Panel\Accessibility\StickyKeys" -Name Flags -Type String -Value 506 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 		"Enable"
 		{
 			Write-ConsoleStatus -Action "Enabling Sticky Shift"
 			LogInfo "Enabling Sticky Shift"
-			New-ItemProperty -Path "HKCU:\Control Panel\Accessibility\StickyKeys" -Name Flags -PropertyType String -Value 510 -Force | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Control Panel\Accessibility\StickyKeys" -Name Flags -Type String -Value 510 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -1241,6 +1347,11 @@ function StickyShift
 	.SYNOPSIS
 	Storage Sense
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for storage Sense.
 	.PARAMETER Enable
 	Turn on Storage Sense
 
@@ -1292,9 +1403,9 @@ function StorageSense
 			LogInfo "Enabling Storage Sense"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy -Name 01 -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy -Name 04 -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy -Name 2048 -PropertyType DWord -Value 30 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy" -Name "01" -Type DWord -Value 1 | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy" -Name "04" -Type DWord -Value 1 | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy" -Name "2048" -Type DWord -Value 30 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1309,9 +1420,9 @@ function StorageSense
 			LogInfo "Disabling Storage Sense"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy -Name 01 -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy -Name 04 -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy -Name 2048 -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy" -Name "01" -Type DWord -Value 0 | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy" -Name "04" -Type DWord -Value 0 | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\StorageSense\Parameters\StoragePolicy" -Name "2048" -Type DWord -Value 0 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1327,6 +1438,11 @@ function StorageSense
 	.SYNOPSIS
 	Verbose startup and shutdown status messages
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for verbose startup and shutdown status messages.
 	.PARAMETER Enable
 	Show detailed status messages during startup and shutdown
 
@@ -1369,7 +1485,16 @@ function VerboseStatus
 			LogInfo "Enabling verbose Shutdown/Startup status messages"
 			try
 			{
-				If ((Get-CimInstance -Class "Win32_OperatingSystem").ProductType -eq 1) {
+				$isWorkstation = $true
+				if (Get-Command -Name 'Get-BaselineSystemPlatformInfo' -ErrorAction SilentlyContinue)
+				{
+					$isWorkstation = -not (Get-BaselineSystemPlatformInfo).IsServer
+				}
+				else
+				{
+					$isWorkstation = (Get-CimInstance -Class "Win32_OperatingSystem").ProductType -eq 1
+				}
+				If ($isWorkstation) {
 					Set-ItemProperty -LiteralPath "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "VerboseStatus" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
 				} Else {
 					Remove-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "VerboseStatus" -ErrorAction SilentlyContinue | Out-Null
@@ -1388,7 +1513,16 @@ function VerboseStatus
 			LogInfo "Disabling verbose Shutdown/Startup status messages"
 			try
 			{
-				If ((Get-CimInstance -Class "Win32_OperatingSystem").ProductType -eq 1) {
+				$isWorkstation = $true
+				if (Get-Command -Name 'Get-BaselineSystemPlatformInfo' -ErrorAction SilentlyContinue)
+				{
+					$isWorkstation = -not (Get-BaselineSystemPlatformInfo).IsServer
+				}
+				else
+				{
+					$isWorkstation = (Get-CimInstance -Class "Win32_OperatingSystem").ProductType -eq 1
+				}
+				If ($isWorkstation) {
 					Remove-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "VerboseStatus" -ErrorAction SilentlyContinue | Out-Null
 				} Else {
 					Set-ItemProperty -LiteralPath "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "VerboseStatus" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
@@ -1408,6 +1542,11 @@ function VerboseStatus
 	.SYNOPSIS
 	The Windows 260 character path limit
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the Windows 260 character path limit.
 	.PARAMETER Disable
 	Disable the Windows 260 character path limit
 

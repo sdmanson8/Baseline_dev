@@ -46,6 +46,13 @@ Describe 'New-GuiContext' {
         $ctx.UI.AuditRetentionDays | Should -Be 90
     }
 
+    It 'initializes Design Mode defaults in UI and Mode state' {
+        $ctx = New-GuiContext
+
+        $ctx.UI.DesignMode | Should -Be $false
+        $ctx.Mode.Design | Should -Be $false
+    }
+
     It 'initializes Filter defaults' {
         $ctx = New-GuiContext
 

@@ -129,14 +129,25 @@ function CreateRestorePoint
 			}
 		}
 
-		# Revert the System Restore checkpoint creation frequency to 1440 minutes
-		New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore" -Name SystemRestorePointCreationFrequency -PropertyType DWord -Value 1440 -Force -ErrorAction Stop | Out-Null
-
-		# Turn off System Protection for the system drive if it was turned off before without deleting the existing restore points
-		if ($restoreSystemProtection)
+		try
 		{
-			LogInfo "Disabling System Restore again"
-			Disable-ComputerRestore -Drive $env:SystemDrive -ErrorAction Stop | Out-Null
+			$restorePoints = @(Get-ComputerRestorePoint -ErrorAction Stop | Where-Object -FilterScript { $_.Description -eq $restorePointDescription })
+			if (-not $restorePoints)
+			{
+				throw "Restore point '$restorePointDescription' was not found after creation."
+			}
+		}
+		finally
+		{
+			# Revert the System Restore checkpoint creation frequency to 1440 minutes
+			New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore" -Name SystemRestorePointCreationFrequency -PropertyType DWord -Value 1440 -Force -ErrorAction Stop | Out-Null
+
+			# Turn off System Protection for the system drive if it was turned off before without deleting the existing restore points
+			if ($restoreSystemProtection)
+			{
+				LogInfo "Disabling System Restore again"
+				Disable-ComputerRestore -Drive $env:SystemDrive -ErrorAction Stop | Out-Null
+			}
 		}
 		Write-ConsoleStatus -Status success
 		$createdSuccessfully = $true
@@ -404,6 +415,11 @@ function CheckWinGet
 	.SYNOPSIS
 	Check WinGet and Chocolatey together during startup and bootstrap whichever package managers are missing.
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for check WinGet and Chocolatey together during startup and bootstrap whichever package managers are missing..
 	.NOTES
 	Startup-only helper used by InitialActions.
 #>
@@ -438,6 +454,28 @@ function Initialize-PackageManagersBootstrap
 		try
 		{
 			& $startupSplashUpdateCommand -Splash $LoadingSplash -StatusText $StatusText -Indeterminate:$Indeterminate -HideProgressBar:$HideProgressBar | Out-Null
+		}
+		catch
+		{
+			$null = $_
+		}
+	}.GetNewClosure()
+	$startupSplashStepCommand = Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
+	$updateStartupSplashStep = {
+		param(
+			[string]$StepId,
+			[string]$Status,
+			[string]$SubAction = ''
+		)
+
+		if (-not $LoadingSplash -or -not $startupSplashStepCommand)
+		{
+			return
+		}
+
+		try
+		{
+			& $startupSplashStepCommand -Splash $LoadingSplash -StepId $StepId -Status $Status -SubAction $SubAction | Out-Null
 		}
 		catch
 		{
@@ -483,6 +521,7 @@ function Initialize-PackageManagersBootstrap
 
 		if ($IncludeWinGet)
 		{
+			& $updateStartupSplashStep -StepId 'winget' -Status 'in_progress' -SubAction ''
 			$wingetVersion = Get-WinGetVersion
 			if ($wingetVersion)
 			{
@@ -520,6 +559,7 @@ function Initialize-PackageManagersBootstrap
 		}
 
 		$chocolateyVersion = Get-ChocolateyVersion
+		& $updateStartupSplashStep -StepId 'chocolatey' -Status 'in_progress' -SubAction ''
 		if ($chocolateyVersion)
 		{
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerAlreadyInstalled' -Fallback '{0} is already installed and working. Version: {1}' -FormatArgs @('Chocolatey', $chocolateyVersion))
@@ -675,7 +715,14 @@ function Initialize-PackageManagersBootstrap
 			}
 		}
 
-		& $updateStartupSplashState -Indeterminate
+		if ($startupSplashStepCommand)
+		{
+			& $updateStartupSplashStep -StepId 'chocolatey' -Status 'completed' -SubAction ''
+		}
+		else
+		{
+			& $updateStartupSplashState -Indeterminate
+		}
 	}
 }
 
@@ -734,6 +781,11 @@ function DesktopRegistry
 <#
 	.SYNOPSIS
 	Refresh the current process PATH from the machine and user environment blocks.
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for refresh the current process PATH from the machine and user environment blocks..
 #>
 function Update-ProcessPathFromRegistry
 {

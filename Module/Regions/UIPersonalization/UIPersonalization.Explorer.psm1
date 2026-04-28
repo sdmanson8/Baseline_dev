@@ -3,8 +3,13 @@ using module ..\..\SharedHelpers.psm1
 
 <#
 	.SYNOPSIS
-	Internal admin utility for File Explorer behavior settings.
+	Configures File Explorer behavior settings.
 
+
+	
+.DESCRIPTION
+	
+Applies Baseline's File Explorer behavior settings in GUI and headless runs.
 	.PARAMETER Enable
 	Show confirmation dialog when deleting files
 
@@ -50,7 +55,10 @@ function FileDeleteConfirm
 				If (!(Test-Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer")) {
 					New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" -ErrorAction Stop | Out-Null
 				}
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" -Name "ConfirmFileDelete" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" `
+					-Name "ConfirmFileDelete" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -84,6 +92,11 @@ function FileDeleteConfirm
 	.SYNOPSIS
 	File operation progress details in File Explorer
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for file operation progress details in File Explorer.
 	.PARAMETER Enable
 	Show detailed file operation progress information
 
@@ -129,7 +142,10 @@ function FileOperationsDetails
 				If (!(Test-Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\OperationStatusManager")) {
 					New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\OperationStatusManager" -ErrorAction Stop | Out-Null
 				}
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\OperationStatusManager" -Name "EnthusiastMode" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\OperationStatusManager" `
+					-Name "EnthusiastMode" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -163,6 +179,11 @@ function FileOperationsDetails
 	.SYNOPSIS
 	Task Manager details view in Windows 10 and later
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for task Manager details view in Windows 10 and later.
 	.PARAMETER Enable
 	Always show full details view in Task Manager
 
@@ -217,7 +238,10 @@ function TaskManagerDetails
 				Stop-Process $taskmgr -ErrorAction SilentlyContinue | Out-Null
 				If ($preferences) {
 					$preferences.Preferences[28] = 0
-					Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\TaskManager" -Name "Preferences" -Type Binary -Value $preferences.Preferences -ErrorAction Stop | Out-Null
+					Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\TaskManager" `
+						-Name "Preferences" `
+						-Value $preferences.Preferences `
+						-Type Binary
 				}
 				Write-ConsoleStatus -Status success
 			}
@@ -236,7 +260,10 @@ function TaskManagerDetails
 				$preferences = Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\TaskManager" -Name "Preferences" -ErrorAction SilentlyContinue
 				If ($preferences) {
 					$preferences.Preferences[28] = 1
-					Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\TaskManager" -Name "Preferences" -Type Binary -Value $preferences.Preferences -ErrorAction Stop | Out-Null
+					Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\TaskManager" `
+						-Name "Preferences" `
+						-Value $preferences.Preferences `
+						-Type Binary
 				}
 				Write-ConsoleStatus -Status success
 			}
@@ -253,6 +280,11 @@ function TaskManagerDetails
 	.SYNOPSIS
 	The Control Panel icons view
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the Control Panel icons view.
 	.PARAMETER Category
 	View the Control Panel icons by category (default value)
 
@@ -302,7 +334,7 @@ function ControlPanelView
 	)
 
 	# Remove all policies in order to make changes visible in UI only if it's possible
-	Remove-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name ForceClassicControlPanel -Force -ErrorAction Ignore | Out-Null
+	Remove-RegistryValueSafe -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name ForceClassicControlPanel | Out-Null
 	Set-Policy -Scope User -Path Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name ForceClassicControlPanel -Type CLEAR | Out-Null
 
 	if (-not (Test-Path -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\ControlPanel))
@@ -318,8 +350,14 @@ function ControlPanelView
 			LogInfo "Setting Control Panel to be viewed by Category"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\ControlPanel -Name AllItemsIconView -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\ControlPanel -Name StartupPage -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\ControlPanel" `
+					-Name "AllItemsIconView" `
+					-Value 0 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\ControlPanel" `
+					-Name "StartupPage" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -334,8 +372,14 @@ function ControlPanelView
 			LogInfo "Setting Control Panel to be viewed by Large Icons"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\ControlPanel -Name AllItemsIconView -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\ControlPanel -Name StartupPage -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\ControlPanel" `
+					-Name "AllItemsIconView" `
+					-Value 0 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\ControlPanel" `
+					-Name "StartupPage" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -350,8 +394,14 @@ function ControlPanelView
 			LogInfo "Setting Control Panel to be viewed by Small Icons"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\ControlPanel -Name AllItemsIconView -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\ControlPanel -Name StartupPage -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\ControlPanel" `
+					-Name "AllItemsIconView" `
+					-Value 1 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\ControlPanel" `
+					-Name "StartupPage" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -367,6 +417,11 @@ function ControlPanelView
 	.SYNOPSIS
 	Files and folders grouping in the Downloads folder
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for files and folders grouping in the Downloads folder.
 	.PARAMETER None
 	Do not group files and folder in the Downloads folder
 
@@ -417,13 +472,34 @@ function FolderGroupBy
 			{
 				New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}" -Force | Out-Null
 			}
-			New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}" -Name ColumnList -PropertyType String -Value "System.Null" -Force | Out-Null
-			New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}" -Name GroupBy -PropertyType String -Value "System.Null" -Force | Out-Null
-			New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}" -Name LogicalViewMode -PropertyType DWord -Value 1 -Force | Out-Null
-			New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}" -Name Name -PropertyType String -Value NoName -Force | Out-Null
-			New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}" -Name Order -PropertyType DWord -Value 0 -Force | Out-Null
-			New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}" -Name PrimaryProperty -PropertyType String -Value "System.ItemNameDisplay" -Force | Out-Null
-			New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}" -Name SortByList -PropertyType String -Value "prop:System.ItemNameDisplay" -Force | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}" `
+				-Name "ColumnList" `
+				-Value "System.Null" `
+				-Type String
+			Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}" `
+				-Name "GroupBy" `
+				-Value "System.Null" `
+				-Type String
+			Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}" `
+				-Name "LogicalViewMode" `
+				-Value 1 `
+				-Type DWord
+			Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}" `
+				-Name "Name" `
+				-Value "NoName" `
+				-Type String
+			Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}" `
+				-Name "Order" `
+				-Value 0 `
+				-Type DWord
+			Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}" `
+				-Name "PrimaryProperty" `
+				-Value "System.ItemNameDisplay" `
+				-Type String
+			Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}" `
+				-Name "SortByList" `
+				-Value "prop:System.ItemNameDisplay" `
+				-Type String
 			Write-ConsoleStatus -Status success
 		}
 		"Default"
@@ -440,6 +516,11 @@ function FolderGroupBy
 .SYNOPSIS
 Enable or disable coloring of encrypted or compressed NTFS files (green for encrypted, blue for compressed)
 
+
+
+.DESCRIPTION
+
+Enables or disables coloring of encrypted or compressed NTFS files (green for encrypted, blue for compressed) in GUI and headless runs.
 .PARAMETER Enable
 Enable coloring of encrypted or compressed NTFS files (default value)
 
@@ -482,7 +563,10 @@ function EncCompFilesColor
 			LogInfo "Enabling coloring of encrypted or compressed NTFS files"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowEncryptCompressedColor" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "ShowEncryptCompressedColor" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -516,6 +600,11 @@ function EncCompFilesColor
 .SYNOPSIS
 Enable or disable displaying full path in Explorer window title
 
+
+
+.DESCRIPTION
+
+Enables or disables displaying full path in Explorer window title in GUI and headless runs.
 .PARAMETER Enable
 Enable displaying full path in Explorer title
 
@@ -561,7 +650,10 @@ function ExplorerTitleFullPath
 				If (!(Test-Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\CabinetState")) {
 					New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\CabinetState" -Force -ErrorAction Stop | Out-Null
 				}
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\CabinetState" -Name "FullPath" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\CabinetState" `
+					-Name "FullPath" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -595,6 +687,11 @@ function ExplorerTitleFullPath
 	.SYNOPSIS
 	File Explorer mode
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for file Explorer mode.
 	.PARAMETER Disable
 	Disable File Explorer compact mode (default value)
 
@@ -637,7 +734,10 @@ function FileExplorerCompactMode
 			LogInfo "Disabling File Explorer compact mode"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name UseCompactMode -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "UseCompactMode" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -652,7 +752,10 @@ function FileExplorerCompactMode
 			LogInfo "Enabling File Explorer compact mode"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name UseCompactMode -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "UseCompactMode" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -668,6 +771,11 @@ function FileExplorerCompactMode
 	.SYNOPSIS
 	File name extensions
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for file name extensions.
 	.PARAMETER Show
 	Show file name extensions
 
@@ -712,7 +820,10 @@ function FileExtensions
 			{
 				$advancedKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
 				if (-not (Test-Path -LiteralPath $advancedKey)) { New-Item -Path $advancedKey -Force -ErrorAction Stop | Out-Null }
-				New-ItemProperty -Path $advancedKey -Name HideFileExt -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $advancedKey `
+					-Name "HideFileExt" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -729,7 +840,10 @@ function FileExtensions
 			{
 				$advancedKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
 				if (-not (Test-Path -LiteralPath $advancedKey)) { New-Item -Path $advancedKey -Force -ErrorAction Stop | Out-Null }
-				New-ItemProperty -Path $advancedKey -Name HideFileExt -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $advancedKey `
+					-Name "HideFileExt" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -745,6 +859,11 @@ function FileExtensions
 	.SYNOPSIS
 	The file transfer dialog box mode
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the file transfer dialog box mode.
 	.PARAMETER Detailed
 	Show the file transfer dialog box in the detailed mode
 
@@ -792,7 +911,10 @@ function FileTransferDialog
 			LogInfo "Enabling detailed view for file transfer dialog boxes"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\OperationStatusManager -Name EnthusiastMode -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\OperationStatusManager" `
+					-Name "EnthusiastMode" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -807,7 +929,10 @@ function FileTransferDialog
 			LogInfo "Enabling compact view for file transfer dialog boxes"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\OperationStatusManager -Name EnthusiastMode -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\OperationStatusManager" `
+					-Name "EnthusiastMode" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -823,6 +948,11 @@ function FileTransferDialog
 	.SYNOPSIS
 	First sign-in animation after the upgrade
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for first sign-in animation after the upgrade.
 	.PARAMETER Disable
 	Disable first sign-in animation after the upgrade
 
@@ -869,7 +999,10 @@ function FirstLogonAnimation
 			LogInfo "Disabling the first sign-in animation after upgrade"
 			try
 			{
-				New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name EnableFirstLogonAnimation -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" `
+					-Name "EnableFirstLogonAnimation" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -884,7 +1017,10 @@ function FirstLogonAnimation
 			LogInfo "Enabling the first sign-in animation after upgrade"
 			try
 			{
-				New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name EnableFirstLogonAnimation -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" `
+					-Name "EnableFirstLogonAnimation" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -900,6 +1036,11 @@ function FirstLogonAnimation
 	.SYNOPSIS
 	Folder merge conflicts
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for folder merge conflicts.
 	.PARAMETER Show
 	Show folder merge conflicts
 
@@ -942,7 +1083,10 @@ function MergeConflicts
 			LogInfo "Enabling folder merge conflicts"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name HideMergeConflicts -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "HideMergeConflicts" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -957,7 +1101,10 @@ function MergeConflicts
 			LogInfo "Disabling folder merge conflicts"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name HideMergeConflicts -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "HideMergeConflicts" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -973,6 +1120,11 @@ function MergeConflicts
 .SYNOPSIS
 Enable or disable launching folder windows in a separate process
 
+
+
+.DESCRIPTION
+
+Enables or disables launching folder windows in a separate process in GUI and headless runs.
 .PARAMETER Enable
 Enable launching folder windows in a separate process
 
@@ -1015,7 +1167,10 @@ function FldrSeparateProcess
 			LogInfo "Enabling launching folder windows in a separate process"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "SeparateProcess" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "SeparateProcess" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1030,7 +1185,10 @@ function FldrSeparateProcess
 			LogInfo "Disabling launching folder windows in a separate process"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "SeparateProcess" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "SeparateProcess" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1046,6 +1204,11 @@ function FldrSeparateProcess
 	.SYNOPSIS
 	Hidden files, folders, and drives
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for hidden files, folders, and drives.
 	.PARAMETER Enable
 	Show hidden files, folders, and drives
 
@@ -1088,7 +1251,10 @@ function HiddenItems
 			LogInfo "Enabling Hidden files, folders, and drives"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name Hidden -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "Hidden" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1103,7 +1269,10 @@ function HiddenItems
 			LogInfo "Disabling Hidden files, folders, and drives"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name Hidden -PropertyType DWord -Value 2 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "Hidden" `
+					-Value 2 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1119,6 +1288,11 @@ function HiddenItems
 	.SYNOPSIS
 	Item check boxes
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for item check boxes.
 	.PARAMETER Disable
 	Do not use item check boxes
 
@@ -1161,7 +1335,10 @@ function CheckBoxes
 			LogInfo "Enabling item check boxes"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name AutoCheckSelect -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "AutoCheckSelect" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1176,7 +1353,10 @@ function CheckBoxes
 			LogInfo "Disabling item check boxes"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name AutoCheckSelect -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "AutoCheckSelect" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1192,6 +1372,11 @@ function CheckBoxes
 .SYNOPSIS
 Enable or disable item selection checkboxes in Explorer
 
+
+
+.DESCRIPTION
+
+Enables or disables item selection checkboxes in Explorer in GUI and headless runs.
 .PARAMETER Enable
 Enable item selection checkboxes
 
@@ -1234,7 +1419,10 @@ function SelectCheckboxes
 			LogInfo "Enabling item selection checkboxes in Explorer"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "AutoCheckSelect" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "AutoCheckSelect" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1249,7 +1437,10 @@ function SelectCheckboxes
 			LogInfo "Enabling item selection checkboxes in Explorer"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "AutoCheckSelect" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "AutoCheckSelect" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1265,6 +1456,11 @@ function SelectCheckboxes
 	.SYNOPSIS
 	The quality factor of the JPEG desktop wallpapers
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the quality factor of the JPEG desktop wallpapers.
 	.PARAMETER Max
 	Set the quality factor of the JPEG desktop wallpapers to maximum
 
@@ -1307,7 +1503,10 @@ function JPEGWallpapersQuality
 			LogInfo "Enabling the maximum quality factor of the JPEG desktop wallpapers"
 			try
 			{
-				New-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name JPEGImportQuality -PropertyType DWord -Value 100 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" `
+					-Name "JPEGImportQuality" `
+					-Value 100 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1341,6 +1540,11 @@ function JPEGWallpapersQuality
 .SYNOPSIS
 Enable or disable showing all folders in Explorer navigation pane
 
+
+
+.DESCRIPTION
+
+Enables or disables showing all folders in Explorer navigation pane in GUI and headless runs.
 .PARAMETER Enable
 Enable showing all folders in navigation pane
 
@@ -1383,7 +1587,10 @@ function NavPaneAllFolders
 			LogInfo "Enabling all folders in the Explorer navigation pane"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "NavPaneShowAllFolders" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "NavPaneShowAllFolders" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1417,6 +1624,11 @@ function NavPaneAllFolders
 .SYNOPSIS
 Enable or disable showing Libraries in Explorer navigation pane
 
+
+
+.DESCRIPTION
+
+Enables or disables showing Libraries in Explorer navigation pane in GUI and headless runs.
 .PARAMETER Enable
 Enable showing Libraries in navigation pane
 
@@ -1462,7 +1674,10 @@ function NavPaneLibraries
 				If (!(Test-Path "HKCU:\Software\Classes\CLSID\{031E4825-7B94-4dc3-B131-E946B44C8DD5}")) {
 					New-Item -Path "HKCU:\Software\Classes\CLSID\{031E4825-7B94-4dc3-B131-E946B44C8DD5}" -Force -ErrorAction Stop | Out-Null
 				}
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Classes\CLSID\{031E4825-7B94-4dc3-B131-E946B44C8DD5}" -Name "System.IsPinnedToNameSpaceTree" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Classes\CLSID\{031E4825-7B94-4dc3-B131-E946B44C8DD5}" `
+					-Name "System.IsPinnedToNameSpaceTree" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1496,6 +1711,11 @@ function NavPaneLibraries
 	.SYNOPSIS
 	Expand to current folder in navigation pane
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for expand to current folder in navigation pane.
 	.PARAMETER Disable
 	Do not expand to open folder on navigation pane (default value)
 
@@ -1538,7 +1758,10 @@ function NavigationPaneExpand
 			LogInfo "Disabling expand to open folder on navigation pane"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name NavPaneExpandToCurrentFolder -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "NavPaneExpandToCurrentFolder" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1553,7 +1776,10 @@ function NavigationPaneExpand
 			LogInfo "Enabling expand to open folder on navigation pane"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name NavPaneExpandToCurrentFolder -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "NavPaneExpandToCurrentFolder" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1569,6 +1795,11 @@ function NavigationPaneExpand
 	.SYNOPSIS
 	Sync provider notification in File Explorer
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for sync provider notification in File Explorer.
 	.PARAMETER Hide
 	Do not show sync provider notification within File Explorer
 
@@ -1611,7 +1842,10 @@ function OneDriveFileExplorerAd
 			LogInfo "Disabling sync provider notification within File Explorer"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name ShowSyncProviderNotifications -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "ShowSyncProviderNotifications" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1626,7 +1860,10 @@ function OneDriveFileExplorerAd
 			LogInfo "Enabling sync provider notification within File Explorer"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name ShowSyncProviderNotifications -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "ShowSyncProviderNotifications" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1642,6 +1879,11 @@ function OneDriveFileExplorerAd
 	.SYNOPSIS
 	Configure how to open File Explorer
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for configure how to open File Explorer.
 	.PARAMETER ThisPC
 	Open File Explorer to "This PC"
 
@@ -1698,7 +1940,10 @@ function OpenFileExplorerTo
 			LogInfo "Setting File Explorer to open to 'This PC'"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name LaunchTo -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "LaunchTo" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1713,7 +1958,10 @@ function OpenFileExplorerTo
 			LogInfo "Setting File Explorer to open to 'Quick Access'"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name LaunchTo -PropertyType DWord -Value 2 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "LaunchTo" `
+					-Value 2 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1728,7 +1976,10 @@ function OpenFileExplorerTo
 			LogInfo "Setting File Explorer to open to 'Downloads'"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name LaunchTo -PropertyType DWord -Value 3 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "LaunchTo" `
+					-Value 3 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1744,6 +1995,11 @@ function OpenFileExplorerTo
 	.SYNOPSIS
 	Show or hide protected operating system files
 
+
+	
+.DESCRIPTION
+	
+Shows or hide protected operating system files from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show protected operating system files
 
@@ -1786,7 +2042,10 @@ function SuperHiddenFiles
 			LogInfo "Enabling 'Show protected operating system files'"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowSuperHidden" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "ShowSuperHidden" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1801,7 +2060,10 @@ function SuperHiddenFiles
 			LogInfo "Disabling 'Show protected operating system files'"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowSuperHidden" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "ShowSuperHidden" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1817,6 +2079,11 @@ function SuperHiddenFiles
 	.SYNOPSIS
 	Frequently used folders in Quick access
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for frequently used folders in Quick access.
 	.PARAMETER Hide
 	Hide frequently used folders in Quick access
 
@@ -1859,7 +2126,10 @@ function QuickAccessFrequentFolders
 			LogInfo "Disabling frequently used folders in Quick access"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer -Name ShowFrequent -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" `
+					-Name "ShowFrequent" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1874,7 +2144,10 @@ function QuickAccessFrequentFolders
 			LogInfo "Enabling frequently used folders in Quick access"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer -Name ShowFrequent -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" `
+					-Name "ShowFrequent" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1890,6 +2163,11 @@ function QuickAccessFrequentFolders
 	.SYNOPSIS
 	Recently used files in Quick access
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for recently used files in Quick access.
 	.PARAMETER Hide
 	Hide recently used files in Quick access
 
@@ -1925,7 +2203,7 @@ function QuickAccessRecentFiles
 	)
 
 	# Remove all policies in order to make changes visible in UI only if it's possible
-	Remove-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer, HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name NoRecentDocsHistory -Force -ErrorAction Ignore | Out-Null
+	Remove-RegistryValueSafe -Path HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer, HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name NoRecentDocsHistory | Out-Null
 	Set-Policy -Scope Computer -Path SOFTWARE\Policies\Microsoft\Windows\Explorer -Name NoRecentDocsHistory -Type CLEAR | Out-Null
 	Set-Policy -Scope User -Path SOFTWARE\Policies\Microsoft\Windows\Explorer -Name NoRecentDocsHistory -Type CLEAR | Out-Null
 
@@ -1937,7 +2215,10 @@ function QuickAccessRecentFiles
 			LogInfo "Disabling recently used files in Quick access"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer -Name ShowRecent -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" `
+					-Name "ShowRecent" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1952,7 +2233,10 @@ function QuickAccessRecentFiles
 			LogInfo "Enabling recently used files in Quick access"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer -Name ShowRecent -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" `
+					-Name "ShowRecent" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -2036,8 +2320,14 @@ function RecentShortcuts
 			LogInfo "Disabling recently and frequently used item shortcuts in Explorer"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" -Name "ShowRecent" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" -Name "ShowFrequent" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" `
+					-Name "ShowRecent" `
+					-Value 0 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" `
+					-Name "ShowFrequent" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -2053,6 +2343,11 @@ function RecentShortcuts
 	.SYNOPSIS
 	The recycle bin files delete confirmation dialog
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the recycle bin files delete confirmation dialog.
 	.PARAMETER Enable
 	Display the recycle bin files delete confirmation dialog
 
@@ -2088,7 +2383,7 @@ function RecycleBinDeleteConfirmation
 	)
 
 	# Remove all policies in order to make changes visible in UI only if it's possible
-	Remove-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer, HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name ConfirmFileDelete -Force -ErrorAction Ignore | Out-Null
+	Remove-RegistryValueSafe -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer, HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name ConfirmFileDelete | Out-Null
 	Set-Policy -Scope Computer -Path SOFTWARE\Policies\Microsoft\Windows\Explorer -Name ConfirmFileDelete -Type CLEAR | Out-Null
 	Set-Policy -Scope User -Path Software\Policies\Microsoft\Windows\Explorer -Name ConfirmFileDelete -Type CLEAR | Out-Null
 
@@ -2103,7 +2398,10 @@ function RecycleBinDeleteConfirmation
 			try
 			{
 				$ShellState[4] = 51
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer -Name ShellState -PropertyType Binary -Value $ShellState -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" `
+					-Name "ShellState" `
+					-Value $ShellState `
+					-Type Binary
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -2119,7 +2417,10 @@ function RecycleBinDeleteConfirmation
 			try
 			{
 				$ShellState[4] = 55
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer -Name ShellState -PropertyType Binary -Value $ShellState -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" `
+					-Name "ShellState" `
+					-Value $ShellState `
+					-Type Binary
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -2135,6 +2436,11 @@ function RecycleBinDeleteConfirmation
 .SYNOPSIS
 Enable or disable restoring previous folder windows at logon
 
+
+
+.DESCRIPTION
+
+Enables or disables restoring previous folder windows at logon in GUI and headless runs.
 .PARAMETER Enable
 Enable restoring previous folder windows at logon
 
@@ -2177,7 +2483,10 @@ function RestoreFldrWindows
 			LogInfo "Enabling restoring previous folder windows at logon"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "PersistBrowsers" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "PersistBrowsers" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -2211,6 +2520,11 @@ function RestoreFldrWindows
 	.SYNOPSIS
 	Startup delay for apps at login
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for startup delay for apps at login.
 	.PARAMETER Disable
 	Disable startup delay for apps at login
 
@@ -2288,6 +2602,11 @@ function Set-StartupAppDelay
 	.SYNOPSIS
 	Browse folders in same or new window
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for browse folders in same or new window.
 	.PARAMETER SameWindow
 	Browse folders in the same window
 
@@ -2367,6 +2686,11 @@ function Set-ExplorerBrowseMode
 	.SYNOPSIS
 	Click behavior for items in Explorer
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for click behavior for items in Explorer.
 	.PARAMETER SingleClick
 	Single-click to open items
 
@@ -2446,6 +2770,11 @@ function Set-ExplorerClickBehavior
 	.SYNOPSIS
 	Show Office files in Quick Access
 
+
+	
+.DESCRIPTION
+	
+Shows Office files in Quick Access from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show files from Office.com in Quick Access
 
@@ -2525,6 +2854,11 @@ function Set-OfficeCloudFilesInQuickAccess
 	.SYNOPSIS
 	Always show menu bar in Explorer
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for always show menu bar in Explorer.
 	.PARAMETER Enable
 	Always show menu bar in Explorer
 
@@ -2602,6 +2936,11 @@ function Set-ExplorerAlwaysShowMenuBar
 	.SYNOPSIS
 	Display file icon on thumbnails
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for display file icon on thumbnails.
 	.PARAMETER Enable
 	Display file icon on thumbnails
 
@@ -2681,6 +3020,11 @@ function Set-DisplayFileIconOnThumbnails
 	.SYNOPSIS
 	Display file size info in folder tooltips
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for display file size info in folder tooltips.
 	.PARAMETER Enable
 	Display file size info in folder tooltips
 
@@ -2760,6 +3104,11 @@ function Set-FolderTooltipDetails
 	.SYNOPSIS
 	Show drive letters before drive names
 
+
+	
+.DESCRIPTION
+	
+Shows drive letters before drive names from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show drive letters before drive names (e.g., "C: Local Disk")
 
@@ -2834,6 +3183,11 @@ function Set-ShowDriveLetters
 	.SYNOPSIS
 	Hide empty drives
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for hide empty drives.
 	.PARAMETER Enable
 	Hide drives with no media in Explorer
 
@@ -2911,6 +3265,11 @@ function Set-HideEmptyDrives
 	.SYNOPSIS
 	Show status bar in Explorer
 
+
+	
+.DESCRIPTION
+	
+Shows status bar in Explorer from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show status bar in Explorer
 
@@ -2988,6 +3347,11 @@ function Set-ExplorerStatusBar
 	.SYNOPSIS
 	Type-ahead behavior in Explorer list view
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for type-ahead behavior in Explorer list view.
 	.PARAMETER TypeAhead
 	Use type-ahead to search for items
 
@@ -3067,6 +3431,11 @@ function Set-ExplorerTypeAhead
 	.SYNOPSIS
 	Show 3D Objects folder in This PC
 
+
+	
+.DESCRIPTION
+	
+Shows 3D Objects folder in This PC from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show the 3D Objects folder in This PC
 
@@ -3149,6 +3518,11 @@ function Set-Show3DObjectsFolder
 	.SYNOPSIS
 	Show Home folder in navigation pane
 
+
+	
+.DESCRIPTION
+	
+Shows Home folder in navigation pane from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show Home folder in Explorer navigation pane
 
@@ -3231,6 +3605,11 @@ function Set-ShowHomeFolderInNavPane
 	.SYNOPSIS
 	Show Gallery in navigation pane
 
+
+	
+.DESCRIPTION
+	
+Shows Gallery in navigation pane from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show Gallery folder in Explorer navigation pane
 

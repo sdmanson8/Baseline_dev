@@ -803,7 +803,8 @@
 			[string]$Title = 'Save File',
 			[string]$Filter = 'All Files (*.*)|*.*',
 			[string]$DefaultExtension = 'json',
-			[string]$FileName = 'Baseline-export.json'
+			[string]$FileName = 'Baseline-export.json',
+			[string]$InitialDirectory
 		)
 
 		$saveDialog = New-Object Microsoft.Win32.SaveFileDialog
@@ -812,12 +813,61 @@
 		$saveDialog.DefaultExt = $DefaultExtension
 		$saveDialog.AddExtension = $true
 		$saveDialog.FileName = $FileName
-		$saveDialog.InitialDirectory = GUICommon\Get-GuiSettingsProfileDirectory -AppName 'Baseline'
+		if ([string]::IsNullOrWhiteSpace($InitialDirectory))
+		{
+			$InitialDirectory = GUICommon\Get-GuiSettingsProfileDirectory -AppName 'Baseline'
+		}
+		$saveDialog.InitialDirectory = $InitialDirectory
 
 		$owner = if ($Script:MainForm) { $Script:MainForm } else { $null }
 		if ($saveDialog.ShowDialog($owner) -eq $true)
 		{
 			return $saveDialog.FileName
+		}
+
+		return $null
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Show-GuiFolderPickerDialog.
+	#>
+	function Show-GuiFolderPickerDialog
+	{
+		param (
+			[string]$Description = 'Select a folder',
+			[string]$InitialDirectory
+		)
+
+		Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+
+		$folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
+		$folderDialog.Description = $Description
+		$folderDialog.RootFolder = [System.Environment+SpecialFolder]::MyComputer
+		$folderDialog.ShowNewFolderButton = $true
+
+		if ([string]::IsNullOrWhiteSpace($InitialDirectory))
+		{
+			$InitialDirectory = GUICommon\Get-GuiSettingsProfileDirectory -AppName 'Baseline'
+		}
+
+		if (-not [string]::IsNullOrWhiteSpace($InitialDirectory) -and (Test-Path -LiteralPath $InitialDirectory))
+		{
+			$folderDialog.SelectedPath = $InitialDirectory
+		}
+
+		$focus = New-Object -TypeName System.Windows.Forms.Form -Property @{ TopMost = $true }
+		try
+		{
+			if ($folderDialog.ShowDialog($focus) -eq [System.Windows.Forms.DialogResult]::OK)
+			{
+				return $folderDialog.SelectedPath
+			}
+		}
+		finally
+		{
+			if ($focus) { $focus.Dispose() }
+			if ($folderDialog) { $folderDialog.Dispose() }
 		}
 
 		return $null

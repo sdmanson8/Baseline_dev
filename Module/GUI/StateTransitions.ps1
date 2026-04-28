@@ -87,7 +87,7 @@
 				[System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke(
 					[action]{}, [System.Windows.Threading.DispatcherPriority]::Input)
 			}
-			catch { <# non-fatal #> }
+			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StateTransitions.Invoke-GuiStateTransition.DispatcherYield' }
 
 			& $Script:UpdateCurrentTabContentScript -SkipIdlePrebuild
 			if (Get-Command -Name 'Sync-ActivePresetButtonChrome' -CommandType Function -ErrorAction SilentlyContinue)
@@ -119,7 +119,7 @@
 			Set-GuiStatusText -Text $StatusMessage -Tone $(if ([string]::IsNullOrWhiteSpace($StatusTone)) { 'accent' } else { $StatusTone })
 		}
 
-		# 8. Keep Ctx mirrors in sync
+		# 8. Keep Ctx helpers in sync
 		if (Get-Command -Name 'Sync-GuiContextFromScriptState' -CommandType Function -ErrorAction SilentlyContinue)
 		{
 			Sync-GuiContextFromScriptState

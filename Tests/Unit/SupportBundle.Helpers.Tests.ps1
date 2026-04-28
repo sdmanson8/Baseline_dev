@@ -12,13 +12,14 @@ BeforeAll {
     . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Json.Helpers.ps1')
 
     $auditHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/AuditTrail.Helpers.ps1'
+    $stateCaptureHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/StateCapture.Helpers.ps1'
     $bundleHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/SupportBundle.Helpers.ps1'
     $remoteHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/RemoteTarget.Helpers.ps1'
     $script:BundleHelpersPath = $bundleHelpersPath
     $environmentHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Environment.Helpers.ps1'
     $script:SharedHelpersRepoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     $script:SharedHelpersModuleRoot = Join-Path $script:SharedHelpersRepoRoot 'Module'
-    foreach ($filePath in @($auditHelpersPath, $remoteHelpersPath, $environmentHelpersPath, $bundleHelpersPath)) {
+    foreach ($filePath in @($auditHelpersPath, $stateCaptureHelpersPath, $remoteHelpersPath, $environmentHelpersPath, $bundleHelpersPath)) {
         $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
         $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
         foreach ($fn in $functions) {
@@ -184,6 +185,69 @@ Describe 'Export-BaselineSupportBundle' {
         }
     }
 
+    It 'emits SnapshotDiff.json when pre and post snapshots are supplied' {
+        $previousLocalAppData = $env:LOCALAPPDATA
+        $env:LOCALAPPDATA = $script:TempRoot
+        try {
+            $preSnapshot = [pscustomobject]@{
+                Schema        = 'Baseline.StateSnapshot'
+                SchemaVersion = 1
+                Timestamp     = ([datetime]::UtcNow).AddMinutes(-5).ToString('o')
+                MachineName   = 'TESTHOST'
+                OSVersion     = 'Windows 11'
+                Entries       = @(
+                    [pscustomobject]@{
+                        Key           = 'FeatureA'
+                        Name          = 'Feature A'
+                        Function      = 'FeatureA'
+                        DetectedValue = 'Disabled'
+                    }
+                )
+            }
+            $postSnapshot = [pscustomobject]@{
+                Schema        = 'Baseline.StateSnapshot'
+                SchemaVersion = 1
+                Timestamp     = [datetime]::UtcNow.ToString('o')
+                MachineName   = 'TESTHOST'
+                OSVersion     = 'Windows 11'
+                Entries       = @(
+                    [pscustomobject]@{
+                        Key           = 'FeatureA'
+                        Name          = 'Feature A'
+                        Function      = 'FeatureA'
+                        DetectedValue = 'Enabled'
+                    }
+                    [pscustomobject]@{
+                        Key           = 'FeatureB'
+                        Name          = 'Feature B'
+                        Function      = 'FeatureB'
+                        DetectedValue = 'Enabled'
+                    }
+                )
+            }
+
+            $bundlePath = Join-Path $script:TempRoot 'snapshot-diff-bundle.zip'
+            $result = Export-BaselineSupportBundle -OutputPath $bundlePath -IncludeTestReport:$false -PreSnapshot $preSnapshot -PostSnapshot $postSnapshot
+        }
+        finally {
+            $env:LOCALAPPDATA = $previousLocalAppData
+        }
+
+        $extractDir = Join-Path $script:TempRoot 'snapshot-diff-extract'
+        Expand-Archive -LiteralPath $result.OutputPath -DestinationPath $extractDir -Force
+
+        $snapshotDiffPath = Join-Path $extractDir 'SnapshotDiff.json'
+        Test-Path -LiteralPath $snapshotDiffPath | Should -BeTrue
+
+        $snapshotDiff = Get-Content -LiteralPath $snapshotDiffPath -Raw | ConvertFrom-Json
+        $snapshotDiff.Schema | Should -Be 'Baseline.SnapshotDiff'
+        $snapshotDiff.HasPre | Should -BeTrue
+        $snapshotDiff.HasPost | Should -BeTrue
+        $snapshotDiff.Diff.ChangedCount | Should -Be 1
+        $snapshotDiff.Diff.AddedCount | Should -Be 1
+        $snapshotDiff.Diff.RemovedCount | Should -Be 0
+    }
+
     It 'includes the preflight report when the preflight command is available' {
         $bundleContent = Get-Content -LiteralPath $script:BundleHelpersPath -Raw -Encoding UTF8
         $bundleContent | Should -Match 'Invoke-PreflightChecks'
@@ -198,5 +262,114 @@ Describe 'Export-BaselineSupportBundle' {
         $bundleContent | Should -Match 'remote-orchestration-deeplinks\.json'
         $bundleContent | Should -Match 'validation-evidence\.json'
         $bundleContent | Should -Match 'bundle-index\.json'
+    }
+
+    It 'persists Connect-dialog connectivity results into remote-connectivity.json' {
+        $connectivityRoot = Join-Path $script:TempRoot 'LocalAppDataConnectivity'
+        New-Item -ItemType Directory -Path (Join-Path $connectivityRoot 'Baseline') -Force | Out-Null
+        $previousLocalAppData = $env:LOCALAPPDATA
+        $env:LOCALAPPDATA = $connectivityRoot
+        try {
+            $connectivity = @(
+                [pscustomobject]@{ ComputerName = 'PC01'; Reachable = $true;  Status = 'Reachable';   BlockedByPolicy = $false; Error = $null;                ConnectionMethod = 'WinRM' }
+                [pscustomobject]@{ ComputerName = 'PC02'; Reachable = $false; Status = 'Unreachable'; BlockedByPolicy = $false; Error = 'WinRM not enabled';  ConnectionMethod = 'WinRMHttps' }
+            )
+            $bundlePath = Join-Path $script:TempRoot 'connectivity-bundle.zip'
+            $result = Export-BaselineSupportBundle -OutputPath $bundlePath -IncludeTestReport:$false -ConnectivityResults $connectivity
+        }
+        finally {
+            $env:LOCALAPPDATA = $previousLocalAppData
+        }
+
+        $extractDir = Join-Path $script:TempRoot 'connectivity-extract'
+        Expand-Archive -LiteralPath $result.OutputPath -DestinationPath $extractDir -Force
+
+        $connectivityPath = Join-Path $extractDir 'remote-connectivity.json'
+        Test-Path -LiteralPath $connectivityPath | Should -BeTrue
+
+        $payload = Get-Content -LiteralPath $connectivityPath -Raw | ConvertFrom-Json
+        $payload.Schema | Should -Be 'Baseline.RemoteConnectivity'
+        $payload.SchemaVersion | Should -Be 1
+        @($payload.Results).Count | Should -Be 2
+        $payload.Results[0].ComputerName | Should -Be 'PC01'
+        $payload.Results[1].ConnectionMethod | Should -Be 'WinRMHttps'
+
+        $index = Get-Content -LiteralPath (Join-Path $extractDir 'bundle-index.json') -Raw | ConvertFrom-Json
+        $index.Files.RemoteConnectivity | Should -Be 'remote-connectivity.json'
+    }
+
+    It 'omits remote-connectivity.json when no ConnectivityResults are supplied' {
+        $emptyRoot = Join-Path $script:TempRoot 'LocalAppDataNoConnectivity'
+        New-Item -ItemType Directory -Path (Join-Path $emptyRoot 'Baseline') -Force | Out-Null
+        $previousLocalAppData = $env:LOCALAPPDATA
+        $env:LOCALAPPDATA = $emptyRoot
+        try {
+            $bundlePath = Join-Path $script:TempRoot 'no-connectivity-bundle.zip'
+            $result = Export-BaselineSupportBundle -OutputPath $bundlePath -IncludeTestReport:$false
+        }
+        finally {
+            $env:LOCALAPPDATA = $previousLocalAppData
+        }
+
+        $extractDir = Join-Path $script:TempRoot 'no-connectivity-extract'
+        Expand-Archive -LiteralPath $result.OutputPath -DestinationPath $extractDir -Force
+
+        Test-Path -LiteralPath (Join-Path $extractDir 'remote-connectivity.json') | Should -BeFalse
+
+        $index = Get-Content -LiteralPath (Join-Path $extractDir 'bundle-index.json') -Raw | ConvertFrom-Json
+        $hasConnectivityField = [bool]($index.Files.PSObject.Properties.Name -contains 'RemoteConnectivity')
+        $hasConnectivityField | Should -BeFalse
+    }
+
+    It 'includes Windows Update status in support bundle metadata and artifacts' {
+        function Get-WindowsUpdateStatus {
+            return [pscustomobject]@{
+                Schema      = 'Baseline.WindowsUpdateStatus'
+                GeneratedAt = [System.DateTime]::UtcNow.ToString('o')
+                Succeeded   = $true
+                Summary     = [pscustomobject]@{
+                    Total    = 3
+                    Critical = 1
+                    Security = 1
+                    Drivers  = 0
+                    Optional = 1
+                }
+                AvailableUpdates = @()
+                RecentHistory    = @()
+                LastScheduledRun = $null
+            }
+        }
+
+        $statusRoot = Join-Path $script:TempRoot 'LocalAppDataWindowsUpdateStatus'
+        New-Item -ItemType Directory -Path (Join-Path $statusRoot 'Baseline') -Force | Out-Null
+        $previousLocalAppData = $env:LOCALAPPDATA
+        $env:LOCALAPPDATA = $statusRoot
+        try {
+            $bundlePath = Join-Path $script:TempRoot 'windows-update-status-bundle.zip'
+            $result = Export-BaselineSupportBundle -OutputPath $bundlePath -IncludeTestReport:$false
+        }
+        finally {
+            $env:LOCALAPPDATA = $previousLocalAppData
+            Remove-Item -Path Function:\Get-WindowsUpdateStatus -ErrorAction SilentlyContinue
+        }
+
+        $extractDir = Join-Path $script:TempRoot 'windows-update-status-extract'
+        Expand-Archive -LiteralPath $result.OutputPath -DestinationPath $extractDir -Force
+
+        $statusPath = Join-Path $extractDir 'windows-update-status.json'
+        Test-Path -LiteralPath $statusPath | Should -BeTrue
+
+        $status = Get-Content -LiteralPath $statusPath -Raw | ConvertFrom-Json
+        $status.Schema | Should -Be 'Baseline.WindowsUpdateStatus'
+        $status.Succeeded | Should -BeTrue
+        $status.Summary.Critical | Should -Be 1
+        $status.Summary.Security | Should -Be 1
+
+        $metadata = Get-Content -LiteralPath (Join-Path $extractDir 'metadata.json') -Raw | ConvertFrom-Json
+        $metadata.WindowsUpdateStatusSucceeded | Should -BeTrue
+        $metadata.WindowsUpdateSummary.Total | Should -Be 3
+
+        $index = Get-Content -LiteralPath (Join-Path $extractDir 'bundle-index.json') -Raw | ConvertFrom-Json
+        $index.Files.WindowsUpdateStatus | Should -Be 'windows-update-status.json'
     }
 }

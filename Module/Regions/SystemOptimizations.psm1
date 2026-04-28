@@ -5,7 +5,12 @@ using module ..\SharedHelpers.psm1
 
 <#
     .SYNOPSIS
-    Internal function Get-OptimizationScratchDirectory.
+    Gets optimization scratch directory.
+
+    
+.DESCRIPTION
+    
+Supports optimization scratch directory handling inside Baseline.
 #>
 
 function Get-OptimizationScratchDirectory
@@ -21,7 +26,12 @@ function Get-OptimizationScratchDirectory
 
 <#
     .SYNOPSIS
-    Internal function .
+    Gets optimization asset path.
+
+    
+.DESCRIPTION
+    
+Supports optimization asset path handling inside Baseline.
 #>
 function Get-OptimizationAssetPath
 {
@@ -49,7 +59,12 @@ function Get-OptimizationAssetPath
 
 <#
     .SYNOPSIS
-    Internal function Import-LegacyRegistryAsset.
+    Imports legacy registry asset.
+
+    
+.DESCRIPTION
+    
+Supports legacy registry asset handling inside Baseline.
 #>
 
 function Import-LegacyRegistryAsset
@@ -100,6 +115,11 @@ function Import-LegacyRegistryAsset
 .SYNOPSIS
 Apply the legacy system/bootstrap optimizations from the monolithic utility.
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for apply the legacy system/bootstrap optimizations from the monolithic utility..
 .EXAMPLE
 Invoke-SystemOptimizations
 #>

@@ -20,16 +20,25 @@
 	    .SYNOPSIS
 	    Internal function .
 	#>
-	function Test-IsExpertModeUX
-	{
-		return ([bool]$Script:AdvancedMode)
-	}
+function Test-IsExpertModeUX
+{
+	return ([bool]$Script:AdvancedMode)
+}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Test-IsDesignModeUX.
+	#>
+function Test-IsDesignModeUX
+{
+	return ([bool]$Script:DesignMode)
+}
 
 	<#
 	    .SYNOPSIS
 	    Internal function .
 	#>
-	function Get-UxOnboardingMode
+function Get-UxOnboardingMode
 	{
 		if (Test-IsExpertModeUX)
 		{
@@ -48,9 +57,9 @@
 	    Internal function Get-UxLocalizedString.
 	#>
 
-	function Get-UxLocalizedString
-	{
-		param (
+function Get-UxLocalizedString
+{
+	param (
 			[Parameter(Mandatory = $true)]
 			[string]$Key,
 
@@ -93,8 +102,34 @@
 			return ($template -f $FormatArgs)
 		}
 
-		return $template
+	return $template
+}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Get-UxMainWindowTitleText.
+	#>
+
+function Get-UxMainWindowTitleText
+{
+	$osName = 'Windows'
+	try
+	{
+		$osInfo = Get-OSInfo
+		if ($osInfo -and -not [string]::IsNullOrWhiteSpace([string]$osInfo.OSName))
+		{
+			$osName = [string]$osInfo.OSName
+		}
 	}
+	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UxPolicy.GetUxMainWindowTitleText.LoadOSInfo' }
+
+	if (Test-IsDesignModeUX)
+	{
+		return ('Baseline (Design Mode — not applying changes) | Utility for {0}' -f $osName)
+	}
+
+	return (Get-UxLocalizedString -Key 'GuiMainWindowTitleFormat' -Fallback 'Baseline | Utility for {0}' -FormatArgs @($osName))
+}
 
 	<#
 	    .SYNOPSIS
@@ -466,10 +501,15 @@
 	    Internal function Get-UxRunActionLabel.
 	#>
 
-	function Get-UxRunActionLabel
+function Get-UxRunActionLabel
+{
+	if (Test-IsDesignModeUX)
 	{
-		return (Get-UxLocalizedString -Key 'GuiBtnRun' -Fallback 'Run Tweaks')
+		return 'Save Config…'
 	}
+
+	return (Get-UxLocalizedString -Key 'GuiBtnRun' -Fallback 'Run Tweaks')
+}
 
 	<#
 	    .SYNOPSIS
@@ -500,11 +540,16 @@
 	    Internal function Get-UxRunActionToolTip.
 	#>
 
-	function Get-UxRunActionToolTip
+function Get-UxRunActionToolTip
+{
+	if (Test-IsDesignModeUX)
 	{
-		if ([bool]$Script:GameMode)
-		{
-			$previewLabel = Get-UxPreviewButtonLabel
+		return 'Saves the current GUI selections to a config file without applying changes.'
+	}
+
+	if ([bool]$Script:GameMode)
+	{
+		$previewLabel = Get-UxPreviewButtonLabel
 			switch (Get-UxOnboardingMode)
 			{
 				'Safe' { return (Get-UxLocalizedString -Key 'GuiRunTooltipSafeGame' -Fallback 'Runs the active Game Mode plan with beginner-safe flow. {0} is recommended first.' -FormatArgs @($previewLabel)) }
@@ -526,12 +571,17 @@
 	    Internal function Get-UxRunPathContext.
 	#>
 
-	function Get-UxRunPathContext
+function Get-UxRunPathContext
+{
+	if (Test-IsDesignModeUX)
 	{
-		if ($Script:GameMode -and [string]$Script:GameModeProfile -eq 'Troubleshooting')
-		{
-			return @{ Path = 'Troubleshooting'; Label = 'Troubleshoot'; Tone = 'caution' }
-		}
+		return @{ Path = 'DesignMode'; Label = 'Design Mode'; Tone = 'accent' }
+	}
+
+	if ($Script:GameMode -and [string]$Script:GameModeProfile -eq 'Troubleshooting')
+	{
+		return @{ Path = 'Troubleshooting'; Label = 'Troubleshoot'; Tone = 'caution' }
+	}
 		if ([bool]$Script:GameMode)
 		{
 			return @{ Path = 'GameMode'; Label = "Game: $([string]$Script:GameModeProfile)"; Tone = 'accent' }
@@ -1079,6 +1129,7 @@ function Get-UxQuickStartSteps
 		}
 		catch
 		{
+			Write-DebugSwallowedException -ErrorRecord $_ -Source 'UxPolicy.GetUxExecutionSummary.LoadValidationMatrix'
 			$validationMatrix = $null
 		}
 		$currentOS = $null
@@ -1091,6 +1142,7 @@ function Get-UxQuickStartSteps
 		}
 		catch
 		{
+			Write-DebugSwallowedException -ErrorRecord $_ -Source 'UxPolicy.GetUxExecutionSummary.LoadOSInfo'
 			$currentOS = $null
 		}
 		$serverValidationWarning = $null
@@ -1730,12 +1782,12 @@ function Get-UxQuickStartSteps
 					(Get-UxLocalizedString -Key 'GuiHelpExpertPresetList' -Fallback 'Minimal, Basic, Balanced, Advanced load from preset files.')
 					(Get-UxLocalizedString -Key 'GuiHelpExpertAdvancedReview' -Fallback 'Advanced is the expert preset and should be reviewed with risk, restart, and recovery guidance in mind.')
 					(Get-UxLocalizedString -Key 'GuiHelpExpertPresetReplace' -Fallback 'Presets replace the current selection - they do not stack.')
-					(Get-UxLocalizedString -Key 'GuiHelpExpertRunApplies' -Fallback 'Run Tweaks applies the current GUI selection.')
+					(Get-UxLocalizedString -Key 'GuiHelpExpertRunApplies' -Fallback ('{0} applies the current GUI selection.' -f (Get-UxRunActionLabel)))
 				)
 				$previewLabel = @(
 					(Get-UxLocalizedString -Key 'GuiHelpExpertPreviewPlan' -Fallback '{0} shows the execution plan for the current selection, including risk, restart required, restore, and category metadata.' -FormatArgs @($previewLabel))
 				)
-				(Get-UxLocalizedString -Key 'GuiHelpExpertSectionRunTweaks' -Fallback 'Run Tweaks') = @(
+				(Get-UxLocalizedString -Key 'GuiHelpExpertSectionRunTweaks' -Fallback (Get-UxRunActionLabel)) = @(
 					(Get-UxLocalizedString -Key 'GuiHelpExpertRunOutcomes' -Fallback 'Executes selected items. Outcome states: Success, Failed, Skipped, Already Applied.')
 				)
 				(Get-UxLocalizedString -Key 'GuiHelpSectionRiskLevels' -Fallback 'Risk Levels') = @(
@@ -1778,14 +1830,14 @@ function Get-UxQuickStartSteps
 				(Get-UxLocalizedString -Key 'GuiHelpStdPresetAdvanced' -Fallback 'Advanced is the expert preset for experienced users and recommends a restore point before continuing.')
 				(Get-UxLocalizedString -Key 'GuiHelpStdPresetReplace' -Fallback 'Clicking a preset replaces any previously loaded selection - selections do not stack.')
 				(Get-UxLocalizedString -Key 'GuiHelpStdPresetNoExec2' -Fallback 'Presets only update the GUI selection. They do not execute changes.')
-				(Get-UxLocalizedString -Key 'GuiHelpStdRunApplies' -Fallback 'Run Tweaks applies the current GUI selection.')
+				(Get-UxLocalizedString -Key 'GuiHelpStdRunApplies' -Fallback ('{0} applies the current GUI selection.' -f (Get-UxRunActionLabel)))
 			)
 			$previewLabel = @(
 				(Get-UxLocalizedString -Key 'GuiHelpStdPreviewShows' -Fallback '{0} shows what would execute from the current selection without applying any changes.' -FormatArgs @($previewLabel))
 				(Get-UxLocalizedString -Key 'GuiHelpStdPreviewMeta' -Fallback 'It also shows risk, restart, restore, and category summary information.')
 			)
-			(Get-UxLocalizedString -Key 'GuiHelpStdSectionRunTweaks' -Fallback 'Run Tweaks') = @(
-				(Get-UxLocalizedString -Key 'GuiHelpStdRunExec' -Fallback 'Run Tweaks executes only the items currently selected in the GUI.')
+			(Get-UxLocalizedString -Key 'GuiHelpStdSectionRunTweaks' -Fallback (Get-UxRunActionLabel)) = @(
+				(Get-UxLocalizedString -Key 'GuiHelpStdRunExec' -Fallback ('{0} executes only the items currently selected in the GUI.' -f (Get-UxRunActionLabel)))
 				(Get-UxLocalizedString -Key 'GuiHelpStdRunOutcomes' -Fallback 'Expected result states per tweak: Success, Failed, Skipped, Already Applied.')
 			)
 			(Get-UxLocalizedString -Key 'GuiHelpSectionRiskLevels' -Fallback 'Risk Levels') = @(

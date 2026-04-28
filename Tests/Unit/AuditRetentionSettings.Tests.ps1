@@ -1,19 +1,29 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     $script:SessionStatePath = Join-Path $PSScriptRoot '../../Module/GUI/SessionState.ps1'
     $script:AuditViewPath = Join-Path $PSScriptRoot '../../Module/GUI/AuditView.ps1'
     $script:DialogHelpersPath = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers.ps1'
+    $script:DialogHelpersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers'
     $script:MainWindowPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
     $script:GuiContent = Get-Content -LiteralPath $script:SessionStatePath -Raw -Encoding UTF8
     $script:AuditViewContent = Get-Content -LiteralPath $script:AuditViewPath -Raw -Encoding UTF8
-    $script:DialogHelpersContent = Get-Content -LiteralPath $script:DialogHelpersPath -Raw -Encoding UTF8
+    $script:DialogHelpersContent = Get-BaselineTestSourceText -Path @(
+        $script:DialogHelpersPath
+        (Join-Path $script:DialogHelpersSplitRoot 'DialogThemeHelpers.ps1')
+        (Join-Path $script:DialogHelpersSplitRoot 'SettingsDialogs.ps1')
+        (Join-Path $script:DialogHelpersSplitRoot 'RemoteDialogs.ps1')
+        (Join-Path $script:DialogHelpersSplitRoot 'ContentDialogs.ps1')
+        (Join-Path $script:DialogHelpersSplitRoot 'AuditOperatorDialogs.ps1')
+    )
     $script:MainWindowContent = Get-Content -LiteralPath $script:MainWindowPath -Raw -Encoding UTF8
 }
 
 Describe 'Audit retention settings' {
     It 'persists the retention window in GUI settings snapshots' {
-        $script:GuiContent | Should -Match 'SchemaVersion = 15'
+        $script:GuiContent | Should -Match 'SchemaVersion = 16'
         $script:GuiContent | Should -Match 'AuditRetentionDays'
         $script:GuiContent | Should -Match '\$Script:AuditRetentionDays = \[int\]\$desiredAuditRetentionDays'
         $script:GuiContent | Should -Match '\$Script:Ctx.UI.AuditRetentionDays = \[int\]\$desiredAuditRetentionDays'

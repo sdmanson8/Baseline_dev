@@ -23,6 +23,8 @@ namespace WinAPI {
 
 Describe 'Cursors' {
     BeforeEach {
+        $script:originalCursorArchiveUrl = $env:BASELINE_CURSOR_ARCHIVE_URL
+        $env:BASELINE_CURSOR_ARCHIVE_URL = 'https://example.test/Windows11Cursors.zip'
         $script:consoleActions = [System.Collections.Generic.List[string]]::new()
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:infoMessages = [System.Collections.Generic.List[string]]::new()
@@ -72,8 +74,8 @@ Describe 'Cursors' {
             param([string]$Path, [string]$ItemType, [switch]$Force, [object]$ErrorAction)
             [void]$script:newItemCalls.Add($Path)
         }
-        function New-ItemProperty {
-            param([string]$Path, [string]$Name, [string]$PropertyType, [object]$Value, [switch]$Force, [object]$ErrorAction)
+        function Set-RegistryValueSafe {
+            param([string]$Path, [string]$Name, [object]$Value, [string]$Type)
             [void]$script:newItemPropertyCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name; Value = $Value })
         }
         function Start-Sleep { param([int]$Seconds) }
@@ -83,7 +85,8 @@ Describe 'Cursors' {
     }
 
     AfterEach {
-        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','Get-ItemPropertyValue','Invoke-DownloadFile','Assert-FileHash','Expand-CursorArchiveFolder','Test-Path','New-Item','New-ItemProperty','Start-Sleep','Remove-Item')) {
+        $env:BASELINE_CURSOR_ARCHIVE_URL = $script:originalCursorArchiveUrl
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','Get-ItemPropertyValue','Invoke-DownloadFile','Assert-FileHash','Expand-CursorArchiveFolder','Test-Path','New-Item','Set-RegistryValueSafe','Start-Sleep','Remove-Item')) {
             Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }

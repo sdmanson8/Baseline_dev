@@ -3,12 +3,23 @@
 		# Check if any tweaks exist for this primary tab
 		$hasTweaks = $false
 		$tweakCount = 0
-		for ($i = 0; $i -lt $Script:TweakManifest.Count; $i++)
+		if ($pKey -eq 'Customizations')
 		{
-			if ((Resolve-GuiPrimaryTabForTweak -Tweak $Script:TweakManifest[$i]) -eq $pKey)
+			$hasTweaks = $true
+			if (Get-Command -Name 'Get-BaselineStartupEntries' -CommandType Function -ErrorAction SilentlyContinue)
 			{
-				$hasTweaks = $true
-				$tweakCount++
+				try { $tweakCount = @(Get-BaselineStartupEntries).Count } catch { $tweakCount = 0 }
+			}
+		}
+		else
+		{
+			for ($i = 0; $i -lt $Script:TweakManifest.Count; $i++)
+			{
+				if ((Resolve-GuiPrimaryTabForTweak -Tweak $Script:TweakManifest[$i]) -eq $pKey)
+				{
+					$hasTweaks = $true
+					$tweakCount++
+				}
 			}
 		}
 		if (-not $hasTweaks) { continue }
@@ -63,6 +74,11 @@
 			}
 		}
 
+		if ($CmbPlatformFilter)
+		{
+			Update-PlatformFilterList
+		}
+
 		# Category Filter (safe)
 		if ($CmbCategoryFilter)
 		{
@@ -80,6 +96,7 @@
 		}
 
 		# Checkboxes
+		if ($ChkHideUnavailableItems) { try { $ChkHideUnavailableItems.IsChecked = [bool]$Script:HideUnavailableItems } catch { Write-GuiRuntimeWarning -Context 'FilterSync:HideUnavailableItems' -Message $_.Exception.Message } }
 		if ($ChkSafeMode)      { try { $ChkSafeMode.IsChecked      = [bool]$Script:SafeMode } catch { Write-GuiRuntimeWarning -Context 'FilterSync:SafeMode' -Message $_.Exception.Message } }
 		if ($ChkGameMode)      { try { $ChkGameMode.IsChecked      = [bool]$Script:GameMode } catch { Write-GuiRuntimeWarning -Context 'FilterSync:GameMode' -Message $_.Exception.Message } }
 		if ($ChkScan)          { try { $ChkScan.IsChecked          = [bool]$Script:ScanEnabled } catch { Write-GuiRuntimeWarning -Context 'FilterSync:ScanEnabled' -Message $_.Exception.Message } }
@@ -295,7 +312,7 @@
 				# 4. Refresh tab headers with localized names
 				Update-PrimaryTabHeaders
 
-				# 5. Rebuild tab content (mirrors theme change pattern)
+				# 5. Rebuild tab content
 				$Script:FilterGeneration++
 				Clear-TabContentCache
 				if ($null -ne $Script:CurrentPrimaryTab)
@@ -520,7 +537,7 @@
 		$selectedTab = $PrimaryTabs.SelectedItem
 		if ($selectedTab -is [System.Windows.Controls.TabItem])
 		{
-			try { $selectedTab.BringIntoView() } catch { }
+			try { $selectedTab.BringIntoView() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildPrimaryTabs.AdaptiveTabLayout.BringIntoView' }
 		}
 	}
 	$Script:AdaptiveTabLayoutScript = $adaptiveTabLayoutScript

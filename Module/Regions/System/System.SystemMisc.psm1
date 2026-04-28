@@ -1,7 +1,12 @@
 <#
 	.SYNOPSIS
-	Internal admin utility for reserved storage management.
+	Configures reserved storage management.
 
+
+	
+.DESCRIPTION
+	
+Applies Baseline's reserved storage management in GUI and headless runs.
 	.PARAMETER Disable
 	Disable and delete reserved storage after the next update installation
 
@@ -69,8 +74,8 @@ function ReservedStorage
 				}
 				finally
 				{
-					if ($storagePs) { try { $storagePs.Dispose() } catch { $null = $_ } }
-					if ($storageRs) { try { $storageRs.Close(); $storageRs.Dispose() } catch { $null = $_ } }
+					if ($storagePs) { try { $storagePs.Dispose() } catch { LogWarning ("Reserved storage cleanup (disable) PowerShell dispose failed: " + $_.Exception.Message) } }
+					if ($storageRs) { try { $storageRs.Close(); $storageRs.Dispose() } catch { LogWarning ("Reserved storage cleanup (disable) runspace dispose failed: " + $_.Exception.Message) } }
 				}
 				Write-ConsoleStatus -Status success
 			}
@@ -118,8 +123,8 @@ function ReservedStorage
 				}
 				finally
 				{
-					if ($storagePs) { try { $storagePs.Dispose() } catch { $null = $_ } }
-					if ($storageRs) { try { $storageRs.Close(); $storageRs.Dispose() } catch { $null = $_ } }
+					if ($storagePs) { try { $storagePs.Dispose() } catch { LogWarning ("Reserved storage cleanup (enable) PowerShell dispose failed: " + $_.Exception.Message) } }
+					if ($storageRs) { try { $storageRs.Close(); $storageRs.Dispose() } catch { LogWarning ("Reserved storage cleanup (enable) runspace dispose failed: " + $_.Exception.Message) } }
 				}
 				Write-ConsoleStatus -Status success
 			}
@@ -156,6 +161,11 @@ function ReservedStorage
 	.SYNOPSIS
 	Windows manages my default printer
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for windows manages my default printer.
 	.PARAMETER Disable
 	Do not let Windows manage my default printer
 
@@ -200,7 +210,7 @@ function WindowsManageDefaultPrinter
 			LogInfo "Disabling 'Let Windows manage my default printer'"
 			try
 			{
-				New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Windows" -Name LegacyDefaultPrinterMode -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Windows" -Name LegacyDefaultPrinterMode -Type DWord -Value 1 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -215,7 +225,7 @@ function WindowsManageDefaultPrinter
 			LogInfo "Enabling 'Let Windows manage my default printer'"
 			try
 			{
-				New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Windows" -Name LegacyDefaultPrinterMode -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Windows" -Name LegacyDefaultPrinterMode -Type DWord -Value 0 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -231,6 +241,11 @@ function WindowsManageDefaultPrinter
 	.SYNOPSIS
 	Prefer IPv4 over IPv6
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for prefer IPv4 over IPv6.
 	.PARAMETER Enable
 	Set IPv4 as preferred over IPv6 using prefix policy table
 
@@ -306,6 +321,11 @@ function Set-IPv4Preference
 	.SYNOPSIS
 	UTC clock for Linux dual-boot
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for uTC clock for Linux dual-boot.
 	.PARAMETER Enable
 	Set system clock to UTC for Linux dual-boot compatibility
 
@@ -383,6 +403,11 @@ function Set-UTCClockForLinuxDualBoot
 	.SYNOPSIS
 	Services pipe timeout
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for services pipe timeout.
 	.PARAMETER Reduce
 	Reduce Services pipe timeout from 60000ms to 30000ms
 
@@ -460,6 +485,11 @@ function Set-ServicesPipeTimeout
 	.SYNOPSIS
 	Print Spooler service toggle
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for print Spooler service toggle.
 	.PARAMETER Enable
 	Enable Print Spooler service (auto-start)
 

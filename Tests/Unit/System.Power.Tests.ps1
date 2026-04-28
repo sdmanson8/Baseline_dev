@@ -140,6 +140,155 @@ Describe 'PowerPlan' {
     }
 }
 
+Describe 'PowerPlan -CustomPower (custom plan)' {
+    BeforeEach {
+        $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
+        $script:warningMessages = [System.Collections.Generic.List[string]]::new()
+        $script:powercfgCalls = [System.Collections.Generic.List[string]]::new()
+        $script:hasCustomPowerGuid = $false
+        $script:hasUltimate = $true
+
+        function Write-ConsoleStatus {
+            param([string]$Action, [string]$Status)
+            if (-not [string]::IsNullOrWhiteSpace($Status)) { [void]$script:consoleStatuses.Add($Status) }
+        }
+        function LogInfo { param([string]$Message) }
+        function LogWarning { param([string]$Message) [void]$script:warningMessages.Add($Message) }
+        function LogError { param([string]$Message) }
+        function Remove-ItemProperty { param([string]$Path, [string]$Name, [switch]$Force, [object]$ErrorAction) }
+        function Set-Policy { param([string]$Scope, [string]$Path, [string]$Name, [string]$Type, [object]$Value) }
+        function POWERCFG {
+            $callText = $args -join ' '
+            [void]$script:powercfgCalls.Add($callText)
+            if ($callText -match '/LIST') {
+                $lines = @()
+                if ($script:hasUltimate)        { $lines += 'Power Scheme GUID: e9a42b02-d5df-448d-aa00-03f14749eb61  (Ultimate Performance)' }
+                if ($script:hasCustomPowerGuid) { $lines += 'Power Scheme GUID: 57696e68-616e-6365-506f-776572000000  (Custom Power Plan) *' }
+                return ($lines -join "`n")
+            }
+            if ($callText -match '/DUPLICATESCHEME') {
+                # Once duplication runs, the next /LIST should report the custom plan is present.
+                $script:hasCustomPowerGuid = $true
+            }
+            return ''
+        }
+    }
+
+    AfterEach {
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogWarning','LogError','Remove-ItemProperty','Set-Policy','POWERCFG')) {
+            Remove-Item Function:\$n -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'duplicates the Ultimate scheme into the canonical custom GUID when missing' {
+        PowerPlan -CustomPower
+        $calls = $script:powercfgCalls -join ' | '
+        $calls | Should -Match '/DUPLICATESCHEME e9a42b02-d5df-448d-aa00-03f14749eb61 57696e68-616e-6365-506f-776572000000'
+        $calls | Should -Match '-CHANGENAME 57696e68-616e-6365-506f-776572000000 Custom Power Plan'
+        $calls | Should -Match '/SETACTIVE 57696e68-616e-6365-506f-776572000000'
+        $script:consoleStatuses[-1] | Should -Be 'success'
+    }
+
+    It 'skips duplication and goes straight to /SETACTIVE when the plan already exists' {
+        $script:hasCustomPowerGuid = $true
+        PowerPlan -CustomPower
+        $calls = $script:powercfgCalls -join ' | '
+        $calls | Should -Not -Match '/DUPLICATESCHEME'
+        $calls | Should -Match '/SETACTIVE 57696e68-616e-6365-506f-776572000000'
+        $script:consoleStatuses[-1] | Should -Be 'success'
+    }
+}
+
+Describe 'HybridSleep' {
+    BeforeEach {
+        $script:choiceCalls = [System.Collections.Generic.List[object]]::new()
+        $script:visibilityCalls = [System.Collections.Generic.List[object]]::new()
+        $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
+        $script:warningMessages = [System.Collections.Generic.List[string]]::new()
+
+        function Write-ConsoleStatus {
+            param([string]$Action, [string]$Status)
+            if (-not [string]::IsNullOrWhiteSpace($Status)) { [void]$script:consoleStatuses.Add($Status) }
+        }
+        function LogInfo { param([string]$Message) }
+        function LogWarning { param([string]$Message) [void]$script:warningMessages.Add($Message) }
+        function LogError { param([string]$Message) }
+        function Set-PowerSchemeSettingVisibility {
+            param([string]$SubgroupGuid, [string]$SettingGuid)
+            [void]$script:visibilityCalls.Add([pscustomobject]@{ Subgroup = $SubgroupGuid; Setting = $SettingGuid })
+        }
+        function Set-PowerSchemeChoiceSetting {
+            param([string]$DisplayName, [string]$SubgroupGuid, [string]$SettingGuid, [int]$Value)
+            [void]$script:choiceCalls.Add([pscustomobject]@{
+                DisplayName = $DisplayName
+                Subgroup = $SubgroupGuid
+                Setting = $SettingGuid
+                Value = $Value
+            })
+        }
+    }
+
+    AfterEach {
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogWarning','LogError','Set-PowerSchemeSettingVisibility','Set-PowerSchemeChoiceSetting')) {
+            Remove-Item Function:\$n -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'requires one of Enable/Disable' {
+        { HybridSleep } | Should -Throw
+    }
+
+    It 'targets the SUB_SLEEP / HYBRIDSLEEP GUIDs with value 1 when enabling' {
+        HybridSleep -Enable
+        $script:choiceCalls.Count | Should -Be 1
+        $script:choiceCalls[0].Subgroup | Should -Be '238c9fa8-0aad-41ed-83f4-97be242c8f20'
+        $script:choiceCalls[0].Setting  | Should -Be '94ac6d29-73ce-41a6-809f-6363ba21b47e'
+        $script:choiceCalls[0].Value    | Should -Be 1
+        $script:choiceCalls[0].DisplayName | Should -Be 'Hybrid Sleep'
+    }
+
+    It 'writes value 0 when disabling' {
+        HybridSleep -Disable
+        $script:choiceCalls[0].Value | Should -Be 0
+    }
+
+    It 'unhides the setting in the Power Options UI before writing' {
+        HybridSleep -Enable
+        $script:visibilityCalls.Count | Should -Be 1
+        $script:visibilityCalls[0].Setting | Should -Be '94ac6d29-73ce-41a6-809f-6363ba21b47e'
+    }
+
+    It 'logs a warning rather than throwing when powercfg refuses (e.g., unsupported hardware)' {
+        function Set-PowerSchemeChoiceSetting { param($DisplayName,$SubgroupGuid,$SettingGuid,$Value) throw 'Element not found.' }
+        { HybridSleep -Enable } | Should -Not -Throw
+        $script:warningMessages.Count | Should -BeGreaterThan 0
+        $script:warningMessages[0] | Should -Match 'unsupported'
+    }
+}
+
+Describe 'JSON entries for custom plan and HybridSleep' {
+    BeforeAll {
+        $jsonPath = Join-Path $PSScriptRoot '../../Module/Data/System.json'
+        $script:SystemJson = Get-Content -LiteralPath $jsonPath -Raw | ConvertFrom-Json
+    }
+
+    It 'PowerPlan exposes Custom as a Choice option with display label' {
+        $entry = $script:SystemJson.Entries | Where-Object { $_.Function -eq 'PowerPlan' }
+        $entry | Should -Not -BeNullOrEmpty
+        $entry.Options | Should -Contain 'Custom'
+        $entry.DisplayOptions | Should -Contain 'Custom Power Plan'
+    }
+
+    It 'HybridSleep is registered as a Toggle with Enable/Disable params' {
+        $entry = $script:SystemJson.Entries | Where-Object { $_.Function -eq 'HybridSleep' }
+        $entry | Should -Not -BeNullOrEmpty
+        $entry.Type     | Should -Be 'Toggle'
+        $entry.OnParam  | Should -Be 'Enable'
+        $entry.OffParam | Should -Be 'Disable'
+        $entry.Tags     | Should -Contain 'sleep'
+    }
+}
+
 Describe 'ProcessorMinimumState / ProcessorMaximumState' {
     BeforeEach {
         $script:numericCalls = [System.Collections.Generic.List[object]]::new()

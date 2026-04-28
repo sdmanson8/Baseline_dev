@@ -1,4 +1,4 @@
-# Shared helper slice for Baseline -- system maintenance, RAM checks, and service management.
+# Shared helpers for Baseline -- system maintenance, RAM checks, and service management.
 
 <#
     .SYNOPSIS
@@ -159,3 +159,4 @@ function Invoke-AdditionalServiceOptimizations
 		Write-ConsoleStatus -Status success
 	}
 }
+

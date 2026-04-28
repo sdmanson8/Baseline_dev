@@ -1,4 +1,4 @@
-# Compliance checking helper slice for Baseline.
+# Compliance checking helpers for Baseline.
 # Provides drift detection by comparing current system state against a saved
 # profile (snapshot) and generating compliance reports with remediation plans.
 #
@@ -101,7 +101,7 @@ function Test-SystemCompliance
 		$entryIndex++
 		if ($dispatcherType -and ($entryIndex % 10 -eq 0))
 		{
-			try { [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::Background) } catch { }
+			try { [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::Background) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ComplianceHelpers.Test-SystemCompliance.DispatcherYield' }
 		}
 
 		# Extract the function name and entry name from the profile entry.
@@ -217,7 +217,6 @@ function Test-SystemCompliance
 		Entries      = @($entries)
 	}
 }
-
 <#
     .SYNOPSIS
     Internal function Get-DriftedEntries.
@@ -359,6 +358,64 @@ function Get-ComplianceFixList
 
 <#
     .SYNOPSIS
+    Internal function Add-WindowsUpdateComplianceReportSection.
+#>
+
+function Add-WindowsUpdateComplianceReportSection
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[object]$Report
+	)
+
+	if ($Report -is [System.Collections.IDictionary])
+	{
+		if ($Report.Contains('WindowsUpdateCompliance'))
+		{
+			return $Report
+		}
+	}
+	elseif ($Report.PSObject.Properties['WindowsUpdateCompliance'])
+	{
+		return $Report
+	}
+
+	$getWindowsUpdateComplianceCommand = Get-Command -Name 'Get-WindowsUpdateCompliance' -CommandType Function -ErrorAction SilentlyContinue
+	if (-not $getWindowsUpdateComplianceCommand)
+	{
+		return $Report
+	}
+
+	$windowsUpdateCompliance = $null
+	try
+	{
+		$windowsUpdateCompliance = & $getWindowsUpdateComplianceCommand
+	}
+	catch
+	{
+		$windowsUpdateCompliance = [pscustomobject]@{
+			Schema      = 'Baseline.WindowsUpdateCompliance'
+			GeneratedAt = [System.DateTime]::UtcNow.ToString('o')
+			Status      = 'Unknown'
+			Error       = $_.Exception.Message
+		}
+	}
+
+	if ($Report -is [System.Collections.IDictionary])
+	{
+		$Report['WindowsUpdateCompliance'] = $windowsUpdateCompliance
+	}
+	else
+	{
+		$Report | Add-Member -MemberType NoteProperty -Name 'WindowsUpdateCompliance' -Value $windowsUpdateCompliance -Force
+	}
+
+	return $Report
+}
+
+<#
+    .SYNOPSIS
     Internal function Export-ComplianceReport.
 #>
 
@@ -388,12 +445,13 @@ function Export-ComplianceReport
 	}
 
 	$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+	$reportToWrite = Add-WindowsUpdateComplianceReportSection -Report $Report
 
 	switch ($Format)
 	{
 		'Json'
 		{
-			$json = $Report | ConvertTo-Json -Depth 16
+			$json = $reportToWrite | ConvertTo-Json -Depth 16
 			[System.IO.File]::WriteAllText($FilePath, $json, $utf8NoBom)
 		}
 		'Markdown'
@@ -403,23 +461,40 @@ function Export-ComplianceReport
 			[void]$lines.Add('')
 			[void]$lines.Add("| Field | Value |")
 			[void]$lines.Add("| --- | --- |")
-			[void]$lines.Add("| Timestamp | $($Report.Timestamp) |")
-			[void]$lines.Add("| Machine | $($Report.MachineName) |")
-			[void]$lines.Add("| Profile | $($Report.ProfileName) |")
-			[void]$lines.Add("| Total Checked | $($Report.TotalChecked) |")
-			[void]$lines.Add("| Compliant | $($Report.Compliant) |")
-			[void]$lines.Add("| Drifted | $($Report.Drifted) |")
-			[void]$lines.Add("| Unknown | $($Report.Unknown) |")
+			[void]$lines.Add("| Timestamp | $($reportToWrite.Timestamp) |")
+			[void]$lines.Add("| Machine | $($reportToWrite.MachineName) |")
+			[void]$lines.Add("| Profile | $($reportToWrite.ProfileName) |")
+			[void]$lines.Add("| Total Checked | $($reportToWrite.TotalChecked) |")
+			[void]$lines.Add("| Compliant | $($reportToWrite.Compliant) |")
+			[void]$lines.Add("| Drifted | $($reportToWrite.Drifted) |")
+			[void]$lines.Add("| Unknown | $($reportToWrite.Unknown) |")
 			[void]$lines.Add('')
 
-			if ($Report.Entries -and $Report.Entries.Count -gt 0)
+			if ($reportToWrite.PSObject.Properties['WindowsUpdateCompliance'])
+			{
+				$wuCompliance = $reportToWrite.WindowsUpdateCompliance
+				[void]$lines.Add("## Windows Update Compliance")
+				[void]$lines.Add('')
+				[void]$lines.Add("| Field | Value |")
+				[void]$lines.Add("| --- | --- |")
+				[void]$lines.Add("| Status | $($wuCompliance.Status) |")
+				[void]$lines.Add("| Critical Pending | $($wuCompliance.CriticalPending) |")
+				[void]$lines.Add("| Security Pending | $($wuCompliance.SecurityPending) |")
+				if ($wuCompliance.PSObject.Properties['Error'] -and -not [string]::IsNullOrWhiteSpace([string]$wuCompliance.Error))
+				{
+					[void]$lines.Add("| Error | $($wuCompliance.Error) |")
+				}
+				[void]$lines.Add('')
+			}
+
+			if ($reportToWrite.Entries -and $reportToWrite.Entries.Count -gt 0)
 			{
 				[void]$lines.Add("## Entries")
 				[void]$lines.Add('')
 				[void]$lines.Add("| Function | Name | Desired | Actual | Status |")
 				[void]$lines.Add("| --- | --- | --- | --- | --- |")
 
-				foreach ($entry in @($Report.Entries))
+				foreach ($entry in @($reportToWrite.Entries))
 				{
 					$desired = if ($null -ne $entry.DesiredState) { [string]$entry.DesiredState } else { '(null)' }
 					$actual  = if ($null -ne $entry.ActualState)  { [string]$entry.ActualState }  else { '(null)' }
@@ -430,7 +505,7 @@ function Export-ComplianceReport
 			}
 
 			# Separate sections for drifted entries for quick scanning.
-			$driftedEntries = @($Report.Entries | Where-Object { $_.Status -eq 'Drifted' })
+			$driftedEntries = @($reportToWrite.Entries | Where-Object { $_.Status -eq 'Drifted' })
 			if ($driftedEntries.Count -gt 0)
 			{
 				[void]$lines.Add("## Drifted Entries")

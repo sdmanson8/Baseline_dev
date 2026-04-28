@@ -1,12 +1,21 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     $script:GuiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
     $script:MainWindowPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
     $script:ActionHandlersPath = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers.ps1'
+    $script:ActionHandlersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers'
     $script:StyleManagementPath = Join-Path $PSScriptRoot '../../Module/GUI/StyleManagement.ps1'
     $script:GuiContent = (Get-Content -LiteralPath $script:GuiPath -Raw -Encoding UTF8) + "`n" + (Get-Content -LiteralPath $script:MainWindowPath -Raw -Encoding UTF8)
-    $script:ActionHandlersContent = Get-Content -LiteralPath $script:ActionHandlersPath -Raw -Encoding UTF8
+    $script:ActionHandlersContent = Get-BaselineTestSourceText -Path @(
+        $script:ActionHandlersPath
+        (Join-Path $script:ActionHandlersSplitRoot 'ThemeNavigationHandlers.ps1')
+        (Join-Path $script:ActionHandlersSplitRoot 'ButtonHandlers.ps1')
+        (Join-Path $script:ActionHandlersSplitRoot 'SystemScanFooterHandlers.ps1')
+        (Join-Path $script:ActionHandlersSplitRoot 'MenuHandlers.ps1')
+    )
     $script:StyleManagementContent = Get-Content -LiteralPath $script:StyleManagementPath -Raw -Encoding UTF8
 }
 
@@ -16,6 +25,10 @@ Describe 'Support bundle GUI wiring' {
         $script:GuiContent | Should -Match 'Export Support Bundle\.\.\.'
         $script:ActionHandlersContent | Should -Match "Get-GuiRuntimeCommand -Name 'Export-BaselineSupportBundle'"
         $script:ActionHandlersContent | Should -Match 'Register-GuiEventHandler -Source \$MenuToolsExportSupportBundle -EventName ''Click'''
+        $script:ActionHandlersContent | Should -Match 'PreRunSnapshot'
+        $script:ActionHandlersContent | Should -Match 'PostRunSnapshot'
+        $script:ActionHandlersContent | Should -Match '-PreSnapshot'
+        $script:ActionHandlersContent | Should -Match '-PostSnapshot'
         $script:ActionHandlersContent | Should -Match 'Export Support Bundle'
     }
 

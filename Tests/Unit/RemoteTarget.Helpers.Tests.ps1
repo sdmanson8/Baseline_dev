@@ -1,10 +1,19 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     $script:RemoteTargetHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/RemoteTarget.Helpers.ps1'
     $script:SharedHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers.psm1'
     $script:RemoteTargetHelpersContent = Get-Content -LiteralPath $script:RemoteTargetHelpersPath -Raw -Encoding UTF8
     $script:SharedHelpersContent = Get-Content -LiteralPath $script:SharedHelpersPath -Raw -Encoding UTF8
+    function Write-DebugSwallowedException
+    {
+        param(
+            [object]$ErrorRecord,
+            [string]$Source
+        )
+    }
     . $script:RemoteTargetHelpersPath
 }
 
@@ -62,10 +71,41 @@ Describe 'Remote session caching' {
 
     It 'clears cached sessions when the GUI disconnects a remote target' {
         $actionHandlersPath = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers.ps1'
-        $actionHandlersContent = Get-Content -LiteralPath $actionHandlersPath -Raw -Encoding UTF8
+        $actionHandlersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers'
+        $actionHandlersContent = Get-BaselineTestSourceText -Path @(
+            $actionHandlersPath
+            (Join-Path $actionHandlersSplitRoot 'ThemeNavigationHandlers.ps1')
+            (Join-Path $actionHandlersSplitRoot 'ButtonHandlers.ps1')
+            (Join-Path $actionHandlersSplitRoot 'SystemScanFooterHandlers.ps1')
+            (Join-Path $actionHandlersSplitRoot 'MenuHandlers.ps1')
+        )
 
         $actionHandlersContent | Should -Match "Get-GuiRuntimeCommand -Name 'Clear-BaselineRemoteSessionCache'"
         $actionHandlersContent | Should -Match '\$clearRemoteSessionCacheCommand -ComputerName @\(\$context.TargetComputers\)'
+    }
+
+    It 'routes remote TCP cleanup failures through Write-DebugSwallowedException' {
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Test-BaselineRemoteTargetConnectivity\.TcpClose'''
+    }
+
+    It 'routes remote session cache cleanup failures through Write-DebugSwallowedException' {
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Remove-BaselineRemoteSessionCacheEntry\.RemovePSSession'''
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Invoke-BaselineRemoteSessionCacheMaintenance\.UpdateLastUsedUtc'''
+    }
+
+    It 'routes remote history timestamp parse failures through Write-DebugSwallowedException' {
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteOrchestrationHistory\.SinceTimestampParse'''
+    }
+
+    It 'routes remote history line parse failures through Write-DebugSwallowedException' {
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteOrchestrationHistory\.ParseLine'''
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteRunSummaries\.ParseLine'''
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteResumeCheckpoint\.ParseLine'''
+    }
+
+    It 'routes remote summary timestamp parse failures through Write-DebugSwallowedException' {
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteOrchestrationSummary\.SinceTimestampParse'''
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteRunSummaries\.SinceTimestampParse'''
     }
 
     It 'keys sessions by credential scope and transport settings' {

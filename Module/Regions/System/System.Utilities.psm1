@@ -3,8 +3,13 @@ using module ..\..\SharedHelpers.psm1
 
 <#
     .SYNOPSIS
-    Internal admin utility for Microsoft Visual C++ redistributable maintenance.
+    Configures Microsoft Visual C++ redistributable maintenance.
 
+
+    
+.DESCRIPTION
+    
+Applies Baseline's Microsoft Visual C++ redistributable maintenance in GUI and headless runs.
 	.EXAMPLE
 	Install-VCRedist -Redistributables 2015_2022_x86, 2015_2022_x64
 
@@ -56,7 +61,12 @@ function ConvertTo-NormalizedVersion
 
 <#
     .SYNOPSIS
-    Internal function Get-InstalledVCRedistVersion.
+    Gets installed VC redist version.
+
+    
+.DESCRIPTION
+    
+Supports installed VC redist version handling inside Baseline.
 #>
 
 function Get-InstalledVCRedistVersion
@@ -95,7 +105,12 @@ function Get-InstalledVCRedistVersion
 
 <#
     .SYNOPSIS
-    Internal function Get-InstalledDotNetRuntimeVersion.
+    Gets installed dot .NET runtime version.
+
+    
+.DESCRIPTION
+    
+Supports installed dot .NET runtime version handling inside Baseline.
 #>
 
 function Get-InstalledDotNetRuntimeVersion
@@ -140,7 +155,12 @@ function Get-InstalledDotNetRuntimeVersion
 
 <#
     .SYNOPSIS
-    Internal function Get-LatestDotNetRuntimeRelease.
+    Gets latest dot .NET runtime release.
+
+    
+.DESCRIPTION
+    
+Supports latest dot .NET runtime release handling inside Baseline.
 #>
 
 function Get-LatestDotNetRuntimeRelease
@@ -193,7 +213,12 @@ function Get-LatestDotNetRuntimeRelease
 
 <#
     .SYNOPSIS
-    Internal function Install-VCRedist.
+    Install VC redist.
+
+    
+.DESCRIPTION
+    
+Supports VC redist handling inside Baseline.
 #>
 
 function Install-VCRedist
@@ -381,6 +406,11 @@ function Install-VCRedist
 	.SYNOPSIS
 	Install the latest .NET Desktop Runtime 8, 9 x64
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for install the latest .NET Desktop Runtime 8, 9 x64.
 	.PARAMETER NET8x64
 	Install the latest .NET Desktop Runtime 8 x64
 

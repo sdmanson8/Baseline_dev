@@ -1,11 +1,6 @@
-﻿# ──────────────────────────────────────────────────────────────────
-# StyleManagement.ps1
-# Theme / styling helpers extracted from Show-TweakGUI (GUI.psm1).
-# Dot-sourced inside Show-TweakGUI so all $Script: and local UI
-# variables remain in scope.
-# ──────────────────────────────────────────────────────────────────
+# Style helper utilities for Baseline UI themes and visual defaults.
 
-	<#
+<#
 	    .SYNOPSIS
 	    Internal function Set-ButtonChrome.
 	#>
@@ -509,11 +504,12 @@
 				$Script:HeaderToggleTemplates[$templateCacheKey] = $null
 				[void]$Script:HeaderToggleTemplateLoadFailures.Add($templateCacheKey)
 				Write-GuiRuntimeWarning -Context 'Set-HeaderToggleStyle' -Message ("Failed to load header toggle template '{0}': {1}" -f $templateCacheKey, $_.Exception.Message)
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-HeaderToggleStyle.LoadTemplate'
 			}
 			finally {
 				if ($templateReader)
 				{
-					try { $templateReader.Dispose() } catch { $null = $_ }
+					try { $templateReader.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-HeaderToggleStyle.TemplateReaderDispose' }
 				}
 			}
 		}
@@ -537,7 +533,7 @@
 			$CheckBox.Foreground = $bc.ConvertFromString($(if ($Palette -eq 'Theme') { $theme.TextPrimary } else { $theme.TextSecondary }))
 		}
 		catch {
-			# Silent fallback
+			Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-HeaderToggleStyle.ApplyChrome'
 		}
 	}
 
@@ -551,8 +547,15 @@
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ()
 
-		if ($ChkSafeMode) { Set-HeaderToggleStyle -CheckBox $ChkSafeMode -Palette Mode }
-		if ($ChkTheme) { Set-HeaderToggleStyle -CheckBox $ChkTheme -Palette Theme }
+		try
+		{
+			if ($ChkSafeMode) { Set-HeaderToggleStyle -CheckBox $ChkSafeMode -Palette Mode }
+			if ($ChkTheme) { Set-HeaderToggleStyle -CheckBox $ChkTheme -Palette Theme }
+		}
+		catch
+		{
+			Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-HeaderToggleControlsStyle.ApplyChrome'
+		}
 	}
 
 	<#
@@ -586,7 +589,7 @@
 				$Form.Width = $workArea.Width
 			}
 		}
-		catch { <# non-fatal #> }
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-WindowMinWidthFromHeader' }
 	}
 
 	<#
@@ -603,7 +606,7 @@
 		$themeMenuLabel = if ($lightEnabled) { (Get-UxLocalizedString -Key 'GuiMenuViewSwitchToDarkMode' -Fallback 'Switch to Dark Mode') } else { (Get-UxLocalizedString -Key 'GuiMenuViewSwitchToLightMode' -Fallback 'Switch to Light Mode') }
 		if ($Script:MenuViewTheme)
 		{
-			try { $Script:MenuViewTheme.IsChecked = $lightEnabled } catch { }
+			try { $Script:MenuViewTheme.IsChecked = $lightEnabled } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-HeaderModeStateText.SyncMenuViewTheme' }
 			$Script:MenuViewTheme.Header = $themeMenuLabel
 		}
 
@@ -625,6 +628,19 @@
 		if ($ChkSafeMode)
 		{
 			$ChkSafeMode.Content = (Get-UxLocalizedString -Key 'GuiChkSafeMode' -Fallback 'Safe Mode')
+		}
+		if ($TitleBarText -and $Form)
+		{
+			try
+			{
+				$windowTitle = Get-UxLocalizedString -Key 'GuiMainWindowTitleFormat' -Fallback 'Baseline | Utility for {0}' -FormatArgs @((Get-OSInfo).OSName)
+				$Form.Title = $windowTitle
+				$TitleBarText.Text = $windowTitle
+			}
+			catch
+			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-HeaderModeStateText.UpdateMainFormTitle'
+			}
 		}
 		if ($TxtThemeState)
 		{
@@ -745,7 +761,7 @@
 		}
 		catch
 		{
-			try { LogWarning ("Menu bar theme update failed: {0}" -f $_.Exception.Message) } catch { }
+			try { LogWarning ("Menu bar theme update failed: {0}" -f $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-GuiMenuBarTheme.LogWarning' }
 		}
 		if ($Script:MenuBarBorder)
 		{
@@ -754,7 +770,7 @@
 				$Script:MenuBarBorder.Background = $bc.ConvertFromString($theme.HeaderBg)
 				$Script:MenuBarBorder.BorderBrush = $bc.ConvertFromString($theme.BorderColor)
 			}
-			catch { }
+			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-GuiMenuBarTheme.UpdateMenuBarBorder' }
 		}
 	}
 
@@ -823,7 +839,7 @@
 		}
 		catch
 		{
-			try { LogWarning ("Scrollbar theme update failed: {0}" -f $_.Exception.Message) } catch { }
+			try { LogWarning ("Scrollbar theme update failed: {0}" -f $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-GuiScrollBarTheme.LogWarning' }
 		}
 	}
 
@@ -1072,6 +1088,11 @@
 		{
 			$Script:BtnExportConfigProfile.Content = (Get-UxLocalizedString -Key 'GuiFooterExportConfigProfile' -Fallback 'Export Config Profile')
 			$Script:BtnExportConfigProfile.ToolTip = (Get-UxLocalizedString -Key 'GuiActionExportProfileTooltip' -Fallback 'Export current tweak selections as a portable configuration profile.')
+		}
+		if ($Script:BtnExportFirstLogonCommand)
+		{
+			$Script:BtnExportFirstLogonCommand.Content = (Get-UxLocalizedString -Key 'GuiFooterExportFirstLogonCommand' -Fallback 'Export First-Logon Command')
+			$Script:BtnExportFirstLogonCommand.ToolTip = (Get-UxLocalizedString -Key 'GuiActionExportFirstLogonTooltip' -Fallback 'Export an autounattend FirstLogonCommands XML snippet that runs Baseline with a saved configuration profile.')
 		}
 		if ($Script:BtnUndoLastRun)
 		{
@@ -1326,7 +1347,7 @@
 			finally {
 				if ($comboTemplateReader)
 				{
-					try { $comboTemplateReader.Dispose() } catch { $null = $_ }
+					try { $comboTemplateReader.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-ChoiceComboStyle.TemplateReaderDispose' }
 				}
 			}
 		}
@@ -1510,6 +1531,7 @@
 		if ($Script:BtnRestoreSnapshot) { $Script:BtnRestoreSnapshot.IsEnabled = ($Enabled -and $null -ne $Script:UiSnapshotUndo) }
 		if ($Script:BtnExportSystemState) { $Script:BtnExportSystemState.IsEnabled = $Enabled }
 		if ($Script:BtnExportConfigProfile) { $Script:BtnExportConfigProfile.IsEnabled = $Enabled }
+		if ($Script:BtnExportFirstLogonCommand) { $Script:BtnExportFirstLogonCommand.IsEnabled = $Enabled }
 		if ($Script:MenuFileAuditSettings) { $Script:MenuFileAuditSettings.IsEnabled = $Enabled }
 		if ($Script:MenuToolsExportSupportBundle) { $Script:MenuToolsExportSupportBundle.IsEnabled = $Enabled }
 		if ($Script:MenuToolsApproveRemoteTargets) { $Script:MenuToolsApproveRemoteTargets.IsEnabled = ($Enabled -and $isRemoteConnected) }

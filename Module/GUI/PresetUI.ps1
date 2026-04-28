@@ -551,7 +551,7 @@
 		[void]($presetPanelStack.Children.Add($Script:PresetProgressHost))
 
 		$reassuranceNote = New-Object System.Windows.Controls.TextBlock
-		$reassuranceNote.Text = Get-UxString -Key 'GuiPresetPanelRunNote' -Fallback 'No changes are made until you click Run Tweaks. You can preview everything first.'
+		$reassuranceNote.Text = Get-UxString -Key 'GuiPresetPanelRunNote' -Fallback ('No changes are made until you click {0}. You can preview everything first.' -f (Get-UxRunActionLabel))
 		$reassuranceNote.FontSize = $Script:GuiLayout.FontSizeSmall
 		$reassuranceNote.TextWrapping = 'Wrap'
 		$reassuranceNote.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
@@ -582,6 +582,27 @@
 			catch
 			{
 				throw "Build-TabContent/SearchResultsSummary for tab '$($BuildContext.PrimaryTab)' failed: $($_.Exception.Message)"
+			}
+		}
+
+		if ($BuildContext.PrimaryTab -eq 'Updates')
+		{
+			try
+			{
+				$updatesRuntimePanelCommand = Get-GuiRuntimeCommand -Name 'New-GuiUpdatesRuntimePanel' -CommandType 'Function'
+				if (-not $updatesRuntimePanelCommand)
+				{
+					throw 'New-GuiUpdatesRuntimePanel is not available.'
+				}
+				$updatesRuntimePanel = & $updatesRuntimePanelCommand
+				if ($updatesRuntimePanel)
+				{
+					[void]($BuildContext.MainPanel.Children.Add($updatesRuntimePanel))
+				}
+			}
+			catch
+			{
+				throw "Build-TabContent/UpdatesRuntimePanel for tab '$($BuildContext.PrimaryTab)' failed: $($_.Exception.Message)"
 			}
 		}
 

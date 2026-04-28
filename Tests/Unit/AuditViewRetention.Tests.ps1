@@ -16,5 +16,6 @@ Describe 'Audit view retention controls' {
         $script:AuditViewContent | Should -Match 'Export-AuditReport -OutputPath \$outputPath -Format \$format -Since \$retentionSince'
         $script:AuditViewContent | Should -Match 'Clear-AuditLog -OlderThan \$cutoff'
         $script:AuditViewContent | Should -Match 'Entries older than \{0\} days have been removed'
+        $script:AuditViewContent | Should -Match "AuditView\.ShowAuditLogDialog\.SetOwner"
     }
 }

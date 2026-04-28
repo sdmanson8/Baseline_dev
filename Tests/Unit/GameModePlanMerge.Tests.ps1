@@ -29,7 +29,7 @@ BeforeAll {
         }
     }
 
-    $executionPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration.ps1'
+    $executionPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration/ExecutionStateSummary.ps1'
     $executionAst = [System.Management.Automation.Language.Parser]::ParseFile($executionPath, [ref]$null, [ref]$null)
     $executionFunctions = $executionAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $executionFunctions) {

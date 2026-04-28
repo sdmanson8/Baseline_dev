@@ -25,7 +25,7 @@ function Show-AuditLogDialog
 	$dlg.FontSize = $layout.FontSizeBody
 	$dlg.ShowInTaskbar = $false
 
-	try { if ($Form) { $dlg.Owner = $Form } } catch { }
+	try { if ($Form) { $dlg.Owner = $Form } } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AuditView.ShowAuditLogDialog.SetOwner' }
 	$roundedParts = ConvertTo-RoundedWindow -Window $dlg -Theme $theme
 	[void](Set-GuiWindowChromeTheme -Window $dlg -UseDarkMode:($Script:CurrentThemeName -eq 'Dark'))
 

@@ -4,7 +4,7 @@ using module ..\..\SharedHelpers.psm1
 
 <#
 .SYNOPSIS
-Internal admin utility for insecure SMB guest authentication repair.
+Configures insecure SMB guest authentication repair.
 
 .DESCRIPTION
 Controls the LanmanWorkstation AllowInsecureGuestAuth Group Policy setting.
@@ -66,7 +66,12 @@ function LanmanWorkstationGuestAuthPolicy
 
 <#
     .SYNOPSIS
-    Internal function Set-SystemTweaksRegistryValue.
+    Sets system tweaks registry value.
+
+    
+.DESCRIPTION
+    
+Supports system tweaks registry value handling inside Baseline.
 #>
 
 function Set-SystemTweaksRegistryValue
@@ -105,7 +110,12 @@ function Set-SystemTweaksRegistryValue
 
 <#
     .SYNOPSIS
-    Internal function Remove-SystemTweaksRegistryValue.
+    Removes system tweaks registry value.
+
+    
+.DESCRIPTION
+    
+Supports system tweaks registry value handling inside Baseline.
 #>
 
 function Remove-SystemTweaksRegistryValue
@@ -125,7 +135,12 @@ function Remove-SystemTweaksRegistryValue
 
 <#
     .SYNOPSIS
-    Internal function Test-Windows11SmbDuplicateSidIssue.
+    Checks windows11 SMB duplicate SID issue.
+
+    
+.DESCRIPTION
+    
+Supports windows11 SMB duplicate SID issue handling inside Baseline.
 #>
 
 function Test-Windows11SmbDuplicateSidIssue
@@ -159,6 +174,11 @@ function Test-Windows11SmbDuplicateSidIssue
 .SYNOPSIS
 Repair the common Windows 11 SMB client/share issue introduced after updates.
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for repair the common Windows 11 SMB client/share issue introduced after updates..
 .EXAMPLE
 Windows11SMBUpdateIssue
 
@@ -455,6 +475,11 @@ function Windows11SMBUpdateIssue
 .SYNOPSIS
 Enable guest/no-prompt SMB compatibility on non-domain machines.
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for enable guest/no-prompt SMB compatibility on non-domain machines..
 .EXAMPLE
 SMBGuestCompatibility
 
@@ -582,6 +607,11 @@ function SMBGuestCompatibility
 .SYNOPSIS
 Preserve SMB file sharing, printer sharing, and Windows credential access.
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for preserve SMB file sharing, printer sharing, and Windows credential access..
 .EXAMPLE
 SMBSharingCompatibility
 

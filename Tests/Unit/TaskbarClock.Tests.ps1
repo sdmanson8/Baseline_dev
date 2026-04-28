@@ -13,7 +13,7 @@ Describe 'ClockInNotificationCenter' {
     BeforeEach {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:errorMessages = [System.Collections.Generic.List[string]]::new()
-        $script:newItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
+        $script:setRegistrySafeCalls = [System.Collections.Generic.List[object]]::new()
         $script:throwOnWrite = $false
 
         function Write-ConsoleStatus {
@@ -22,15 +22,15 @@ Describe 'ClockInNotificationCenter' {
         }
         function LogInfo { param([string]$Message) }
         function LogError { param([string]$Message) [void]$script:errorMessages.Add($Message) }
-        function New-ItemProperty {
-            param([string]$Path, [string]$Name, [string]$PropertyType, [object]$Value, [switch]$Force, [object]$ErrorAction)
+        function Set-RegistryValueSafe {
+            param([string]$Path, [string]$Name, [object]$Value, [string]$Type)
             if ($script:throwOnWrite) { throw 'registry write denied' }
-            [void]$script:newItemPropertyCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name; Value = $Value })
+            [void]$script:setRegistrySafeCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name; Value = $Value; Type = $Type })
         }
     }
 
     AfterEach {
-        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','New-ItemProperty')) {
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','Set-RegistryValueSafe')) {
             Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }
@@ -42,17 +42,17 @@ Describe 'ClockInNotificationCenter' {
     It 'writes ShowClockInNotificationCenter=1 on Show' {
         ClockInNotificationCenter -Show
 
-        $script:newItemPropertyCalls.Count | Should -Be 1
-        $script:newItemPropertyCalls[0].Name | Should -Be 'ShowClockInNotificationCenter'
-        $script:newItemPropertyCalls[0].Value | Should -Be 1
+        $script:setRegistrySafeCalls.Count | Should -Be 1
+        $script:setRegistrySafeCalls[0].Name | Should -Be 'ShowClockInNotificationCenter'
+        $script:setRegistrySafeCalls[0].Value | Should -Be 1
         $script:consoleStatuses[-1] | Should -Be 'success'
     }
 
     It 'writes ShowClockInNotificationCenter=0 on Hide' {
         ClockInNotificationCenter -Hide
 
-        $script:newItemPropertyCalls.Count | Should -Be 1
-        $script:newItemPropertyCalls[0].Value | Should -Be 0
+        $script:setRegistrySafeCalls.Count | Should -Be 1
+        $script:setRegistrySafeCalls[0].Value | Should -Be 0
         $script:consoleStatuses[-1] | Should -Be 'success'
     }
 
@@ -71,7 +71,7 @@ Describe 'SecondsInSystemClock' {
     BeforeEach {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:errorMessages = [System.Collections.Generic.List[string]]::new()
-        $script:newItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
+        $script:setRegistrySafeCalls = [System.Collections.Generic.List[object]]::new()
         $script:throwOnWrite = $false
 
         function Write-ConsoleStatus {
@@ -80,15 +80,15 @@ Describe 'SecondsInSystemClock' {
         }
         function LogInfo { param([string]$Message) }
         function LogError { param([string]$Message) [void]$script:errorMessages.Add($Message) }
-        function New-ItemProperty {
-            param([string]$Path, [string]$Name, [string]$PropertyType, [object]$Value, [switch]$Force, [object]$ErrorAction)
+        function Set-RegistryValueSafe {
+            param([string]$Path, [string]$Name, [object]$Value, [string]$Type)
             if ($script:throwOnWrite) { throw 'boom' }
-            [void]$script:newItemPropertyCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name; Value = $Value })
+            [void]$script:setRegistrySafeCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name; Value = $Value; Type = $Type })
         }
     }
 
     AfterEach {
-        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','New-ItemProperty')) {
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','Set-RegistryValueSafe')) {
             Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }
@@ -100,17 +100,17 @@ Describe 'SecondsInSystemClock' {
     It 'writes ShowSecondsInSystemClock=1 on Show' {
         SecondsInSystemClock -Show
 
-        $script:newItemPropertyCalls.Count | Should -Be 1
-        $script:newItemPropertyCalls[0].Name | Should -Be 'ShowSecondsInSystemClock'
-        $script:newItemPropertyCalls[0].Value | Should -Be 1
+        $script:setRegistrySafeCalls.Count | Should -Be 1
+        $script:setRegistrySafeCalls[0].Name | Should -Be 'ShowSecondsInSystemClock'
+        $script:setRegistrySafeCalls[0].Value | Should -Be 1
         $script:consoleStatuses[-1] | Should -Be 'success'
     }
 
     It 'writes ShowSecondsInSystemClock=0 on Hide' {
         SecondsInSystemClock -Hide
 
-        $script:newItemPropertyCalls.Count | Should -Be 1
-        $script:newItemPropertyCalls[0].Value | Should -Be 0
+        $script:setRegistrySafeCalls.Count | Should -Be 1
+        $script:setRegistrySafeCalls[0].Value | Should -Be 0
         $script:consoleStatuses[-1] | Should -Be 'success'
     }
 

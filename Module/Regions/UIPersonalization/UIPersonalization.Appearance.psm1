@@ -1,7 +1,12 @@
 <#
 	.SYNOPSIS
-	Internal admin utility for appearance and pointer precision settings.
+	Configures appearance and pointer precision settings.
 
+
+	
+.DESCRIPTION
+	
+Applies Baseline's appearance and pointer precision settings in GUI and headless runs.
 	.PARAMETER Enable
 	Enable enhanced pointer precision
 
@@ -44,9 +49,18 @@ function EnhPointerPrecision
 			LogInfo "Enabling enhanced pointer precision"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Mouse" -Name "MouseSpeed" -Type String -Value "1" -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Mouse" -Name "MouseThreshold1" -Type String -Value "6" -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Mouse" -Name "MouseThreshold2" -Type String -Value "10" -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Mouse" `
+					-Name "MouseSpeed" `
+					-Value "1" `
+					-Type String
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Mouse" `
+					-Name "MouseThreshold1" `
+					-Value "6" `
+					-Type String
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Mouse" `
+					-Name "MouseThreshold2" `
+					-Value "10" `
+					-Type String
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -61,9 +75,18 @@ function EnhPointerPrecision
 			LogInfo "Disabling enhanced pointer precision"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Mouse" -Name "MouseSpeed" -Type String -Value "0" -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Mouse" -Name "MouseThreshold1" -Type String -Value "0" -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Mouse" -Name "MouseThreshold2" -Type String -Value "0" -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Mouse" `
+					-Name "MouseSpeed" `
+					-Value "0" `
+					-Type String
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Mouse" `
+					-Name "MouseThreshold1" `
+					-Value "0" `
+					-Type String
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Mouse" `
+					-Name "MouseThreshold2" `
+					-Value "0" `
+					-Type String
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -79,6 +102,11 @@ function EnhPointerPrecision
 	.SYNOPSIS
 	Play or disable Windows startup sound
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for play or disable Windows startup sound.
 	.PARAMETER Enable
 	Play Windows startup sound
 
@@ -121,7 +149,10 @@ function StartupSound
 			LogInfo "Enabling Windows startup sound"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\BootAnimation" -Name "DisableStartupSound" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\BootAnimation" `
+					-Name "DisableStartupSound" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -136,7 +167,10 @@ function StartupSound
 			LogInfo "Disabling Windows startup sound"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\BootAnimation" -Name "DisableStartupSound" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\BootAnimation" `
+					-Name "DisableStartupSound" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -152,6 +186,11 @@ function StartupSound
 	.SYNOPSIS
 	Control the volume ducking preference used when Windows detects communications activity
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for control the volume ducking preference used when Windows detects communications activity.
 	.PARAMETER MuteAll
 	Mute all other sounds
 
@@ -221,7 +260,10 @@ function SoundDuckingPreference
 			LogInfo "Setting communications volume ducking to mute all other sounds"
 			try
 			{
-				Set-ItemProperty -LiteralPath $audioPath -Name "UserDuckingPreference" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $audioPath `
+					-Name "UserDuckingPreference" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -236,7 +278,10 @@ function SoundDuckingPreference
 			LogInfo "Setting communications volume ducking to reduce other sounds by 80%"
 			try
 			{
-				Set-ItemProperty -LiteralPath $audioPath -Name "UserDuckingPreference" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $audioPath `
+					-Name "UserDuckingPreference" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -251,7 +296,10 @@ function SoundDuckingPreference
 			LogInfo "Setting communications volume ducking to reduce other sounds by 50%"
 			try
 			{
-				Set-ItemProperty -LiteralPath $audioPath -Name "UserDuckingPreference" -Type DWord -Value 2 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $audioPath `
+					-Name "UserDuckingPreference" `
+					-Value 2 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -266,7 +314,10 @@ function SoundDuckingPreference
 			LogInfo "Setting communications volume ducking to do nothing"
 			try
 			{
-				Set-ItemProperty -LiteralPath $audioPath -Name "UserDuckingPreference" -Type DWord -Value 3 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $audioPath `
+					-Name "UserDuckingPreference" `
+					-Value 3 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -282,6 +333,11 @@ function SoundDuckingPreference
 	.SYNOPSIS
 	Allow or prevent Narrator from ducking audio while it speaks
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for allow or prevent Narrator from ducking audio while it speaks.
 	.PARAMETER Enable
 	Allow Narrator to lower the volume of other apps while speaking
 
@@ -330,7 +386,10 @@ function NarratorAudioDucking
 			LogInfo "Enabling Narrator audio ducking"
 			try
 			{
-				Set-ItemProperty -LiteralPath $accessibilityPath -Name "DuckAudio" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $accessibilityPath `
+					-Name "DuckAudio" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -345,7 +404,10 @@ function NarratorAudioDucking
 			LogInfo "Disabling Narrator audio ducking"
 			try
 			{
-				Set-ItemProperty -LiteralPath $accessibilityPath -Name "DuckAudio" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $accessibilityPath `
+					-Name "DuckAudio" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -361,6 +423,11 @@ function NarratorAudioDucking
 	.SYNOPSIS
 	Allow or prevent SpeechOneCore voice activation for apps
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for allow or prevent SpeechOneCore voice activation for apps.
 	.PARAMETER Enable
 	Allow voice activation for apps using the SpeechOneCore stack
 
@@ -409,7 +476,10 @@ function SpeechOneCoreVoiceActivation
 			LogInfo "Enabling SpeechOneCore voice activation"
 			try
 			{
-				Set-ItemProperty -LiteralPath $speechOneCorePath -Name "AgentActivationEnabled" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $speechOneCorePath `
+					-Name "AgentActivationEnabled" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -424,7 +494,10 @@ function SpeechOneCoreVoiceActivation
 			LogInfo "Disabling SpeechOneCore voice activation"
 			try
 			{
-				Set-ItemProperty -LiteralPath $speechOneCorePath -Name "AgentActivationEnabled" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $speechOneCorePath `
+					-Name "AgentActivationEnabled" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -440,6 +513,11 @@ function SpeechOneCoreVoiceActivation
 	.SYNOPSIS
 	Play or disable accessibility activation sounds
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for play or disable accessibility activation sounds.
 	.PARAMETER Enable
 	Play sounds when accessibility features are activated
 
@@ -488,7 +566,10 @@ function AccessibilityActivationSounds
 			LogInfo "Enabling accessibility activation sounds"
 			try
 			{
-				Set-ItemProperty -LiteralPath $accessibilityPath -Name "Sound on Activation" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $accessibilityPath `
+					-Name "Sound on Activation" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -503,7 +584,10 @@ function AccessibilityActivationSounds
 			LogInfo "Disabling accessibility activation sounds"
 			try
 			{
-				Set-ItemProperty -LiteralPath $accessibilityPath -Name "Sound on Activation" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $accessibilityPath `
+					-Name "Sound on Activation" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -519,6 +603,11 @@ function AccessibilityActivationSounds
 	.SYNOPSIS
 	Play or disable accessibility warning sounds
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for play or disable accessibility warning sounds.
 	.PARAMETER Enable
 	Play warning sounds when accessibility features are used
 
@@ -567,7 +656,10 @@ function AccessibilityWarningSounds
 			LogInfo "Enabling accessibility warning sounds"
 			try
 			{
-				Set-ItemProperty -LiteralPath $accessibilityPath -Name "Warning Sounds" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $accessibilityPath `
+					-Name "Warning Sounds" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -582,7 +674,10 @@ function AccessibilityWarningSounds
 			LogInfo "Disabling accessibility warning sounds"
 			try
 			{
-				Set-ItemProperty -LiteralPath $accessibilityPath -Name "Warning Sounds" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $accessibilityPath `
+					-Name "Warning Sounds" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -598,6 +693,11 @@ function AccessibilityWarningSounds
 	.SYNOPSIS
 	Window title bar color adapts to the prevalent background color
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for window title bar color adapts to the prevalent background color.
 	.PARAMETER Enable
 	Enable title bar color to match prevalent background color
 
@@ -640,7 +740,10 @@ function TitleBarColor
 			LogInfo "Enabling title bar color adaptation to background"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\DWM" -Name "ColorPrevalence" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\DWM" `
+					-Name "ColorPrevalence" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -655,7 +758,10 @@ function TitleBarColor
 			LogInfo "Disabling title bar color adaptation to background"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\DWM" -Name "ColorPrevalence" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\DWM" `
+					-Name "ColorPrevalence" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -671,6 +777,11 @@ function TitleBarColor
 	.SYNOPSIS
 	Windows visual effects performance and appearance settings
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for windows visual effects performance and appearance settings.
 	.PARAMETER Performance
 	Adjust visual effects for best performance
 
@@ -714,16 +825,46 @@ function VisualFX
 			LogInfo "Adjusting visual effects for performance"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "DragFullWindows" -Type String -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -Type String -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "UserPreferencesMask" -Type Binary -Value ([byte[]](144,18,3,128,16,0,0,0)) -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop\WindowMetrics" -Name "MinAnimate" -Type String -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Keyboard" -Name "KeyboardDelay" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewAlphaSelect" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewShadow" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Type DWord -Value 3 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\DWM" -Name "EnableAeroPeek" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" `
+					-Name "DragFullWindows" `
+					-Value 0 `
+					-Type String
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" `
+					-Name "MenuShowDelay" `
+					-Value 0 `
+					-Type String
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" `
+					-Name "UserPreferencesMask" `
+					-Value ([byte[]](144,18,3,128,16,0,0,0)) `
+					-Type Binary
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop\WindowMetrics" `
+					-Name "MinAnimate" `
+					-Value 0 `
+					-Type String
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Keyboard" `
+					-Name "KeyboardDelay" `
+					-Value 0 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "ListviewAlphaSelect" `
+					-Value 0 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "ListviewShadow" `
+					-Value 0 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "TaskbarAnimations" `
+					-Value 0 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" `
+					-Name "VisualFXSetting" `
+					-Value 3 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\DWM" `
+					-Name "EnableAeroPeek" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -739,16 +880,46 @@ function VisualFX
 			LogInfo "Adjusting visual effects for appearance"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "DragFullWindows" -Type String -Value 1 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -Type String -Value 400 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "UserPreferencesMask" -Type Binary -Value ([byte[]](158,30,7,128,18,0,0,0)) -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop\WindowMetrics" -Name "MinAnimate" -Type String -Value 1 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Keyboard" -Name "KeyboardDelay" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewAlphaSelect" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ListviewShadow" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Type DWord -Value 3 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\DWM" -Name "EnableAeroPeek" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" `
+					-Name "DragFullWindows" `
+					-Value 1 `
+					-Type String
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" `
+					-Name "MenuShowDelay" `
+					-Value 400 `
+					-Type String
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" `
+					-Name "UserPreferencesMask" `
+					-Value ([byte[]](158,30,7,128,18,0,0,0)) `
+					-Type Binary
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop\WindowMetrics" `
+					-Name "MinAnimate" `
+					-Value 1 `
+					-Type String
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Keyboard" `
+					-Name "KeyboardDelay" `
+					-Value 1 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "ListviewAlphaSelect" `
+					-Value 1 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "ListviewShadow" `
+					-Value 1 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "TaskbarAnimations" `
+					-Value 1 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" `
+					-Name "VisualFXSetting" `
+					-Value 3 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\DWM" `
+					-Name "EnableAeroPeek" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -764,6 +935,11 @@ function VisualFX
 	.SYNOPSIS
 	Title bar window shake
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for title bar window shake.
 	.PARAMETER Enable
 	When I grab a windows's title bar and shake it, minimize all other windows
 
@@ -799,7 +975,7 @@ function AeroShaking
 	)
 
 	# Remove all policies in order to make changes visible in UI only if it's possible
-	Remove-ItemProperty -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer, HKLM:\Software\Policies\Microsoft\Windows\Explorer -Name NoWindowMinimizingShortcuts -Force -ErrorAction Ignore | Out-Null
+	Remove-RegistryValueSafe -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer, HKLM:\Software\Policies\Microsoft\Windows\Explorer -Name NoWindowMinimizingShortcuts | Out-Null
 	Set-Policy -Scope User -Path Software\Policies\Microsoft\Windows\Explorer -Name NoWindowMinimizingShortcuts -Type CLEAR | Out-Null
 	Set-Policy -Scope Computer -Path SOFTWARE\Policies\Microsoft\Windows\Explorer -Name NoWindowMinimizingShortcuts -Type CLEAR | Out-Null
 
@@ -811,7 +987,10 @@ function AeroShaking
 			LogInfo "Enabling Title bar window shake"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name DisallowShaking -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "DisallowShaking" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -826,7 +1005,10 @@ function AeroShaking
 			LogInfo "Disabling Title bar window shake"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name DisallowShaking -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "DisallowShaking" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -842,6 +1024,11 @@ function AeroShaking
 	.SYNOPSIS
 	The default app mode
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the default app mode.
 	.PARAMETER Dark
 	Set the default app mode to dark
 
@@ -884,7 +1071,10 @@ function AppColorMode
 			LogInfo "Setting Apps to use Dark Mode"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize -Name AppsUseLightTheme -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" `
+					-Name "AppsUseLightTheme" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -899,7 +1089,10 @@ function AppColorMode
 			LogInfo "Setting Apps to use Light Mode"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize -Name AppsUseLightTheme -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" `
+					-Name "AppsUseLightTheme" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -915,6 +1108,11 @@ function AppColorMode
     .SYNOPSIS
     Windows build number and edition display on desktop
 
+
+    
+.DESCRIPTION
+    
+Applies the Baseline behavior for windows build number and edition display on desktop.
     .PARAMETER Enable
     Enable the build number and edition display
 
@@ -957,7 +1155,10 @@ function BuildNumberOnDesktop
 			LogInfo "Enabling build number and edition display on the Desktop"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "PaintDesktopVersion" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" `
+					-Name "PaintDesktopVersion" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -972,7 +1173,10 @@ function BuildNumberOnDesktop
 			LogInfo "Disabling build number and edition display on the Desktop"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Control Panel\Desktop" -Name "PaintDesktopVersion" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Desktop" `
+					-Name "PaintDesktopVersion" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -988,6 +1192,11 @@ function BuildNumberOnDesktop
 	.SYNOPSIS
 	A different input method for each app window
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for a different input method for each app window.
 	.PARAMETER Enable
 	Let me use a different input method for each app window
 
@@ -1061,6 +1270,11 @@ function AppsLanguageSwitch
 	.SYNOPSIS
 	The Print screen button usage
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the Print screen button usage.
 	.PARAMETER Enable
 	Use the Print screen button to open screen snipping
 
@@ -1103,7 +1317,10 @@ function PrtScnSnippingTool
 			LogInfo "Enabling the Print screen button to open screen snipping"
 			try
 			{
-				New-ItemProperty -Path "HKCU:\Control Panel\Keyboard" -Name PrintScreenKeyForSnippingEnabled -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Keyboard" `
+					-Name "PrintScreenKeyForSnippingEnabled" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1118,7 +1335,10 @@ function PrtScnSnippingTool
 			LogInfo "Disabling the Print screen button to open screen snipping"
 			try
 			{
-				New-ItemProperty -Path "HKCU:\Control Panel\Keyboard" -Name PrintScreenKeyForSnippingEnabled -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Keyboard" `
+					-Name "PrintScreenKeyForSnippingEnabled" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1134,6 +1354,11 @@ function PrtScnSnippingTool
 	.SYNOPSIS
 	Dynamic Lighting RGB control
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for dynamic Lighting RGB control.
 	.PARAMETER Enable
 	Enable Dynamic Lighting RGB control for compatible devices
 

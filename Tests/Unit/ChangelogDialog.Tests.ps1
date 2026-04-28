@@ -1,17 +1,37 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     foreach ($assemblyName in @('WindowsBase', 'PresentationCore', 'PresentationFramework'))
     {
         try { Add-Type -AssemblyName $assemblyName -ErrorAction Stop } catch { $null = $_ }
     }
 
     $script:DialogHelpersPath = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers.ps1'
+    $script:DialogHelpersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers'
     $script:ActionHandlersPath = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers.ps1'
-    $script:DialogHelpersContent = Get-Content -LiteralPath $script:DialogHelpersPath -Raw -Encoding UTF8
-    $script:ActionHandlersContent = Get-Content -LiteralPath $script:ActionHandlersPath -Raw -Encoding UTF8
+    $script:ActionHandlersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers'
+    $script:DialogHelpersContent = Get-BaselineTestSourceText -Path @(
+        $script:DialogHelpersPath
+        (Join-Path $script:DialogHelpersSplitRoot 'DialogThemeHelpers.ps1')
+        (Join-Path $script:DialogHelpersSplitRoot 'SettingsDialogs.ps1')
+        (Join-Path $script:DialogHelpersSplitRoot 'RemoteDialogs.ps1')
+        (Join-Path $script:DialogHelpersSplitRoot 'ContentDialogs.ps1')
+        (Join-Path $script:DialogHelpersSplitRoot 'AuditOperatorDialogs.ps1')
+    )
+    $script:ActionHandlersContent = Get-BaselineTestSourceText -Path @(
+        $script:ActionHandlersPath
+        (Join-Path $script:ActionHandlersSplitRoot 'ThemeNavigationHandlers.ps1')
+        (Join-Path $script:ActionHandlersSplitRoot 'ButtonHandlers.ps1')
+        (Join-Path $script:ActionHandlersSplitRoot 'SystemScanFooterHandlers.ps1')
+        (Join-Path $script:ActionHandlersSplitRoot 'MenuHandlers.ps1')
+    )
 
-    $ast = [System.Management.Automation.Language.Parser]::ParseFile($script:DialogHelpersPath, [ref]$null, [ref]$null)
+    $helperAstFiles = @(
+        (Join-Path $script:DialogHelpersSplitRoot 'DialogThemeHelpers.ps1')
+        (Join-Path $script:DialogHelpersSplitRoot 'ContentDialogs.ps1')
+    )
     $helperFunctionNames = @(
         'Set-BaselineReadmeInlineTheme',
         'Set-BaselineReadmeBlockTheme',
@@ -19,11 +39,17 @@ BeforeAll {
     )
     foreach ($functionName in $helperFunctionNames)
     {
-        $helperFunction = $ast.Find({
-                param($node)
-                ($node -is [System.Management.Automation.Language.FunctionDefinitionAst]) -and
-                $node.Name -eq $functionName
-            }, $true)
+        $helperFunction = $null
+        foreach ($helperAstFile in $helperAstFiles)
+        {
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($helperAstFile, [ref]$null, [ref]$null)
+            $helperFunction = $ast.Find({
+                    param($node)
+                    ($node -is [System.Management.Automation.Language.FunctionDefinitionAst]) -and
+                    $node.Name -eq $functionName
+                }, $true)
+            if ($helperFunction) { break }
+        }
         if ($helperFunction)
         {
             Invoke-Expression $helperFunction.Extent.Text
@@ -42,6 +68,12 @@ Describe 'Documentation viewer wiring' {
         $script:DialogHelpersContent | Should -Match 'TxtChangelogContent'
         $script:DialogHelpersContent | Should -Match 'TxtReadmeContent'
         $script:DialogHelpersContent | Should -Match 'ReadAllText'
+    }
+
+    It 'routes changelog and readme viewer fallbacks through Write-DebugSwallowedException' {
+        $script:DialogHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''DialogHelpers\.Show-ChangelogDialog\.SetGuiWindowChromeTheme'''
+        $script:DialogHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''DialogHelpers\.Show-ChangelogDialog\.ResolveCurrentChangelogVersion'''
+        $script:DialogHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''DialogHelpers\.Show-ReadmeDialog\.ApplyBlockFormatting'''
     }
 
     It 'routes the Help menu changelog and documentation actions through themed dialogs instead of launching external apps' {

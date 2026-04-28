@@ -253,6 +253,14 @@ Describe 'NewOutlook' {
             param([string]$Path, [string]$Name, [switch]$Force, [object]$ErrorAction)
             [void]$script:removeItemPropertyCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name })
         }
+        function Remove-RegistryValueSafe {
+            param([string[]]$Path, [string[]]$Name)
+            foreach ($singlePath in @($Path)) {
+                foreach ($singleName in @($Name)) {
+                    [void]$script:removeItemPropertyCalls.Add([pscustomobject]@{ Path = $singlePath; Name = $singleName })
+                }
+            }
+        }
     }
 
     AfterEach {
@@ -261,6 +269,7 @@ Describe 'NewOutlook' {
         Remove-Item Function:\LogError -ErrorAction SilentlyContinue
         Remove-Item Function:\Set-ItemProperty -ErrorAction SilentlyContinue
         Remove-Item Function:\Remove-ItemProperty -ErrorAction SilentlyContinue
+        Remove-Item Function:\Remove-RegistryValueSafe -ErrorAction SilentlyContinue
     }
 
     It 'enables New Outlook by writing UseNewOutlook=1' {
@@ -319,6 +328,14 @@ Describe 'Notifications' {
             param([string]$Path, [string]$Name, [switch]$Force, [object]$ErrorAction)
             [void]$script:removeItemPropertyCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name })
         }
+        function Remove-RegistryValueSafe {
+            param([string[]]$Path, [string[]]$Name)
+            foreach ($singlePath in @($Path)) {
+                foreach ($singleName in @($Name)) {
+                    [void]$script:removeItemPropertyCalls.Add([pscustomobject]@{ Path = $singlePath; Name = $singleName })
+                }
+            }
+        }
     }
 
     AfterEach {
@@ -329,6 +346,7 @@ Describe 'Notifications' {
         Remove-Item Function:\New-Item -ErrorAction SilentlyContinue
         Remove-Item Function:\Set-ItemProperty -ErrorAction SilentlyContinue
         Remove-Item Function:\Remove-ItemProperty -ErrorAction SilentlyContinue
+        Remove-Item Function:\Remove-RegistryValueSafe -ErrorAction SilentlyContinue
     }
 
     It 'enables notifications by removing policy and setting ToastEnabled=1' {

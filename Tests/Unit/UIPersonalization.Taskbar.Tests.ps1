@@ -3,6 +3,7 @@ Set-StrictMode -Version Latest
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/UIPersonalization/UIPersonalization.Taskbar.psm1'
     $source = Get-Content -Raw $filePath
+    $script:TaskbarContent = $source
     $source = [regex]::Replace($source, '^using module[^\r\n]*[\r\n]+', '', 'Multiline')
     $sb = [scriptblock]::Create($source)
     $ast = $sb.Ast
@@ -14,6 +15,13 @@ BeforeAll {
         }, $true)
     foreach ($fn in $functions) {
         Invoke-Expression $fn.Extent.Text
+    }
+}
+
+Describe 'UIPersonalization.Taskbar content pins' {
+    It 'routes ARM64 shell-unpin cleanup failures through Write-DebugSwallowedException' {
+        $script:TaskbarContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''UIPersonalization\.Taskbar\.UnpinTaskbarShortcuts\.DoIt'''
+        $script:TaskbarContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''UIPersonalization\.Taskbar\.UnpinTaskbarShortcuts\.EndInvoke'''
     }
 }
 
@@ -64,6 +72,7 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         }
         function Set-RegistryValueSafe {
             param([string]$Path, [string]$Name, [object]$Value, [string]$Type)
+            if ($script:shouldThrow) { throw 'set-registryvaluesafe failed' }
             [void]$script:setRegistrySafeCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name; Value = $Value; Type = $Type })
         }
         function Remove-RegistryValueSafe {
@@ -99,14 +108,14 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         It 'writes TaskbarAl=0 on Left' {
             TaskbarAlignment -Left
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'TaskbarAl' }).Value | Should -Be 0
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarAl' }).Value | Should -Be 0
             $script:consoleStatuses[-1] | Should -Be 'success'
         }
 
         It 'writes TaskbarAl=1 on Center' {
             TaskbarAlignment -Center
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'TaskbarAl' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarAl' }).Value | Should -Be 1
         }
 
         It 'creates Explorer\\Advanced when missing before writing TaskbarAl' {
@@ -168,25 +177,25 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         It 'writes SearchboxTaskbarMode=0 on -Hide' {
             TaskbarSearch -Hide
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'SearchboxTaskbarMode' }).Value | Should -Be 0
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'SearchboxTaskbarMode' }).Value | Should -Be 0
         }
 
         It 'writes SearchboxTaskbarMode=1 on -SearchIcon' {
             TaskbarSearch -SearchIcon
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'SearchboxTaskbarMode' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'SearchboxTaskbarMode' }).Value | Should -Be 1
         }
 
         It 'writes SearchboxTaskbarMode=2 on -SearchBox' {
             TaskbarSearch -SearchBox
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'SearchboxTaskbarMode' }).Value | Should -Be 2
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'SearchboxTaskbarMode' }).Value | Should -Be 2
         }
 
         It 'writes SearchboxTaskbarMode=3 on -SearchIconLabel' {
             TaskbarSearch -SearchIconLabel
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'SearchboxTaskbarMode' }).Value | Should -Be 3
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'SearchboxTaskbarMode' }).Value | Should -Be 3
         }
 
         It 'creates the Search key when missing before writing SearchboxTaskbarMode' {
@@ -211,7 +220,7 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
             SearchHighlights -Show
 
             $script:newItemCalls | Should -Contain 'HKCU:\Software\Microsoft\Windows\CurrentVersion\SearchSettings'
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'IsDynamicSearchBoxEnabled' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'IsDynamicSearchBoxEnabled' }).Value | Should -Be 1
         }
     }
 
@@ -219,13 +228,13 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         It 'writes ShowTaskViewButton=0 on -Hide' {
             TaskViewButton -Hide
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'ShowTaskViewButton' }).Value | Should -Be 0
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'ShowTaskViewButton' }).Value | Should -Be 0
         }
 
         It 'writes ShowTaskViewButton=1 on -Show' {
             TaskViewButton -Show
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'ShowTaskViewButton' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'ShowTaskViewButton' }).Value | Should -Be 1
         }
 
         It 'creates Explorer\\Advanced when missing before writing ShowTaskViewButton' {
@@ -241,19 +250,19 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         It 'writes TaskbarGlomLevel=0 on -Always' {
             TaskbarCombine -Always
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'TaskbarGlomLevel' }).Value | Should -Be 0
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarGlomLevel' }).Value | Should -Be 0
         }
 
         It 'writes TaskbarGlomLevel=1 on -Full' {
             TaskbarCombine -Full
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'TaskbarGlomLevel' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarGlomLevel' }).Value | Should -Be 1
         }
 
         It 'writes TaskbarGlomLevel=2 on -Never' {
             TaskbarCombine -Never
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'TaskbarGlomLevel' }).Value | Should -Be 2
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarGlomLevel' }).Value | Should -Be 2
         }
 
         It 'creates Explorer\\Advanced when missing before writing TaskbarGlomLevel' {
@@ -272,7 +281,7 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
             TaskbarEndTask -Enable
 
             $script:newItemCalls.Count | Should -Be 1
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'TaskbarEndTask' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarEndTask' }).Value | Should -Be 1
         }
 
         It 'removes TaskbarEndTask on Disable when the property exists' {
@@ -329,6 +338,59 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
             Set-AltTabEdgeTabFilter -Disable
 
             $script:removeRegistrySafeCalls[0].Name | Should -Be 'MultiTaskingAltTabFilter'
+        }
+    }
+
+    Context 'BatteryPercentage (winutil PR #4412)' {
+        BeforeEach {
+            $script:hasBattery = $true
+            function Get-CimInstance {
+                param([string]$ClassName)
+                if ($script:hasBattery) { return [pscustomobject]@{ Name = 'Battery' } }
+                return $null
+            }
+            function Write-DebugSwallowedException {
+                param([object]$ErrorRecord, [string]$Source)
+            }
+        }
+
+        AfterEach {
+            Microsoft.PowerShell.Management\Remove-Item Function:\Get-CimInstance -ErrorAction SilentlyContinue
+            Microsoft.PowerShell.Management\Remove-Item Function:\Write-DebugSwallowedException -ErrorAction SilentlyContinue
+        }
+
+        It 'writes IsBatteryPercentageEnabled=1 on Enable when a battery is present' {
+            BatteryPercentage -Enable
+
+            $script:setRegistrySafeCalls[0].Name | Should -Be 'IsBatteryPercentageEnabled'
+            $script:setRegistrySafeCalls[0].Value | Should -Be 1
+            $script:setRegistrySafeCalls[0].Type | Should -Be 'DWord'
+        }
+
+        It 'removes IsBatteryPercentageEnabled on Disable' {
+            BatteryPercentage -Disable
+
+            $script:removeRegistrySafeCalls[0].Name | Should -Be 'IsBatteryPercentageEnabled'
+            $script:setRegistrySafeCalls.Count | Should -Be 0
+        }
+
+        It 'short-circuits with no registry write on a desktop (no battery)' {
+            $script:hasBattery = $false
+
+            BatteryPercentage -Enable
+
+            $script:setRegistrySafeCalls.Count | Should -Be 0
+            $script:removeRegistrySafeCalls.Count | Should -Be 0
+            $script:consoleStatuses[-1] | Should -Be 'success'
+        }
+
+        It 'reports failed and logs when the registry write throws' {
+            $script:shouldThrow = $true
+
+            BatteryPercentage -Enable
+
+            $script:consoleStatuses[-1] | Should -Be 'failed'
+            $script:errorMessages.Count | Should -BeGreaterThan 0
         }
     }
 

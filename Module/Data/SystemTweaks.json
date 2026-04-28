@@ -1,5 +1,10 @@
 {
   "Tab": "System Tweaks",
+  "PlatformSupportDefault": {
+    "Windows10": true,
+    "Windows11": true,
+    "Server": true
+  },
   "Entries": [
     {
       "Name": "SMB Guest Authentication",
@@ -100,7 +105,12 @@
       "WhyThisMatters": "Patches a known Windows 11 regression where SMB share access fails after a specific update due to a missing registry value.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Manual",
-      "CompatibilitySensitivity": "Medium"
+      "CompatibilitySensitivity": "Medium",
+      "PlatformSupport": {
+        "Windows10": false,
+        "Windows11": true,
+        "Server": false
+      }
     },
     {
       "Name": "SMB Guest Compatibility",
@@ -305,7 +315,14 @@
       "WhyThisMatters": "Enables a notification that lets you pick up tasks started on another Windows device. Requires a Microsoft account and cross-device activity sharing.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Medium"
+      "CompatibilitySensitivity": "Medium",
+      "PlatformSupport": {
+        "Windows10": false,
+        "Windows11": true,
+        "Server": false,
+        "MinBuild": 26100,
+        "UnavailableReason": "Only available on Windows 11 24H2 build 26100.7705+ or 26H1 build 28000.1575+ and newer."
+      }
     },
     {
       "Name": "Disk Cleanup",
@@ -407,7 +424,13 @@
       "WhyThisMatters": "Modern Standby (S0) keeps the CPU and network active during sleep, which can drain battery and heat the chassis. This fix registers an S3-style deep sleep state where the hardware fully powers down.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "High"
+      "CompatibilitySensitivity": "High",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Modern Standby is a Windows client power model, not a Windows Server feature."
+      }
     },
     {
       "Name": "Razer Software Block",
@@ -476,7 +499,13 @@
       "WhyThisMatters": "S3 fully powers down components during sleep, giving true low-power standby. Some modern systems default to Modern Standby (S0) which keeps the CPU active and can cause unexpected battery drain.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "High"
+      "CompatibilitySensitivity": "High",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Traditional S3 sleep tuning is a Windows client power-state feature."
+      }
     },
     {
       "Name": "Services Manual Startup",

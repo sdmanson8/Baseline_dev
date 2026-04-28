@@ -1,5 +1,11 @@
 {
   "Tab": "Gaming",
+  "PlatformSupportDefault": {
+    "Windows10": true,
+    "Windows11": true,
+    "Server": false,
+    "UnavailableReason": "Gaming features (Game Bar / Game DVR / Xbox services) are not present on Windows Server."
+  },
   "Entries": [
     {
       "Name": "GPU Scheduling",
@@ -720,6 +726,67 @@
         "Casual": false,
         "Competitive": true,
         "Streaming": true,
+        "Troubleshooting": false
+      },
+      "TroubleshootingOnly": false,
+      "DecisionPromptKey": null
+    },
+    {
+      "Name": "Per-app GPU preference",
+      "Function": "AppGraphicsPerformance",
+      "Type": "Action",
+      "Options": null,
+      "DisplayOptions": null,
+      "Default": false,
+      "WinDefault": false,
+      "Description": "Set a selected game or app to the Windows High performance graphics preference.",
+      "Detail": "Opens a file picker for a game or app executable, then writes the per-user Windows Graphics Settings value that requests the High performance GPU for that executable.",
+      "Caution": false,
+      "CautionReason": null,
+      "LinkedWith": null,
+      "Scannable": null,
+      "Restorable": false,
+      "OnParam": null,
+      "OffParam": null,
+      "ExtraArgs": null,
+      "ActionPicker": {
+        "Kind": "OpenFile",
+        "ParameterName": "AppPath",
+        "Title": "Select game or app executable",
+        "Filter": "Executable files (*.exe)|*.exe|All files (*.*)|*.*",
+        "DefaultExt": ".exe",
+        "ButtonLabel": "Choose app...",
+        "EmptyLabel": "No app selected yet.",
+        "SelectedLabel": "Selected app: {0}"
+      },
+      "SubCategory": null,
+      "SourceRegion": "Gaming",
+      "WinDefaultDesc": "No per-app graphics preference is written by Baseline",
+      "Risk": "Low",
+      "Tags": [
+        "gaming",
+        "graphics",
+        "gpu",
+        "performance"
+      ],
+      "Impact": "Low",
+      "Safe": true,
+      "RequiresRestart": false,
+      "WhyThisMatters": "Windows stores per-app GPU preferences by executable path; selecting the executable lets Baseline write the exact value instead of guessing install locations.",
+      "PresetTier": "Advanced",
+      "RecoveryLevel": "Manual",
+      "CompatibilitySensitivity": "Low",
+      "ScenarioTags": [
+        "gaming",
+        "competitive",
+        "streaming"
+      ],
+      "GamingPreviewGroup": "Advanced: Performance",
+      "GameModeDefault": false,
+      "GameModeDefaultByProfile": {
+        "Casual": false,
+        "Competitive": false,
+        "Streaming": false,
         "Troubleshooting": false
       },
       "TroubleshootingOnly": false,

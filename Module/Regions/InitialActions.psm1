@@ -1,4 +1,4 @@
-﻿using module ..\Logging.psm1
+using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 # Appx cmdlets fail with "The type initializer for '<Module>' threw an exception"
@@ -8,6 +8,19 @@ using module ..\SharedHelpers.psm1
 # "missing", to avoid a false "Windows is broken" warning).
 function Test-BaselineAppxPackagePresence
 {
+	<#
+	    .SYNOPSIS
+	    Check whether an Appx package is present.
+
+	    .DESCRIPTION
+	    Tries the Appx module first and falls back to the WinRT PackageManager so package presence checks still work when Appx cmdlets are unavailable.
+
+	    .PARAMETER Name
+	    Package identity name to look up.
+
+	    .EXAMPLE
+	    Test-BaselineAppxPackagePresence -Name 'Microsoft.WindowsStore'
+	#>
 	[CmdletBinding()]
 	param
 	(
@@ -40,23 +53,23 @@ function Test-BaselineAppxPackagePresence
 }
 
 #region InitialActions
-<#
-	.SYNOPSIS
-	Run the shared startup checks and runtime setup used before applying tweaks.
-
-	.DESCRIPTION
-	Prepares the Baseline session by clearing previous errors, unblocking
-	script files, setting network and compiler prerequisites, and initializing
-	the runtime helpers used by other region modules.
-
-	.PARAMETER Warning
-	Show the warning prompt during startup checks.
-
-	.EXAMPLE
-	InitialActions
-#>
 function InitialActions
 {
+	<#
+		.SYNOPSIS
+		Run the shared startup checks and runtime setup used before applying tweaks.
+
+		.DESCRIPTION
+		Prepares the Baseline session by clearing previous errors, unblocking
+		script files, setting network and compiler prerequisites, and initializing
+		the runtime helpers used by other region modules.
+
+		.PARAMETER Warning
+		Show the warning prompt during startup checks.
+
+		.EXAMPLE
+		InitialActions
+	#>
 	param
 	(
 		[Parameter(Mandatory = $false)]
@@ -227,16 +240,20 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 		# https://pc-np.com
 		PCNP                 = "HKCU:\Software\PCNP"
 	}
+	$DetectedTweakers = New-Object System.Collections.Generic.List[string]
 	foreach ($Tweaker in $Tweakers.Keys)
 	{
 		if (Test-Path -Path $Tweakers[$Tweaker])
 		{
+			[void]$DetectedTweakers.Add([string]$Tweaker)
 			if ($Tweakers[$Tweaker] -eq "HKCU:\Software\Win 10 Tweaker")
 			{
 				LogWarning (Get-BaselineBilingualString -Key 'Win10TweakerWarning' -Fallback 'Windows has been infected with a trojan via a Win 10 Tweaker backdoor. Reinstall Windows using only a genuine ISO image.')
-
 			}
-			LogWarning (Get-BaselineBilingualString -Key 'TweakerWarning' -Fallback 'The Windows stability may have been compromised by using {0}. Reinstall Windows using only a genuine ISO image.' -FormatArgs @($Tweaker))
+			else
+			{
+				LogWarning (Get-BaselineBilingualString -Key 'TweakerWarning' -Fallback 'The Windows stability may have been compromised by using {0}. Reinstall Windows using only a genuine ISO image.' -FormatArgs @($Tweaker))
+			}
 		}
 	}
 
@@ -315,7 +332,17 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 	{
 		if ($Tweakers[$Tweaker])
 		{
+			[void]$DetectedTweakers.Add([string]$Tweaker)
 			LogWarning (Get-BaselineBilingualString -Key 'TweakerWarning' -Fallback 'The Windows stability may have been compromised by using {0}. Reinstall Windows using only a genuine ISO image.' -FormatArgs @($Tweaker))
+		}
+	}
+
+	$Global:BaselineHostTaint = Resolve-BaselineHostTaintAssessment -DetectedTweakerNames $DetectedTweakers
+	if ($Global:BaselineHostTaint.Level -eq 'Blocked')
+	{
+		foreach ($Url in $Global:BaselineHostTaint.AdvisoryUrls)
+		{
+			LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_HostTaintAdvisoryUrl' -Fallback 'See: {0}' -FormatArgs @([string]$Url))
 		}
 	}
 
@@ -427,21 +454,56 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 			{
 				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_WindowsSpyBlockerEntriesDetectedInHostsFile' -Fallback 'WindowsSpyBlocker entries detected in hosts file')
 
-				$FilteredHosts = $HostsContent | Where-Object {
-					$Line = $_.Trim()
-
-					if (-not $Line -or $Line.StartsWith("#"))
+				$prefValue = $null
+				$prefPath = Join-Path -Path (Join-Path -Path (Join-Path -Path $env:LOCALAPPDATA -ChildPath 'Baseline') -ChildPath 'UserState\Profiles') -ChildPath 'Baseline-user-prefs.json'
+				if (Test-Path -LiteralPath $prefPath)
+				{
+					try
 					{
-						return $true
+						$rawPrefs = [System.IO.File]::ReadAllText($prefPath, [System.Text.Encoding]::UTF8)
+						if (-not [string]::IsNullOrWhiteSpace($rawPrefs))
+						{
+							$parsedPrefs = ConvertFrom-Json -InputObject $rawPrefs -ErrorAction Stop
+							if ($parsedPrefs -and $parsedPrefs.Values -and ($parsedPrefs.Values.PSObject.Properties.Name -contains 'AutoStripWindowsSpyBlockerHosts'))
+							{
+								$prefValue = $parsedPrefs.Values.AutoStripWindowsSpyBlockerHosts
+							}
+						}
 					}
-
-					-not ($IPArray | Select-String -SimpleMatch -Pattern $Line -Quiet)
+					catch
+					{
+						LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_HostsCleanupPrefReadFailed' -Fallback 'Could not read AutoStripWindowsSpyBlockerHosts preference from {0}: {1}. Falling back to the warn-and-skip default.' -FormatArgs @($prefPath, $_.Exception.Message))
+					}
 				}
 
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CleaningHostsFile' -Fallback 'Cleaning hosts file')
-				$FilteredHosts | Set-Content -Path $HostsPath -Encoding Default -Force
+				$hostsPolicy = Resolve-BaselineHostsCleanupPolicy -EnvValue $env:BASELINE_AUTO_STRIP_HOSTS -PreferenceValue $prefValue
 
-				Start-Process -FilePath notepad.exe -ArgumentList $HostsPath | Out-Null
+				if (-not $hostsPolicy.AutoStrip)
+				{
+					foreach ($DetectedEntry in $MatchedHostsEntries)
+					{
+						LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_HostsEntryDetectedSkipping' -Fallback 'Detected third-party hosts entry: {0}' -FormatArgs @(([string]$DetectedEntry).Trim()))
+					}
+					LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_HostsCleanupSkipped' -Fallback 'Detected third-party WindowsSpyBlocker hosts entries that may block legitimate Microsoft resources, but automatic cleanup is opt-in. Set the BASELINE_AUTO_STRIP_HOSTS environment variable to 1, or enable AutoStripWindowsSpyBlockerHosts in Settings, to allow Baseline to remove them.')
+				}
+				else
+				{
+					$FilteredHosts = $HostsContent | Where-Object {
+						$Line = $_.Trim()
+
+						if (-not $Line -or $Line.StartsWith("#"))
+						{
+							return $true
+						}
+
+						-not ($IPArray | Select-String -SimpleMatch -Pattern $Line -Quiet)
+					}
+
+					LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CleaningHostsFile' -Fallback 'Cleaning hosts file (auto-strip source: {0})' -FormatArgs @([string]$hostsPolicy.Source))
+					$FilteredHosts | Set-Content -Path $HostsPath -Encoding Default -Force
+
+					Start-Process -FilePath notepad.exe -ArgumentList $HostsPath | Out-Null
+				}
 			}
 		}
 		catch [System.Net.WebException]
@@ -833,6 +895,10 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 	{
 		try
 		{
+			if (Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Set-BootstrapLoadingSplashStep -Splash $Global:LoadingSplash -StepId 'system' -Status 'in_progress' -SubAction ''
+			}
 			if (Get-Command -Name 'Initialize-PackageManagersBootstrap' -CommandType Function -ErrorAction SilentlyContinue)
 			{
 				Initialize-PackageManagersBootstrap -LoadingSplash $Global:LoadingSplash
@@ -848,37 +914,14 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 	{
 		try
 		{
-			$splashLoadingText = Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...'
-			if ($null -ne $Global:Localization)
+			if (Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction SilentlyContinue)
 			{
-				$candidate = $null
-				if ($Global:Localization -is [System.Collections.IDictionary] -and $Global:Localization.Contains('GuiSplashLoading')) { $candidate = [string]$Global:Localization['GuiSplashLoading'] }
-				elseif ($Global:Localization.PSObject -and $Global:Localization.PSObject.Properties['GuiSplashLoading']) { $candidate = [string]$Global:Localization.GuiSplashLoading }
-				if (-not [string]::IsNullOrWhiteSpace($candidate)) { $splashLoadingText = $candidate }
-			}
-
-			if (Get-Command -Name 'Set-BootstrapLoadingSplashState' -CommandType Function -ErrorAction SilentlyContinue)
-			{
-				Set-BootstrapLoadingSplashState -Splash $Global:LoadingSplash -StatusText $splashLoadingText -Indeterminate
-			}
-			else
-			{
-				$Global:LoadingSplash.Dispatcher.Invoke([System.Action]{
-					try
-					{
-						$statusText = $Global:LoadingSplash.Window.FindName('StatusText')
-						if ($statusText)
-						{
-							$statusText.Text = $splashLoadingText
-						}
-					}
-					catch { $null = $_ }
-				})
+				Set-BootstrapLoadingSplashStep -Splash $Global:LoadingSplash -StepId 'finalize' -Status 'in_progress' -SubAction ''
 			}
 			# The launcher closes the splash immediately after InitialActions
 			# returns, once startup checks are done and before the GUI builds.
 		}
-		catch { $null = $_ }
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'InitialActions.SplashFinalize.SetStep' }
 	}
 
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_InitialChecksFinished' -Fallback 'Initial Checks finished, continuing with Main Script') -addGap

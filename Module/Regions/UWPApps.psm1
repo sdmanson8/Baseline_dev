@@ -1,4 +1,4 @@
-﻿using module ..\Logging.psm1
+using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 #region UWP apps
@@ -7,6 +7,11 @@ using module ..\SharedHelpers.psm1
 .SYNOPSIS
 Enable or disable Background Apps
 
+
+
+.DESCRIPTION
+
+Enables or disables Background Apps in GUI and headless runs.
 .PARAMETER Enable
 Enable Background Apps (default value)
 
@@ -74,7 +79,7 @@ function BackgroundApps
 	Install or uninstall Microsoft Copilot and related Windows AI components.
 
 	.DESCRIPTION
-	Calls the RemoveWindowsAI helper script to either restore or remove the
+	Calls the AIRemoval helper script to either restore or remove the
 	Windows AI components associated with Copilot, then installs or removes the
 	store Copilot app itself.
 
@@ -133,16 +138,16 @@ function Copilot
 			try
 			{
 				# Store the log path in the environment for the helper process.
-				[Environment]::SetEnvironmentVariable("REMOVE_WINDOWS_AI_LOG", $global:LogFilePath, "Process")
+				[Environment]::SetEnvironmentVariable("AIREMOVAL_LOG", $global:LogFilePath, "Process")
 				$global:LASTEXITCODE = 0
-				& "$PSScriptRoot\..\..\Assets\RemoveWindowsAI.ps1" -nonInteractive -revertMode -AllOptions
+				& "$PSScriptRoot\UWPApps\AIRemoval.ps1" -nonInteractive -revertMode -AllOptions
 				if (-not $?)
 				{
-					throw "RemoveWindowsAI restore mode did not complete successfully."
+					throw "AIRemoval restore mode did not complete successfully."
 				}
 				if ($LASTEXITCODE -ne 0)
 				{
-					throw "RemoveWindowsAI restore mode returned exit code $LASTEXITCODE."
+					throw "AIRemoval restore mode returned exit code $LASTEXITCODE."
 				}
 
 				Start-Sleep -Seconds 2
@@ -181,16 +186,16 @@ function Copilot
 			try
 			{
 				# Store the log path in the environment for the helper process.
-				[Environment]::SetEnvironmentVariable("REMOVE_WINDOWS_AI_LOG", $global:LogFilePath, "Process")
+				[Environment]::SetEnvironmentVariable("AIREMOVAL_LOG", $global:LogFilePath, "Process")
 				$global:LASTEXITCODE = 0
-				& "$PSScriptRoot\..\..\Assets\RemoveWindowsAI.ps1" -nonInteractive -AllOptions
+				& "$PSScriptRoot\UWPApps\AIRemoval.ps1" -nonInteractive -AllOptions
 				if (-not $?)
 				{
-					throw "RemoveWindowsAI removal mode did not complete successfully."
+					throw "AIRemoval removal mode did not complete successfully."
 				}
 				if ($LASTEXITCODE -ne 0)
 				{
-					throw "RemoveWindowsAI removal mode returned exit code $LASTEXITCODE."
+					throw "AIRemoval removal mode returned exit code $LASTEXITCODE."
 				}
 
 				Write-ConsoleStatus -Status success
@@ -209,6 +214,11 @@ function Copilot
 	.SYNOPSIS
 	Cortana autostarting
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for cortana autostarting.
 	.PARAMETER Disable
 	Disable Cortana autostarting
 
@@ -301,33 +311,21 @@ function CortanaAutostart
 }
 
 <#
-.SYNOPSIS
-Enable or disable Edge Debloat
+    .SYNOPSIS
+    Enable or disable the Baseline Edge debloat policy set.
 
-.PARAMETER Enable
-Enable Edge Debloat
+    .DESCRIPTION
+    Applies or removes the Edge and EdgeUpdate policy values Baseline uses to suppress consumer features, first-run prompts, and bundled extras.
 
-.PARAMETER Disable
-Disable Edge Debloat (default value)
+    .PARAMETER Enable
+    Apply the Baseline Edge debloat policy set.
 
-.EXAMPLE
-EdgeDebloat -Enable
+    .PARAMETER Disable
+    Remove the Baseline Edge debloat policy set.
 
-.EXAMPLE
-EdgeDebloat -Disable
-
-.NOTES
-Current user
-
-.CAUTION
-This will enforce multiple Group Policy settings on Microsoft Edge.
-Telemetry, personalization reporting, and diagnostic data will be disabled.
-Shopping assistant, collections, rewards, and feedback features will be removed.
-The Copilot sidebar extension will be blocked via extension blocklist.
-First run experience and insider promotions will be hidden.
-These changes apply system-wide and may affect all Edge user profiles.
+    .EXAMPLE
+    EdgeDebloat -Enable
 #>
-
 function EdgeDebloat
 {
 	[CmdletBinding()]
@@ -370,6 +368,7 @@ function EdgeDebloat
 			Set-ItemProperty -LiteralPath $EdgeBlocklistPath -Name "1" -Type String -Value "ofefcgjbeghpigppfmkologfjadafddi" -Force -ErrorAction SilentlyContinue | Out-Null
 			Set-ItemProperty -LiteralPath $EdgePath -Name "ShowRecommendationsEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
 			Set-ItemProperty -LiteralPath $EdgePath -Name "HideFirstRunExperience" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
+			Set-ItemProperty -LiteralPath $EdgePath -Name "DefaultBrowserSettingsCampaignEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
 			Set-ItemProperty -LiteralPath $EdgePath -Name "UserFeedbackAllowed" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
 			Set-ItemProperty -LiteralPath $EdgePath -Name "ConfigureDoNotTrack" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
 			Set-ItemProperty -LiteralPath $EdgePath -Name "AlternateErrorPagesEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
@@ -395,6 +394,7 @@ function EdgeDebloat
 			Remove-ItemProperty -Path $EdgeBlocklistPath -Name "1" -Force -ErrorAction SilentlyContinue | Out-Null
 			Remove-ItemProperty -Path $EdgePath -Name "ShowRecommendationsEnabled" -Force -ErrorAction SilentlyContinue | Out-Null
 			Remove-ItemProperty -Path $EdgePath -Name "HideFirstRunExperience" -Force -ErrorAction SilentlyContinue | Out-Null
+			Remove-ItemProperty -Path $EdgePath -Name "DefaultBrowserSettingsCampaignEnabled" -Force -ErrorAction SilentlyContinue | Out-Null
 			Remove-ItemProperty -Path $EdgePath -Name "UserFeedbackAllowed" -Force -ErrorAction SilentlyContinue | Out-Null
 			Remove-ItemProperty -Path $EdgePath -Name "ConfigureDoNotTrack" -Force -ErrorAction SilentlyContinue | Out-Null
 			Remove-ItemProperty -Path $EdgePath -Name "AlternateErrorPagesEnabled" -Force -ErrorAction SilentlyContinue | Out-Null
@@ -415,8 +415,884 @@ function EdgeDebloat
 
 <#
 .SYNOPSIS
+Remove Microsoft Edge (Legacy and Chromium) while preserving EdgeWebView2.
+
+.DESCRIPTION
+Detects and removes Microsoft Edge installations including Legacy UWP Edge,
+Chromium-based Edge, and EdgeUpdate components. EdgeWebView2 is intentionally
+preserved (required by other apps).
+
+Action-type entry â€” one-way destructive operation. Backs up HKCU UserChoice
+ProgId/Hash for .html/.htm/.xml/.pdf so a non-Edge default browser preference
+survives the removal. Installs an OpenWebSearch protocol redirect (via
+ie_to_edge_stub.exe) and a logon-triggered repair scheduled task so links that
+still resolve through MSEdgeHTM are forwarded to the user's actual default
+browser.
+
+.PARAMETER Remove
+Trigger the one-way Edge removal flow.
+
+.NOTES
+Logs at %ProgramData%\Baseline\Logs\EdgeRemovalLog.txt; stub + redirect at
+%ProgramData%\Baseline\OpenWebSearch.
+#>
+function EdgeRemoval
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory = $true, ParameterSetName = "Remove")]
+		[switch]$Remove
+	)
+
+	Write-ConsoleStatus -Action "Removing Microsoft Edge"
+	LogInfo "Starting Microsoft Edge removal (preserves EdgeWebView2)"
+
+	$logFolder = Join-Path $env:ProgramData 'Baseline\Logs'
+	$logFile   = Join-Path $logFolder 'EdgeRemovalLog.txt'
+	$scriptsDir = Join-Path $env:ProgramData 'Baseline\OpenWebSearch'
+
+	if (-not (Test-Path $logFolder))
+	{
+		New-Item -ItemType Directory -Path $logFolder -Force -ErrorAction SilentlyContinue | Out-Null
+	}
+	<#
+	    .SYNOPSIS
+	    Write a line to the Edge removal log.
+
+	    .DESCRIPTION
+	    Appends a timestamped message to the Edge removal log file and mirrors the same text into the main Baseline log.
+
+	    .PARAMETER Message
+	    Text to append to the Edge removal log.
+
+	    .EXAMPLE
+	    Write-EdgeRemovalLog -Message 'Stopping Edge-related processes'
+	#>
+	function Write-EdgeRemovalLog
+	{
+		param([string]$Message)
+		try
+		{
+			if ((Test-Path $logFile) -and (Get-Item $logFile).Length -gt 512000)
+			{
+				Remove-Item $logFile -Force -ErrorAction SilentlyContinue
+				$ts0 = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+				"$ts0 - Log rotated - previous log exceeded 500KB" | Out-File -FilePath $logFile
+			}
+			$ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+			"$ts - $Message" | Out-File -FilePath $logFile -Append
+		}
+		catch
+		{
+			# Logging must never break removal flow
+		}
+		LogInfo $Message
+	}
+	<#
+	    .SYNOPSIS
+	    Return the CBS package names for legacy Edge.
+
+	    .DESCRIPTION
+	    Reads the Component Based Servicing package list and returns the package names that identify the legacy UWP Edge payload.
+
+	    .EXAMPLE
+	    Get-LegacyEdgePackages
+	#>
+	function Get-LegacyEdgePackages
+	{
+		$regPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Packages'
+		return Get-ChildItem -Path $regPath -Name -ErrorAction SilentlyContinue |
+			Where-Object { $_ -match 'Microsoft-Windows-Internet-Browser-Package' -and $_ -match '~~' }
+	}
+	<#
+	    .SYNOPSIS
+	    Return whether the legacy Edge package is installed.
+
+	    .DESCRIPTION
+	    Queries the legacy Edge CBS packages and uses DISM package info to determine whether any package is still installed.
+
+	    .EXAMPLE
+	    Test-LegacyEdgeInstalled
+	#>
+	function Test-LegacyEdgeInstalled
+	{
+		$packages = Get-LegacyEdgePackages
+		if ($packages)
+		{
+			foreach ($pkg in $packages)
+			{
+				$info = & dism /online /Get-PackageInfo /PackageName:$pkg 2>$null
+				if ($info -match 'State.*Installed') { return $true }
+			}
+		}
+		return $false
+	}
+	<#
+	    .SYNOPSIS
+	    Return whether Chromium-based Edge is installed.
+
+	    .DESCRIPTION
+	    Checks the standard Edge folders and a store-program probe to decide whether the Chromium Edge build is still present.
+
+	    .EXAMPLE
+	    Test-ChromiumEdgeInstalled
+	#>
+	function Test-ChromiumEdgeInstalled
+	{
+		$folders = @('Edge', 'EdgeCore', 'EdgeUpdate')
+		$programFiles = @($env:ProgramFiles, ${env:ProgramFiles(x86)})
+		foreach ($pf in $programFiles)
+		{
+			foreach ($f in $folders)
+			{
+				if (Test-Path "$pf\Microsoft\$f") { return $true }
+			}
+		}
+		try
+		{
+			$app = Get-WmiObject -Class Win32_InstalledStoreProgram -Filter "Name like '%Microsoft.MicrosoftEdge.Stable%'" -ErrorAction SilentlyContinue
+			return $app -ne $null
+		}
+		catch
+		{
+			return $false
+		}
+	}
+	<#
+	    .SYNOPSIS
+	    Back up selected UserChoice file associations before Edge removal.
+
+	    .DESCRIPTION
+	    Captures ProgId and Hash values for the HTML, HTM, XML, and PDF UserChoice associations so non-Edge defaults can be restored later.
+
+	    .EXAMPLE
+	    Backup-UserChoiceAssociations
+	#>
+	function Backup-UserChoiceAssociations
+	{
+		Write-EdgeRemovalLog 'Backing up HKCU UserChoice ProgId/Hash for .html/.htm/.xml/.pdf'
+		$backup = @{}
+		$exts = @('.html', '.htm', '.xml', '.pdf')
+		foreach ($ext in $exts)
+		{
+			$keyPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\$ext\UserChoice"
+			if (Test-Path $keyPath)
+			{
+				try
+				{
+					$props = Get-ItemProperty -Path $keyPath -ErrorAction SilentlyContinue
+					if ($props -and $props.ProgId)
+					{
+						$backup[$ext] = @{ ProgId = $props.ProgId; Hash = $props.Hash }
+					}
+				}
+				catch
+				{
+					# Best-effort backup
+				}
+			}
+		}
+		Write-EdgeRemovalLog "Captured UserChoice for $($backup.Count) extension(s)"
+		return $backup
+	}
+	<#
+	    .SYNOPSIS
+	    Restore saved UserChoice file associations after Edge removal.
+
+	    .DESCRIPTION
+	    Replays the saved non-Edge ProgId values for the backed-up UserChoice extensions when a backup payload is available.
+
+	    .PARAMETER Backup
+	    Hashtable returned by Backup-UserChoiceAssociations.
+
+	    .EXAMPLE
+	    Restore-UserChoiceAssociations -Backup $backup
+	#>
+	function Restore-UserChoiceAssociations
+	{
+		param($Backup)
+		if (-not $Backup -or $Backup.Count -eq 0) { return }
+		foreach ($ext in $Backup.Keys)
+		{
+			$entry = $Backup[$ext]
+			if (-not $entry.ProgId -or $entry.ProgId -eq 'MSEdgeHTM') { continue }
+			$keyPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\$ext\UserChoice"
+			if (Test-Path $keyPath)
+			{
+				try
+				{
+					Set-ItemProperty -Path $keyPath -Name ProgId -Value $entry.ProgId -Force -ErrorAction SilentlyContinue
+					Write-EdgeRemovalLog "Restored UserChoice for $ext -> $($entry.ProgId)"
+				}
+				catch
+				{
+					Write-EdgeRemovalLog "Failed to restore UserChoice for $ext"
+				}
+			}
+		}
+	}
+	<#
+	    .SYNOPSIS
+	    Stop running Edge-related processes.
+
+	    .DESCRIPTION
+	    Stops the updater, browser, widgets, resume, and related Edge processes so uninstall and cleanup operations can proceed.
+
+	    .EXAMPLE
+	    Stop-EdgeProcesses
+	#>
+	function Stop-EdgeProcesses
+	{
+		Write-EdgeRemovalLog 'Stopping Edge-related processes'
+		$names = @('MicrosoftEdgeUpdate', 'OneDrive', 'WidgetService', 'Widgets', 'msedge', 'Resume', 'CrossDeviceResume', 'msedgewebview2')
+		foreach ($n in $names)
+		{
+			$count = (Get-Process -Name $n -ErrorAction SilentlyContinue).Count
+			if ($count -gt 0)
+			{
+				Stop-Process -Name $n -Force -ErrorAction SilentlyContinue
+				Write-EdgeRemovalLog "Stopped $count instance(s) of $n"
+			}
+		}
+	}
+	<#
+	    .SYNOPSIS
+	    Remove the legacy UWP Edge package.
+
+	    .DESCRIPTION
+	    Makes the legacy Edge package visible in CBS, removes ownership blockers, and calls DISM to uninstall the package.
+
+	    .EXAMPLE
+	    Remove-LegacyEdge
+	#>
+	function Remove-LegacyEdge
+	{
+		Write-EdgeRemovalLog 'Starting Legacy Edge/UWP Edge removal'
+		$packages = Get-LegacyEdgePackages
+		$first = $packages | Select-Object -First 1
+		if (-not $first)
+		{
+			Write-EdgeRemovalLog 'No Legacy Edge packages found in CBS registry'
+			return
+		}
+		$pkgPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Packages\$first"
+		Set-ItemProperty -Path $pkgPath -Name 'Visibility' -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue
+		$ownersPath = "$pkgPath\Owners"
+		if (Test-Path $ownersPath)
+		{
+			Remove-Item -Path $ownersPath -Recurse -Force -ErrorAction SilentlyContinue
+		}
+		Write-EdgeRemovalLog 'Removing Legacy Edge package via DISM (30s timeout)'
+		$dismProc = Start-Process -FilePath 'dism.exe' -ArgumentList '/online', '/Remove-Package', "/PackageName:$first" -NoNewWindow -PassThru
+		if ($dismProc -and $dismProc.WaitForExit(30000))
+		{
+			Write-EdgeRemovalLog 'DISM completed successfully'
+		}
+		elseif ($dismProc)
+		{
+			Write-EdgeRemovalLog 'DISM timed out after 30s; killing and retrying once'
+			$dismProc.Kill()
+			Start-Sleep -Seconds 2
+			$retry = Start-Process -FilePath 'dism.exe' -ArgumentList '/online', '/Remove-Package', "/PackageName:$first" -NoNewWindow -PassThru
+			if ($retry -and $retry.WaitForExit(30000))
+			{
+				Write-EdgeRemovalLog 'DISM retry completed successfully'
+			}
+			elseif ($retry)
+			{
+				Write-EdgeRemovalLog 'DISM retry also timed out; continuing'
+				$retry.Kill()
+			}
+			else
+			{
+				Write-EdgeRemovalLog 'DISM retry failed to start; continuing'
+			}
+		}
+		else
+		{
+			Write-EdgeRemovalLog 'DISM failed to start; continuing'
+		}
+		Write-EdgeRemovalLog 'Removing Legacy UWP Edge AppxPackage'
+		Get-AppxPackage -AllUsers Microsoft.MicrosoftEdge | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue | Out-Null
+		Write-EdgeRemovalLog 'Legacy Edge/UWP Edge removal completed'
+	}
+	<#
+	    .SYNOPSIS
+	    Remove Edge shortcuts from user and common locations.
+
+	    .DESCRIPTION
+	    Deletes known Microsoft Edge shortcut files from user profiles, Quick Launch, taskbar pins, and shared Start Menu locations.
+
+	    .EXAMPLE
+	    Remove-EdgeShortcuts
+	#>
+	function Remove-EdgeShortcuts
+	{
+		Write-EdgeRemovalLog 'Starting Edge shortcut cleanup'
+		$userProfiles = Get-ChildItem -Path 'C:\Users' -Directory -ErrorAction SilentlyContinue |
+			Where-Object { Test-Path "$($_.FullName)\NTUSER.DAT" }
+		$paths = @()
+		foreach ($p in $userProfiles)
+		{
+			$paths += @(
+				"$($p.FullName)\AppData\Roaming\Microsoft\Internet Explorer\Quick Launch\Microsoft Edge.lnk",
+				"$($p.FullName)\Desktop\Microsoft Edge.lnk",
+				"$($p.FullName)\AppData\Roaming\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\Microsoft Edge.lnk",
+				"$($p.FullName)\AppData\Roaming\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\Tombstones\Microsoft Edge.lnk",
+				"$($p.FullName)\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Microsoft Edge.lnk"
+			)
+		}
+		$paths += 'C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Microsoft Edge.lnk'
+		$count = 0
+		foreach ($shortcut in $paths)
+		{
+			if (Test-Path -Path $shortcut -PathType Leaf)
+			{
+				Remove-Item -Path $shortcut -Force -ErrorAction SilentlyContinue
+				$count++
+			}
+		}
+		Write-EdgeRemovalLog "Removed $count Edge shortcut(s)"
+	}
+	<#
+	    .SYNOPSIS
+	    Install the Edge protocol redirect helper.
+
+	    .DESCRIPTION
+	    Creates the OpenWebSearch redirect assets Baseline uses to intercept Edge-targeted URL launches after browser removal.
+
+	    .EXAMPLE
+	    Install-EdgeProtocolRedirect
+	#>
+	function Install-EdgeProtocolRedirect
+	{
+		Write-EdgeRemovalLog 'Installing Edge protocol redirect via OpenWebSearch'
+		New-Item -ItemType Directory -Path $scriptsDir -Force -ErrorAction SilentlyContinue | Out-Null
+
+		$stubTarget = Join-Path $scriptsDir 'ie_to_edge_stub.exe'
+		if (-not (Test-Path $stubTarget))
+		{
+			Write-EdgeRemovalLog "Warning: ie_to_edge_stub.exe not found at $stubTarget; skipping redirect install"
+			return
+		}
+
+		$openWebSearchPath = Join-Path $scriptsDir 'OpenWebSearch.cmd'
+		$openWebSearchContent = @'
+@title OpenWebSearch 2023 & echo off
+for /f %%E in ('"prompt $E$S& for %%e in (1) do rem"') do echo;%%E[2t 2>nul
+
+call :reg_var "HKCU\SOFTWARE\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoiceLatest\ProgId" ProgID ProgID
+if not defined ProgID call :reg_var "HKCU\SOFTWARE\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoice" ProgID ProgID
+if /i "%ProgID%" neq "MSEdgeHTM" if defined ProgID goto :browser_found
+for %%P in ("%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe") do if exist %%P (set "Choice=%%~P"& goto :skip_browser)
+set "Choice="
+for %%R in (HKCU HKLM) do (
+    for /f "delims=" %%K in ('reg query "%%R\SOFTWARE\Clients\StartMenuInternet" 2^>nul') do (
+        for /f "skip=1 tokens=2*" %%A in ('reg query "%%K\shell\open\command" /ve 2^>nul') do (
+            echo "%%B" | findstr /i "msedge ie_to_edge_stub iexplore" >nul || (set "Choice=%%~B" & goto :skip_browser)
+        )
+    )
+)
+if not defined Choice exit /b
+:browser_found
+call :reg_var "HKCR\%ProgID%\shell\open\command" "" Browser
+set Choice=& for %%. in (%Browser%) do if not defined Choice set "Choice=%%~."
+:skip_browser
+
+set "URI=" & set "URL=" & set "NOOP="
+
+set "CLI=%CMDCMDLINE:"=``%"
+if defined CLI set "CLI=%CLI:*ie_to_edge_stub.exe`` =%"
+if defined CLI set "CLI=%CLI:*ie_to_edge_stub.exe =%"
+if defined CLI set "CLI=%CLI:*msedge.exe`` =%"
+if defined CLI set "CLI=%CLI:*msedge.exe =%"
+set "FIX=%CLI:~-1%"
+if defined CLI if "%FIX%"==" " set "CLI=%CLI:~0,-1%"
+if defined CLI set "RED=%CLI:microsoft-edge=%"
+if defined CLI set "URL=%CLI:http=%"
+if "%CLI%" equ "%RED%" (set NOOP=1) else if "%CLI%" equ "%URL%" (set NOOP=1)
+if defined NOOP exit /b
+
+set "URL=%CLI:*microsoft-edge=%"
+set "URL=http%URL:*http=%"
+set "FIX=%URL:~-2%"
+if defined URL if "%FIX%"=="``" set "URL=%URL:~0,-2%"
+call :dec_url
+start "" "%Choice%" "%URL%"
+exit
+
+:reg_var
+set {var}=& set {reg}=reg query "%~1" /v %2 /z /se "," /f /e& if %2=="" set {reg}=reg query "%~1" /ve /z /se "," /f /e
+for /f "skip=2 tokens=* delims=" %%V in ('%{reg}% %4 %5 %6 %7 %8 %9 2^>nul') do if not defined {var} set "{var}=%%V"
+if not defined {var} (set {reg}=& set "%~3="& exit /b) else if %2=="" set "{var}=%{var}:*)    =%"
+if not defined {var} (set {reg}=& set "%~3="& exit /b) else set {reg}=& set "%~3=%{var}:*)    =%"& set {var}=& exit /b
+
+:dec_url
+set ".=%URL:!=}%" & setlocal enabledelayedexpansion
+set ".=!.:%%={!" &set ".=!.:{3A=:!" &set ".=!.:{2F=/!" &set ".=!.:{3F=?!" &set ".=!.:{23=#!" &set ".=!.:{5B=[!" &set ".=!.:{5D=]!"
+set ".=!.:{40=@!"&set ".=!.:{21=}!" &set ".=!.:{24=$!" &set ".=!.:{26=&!" &set ".=!.:{27='!" &set ".=!.:{28=(!" &set ".=!.:{29=)!"
+set ".=!.:{2A=*!"&set ".=!.:{2B=+!" &set ".=!.:{2C=,!" &set ".=!.:{3B=;!" &set ".=!.:{3D==!" &set ".=!.:{25=%%!"&set ".=!.:{20= !"
+set ".=!.:{=%%!" & endlocal& set "URL=%.:}=!%" & exit /b
+'@
+
+		$openWebSearchContent | Out-File -FilePath $openWebSearchPath -Encoding ASCII -Force
+		Write-EdgeRemovalLog "Created OpenWebSearch.cmd at $openWebSearchPath"
+
+		$buildNumber = [Environment]::OSVersion.Version.Build
+		$conhostFlags = if ($buildNumber -gt 25179) { '--width 1 --height 1' } else { '--headless' }
+		$conhostDebugger = "$env:SystemRoot\system32\conhost.exe $conhostFlags $openWebSearchPath"
+
+		Write-EdgeRemovalLog 'Configuring registry entries for Edge protocol redirect'
+		reg.exe add 'HKCR\microsoft-edge' /f /ve /d 'URL:microsoft-edge' 2>&1 | Out-Null
+		reg.exe add 'HKCR\microsoft-edge' /f /v 'URL Protocol' /d '' 2>&1 | Out-Null
+		reg.exe add 'HKCR\microsoft-edge' /f /v 'NoOpenWith' /d '' 2>&1 | Out-Null
+		reg.exe add 'HKCR\microsoft-edge\shell\open\command' /f /ve /d "$stubTarget %1" 2>&1 | Out-Null
+		reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\ie_to_edge_stub.exe' /f /v UseFilter /d 1 /t reg_dword 2>&1 | Out-Null
+		reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\ie_to_edge_stub.exe\0' /f /v FilterFullPath /d "$stubTarget" 2>&1 | Out-Null
+		reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\ie_to_edge_stub.exe\0' /f /v Debugger /d "$conhostDebugger" 2>&1 | Out-Null
+		reg.exe delete 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\msedge.exe' /f 2>&1 | Out-Null
+		Write-EdgeRemovalLog 'Registry configuration completed'
+
+		$repairTemplate = @'
+# OpenWebSearch Repair - re-sets protocol handler and MSEdgeHTM registry if Edge overwrites them
+$stubPath = "{0}"
+$owsPath = "{1}"
+if (-not (Test-Path $stubPath)) {{ exit }}
+if (-not (Test-Path $owsPath)) {{ exit }}
+$cmd = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\microsoft-edge\shell\open\command" -ErrorAction SilentlyContinue).'(default)'
+if ($cmd -and $cmd -notlike "*ie_to_edge_stub*") {{
+    reg.exe add "HKCR\microsoft-edge\shell\open\command" /f /ve /d "$stubPath %1" 2>&1 | Out-Null
+}}
+$htm = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\MSEdgeHTM\shell\open\command" -ErrorAction SilentlyContinue).'(default)'
+if ($htm -and $htm -notlike "*ie_to_edge_stub*") {{
+    reg.exe add "HKCR\MSEdgeHTM\shell\open\command" /f /ve /d "`"$stubPath`" %1" 2>&1 | Out-Null
+}}
+'@
+		$repairContent = $repairTemplate -f $stubTarget, $openWebSearchPath
+		$repairScriptPath = Join-Path $scriptsDir 'OpenWebSearchRepair.ps1'
+		$repairContent | Out-File -FilePath $repairScriptPath -Encoding UTF8 -Force
+		Write-EdgeRemovalLog "Created OpenWebSearchRepair.ps1 at $repairScriptPath"
+
+		try
+		{
+			$repairAction    = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-ExecutionPolicy Bypass -NoProfile -Command `"iex([IO.File]::ReadAllText('$repairScriptPath'))`""
+			$repairTrigger   = New-ScheduledTaskTrigger -AtLogon
+			$repairSettings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+			$repairPrincipal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+			Register-ScheduledTask -TaskName 'OpenWebSearchRepair' -TaskPath '\Baseline\' -Action $repairAction -Trigger $repairTrigger -Settings $repairSettings -Principal $repairPrincipal -Force | Out-Null
+			Write-EdgeRemovalLog 'Registered OpenWebSearchRepair scheduled task (runs at logon)'
+		}
+		catch
+		{
+			Write-EdgeRemovalLog "Failed to register OpenWebSearchRepair task: $($_.Exception.Message)"
+		}
+	}
+	<#
+	    .SYNOPSIS
+	    Uninstall Chromium-based Edge and EdgeUpdate.
+
+	    .DESCRIPTION
+	    Runs the available Edge uninstall commands, stops related processes, and removes EdgeUpdate to finish the Chromium Edge cleanup.
+
+	    .EXAMPLE
+	    Remove-ChromiumEdge
+	#>
+	function Remove-ChromiumEdge
+	{
+		Write-EdgeRemovalLog 'Starting Edge Chromium uninstall'
+		$edgePath = "$env:SystemRoot\SystemApps\Microsoft.MicrosoftEdge_8wekyb3d8bbwe"
+		New-Item -Path $edgePath -ItemType Directory -ErrorAction SilentlyContinue | Out-Null
+		New-Item -Path $edgePath -ItemType File -Name 'MicrosoftEdge.exe' -ErrorAction SilentlyContinue | Out-Null
+
+		Write-EdgeRemovalLog 'Searching registry for Edge uninstall strings'
+		$uninstallKeys = Get-ChildItem 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue
+		$edgeUninstallCount = 0
+		foreach ($key in $uninstallKeys)
+		{
+			$displayName = (Get-ItemProperty $key.PSPath -ErrorAction SilentlyContinue).DisplayName
+			if ($displayName -like '*Microsoft Edge*')
+			{
+				$uninstallString = (Get-ItemProperty $key.PSPath).UninstallString
+				if ($uninstallString)
+				{
+					$edgeUninstallCount++
+					Stop-EdgeProcesses
+					if ($uninstallString -like '*msiexec*')
+					{
+						Write-EdgeRemovalLog 'Executing MSI uninstaller for Edge'
+						Start-Process cmd.exe "/c $uninstallString /quiet" -WindowStyle Hidden -Wait | Out-Null
+					}
+					else
+					{
+						Write-EdgeRemovalLog 'Executing standard uninstaller for Edge'
+						Start-Process cmd.exe "/c $uninstallString --force-uninstall --silent" -WindowStyle Hidden -Wait | Out-Null
+					}
+				}
+			}
+		}
+		if ($edgeUninstallCount -eq 0)
+		{
+			Write-EdgeRemovalLog 'No Edge uninstall entries found in registry'
+		}
+		else
+		{
+			Write-EdgeRemovalLog "Executed $edgeUninstallCount Edge uninstaller(s)"
+		}
+
+		Write-EdgeRemovalLog 'Removing UWP Edge Chromium AppxPackage'
+		Get-AppxPackage -AllUsers Microsoft.MicrosoftEdge.Stable | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue | Out-Null
+
+		Write-EdgeRemovalLog 'Cleaning up temporary Edge directory'
+		Remove-Item -Recurse -Force $edgePath -ErrorAction SilentlyContinue | Out-Null
+		Write-EdgeRemovalLog 'Edge Chromium uninstall completed'
+
+		Write-EdgeRemovalLog 'Starting EdgeUpdate removal'
+		$edgeupdate = @()
+		$searchPaths = @('LocalApplicationData', 'ProgramFilesX86', 'ProgramFiles')
+		foreach ($pathType in $searchPaths)
+		{
+			$folder = [Environment]::GetFolderPath($pathType)
+			$pattern = "$folder\Microsoft\EdgeUpdate\*.*.*.*\MicrosoftEdgeUpdate.exe"
+			$found = Get-ChildItem $pattern -Recurse -ErrorAction SilentlyContinue
+			if ($found) { $edgeupdate += $found.FullName }
+		}
+		if ($edgeupdate.Count -gt 0)
+		{
+			Write-EdgeRemovalLog "Found $($edgeupdate.Count) EdgeUpdate executable(s)"
+		}
+		else
+		{
+			Write-EdgeRemovalLog 'No EdgeUpdate executables found'
+		}
+
+		# Backup ClientState â€” required for EdgeWebView2 to keep working post-removal
+		$backupRegFile = Join-Path $env:TEMP ("EdgeUpdate_ClientState_Backup_{0}.reg" -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
+		$clientStatePath = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\ClientState'
+		if (Test-Path $clientStatePath)
+		{
+			Write-EdgeRemovalLog 'Backing up EdgeUpdate ClientState (preserves EdgeWebView2)'
+			cmd /c "reg export `"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\ClientState`" `"$backupRegFile`" /y" 2>$null
+			if (Test-Path $backupRegFile)
+			{
+				Write-EdgeRemovalLog "Created registry backup at $backupRegFile"
+			}
+			else
+			{
+				Write-EdgeRemovalLog 'Warning: failed to create ClientState registry backup'
+			}
+		}
+		else
+		{
+			Write-EdgeRemovalLog 'No EdgeUpdate ClientState registry found to backup'
+		}
+
+		foreach ($exePath in $edgeupdate)
+		{
+			if (Test-Path $exePath)
+			{
+				Write-EdgeRemovalLog "Unregistering EdgeUpdate service from $exePath"
+				Start-Process -FilePath $exePath -ArgumentList '/unregsvc' -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
+				$waitCount = 0
+				do
+				{
+					Start-Sleep -Seconds 3
+					$running = Get-Process -Name 'setup', 'MicrosoftEdge*' -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*\Microsoft\Edge*' }
+				}
+				while ($running -and $waitCount++ -lt 20)
+				if (Test-Path $exePath)
+				{
+					Write-EdgeRemovalLog "Running EdgeUpdate uninstaller from $exePath"
+					Start-Process -FilePath $exePath -ArgumentList '/uninstall' -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
+				}
+			}
+		}
+
+		if (Test-Path $backupRegFile)
+		{
+			Write-EdgeRemovalLog 'Restoring EdgeUpdate ClientState (re-arms EdgeWebView2)'
+			cmd /c "reg import `"$backupRegFile`"" 2>$null
+			Remove-Item $backupRegFile -ErrorAction SilentlyContinue
+		}
+		else
+		{
+			Write-EdgeRemovalLog 'No registry backup file found to restore'
+		}
+		Write-EdgeRemovalLog 'EdgeUpdate removal completed'
+	}
+	<#
+	    .SYNOPSIS
+	    Remove Edge registry keys and registration leftovers.
+
+	    .DESCRIPTION
+	    Deletes direct Edge registry keys and selected registration values that remain after Edge removal.
+
+	    .EXAMPLE
+	    Remove-EdgeRegistryKeys
+	#>
+	function Remove-EdgeRegistryKeys
+	{
+		Write-EdgeRemovalLog 'Starting Edge registry cleanup'
+		$directPaths = @(
+			'HKLM:\SOFTWARE\Microsoft\Edge',
+			'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Edge',
+			'HKCU:\Software\Microsoft\Edge',
+			'HKCU:\Software\Microsoft\EdgeUpdate',
+			'HKLM:\SOFTWARE\Clients\StartMenuInternet\Microsoft Edge',
+			'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe',
+			'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\MicrosoftEdge',
+			'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge',
+			'HKLM:\SYSTEM\CurrentControlSet\Services\Eventlog\Application\Edge',
+			'HKLM:\SYSTEM\CurrentControlSet\Services\Eventlog\Application\edgeupdate',
+			'HKLM:\SYSTEM\CurrentControlSet\Services\Eventlog\Application\edgeupdatem'
+		)
+		$removed = 0
+		foreach ($p in $directPaths)
+		{
+			if (Test-Path $p)
+			{
+				Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue
+				$removed++
+			}
+		}
+		Write-EdgeRemovalLog "Removed $removed direct registry key(s)"
+
+		$valuesToRemove = @(
+			@{ Path = 'HKLM:\SOFTWARE\RegisteredApplications'; Name = 'Microsoft Edge' },
+			@{ Path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FeatureUsage\AppLaunch'; Name = 'MSEdge' },
+			@{ Path = 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Compatibility Assistant\Store'; Name = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe' }
+		)
+		$removedValues = 0
+		foreach ($item in $valuesToRemove)
+		{
+			if ((Test-Path $item.Path) -and (Get-ItemProperty -Path $item.Path -Name $item.Name -ErrorAction SilentlyContinue))
+			{
+				Remove-ItemProperty -Path $item.Path -Name $item.Name -Force -ErrorAction SilentlyContinue
+				$removedValues++
+			}
+		}
+		Write-EdgeRemovalLog "Removed $removedValues registry value(s)"
+
+		$patterns = @(
+			@{ Root = 'HKLM:\SOFTWARE\Classes'; Pattern = 'MicrosoftEdgeUpdate*' },
+			@{ Root = 'HKLM:\SOFTWARE\Classes'; Pattern = 'MSEdge*' },
+			@{ Root = 'HKLM:\SOFTWARE\Classes\WOW6432Node'; Pattern = 'MicrosoftEdgeUpdate*' },
+			@{ Root = 'HKLM:\SOFTWARE\WOW6432Node\Classes'; Pattern = 'MicrosoftEdgeUpdate*' }
+		)
+		$removedPattern = 0
+		foreach ($pi in $patterns)
+		{
+			if (Test-Path $pi.Root)
+			{
+				$matched = Get-ChildItem -Path $pi.Root -ErrorAction SilentlyContinue |
+					Where-Object { $_.PSChildName -like $pi.Pattern }
+				foreach ($key in $matched)
+				{
+					Remove-Item $key.PSPath -Recurse -Force -ErrorAction SilentlyContinue
+					$removedPattern++
+				}
+			}
+		}
+		Write-EdgeRemovalLog "Removed $removedPattern pattern-matched key(s)"
+
+		$muiCachePath = 'HKCU:\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache'
+		if (Test-Path $muiCachePath)
+		{
+			$properties = Get-ItemProperty -Path $muiCachePath -ErrorAction SilentlyContinue
+			$removedMui = 0
+			if ($properties)
+			{
+				foreach ($prop in $properties.PSObject.Properties)
+				{
+					if ($prop.Name -like '*Edge*' -or $prop.Name -like '*EdgeUpdate*')
+					{
+						Remove-ItemProperty -Path $muiCachePath -Name $prop.Name -Force -ErrorAction SilentlyContinue
+						$removedMui++
+					}
+				}
+			}
+			Write-EdgeRemovalLog "Removed $removedMui MuiCache entry(ies)"
+		}
+	}
+	<#
+	    .SYNOPSIS
+	    Remove leftover Edge folders while preserving WebView2.
+
+	    .DESCRIPTION
+	    Deletes the extra system and per-user Edge folders Baseline cleans after browser removal without touching EdgeWebView2.
+
+	    .EXAMPLE
+	    Remove-AdditionalEdgeFolders
+	#>
+	function Remove-AdditionalEdgeFolders
+	{
+		Write-EdgeRemovalLog 'Starting additional Edge folder cleanup (preserves EdgeWebView2)'
+		$systemPaths = @(
+			'C:\ProgramData\Microsoft\EdgeUpdate',
+			'C:\Windows\Temp\MsEdgeCrashpad'
+		)
+		$removed = 0
+		foreach ($p in $systemPaths)
+		{
+			if (Test-Path $p)
+			{
+				Write-EdgeRemovalLog "Removing $p"
+				Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue
+				$removed++
+			}
+		}
+		$userProfiles = Get-ChildItem -Path 'C:\Users' -Directory -ErrorAction SilentlyContinue |
+			Where-Object { Test-Path "$($_.FullName)\NTUSER.DAT" }
+		foreach ($p in $userProfiles)
+		{
+			$edgeLocal = "$($p.FullName)\AppData\Local\Microsoft\Edge"
+			if (Test-Path $edgeLocal)
+			{
+				Write-EdgeRemovalLog "Removing $edgeLocal"
+				Remove-Item $edgeLocal -Recurse -Force -ErrorAction SilentlyContinue
+				$removed++
+			}
+		}
+		Write-EdgeRemovalLog "Removed $removed additional Edge folder(s)"
+	}
+
+	# --- Main flow ---
+	try
+	{
+		$userChoiceBackup = Backup-UserChoiceAssociations
+
+		Write-EdgeRemovalLog 'Checking for Edge installations'
+		$legacyInstalled = Test-LegacyEdgeInstalled
+		$chromiumInstalled = Test-ChromiumEdgeInstalled
+
+		if (-not $legacyInstalled -and -not $chromiumInstalled)
+		{
+			Write-EdgeRemovalLog 'No Edge installations detected; skipping removal'
+		}
+
+		# Stash ie_to_edge_stub.exe BEFORE removal so we can install the redirect afterward
+		if ($chromiumInstalled)
+		{
+			Write-EdgeRemovalLog 'Locating ie_to_edge_stub.exe before Edge removal'
+			$stubPath = $null
+			$stubLocations = @("$env:ProgramData\ie_to_edge_stub.exe", "$env:Public\ie_to_edge_stub.exe")
+			foreach ($loc in $stubLocations)
+			{
+				if (Test-Path $loc) { $stubPath = $loc; Write-EdgeRemovalLog "Found stub at $loc"; break }
+			}
+			if (-not $stubPath)
+			{
+				$found = Get-ChildItem "${env:ProgramFiles(x86)}\Microsoft\Edge" -Filter 'ie_to_edge_stub.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+				if ($found) { $stubPath = $found.FullName; Write-EdgeRemovalLog "Found stub at $stubPath" }
+				else { Write-EdgeRemovalLog 'ie_to_edge_stub.exe not found in any location' }
+			}
+			if ($stubPath)
+			{
+				New-Item -ItemType Directory -Path $scriptsDir -Force -ErrorAction SilentlyContinue | Out-Null
+				Copy-Item $stubPath (Join-Path $scriptsDir 'ie_to_edge_stub.exe') -Force -ErrorAction SilentlyContinue
+				Write-EdgeRemovalLog "Cached ie_to_edge_stub.exe to $scriptsDir"
+			}
+		}
+
+		$removedSomething = $false
+		if ($legacyInstalled)
+		{
+			Write-EdgeRemovalLog 'Legacy Edge detected; proceeding with removal'
+			Stop-EdgeProcesses
+			Remove-LegacyEdge
+			$removedSomething = $true
+		}
+		if ($chromiumInstalled)
+		{
+			Write-EdgeRemovalLog 'Chromium Edge detected; proceeding with removal'
+			Stop-EdgeProcesses
+			Remove-ChromiumEdge
+			$removedSomething = $true
+		}
+
+		if ($removedSomething)
+		{
+			Write-EdgeRemovalLog 'Cleaning up Microsoft Edge folders (preserves EdgeWebView)'
+			$edgeFolders = Get-ChildItem -Path "$env:SystemDrive\Program Files (x86)\Microsoft" -Directory -ErrorAction SilentlyContinue |
+				Where-Object { ($_.Name -like '*Edge*' -or $_.Name -like '*Temp*') -and $_.Name -notlike '*EdgeWebView*' }
+			if ($edgeFolders)
+			{
+				Write-EdgeRemovalLog "Found $($edgeFolders.Count) Edge-related folder(s) to remove"
+				$edgeFolders | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+			}
+			Remove-EdgeShortcuts
+			Remove-EdgeRegistryKeys
+			Remove-AdditionalEdgeFolders
+		}
+
+		# Redirect MSEdgeHTM via stub so existing UserChoice associations still resolve
+		$cachedStub = Join-Path $scriptsDir 'ie_to_edge_stub.exe'
+		if (Test-Path $cachedStub)
+		{
+			reg.exe add 'HKCR\MSEdgeHTM\shell\open\command' /f /ve /d "`"$cachedStub`" %1" 2>&1 | Out-Null
+			Write-EdgeRemovalLog 'Redirected MSEdgeHTM to ie_to_edge_stub.exe'
+		}
+		else
+		{
+			reg.exe delete 'HKCR\MSEdgeHTM' /f 2>&1 | Out-Null
+			Write-EdgeRemovalLog 'Removed MSEdgeHTM (stub not available)'
+		}
+
+		Install-EdgeProtocolRedirect
+
+		Write-EdgeRemovalLog 'Removing Edge scheduled tasks'
+		try
+		{
+			$edgeTasks = Get-ScheduledTask -TaskName '*Edge*' -ErrorAction SilentlyContinue
+			if ($edgeTasks)
+			{
+				foreach ($task in $edgeTasks)
+				{
+					if ($task.TaskName -eq 'EdgeRemoval' -or $task.TaskName -eq 'OpenWebSearchRepair') { continue }
+					Write-EdgeRemovalLog "Found Edge scheduled task: $($task.TaskName)"
+					try
+					{
+						Unregister-ScheduledTask -TaskName $task.TaskName -TaskPath $task.TaskPath -Confirm:$false -ErrorAction SilentlyContinue
+						Write-EdgeRemovalLog "Deleted scheduled task $($task.TaskName)"
+					}
+					catch
+					{
+						Write-EdgeRemovalLog "Failed to delete $($task.TaskName): $($_.Exception.Message)"
+					}
+				}
+			}
+			else
+			{
+				Write-EdgeRemovalLog 'No Edge scheduled tasks found'
+			}
+		}
+		catch
+		{
+			Write-EdgeRemovalLog "Failed to enumerate scheduled tasks: $($_.Exception.Message)"
+		}
+
+		Restore-UserChoiceAssociations -Backup $userChoiceBackup
+
+		Write-EdgeRemovalLog 'Edge removal completed'
+		Write-ConsoleStatus -Status success
+	}
+	catch
+	{
+		Write-EdgeRemovalLog "Edge removal failed: $($_.Exception.Message)"
+		Write-ConsoleStatus -Status failed
+		LogError "Edge removal failed: $($_.Exception.Message)"
+	}
+}
+
+<#
+.SYNOPSIS
 Enable or disable New Outlook
 
+
+
+.DESCRIPTION
+
+Enables or disables New Outlook in GUI and headless runs.
 .PARAMETER Enable
 Enable New Outlook
 
@@ -470,37 +1346,28 @@ function NewOutlook
 			Set-ItemProperty -LiteralPath "HKCU:\SOFTWARE\Microsoft\Office\16.0\Outlook\Preferences" -Name "UseNewOutlook" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
 			Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Office\16.0\Outlook\Options\General" -Name "HideNewOutlookToggle" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
 			Set-ItemProperty -LiteralPath "HKCU:\Software\Policies\Microsoft\Office\16.0\Outlook\Options\General" -Name "DoNewOutlookAutoMigration" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			Remove-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Office\16.0\Outlook\Preferences" -Name "NewOutlookMigrationUserSetting" -Force -ErrorAction SilentlyContinue | Out-Null
+			Remove-RegistryValueSafe -Path "HKCU:\Software\Policies\Microsoft\Office\16.0\Outlook\Preferences" -Name "NewOutlookMigrationUserSetting" | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}
 }
 
 <#
-.SYNOPSIS
-Enable or disable Notification Tray/Calendar
+    .SYNOPSIS
+    Enable or disable the notification tray and calendar flyout.
 
-.PARAMETER Enable
-Enable Notification Tray/Calendar (default value)
+    .DESCRIPTION
+    Toggles the Explorer policy and toast notification setting Baseline uses to control Notification Center availability.
 
-.PARAMETER Disable
-Disable Notification Tray/Calendar
+    .PARAMETER Enable
+    Turn the notification tray and calendar flyout on.
 
-.EXAMPLE
-Notifications -Enable
+    .PARAMETER Disable
+    Turn the notification tray and calendar flyout off.
 
-.EXAMPLE
-Notifications -Disable
-
-.NOTES
-Current user
-
-.CAUTION
-This will completely disable Windows notifications.
-You will not receive app alerts, system warnings, reminders, or calendar events.
-The notification tray and calendar flyout will not function.
+    .EXAMPLE
+    Notifications -Disable
 #>
-
 function Notifications
 {
 	[CmdletBinding()]
@@ -519,7 +1386,7 @@ function Notifications
 		{
 			Write-ConsoleStatus -Action "Enabling Notification Tray/Calendar"
 			LogInfo "Enabling Notification Tray/Calendar"
-			Remove-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name "DisableNotificationCenter" -Force -ErrorAction SilentlyContinue | Out-Null
+			Remove-RegistryValueSafe -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name "DisableNotificationCenter" | Out-Null
 			Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications" -Name "ToastEnabled" -Type DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
 			Write-ConsoleStatus -Status success
 		}
@@ -539,28 +1406,21 @@ function Notifications
 }
 
 <#
-.SYNOPSIS
-Enable or disable Revert Start Menu
+    .SYNOPSIS
+    Enable or disable the reverted Windows 11 Start Menu layout.
 
-.PARAMETER Enable
-Revert to the original Start Menu from 24H2
+    .DESCRIPTION
+    Uses ViVeTool to toggle the supported Start Menu feature ID on eligible Windows 11 builds and keeps the temporary tool under the Baseline temp folder.
 
-.PARAMETER Disable
-Restore the new Start Menu (default value)
+    .PARAMETER Enable
+    Apply the reverted Start Menu feature toggle.
 
-.EXAMPLE
-RevertStartMenu -Enable
+    .PARAMETER Disable
+    Remove the reverted Start Menu feature toggle.
 
-.EXAMPLE
-RevertStartMenu -Disable
-
-.NOTES
-Current user
-
-.CAUTION
-Reverting the Start Menu may break future Windows updates that depend on the new layout.
+    .EXAMPLE
+    RevertStartMenu -Enable
 #>
-
 function RevertStartMenu
 {
 	[CmdletBinding()]
@@ -639,7 +1499,7 @@ function RevertStartMenu
 				if ($_.Exception.Message -match 'github\.com|remote name could not be resolved|The remote server returned an error|Unable to connect|connection could not be established')
 				{
 					LogWarning "$DownloadFailedMessage Error: $($_.Exception.Message)"
-					# Write-Host: intentional — user-visible progress indicator
+					# Write-Host: intentional â€” user-visible progress indicator
 					Write-Host "skipped!" -ForegroundColor Yellow
 				}
 				else
@@ -704,7 +1564,7 @@ function RevertStartMenu
 					if ($revertDisableError -match 'github\.com|remote name could not be resolved|The remote server returned an error|Unable to connect|connection could not be established')
 					{
 						LogWarning ("{0} Error: {1}" -f $DownloadFailedMessage, $revertDisableError)
-						# Write-Host: intentional — user-visible progress indicator
+						# Write-Host: intentional â€” user-visible progress indicator
 						Write-Host "skipped!" -ForegroundColor Yellow
 					}
 					else
@@ -804,7 +1664,12 @@ function UWPApps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Request-GuiUWPAppsSelection.
+	    Request GUI UWP apps selection.
+
+	    
+.DESCRIPTION
+	    
+Supports GUI UWP apps selection handling inside Baseline.
 	#>
 
 	function Request-GuiUWPAppsSelection
@@ -867,7 +1732,12 @@ function UWPApps
 
 		<#
 		    .SYNOPSIS
-		    Internal function Set-UWPAppsExecutionResult.
+		    Sets UWP apps execution result.
+
+		    
+.DESCRIPTION
+		    
+Supports UWP apps execution result handling inside Baseline.
 		#>
 
 		function Set-UWPAppsExecutionResult
@@ -892,7 +1762,12 @@ function UWPApps
 
 		<#
 		    .SYNOPSIS
-		    Internal function Set-UWPAppsPickerSurface.
+		    Sets UWP apps picker surface.
+
+		    
+.DESCRIPTION
+		    
+Supports UWP apps picker surface handling inside Baseline.
 		#>
 
 		function Set-UWPAppsPickerSurface
@@ -953,7 +1828,17 @@ function UWPApps
 						}
 					}
 				}
-				catch { }
+				catch
+				{
+					if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						Write-DebugSwallowedException -ErrorRecord $_ -Source 'UWPApps.ApplyRemovalResults.ThemeColor'
+					}
+					else
+					{
+						Write-Verbose ("UWPApps.ApplyRemovalResults.ThemeColor: {0}" -f $_.Exception.Message)
+					}
+				}
 
 				return $DefaultColor
 			}.GetNewClosure()
@@ -1207,13 +2092,21 @@ function UWPApps
             $CheckBoxSelectAll.Add_Click({CheckBoxSelectAllClick})
 
             #region Functions
-            <#
-                .SYNOPSIS
-                Internal function Get-MissingAppxPackages.
-            #>
-
             function Get-MissingAppxPackages
             {
+            	            <#
+            	                .SYNOPSIS
+            	                Return the supported Appx packages that are currently missing.
+
+            	                .DESCRIPTION
+            	                Builds the Baseline package list for the current OS and returns the packages that are not installed for the current user or all users.
+
+            	                .PARAMETER AllUsers
+            	                Check package presence across all users when running with administrative rights.
+
+            	                .EXAMPLE
+            	                Get-MissingAppxPackages -AllUsers
+            	            #>
            	[CmdletBinding()]
            	param
            	(
@@ -1300,7 +2193,12 @@ function UWPApps
 
             <#
                 .SYNOPSIS
-                Internal function CheckBoxForAllUsersClick.
+                Runs check box for all users click.
+
+                
+.DESCRIPTION
+                
+Supports check box for all users click handling inside Baseline.
             #>
 
             function CheckBoxForAllUsersClick
@@ -1314,7 +2212,12 @@ function UWPApps
 
             <#
                 .SYNOPSIS
-                Internal function .
+                Runs button install click.
+
+                
+.DESCRIPTION
+                
+Supports button install click handling inside Baseline.
             #>
             function ButtonInstallClick
             {
@@ -1579,7 +2482,12 @@ function UWPApps
 
             <#
                 .SYNOPSIS
-                Internal function Add-Control.
+                Adds control.
+
+                
+.DESCRIPTION
+                
+Supports control handling inside Baseline.
             #>
 
             function Add-Control
@@ -1633,7 +2541,12 @@ function UWPApps
 
             <#
                 .SYNOPSIS
-                Internal function CheckBoxClick.
+                Runs check box click.
+
+                
+.DESCRIPTION
+                
+Supports check box click handling inside Baseline.
             #>
 
             function CheckBoxClick
@@ -1652,7 +2565,12 @@ function UWPApps
 
             <#
                 .SYNOPSIS
-                Internal function CheckBoxSelectAllClick.
+                Runs check box select all click.
+
+                
+.DESCRIPTION
+                
+Supports check box select all click handling inside Baseline.
             #>
 
             function CheckBoxSelectAllClick
@@ -1682,7 +2600,12 @@ function UWPApps
 
             <#
                 .SYNOPSIS
-                Internal function ButtonInstallSetIsEnabled.
+                Runs button install set is enabled.
+
+                
+.DESCRIPTION
+                
+Supports button install set is enabled handling inside Baseline.
             #>
 
             function ButtonInstallSetIsEnabled
@@ -1957,7 +2880,7 @@ function UWPApps
 			)
 
 			#region XAML Markup
-			# The section defines the design of the upcoming dialog box
+			# This block defines the dialog XAML used at runtime.
 			[xml]$XAML = @"
 			<Window
 				xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -2054,13 +2977,24 @@ function UWPApps
 			#endregion Variables
 
 			#region Functions
-			<#
-			    .SYNOPSIS
-			    Internal function Get-AppxBundle.
-			#>
-
 			function Get-AppxBundle
 			{
+							<#
+							    .SYNOPSIS
+							    Return installed Appx bundle packages for the current scope.
+
+							    .DESCRIPTION
+							    Collects installed bundle packages, adds the manual package checks Baseline needs, and filters out excluded names.
+
+							    .PARAMETER Exclude
+							    Package names to exclude from the returned list.
+
+							    .PARAMETER AllUsers
+							    Query packages across all users.
+
+							    .EXAMPLE
+							    Get-AppxBundle -AllUsers -Exclude 'Microsoft.XboxApp'
+							#>
 				[CmdletBinding()]
 				param
 				(
@@ -2122,7 +3056,12 @@ function UWPApps
 
 			<#
 			    .SYNOPSIS
-			    Internal function New-UwpAppsInfoIcon.
+			    Creates UWP apps info icon.
+
+			    
+.DESCRIPTION
+			    
+Supports UWP apps info icon handling inside Baseline.
 			#>
 
 			function New-UwpAppsInfoIcon
@@ -2148,7 +3087,12 @@ function UWPApps
 
 			<#
 			    .SYNOPSIS
-			    Internal function Add-Control.
+			    Adds control.
+
+			    
+.DESCRIPTION
+			    
+Supports control handling inside Baseline.
 			#>
 
 			function Add-Control
@@ -2268,7 +3212,12 @@ function UWPApps
 
 			<#
 			    .SYNOPSIS
-			    Internal function CheckBoxForAllUsersClick.
+			    Runs check box for all users click.
+
+			    
+.DESCRIPTION
+			    
+Supports check box for all users click handling inside Baseline.
 			#>
 
 			function CheckBoxForAllUsersClick
@@ -2283,7 +3232,12 @@ function UWPApps
 
 			<#
 			    .SYNOPSIS
-			    Internal function .
+			    Runs button uninstall click.
+
+			    
+.DESCRIPTION
+			    
+Supports button uninstall click handling inside Baseline.
 			#>
 			function ButtonUninstallClick
 			{
@@ -2414,7 +3368,12 @@ function UWPApps
 
 			<#
 			    .SYNOPSIS
-			    Internal function CheckBoxClick.
+			    Runs check box click.
+
+			    
+.DESCRIPTION
+			    
+Supports check box click handling inside Baseline.
 			#>
 
 			function CheckBoxClick
@@ -2435,7 +3394,12 @@ function UWPApps
 
 			<#
 			    .SYNOPSIS
-			    Internal function CheckBoxSelectAllClick.
+			    Runs check box select all click.
+
+			    
+.DESCRIPTION
+			    
+Supports check box select all click handling inside Baseline.
 			#>
 
 			function CheckBoxSelectAllClick
@@ -2479,7 +3443,12 @@ function UWPApps
 
 			<#
 			    .SYNOPSIS
-			    Internal function ButtonUninstallSetIsEnabled.
+			    Runs button uninstall set is enabled.
+
+			    
+.DESCRIPTION
+			    
+Supports button uninstall set is enabled handling inside Baseline.
 			#>
 
 			function ButtonUninstallSetIsEnabled

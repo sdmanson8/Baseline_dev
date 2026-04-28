@@ -32,7 +32,13 @@
       "WhyThisMatters": "Creates a Windows System Restore point so you can roll back system changes if something goes wrong. Recommended before running any tweaks.",
       "PresetTier": "Safe",
       "RecoveryLevel": "RestorePoint",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Initial setup actions are not available on Windows Server."
+      }
     },
     {
       "Name": "Check WinGet",
@@ -65,7 +71,13 @@
       "WhyThisMatters": "WinGet is required for noninteractive preset execution and preset-driven package installation.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Manual",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Initial setup actions are not available on Windows Server."
+      }
     },
     {
       "Name": "Hide About this Picture on Desktop",
@@ -98,7 +110,13 @@
       "WhyThisMatters": "Removes the small info icon that appears on the desktop when Windows Spotlight wallpapers are active.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Manual",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Initial setup actions are not available on Windows Server."
+      }
     }
   ]
 }

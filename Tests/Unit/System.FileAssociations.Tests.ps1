@@ -182,12 +182,20 @@ Describe 'WinPrtScrFolder' {
             param([string]$Path, [string]$Name, [switch]$Force, [object]$ErrorAction)
             [void]$script:removeItemPropertyCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name })
         }
+        function Remove-RegistryValueSafe {
+            param([string[]]$Path, [string[]]$Name)
+            foreach ($singlePath in @($Path)) {
+                foreach ($singleName in @($Name)) {
+                    [void]$script:removeItemPropertyCalls.Add([pscustomobject]@{ Path = $singlePath; Name = $singleName })
+                }
+            }
+        }
     }
 
     AfterEach {
         foreach ($n in @('Write-ConsoleStatus','LogInfo','LogWarning','LogError','Get-TweakSkipLabel',
                          'Get-ItemProperty','Get-ItemPropertyValue','Get-Package','Select-String',
-                         'Get-Variable','Get-PSCallStack','New-ItemProperty','Remove-ItemProperty')) {
+                         'Get-Variable','Get-PSCallStack','New-ItemProperty','Remove-ItemProperty','Remove-RegistryValueSafe')) {
             Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }

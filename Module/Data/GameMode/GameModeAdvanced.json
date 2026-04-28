@@ -2,6 +2,11 @@
   "Name": "GameModeAdvanced",
   "Version": 1,
   "Description": "Optional advanced Game Mode tweaks shown only in the advanced expander.",
+  "PlatformSupportDefault": {
+    "Windows10": true,
+    "Windows11": true,
+    "Server": false
+  },
   "Entries": [
     {
       "Function": "FullscreenOptimizations",

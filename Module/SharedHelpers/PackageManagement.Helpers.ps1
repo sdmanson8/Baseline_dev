@@ -1,4 +1,4 @@
-﻿# Shared helper slice for Baseline.
+# Shared helpers for Baseline.
 
 <#
     .SYNOPSIS
@@ -513,7 +513,7 @@ function Get-WinGetBootstrapInstallerMetadata
 
 function Get-WinGetBootstrapInstallerArguments
 {
-	<# .SYNOPSIS Returns the generic winget-install arguments Baseline passes to the upstream installer. #>
+	<# .SYNOPSIS Returns the generic winget-install arguments Baseline passes to the installer. #>
 	[CmdletBinding()]
 	param()
 
@@ -1478,7 +1478,7 @@ function Install-VCRedist
 	try
 	{
 		# Version metadata from the ScoopInstaller community bucket (mutable ref -
-		# tracks latest VC++ 2015-2022 redistributable). If the upstream JSON
+		# tracks latest VC++ 2015-2022 redistributable). If the JSON
 		# schema changes, the .version field access will fail and the catch block
 		# below will leave $vcredistVersion as $null, skipping the upgrade check.
 		$Parameters = @{
@@ -1830,3 +1830,4 @@ function Install-DotNetRuntimes
 		}
 	}
 }
+

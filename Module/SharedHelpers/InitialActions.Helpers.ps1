@@ -1,11 +1,10 @@
 ﻿<#
     .SYNOPSIS
-    Pure-logic helpers extracted from Module/Regions/InitialActions.psm1.
+    Initial action helpers for Baseline.
 
     .DESCRIPTION
-    InitialActions bundles P/Invoke loading, CIM queries, registry probes, and
-    network I/O into one 800-line procedure. This file isolates the decision
-    logic so unit tests can AST-load it without the side-effecting shell.
+    Separate startup decision logic from side-effecting shell work so this file
+    can be exercised in unit tests.
 #>
 
 <#
@@ -270,4 +269,365 @@ function Test-BaselineDefenderServicesHealthy
 
     $stopped = @($Services | Where-Object { $_.Status -ne 'Running' }).Count
     return ($stopped -lt $Services.Count)
+}
+
+<#
+    .SYNOPSIS
+    Probes whether the Settings app responds on the Apps & features page after a run.
+
+    .DESCRIPTION
+    Launches `ms-settings:appsfeatures` through `cmd /c start`, then watches for
+    `SystemSettings.exe` to appear. Returns a structured assessment so callers can
+    surface a visible warning without guessing at recovery behavior.
+#>
+function Resolve-BaselineSettingsAppsFeaturesHealthAssessment
+{
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [int]$TimeoutSeconds = 5,
+        [int]$PollIntervalMilliseconds = 200
+    )
+
+    $launchSucceeded = $false
+    $settingsProcessDetected = $false
+    $serviceStates = @()
+    $launchError = $null
+    $serviceError = $null
+
+    try
+    {
+        $null = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\cmd.exe') -ArgumentList '/c', 'start', 'ms-settings:appsfeatures' -WindowStyle Hidden -ErrorAction Stop
+        $launchSucceeded = $true
+    }
+    catch
+    {
+        $launchError = $_.Exception.Message
+    }
+
+    if ($launchSucceeded)
+    {
+        try
+        {
+            $settingsProcessDetected = [bool](Get-Process -Name 'SystemSettings' -ErrorAction SilentlyContinue)
+        }
+        catch
+        {
+            $settingsProcessDetected = $false
+        }
+
+        if (-not $settingsProcessDetected -and $TimeoutSeconds -gt 0)
+        {
+            $deadline = [DateTime]::UtcNow.AddSeconds([Math]::Max($TimeoutSeconds, 0))
+            while (-not $settingsProcessDetected -and [DateTime]::UtcNow -lt $deadline)
+            {
+                if ($PollIntervalMilliseconds -gt 0)
+                {
+                    Start-Sleep -Milliseconds $PollIntervalMilliseconds
+                }
+
+                try
+                {
+                    $settingsProcessDetected = [bool](Get-Process -Name 'SystemSettings' -ErrorAction SilentlyContinue)
+                }
+                catch
+                {
+                    $settingsProcessDetected = $false
+                }
+            }
+        }
+    }
+
+    try
+    {
+        $serviceStates = @(
+            Get-Service -Name @('InstallService', 'AppXSvc', 'StateRepository', 'ClipSVC', 'LicenseManager') -ErrorAction SilentlyContinue |
+                Sort-Object -Property Name |
+                Select-Object Name, Status
+        )
+    }
+    catch
+    {
+        $serviceError = $_.Exception.Message
+        $serviceStates = @()
+    }
+
+    $healthy = ($launchSucceeded -and $settingsProcessDetected)
+    $serviceSummary = if ($serviceStates.Count -gt 0)
+    {
+        ($serviceStates | ForEach-Object { '{0}:{1}' -f $_.Name, $_.Status }) -join ', '
+    }
+    else
+    {
+        'n/a'
+    }
+
+    $message = if ($healthy)
+    {
+        'Settings appsfeatures health check passed.'
+    }
+    elseif ($launchSucceeded)
+    {
+        'Settings appsfeatures health check failed; SystemSettings did not appear.'
+    }
+    else
+    {
+        "Settings appsfeatures health check failed; could not launch ms-settings:appsfeatures: $launchError"
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$serviceError))
+    {
+        $message += " Service probe failed: $serviceError"
+    }
+    elseif ($serviceStates.Count -gt 0)
+    {
+        $message += " Service states: $serviceSummary"
+    }
+
+    return [pscustomobject]@{
+        Healthy = $healthy
+        LaunchSucceeded = $launchSucceeded
+        SettingsProcessDetected = $settingsProcessDetected
+        ServiceStates = $serviceStates
+        LaunchError = $launchError
+        ServiceError = $serviceError
+        ServiceSummary = $serviceSummary
+        Message = $message
+    }
+}
+
+<#
+    .SYNOPSIS
+    Probes whether the ScreenSketch / SnipAndSketch regression remains cleared after a run.
+
+    .DESCRIPTION
+    Checks for the ScreenSketch family of AppX packages and the current Print
+    Screen snipping toggle. Returns a structured assessment so callers can
+    surface a visible warning without inventing a fallback result.
+#>
+function Resolve-BaselineScreenSnippingHealthAssessment
+{
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param()
+
+    $packagePatterns = @('*ScreenSketch*', '*SnipAndSketch*')
+    $installedPackages = @()
+    $packageError = $null
+    $printScreenKeyForSnippingEnabled = $null
+    $registryError = $null
+
+    foreach ($packagePattern in $packagePatterns)
+    {
+        try
+        {
+            $installedPackages += @(
+                Get-AppxPackage -Name $packagePattern -ErrorAction SilentlyContinue
+            )
+        }
+        catch
+        {
+            $packageError = $_.Exception.Message
+        }
+    }
+    $installedPackages = @($installedPackages | Sort-Object -Property Name -Unique)
+
+    try
+    {
+        $keyboardSettings = Get-ItemProperty -Path 'HKCU:\Control Panel\Keyboard' -Name 'PrintScreenKeyForSnippingEnabled' -ErrorAction SilentlyContinue
+        if ($keyboardSettings -and $keyboardSettings.PSObject.Properties['PrintScreenKeyForSnippingEnabled'])
+        {
+            $printScreenKeyForSnippingEnabled = [int]$keyboardSettings.PrintScreenKeyForSnippingEnabled
+        }
+    }
+    catch
+    {
+        $registryError = $_.Exception.Message
+    }
+
+    $packageSummary = if ($installedPackages.Count -gt 0)
+    {
+        ($installedPackages | ForEach-Object { [string]$_.Name }) -join ', '
+    }
+    else
+    {
+        'n/a'
+    }
+
+    $packagesHealthy = ($installedPackages.Count -eq 0)
+    $registryHealthy = ($printScreenKeyForSnippingEnabled -eq 1)
+    $healthy = ($packagesHealthy -and $registryHealthy)
+
+    $message = if ($healthy)
+    {
+        "Screen snipping health check passed. Packages: $packageSummary. PrintScreenKeyForSnippingEnabled=$printScreenKeyForSnippingEnabled"
+    }
+    elseif (-not $packagesHealthy)
+    {
+        "Screen snipping health check failed; ScreenSketch/SnipAndSketch packages are still installed: $packageSummary"
+    }
+    else
+    {
+        'Screen snipping health check failed; PrintScreenKeyForSnippingEnabled is not enabled.'
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$packageError))
+    {
+        $message += " Package probe failed: $packageError"
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace([string]$registryError))
+    {
+        $message += " Registry probe failed: $registryError"
+    }
+    elseif (-not $registryHealthy)
+    {
+        $message += " Current PrintScreenKeyForSnippingEnabled value: $printScreenKeyForSnippingEnabled"
+    }
+
+    return [pscustomobject]@{
+        Healthy = $healthy
+        InstalledPackages = $installedPackages
+        PackageSummary = $packageSummary
+        PrintScreenKeyForSnippingEnabled = $printScreenKeyForSnippingEnabled
+        PackageError = $packageError
+        RegistryError = $registryError
+        Message = $message
+    }
+}
+
+<#
+    .SYNOPSIS
+    Reduces a list of detected harmful-tweaker names into a structured
+    assessment that other Baseline regions and the GUI can react to.
+
+    .DESCRIPTION
+    Baseline runs as a GUI tool a user invoked deliberately, so the equivalent control point is
+    a structured signal that the orchestrator (and a later GUI banner slice)
+    can read instead of the current advisory-only LogWarning. The Win 10
+    Tweaker entry is special because it ships a documented kernel backdoor —
+    detection of that one means the host is compromised, not merely
+    over-tweaked. Returns a record with:
+      * Level          — 'None' / 'Warning' / 'Blocked'.
+      * BackdoorFound  — $true when the Win 10 Tweaker registry key was hit.
+      * Detected       — sorted, de-duplicated list of detected tweaker names.
+      * AdvisoryUrls   — the "what now" URLs, surfaced once at Blocked
+                         level so users have a clear remediation path.
+#>
+function Resolve-BaselineHostTaintAssessment
+{
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [AllowNull()]
+        [string[]]$DetectedTweakerNames,
+
+        [string]$BackdoorTweakerName = 'Win 10 Tweaker'
+    )
+
+    $names = @()
+    if ($null -ne $DetectedTweakerNames)
+    {
+        $names = @(
+            $DetectedTweakerNames |
+                Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+                ForEach-Object { ([string]$_).Trim() } |
+                Sort-Object -Unique
+        )
+    }
+
+    $backdoor = $false
+    if (-not [string]::IsNullOrWhiteSpace([string]$BackdoorTweakerName))
+    {
+        $backdoor = ($names -contains ([string]$BackdoorTweakerName).Trim())
+    }
+
+    $level = 'None'
+    if ($backdoor)
+    {
+        $level = 'Blocked'
+    }
+    elseif ($names.Count -gt 0)
+    {
+        $level = 'Warning'
+    }
+
+    $advisoryUrls = @()
+    if ($backdoor)
+    {
+        $advisoryUrls = @(
+            'https://youtu.be/na93MS-1EkM'
+            'https://pikabu.ru/story/byekdor_v_win_10_tweaker_ili_sovremennyie_metodyi_borbyi_s_piratstvom_8227558'
+            'https://massgrave.dev/genuine-installation-media'
+        )
+    }
+
+    return [pscustomobject]@{
+        Level         = $level
+        BackdoorFound = [bool]$backdoor
+        Detected      = [string[]]$names
+        AdvisoryUrls  = [string[]]$advisoryUrls
+    }
+}
+
+<#
+    .SYNOPSIS
+    Resolves whether InitialActions should automatically strip detected
+    WindowsSpyBlocker hosts entries or warn the user and leave them in place.
+
+    .DESCRIPTION
+    Earlier versions silently rewrote the system hosts file and popped Notepad
+    whenever WindowsSpyBlocker entries were detected, which surprised users who
+    had intentionally added third-party telemetry blocks. This helper returns
+    the resolved policy from two opt-in sources, in priority order:
+      1. The BASELINE_AUTO_STRIP_HOSTS environment variable (for unattended /
+         CI runs).
+      2. The AutoStripWindowsSpyBlockerHosts user preference (set via the GUI).
+    When neither source supplies a truthy value the default policy is to warn
+    and skip the strip — destructive cleanup remains opt-in.
+#>
+function Resolve-BaselineHostsCleanupPolicy
+{
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [AllowNull()]
+        [AllowEmptyString()]
+        [object]$EnvValue,
+
+        [AllowNull()]
+        [object]$PreferenceValue
+    )
+
+    $isTruthy = {
+        param($value)
+        if ($null -eq $value) { return $false }
+        if ($value -is [bool]) { return [bool]$value }
+        if ($value -is [int] -or $value -is [long] -or $value -is [double]) { return ([double]$value -ne 0) }
+        $text = ([string]$value).Trim()
+        if ([string]::IsNullOrEmpty($text)) { return $false }
+        return ($text -match '^(?i:1|true|yes|on|enable|enabled)$')
+    }
+
+    if ($null -ne $EnvValue -and -not [string]::IsNullOrWhiteSpace([string]$EnvValue))
+    {
+        $envBool = & $isTruthy $EnvValue
+        return [pscustomobject]@{
+            AutoStrip = [bool]$envBool
+            Source    = 'env'
+        }
+    }
+
+    if ($null -ne $PreferenceValue)
+    {
+        $prefBool = & $isTruthy $PreferenceValue
+        return [pscustomobject]@{
+            AutoStrip = [bool]$prefBool
+            Source    = 'preference'
+        }
+    }
+
+    return [pscustomobject]@{
+        AutoStrip = $false
+        Source    = 'default'
+    }
 }

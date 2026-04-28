@@ -24,7 +24,10 @@ function Write-GuiExecutionCleanupWarning
 
 <#
     .SYNOPSIS
-    Internal function .
+    Updates GUI run state counter.
+
+    .DESCRIPTION
+    Updates the shared GUI run-state counter for an execution worker.
 #>
 function Update-GuiRunStateCounter
 {
@@ -48,7 +51,10 @@ function Update-GuiRunStateCounter
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiExecutionOutcome.
+    Gets GUI execution outcome.
+
+    .DESCRIPTION
+    Returns the normalized execution outcome object for a GUI action.
 #>
 
 function Get-GuiExecutionOutcome
@@ -92,7 +98,10 @@ function Get-GuiExecutionOutcome
 
 <#
     .SYNOPSIS
-    Internal function Test-GuiExecutionAppliedOutcome.
+    Checks GUI execution applied outcome.
+
+    .DESCRIPTION
+    Checks whether a GUI execution result represents an applied change.
 #>
 
 function Test-GuiExecutionAppliedOutcome
@@ -106,7 +115,10 @@ function Test-GuiExecutionAppliedOutcome
 
 <#
     .SYNOPSIS
-    Internal function .
+    Creates GUI execution applied tweak metadata.
+
+    .DESCRIPTION
+    Builds the metadata record used when a GUI tweak is applied.
 #>
 function New-GuiExecutionAppliedTweakMetadata
 {
@@ -153,7 +165,10 @@ function New-GuiExecutionAppliedTweakMetadata
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiExecutionSummaryPayload.
+    Gets GUI execution summary payload.
+
+    .DESCRIPTION
+    Builds the summary payload shown after a GUI execution run.
 #>
 
 function Get-GuiExecutionSummaryPayload
@@ -218,7 +233,117 @@ function Get-GuiExecutionSummaryPayload
 
 <#
     .SYNOPSIS
-    Internal function Start-GuiExecutionWorker.
+    Resolves GUI execution availability gate.
+
+    .DESCRIPTION
+    Determines whether a GUI entry is available on the current system.
+#>
+
+function Resolve-GuiExecutionAvailabilityGate
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[AllowNull()]
+		[object]$Entry,
+		[switch]$ForceUnsupported
+	)
+
+	$availability = $null
+	if ($null -eq $Entry)
+	{
+		return [pscustomobject]@{
+			Decision = 'Allow'
+			Reason   = ''
+		}
+	}
+
+	if ($Entry -is [System.Collections.IDictionary])
+	{
+		if ($Entry.Contains('Availability'))
+		{
+			$availability = $Entry['Availability']
+		}
+	}
+	elseif ($Entry.PSObject -and $Entry.PSObject.Properties['Availability'])
+	{
+		$availability = $Entry.Availability
+	}
+
+	if ($null -eq $availability)
+	{
+		return [pscustomobject]@{
+			Decision = 'Allow'
+			Reason   = ''
+		}
+	}
+
+	$isAvailable = $true
+	$reason = $null
+	if ($availability -is [System.Collections.IDictionary])
+	{
+		if ($availability.Contains('Available')) { $isAvailable = [bool]$availability['Available'] }
+		if ($availability.Contains('Reason')) { $reason = [string]$availability['Reason'] }
+	}
+	elseif ($availability.PSObject)
+	{
+		if ($availability.PSObject.Properties['Available']) { $isAvailable = [bool]$availability.Available }
+		if ($availability.PSObject.Properties['Reason']) { $reason = [string]$availability.Reason }
+	}
+
+	if ($isAvailable)
+	{
+		return [pscustomobject]@{
+			Decision = 'Allow'
+			Reason   = ''
+		}
+	}
+
+	$resolvedReason = if ([string]::IsNullOrWhiteSpace($reason)) { 'Not available on this OS.' } else { [string]$reason }
+	return [pscustomobject]@{
+		Decision = if ($ForceUnsupported) { 'Force' } else { 'Block' }
+		Reason   = $resolvedReason
+	}
+}
+
+<#
+    .SYNOPSIS
+    Resolves GUI execution supports execution gate.
+
+    .DESCRIPTION
+    Determines whether a GUI entry supports execution in the current mode.
+#>
+
+function Resolve-GuiExecutionSupportsExecutionGate
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[AllowNull()]
+		[object]$Entry,
+		[switch]$ForceUnsupported
+	)
+
+	if (Test-BaselineEntrySupportsExecution -Entry $Entry)
+	{
+		return [pscustomobject]@{
+			Decision = 'Allow'
+			Reason   = ''
+		}
+	}
+
+	return [pscustomobject]@{
+		Decision = if ($ForceUnsupported) { 'Force' } else { 'Block' }
+		Reason   = 'Execution not supported on this system.'
+	}
+}
+
+<#
+    .SYNOPSIS
+    Start GUI execution worker.
+
+    .DESCRIPTION
+    Starts the background worker used for selected GUI tweak execution.
 #>
 
 function Start-GuiExecutionWorker
@@ -245,7 +370,8 @@ function Start-GuiExecutionWorker
 
 		[Parameter(Mandatory = $true)]
 		[string]$LogFilePath,
-		[string]$LogMode
+		[string]$LogMode,
+		[switch]$ForceUnsupported
 	)
 
 	$bgRunspace = [runspacefactory]::CreateRunspace()
@@ -260,6 +386,7 @@ function Start-GuiExecutionWorker
 	$bgRunspace.SessionStateProxy.SetVariable('bgUICulture', $UICulture)
 	$bgRunspace.SessionStateProxy.SetVariable('bgLogFilePath', $LogFilePath)
 	$bgRunspace.SessionStateProxy.SetVariable('bgLogMode', $LogMode)
+	$bgRunspace.SessionStateProxy.SetVariable('bgForceUnsupported', [bool]$ForceUnsupported)
 	$bgRunspace.SessionStateProxy.SetVariable('GUIRunState', $RunState['LogQueue'])
 
 	$worker = [powershell]::Create().AddScript({
@@ -337,6 +464,55 @@ function Start-GuiExecutionWorker
 				$tweakErrorBaseline = if ($Global:Error) { $Global:Error.Count } else { 0 }
 				$tweakErrorMessage = $null
 				$tweakFailed = $false
+
+				$availabilityGate = Resolve-GuiExecutionAvailabilityGate -Entry $tweak -ForceUnsupported:$bgForceUnsupported
+				if ($availabilityGate.Decision -eq 'Block')
+				{
+					$skipDetail = if ([string]::IsNullOrWhiteSpace($availabilityGate.Reason)) { 'Not available on this system.' } else { $availabilityGate.Reason }
+					LogInfo (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionSkippedNotApplicable' -Fallback 'Skipped - not available on this system: {0} - {1}' -FormatArgs @([string]$tweak.Function, $skipDetail))
+					$Script:RunState['SkippedTweaks'][[string]$tweak.Key] = $skipDetail
+					$completedCount = Update-GuiRunStateCounter -RunState $Script:RunState -Key 'CompletedCount'
+					$Script:RunState['LogQueue'].Enqueue([PSCustomObject]@{
+						Kind = '_TweakCompleted'
+						Key = $tweak.Key
+						Name = $tweak.Name
+						Status = 'skipped'
+						Message = $skipDetail
+						Count = $completedCount
+						StepIndex = $stepIndex
+						StepTotal = $stepTotal
+					})
+					continue
+				}
+				if ($availabilityGate.Decision -eq 'Force')
+				{
+					LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionForceUnsupportedAvailability' -Fallback 'Forcing execution of unavailable entry: {0} - {1}' -FormatArgs @([string]$tweak.Function, $availabilityGate.Reason))
+				}
+
+				$supportsExecutionGate = Resolve-GuiExecutionSupportsExecutionGate -Entry $tweak -ForceUnsupported:$bgForceUnsupported
+				if ($supportsExecutionGate.Decision -eq 'Block')
+				{
+					$skipDetail = if ([string]::IsNullOrWhiteSpace($supportsExecutionGate.Reason)) { 'Execution not supported on this system.' } else { $supportsExecutionGate.Reason }
+					LogInfo (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionSkippedNotExecutable' -Fallback 'Skipped - execution not supported on this system: {0}' -FormatArgs @([string]$tweak.Function))
+					$Script:RunState['SkippedTweaks'][[string]$tweak.Key] = $skipDetail
+					$null = Update-GuiRunStateCounter -RunState $Script:RunState -Key 'NotExecutableCount'
+					$completedCount = Update-GuiRunStateCounter -RunState $Script:RunState -Key 'CompletedCount'
+					$Script:RunState['LogQueue'].Enqueue([PSCustomObject]@{
+						Kind = '_TweakCompleted'
+						Key = $tweak.Key
+						Name = $tweak.Name
+						Status = 'skipped'
+						Message = $skipDetail
+						Count = $completedCount
+						StepIndex = $stepIndex
+						StepTotal = $stepTotal
+					})
+					continue
+				}
+				if ($supportsExecutionGate.Decision -eq 'Force')
+				{
+					LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionForceUnsupportedExecution' -Fallback 'Forcing execution of non-executable entry: {0} - {1}' -FormatArgs @([string]$tweak.Function, $supportsExecutionGate.Reason))
+				}
 
 				try
 				{
@@ -547,7 +723,10 @@ function Start-GuiExecutionWorker
 
 <#
     .SYNOPSIS
-    Internal function Start-GuiAppExecutionWorker.
+    Start GUI app execution worker.
+
+    .DESCRIPTION
+    Starts the background worker used for application installation or removal.
 #>
 
 function Start-GuiAppExecutionWorker
@@ -635,10 +814,26 @@ function Start-GuiAppExecutionWorker
 	$bgRunspace.SessionStateProxy.SetVariable('packageManagerAvailabilityState', $PackageManagerAvailabilityState)
 
 	$worker = [powershell]::Create().AddScript({
-		# Dedicated worker trace file — survives process termination and bypasses
-		# the pump entirely, so we can see exactly which step the worker dies on.
 		$bgTracePath = Join-Path $env:TEMP 'Baseline-AppWorker-trace.txt'
-		function Write-BgTrace { param([string]$Message) try { "$([DateTime]::UtcNow.ToString('o'))`t$Message" | Out-File -FilePath $bgTracePath -Append -Encoding UTF8 -Force } catch { $null = $_ } }
+        <#
+            .SYNOPSIS
+            Writes a line to the GUI background worker trace log.
+
+            .DESCRIPTION
+            Appends a timestamped message to the temporary trace file used while diagnosing background application worker startup and import failures.
+        #>
+        function Write-BgTrace
+        {
+            param([string]$Message)
+            try
+            {
+                "$([DateTime]::UtcNow.ToString('o'))`t$Message" | Out-File -FilePath $bgTracePath -Append -Encoding UTF8 -Force
+            }
+            catch
+            {
+                Write-Warning ("GUIExecution worker trace write failed: " + $_.Exception.Message)
+            }
+        }
 		Write-BgTrace "--- worker start ---"
 		try
 		{
@@ -646,12 +841,6 @@ function Start-GuiAppExecutionWorker
 			$Script:RunState = $runState
 			Write-BgTrace "GUIMode set, RunState assigned"
 
-			# $bgLoaderPath = Module\Regions\Applications.psm1, so the Module
-			# root is two levels up. The previous join produced
-			# Module\Regions\SharedHelpers\Localization.Helpers.ps1 (doesn't
-			# exist) — dot-sourcing threw, the worker died before it could
-			# run winget, and only the UI-thread "Starting installation…" line
-			# was ever written to disk.
 			$bgModuleRoot = Split-Path -Parent (Split-Path -Parent $bgLoaderPath)
 			$bgHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Localization.Helpers.ps1'
 			$bgJsonHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Json.Helpers.ps1'
@@ -837,7 +1026,10 @@ function Start-GuiAppExecutionWorker
 
 <#
     .SYNOPSIS
-    Internal function Request-GuiExecutionWorkerStop.
+    Request GUI execution worker stop.
+
+    .DESCRIPTION
+    Signals an active GUI execution worker to stop.
 #>
 
 function Request-GuiExecutionWorkerStop
@@ -873,7 +1065,10 @@ function Request-GuiExecutionWorkerStop
 
 <#
     .SYNOPSIS
-    Internal function Stop-GuiExecutionWorkerAsync.
+    Stop GUI execution worker async.
+
+    .DESCRIPTION
+    Starts the asynchronous shutdown path for a GUI execution worker.
 #>
 
 function Stop-GuiExecutionWorkerAsync
@@ -957,7 +1152,10 @@ function Stop-GuiExecutionWorkerAsync
 
 <#
     .SYNOPSIS
-    Internal function Stop-GuiExecutionWorker.
+    Stop GUI execution worker.
+
+    .DESCRIPTION
+    Stops the active GUI execution worker and releases worker resources.
 #>
 
 function Stop-GuiExecutionWorker
@@ -1024,7 +1222,10 @@ function Stop-GuiExecutionWorker
 
 <#
     .SYNOPSIS
-    Internal function Complete-GuiExecutionWorker.
+    Complete GUI execution worker.
+
+    .DESCRIPTION
+    Finishes GUI execution worker cleanup and updates run-state metadata.
 #>
 
 function Complete-GuiExecutionWorker
@@ -1083,6 +1284,8 @@ Export-ModuleMember -Function @(
 	'Test-GuiExecutionAppliedOutcome'
 	'New-GuiExecutionAppliedTweakMetadata'
 	'Get-GuiExecutionSummaryPayload'
+	'Resolve-GuiExecutionAvailabilityGate'
+	'Resolve-GuiExecutionSupportsExecutionGate'
 	'Start-GuiExecutionWorker'
 	'Start-GuiAppExecutionWorker'
 	'Request-GuiExecutionWorkerStop'
@@ -1090,10 +1293,3 @@ Export-ModuleMember -Function @(
 	'Stop-GuiExecutionWorker'
 	'Complete-GuiExecutionWorker'
 )
-<#
-    .SYNOPSIS
-
-    .DESCRIPTION
-    Provides cleanup and run-state helpers used by the GUI execution flow.
-    This is internal runtime plumbing, not user-facing documentation.
-#>

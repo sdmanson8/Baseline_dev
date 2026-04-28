@@ -7,6 +7,11 @@ using module ..\SharedHelpers.psm1
 	.SYNOPSIS
 	Bing search in Start Menu
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for bing search in Start Menu.
 	.PARAMETER Disable
 	Disable Bing search in Start Menu
 
@@ -53,7 +58,7 @@ function BingSearch
 				{
 					New-Item -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer -Force -ErrorAction Stop | Out-Null
 				}
-				New-ItemProperty -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer -Name DisableSearchBoxSuggestions -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name DisableSearchBoxSuggestions -Type DWord -Value 1 | Out-Null
 
 				Set-Policy -Scope User -Path Software\Policies\Microsoft\Windows\Explorer -Name DisableSearchBoxSuggestions -Type DWORD -Value 1 | Out-Null
 				Write-ConsoleStatus -Status success
@@ -91,6 +96,11 @@ function BingSearch
 	.SYNOPSIS
 	Microsoft account-related notifications on Start Menu
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for microsoft account-related notifications on Start Menu.
 	.PARAMETER Hide
 	Do not show Microsoft account-related notifications on Start Menu in Start menu
 
@@ -133,7 +143,7 @@ function StartAccountNotifications
 			LogInfo "Disabling Microsoft account-related notifications on Start Menu in Start menu"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name Start_AccountNotifications -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name Start_AccountNotifications -Type DWord -Value 0 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -167,6 +177,11 @@ function StartAccountNotifications
 	.SYNOPSIS
 	Recommendations for tips, shortcuts, new apps, and more in Start menu
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for recommendations for tips, shortcuts, new apps, and more in Start menu.
 	.PARAMETER Hide
 	Do not show recommendations for tips, shortcuts, new apps, and more in Start menu
 
@@ -209,7 +224,7 @@ function StartRecommendationsTips
 			LogInfo "Disabling Recommendations for tips, shortcuts, new apps, and more in Start menu"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name Start_IrisRecommendations -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name Start_IrisRecommendations -Type DWord -Value 0 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -243,6 +258,11 @@ function StartRecommendationsTips
 	.SYNOPSIS
 	Web Search functionality in the Start Menu
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for web Search functionality in the Start Menu.
 	.PARAMETER Disable
 	Disable Web Search in the Start Menu
 
@@ -291,7 +311,7 @@ function WebSearch
 					{
 						LogInfo "Web Search restore found no BingSearchEnabled override to remove."
 					}
-					Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "CortanaConsent" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+					Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "CortanaConsent" -Type DWord -Value 1 | Out-Null
 				}
 				if (Test-Path -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search")
 				{
@@ -314,8 +334,8 @@ function WebSearch
 			LogInfo "Disabling Web Search in the Start Menu"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
-				Set-ItemProperty -LiteralPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "CortanaConsent" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Type DWord -Value 0 | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "CortanaConsent" -Type DWord -Value 0 | Out-Null
 				if (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search")) {
 					New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Force -ErrorAction Stop | Out-Null
 				}
@@ -335,6 +355,11 @@ function WebSearch
 	.SYNOPSIS
 	Configure Start layout
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for configure Start layout.
 	.PARAMETER Default
 	Show default Start layout (default value)
 
@@ -391,7 +416,7 @@ function StartLayout
 			LogInfo "Setting default Start layout"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name Start_Layout -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name Start_Layout -Type DWord -Value 0 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -406,7 +431,7 @@ function StartLayout
 			LogInfo "Showing more pins on Start"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name Start_Layout -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name Start_Layout -Type DWord -Value 1 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -421,7 +446,7 @@ function StartLayout
 			LogInfo "Showing more recommendations on Start"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced -Name Start_Layout -PropertyType DWord -Value 2 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name Start_Layout -Type DWord -Value 2 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -437,6 +462,11 @@ function StartLayout
 	.SYNOPSIS
 	Recommended section in Start Menu
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for recommended section in Start Menu.
 	.PARAMETER Hide
 	Remove Recommended section in Start Menu
 
@@ -499,7 +529,7 @@ function StartRecommendedSection
 				{
 					New-Item -Path HKLM:\SOFTWARE\Microsoft\PolicyManager\current\device\Education -Force -ErrorAction Stop | Out-Null
 				}
-				New-ItemProperty -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer -Name HideRecommendedSection -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Policies\Microsoft\Windows\Explorer" -Name HideRecommendedSection -Type DWord -Value 1 | Out-Null
 				New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\PolicyManager\current\device\Education -Name IsEducationEnvironment -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
 
 				Set-Policy -Scope User -Path SOFTWARE\Policies\Microsoft\Windows\Explorer -Name HideRecommendedSection -Type DWORD -Value 1 | Out-Null
@@ -545,6 +575,11 @@ function StartRecommendedSection
 	.SYNOPSIS
 	Show recently added apps in Start Menu
 
+
+	
+.DESCRIPTION
+	
+Shows recently added apps in Start Menu from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show recently added apps section in Start Menu
 
@@ -622,6 +657,11 @@ function Set-StartMenuRecentlyAdded
 	.SYNOPSIS
 	Show most used apps in Start Menu
 
+
+	
+.DESCRIPTION
+	
+Shows most used apps in Start Menu from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show most frequently used apps section in Start Menu
 

@@ -530,6 +530,7 @@ namespace Baseline.RunLauncher
             string lang,
             string[] args)
         {
+            var normalizedArgs = NormalizePowerShellArguments(args);
             Environment.SetEnvironmentVariable(StateRootVar, stateRoot, EnvironmentVariableTarget.Process);
             Environment.SetEnvironmentVariable(EmbeddedHostVar, "1", EnvironmentVariableTarget.Process);
             Environment.SetEnvironmentVariable(LauncherPathVar, launcherPath, EnvironmentVariableTarget.Process);
@@ -548,7 +549,7 @@ namespace Baseline.RunLauncher
                 runspace.ThreadOptions = PSThreadOptions.ReuseThread;
                 runspace.Open();
                 runspace.SessionStateProxy.SetVariable("BaselineLauncherScript", launcherScript);
-                runspace.SessionStateProxy.SetVariable("BaselineLauncherArguments", args ?? Array.Empty<string>());
+                runspace.SessionStateProxy.SetVariable("BaselineLauncherArguments", normalizedArgs);
 
                 using (var powershell = PowerShell.Create())
                 {
@@ -613,6 +614,93 @@ namespace Baseline.RunLauncher
             }
 
             return 0;
+        }
+
+        /// <summary>
+        /// Normalizes GNU-style long switches to the PowerShell parameter names
+        /// consumed by the embedded launcher script.
+        /// </summary>
+        /// <param name="args">The original command-line arguments.</param>
+        /// <returns>The normalized argument list.</returns>
+        private static string[] NormalizePowerShellArguments(string[] args)
+        {
+            if (args == null || args.Length == 0)
+            {
+                return Array.Empty<string>();
+            }
+
+            var normalized = new string[args.Length];
+            for (var i = 0; i < args.Length; i++)
+            {
+                normalized[i] = NormalizePowerShellArgument(args[i]);
+            }
+
+            return normalized;
+        }
+
+        /// <summary>
+        /// Normalizes a single command-line argument for PowerShell parameter binding.
+        /// </summary>
+        /// <param name="argument">The argument to normalize.</param>
+        /// <returns>The normalized argument.</returns>
+        private static string NormalizePowerShellArgument(string argument)
+        {
+            if (string.IsNullOrWhiteSpace(argument))
+            {
+                return argument;
+            }
+
+            if (argument == "--" || argument == "--%")
+            {
+                return argument;
+            }
+
+            if (!argument.StartsWith("--", StringComparison.Ordinal))
+            {
+                return argument;
+            }
+
+            var normalizedText = argument.Substring(2);
+            if (string.IsNullOrWhiteSpace(normalizedText))
+            {
+                return argument;
+            }
+
+            var valueSeparatorIndex = normalizedText.IndexOf('=');
+            var valueSuffix = string.Empty;
+            if (valueSeparatorIndex >= 0)
+            {
+                valueSuffix = normalizedText.Substring(valueSeparatorIndex);
+                normalizedText = normalizedText.Substring(0, valueSeparatorIndex);
+            }
+
+            var segments = normalizedText.Split(new[] { '-' }, StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length == 0)
+            {
+                return "-" + normalizedText + valueSuffix;
+            }
+
+            var builder = new StringBuilder();
+            foreach (var segment in segments)
+            {
+                if (string.IsNullOrWhiteSpace(segment))
+                {
+                    continue;
+                }
+
+                builder.Append(char.ToUpperInvariant(segment[0]));
+                if (segment.Length > 1)
+                {
+                    builder.Append(segment.Substring(1));
+                }
+            }
+
+            if (builder.Length == 0)
+            {
+                return "-" + normalizedText + valueSuffix;
+            }
+
+            return "-" + builder.ToString() + valueSuffix;
         }
 
         /// <summary>

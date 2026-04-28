@@ -523,7 +523,7 @@ else
     Write-TestResult -Name 'No bare Remove-ItemProperty -ErrorAction Stop in regions' -Result Fail -Detail "$bareRemoveCount remaining"
 }
 
-# Verify no stale Win10_11Util references in active code
+# Verify no stale legacy launcher references in active code
 $staleRefCount = 0
 $activeCodeDirs = @(
     (Join-Path $repoRoot 'Module')
@@ -540,7 +540,7 @@ foreach ($dir in $activeCodeDirs)
         foreach ($cf in $codeFiles)
         {
             $cfContent = Get-Content -LiteralPath $cf.FullName -Raw
-            if ($cfContent -match 'Win10_11Util')
+            if ($cfContent -match 'legacy launcher')
             {
                 $staleRefCount++
             }
@@ -549,15 +549,15 @@ foreach ($dir in $activeCodeDirs)
 }
 
 $entryScript = Get-Content -LiteralPath (Join-Path $repoRoot 'Bootstrap/Baseline.ps1') -Raw
-if ($entryScript -match 'Win10_11Util') { $staleRefCount++ }
+if ($entryScript -match 'legacy launcher') { $staleRefCount++ }
 
 if ($staleRefCount -eq 0)
 {
-    Write-TestResult -Name 'No stale Win10_11Util references in active code' -Result Pass
+    Write-TestResult -Name 'No stale legacy launcher references in active code' -Result Pass
 }
 else
 {
-    Write-TestResult -Name 'No stale Win10_11Util references in active code' -Result Fail -Detail "$staleRefCount file(s) with stale references"
+    Write-TestResult -Name 'No stale legacy launcher references in active code' -Result Fail -Detail "$staleRefCount file(s) with stale references"
 }
 
 $initialSetupPath = Join-Path $repoRoot 'Module/Regions/InitialSetup.psm1'

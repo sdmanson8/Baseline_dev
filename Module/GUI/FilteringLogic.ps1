@@ -92,7 +92,7 @@
 		)
 
 		$effectiveSearchQuery = if ($null -eq $SearchQuery) { '' } else { [string]$SearchQuery.Trim() }
-		$cacheKey = "$PrimaryTab|$effectiveSearchQuery|$Script:RiskFilter|$([int][bool]$Script:SafeMode)|$([int][bool]$Script:AdvancedMode)|$([int][bool]$Script:GamingOnlyFilter)|$([int][bool]$Script:SelectedOnlyFilter)|$([int][bool]$Script:HighRiskOnlyFilter)|$([int][bool]$Script:RestorableOnlyFilter)"
+		$cacheKey = "$PrimaryTab|$effectiveSearchQuery|$Script:RiskFilter|$Script:PlatformFilter|$([int][bool]$Script:HideUnavailableItems)|$([int][bool]$Script:SafeMode)|$([int][bool]$Script:AdvancedMode)|$([int][bool]$Script:GamingOnlyFilter)|$([int][bool]$Script:SelectedOnlyFilter)|$([int][bool]$Script:HighRiskOnlyFilter)|$([int][bool]$Script:RestorableOnlyFilter)"
 		if ($Script:CategoryFilterListCache -and $Script:CategoryFilterListCache.ContainsKey($cacheKey))
 		{
 			return $Script:CategoryFilterListCache[$cacheKey]
@@ -279,6 +279,208 @@
 
 	<#
 	    .SYNOPSIS
+	    Internal function Get-PlatformFilterDisplayName.
+	#>
+
+	function Get-PlatformFilterDisplayName
+	{
+		param (
+			[string]$PlatformFilter
+		)
+
+		switch ((Get-BaselinePlatformFilterOverride -Filter $PlatformFilter).Mode)
+		{
+			'AllSupported' { return 'All supported' }
+			'Windows10'    { return 'Windows 10' }
+			'Windows11'    { return 'Windows 11' }
+			'Server'       { return 'Server' }
+			default        { return 'This device' }
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Update-PlatformFilterAvailability.
+	#>
+
+	function Update-PlatformFilterAvailability
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param (
+			[string]$PlatformFilter = $Script:PlatformFilter
+		)
+
+		if (-not $Script:TweakManifest) { return }
+
+		$resolved = Get-BaselinePlatformFilterOverride -Filter $PlatformFilter
+		$mode = if ($resolved -and -not [string]::IsNullOrWhiteSpace([string]$resolved.Mode)) { [string]$resolved.Mode } else { 'ThisDevice' }
+		$Script:PlatformFilter = $mode
+
+		$Script:FilterGeneration++
+		if (Get-Command -Name 'Clear-TabContentCache' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Clear-TabContentCache
+		}
+
+		if ($mode -eq 'AllSupported')
+		{
+			if (Get-Command -Name 'Get-BaselineSystemPlatformInfo' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				try { $Script:BaselineSystemPlatformInfo = Get-BaselineSystemPlatformInfo } catch { $Script:BaselineSystemPlatformInfo = $null }
+			}
+			if (Get-Command -Name 'Set-BaselineManifestAllAvailable' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				$null = Set-BaselineManifestAllAvailable -Manifest $Script:TweakManifest
+			}
+			return $mode
+		}
+
+		$systemInfo = $null
+		if ($resolved -and $resolved.Override -and (Get-Command -Name 'Get-BaselineSystemPlatformInfo' -CommandType Function -ErrorAction SilentlyContinue))
+		{
+			try { $systemInfo = Get-BaselineSystemPlatformInfo -Override $resolved.Override } catch { $systemInfo = $null }
+		}
+		elseif (Get-Command -Name 'Get-BaselineSystemPlatformInfo' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			try { $systemInfo = Get-BaselineSystemPlatformInfo } catch { $systemInfo = $null }
+		}
+
+		$Script:BaselineSystemPlatformInfo = $systemInfo
+		if ($systemInfo -and (Get-Command -Name 'Update-BaselineManifestAvailability' -CommandType Function -ErrorAction SilentlyContinue))
+		{
+			$null = Update-BaselineManifestAvailability -Manifest $Script:TweakManifest -SystemInfo $systemInfo
+		}
+
+		return $mode
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Set-PlatformFilterState.
+	#>
+
+	function Set-PlatformFilterState
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param (
+			[string]$PlatformFilter = 'ThisDevice'
+		)
+
+		$resolved = Get-BaselinePlatformFilterOverride -Filter $PlatformFilter
+		$mode = if ($resolved -and -not [string]::IsNullOrWhiteSpace([string]$resolved.Mode)) { [string]$resolved.Mode } else { 'ThisDevice' }
+		$Script:PlatformFilter = $mode
+		$null = Update-PlatformFilterAvailability -PlatformFilter $mode
+		if ($CmbPlatformFilter)
+		{
+			Update-PlatformFilterList
+		}
+		return $mode
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Set-HideUnavailableItemsState.
+	#>
+
+	function Set-HideUnavailableItemsState
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param (
+			[bool]$HideUnavailableItems = $true
+		)
+
+		$normalized = [bool]$HideUnavailableItems
+		$Script:HideUnavailableItems = $normalized
+		if (Get-Command -Name 'Set-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			try { Set-BaselineUserPreference -Key 'HideUnavailableItems' -Value $normalized } catch { $null = $_ }
+		}
+
+		$Script:FilterGeneration++
+		if (Get-Command -Name 'Clear-TabContentCache' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Clear-TabContentCache
+		}
+
+		return $normalized
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Update-PlatformFilterList.
+	#>
+
+	function Update-PlatformFilterList
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param ()
+
+		if (-not $CmbPlatformFilter) { return }
+
+		$currentValue = if (-not [string]::IsNullOrWhiteSpace([string]$Script:PlatformFilter))
+		{
+			[string]$Script:PlatformFilter
+		}
+		elseif ($Script:PlatformFilterInternalValues -and $CmbPlatformFilter.SelectedIndex -ge 0 -and $CmbPlatformFilter.SelectedIndex -lt $Script:PlatformFilterInternalValues.Count)
+		{
+			$Script:PlatformFilterInternalValues[$CmbPlatformFilter.SelectedIndex]
+		}
+		else
+		{
+			'ThisDevice'
+		}
+
+		$resolved = Get-BaselinePlatformFilterOverride -Filter $currentValue
+		$currentMode = if ($resolved -and -not [string]::IsNullOrWhiteSpace([string]$resolved.Mode)) { [string]$resolved.Mode } else { 'ThisDevice' }
+		$populateKey = $currentMode
+		if ($Script:LastPlatformFilterPopulateKey -eq $populateKey) { return }
+		$Script:LastPlatformFilterPopulateKey = $populateKey
+
+		$Script:FilterUiUpdating = $true
+		try
+		{
+			$CmbPlatformFilter.Items.Clear()
+			$Script:PlatformFilterInternalValues = [System.Collections.Generic.List[string]]::new()
+
+			$values = @('ThisDevice', 'AllSupported', 'Windows10', 'Windows11', 'Server')
+			foreach ($value in $values)
+			{
+				[void]$CmbPlatformFilter.Items.Add((Get-PlatformFilterDisplayName -PlatformFilter $value))
+				[void]$Script:PlatformFilterInternalValues.Add($value)
+			}
+
+			$idx = 0
+			if ($Script:PlatformFilterInternalValues -and $Script:PlatformFilterInternalValues.Contains($currentMode))
+			{
+				$found = $Script:PlatformFilterInternalValues.IndexOf($currentMode)
+				if ($found -ge 0) { $idx = $found }
+			}
+			try
+			{
+				$CmbPlatformFilter.SelectedIndex = [int]$idx
+			}
+			catch
+			{
+				$CmbPlatformFilter.SelectedIndex = 0
+			}
+
+			if ($Script:PlatformFilterInternalValues -and $CmbPlatformFilter.SelectedIndex -ge 0 -and $CmbPlatformFilter.SelectedIndex -lt $Script:PlatformFilterInternalValues.Count)
+			{
+				$Script:PlatformFilter = $Script:PlatformFilterInternalValues[$CmbPlatformFilter.SelectedIndex]
+			}
+			else
+			{
+				$Script:PlatformFilter = 'ThisDevice'
+			}
+		}
+		finally
+		{
+			$Script:FilterUiUpdating = $false
+		}
+	}
+
+	<#
+	    .SYNOPSIS
 	    Internal function Get-CurrentFilterSummaryItems.
 	#>
 
@@ -292,6 +494,7 @@
 		$effectiveSearchQuery = if ([string]::IsNullOrWhiteSpace($SearchQuery)) { '' } else { ([string]$SearchQuery).Trim() }
 		$effectiveRiskFilter = if ($null -eq $Script:RiskFilter) { 'All' } else { ([string]$Script:RiskFilter).Trim() }
 		$effectiveCategoryFilter = if ($null -eq $Script:CategoryFilter) { 'All' } else { ([string]$Script:CategoryFilter).Trim() }
+		$effectivePlatformFilter = if ($null -eq $Script:PlatformFilter) { 'ThisDevice' } else { ([string]$Script:PlatformFilter).Trim() }
 		$selectedOnly = ($Script:SelectedOnlyFilter -eq $true)
 		$safeMode = ($Script:SafeMode -eq $true)
 		$advancedMode = ($Script:AdvancedMode -eq $true)
@@ -362,6 +565,25 @@
 				Label = ('{0}: {1}' -f (Get-UxLocalizedString -Key 'GuiCategoryFilterLabel' -Fallback 'Category'), $categoryDisplay)
 				Tone = 'Primary'
 				ToolTip = (Get-UxLocalizedString -Key 'GuiCategoryFilterLabel' -Fallback 'Category')
+			})
+		}
+
+		if (-not [string]::IsNullOrWhiteSpace($effectivePlatformFilter) -and $effectivePlatformFilter -ne 'ThisDevice')
+		{
+			$platformDisplay = Get-PlatformFilterDisplayName -PlatformFilter $effectivePlatformFilter
+			[void]$items.Add([pscustomobject]@{
+				Label = "Platform: $platformDisplay"
+				Tone = 'Primary'
+				ToolTip = 'Preview entry availability on a selected Windows platform'
+			})
+		}
+
+		if ($Script:HideUnavailableItems -ne $null)
+		{
+			[void]$items.Add([pscustomobject]@{
+				Label = if ($Script:HideUnavailableItems) { 'Unavailable hidden' } else { 'Unavailable shown' }
+				Tone = 'Muted'
+				ToolTip = if ($Script:HideUnavailableItems) { 'Unavailable tweaks are hidden from the list' } else { 'Unavailable tweaks remain visible and greyed out' }
 			})
 		}
 
@@ -465,6 +687,47 @@
 		if (-not $IgnoreCategoryFilter -and -not [string]::IsNullOrWhiteSpace([string]$Script:CategoryFilter) -and $Script:CategoryFilter -ne 'All')
 		{
 			if ([string]$Tweak.Category -ne [string]$Script:CategoryFilter) { return $false }
+		}
+
+		$hideUnavailableItems = $true
+		if ($null -ne $Script:HideUnavailableItems)
+		{
+			$hideUnavailableItems = [bool]$Script:HideUnavailableItems
+		}
+		elseif (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			try { $hideUnavailableItems = [bool](Get-BaselineUserPreference -Key 'HideUnavailableItems' -Default $true) } catch { $hideUnavailableItems = $true }
+		}
+
+		if ($hideUnavailableItems)
+		{
+			$availability = $null
+			if ($Tweak -is [System.Collections.IDictionary])
+			{
+				if ($Tweak.Contains('Availability')) { $availability = $Tweak['Availability'] }
+			}
+			elseif ($Tweak.PSObject -and $Tweak.PSObject.Properties['Availability'])
+			{
+				$availability = $Tweak.Availability
+			}
+
+			$hasAvailabilityFlag = $false
+			$isAvailable = $true
+			if ($availability -is [System.Collections.IDictionary])
+			{
+				if ($availability.Contains('Available'))
+				{
+					$hasAvailabilityFlag = $true
+					$isAvailable = [bool]$availability['Available']
+				}
+			}
+			elseif ($availability -and $availability.PSObject -and $availability.PSObject.Properties['Available'])
+			{
+				$hasAvailabilityFlag = $true
+				$isAvailable = [bool]$availability.Available
+			}
+
+			if ($hasAvailabilityFlag -and -not $isAvailable) { return $false }
 		}
 
 		if ([bool]$Script:SelectedOnlyFilter)

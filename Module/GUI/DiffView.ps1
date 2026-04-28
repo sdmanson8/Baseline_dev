@@ -247,7 +247,7 @@
 		{
 			if ($Form) { $dlg.Owner = $Form }
 		}
-		catch { <# non-fatal #> }
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DiffView.Show-DiffViewDialog.SetOwner' }
 		$roundedParts = ConvertTo-RoundedWindow -Window $dlg -Theme $theme
 		[void](Set-GuiWindowChromeTheme -Window $dlg -UseDarkMode ($Script:CurrentThemeName -eq 'Dark'))
 
@@ -378,7 +378,7 @@
 		# Group items by category
 		$grouped = $items | Group-Object -Property Category | Sort-Object -Property Name
 
-		try { $listStack.BeginInit() } catch { <# non-fatal #> }
+		try { $listStack.BeginInit() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DiffView.Show-DiffViewFromSelection.BeginInit' }
 
 		foreach ($group in $grouped)
 		{
@@ -663,7 +663,7 @@
 			[void]($listStack.Children.Add($sectionExpander))
 		}
 
-		try { $listStack.EndInit() } catch { <# non-fatal #> }
+		try { $listStack.EndInit() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DiffView.Show-DiffViewFromSelection.EndInit' }
 		$listScroll.Content = $listStack
 		[void]($outerGrid.Children.Add($listScroll))
 

@@ -1,17 +1,28 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     $guiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
     $actionHandlersPath = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers.ps1'
+    $actionHandlersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers'
     $errorHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/ErrorHandling.Helpers.ps1'
+    $environmentHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Environment.Helpers.ps1'
     $initialActionsPath = Join-Path $PSScriptRoot '../../Module/Regions/InitialActions.psm1'
     $initialSetupPath = Join-Path $PSScriptRoot '../../Module/Regions/InitialSetup.psm1'
     $initialSetupManifestPath = Join-Path $PSScriptRoot '../../Module/Data/InitialSetup.json'
     $detectScriptblocksPath = Join-Path $PSScriptRoot '../../Module/GUI/DetectScriptblocks.ps1'
 
     $guiContent = Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
-    $actionHandlersContent = Get-Content -LiteralPath $actionHandlersPath -Raw -Encoding UTF8
+    $actionHandlersContent = Get-BaselineTestSourceText -Path @(
+        $actionHandlersPath
+        (Join-Path $actionHandlersSplitRoot 'ThemeNavigationHandlers.ps1')
+        (Join-Path $actionHandlersSplitRoot 'ButtonHandlers.ps1')
+        (Join-Path $actionHandlersSplitRoot 'SystemScanFooterHandlers.ps1')
+        (Join-Path $actionHandlersSplitRoot 'MenuHandlers.ps1')
+    )
     $errorHelpersContent = Get-Content -LiteralPath $errorHelpersPath -Raw -Encoding UTF8
+    $environmentHelpersContent = Get-Content -LiteralPath $environmentHelpersPath -Raw -Encoding UTF8
     $initialActionsContent = Get-Content -LiteralPath $initialActionsPath -Raw -Encoding UTF8
     $initialSetupContent = Get-Content -LiteralPath $initialSetupPath -Raw -Encoding UTF8
     $detectScriptblocksContent = Get-Content -LiteralPath $detectScriptblocksPath -Raw -Encoding UTF8
@@ -62,8 +73,8 @@ Describe 'First-run startup command wiring' {
     }
 
     It 'restores the neutral splash loading text after startup bootstrap' {
-        $initialActionsContent | Should -Match "GuiSplashLoading' -Fallback 'Please Wait\.\.\.'"
-        $initialActionsContent | Should -Not -Match "GuiSplashLoading' -Fallback 'Please wait - opening GUI\.\.\.'"
+        $environmentHelpersContent | Should -Match "GuiSplashLoading' -Fallback 'Please Wait\.\.\.'"
+        $environmentHelpersContent | Should -Not -Match "GuiSplashLoading' -Fallback 'Please wait - opening GUI\.\.\.'"
     }
 
     It 'keeps the advisory tweaker probes non-fatal during startup' {
@@ -91,13 +102,13 @@ Describe 'First-run startup command wiring' {
         $initialSetupContent | Should -Match "Start-Job\s+-Name\s+'ChocolateyBootstrap'"
     }
 
-    It 'uses the shared reviewed winget-install metadata instead of duplicating the release pin' {
+        It 'uses the shared reviewed winget-install metadata instead of duplicating the release pin' {
         $initialSetupContent | Should -Match 'Get-WinGetBootstrapInstallerMetadata'
-        $initialSetupContent | Should -Not -Match "\$installerVersion\s*=\s*'5\.3\.1'"
-        $initialSetupContent | Should -Not -Match "\$installerSha256\s*=\s*'029094EFD9D26A83AEA184B16D15C772D35D64E1288010741F50FD33A1E1F40F'"
+        $initialSetupContent | Should -Not -Match '\$installerVersion\s*=\s*''5\.3\.1'''
+        $initialSetupContent | Should -Not -Match '\$installerSha256\s*=\s*''029094EFD9D26A83AEA184B16D15C772D35D64E1288010741F50FD33A1E1F40F'''
     }
 
-    It 'uses the shared generic winget-install arguments so Server 2019 stays on the upstream-selected path' {
+    It 'uses the shared generic winget-install arguments so Server 2019 stays on the repo-defined path' {
         $initialSetupContent | Should -Match 'Get-WinGetBootstrapInstallerArguments'
         $initialSetupContent | Should -Not -Match "'-AlternateInstallMethod'"
     }

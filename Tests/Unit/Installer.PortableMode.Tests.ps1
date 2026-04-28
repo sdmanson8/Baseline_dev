@@ -15,7 +15,7 @@ Describe 'Portable installer registration' {
     It '<ScriptName> disables uninstall registration for portable mode' -ForEach $script:InstallerTemplates {
         $content = Get-Content -LiteralPath $ScriptPath -Raw -Encoding UTF8
 
-        $content | Should -Match '(?m)^Uninstallable=IsInstallMode$' -Because "portable mode in $ScriptName must not create an uninstallable entry"
-        $content | Should -Match '(?m)^CreateUninstallRegKey=IsInstallMode$' -Because "portable mode in $ScriptName must not register in Apps & Features"
+        $content | Should -Match '(?m)^\s*Uninstallable=IsInstallMode\s*$' -Because "portable mode in $ScriptName must not create an uninstallable entry"
+        $content | Should -Match '(?m)^\s*CreateUninstallRegKey=IsInstallMode\s*$' -Because "portable mode in $ScriptName must not register in Apps & Features"
     }
 }

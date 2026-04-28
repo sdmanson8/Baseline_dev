@@ -1,7 +1,12 @@
 <#
 	.SYNOPSIS
-	Internal admin utility for hardware power and device blocking settings.
+	Configures hardware power and device blocking settings.
 
+
+	
+.DESCRIPTION
+	
+Applies Baseline's hardware power and device blocking settings in GUI and headless runs.
 	.PARAMETER Enable
 	Enable Block Razer Software Installs
 
@@ -115,6 +120,11 @@ function RazerBlock
 .SYNOPSIS
 Enable or disable S3 Sleep
 
+
+
+.DESCRIPTION
+
+Enables or disables S3 Sleep in GUI and headless runs.
 .PARAMETER Enable
 Enable S3 Sleep
 
@@ -188,6 +198,11 @@ function S3Sleep
 .SYNOPSIS
 Enable or disable recommended Windows service startup configuration
 
+
+
+.DESCRIPTION
+
+Enables or disables recommended Windows service startup configuration in GUI and headless runs.
 .PARAMETER Enable
 Apply recommended startup types to Windows services
 
@@ -336,7 +351,7 @@ function ServicesManual
 		@{ Name = "UsoSvc";                     StartupType = "Manual";                OriginalType = "Automatic" }
 		@{ Name = "VSS";                        StartupType = "Manual";                OriginalType = "Manual" }
 		@{ Name = "VaultSvc";                   StartupType = "Manual";                OriginalType = "Manual" }
-		@{ Name = "W32Time";                    StartupType = "Manual";                OriginalType = "Manual" }
+		@{ Name = "W32Time";                    StartupType = "Manual";                OriginalType = "AutomaticDelayedStart" }
 		@{ Name = "WEPHOSTSVC";                 StartupType = "Manual";                OriginalType = "Manual" }
 		@{ Name = "WFDSConMgrSvc";              StartupType = "Manual";                OriginalType = "Manual" }
 		@{ Name = "WMPNetworkSvc";              StartupType = "Manual";                OriginalType = "Manual" }
@@ -407,31 +422,21 @@ function ServicesManual
 }
 
 <#
-.SYNOPSIS
-Enable or disable Teredo
+    .SYNOPSIS
+    Enable or disable Teredo tunneling support.
 
-.PARAMETER Enable
-Enable Teredo (default value)
+    .DESCRIPTION
+    Updates the IPv6 DisabledComponents value and the Teredo interface state so Baseline can turn Teredo support on or off.
 
-.PARAMETER Disable
-Disable Teredo
+    .PARAMETER Enable
+    Turn Teredo support on.
 
-.EXAMPLE
-Teredo -Enable
+    .PARAMETER Disable
+    Turn Teredo support off.
 
-.EXAMPLE
-Teredo -Disable
-
-.NOTES
-Current user
-
-.CAUTION
-Teredo is an IPv6 tunneling protocol used for NAT traversal.
-Disabling it may reduce network latency for some applications.
-However, some games and peer-to-peer applications rely on Teredo for connectivity.
-Xbox Live and certain multiplayer games may not function correctly without Teredo.
+    .EXAMPLE
+    Teredo -Disable
 #>
-
 function Teredo
 {
 	[CmdletBinding()]
@@ -489,6 +494,11 @@ function Teredo
 .SYNOPSIS
 Enable or disable Windows Platform Binary Table (WPBT)
 
+
+
+.DESCRIPTION
+
+Enables or disables Windows Platform Binary Table (WPBT) in GUI and headless runs.
 .PARAMETER Enable
 Enable Windows Platform Binary Table (WPBT) (default value)
 

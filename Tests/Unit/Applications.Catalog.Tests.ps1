@@ -134,7 +134,7 @@ Describe 'Invoke-WingetUpdate' {
     BeforeEach {
         $script:errorMessages = [System.Collections.Generic.List[string]]::new()
         $script:infoMessages = [System.Collections.Generic.List[string]]::new()
-        $script:startCalls = [System.Collections.Generic.List[object]]::new()
+        $script:streamingCalls = [System.Collections.Generic.List[object]]::new()
         function Write-ConsoleStatus { param([string]$Action, [string]$Status) }
         function LogInfo { param([string]$Message) [void]$script:infoMessages.Add($Message) }
         function LogError { param([string]$Message) [void]$script:errorMessages.Add($Message) }
@@ -145,13 +145,13 @@ Describe 'Invoke-WingetUpdate' {
         }
         function Resolve-WinGetExecutable { return 'winget.exe' }
         function Test-WinGetAvailable { param([switch]$Refresh) return $true }
-        function Start-Process {
-            param([string]$FilePath, [object[]]$ArgumentList, [switch]$Wait, [switch]$PassThru, [object]$ErrorAction)
-            [void]$script:startCalls.Add([pscustomobject]@{
+        function Invoke-StreamingProcess {
+            param([string]$FilePath, [string[]]$ArgumentList)
+            [void]$script:streamingCalls.Add([pscustomobject]@{
                 FilePath = $FilePath
                 ArgumentList = @($ArgumentList)
             })
-            [pscustomobject]@{ ExitCode = 0 }
+            return 0
         }
     }
 
@@ -162,17 +162,17 @@ Describe 'Invoke-WingetUpdate' {
         Remove-Item Function:\Get-BaselineLocalizedString -ErrorAction SilentlyContinue
         Remove-Item Function:\Resolve-WinGetExecutable -ErrorAction SilentlyContinue
         Remove-Item Function:\Test-WinGetAvailable -ErrorAction SilentlyContinue
-        Remove-Item Function:\Start-Process -ErrorAction SilentlyContinue
+        Remove-Item Function:\Invoke-StreamingProcess -ErrorAction SilentlyContinue
     }
 
     It 'runs winget upgrade with silent non-interactive flags' {
         Invoke-WingetUpdate -WinGetId 'Mozilla.Firefox' -DisplayName 'Mozilla Firefox'
 
-        $script:startCalls.Count | Should -Be 1
-        @($script:startCalls[0].ArgumentList) | Should -Contain 'upgrade'
-        @($script:startCalls[0].ArgumentList) | Should -Contain '--silent'
-        @($script:startCalls[0].ArgumentList) | Should -Contain 'Mozilla.Firefox'
-        @($script:startCalls[0].ArgumentList) | Should -Contain '--disable-interactivity'
+        $script:streamingCalls.Count | Should -Be 1
+        @($script:streamingCalls[0].ArgumentList) | Should -Contain 'upgrade'
+        @($script:streamingCalls[0].ArgumentList) | Should -Contain '--silent'
+        @($script:streamingCalls[0].ArgumentList) | Should -Contain 'Mozilla.Firefox'
+        @($script:streamingCalls[0].ArgumentList) | Should -Contain '--disable-interactivity'
     }
 
     It 'throws when availability state disables WinGet' {
@@ -187,7 +187,7 @@ Describe 'Invoke-ChocoInstall' {
     BeforeEach {
         $script:infoMessages = [System.Collections.Generic.List[string]]::new()
         $script:errorMessages = [System.Collections.Generic.List[string]]::new()
-        $script:startCalls = [System.Collections.Generic.List[object]]::new()
+        $script:streamingCalls = [System.Collections.Generic.List[object]]::new()
         $script:executionPolicyCalls = [System.Collections.Generic.List[object]]::new()
 
         function Write-ConsoleStatus { param([string]$Action, [string]$Status) }
@@ -200,13 +200,13 @@ Describe 'Invoke-ChocoInstall' {
         }
         function Resolve-ApplicationPackageId { param([string]$PackageId) return $PackageId }
         function Resolve-ChocolateyExecutable { return 'choco.exe' }
-        function Start-Process {
-            param([string]$FilePath, [object[]]$ArgumentList, [switch]$Wait, [switch]$PassThru, [object]$ErrorAction)
-            [void]$script:startCalls.Add([pscustomobject]@{
+        function Invoke-StreamingProcess {
+            param([string]$FilePath, [string[]]$ArgumentList)
+            [void]$script:streamingCalls.Add([pscustomobject]@{
                 FilePath = $FilePath
                 ArgumentList = @($ArgumentList)
             })
-            [pscustomobject]@{ ExitCode = 0 }
+            return 0
         }
     }
 
@@ -217,18 +217,18 @@ Describe 'Invoke-ChocoInstall' {
         Remove-Item Function:\Get-BaselineLocalizedString -ErrorAction SilentlyContinue
         Remove-Item Function:\Resolve-ApplicationPackageId -ErrorAction SilentlyContinue
         Remove-Item Function:\Resolve-ChocolateyExecutable -ErrorAction SilentlyContinue
-        Remove-Item Function:\Start-Process -ErrorAction SilentlyContinue
+        Remove-Item Function:\Invoke-StreamingProcess -ErrorAction SilentlyContinue
         Remove-Item Function:\Get-ExecutionPolicy -ErrorAction SilentlyContinue
     }
 
     It 'runs choco install with expected non-interactive flags' {
         Invoke-ChocoInstall -ChocoId 'firefox' -DisplayName 'Mozilla Firefox'
 
-        $script:startCalls.Count | Should -Be 1
-        @($script:startCalls[0].ArgumentList) | Should -Contain 'install'
-        @($script:startCalls[0].ArgumentList) | Should -Contain '-y'
-        @($script:startCalls[0].ArgumentList) | Should -Contain '--no-progress'
-        @($script:startCalls[0].ArgumentList) | Should -Contain 'firefox'
+        $script:streamingCalls.Count | Should -Be 1
+        @($script:streamingCalls[0].ArgumentList) | Should -Contain 'install'
+        @($script:streamingCalls[0].ArgumentList) | Should -Contain '-y'
+        @($script:streamingCalls[0].ArgumentList) | Should -Contain '--no-progress'
+        @($script:streamingCalls[0].ArgumentList) | Should -Contain 'firefox'
     }
 
     It 'throws when Chocolatey is unavailable and bootstrap install fails to resolve' {
@@ -255,7 +255,7 @@ Describe 'Invoke-ChocoInstall' {
 
         try {
             { Invoke-ChocoInstall -ChocoId 'firefox' -DisplayName 'Firefox' } |
-                Should -Throw '*Chocolatey is not available*'
+                Should -Throw '*Firefox Install - Failed*'
             $script:executionPolicyCalls.Count | Should -Be 2
             $script:executionPolicyCalls[0].ExecutionPolicy | Should -Be 'Bypass'
             $script:executionPolicyCalls[1].ExecutionPolicy | Should -Be 'RemoteSigned'

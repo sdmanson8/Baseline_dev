@@ -1,25 +1,34 @@
-﻿using module ..\Logging.psm1
+using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 using module ..\GUICommon.psm1
 using module ..\GUIExecution.psm1
 
-# Extracted GUI scripts are dot-sourced into this module, so they resolve
-# $Script: variables against GUI.psm1 rather than GUICommon.psm1.
+# GUI scripts are dot-sourced here so their $Script: state belongs to GUI.psm1.
 $Script:GuiLayout = GUICommon\Get-GuiLayout
 $Script:GuiFontSizeWarnings = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
-<#
-    .SYNOPSIS
-    Internal function Get-GuiSafeFontSize.
-#>
-
-# --- Extracted subsystem modules (dot-sourced so shared $Script: state
-#     remains anchored in this module's scope). Loaded at module init so
-#     top-level functions defined in these files are available before
-#     Show-TweakGUI runs. ---
+# Load GUI subsystem scripts during module import so Show-TweakGUI can call their top-level functions.
 . (Join-Path $PSScriptRoot '..' | Join-Path -ChildPath 'GUI' | Join-Path -ChildPath 'AppsModule.ps1')
 . (Join-Path $PSScriptRoot '..' | Join-Path -ChildPath 'GUI' | Join-Path -ChildPath 'UpdateOverlayModule.ps1')
+<#
+    .SYNOPSIS
+    Return a validated font size for the current GUI layout.
 
+    .DESCRIPTION
+    Proxies to GUICommon\Get-GuiSafeFontSize so region GUI code can resolve a layout key to a safe font size with a fallback value.
+
+    .PARAMETER Key
+    Layout key to resolve.
+
+    .PARAMETER Default
+    Fallback font size used when the key is missing or invalid.
+
+    .PARAMETER Layout
+    Layout object to read from. Defaults to the current GUI layout state.
+
+    .EXAMPLE
+    Get-GuiSafeFontSize -Key 'Body' -Default 12
+#>
 function Get-GuiSafeFontSize
 {
 	param(
@@ -34,7 +43,12 @@ function Get-GuiSafeFontSize
 
 <#
     .SYNOPSIS
-    Internal function .
+    Creates safe thickness.
+
+    
+.DESCRIPTION
+    
+Supports safe thickness handling inside Baseline.
 #>
 function New-SafeThickness
 {
@@ -56,7 +70,12 @@ function New-SafeThickness
 
 <#
     .SYNOPSIS
-    Internal function New-WpfSetter.
+    Creates WPF setter.
+
+    
+.DESCRIPTION
+    
+Supports WPF setter handling inside Baseline.
 #>
 
 function New-WpfSetter
@@ -116,7 +135,12 @@ function New-WpfSetter
 
 <#
     .SYNOPSIS
-    Internal function Test-GuiObjectField.
+    Checks GUI object field.
+
+    
+.DESCRIPTION
+    
+Supports GUI object field handling inside Baseline.
 #>
 
 function Test-GuiObjectField
@@ -141,7 +165,12 @@ function Test-GuiObjectField
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiObjectField.
+    Gets GUI object field.
+
+    
+.DESCRIPTION
+    
+Supports GUI object field handling inside Baseline.
 #>
 
 function Get-GuiObjectField
@@ -166,7 +195,12 @@ function Get-GuiObjectField
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiRuntimeFailureDetails.
+    Gets GUI runtime failure details.
+
+    
+.DESCRIPTION
+    
+Supports GUI runtime failure details handling inside Baseline.
 #>
 
 function Get-GuiRuntimeFailureDetails
@@ -236,7 +270,12 @@ function Get-GuiRuntimeFailureDetails
 
 <#
     .SYNOPSIS
-    Internal function Show-GuiRuntimeFailure.
+    Show GUI runtime failure.
+
+    
+.DESCRIPTION
+    
+Supports GUI runtime failure handling inside Baseline.
 #>
 
 function Show-GuiRuntimeFailure
@@ -289,7 +328,12 @@ function Show-GuiRuntimeFailure
 
 <#
     .SYNOPSIS
-    Internal function Write-GuiPresetDebug.
+    Writes GUI preset debug.
+
+    
+.DESCRIPTION
+    
+Supports GUI preset debug handling inside Baseline.
 #>
 
 function Write-GuiPresetDebug
@@ -334,7 +378,12 @@ $Script:GuiPresetDebugScript = ${function:Write-GuiPresetDebug}
 
 <#
     .SYNOPSIS
-    Internal function Write-GuiRuntimeWarning.
+    Writes GUI runtime warning.
+
+    
+.DESCRIPTION
+    
+Supports GUI runtime warning handling inside Baseline.
 #>
 
 function Write-GuiRuntimeWarning
@@ -421,46 +470,64 @@ $Script:ManifestLoadedFromData = $false
 
 # Defined at module scope so Show-TweakGUI can capture them once for deferred
 # WPF event handlers and dispatcher callbacks.
-<#
-    .SYNOPSIS
-    Internal function Test-IsSafeModeUX.
-#>
+function Test-IsSafeModeUX
+{
+	<#
+	    .SYNOPSIS
+	    Return whether the GUI is currently in Safe Mode.
 
-function Test-IsSafeModeUX { return ([bool]$Script:SafeMode) }
+	    .DESCRIPTION
+	    Reads the script-scoped Safe Mode flag and returns it as a boolean for other GUI helpers.
+
+	    .EXAMPLE
+	    Test-IsSafeModeUX
+	#>
+	return ([bool]$Script:SafeMode)
+}
 <#
     .SYNOPSIS
-    Internal function .
+    Checks is expert mode ux.
+
+    
+.DESCRIPTION
+    
+Supports is expert mode ux handling inside Baseline.
 #>
 function Test-IsExpertModeUX { return ([bool]$Script:AdvancedMode) }
 <#
     .SYNOPSIS
-    Internal function .
+    Checks GUI run in progress.
+
+    
+.DESCRIPTION
+    
+Supports GUI run in progress handling inside Baseline.
 #>
 function Test-GuiRunInProgress { return [bool]$Script:RunInProgress }
 
 
 #region GUI Builder
-<#
-	.SYNOPSIS
-	Show the WPF tweak-selection GUI and execute selected tweaks.
-
-	.DESCRIPTION
-	Builds a modern two-tier tabbed WPF window from $Script:TweakManifest.
-	The GUI stays open after each run so further changes can be made.
-	Supports dark/light themes, system-scan to skip already-applied tweaks,
-	info icons, caution sections, and linked toggles (PS7 <-> telemetry).
-
-	.EXAMPLE
-	Show-TweakGUI
-#>
 function Show-TweakGUI
 {
+	<#
+		.SYNOPSIS
+		Show the WPF tweak-selection GUI and execute selected tweaks.
+
+		.DESCRIPTION
+		Builds a modern two-tier tabbed WPF window from $Script:TweakManifest.
+		The GUI stays open after each run so further changes can be made.
+		Supports dark/light themes, system-scan to skip already-applied tweaks,
+		info icons, caution sections, and linked toggles (PS7 <-> telemetry).
+
+		.EXAMPLE
+		Show-TweakGUI
+	#>
 	[CmdletBinding()]
 	param ()
 
 	# Enable per-monitor DPI awareness before any WPF objects are created
 	# so the window renders at native resolution on high-DPI displays.
-	try { GUICommon\Initialize-GuiDpiAwareness } catch { <# non-fatal #> }
+	try { GUICommon\Initialize-GuiDpiAwareness } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.ShowTweakGUI.InitializeGuiDpiAwareness' }
 
 	# --- Extracted function groups (dot-sourced to reduce file size) ---
 	$Script:GuiExtractedRoot = Join-Path (Split-Path $PSScriptRoot -Parent) 'GUI'
@@ -472,6 +539,9 @@ function Show-TweakGUI
 	$Script:Ctx = New-GuiContext
 	$Script:Ctx.Config.ExtractedRoot = $Script:GuiExtractedRoot
 	$Script:AuditRetentionDays = [int]$Script:Ctx.UI.AuditRetentionDays
+	$Script:DesignMode = [bool]$Global:DesignMode
+	$Script:Ctx.UI.DesignMode = [bool]$Script:DesignMode
+	if ($Script:Ctx.ContainsKey('Mode')) { $Script:Ctx.Mode.Design = [bool]$Script:DesignMode }
 
 	. (Join-Path $Script:GuiExtractedRoot 'UxPolicy.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'SessionState.ps1')
@@ -493,6 +563,21 @@ function Show-TweakGUI
 				-DetectScriptblocks $Script:DetectScriptblocks `
 				-VisibleIfScriptblocks $Script:VisibleIfScriptblocks
 			Test-TweakManifestIntegrity -Manifest $Script:TweakManifest
+			# Stamp Availability onto every entry so the row-factory hide-unavailable
+			# gate (TweakRowFactory.ps1) and the apply-path partition
+			# (ExecutionOrchestration.ps1) both see a populated block instead of
+			# treating absence as "available". No override → real host platform.
+			try
+			{
+				$Script:BaselineSystemPlatformInfo = Get-BaselineSystemPlatformInfo
+				$null = Update-BaselineManifestAvailability `
+					-Manifest $Script:TweakManifest `
+					-SystemInfo $Script:BaselineSystemPlatformInfo
+			}
+			catch
+			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'GUI.ManifestLoad.AvailabilityStamp'
+			}
 			$Script:ManifestLoadedFromData = $true
 			$Script:Ctx.Data.TweakManifest = $Script:TweakManifest
 			$Script:Ctx.Data.ManifestLoaded = $true
@@ -520,18 +605,18 @@ function Show-TweakGUI
 	$Script:GuiPresetDirectoryPath = $null
 	$Script:GuiLocalizationDirectoryPath = $null
 
-	try { $Script:GuiModuleBasePath = $MyInvocation.MyCommand.Module.ModuleBase } catch {}
+	try { $Script:GuiModuleBasePath = $MyInvocation.MyCommand.Module.ModuleBase } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.ResolveModuleBase.ModuleBase' }
 	if ([string]::IsNullOrWhiteSpace([string]$Script:GuiModuleBasePath))
 	{
-		try { $Script:GuiModuleBasePath = Split-Path -Parent $PSCommandPath } catch {}
+		try { $Script:GuiModuleBasePath = Split-Path -Parent $PSCommandPath } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.ResolveModuleBase.PSCommandPath' }
 	}
 	if ([string]::IsNullOrWhiteSpace([string]$Script:GuiModuleBasePath))
 	{
-		try { $Script:GuiModuleBasePath = Split-Path -Parent $MyInvocation.MyCommand.Path } catch {}
+		try { $Script:GuiModuleBasePath = Split-Path -Parent $MyInvocation.MyCommand.Path } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.ResolveModuleBase.MyInvocationPath' }
 	}
 	if ([string]::IsNullOrWhiteSpace([string]$Script:GuiModuleBasePath))
 	{
-		try { $Script:GuiModuleBasePath = Split-Path -Parent $PSScriptRoot } catch {}
+		try { $Script:GuiModuleBasePath = Split-Path -Parent $PSScriptRoot } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.ResolveModuleBase.PSScriptRoot' }
 	}
 	if ([string]::IsNullOrWhiteSpace([string]$Script:GuiModuleBasePath))
 	{
@@ -558,6 +643,7 @@ function Show-TweakGUI
 		"Privacy & Telemetry"  = @()
 		"Security"             = @("Security", "OS Hardening")
 		"System"               = @("System", "System Tweaks", "Start Menu", "Start Menu Apps")
+		"Customizations"       = @()
 		"Updates"              = @()
 		"UI & Personalization" = @("UI & Personalization", "Taskbar", "Taskbar Clock", "Cursors")
 		"UWP Apps"             = @("UWP Apps", "OneDrive")
@@ -593,14 +679,18 @@ function Show-TweakGUI
 			'FeatureUpdateDeferral'
 			'QualityUpdateDeferral'
 			'StoreAppAutoDownload'
+			'MapUpdates'
+			'UpdateMSRT'
 			'WindowsUpdatePause'
 			'WindowsUpdateSecurityOnlyMode'
+			'UpdateNotificationLevel'
 			'UpdateAutoDownload'
 			'UpdateDriver'
 			'UpdateMSProducts'
 			'UpdateMicrosoftProducts'
 			'UpdateRestart'
 			'WindowsLatestUpdate'
+			'WindowsUpdate'
 		)
 	)
 	{
@@ -612,7 +702,12 @@ function Show-TweakGUI
 
 	<#
 	    .SYNOPSIS
-	    Internal function Resolve-GuiPrimaryTabForTweak.
+	    Resolves GUI primary tab for tweak.
+
+	    
+.DESCRIPTION
+	    
+Supports GUI primary tab for tweak handling inside Baseline.
 	#>
 
 	function Resolve-GuiPrimaryTabForTweak
@@ -746,6 +841,11 @@ function Show-TweakGUI
 
 	# --- Dialog and tab management extractions (after XAML controls are available) ---
 	. (Join-Path $Script:GuiExtractedRoot 'DialogHelpers.ps1')
+	. (Join-Path $Script:GuiExtractedRoot 'ReviewMode.ps1')
+	. (Join-Path $Script:GuiExtractedRoot 'AddCustomAppDialog.ps1')
+	. (Join-Path $Script:GuiExtractedRoot 'StartupManagerDialog.ps1')
+	. (Join-Path $Script:GuiExtractedRoot 'RemovalPersistenceDialog.ps1')
+	. (Join-Path $Script:GuiExtractedRoot 'UserFoldersDialog.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'TabManagement.ps1')
 
 	$guiWindowMinWidth  = $Script:GuiLayout.WindowMinWidth
@@ -779,6 +879,10 @@ function Show-TweakGUI
 
 	#region Build controls for a set of tweaks
 	. (Join-Path $Script:GuiExtractedRoot 'BuildTweakControls.ps1')
+	#endregion
+
+	#region Windows Update runtime panel
+	. (Join-Path $Script:GuiExtractedRoot 'UpdatesPanel.ps1')
 	#endregion
 
 	#region Build tab content for a primary category
@@ -906,7 +1010,7 @@ function Show-TweakGUI
 
 			if ($Script:SearchRefreshTimer)
 			{
-				try { $Script:SearchRefreshTimer.Stop() } catch { $null = $_ }
+				try { $Script:SearchRefreshTimer.Stop() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SearchRefreshTimer.Stop' }
 				$Script:SearchRefreshTimer = $null
 			}
 
@@ -1197,17 +1301,135 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 		# Run initial adaptive tab layout check now that the window has its actual size
 		if ($Script:AdaptiveTabLayoutScript) { & $Script:AdaptiveTabLayoutScript }
 
+		# Schedule splash close via a dedicated background runspace.
+		#
+		# Why not a dispatcher: the GUI dispatcher is busy for ~50 s after
+		# ContentRendered with deferred ApplicationIdle Build-TabContent work,
+		# so anything queued at Background/ApplicationIdle on the GUI is
+		# starved until that backlog drains.
+		#
+		# Why not Register-ObjectEvent: PowerShell event subscribers run on
+		# the main runspace thread, which is blocked inside Form.ShowDialog()
+		# until the user closes the GUI - the action never fires.
+		#
+		# A fresh runspace gives us a completely independent thread that can
+		# poll the splash's GuiReady flag (flipped by Build-TabContent once the
+		# foreground tab is interactive) and then close the splash via its OWN
+		# dispatcher (separate STA, idle, uncontended). This keeps the splash
+		# visible until the GUI is actually usable, while background work keeps
+		# draining on the main dispatcher.
 		try
 		{
-			$loadingSplash = Get-Variable -Name 'LoadingSplash' -Scope Global -ValueOnly -ErrorAction SilentlyContinue
-			if ($loadingSplash)
+			$splashHandle = $Global:LoadingSplash
+			if ($splashHandle)
 			{
-				$null = & $closeLoadingSplashBlock -Splash $loadingSplash -DisposeResources
-				$Global:LoadingSplash = $null
+				if (-not $splashHandle.ContainsKey('GuiReady')) { $splashHandle.GuiReady = $false }
+				$closeRunspace = [runspacefactory]::CreateRunspace()
+				$closeRunspace.ApartmentState = 'MTA'
+				$closeRunspace.Open()
+				$closeRunspace.SessionStateProxy.SetVariable('splash', $splashHandle)
+				$closeRunspace.SessionStateProxy.SetVariable('mainWindow', $Form)
+				$closePs = [powershell]::Create()
+				$closePs.Runspace = $closeRunspace
+				[void]$closePs.AddScript({
+					$tracePath = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline-launch-trace.txt'
+					$trace = { param($m) try { [System.IO.File]::AppendAllText($tracePath, ("{0:o} {1}`r`n" -f [DateTime]::UtcNow, $m), [System.Text.Encoding]::UTF8) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.Trace.AppendAllText' } }
+					& $trace 'SplashClose runspace: started polling GuiReady'
+					try
+					{
+					# Wait for the GUI-ready signal from Build-TabContent.
+					# Cap at 180 s as a safety net so the splash is never
+					# stuck if the signal is missed.
+						$deadline = [datetime]::UtcNow.AddSeconds(180)
+						while (-not $splash.GuiReady -and [datetime]::UtcNow -lt $deadline)
+						{
+							if (-not $splash.IsAlive) { break }
+							Start-Sleep -Milliseconds 200
+						}
+
+						& $trace 'SplashClose runspace: GuiReady signaled, revealing GUI before splash close'
+
+						# Reveal the GUI BEFORE closing the splash so the
+						# transition is instant: the GUI is already painted
+						# and ShowInTaskbar=true under the splash, so when
+						# the splash disappears the GUI is right there. If
+						# we close the splash first, there's a gap where
+						# neither window is visible (desktop flashes).
+						try
+						{
+							if ($mainWindow -and $mainWindow.Dispatcher -and -not $mainWindow.Dispatcher.HasShutdownStarted)
+							{
+								$mainWindow.Dispatcher.Invoke([System.Action]{
+									try { $mainWindow.ShowInTaskbar = $true } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.MainWindow.ShowInTaskbar' }
+									try { $mainWindow.Opacity = 1 } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.MainWindow.Opacity' }
+								})
+							}
+						}
+						catch { try { LogWarning ("splash close: mainWindow taskbar/opacity transition failed: " + $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.MainWindowTaskbarOpacity' }; $null = $_ }
+
+						if ($splash -and $splash.Dispatcher -and -not $splash.Dispatcher.HasShutdownStarted)
+						{
+							$splash.Dispatcher.Invoke([System.Action]{
+								if ($splash.Window)
+								{
+									try { $splash.Window.Hide() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.Window.Hide' }
+									try { $splash.Window.Close() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.Window.Close' }
+								}
+								$splash.IsAlive = $false
+							})
+						}
+
+						& $trace 'SplashClose runspace: splash window closed'
+
+						# Splash is gone - Activate the GUI now so it has
+						# focus and is the topmost window. Done after splash
+						# close because Activate while the splash exists can
+						# fight the splash's own focus claim.
+						try
+						{
+							if ($mainWindow -and $mainWindow.Dispatcher -and -not $mainWindow.Dispatcher.HasShutdownStarted)
+							{
+								$mainWindow.Dispatcher.Invoke([System.Action]{
+									try { $mainWindow.Activate() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.MainWindow.Activate' }
+								})
+							}
+						}
+						catch { try { LogWarning ("splash close: mainWindow.Activate failed: " + $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.MainWindowActivate' }; $null = $_ }
+
+						# Brief wait for window close to propagate, then shut
+						# down the splash's runspace so it doesn't leak.
+						Start-Sleep -Milliseconds 250
+						try
+						{
+							if ($splash -and $splash.Dispatcher -and -not $splash.Dispatcher.HasShutdownStarted)
+							{
+								$splash.Dispatcher.InvokeShutdown()
+							}
+						}
+						catch { try { LogWarning ("splash close: dispatcher InvokeShutdown failed: " + $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.DispatcherInvokeShutdown' }; $null = $_ }
+						try
+						{
+							if ($splash._PowerShell -and $splash._AsyncResult)
+							{
+								$splash._PowerShell.EndInvoke($splash._AsyncResult)
+							}
+						}
+						catch { try { LogWarning ("splash close: PowerShell.EndInvoke failed: " + $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.PowerShellEndInvoke' }; $null = $_ }
+						try { if ($splash._PowerShell) { $splash._PowerShell.Dispose() } } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.PowerShell.Dispose' }
+						try { if ($splash._Runspace) { $splash._Runspace.Close(); $splash._Runspace.Dispose() } } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.Runspace.Dispose' }
+					}
+					catch
+					{
+						try { LogWarning ("splash close runspace failed: " + $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.RunspaceDispose' }
+						$null = $_
+					}
+				})
+				[void]$closePs.BeginInvoke()
 			}
 		}
 		catch
 		{
+			try { LogWarning ("splash close orchestration failed: " + $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.Orchestration' }
 			$null = $_
 		}
 
@@ -1353,42 +1575,42 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 #endregion GUI Builder
 
 #region Report-TweakProgress
-<#
-	.SYNOPSIS
-	Reports sub-task progress from inside a tweak function back to the GUI progress bar.
-
-	.DESCRIPTION
-	Intended to be called from tweak functions that run in the background runspace during a
-	GUI-mode execution.  The function enqueues a '_SubProgress' message into $Global:GUIRunState
-	(set automatically by the GUI run loop).  The DispatcherTimer on the UI thread picks it up
-	and updates the secondary progress bar below the main tweak progress bar.
-
-	If the script is not running in GUI mode or $Global:GUIRunState is not set the call is a
-	no-op, so it is safe to leave in tweak functions even when they are run headlessly.
-
-	.PARAMETER Action
-	Short label shown next to the percentage, e.g. "Downloading WinGet installer".
-
-	.PARAMETER Completed
-	Number of units completed.  Used together with -Total.
-
-	.PARAMETER Total
-	Total number of units.  When provided with -Completed the bar fills proportionally.
-
-	.PARAMETER Percent
-	0-100 percentage.  Use this instead of -Completed/-Total when only a percentage is available.
-
-	.EXAMPLE
-	# Inside a tweak function that downloads a file in chunks:
-	for ($i = 0; $i -lt $chunks.Count; $i++)
-	{
-	    Write-TweakProgress -Action "Downloading installer" -Completed $i -Total $chunks.Count
-	    # ... download chunk ...
-	}
-#>
 
 function Write-TweakProgress
 {
+	<#
+		.SYNOPSIS
+		Reports sub-task progress from inside a tweak function back to the GUI progress bar.
+
+		.DESCRIPTION
+		Intended to be called from tweak functions that run in the background runspace during a
+		GUI-mode execution.  The function enqueues a '_SubProgress' message into $Global:GUIRunState
+		(set automatically by the GUI run loop).  The DispatcherTimer on the UI thread picks it up
+		and updates the secondary progress bar below the main tweak progress bar.
+
+		If the script is not running in GUI mode or $Global:GUIRunState is not set the call is a
+		no-op, so it is safe to leave in tweak functions even when they are run headlessly.
+
+		.PARAMETER Action
+		Short label shown next to the percentage, e.g. "Downloading WinGet installer".
+
+		.PARAMETER Completed
+		Number of units completed.  Used together with -Total.
+
+		.PARAMETER Total
+		Total number of units.  When provided with -Completed the bar fills proportionally.
+
+		.PARAMETER Percent
+		0-100 percentage.  Use this instead of -Completed/-Total when only a percentage is available.
+
+		.EXAMPLE
+		# Inside a tweak function that downloads a file in chunks:
+		for ($i = 0; $i -lt $chunks.Count; $i++)
+		{
+		    Write-TweakProgress -Action "Downloading installer" -Completed $i -Total $chunks.Count
+		    # ... download chunk ...
+		}
+	#>
 	[CmdletBinding()]
 	param (
 		[string]$Action    = $null,
@@ -1415,4 +1637,3 @@ function Write-TweakProgress
 
 Set-Alias -Name Report-TweakProgress -Value Write-TweakProgress -Scope Script
 Export-ModuleMember -Function 'Show-TweakGUI', 'Write-TweakProgress' -Alias 'Report-TweakProgress'
-

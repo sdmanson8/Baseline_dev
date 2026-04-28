@@ -4,6 +4,7 @@ BeforeAll {
     function Get-OSInfo {
         [pscustomobject]@{
             IsWindowsServer = $true
+            OSName = 'Windows Server 2022'
         }
     }
 
@@ -31,7 +32,16 @@ Describe 'UxPolicy' {
         $script:AdvancedMode = $false
         $script:GameMode = $false
         $script:GameModeProfile = $null
+        $script:DesignMode = $false
         $script:GuiDisplayVersion = $null
+    }
+
+    It 'routes OS-info and validation-matrix lookup failures through Write-DebugSwallowedException' {
+        $script:GuiContent = $null
+        $content = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8
+        $content | Should -Match "Source 'UxPolicy\.GetUxMainWindowTitleText\.LoadOSInfo'"
+        $content | Should -Match "Source 'UxPolicy\.GetUxExecutionSummary\.LoadValidationMatrix'"
+        $content | Should -Match "Source 'UxPolicy\.GetUxExecutionSummary\.LoadOSInfo'"
     }
 
     Describe 'Beginner UX helpers' {
@@ -55,6 +65,14 @@ Describe 'UxPolicy' {
             Get-UxRunActionLabel | Should -Be 'Run Tweaks'
             Get-UxUndoSelectionActionLabel | Should -Be 'Restore Snapshot'
             Get-UxUndoProfileActionLabel | Should -Be 'Export Rollback Profile'
+        }
+
+        It 'switches to Save Config in Design Mode' {
+            $script:DesignMode = $true
+
+            Get-UxRunActionLabel | Should -Match '^Save Config'
+            (Get-UxMainWindowTitleText) | Should -Match 'Design Mode'
+            (Get-UxMainWindowTitleText) | Should -Match 'Windows Server 2022'
         }
 
         It 'uses Undo Selection Change in Expert Mode' {

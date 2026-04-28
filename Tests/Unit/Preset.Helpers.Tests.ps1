@@ -91,6 +91,16 @@ Describe 'Get-HeadlessPresetCommandList' {
         $moduleRoot = Join-Path $PSScriptRoot '../../Module'
     }
 
+    BeforeEach {
+        Set-HeadlessPresetIncludedFunctionSet -FunctionNames @()
+        Set-HeadlessPresetIncludedTweakLibraryPathSet -IncludePaths @()
+    }
+
+    AfterEach {
+        Set-HeadlessPresetIncludedFunctionSet -FunctionNames @()
+        Set-HeadlessPresetIncludedTweakLibraryPathSet -IncludePaths @()
+    }
+
     It 'loads commands from a valid JSON preset file' {
         $commands = Get-HeadlessPresetCommandList -PresetName 'Basic' -ModuleRoot $moduleRoot
 
@@ -124,6 +134,144 @@ Describe 'Get-HeadlessPresetCommandList' {
 
     It 'throws when preset directory does not exist' {
         { Get-HeadlessPresetCommandList -PresetName 'Basic' -ModuleRoot '/nonexistent/path' } | Should -Throw '*Preset directory*'
+    }
+
+    It 'accepts functions supplied by included tweak libraries' {
+        $includeModuleRoot = Join-Path $TestDrive 'IncludedModule'
+        $includeDataRoot = Join-Path $includeModuleRoot 'Data'
+        $includePresetRoot = Join-Path $includeDataRoot 'Presets'
+        New-Item -ItemType Directory -Path $includePresetRoot -Force | Out-Null
+
+        Set-Content -LiteralPath (Join-Path $includeDataRoot 'System.json') -Encoding UTF8 -Value @'
+{
+  "Tab": "System",
+  "Entries": [
+    {
+      "Name": "Known Tweak",
+      "Function": "KnownFunction",
+      "Type": "Toggle",
+      "Default": false
+    }
+  ]
+}
+'@
+
+        Set-Content -LiteralPath (Join-Path $includePresetRoot 'Include.txt') -Encoding UTF8 -Value @'
+KnownFunction -Enable
+CustomFunction -Disable
+'@
+
+        { Get-HeadlessPresetCommandList -PresetName (Join-Path $includePresetRoot 'Include.txt') -ModuleRoot $includeModuleRoot } | Should -Throw '*CustomFunction*'
+
+        Set-HeadlessPresetIncludedFunctionSet -FunctionNames @('CustomFunction')
+        $commands = Get-HeadlessPresetCommandList -PresetName (Join-Path $includePresetRoot 'Include.txt') -ModuleRoot $includeModuleRoot
+
+        $commands.Count | Should -Be 2
+        $commands | Should -Contain 'KnownFunction -Enable'
+        $commands | Should -Contain 'CustomFunction -Disable'
+    }
+
+    It 'tracks included tweak library paths separately from included functions' {
+        Set-HeadlessPresetIncludedTweakLibraryPathSet -IncludePaths @(
+            '  C:\Libraries\First.psm1  '
+            'C:\Libraries\FIRST.psm1'
+            'C:\Libraries\Second.psd1'
+        )
+
+        $paths = @(Get-HeadlessPresetIncludedTweakLibraryPathSet)
+        $paths.Count | Should -Be 2
+        $paths | Should -Contain 'C:\Libraries\First.psm1'
+        $paths | Should -Contain 'C:\Libraries\Second.psd1'
+    }
+
+    It 'supports !function removal directives in text presets' {
+        $removeModuleRoot = Join-Path $TestDrive 'RemovalTextModule'
+        $removeDataRoot = Join-Path $removeModuleRoot 'Data'
+        $removePresetRoot = Join-Path $removeDataRoot 'Presets'
+        New-Item -ItemType Directory -Path $removePresetRoot -Force | Out-Null
+
+        Set-Content -LiteralPath (Join-Path $removeDataRoot 'System.json') -Encoding UTF8 -Value @'
+{
+  "Tab": "System",
+  "Entries": [
+    {
+      "Name": "Known Tweak",
+      "Function": "KnownFunction",
+      "Type": "Toggle",
+      "Default": false
+    },
+    {
+      "Name": "Other Tweak",
+      "Function": "OtherFunction",
+      "Type": "Toggle",
+      "Default": false
+    }
+  ]
+}
+'@
+
+        Set-Content -LiteralPath (Join-Path $removePresetRoot 'Removal.txt') -Encoding UTF8 -Value @'
+KnownFunction -Enable
+OtherFunction -Disable
+!KnownFunction
+'@
+
+        $commands = @(Get-HeadlessPresetCommandList -PresetName (Join-Path $removePresetRoot 'Removal.txt') -ModuleRoot $removeModuleRoot)
+
+        $commands.Count | Should -Be 1
+        $commands[0] | Should -Be 'OtherFunction -Disable'
+    }
+
+    It 'supports explicit Remove actions in JSON presets' {
+        $removeJsonModuleRoot = Join-Path $TestDrive 'RemovalJsonModule'
+        $removeJsonDataRoot = Join-Path $removeJsonModuleRoot 'Data'
+        $removeJsonPresetRoot = Join-Path $removeJsonDataRoot 'Presets'
+        New-Item -ItemType Directory -Path $removeJsonPresetRoot -Force | Out-Null
+
+        Set-Content -LiteralPath (Join-Path $removeJsonDataRoot 'System.json') -Encoding UTF8 -Value @'
+{
+  "Tab": "System",
+  "Entries": [
+    {
+      "Name": "Known Tweak",
+      "Function": "KnownFunction",
+      "Type": "Toggle",
+      "Default": false
+    },
+    {
+      "Name": "Other Tweak",
+      "Function": "OtherFunction",
+      "Type": "Toggle",
+      "Default": false
+    }
+  ]
+}
+'@
+
+        Set-Content -LiteralPath (Join-Path $removeJsonPresetRoot 'Removal.json') -Encoding UTF8 -Value @'
+{
+  "Name": "Removal",
+  "Entries": [
+    {
+      "Action": "Add",
+      "Command": "KnownFunction -Enable"
+    },
+    {
+      "Action": "Add",
+      "Command": "OtherFunction -Disable"
+    },
+    {
+      "Action": "Remove",
+      "Function": "KnownFunction"
+    }
+  ]
+}
+'@
+
+        $commands = @(Get-HeadlessPresetCommandList -PresetName (Join-Path $removeJsonPresetRoot 'Removal.json') -ModuleRoot $removeJsonModuleRoot)
+
+        $commands.Count | Should -Be 1
+        $commands[0] | Should -Be 'OtherFunction -Disable'
     }
 
     It 'throws before execution when a preset references an unknown manifest function' {

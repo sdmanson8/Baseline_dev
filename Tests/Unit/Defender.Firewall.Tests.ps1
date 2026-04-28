@@ -138,15 +138,26 @@ Describe 'WindowsFirewallLogging' {
         Remove-Item Function:\netsh -ErrorAction SilentlyContinue
     }
 
-    It 'configures logging with three netsh commands' {
+    It 'configures per-profile logging with dropped+allowed connection capture' {
         WindowsFirewallLogging
 
         $script:consoleActions[0] | Should -Be 'Configuring Windows Firewall logging'
         $script:consoleStatuses[-1] | Should -Be 'success'
-        $script:netshCalls.Count | Should -Be 3
-        ($script:netshCalls -join "`n") | Should -Match 'pfirewall\.log'
-        ($script:netshCalls -join "`n") | Should -Match 'maxfilesize 4096'
-        ($script:netshCalls -join "`n") | Should -Match 'droppedconnections enable'
+        # 4 commands per profile (filename / maxfilesize / dropped / allowed) * 3 profiles = 12
+        $script:netshCalls.Count | Should -Be 12
+        $joined = $script:netshCalls -join "`n"
+        $joined | Should -Match 'domainprofile logging filename .*pfirewall_domain\.log'
+        $joined | Should -Match 'privateprofile logging filename .*pfirewall_private\.log'
+        $joined | Should -Match 'publicprofile logging filename .*pfirewall_public\.log'
+        $joined | Should -Match 'domainprofile logging maxfilesize 16384'
+        $joined | Should -Match 'privateprofile logging maxfilesize 16384'
+        $joined | Should -Match 'publicprofile logging maxfilesize 16384'
+        $joined | Should -Match 'domainprofile logging droppedconnections enable'
+        $joined | Should -Match 'privateprofile logging droppedconnections enable'
+        $joined | Should -Match 'publicprofile logging droppedconnections enable'
+        $joined | Should -Match 'domainprofile logging allowedconnections enable'
+        $joined | Should -Match 'privateprofile logging allowedconnections enable'
+        $joined | Should -Match 'publicprofile logging allowedconnections enable'
         $script:errorMessages.Count | Should -Be 0
     }
 }
@@ -157,7 +168,8 @@ Describe 'LOLBinFirewallRules' {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:infoMessages = [System.Collections.Generic.List[string]]::new()
         $script:errorMessages = [System.Collections.Generic.List[string]]::new()
-        $script:netshCalls = [System.Collections.Generic.List[string]]::new()
+        $script:newRuleCalls = [System.Collections.Generic.List[object]]::new()
+        $script:removeRuleCalls = [System.Collections.Generic.List[object]]::new()
 
         function Write-ConsoleStatus {
             param([string]$Action, [string]$Status)
@@ -166,27 +178,79 @@ Describe 'LOLBinFirewallRules' {
         }
         function LogInfo { param([string]$Message) [void]$script:infoMessages.Add($Message) }
         function LogError { param([string]$Message) [void]$script:errorMessages.Add($Message) }
-        function netsh { [void]$script:netshCalls.Add($args -join ' ') }
+        function New-NetFirewallRule {
+            param(
+                [string]$DisplayName, [string]$Group, [string]$Direction, [string]$Action,
+                [string]$Program, [string]$Protocol, [string]$Profile, [string]$Enabled,
+                [object]$ErrorAction
+            )
+            [void]$script:newRuleCalls.Add([pscustomobject]@{
+                DisplayName = $DisplayName; Group = $Group; Direction = $Direction;
+                Action = $Action; Program = $Program; Protocol = $Protocol;
+                Profile = $Profile; Enabled = $Enabled
+            })
+        }
+        function Remove-NetFirewallRule {
+            param([string]$Group, [object]$ErrorAction)
+            [void]$script:removeRuleCalls.Add([pscustomobject]@{ Group = $Group })
+        }
     }
 
     AfterEach {
         Remove-Item Function:\Write-ConsoleStatus -ErrorAction SilentlyContinue
         Remove-Item Function:\LogInfo -ErrorAction SilentlyContinue
         Remove-Item Function:\LogError -ErrorAction SilentlyContinue
-        Remove-Item Function:\netsh -ErrorAction SilentlyContinue
+        Remove-Item Function:\New-NetFirewallRule -ErrorAction SilentlyContinue
+        Remove-Item Function:\Remove-NetFirewallRule -ErrorAction SilentlyContinue
     }
 
-    It 'adds outbound block rules for each known LOLBin' {
-        LOLBinFirewallRules
+    It 'requires either Enable or Disable (parameter set validation)' {
+        { LOLBinFirewallRules -Enable -Disable } | Should -Throw
+    }
 
-        $script:netshCalls.Count | Should -BeGreaterThan 30
-        ($script:netshCalls -join "`n") | Should -Match 'Block certutil\.exe netconns'
-        ($script:netshCalls -join "`n") | Should -Match 'Block mshta\.exe netconns'
-        ($script:netshCalls -join "`n") | Should -Match 'Block regsvr32\.exe netconns'
-        ($script:netshCalls -join "`n") | Should -Match 'dir=out'
-        ($script:netshCalls -join "`n") | Should -Match 'action=block'
+    It 'adds outbound block rules tagged with the Baseline-LOLBin-Block group when enabling' {
+        LOLBinFirewallRules -Enable
+
+        $script:newRuleCalls.Count | Should -BeGreaterThan 30
+        ($script:newRuleCalls.Group | Select-Object -Unique) | Should -Be 'Baseline-LOLBin-Block'
+        ($script:newRuleCalls.Direction | Select-Object -Unique) | Should -Be 'Outbound'
+        ($script:newRuleCalls.Action | Select-Object -Unique) | Should -Be 'Block'
+        ($script:newRuleCalls.Protocol | Select-Object -Unique) | Should -Be 'TCP'
+        ($script:newRuleCalls.Profile | Select-Object -Unique) | Should -Be 'Any'
+        ($script:newRuleCalls.DisplayName -join "`n") | Should -Match 'Baseline-LOLBin-Block: certutil\.exe'
+        ($script:newRuleCalls.DisplayName -join "`n") | Should -Match 'Baseline-LOLBin-Block: mshta\.exe'
+        ($script:newRuleCalls.DisplayName -join "`n") | Should -Match 'Baseline-LOLBin-Block: regsvr32\.exe'
+        $script:removeRuleCalls.Count | Should -Be 0
         $script:consoleStatuses[-1] | Should -Be 'success'
         $script:errorMessages.Count | Should -Be 0
+    }
+
+    It 'removes the entire rule group in one Remove-NetFirewallRule call when disabling' {
+        LOLBinFirewallRules -Disable
+
+        $script:removeRuleCalls.Count | Should -Be 1
+        $script:removeRuleCalls[0].Group | Should -Be 'Baseline-LOLBin-Block'
+        $script:newRuleCalls.Count | Should -Be 0
+        $script:consoleActions[0] | Should -Be 'Removing LOLBin firewall rules'
+        $script:consoleStatuses[-1] | Should -Be 'success'
+        $script:errorMessages.Count | Should -Be 0
+    }
+
+    It 'reports failure when the firewall apply throws' {
+        function New-NetFirewallRule {
+            param(
+                [string]$DisplayName, [string]$Group, [string]$Direction, [string]$Action,
+                [string]$Program, [string]$Protocol, [string]$Profile, [string]$Enabled,
+                [object]$ErrorAction
+            )
+            throw 'simulated firewall failure'
+        }
+
+        LOLBinFirewallRules -Enable
+
+        $script:consoleStatuses[-1] | Should -Be 'failed'
+        $script:errorMessages.Count | Should -Be 1
+        $script:errorMessages[0] | Should -Match 'simulated firewall failure'
     }
 }
 

@@ -49,10 +49,11 @@
 
 			try
 			{
-				$currentState = [bool](& $entry.Detect)
+				$currentState = [bool](Invoke-GuiDetectScriptblock -Detect $entry.Detect -DefaultValue ([bool]$entry.Default))
 			}
 			catch
 			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'SystemScan.Test-GuiManifestToggleNeedsAttention.LoadCurrentState'
 				return $false
 			}
 
@@ -191,6 +192,7 @@
 			}
 			catch
 			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'SystemScan.Get-GuiEnvironmentRecommendationData.LoadGameBarState'
 				$xboxGameBarInstalled = $false
 			}
 			if ($xboxGameBarInstalled)
@@ -244,6 +246,7 @@
 			}
 			catch
 			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'SystemScan.Get-GuiEnvironmentRecommendationData.LoadTerminalState'
 				$windowsTerminalInstalled = $false
 			}
 			if ($windowsTerminalInstalled)
@@ -261,6 +264,7 @@
 			}
 			catch
 			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'SystemScan.Get-GuiEnvironmentRecommendationData.LoadOfficeState'
 				$officeInstalled = $false
 			}
 			if ($officeInstalled)
@@ -288,6 +292,7 @@
 			}
 			catch
 			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'SystemScan.Get-GuiEnvironmentRecommendationData.LoadMappedNetworkDrives'
 				$mappedNetworkDriveCount = 0
 			}
 			if ($mappedNetworkDriveCount -gt 0)
@@ -305,6 +310,7 @@
 			}
 			catch
 			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'SystemScan.Get-GuiEnvironmentRecommendationData.LoadDomainJoined'
 				$domainJoined = $false
 			}
 			if ($domainJoined)
@@ -331,6 +337,7 @@
 			}
 			catch
 			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'SystemScan.Get-GuiEnvironmentRecommendationData.LoadWinReState'
 				$winReEnabled = $null
 			}
 			if ($null -eq $winReEnabled)
@@ -490,7 +497,7 @@
 			$scannable++
 
 			$currentlyOn = $false
-			try { $currentlyOn = [bool](& $st.Detect) } catch { $currentlyOn = $false }
+			try { $currentlyOn = [bool](Invoke-GuiDetectScriptblock -Detect $st.Detect -DefaultValue ([bool]$st.Default)) } catch { $currentlyOn = $false }
 
 			if ($currentlyOn -eq [bool]$st.Default)
 			{

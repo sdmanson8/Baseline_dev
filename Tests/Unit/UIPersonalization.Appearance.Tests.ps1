@@ -13,10 +13,11 @@ Describe 'UIPersonalization.Appearance toggle functions' {
     BeforeEach {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:errorMessages = [System.Collections.Generic.List[string]]::new()
-        $script:setItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
-        $script:newItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
+        $script:setRegistrySafeCalls = [System.Collections.Generic.List[object]]::new()
         $script:removeItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
         $script:policyCalls = [System.Collections.Generic.List[object]]::new()
+        $script:newItemCalls = [System.Collections.Generic.List[string]]::new()
+        $script:pathExists = $true
         $script:shouldThrow = $false
 
         function Write-ConsoleStatus {
@@ -25,18 +26,24 @@ Describe 'UIPersonalization.Appearance toggle functions' {
         }
         function LogInfo { param([string]$Message) }
         function LogError { param([string]$Message) [void]$script:errorMessages.Add($Message) }
-        function Set-ItemProperty {
-            param([string]$Path, [string]$LiteralPath, [string]$Name, [string]$Type, [object]$Value, [object]$ErrorAction)
-            if ($script:shouldThrow) { throw 'set-itemproperty failed' }
-            [void]$script:setItemPropertyCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name; Value = $Value })
+        function Test-Path { param([string]$Path) return $script:pathExists }
+        function New-Item {
+            [CmdletBinding()]
+            param([string]$Path, [switch]$Force)
+            [void]$script:newItemCalls.Add($Path)
         }
-        function New-ItemProperty {
-            param([string]$Path, [string]$Name, [string]$PropertyType, [object]$Value, [switch]$Force, [object]$ErrorAction)
-            [void]$script:newItemPropertyCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name; Value = $Value })
+        function Set-RegistryValueSafe {
+            param([string]$Path, [string]$Name, [object]$Value, [string]$Type)
+            if ($script:shouldThrow) { throw 'set-registryvaluesafe failed' }
+            [void]$script:setRegistrySafeCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name; Value = $Value; Type = $Type })
         }
         function Remove-ItemProperty {
             param([string[]]$Path, [string]$Name, [switch]$Force, [object]$ErrorAction)
-            [void]$script:removeItemPropertyCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name })
+            [void]$script:removeItemPropertyCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name })
+        }
+        function Remove-RegistryValueSafe {
+            param([string[]]$Path, [string]$Name)
+            [void]$script:removeItemPropertyCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name })
         }
         function Set-Policy {
             param([string]$Scope, [string]$Path, [string]$Name, [string]$Type, [object]$Value)
@@ -45,8 +52,8 @@ Describe 'UIPersonalization.Appearance toggle functions' {
     }
 
     AfterEach {
-        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','Set-ItemProperty','New-ItemProperty','Remove-ItemProperty','Set-Policy')) {
-            Remove-Item Function:\$n -ErrorAction SilentlyContinue
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','Test-Path','New-Item','Set-RegistryValueSafe','Remove-ItemProperty','Remove-RegistryValueSafe','Set-Policy')) {
+            Microsoft.PowerShell.Management\Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }
 
@@ -58,7 +65,7 @@ Describe 'UIPersonalization.Appearance toggle functions' {
         It 'writes MouseSpeed=0 and thresholds=0 on Disable' {
             EnhPointerPrecision -Disable
 
-            $mouseSpeed = $script:setItemPropertyCalls | Where-Object { $_.Name -eq 'MouseSpeed' }
+            $mouseSpeed = $script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'MouseSpeed' }
             $mouseSpeed.Value | Should -Be '0'
             $script:consoleStatuses[-1] | Should -Be 'success'
         }
@@ -66,9 +73,9 @@ Describe 'UIPersonalization.Appearance toggle functions' {
         It 'writes MouseSpeed=1 and thresholds=6,10 on Enable' {
             EnhPointerPrecision -Enable
 
-            ($script:setItemPropertyCalls | Where-Object { $_.Name -eq 'MouseSpeed' }).Value | Should -Be '1'
-            ($script:setItemPropertyCalls | Where-Object { $_.Name -eq 'MouseThreshold1' }).Value | Should -Be '6'
-            ($script:setItemPropertyCalls | Where-Object { $_.Name -eq 'MouseThreshold2' }).Value | Should -Be '10'
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'MouseSpeed' }).Value | Should -Be '1'
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'MouseThreshold1' }).Value | Should -Be '6'
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'MouseThreshold2' }).Value | Should -Be '10'
         }
 
         It 'reports failed and logs an error when the registry write throws' {
@@ -77,7 +84,7 @@ Describe 'UIPersonalization.Appearance toggle functions' {
             EnhPointerPrecision -Enable
 
             $script:consoleStatuses[-1] | Should -Be 'failed'
-            $script:errorMessages[0] | Should -Match 'set-itemproperty failed'
+            $script:errorMessages[0] | Should -Match 'set-registryvaluesafe failed'
         }
     }
 
@@ -85,14 +92,14 @@ Describe 'UIPersonalization.Appearance toggle functions' {
         It 'writes DisableStartupSound=0 on Enable' {
             StartupSound -Enable
 
-            $script:setItemPropertyCalls[0].Name | Should -Be 'DisableStartupSound'
-            $script:setItemPropertyCalls[0].Value | Should -Be 0
+            $script:setRegistrySafeCalls[0].Name | Should -Be 'DisableStartupSound'
+            $script:setRegistrySafeCalls[0].Value | Should -Be 0
         }
 
         It 'writes DisableStartupSound=1 on Disable' {
             StartupSound -Disable
 
-            $script:setItemPropertyCalls[0].Value | Should -Be 1
+            $script:setRegistrySafeCalls[0].Value | Should -Be 1
         }
     }
 
@@ -101,9 +108,9 @@ Describe 'UIPersonalization.Appearance toggle functions' {
             TitleBarColor -Enable
             TitleBarColor -Disable
 
-            $script:setItemPropertyCalls.Count | Should -Be 2
-            $script:setItemPropertyCalls[0].Value | Should -Be 1
-            $script:setItemPropertyCalls[1].Value | Should -Be 0
+            $script:setRegistrySafeCalls.Count | Should -Be 2
+            $script:setRegistrySafeCalls[0].Value | Should -Be 1
+            $script:setRegistrySafeCalls[1].Value | Should -Be 0
         }
     }
 
@@ -116,15 +123,15 @@ Describe 'UIPersonalization.Appearance toggle functions' {
             VisualFX -Performance
 
             # Multiple property writes; sanity-check a representative key:
-            ($script:setItemPropertyCalls | Where-Object { $_.Name -eq 'VisualFXSetting' }).Value | Should -Be 3
-            ($script:setItemPropertyCalls | Where-Object { $_.Name -eq 'TaskbarAnimations' }).Value | Should -Be 0
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'VisualFXSetting' }).Value | Should -Be 3
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarAnimations' }).Value | Should -Be 0
             $script:consoleStatuses[-1] | Should -Be 'success'
         }
 
         It '-Appearance enables taskbar animations' {
             VisualFX -Appearance
 
-            ($script:setItemPropertyCalls | Where-Object { $_.Name -eq 'TaskbarAnimations' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarAnimations' }).Value | Should -Be 1
         }
     }
 
@@ -143,14 +150,14 @@ Describe 'UIPersonalization.Appearance toggle functions' {
         It 'writes AppsUseLightTheme=0 on Dark' {
             AppColorMode -Dark
 
-            $script:newItemPropertyCalls[0].Name | Should -Be 'AppsUseLightTheme'
-            $script:newItemPropertyCalls[0].Value | Should -Be 0
+            $script:setRegistrySafeCalls[0].Name | Should -Be 'AppsUseLightTheme'
+            $script:setRegistrySafeCalls[0].Value | Should -Be 0
         }
 
         It 'writes AppsUseLightTheme=1 on Light' {
             AppColorMode -Light
 
-            $script:newItemPropertyCalls[0].Value | Should -Be 1
+            $script:setRegistrySafeCalls[0].Value | Should -Be 1
         }
     }
 
@@ -158,14 +165,38 @@ Describe 'UIPersonalization.Appearance toggle functions' {
         It 'writes PaintDesktopVersion=1 on Enable' {
             BuildNumberOnDesktop -Enable
 
-            $script:setItemPropertyCalls[0].Name | Should -Be 'PaintDesktopVersion'
-            $script:setItemPropertyCalls[0].Value | Should -Be 1
+            $script:setRegistrySafeCalls[0].Name | Should -Be 'PaintDesktopVersion'
+            $script:setRegistrySafeCalls[0].Value | Should -Be 1
         }
 
         It 'writes PaintDesktopVersion=0 on Disable' {
             BuildNumberOnDesktop -Disable
 
-            $script:setItemPropertyCalls[0].Value | Should -Be 0
+            $script:setRegistrySafeCalls[0].Value | Should -Be 0
+        }
+    }
+
+    Context 'PrtScnSnippingTool' {
+        It 'requires Enable or Disable' {
+            { PrtScnSnippingTool } | Should -Throw
+        }
+
+        It 'writes PrintScreenKeyForSnippingEnabled=1 on Enable' {
+            PrtScnSnippingTool -Enable
+
+            $script:setRegistrySafeCalls.Count | Should -Be 1
+            $script:setRegistrySafeCalls[0].Name | Should -Be 'PrintScreenKeyForSnippingEnabled'
+            $script:setRegistrySafeCalls[0].Value | Should -Be 1
+            $script:consoleStatuses[-1] | Should -Be 'success'
+        }
+
+        It 'writes PrintScreenKeyForSnippingEnabled=0 on Disable' {
+            PrtScnSnippingTool -Disable
+
+            $script:setRegistrySafeCalls.Count | Should -Be 1
+            $script:setRegistrySafeCalls[0].Name | Should -Be 'PrintScreenKeyForSnippingEnabled'
+            $script:setRegistrySafeCalls[0].Value | Should -Be 0
+            $script:consoleStatuses[-1] | Should -Be 'success'
         }
     }
 }

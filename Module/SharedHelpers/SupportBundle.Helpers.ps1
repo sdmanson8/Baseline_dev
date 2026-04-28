@@ -1,4 +1,4 @@
-# Support bundle helper slice for Baseline.
+# Support bundle helpers for Baseline.
 # Builds a portable, operator-facing archive with environment, audit,
 # compliance, and execution context for troubleshooting and enterprise review.
 
@@ -153,7 +153,23 @@ function Export-BaselineSupportBundle
 
 		[object]$ComplianceReport,
 
+		[object]$WindowsUpdateStatus,
+
 		[object]$SystemSnapshot,
+
+		[object]$PreSnapshot,
+
+		[object]$PostSnapshot,
+
+		[object]$ConfigStatePre,
+
+		[object]$ConfigStatePost,
+
+		[Parameter()]
+		[AllowEmptyCollection()]
+		[object[]]$RemoteTargets = @(),
+
+		[object]$ReproductionContext,
 
 		[array]$Manifest,
 
@@ -167,7 +183,11 @@ function Export-BaselineSupportBundle
 
 		[int]$AuditRetentionDays = $(try { Get-BaselineAuditRetentionDays } catch { 90 }),
 
-		[switch]$IncludeTestReport = $true
+		[switch]$IncludeTestReport = $true,
+
+		[Parameter()]
+		[AllowEmptyCollection()]
+		[object[]]$ConnectivityResults = @()
 	)
 
 	if ([string]::IsNullOrWhiteSpace($OutputPath))
@@ -224,10 +244,57 @@ function Export-BaselineSupportBundle
 			try { $validationEvidenceReport = Get-BaselineValidationEvidenceReport } catch { $validationEvidenceReport = $null }
 		}
 
+		$windowsUpdateStatusForBundle = $WindowsUpdateStatus
+		if ($null -eq $windowsUpdateStatusForBundle)
+		{
+			$getWindowsUpdateStatusCommand = Get-Command -Name 'Get-WindowsUpdateStatus' -CommandType Function -ErrorAction SilentlyContinue
+			if ($getWindowsUpdateStatusCommand)
+			{
+				try
+				{
+					$windowsUpdateStatusForBundle = & $getWindowsUpdateStatusCommand
+				}
+				catch
+				{
+					$windowsUpdateStatusForBundle = [pscustomobject]@{
+						Schema      = 'Baseline.WindowsUpdateStatus'
+						GeneratedAt = [System.DateTime]::UtcNow.ToString('o')
+						Succeeded   = $false
+						Error       = $_.Exception.Message
+					}
+				}
+			}
+		}
+
+		$windowsUpdateStatusSucceeded = $null
+		$windowsUpdateSummary = $null
+		if ($null -ne $windowsUpdateStatusForBundle)
+		{
+			if ($windowsUpdateStatusForBundle.PSObject.Properties['Succeeded'])
+			{
+				$windowsUpdateStatusSucceeded = [bool]$windowsUpdateStatusForBundle.Succeeded
+			}
+			if ($windowsUpdateStatusForBundle.PSObject.Properties['Summary'])
+			{
+				$windowsUpdateSummary = $windowsUpdateStatusForBundle.Summary
+			}
+		}
+
+		$activeRunId = $null
+		if (Get-Command -Name 'Get-BaselineRunId' -ErrorAction SilentlyContinue)
+		{
+			try { $activeRunId = [string](Get-BaselineRunId) } catch { $activeRunId = $null }
+		}
+		if ([string]::IsNullOrWhiteSpace($activeRunId) -and $global:BaselineRunId)
+		{
+			$activeRunId = [string]$global:BaselineRunId
+		}
+
 		$metadata = [ordered]@{
 			Schema          = 'Baseline.SupportBundle'
 			SchemaVersion   = 2
 			GeneratedAt     = [System.DateTime]::UtcNow.ToString('o')
+			RunId           = $activeRunId
 			MachineName     = $env:COMPUTERNAME
 			UserName        = $env:USERNAME
 			BaselineVersion = $baselineVersion
@@ -245,8 +312,54 @@ function Export-BaselineSupportBundle
 			FeatureMaturitySummary = if ($featureMaturityReport) { $featureMaturityReport.Summary } else { $null }
 			ValidationEvidenceSummary = if ($validationEvidenceReport) { $validationEvidenceReport.Summary } else { $null }
 			ValidationEvidenceChannels = if ($validationEvidenceReport) { @($validationEvidenceReport.ValidationChannels) } else { @() }
+			WindowsUpdateStatusSucceeded = $windowsUpdateStatusSucceeded
+			WindowsUpdateSummary = $windowsUpdateSummary
 			Immutable       = [bool]$Immutable
 			SignoffBundle   = [bool]$Immutable
+		}
+
+		# --- Reproduction context: action sequence + CLI args ---
+		# Caller hands us a hashtable / pscustomobject with optional
+		# ActionSequence (string[]) and CommandLineArgs (string[]). Both are
+		# emitted under metadata.ReproductionContext so a maintainer can
+		# replay the user's path. ActionSequence comes from the in-process
+		# action trail in Logging.psm1; CommandLineArgs is captured at
+		# bootstrap. Either may be empty/null without breaking the bundle.
+		$reproContext = $null
+		if ($null -ne $ReproductionContext)
+		{
+			$actionTrail = @()
+			$cliArgs = @()
+			$reproProps = $ReproductionContext.PSObject.Properties
+			if ($reproProps['ActionSequence']) { $actionTrail = @($ReproductionContext.ActionSequence | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }) }
+			if ($reproProps['CommandLineArgs']) { $cliArgs = @($ReproductionContext.CommandLineArgs | Where-Object { $null -ne $_ }) }
+			$reproContext = [ordered]@{
+				ActionSequence  = $actionTrail
+				CommandLineArgs = $cliArgs
+			}
+		}
+		else
+		{
+			# Auto-pull from Logging if available so callers that don't pass
+			# explicit context still get the action trail.
+			$autoTrail = @()
+			if (Get-Command -Name 'Get-BaselineActionTrail' -ErrorAction SilentlyContinue)
+			{
+				try { $autoTrail = @(Get-BaselineActionTrail) } catch { $autoTrail = @() }
+			}
+			$autoCli = @()
+			if ($global:BaselineCommandLineArgs) { $autoCli = @($global:BaselineCommandLineArgs) }
+			if ($autoTrail.Count -gt 0 -or $autoCli.Count -gt 0)
+			{
+				$reproContext = [ordered]@{
+					ActionSequence  = $autoTrail
+					CommandLineArgs = $autoCli
+				}
+			}
+		}
+		if ($null -ne $reproContext)
+		{
+			$metadata['ReproductionContext'] = $reproContext
 		}
 
 		if ($Immutable)
@@ -287,6 +400,14 @@ function Export-BaselineSupportBundle
 			[System.IO.File]::WriteAllText($validationEvidencePath, ($validationEvidenceReport | ConvertTo-Json -Depth 10), $utf8NoBom)
 			$bundleEntries.Add([pscustomobject]@{ Name = 'validation-evidence.json'; Source = $validationEvidencePath })
 			$bundleIndex.Files['ValidationEvidence'] = 'validation-evidence.json'
+		}
+
+		if ($null -ne $windowsUpdateStatusForBundle)
+		{
+			$windowsUpdateStatusPath = Join-Path $stagingDir 'windows-update-status.json'
+			[System.IO.File]::WriteAllText($windowsUpdateStatusPath, ($windowsUpdateStatusForBundle | ConvertTo-Json -Depth 10), $utf8NoBom)
+			$bundleEntries.Add([pscustomobject]@{ Name = 'windows-update-status.json'; Source = $windowsUpdateStatusPath })
+			$bundleIndex.Files['WindowsUpdateStatus'] = 'windows-update-status.json'
 		}
 
 		$deepLinkItems = [System.Collections.Generic.List[pscustomobject]]::new()
@@ -521,6 +642,25 @@ function Export-BaselineSupportBundle
 			}
 		}
 
+		# --- Connect-to-Computer dialog pre-flight results ---
+		# Snapshot of the most recent Test-BaselineRemoteConnectivity output
+		# captured by the GUI dialog (Set-GuiRemoteConnectivityResults stores
+		# this on $Script:Ctx.Remote.LastConnectivityResults). Distinct from
+		# remote-orchestration.jsonl, which only logs actual operations.
+		if ($null -ne $ConnectivityResults -and $ConnectivityResults.Count -gt 0)
+		{
+			$connectivityPayload = [ordered]@{
+				Schema        = 'Baseline.RemoteConnectivity'
+				SchemaVersion = 1
+				CapturedAt    = [System.DateTime]::UtcNow.ToString('o')
+				Results       = @($ConnectivityResults)
+			}
+			$connectivityPath = Join-Path $stagingDir 'remote-connectivity.json'
+			[System.IO.File]::WriteAllText($connectivityPath, ($connectivityPayload | ConvertTo-Json -Depth 8), $utf8NoBom)
+			$bundleEntries.Add([pscustomobject]@{ Name = 'remote-connectivity.json'; Source = $connectivityPath })
+			$bundleIndex.Files['RemoteConnectivity'] = 'remote-connectivity.json'
+		}
+
 		if ($deepLinkItems.Count -gt 0)
 		{
 			$deepLinksPath = Join-Path $stagingDir 'remote-orchestration-deeplinks.json'
@@ -529,6 +669,153 @@ function Export-BaselineSupportBundle
 			$bundleIndex.Files['RemoteDeepLinks'] = 'remote-orchestration-deeplinks.json'
 			$bundleIndex.DeepLinks = @($deepLinkItems)
 		}
+
+		# --- Logs/ directory: daily baseline.log + perf.log ---
+		# Both are best-effort. Bundle export must continue if either is locked
+		# or missing. perf.log only exists when BASELINE_PERF_LOG=1 (or
+		# Debug Mode is on, which force-enables it).
+		$logsDir = Join-Path $stagingDir 'Logs'
+		$null = New-Item -Path $logsDir -ItemType Directory -Force -ErrorAction SilentlyContinue
+		try
+		{
+			$dailyLogPath = if ($global:LogFilePath) { [string]$global:LogFilePath } else { $null }
+			if (-not [string]::IsNullOrWhiteSpace($dailyLogPath) -and (Test-Path -LiteralPath $dailyLogPath))
+			{
+				$destDailyLogPath = Join-Path $logsDir 'baseline.log'
+				try
+				{
+					Copy-Item -LiteralPath $dailyLogPath -Destination $destDailyLogPath -Force -ErrorAction Stop
+				}
+				catch
+				{
+					# File-locked fallback: stream-copy with FileShare.ReadWrite
+					$fs = [System.IO.File]::Open($dailyLogPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+					try
+					{
+						$reader = [System.IO.StreamReader]::new($fs, [System.Text.UTF8Encoding]::new($false))
+						try { [System.IO.File]::WriteAllText($destDailyLogPath, $reader.ReadToEnd(), $utf8NoBom) }
+						finally { $reader.Dispose() }
+					}
+					finally { $fs.Dispose() }
+				}
+				$bundleEntries.Add([pscustomobject]@{ Name = 'Logs/baseline.log'; Source = $destDailyLogPath })
+				$bundleIndex.Files['DailyLog'] = 'Logs/baseline.log'
+			}
+		}
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SupportBundle.Assembly.DailyLog' }
+
+		try
+		{
+			$perfLogPath = Join-Path (Join-Path $env:LOCALAPPDATA 'Baseline') 'perf.log'
+			if (Test-Path -LiteralPath $perfLogPath)
+			{
+				$destPerfLogPath = Join-Path $logsDir 'perf.log'
+				Copy-Item -LiteralPath $perfLogPath -Destination $destPerfLogPath -Force -ErrorAction SilentlyContinue
+				if (Test-Path -LiteralPath $destPerfLogPath)
+				{
+					$bundleEntries.Add([pscustomobject]@{ Name = 'Logs/perf.log'; Source = $destPerfLogPath })
+					$bundleIndex.Files['PerfLog'] = 'Logs/perf.log'
+				}
+			}
+		}
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SupportBundle.Assembly.PerfLog' }
+
+		# --- system-info.json: richer environment context than metadata.json ---
+		try
+		{
+			$systemInfo = New-BaselineSupportBundleSystemInfo
+			$systemInfoPath = Join-Path $stagingDir 'system-info.json'
+			[System.IO.File]::WriteAllText($systemInfoPath, ($systemInfo | ConvertTo-Json -Depth 8), $utf8NoBom)
+			$bundleEntries.Add([pscustomobject]@{ Name = 'system-info.json'; Source = $systemInfoPath })
+			$bundleIndex.Files['SystemInfo'] = 'system-info.json'
+		}
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SupportBundle.Assembly.SystemInfo' }
+
+		# --- execution-summary.json: per-run statistics from the live session ---
+		try
+		{
+			if (Get-Command -Name 'Get-SessionStatistics' -ErrorAction SilentlyContinue)
+			{
+				$stats = Get-SessionStatistics
+				if ($stats)
+				{
+					$execSummary = [ordered]@{
+						Schema        = 'Baseline.ExecutionSummary'
+						SchemaVersion = 1
+						GeneratedAt   = [System.DateTime]::UtcNow.ToString('o')
+						DebugMode     = if (Get-Command -Name 'Get-BaselineDebugLogging' -ErrorAction SilentlyContinue) { [bool](Get-BaselineDebugLogging) } else { $false }
+						Statistics    = $stats
+					}
+					$execSummaryPath = Join-Path $stagingDir 'execution-summary.json'
+					[System.IO.File]::WriteAllText($execSummaryPath, ($execSummary | ConvertTo-Json -Depth 8), $utf8NoBom)
+					$bundleEntries.Add([pscustomobject]@{ Name = 'execution-summary.json'; Source = $execSummaryPath })
+					$bundleIndex.Files['ExecutionSummary'] = 'execution-summary.json'
+				}
+			}
+		}
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SupportBundle.Assembly.ExecutionSummary' }
+
+		# --- ConfigState.json: GUI / preset / mode state, before/after a run ---
+		# Pre-run state is captured by ExecutionOrchestration.ps1 into
+		# $Script:PreRunConfigState; post-run state is the live snapshot at
+		# bundle time. If no run has happened this session, only Post is
+		# populated and the diff is null. Field selection follows todo.md #14
+		# (preset, overrides, Safe Mode, Onboarding, Game Mode, Preview Run).
+		try
+		{
+			if ($null -ne $ConfigStatePre -or $null -ne $ConfigStatePost)
+			{
+				$configStatePayload = New-BaselineSupportBundleConfigState -PreState $ConfigStatePre -PostState $ConfigStatePost
+				if ($configStatePayload)
+				{
+					$configStatePath = Join-Path $stagingDir 'ConfigState.json'
+					[System.IO.File]::WriteAllText($configStatePath, ($configStatePayload | ConvertTo-Json -Depth 10), $utf8NoBom)
+					$bundleEntries.Add([pscustomobject]@{ Name = 'ConfigState.json'; Source = $configStatePath })
+					$bundleIndex.Files['ConfigState'] = 'ConfigState.json'
+				}
+			}
+		}
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SupportBundle.Assembly.ConfigState' }
+
+		# --- RemoteTargets.json: per-target redacted detail ---
+		# Sanitized projection of the live remote-target context: hostname only
+		# (no FQDN, no domain leak), connection method, state, credential type
+		# only (never the secret). Distinct from remote-connectivity.json (which
+		# is the dialog's pre-flight test results) and remote-orchestration.jsonl
+		# (which is the per-operation history).
+		try
+		{
+			if ($null -ne $RemoteTargets -and $RemoteTargets.Count -gt 0)
+			{
+				$remoteTargetsPayload = New-BaselineSupportBundleRemoteTargets -Targets $RemoteTargets
+				if ($remoteTargetsPayload)
+				{
+					$remoteTargetsPath = Join-Path $stagingDir 'RemoteTargets.json'
+					[System.IO.File]::WriteAllText($remoteTargetsPath, ($remoteTargetsPayload | ConvertTo-Json -Depth 6), $utf8NoBom)
+					$bundleEntries.Add([pscustomobject]@{ Name = 'RemoteTargets.json'; Source = $remoteTargetsPath })
+					$bundleIndex.Files['RemoteTargets'] = 'RemoteTargets.json'
+				}
+			}
+		}
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SupportBundle.Assembly.RemoteTargets' }
+
+		# --- errors.json: classified errors scraped from the daily log ---
+		try
+		{
+			$dailyLogPath = if ($global:LogFilePath) { [string]$global:LogFilePath } else { $null }
+			if (-not [string]::IsNullOrWhiteSpace($dailyLogPath) -and (Test-Path -LiteralPath $dailyLogPath))
+			{
+				$classified = Get-BaselineSupportBundleClassifiedErrors -LogPath $dailyLogPath -MaxErrors 200
+				if ($classified -and $classified.Errors.Count -gt 0)
+				{
+					$errorsPath = Join-Path $stagingDir 'errors.json'
+					[System.IO.File]::WriteAllText($errorsPath, ($classified | ConvertTo-Json -Depth 6), $utf8NoBom)
+					$bundleEntries.Add([pscustomobject]@{ Name = 'errors.json'; Source = $errorsPath })
+					$bundleIndex.Files['Errors'] = 'errors.json'
+				}
+			}
+		}
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SupportBundle.Assembly.Errors' }
 
 		$bundleIndexPath = Join-Path $stagingDir 'bundle-index.json'
 		[System.IO.File]::WriteAllText($bundleIndexPath, ($bundleIndex | ConvertTo-Json -Depth 8), $utf8NoBom)
@@ -558,6 +845,53 @@ function Export-BaselineSupportBundle
 			$snapshotPath = Join-Path $stagingDir 'system-state-snapshot.json'
 			Export-SystemStateSnapshot -Snapshot $SystemSnapshot -Path $snapshotPath
 			$bundleEntries.Add([pscustomobject]@{ Name = 'system-state-snapshot.json'; Source = $snapshotPath })
+		}
+
+		# --- SnapshotDiff.json: pre/post field-level diff ---
+		# Catches unintended side-effects from a run and verifies rollback
+		# completeness. Emits the snapshot pair plus the diff. If only one
+		# side is supplied, that side is still embedded so a maintainer can
+		# eyeball the captured state without the diff.
+		if ($null -ne $PreSnapshot -or $null -ne $PostSnapshot)
+		{
+			try
+			{
+				$diff = $null
+				if ($null -ne $PreSnapshot -and $null -ne $PostSnapshot -and (Get-Command -Name 'Compare-SystemStateSnapshots' -ErrorAction SilentlyContinue))
+				{
+					try { $diff = Compare-SystemStateSnapshots -Before $PreSnapshot -After $PostSnapshot } catch { $diff = $null }
+				}
+
+				$snapshotDiffPayload = [ordered]@{
+					Schema        = 'Baseline.SnapshotDiff'
+					SchemaVersion = 1
+					GeneratedAt   = [System.DateTime]::UtcNow.ToString('o')
+					HasPre        = ($null -ne $PreSnapshot)
+					HasPost       = ($null -ne $PostSnapshot)
+					Pre           = $PreSnapshot
+					Post          = $PostSnapshot
+					Diff          = if ($diff) {
+						[ordered]@{
+							AddedCount     = @($diff.Added).Count
+							RemovedCount   = @($diff.Removed).Count
+							ChangedCount   = @($diff.Changed).Count
+							UnchangedCount = @($diff.Unchanged).Count
+							Added          = @($diff.Added)
+							Removed        = @($diff.Removed)
+							Changed        = @($diff.Changed)
+						}
+					} else { $null }
+				}
+
+				$snapshotDiffPath = Join-Path $stagingDir 'SnapshotDiff.json'
+				[System.IO.File]::WriteAllText($snapshotDiffPath, ($snapshotDiffPayload | ConvertTo-Json -Depth 10), $utf8NoBom)
+				$bundleEntries.Add([pscustomobject]@{ Name = 'SnapshotDiff.json'; Source = $snapshotDiffPath })
+				# bundle-index.json is already written by this point; SnapshotDiff
+				# lands in contents.json (which is rewritten after every entry)
+				# alongside the other optional artifacts (system-state-snapshot,
+				# compliance-report, preflight-report).
+			}
+			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SupportBundle.Assembly.SnapshotDiff' }
 		}
 
 		if ($null -ne $ComplianceReport)
@@ -856,5 +1190,396 @@ function Test-BaselineSupportBundleIntegrity
 			}
 			Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
 		}
+	}
+}
+
+<#
+	.SYNOPSIS
+	Build the ConfigState.json payload for a support bundle.
+
+	.DESCRIPTION
+	Projects the GUI session snapshot (whatever Get-GuiSettingsSnapshot
+	returns) down to the field set called for in todo.md #14: preset,
+	user overrides, Safe Mode, Onboarding mode, Game Mode profile, and
+	the most recent Preview Run output. Both Pre and Post are accepted;
+	either may be null. When both are present a shallow per-key Diff is
+	emitted so a maintainer can see exactly what flipped between the
+	two states without re-deriving it.
+#>
+function New-BaselineSupportBundleConfigState
+{
+	[CmdletBinding()]
+	param (
+		[object]$PreState,
+		[object]$PostState
+	)
+
+	$projection = {
+		param($state)
+		if ($null -eq $state) { return $null }
+		$props = $state.PSObject.Properties
+		$pick = {
+			param($name)
+			if ($props[$name]) { return $state.$name }
+			return $null
+		}
+		[ordered]@{
+			Preset                    = & $pick 'SelectedPreset'
+			Theme                     = & $pick 'Theme'
+			Language                  = & $pick 'Language'
+			SafeMode                  = & $pick 'SafeMode'
+			AdvancedMode              = & $pick 'AdvancedMode'
+			GameMode                  = & $pick 'GameMode'
+			GameModeProfile           = & $pick 'GameModeProfile'
+			GameModeDecisionOverrides = & $pick 'GameModeDecisionOverrides'
+			OnboardingMode            = & $pick 'DefaultStartupMode'
+			RestoreLastSession        = & $pick 'RestoreLastSession'
+			RequireRunConfirmation    = & $pick 'RequireRunConfirmation'
+			PreviewBeforeRunDefault   = & $pick 'PreviewBeforeRunDefault'
+			LastPreviewRunOutput      = & $pick 'LastPreviewRunOutput'
+			AppsQueuedActions         = & $pick 'AppsQueuedActions'
+			LoggingEnabled            = & $pick 'LoggingEnabled'
+			LogLevel                  = & $pick 'LogLevel'
+			DebugLoggingEnabled       = & $pick 'DebugLoggingEnabled'
+			RiskFilter                = & $pick 'RiskFilter'
+			CategoryFilter            = & $pick 'CategoryFilter'
+		}
+	}
+
+	$pre  = & $projection $PreState
+	$post = & $projection $PostState
+
+	$diff = $null
+	if ($null -ne $pre -and $null -ne $post)
+	{
+		$changed = [System.Collections.Generic.List[pscustomobject]]::new()
+		foreach ($key in $post.Keys)
+		{
+			$preVal  = if ($pre.Contains($key))  { $pre[$key]  } else { $null }
+			$postVal = $post[$key]
+			$preJson  = try { ConvertTo-Json -InputObject $preVal  -Depth 4 -Compress } catch { [string]$preVal }
+			$postJson = try { ConvertTo-Json -InputObject $postVal -Depth 4 -Compress } catch { [string]$postVal }
+			if ($preJson -ne $postJson)
+			{
+				[void]$changed.Add([pscustomobject]@{
+					Key  = [string]$key
+					Pre  = $preVal
+					Post = $postVal
+				})
+			}
+		}
+		$diff = [ordered]@{
+			ChangedCount = $changed.Count
+			Changed      = @($changed)
+		}
+	}
+
+	return [pscustomobject][ordered]@{
+		Schema        = 'Baseline.ConfigState'
+		SchemaVersion = 1
+		GeneratedAt   = [System.DateTime]::UtcNow.ToString('o')
+		HasPre        = ($null -ne $pre)
+		HasPost       = ($null -ne $post)
+		Pre           = $pre
+		Post          = $post
+		Diff          = $diff
+	}
+}
+
+<#
+	.SYNOPSIS
+	Build the RemoteTargets.json payload for a support bundle.
+
+	.DESCRIPTION
+	Sanitized projection of the live remote target context. Each target is
+	emitted as { TargetName, ConnectionMethod, State, CredentialType }.
+	Hostname leakage is bounded — anything past the first dot is dropped so
+	we keep "PC01" rather than shipping "PC01.corp.contoso.com". Credential
+	values are never serialized: only the *type* (NTLM / Kerberos / Cert /
+	None) lands in the bundle.
+#>
+function New-BaselineSupportBundleRemoteTargets
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[AllowEmptyCollection()]
+		[object[]]$Targets
+	)
+
+	$out = [System.Collections.Generic.List[pscustomobject]]::new()
+	foreach ($t in $Targets)
+	{
+		if ($null -eq $t) { continue }
+		$props = $t.PSObject.Properties
+
+		$rawName = if ($props['ComputerName']) { [string]$t.ComputerName } elseif ($props['TargetName']) { [string]$t.TargetName } else { $null }
+		$shortName = $null
+		if (-not [string]::IsNullOrWhiteSpace($rawName))
+		{
+			# Strip FQDN tail to avoid leaking the org's domain into the bundle.
+			$shortName = ($rawName -split '\.', 2)[0]
+		}
+
+		$method = if ($props['ConnectionMethod']) { [string]$t.ConnectionMethod } elseif ($props['Method']) { [string]$t.Method } else { 'WinRM' }
+
+		$state = $null
+		if ($props['State']) { $state = [string]$t.State }
+		elseif ($props['Status']) { $state = [string]$t.Status }
+		elseif ($props['Reachable']) { $state = if ([bool]$t.Reachable) { 'Connected' } else { 'Failed' } }
+
+		$credType = $null
+		if ($props['CredentialType']) { $credType = [string]$t.CredentialType }
+		elseif ($props['Credential'])
+		{
+			# Best-effort inference — UPN looks like Kerberos territory,
+			# DOMAIN\user looks like NTLM. Never serialize the credential.
+			$cred = $t.Credential
+			if ($cred -and $cred.UserName)
+			{
+				$user = [string]$cred.UserName
+				if ($user -match '@')      { $credType = 'Kerberos' }
+				elseif ($user -match '\\') { $credType = 'NTLM' }
+				else                       { $credType = 'Default' }
+			}
+			else { $credType = 'None' }
+		}
+		else { $credType = 'CurrentUser' }
+
+		[void]$out.Add([pscustomobject][ordered]@{
+			TargetName       = $shortName
+			ConnectionMethod = $method
+			State            = $state
+			CredentialType   = $credType
+		})
+	}
+
+	return [pscustomobject][ordered]@{
+		Schema        = 'Baseline.RemoteTargets'
+		SchemaVersion = 1
+		GeneratedAt   = [System.DateTime]::UtcNow.ToString('o')
+		Targets       = @($out)
+	}
+}
+
+<#
+	.SYNOPSIS
+	Build a richer system info snapshot for support bundles.
+
+	.DESCRIPTION
+	Captures OS / SKU / arch / domain join / elevation / WinRM / Defender state /
+	GPO summary / package counts. All probes are best-effort — a single failure
+	never aborts the snapshot. Sensitive values (domain name, full GPO output,
+	signature lists) are deliberately omitted.
+#>
+function New-BaselineSupportBundleSystemInfo
+{
+	$info = [ordered]@{
+		Schema        = 'Baseline.SystemInfo'
+		SchemaVersion = 1
+		GeneratedAt   = [System.DateTime]::UtcNow.ToString('o')
+	}
+
+	try
+	{
+		$os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+		$info['OS'] = [ordered]@{
+			Caption       = [string]$os.Caption
+			Version       = [string]$os.Version
+			BuildNumber   = [string]$os.BuildNumber
+			Architecture  = [string]$os.OSArchitecture
+			InstallDate   = if ($os.InstallDate) { [datetime]$os.InstallDate | ForEach-Object { $_.ToUniversalTime().ToString('o') } } else { $null }
+			LastBootUpTime = if ($os.LastBootUpTime) { [datetime]$os.LastBootUpTime | ForEach-Object { $_.ToUniversalTime().ToString('o') } } else { $null }
+		}
+	}
+	catch
+	{
+		$info['OS'] = [ordered]@{
+			Caption      = [string][System.Environment]::OSVersion.VersionString
+			Version      = [string][System.Environment]::OSVersion.Version
+			Architecture = if ([System.Environment]::Is64BitOperatingSystem) { '64-bit' } else { '32-bit' }
+		}
+	}
+
+	try
+	{
+		$sku = (Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name EditionID -ErrorAction Stop).EditionID
+		$info['SKU'] = [string]$sku
+	}
+	catch { $info['SKU'] = $null }
+
+	try
+	{
+		$cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop
+		$info['DomainJoined'] = [bool]$cs.PartOfDomain
+		$info['SystemType']   = [string]$cs.SystemType
+	}
+	catch
+	{
+		$info['DomainJoined'] = $null
+		$info['SystemType']   = $null
+	}
+
+	try
+	{
+		$current = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+		$principal = [System.Security.Principal.WindowsPrincipal]::new($current)
+		$info['Elevated'] = [bool]$principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+	}
+	catch { $info['Elevated'] = $null }
+
+	$info['PowerShell'] = [ordered]@{
+		Edition = [string]$PSVersionTable.PSEdition
+		Version = [string]$PSVersionTable.PSVersion
+	}
+
+	try
+	{
+		$winrm = Get-Service -Name WinRM -ErrorAction Stop
+		$info['WinRM'] = [ordered]@{
+			Status    = [string]$winrm.Status
+			StartType = [string]$winrm.StartType
+		}
+	}
+	catch { $info['WinRM'] = $null }
+
+	try
+	{
+		if (Get-Command -Name 'Get-MpPreference' -ErrorAction SilentlyContinue)
+		{
+			$mp = Get-MpPreference -ErrorAction Stop
+			$info['Defender'] = [ordered]@{
+				DisableRealtimeMonitoring = [bool]$mp.DisableRealtimeMonitoring
+				DisableBehaviorMonitoring = [bool]$mp.DisableBehaviorMonitoring
+				DisableScriptScanning     = [bool]$mp.DisableScriptScanning
+				PUAProtection             = [string]$mp.PUAProtection
+				MAPSReporting             = [string]$mp.MAPSReporting
+			}
+		}
+		else { $info['Defender'] = $null }
+	}
+	catch { $info['Defender'] = $null }
+
+	try
+	{
+		# gpresult /r outputs a long human-readable report; capture only that
+		# the user has GPO scope at all, not the full content.
+		$gpResult = & gpresult /r /scope:computer 2>$null | Select-Object -First 60
+		$info['GPO'] = [ordered]@{
+			Available = ($LASTEXITCODE -eq 0)
+			LineCount = if ($gpResult) { ([string[]]$gpResult).Count } else { 0 }
+		}
+	}
+	catch { $info['GPO'] = [ordered]@{ Available = $false; LineCount = 0 } }
+
+	$pkgCounts = [ordered]@{}
+	try
+	{
+		if (Get-Command -Name 'winget' -ErrorAction SilentlyContinue)
+		{
+			$wingetLines = & winget list --accept-source-agreements 2>$null
+			# winget list emits a header + separator + entries; subtract them.
+			$pkgCounts['Winget'] = [Math]::Max(0, ([string[]]$wingetLines).Count - 2)
+		}
+	}
+	catch { $pkgCounts['Winget'] = $null }
+	try
+	{
+		if (Get-Command -Name 'choco' -ErrorAction SilentlyContinue)
+		{
+			$chocoLines = & choco list --local-only --limit-output 2>$null
+			$pkgCounts['Chocolatey'] = ([string[]]$chocoLines).Count
+		}
+	}
+	catch { $pkgCounts['Chocolatey'] = $null }
+	$info['PackageCounts'] = $pkgCounts
+
+	# VM detection — best-effort via CIM Manufacturer/Model.
+	try
+	{
+		$cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop
+		$model = ([string]$cs.Model).ToLowerInvariant()
+		$mfg = ([string]$cs.Manufacturer).ToLowerInvariant()
+		$hypervisor = $null
+		if ($mfg -match 'microsoft' -and $model -match 'virtual') { $hypervisor = 'Hyper-V' }
+		elseif ($mfg -match 'vmware') { $hypervisor = 'VMware' }
+		elseif ($mfg -match 'parallels') { $hypervisor = 'Parallels' }
+		elseif ($model -match 'virtualbox') { $hypervisor = 'VirtualBox' }
+		elseif ($model -match 'kvm|qemu') { $hypervisor = 'KVM/QEMU' }
+		$info['Virtualization'] = [ordered]@{
+			IsVM       = ($null -ne $hypervisor)
+			Hypervisor = $hypervisor
+		}
+	}
+	catch { $info['Virtualization'] = $null }
+
+	return [pscustomobject]$info
+}
+
+<#
+	.SYNOPSIS
+	Scrape recent ERROR / WARNING entries from the daily log and classify them.
+
+	.DESCRIPTION
+	Lightweight pattern classifier — categories match the Errors.json contract
+	in todo.md (#14): AUTH / NETWORK / POLICY / DEPENDENCY / UNKNOWN. Pure-text
+	matching against the Exception.Message tail of the log line — no parsing,
+	no PowerShell ErrorRecord reconstruction.
+#>
+function Get-BaselineSupportBundleClassifiedErrors
+{
+	param (
+		[Parameter(Mandatory = $true)][string]$LogPath,
+		[int]$MaxErrors = 200
+	)
+
+	if (-not (Test-Path -LiteralPath $LogPath)) { return $null }
+
+	$lines = $null
+	try
+	{
+		# Use FileShare.ReadWrite so a live writer doesn't block us.
+		$fs = [System.IO.File]::Open($LogPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+		try
+		{
+			$reader = [System.IO.StreamReader]::new($fs, [System.Text.UTF8Encoding]::new($false))
+			try { $lines = $reader.ReadToEnd() -split "`r?`n" }
+			finally { $reader.Dispose() }
+		}
+		finally { $fs.Dispose() }
+	}
+	catch { return $null }
+
+	$classified = [System.Collections.Generic.List[pscustomobject]]::new()
+	$counts = [ordered]@{ AUTH = 0; NETWORK = 0; POLICY = 0; DEPENDENCY = 0; UNKNOWN = 0 }
+
+	foreach ($line in $lines)
+	{
+		if ([string]::IsNullOrWhiteSpace($line)) { continue }
+		# Match the LogMessage format: "dd-MM-yyyy HH:mm LEVEL: ..."
+		if ($line -notmatch '\b(ERROR|WARNING)\b') { continue }
+		if ($classified.Count -ge $MaxErrors) { break }
+
+		$msg = $line.ToLowerInvariant()
+		$category = 'UNKNOWN'
+		if ($msg -match 'access\s+denied|unauthor|requires?\s+administrator|elevation|elevated|hresult: 0x80070005|0x80004003') { $category = 'AUTH' }
+		elseif ($msg -match 'network|wininet|dns|proxy|connection\s+(refused|reset|timed)|host\s+(unreachable|not\s+found)|wsaeconnaborted|0x800705b4|timed?\s*out') { $category = 'NETWORK' }
+		elseif ($msg -match 'group\s+policy|gpo\b|policy\s+(restricted|prevents)|disabled\s+by\s+(your\s+)?administrator|managed\s+by\s+your\s+organization') { $category = 'POLICY' }
+		elseif ($msg -match 'not\s+found|missing|cannot\s+find|no\s+such\s+file|service\s+(not\s+installed|missing)|cmdletnot|commandnot|cannot\s+load|module\s+not\s+found') { $category = 'DEPENDENCY' }
+
+		$counts[$category]++
+		[void]$classified.Add([pscustomobject]@{
+			Category = $category
+			Line     = $line
+		})
+	}
+
+	return [pscustomobject][ordered]@{
+		Schema        = 'Baseline.ClassifiedErrors'
+		SchemaVersion = 1
+		GeneratedAt   = [System.DateTime]::UtcNow.ToString('o')
+		Source        = $LogPath
+		Counts        = $counts
+		Errors        = @($classified)
 	}
 }

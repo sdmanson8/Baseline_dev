@@ -85,6 +85,7 @@
 				LastStandardPrimaryTab = $null
 				AuditRetentionDays    = 90
 				PinnedBaselineVersion = $null
+				DesignMode            = $false
 			}
 			Services = @{
 				UpdateProgressFn = $null
@@ -105,6 +106,7 @@
 				Safe     = $false
 				Expert   = $false
 				Game     = $false
+				Design   = $false
 				Scenario = $null
 			}
 			Preset = @{
@@ -227,7 +229,7 @@
 
 	# --- AS-2: Mirror mutable UI state inside $Script:Ctx ---
 	# These keep backward compat - old $Script: variables still work everywhere.
-	# The Ctx mirrors provide a single structured place for future callers.
+	# The Ctx helpers provide a single structured place for future callers.
 
 	<#
 	    .SYNOPSIS
@@ -248,6 +250,7 @@
 		$Script:Ctx.Mode.Safe   = $modeSnapshot.Safe
 		$Script:Ctx.Mode.Expert = $modeSnapshot.Expert
 		$Script:Ctx.Mode.Game   = $modeSnapshot.Game
+		$Script:Ctx.Mode.Design = [bool]$Script:DesignMode
 
 		# GameMode detail
 		$Script:Ctx.GameMode.Active  = $modeSnapshot.Game
@@ -273,6 +276,7 @@
 		$Script:Ctx.Filter.UiUpdating = [bool]$Script:FilterUiUpdating
 		$Script:Ctx.UI.AuditRetentionDays = if ($Script:AuditRetentionDays) { [int]$Script:AuditRetentionDays } else { 90 }
 		$Script:Ctx.UI.PinnedBaselineVersion = if ($Script:PinnedBaselineVersion) { [string]$Script:PinnedBaselineVersion } else { $null }
+		$Script:Ctx.UI.DesignMode = [bool]$Script:DesignMode
 
 		# Preset state - read active preset through accessor
 		if (-not $Script:Ctx.ContainsKey('Preset'))
@@ -296,6 +300,7 @@
 			Safe   = [bool]$Script:SafeMode
 			Expert = [bool]$Script:AdvancedMode
 			Game   = [bool]$Script:GameMode
+			Design = [bool]$Script:DesignMode
 		}
 	}
 
@@ -308,7 +313,7 @@
 		<# .SYNOPSIS Tests whether a specific GUI mode is active. #>
 		param (
 			[Parameter(Mandatory = $true)]
-			[ValidateSet('Safe', 'Expert', 'Game')]
+			[ValidateSet('Safe', 'Expert', 'Game', 'Design')]
 			[string]$Mode
 		)
 
@@ -317,6 +322,7 @@
 			'Safe'   { return [bool]$Script:SafeMode }
 			'Expert' { return [bool]$Script:AdvancedMode }
 			'Game'   { return [bool]$Script:GameMode }
+			'Design' { return [bool]$Script:DesignMode }
 		}
 		return $false
 	}
@@ -346,11 +352,12 @@
 		# Safe and Expert are mutually exclusive
 		if (-not $Script:Ctx.ContainsKey('Mode'))
 		{
-			$Script:Ctx['Mode'] = @{ Safe = $false; Expert = $false; Game = $false; Scenario = $null }
+			$Script:Ctx['Mode'] = @{ Safe = $false; Expert = $false; Game = $false; Design = $false; Scenario = $null }
 		}
 		$Script:Ctx.Mode.Safe   = ($ViewMode -eq 'Safe')
 		$Script:Ctx.Mode.Expert = ($ViewMode -eq 'Expert')
 		$Script:Ctx.Mode.Game   = $GameMode
+		$Script:Ctx.Mode.Design = [bool]$Script:DesignMode
 
 		# Keep legacy $Script: variables in sync
 		$Script:SafeMode     = $Script:Ctx.Mode.Safe
@@ -492,7 +499,7 @@
 		}
 	}
 
-	# --- Phase 2: Consolidated accessors for state migrated into $Script:Ctx ---
+	# Keep tab-accessor helpers on Script:Ctx so callers share one state path.
 
 	<#
 	    .SYNOPSIS

@@ -16,10 +16,13 @@ Describe 'UIPersonalization.Icons toggles' {
         $script:setItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
         $script:newItemCalls = [System.Collections.Generic.List[string]]::new()
         $script:newItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
+        $script:setRegistrySafeCalls = [System.Collections.Generic.List[object]]::new()
+        $script:removeRegistrySafeCalls = [System.Collections.Generic.List[object]]::new()
         $script:removeItemCalls = [System.Collections.Generic.List[string]]::new()
         $script:removeRegCalls = [System.Collections.Generic.List[object]]::new()
         $script:pathExists = $false
         $script:hasExistingProperty = $false
+        $script:shouldThrow = $false
 
         function Write-ConsoleStatus {
             param([string]$Action, [string]$Status)
@@ -42,6 +45,11 @@ Describe 'UIPersonalization.Icons toggles' {
             $target = if ($Path) { $Path } else { $LiteralPath }
             [void]$script:setItemPropertyCalls.Add([pscustomobject]@{ Path = $target; Name = $Name; Value = $Value })
         }
+        function Set-RegistryValueSafe {
+            param([string]$Path, [string]$Name, [object]$Value, [string]$Type)
+            if ($script:shouldThrow) { throw 'set-registryvaluesafe failed' }
+            [void]$script:setRegistrySafeCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name; Value = $Value; Type = $Type })
+        }
         function Remove-Item {
             param([string]$LiteralPath, [string]$Path, [switch]$Force, [object]$ErrorAction)
             $target = if ($LiteralPath) { $LiteralPath } else { $Path }
@@ -49,7 +57,8 @@ Describe 'UIPersonalization.Icons toggles' {
         }
         function Remove-RegistryValueSafe {
             param([string]$Path, [string]$Name)
-            [void]$script:removeRegCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name })
+            [void]$script:removeRegistrySafeCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name })
+            [void]$script:removeRegCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name })
         }
         function Get-ItemProperty {
             param([string]$Path, [string]$Name, [object]$ErrorAction)
@@ -59,8 +68,8 @@ Describe 'UIPersonalization.Icons toggles' {
     }
 
     AfterEach {
-        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','New-PSDrive','Test-Path','New-Item','New-ItemProperty','Set-ItemProperty','Remove-Item','Remove-RegistryValueSafe','Get-ItemProperty')) {
-            Remove-Item Function:\$n -ErrorAction SilentlyContinue
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','New-PSDrive','Test-Path','New-Item','New-ItemProperty','Set-ItemProperty','Set-RegistryValueSafe','Remove-Item','Remove-RegistryValueSafe','Get-ItemProperty')) {
+            Microsoft.PowerShell.Management\Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }
 
@@ -107,8 +116,8 @@ Describe 'UIPersonalization.Icons toggles' {
         It 'writes SharingWizardOn=0 on Disable' {
             SharingWizard -Disable
 
-            $script:setItemPropertyCalls[0].Name | Should -Be 'SharingWizardOn'
-            $script:setItemPropertyCalls[0].Value | Should -Be 0
+            $script:setRegistrySafeCalls[0].Name | Should -Be 'SharingWizardOn'
+            $script:setRegistrySafeCalls[0].Value | Should -Be 0
         }
     }
 
@@ -119,8 +128,8 @@ Describe 'UIPersonalization.Icons toggles' {
             ShortcutArrow -Disable
 
             $script:newItemCalls.Count | Should -Be 1
-            $script:setItemPropertyCalls[0].Name | Should -Be '29'
-            $script:setItemPropertyCalls[0].Value | Should -Match 'imageres\.dll,-1015'
+            $script:setRegistrySafeCalls[0].Name | Should -Be '29'
+            $script:setRegistrySafeCalls[0].Value | Should -Match 'imageres\.dll,-1015'
         }
 
         It 'removes the 29 value on Enable when path exists' {
@@ -139,8 +148,8 @@ Describe 'UIPersonalization.Icons toggles' {
             ThisPC -Show
 
             $script:newItemCalls.Count | Should -Be 1
-            $script:newItemPropertyCalls[0].Name | Should -Be '{20D04FE0-3AEA-1069-A2D8-08002B30309D}'
-            $script:newItemPropertyCalls[0].Value | Should -Be 0
+            $script:setRegistrySafeCalls[0].Name | Should -Be '{20D04FE0-3AEA-1069-A2D8-08002B30309D}'
+            $script:setRegistrySafeCalls[0].Value | Should -Be 0
         }
 
         It 'removes the This-PC value on Hide when it exists' {
@@ -160,14 +169,14 @@ Describe 'UIPersonalization.Icons toggles' {
         It 'writes SystemUsesLightTheme=0 on Dark' {
             WindowsColorMode -Dark
 
-            $script:newItemPropertyCalls[0].Name | Should -Be 'SystemUsesLightTheme'
-            $script:newItemPropertyCalls[0].Value | Should -Be 0
+            $script:setRegistrySafeCalls[0].Name | Should -Be 'SystemUsesLightTheme'
+            $script:setRegistrySafeCalls[0].Value | Should -Be 0
         }
 
         It 'writes SystemUsesLightTheme=1 on Light' {
             WindowsColorMode -Light
 
-            $script:newItemPropertyCalls[0].Value | Should -Be 1
+            $script:setRegistrySafeCalls[0].Value | Should -Be 1
         }
     }
 }

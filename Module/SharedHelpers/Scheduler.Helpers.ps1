@@ -1,4 +1,4 @@
-# Internal scheduler helper slice for Baseline.
+# Internal scheduler helpers for Baseline.
 # Provides Windows Task Scheduler integration for running Baseline profiles
 # on a schedule (compliance checks or apply operations).
 
@@ -107,6 +107,7 @@ function Register-BaselineScheduledTask
 
 	# Task settings: run even on battery, start when available if missed.
 	$taskSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+	$taskPrincipal = New-ScheduledTaskPrincipal -UserId 'NT AUTHORITY\SYSTEM' -RunLevel Highest -LogonType ServiceAccount
 
 	# Build the description if not provided.
 	if ([string]::IsNullOrWhiteSpace($Description))
@@ -124,12 +125,103 @@ function Register-BaselineScheduledTask
 	}
 
 	# Register the scheduled task.
-	Register-ScheduledTask -TaskName $TaskName -TaskPath '\Baseline\' -Action $taskAction -Trigger $taskTrigger -Settings $taskSettings -Description $Description -RunLevel Highest
+	Register-ScheduledTask -TaskName $TaskName -TaskPath '\Baseline\' -Action $taskAction -Trigger $taskTrigger -Settings $taskSettings -Principal $taskPrincipal -Description $Description
 
 	$logInfoCmd = Get-Command -Name 'LogInfo' -CommandType Function -ErrorAction SilentlyContinue
 	if ($logInfoCmd)
 	{
 		LogInfo "Registered scheduled task '$fullTaskName' ($Schedule at $Time, Action=$Action)"
+	}
+}
+
+<#
+    .SYNOPSIS
+    Internal function Register-BaselineWindowsUpdateScheduledRun.
+#>
+
+function Register-BaselineWindowsUpdateScheduledRun
+{
+	<#
+		.SYNOPSIS
+		Registers a scheduled Baseline Windows Update security install run.
+	#>
+	[CmdletBinding()]
+	[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+	param (
+		[string]$TaskName = 'WindowsSecurityUpdates',
+
+		[Parameter(Mandatory)]
+		[ValidateSet('Daily', 'Weekly', 'Monthly', 'Hourly')]
+		[string]$Schedule,
+
+		[string]$Time = '03:00',
+
+		[string]$Description
+	)
+
+	$sharedHelpersPath = Join-Path $Script:SharedHelpersRepoRoot 'Module/SharedHelpers.psm1'
+	if (-not (Test-Path -LiteralPath $sharedHelpersPath))
+	{
+		throw "Module\SharedHelpers.psm1 not found at expected path: $sharedHelpersPath"
+	}
+
+	$escapedSharedHelpersPath = $sharedHelpersPath.Replace("'", "''")
+	$scheduledCommand = "Import-Module '$escapedSharedHelpersPath' -Force; Invoke-BaselineWindowsUpdateScheduledRun"
+	$encodedCommand = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($scheduledCommand))
+	$psArguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand $encodedCommand"
+	$taskAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $psArguments
+
+	$timeParts = $Time -split ':'
+	$hour = [int]$timeParts[0]
+	$minute = if ($timeParts.Count -gt 1) { [int]$timeParts[1] } else { 0 }
+	$triggerTime = [datetime]::Today.AddHours($hour).AddMinutes($minute)
+
+	$taskTrigger = switch ($Schedule)
+	{
+		'Hourly'
+		{
+			$t = New-ScheduledTaskTrigger -Once -At $triggerTime -RepetitionInterval (New-TimeSpan -Hours 1) -RepetitionDuration (New-TimeSpan -Days 365)
+			$t
+			break
+		}
+		'Daily'
+		{
+			New-ScheduledTaskTrigger -Daily -At $triggerTime
+			break
+		}
+		'Weekly'
+		{
+			New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At $triggerTime
+			break
+		}
+		'Monthly'
+		{
+			$t = New-ScheduledTaskTrigger -Once -At $triggerTime -RepetitionInterval (New-TimeSpan -Days 30) -RepetitionDuration (New-TimeSpan -Days 3650)
+			$t
+			break
+		}
+	}
+
+	$taskSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+	$taskPrincipal = New-ScheduledTaskPrincipal -UserId 'NT AUTHORITY\SYSTEM' -RunLevel Highest -LogonType ServiceAccount
+
+	if ([string]::IsNullOrWhiteSpace($Description))
+	{
+		$Description = "Baseline Windows Update security install - Schedule: $Schedule at $Time"
+	}
+
+	$existingTask = Get-ScheduledTask -TaskName $TaskName -TaskPath '\Baseline\' -ErrorAction SilentlyContinue
+	if ($existingTask)
+	{
+		Unregister-ScheduledTask -TaskName $TaskName -TaskPath '\Baseline\' -Confirm:$false
+	}
+
+	Register-ScheduledTask -TaskName $TaskName -TaskPath '\Baseline\' -Action $taskAction -Trigger $taskTrigger -Settings $taskSettings -Principal $taskPrincipal -Description $Description
+
+	$logInfoCmd = Get-Command -Name 'LogInfo' -CommandType Function -ErrorAction SilentlyContinue
+	if ($logInfoCmd)
+	{
+		LogInfo "Registered scheduled Windows Update security install task 'Baseline\$TaskName' ($Schedule at $Time)"
 	}
 }
 

@@ -1,9 +1,9 @@
-﻿using module ..\..\Logging.psm1
+using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
 <#
     .SYNOPSIS
-    Internal admin utility for file association maintenance.
+    Configures file association maintenance.
 
     .DESCRIPTION
     Creates or updates the file association data for the requested extension and
@@ -319,7 +319,12 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 
 		<#
 		    .SYNOPSIS
-		    Internal function Write-ExtensionKeys.
+		    Writes extension keys.
+
+		    
+.DESCRIPTION
+		    
+Supports extension keys handling inside Baseline.
 		#>
 
 		function Write-ExtensionKeys
@@ -353,15 +358,15 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 			if ([Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\SOFTWARE\Classes\$Extension", "", $null) -ne "")
 			{
 				# Save possible ProgIds history with extension
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\ApplicationAssociationToasts -Name "$($ProgID)_$($Extension)" -PropertyType DWord -Value 0 -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ApplicationAssociationToasts" -Name "$($ProgID)_$($Extension)" -Type DWord -Value 0 | Out-Null
 			}
 
 			$Name = "{0}_$($Extension)" -f (Split-Path -Path $ProgId -Leaf)
-			New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\ApplicationAssociationToasts -Name $Name -PropertyType DWord -Value 0 -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ApplicationAssociationToasts" -Name $Name -Type DWord -Value 0 | Out-Null
 
 			if ("$($ProgID)_$($Extension)" -ne $Name)
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\ApplicationAssociationToasts -Name "$($ProgID)_$($Extension)" -PropertyType DWord -Value 0 -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ApplicationAssociationToasts" -Name "$($ProgID)_$($Extension)" -Type DWord -Value 0 | Out-Null
 			}
 
 			# If ProgId doesn't exist set the specified ProgId for the extensions
@@ -372,7 +377,7 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 				{
 					New-Item -Path "HKCU:\Software\Classes\$Extension" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
 				}
-				New-ItemProperty -Path "HKCU:\Software\Classes\$Extension" -Name "(default)" -PropertyType String -Value $ProgId -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Classes\$Extension" -Name "(default)" -Type String -Value $ProgId | Out-Null
 			}
 
 			# Set the specified ProgId in the possible options for the assignment
@@ -380,7 +385,7 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 			{
 				New-Item -Path "HKCU:\Software\Classes\$Extension\OpenWithProgids" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
 			}
-			New-ItemProperty -Path "HKCU:\Software\Classes\$Extension\OpenWithProgids" -Name $ProgId -PropertyType None -Value ([byte[]]@()) -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Software\Classes\$Extension\OpenWithProgids" -Name $ProgId -Type None -Value ([byte[]]@()) | Out-Null
 
 			# Set the system ProgId to the extension parameters for File Explorer to the possible options for the assignment, and if absent set the specified ProgId
 			# We have to use GetValue() due to "Set-StrictMode -Version Latest"
@@ -390,14 +395,14 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 				{
 					New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\$Extension\OpenWithProgids" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
 				}
-				New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\$Extension\OpenWithProgids" -Name $OrigProgID -PropertyType None -Value ([byte[]]@()) -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\$Extension\OpenWithProgids" -Name $OrigProgID -Type None -Value ([byte[]]@()) | Out-Null
 			}
 
 			if (-not (Test-Path -Path "HKCU:\Software\Classes\$Extension\OpenWithProgids"))
 			{
 				New-Item -Path "HKCU:\Software\Classes\$Extension\OpenWithProgids" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
 			}
-			New-ItemProperty -Path "HKCU:\Software\Classes\$Extension\OpenWithProgids" -Name $ProgID -PropertyType None -Value ([byte[]]@()) -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Software\Classes\$Extension\OpenWithProgids" -Name $ProgID -Type None -Value ([byte[]]@()) | Out-Null
 
 			# A small pause added to complete all operations, unless sometimes PowerShell has not time to clear reguistry permissions
 			Start-Sleep -Seconds 1
@@ -437,7 +442,7 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 			}
 			else
 			{
-				New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\$Extension\UserChoice" -Name ProgId -PropertyType String -Value $ProgID -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\$Extension\UserChoice" -Name ProgId -Type String -Value $ProgID | Out-Null
 			}
 
 			# Getting a hash based on the time of the section's last modification. After creating and setting the first parameter
@@ -462,7 +467,7 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 			}
 			else
 			{
-				New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\$Extension\UserChoice" -Name Hash -PropertyType String -Value $ProgHash -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\$Extension\UserChoice" -Name Hash -Type String -Value $ProgHash | Out-Null
 			}
 
 			# Setting a block on changing the UserChoice section
@@ -481,7 +486,12 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 
 		<#
 		    .SYNOPSIS
-		    Internal function Write-AdditionalKeys.
+		    Writes additional keys.
+
+		    
+.DESCRIPTION
+		    
+Supports additional keys handling inside Baseline.
 		#>
 
 		function Write-AdditionalKeys
@@ -511,7 +521,7 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 				{
 					New-Item -Path Registry::HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\FileAssociations\ProgIds -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
 				}
-				New-ItemProperty -Path Registry::HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\FileAssociations\ProgIds -Name "_$($Extension)" -PropertyType DWord -Value 1 -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+				Set-RegistryValueSafe -Path "Registry::HKEY_USERS\.DEFAULT\Software\Microsoft\Windows\CurrentVersion\FileAssociations\ProgIds" -Name "_$($Extension)" -Type DWord -Value 1 | Out-Null
 			}
 
 			# Setting 'NoOpenWith' for all registered the extension ProgIDs
@@ -530,12 +540,12 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 							if ($ProgId -eq $AppxProgID)
 							{
 								# Remove association limitations for this UWP apps
-								Remove-ItemProperty -Path "HKCU:\Software\Classes\$AppxProgID" -Name NoOpenWith -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
-								Remove-ItemProperty -Path "HKCU:\Software\Classes\$AppxProgID" -Name NoStaticDefaultVerb -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+								Remove-RegistryValueSafe -Path "HKCU:\Software\Classes\$AppxProgID" -Name NoOpenWith | Out-Null
+								Remove-RegistryValueSafe -Path "HKCU:\Software\Classes\$AppxProgID" -Name NoStaticDefaultVerb | Out-Null
 							}
 							else
 							{
-								New-ItemProperty -Path "HKCU:\Software\Classes\$AppxProgID" -Name NoOpenWith -PropertyType String -Value "" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+								Set-RegistryValueSafe -Path "HKCU:\Software\Classes\$AppxProgID" -Name NoOpenWith -Type String -Value "" | Out-Null
 							}
 
 							$Script:RegisteredProgIDs += $AppxProgID
@@ -560,7 +570,7 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 			{
 				if (($picture -eq "picture") -and $PBrush)
 				{
-					New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\ApplicationAssociationToasts -Name "PBrush_$($Extension)" -PropertyType DWord -Value 0 -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+					Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ApplicationAssociationToasts" -Name "PBrush_$($Extension)" -Type DWord -Value 0 | Out-Null
 				}
 			}
 
@@ -617,13 +627,18 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 			$UserRegisteredProgIDs = ($Script:RegisteredProgIDs + $UserRegisteredProgIDs | Sort-Object -Unique)
 			foreach ($UserProgID in $UserRegisteredProgIDs)
 			{
-				New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ApplicationAssociationToasts" -Name "$($UserProgID)_$($Extension)" -PropertyType DWord -Value 0 -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ApplicationAssociationToasts" -Name "$($UserProgID)_$($Extension)" -Type DWord -Value 0 | Out-Null
 			}
 		}
 
 		<#
 		    .SYNOPSIS
-		    Internal function Get-Hash.
+		    Gets hash.
+
+		    
+.DESCRIPTION
+		    
+Supports hash handling inside Baseline.
 		#>
 
 		function Get-Hash
@@ -783,7 +798,12 @@ public static long MakeLong(uint left, uint right)
 
 			<#
 			    .SYNOPSIS
-			    Internal function Get-KeyLastWriteTime.
+			    Gets key last write time.
+
+			    
+.DESCRIPTION
+			    
+Supports key last write time handling inside Baseline.
 			#>
 
 			function Get-KeyLastWriteTime ($SubKey)
@@ -796,7 +816,12 @@ public static long MakeLong(uint left, uint right)
 
 			<#
 			    .SYNOPSIS
-			    Internal function .
+			    Gets data array.
+
+			    
+.DESCRIPTION
+			    
+Supports data array handling inside Baseline.
 			#>
 			function Get-DataArray
 			{
@@ -816,7 +841,12 @@ public static long MakeLong(uint left, uint right)
 
 			<#
 			    .SYNOPSIS
-			    Internal function Get-PatentHash.
+			    Gets patent hash.
+
+			    
+.DESCRIPTION
+			    
+Supports patent hash handling inside Baseline.
 			#>
 
 			function Get-PatentHash
@@ -862,11 +892,11 @@ public static long MakeLong(uint left, uint right)
 
 			if ($ProgramPath.Contains("%1"))
 			{
-				New-ItemProperty -Path "HKCU:\Software\Classes\$ProgId\shell\open\command" -Name "(Default)" -PropertyType String -Value $ProgramPath -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Classes\$ProgId\shell\open\command" -Name "(Default)" -Type String -Value $ProgramPath | Out-Null
 			}
 			else
 			{
-				New-ItemProperty -Path "HKCU:\Software\Classes\$ProgId\shell\open\command" -Name "(Default)" -PropertyType String -Value "`"$ProgramPath`" `"%1`"" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Classes\$ProgId\shell\open\command" -Name "(Default)" -Type String -Value "`"$ProgramPath`" `"%1`"" | Out-Null
 			}
 
 			$FileNameEXE = Split-Path -Path $ProgramPath -Leaf
@@ -874,7 +904,7 @@ public static long MakeLong(uint left, uint right)
 			{
 				New-Item -Path "HKCU:\Software\Classes\Applications\$FileNameEXE\shell\open\command" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
 			}
-			New-ItemProperty -Path "HKCU:\Software\Classes\Applications\$FileNameEXE\shell\open\command" -Name "(Default)" -PropertyType String -Value "`"$ProgramPath`" `"%1`"" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Software\Classes\Applications\$FileNameEXE\shell\open\command" -Name "(Default)" -Type String -Value "`"$ProgramPath`" `"%1`"" | Out-Null
 		}
 
 		if ($Icon)
@@ -883,10 +913,10 @@ public static long MakeLong(uint left, uint right)
 			{
 				New-Item -Path "HKCU:\Software\Classes\$ProgId\DefaultIcon" -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
 			}
-			New-ItemProperty -Path "HKCU:\Software\Classes\$ProgId\DefaultIcon" -Name "(default)" -PropertyType String -Value $Icon -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Software\Classes\$ProgId\DefaultIcon" -Name "(default)" -Type String -Value $Icon | Out-Null
 		}
 
-		New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\ApplicationAssociationToasts -Name "$($ProgID)_$($Extension)"  -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+		Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ApplicationAssociationToasts" -Name "$($ProgID)_$($Extension)" -Type DWord -Value 0 | Out-Null
 
 		if ($Extension.Contains("."))
 		{
@@ -936,8 +966,8 @@ public static long MakeLong(uint left, uint right)
 			}
 			else
 			{
-				New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\$Extension\UserChoice" -Name ProgId -PropertyType String -Value $ProgId -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
-				New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\$Extension\UserChoice" -Name Hash -PropertyType String -Value $ProgHash -Force -ErrorAction SilentlyContinue 2>&1 | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\$Extension\UserChoice" -Name ProgId -Type String -Value $ProgId | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\$Extension\UserChoice" -Name Hash -Type String -Value $ProgHash | Out-Null
 			}
 		}
 
@@ -993,6 +1023,11 @@ public static void Refresh()
 	.SYNOPSIS
 	Export all Windows associations
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for export all Windows associations.
 	.EXAMPLE
 	Export-Associations
 
@@ -1195,6 +1230,11 @@ function Export-Associations
 	.SYNOPSIS
 	Import all Windows associations
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for import all Windows associations.
 	.EXAMPLE
 	Import-Associations
 
@@ -1252,6 +1292,11 @@ function Import-Associations
 	.SYNOPSIS
 	Change User folders location
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for change User folders location.
 	.PARAMETER Root
 	Change user folders location to the root of any drive using the interactive menu
 
@@ -1308,6 +1353,11 @@ function Set-UserShellFolderLocation
 		.SYNOPSIS
 		Change the location of the each user folder using SHSetKnownFolderPath function
 
+
+		
+.DESCRIPTION
+		
+Applies the Baseline behavior for change the location of the each user folder using SHSetKnownFolderPath function.
 		.EXAMPLE
 		Set-UserShellFolder -UserFolder Desktop -FolderPath "$env:SystemDrive:\Desktop"
 
@@ -1336,6 +1386,11 @@ function Set-UserShellFolderLocation
 			.SYNOPSIS
 			Redirect user folders to a new location
 
+
+			
+.DESCRIPTION
+			
+Applies the Baseline behavior for redirect user folders to a new location.
 			.EXAMPLE
 			Set-KnownFolderPath -KnownFolder Desktop -Path "$env:SystemDrive:\Desktop"
 		#>
@@ -1454,7 +1509,7 @@ public extern static int SHSetKnownFolderPath(ref Guid folderId, uint flags, Int
 			Remove-Item -Path "$CurrentUserFolderPath\desktop.ini" -Force -ErrorAction SilentlyContinue | Out-Null
 
 			Set-KnownFolderPath -KnownFolder $UserFolder -Path $FolderPath | Out-Null
-			New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name $UserShellFoldersGUIDs[$UserFolder] -PropertyType ExpandString -Value $FolderPath -Force | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name $UserShellFoldersGUIDs[$UserFolder] -Type ExpandString -Value $FolderPath | Out-Null
 
 			# Save desktop.ini in the UTF-16 LE encoding
 			Set-Content -Path "$FolderPath\desktop.ini" -Value $DesktopINI[$UserFolder] -Encoding Unicode -Force | Out-Null
@@ -1472,7 +1527,7 @@ public extern static int SHSetKnownFolderPath(ref Guid folderId, uint flags, Int
 	{
 		"Root"
 		{
-			# Write-Host: intentional — user-visible progress indicator
+			# Write-Host: intentional â€” user-visible progress indicator
 			Write-Host "Changing user folders location to the root of a drive"
 			LogInfo "Changing user folders location to the root of a drive"
 			# Store all fixed disks' letters except C (system drive) to use them within Show-Menu function
@@ -1632,7 +1687,7 @@ public extern static int SHSetKnownFolderPath(ref Guid folderId, uint flags, Int
 		}
 		"Custom"
 		{
-			# Write-Host: intentional — user-visible progress indicator
+			# Write-Host: intentional â€” user-visible progress indicator
 			Write-Host "Changing user folders location to the custom one selected"
 			LogInfo "Changing user folders location to the custom one selected"
 			# Desktop
@@ -1895,7 +1950,7 @@ public extern static int SHSetKnownFolderPath(ref Guid folderId, uint flags, Int
 		}
 		"Default"
 		{
-			# Write-Host: intentional — user-visible progress indicator
+			# Write-Host: intentional â€” user-visible progress indicator
 			Write-Host "Changing user folders location to the default one"
 			LogInfo "Changing user folders location to the default one"
 			# Desktop
@@ -2055,6 +2110,11 @@ public extern static int SHSetKnownFolderPath(ref Guid folderId, uint flags, Int
 	.SYNOPSIS
 	The location to save screenshots by pressing Win+PrtScr
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the location to save screenshots by pressing Win+PrtScr.
 	.PARAMETER Desktop
 	Save screenshots by pressing Win+PrtScr on the Desktop
 
@@ -2100,7 +2160,7 @@ function WinPrtScrFolder
 		{
 			Write-ConsoleStatus -Action "Setting the location to save screenshots by pressing Win+PrtScr to the Desktop"
 			LogInfo "Setting the location to save screenshots by pressing Win+PrtScr to the Desktop"
-			# Checking whether user is logged into OneDrive (Microsoft account)
+			# Skip if OneDrive is currently linked to a Microsoft account.
 			$UserEmail = Get-ItemProperty -Path HKCU:\Software\Microsoft\OneDrive\Accounts\Personal -Name UserEmail -ErrorAction SilentlyContinue
 			if ($UserEmail)
 			{
@@ -2110,9 +2170,10 @@ function WinPrtScrFolder
 				return
 			}
 
-			# Checking how the script was invoked: via a preset or Functions.ps1
+			# Determine invocation path (preset, Functions.ps1, or bootstrap).
 			# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/get-variable
-			# This function works only if OneDrive was already uninstalled, or user is intended to uninstall "OneDrive -Uninstall" within commandline
+			# This tweak only runs when OneDrive is already removed or the
+			# run request includes "OneDrive -Uninstall".
 			$PresetName = (Get-Variable -Name MyInvocation -Scope Script).Value.PSCommandPath
 			$PSCallStack = (Get-PSCallStack).Position.Text
 			$OneDriveInstalled = Get-Package -Name "Microsoft OneDrive" -ProviderName Programs -Force -ErrorAction Ignore -WarningAction SilentlyContinue
@@ -2125,7 +2186,7 @@ function WinPrtScrFolder
 				if (($RequestedCommands -contains 'OneDrive -Uninstall') -or (-not $OneDriveInstalled))
 				{
 					$DesktopFolder = Get-ItemPropertyValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name Desktop
-					New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "{B7BEDE81-DF94-4682-A7D8-57A52620B86F}" -PropertyType ExpandString -Value $DesktopFolder -Force | Out-Null
+					Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "{B7BEDE81-DF94-4682-A7D8-57A52620B86F}" -Type ExpandString -Value $DesktopFolder | Out-Null
 				}
 				else
 				{
@@ -2133,17 +2194,18 @@ function WinPrtScrFolder
 					LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 				}
 			}
-			# Checking whether function was called from Functions.ps1
+			# Called from Functions.ps1.
 			elseif ($PresetName -match "Functions.ps1")
 			{
-				# Checking whether command contains "WinPrtScrFolder -Desktop"
+				# Apply only when the command includes WinPrtScrFolder -Desktop.
 				if ($PSCallStack -match "WinPrtScrFolder -Desktop")
 				{
-					# Checking whether other commands contains "OneDrive -Uninstall" which means that user is intended to uninstall "OneDrive -Uninstall", or OneDrive was uinstalled
+					# Also allow this path if any queued command includes OneDrive -Uninstall,
+					# or OneDrive is no longer installed.
 					if (($PSCallStack -match "OneDrive -Uninstall") -or (-not $OneDriveInstalled))
 					{
 						$DesktopFolder = Get-ItemPropertyValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name Desktop
-						New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "{B7BEDE81-DF94-4682-A7D8-57A52620B86F}" -PropertyType ExpandString -Value $DesktopFolder -Force | Out-Null
+						Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "{B7BEDE81-DF94-4682-A7D8-57A52620B86F}" -Type ExpandString -Value $DesktopFolder | Out-Null
 					}
 					else
 					{
@@ -2154,16 +2216,18 @@ function WinPrtScrFolder
 			}
 			else
 			{
-				# Checking whether function was called from Bootstrap/Baseline.ps1, and preset contains the "OneDrive -Uninstall" string is uncommented that means OneDrive will be unistalled
+				# Called from Bootstrap/Baseline.ps1; require the "OneDrive -Uninstall"
+				# line in the preset to be uncommented.
 				if (Select-String -Path $PresetName -Pattern "OneDrive -Uninstall" -SimpleMatch)
 				{
-					# Checking whether string exists and is uncommented
+					# Read the preset line and ensure it is not commented out.
 					$IsOneDriveToUninstall = (Select-String -Path $PresetName -Pattern "OneDrive -Uninstall" -SimpleMatch).Line.StartsWith("#") -eq $false
-					# Checking whether string exists and is uncommented, or OneDrive was uninstalled, or user called "OneDrive -Uninstall" from Bootstrap/Baseline.ps1 alongside with "WinPrtScrFolder -Desktop"
+					# Also apply if OneDrive is already uninstalled or the bootstrap command
+					# includes OneDrive -Uninstall alongside WinPrtScrFolder -Desktop.
 					if ($IsOneDriveToUninstall -or (-not $OneDriveInstalled) -or ($PSCallStack -match "OneDrive -Uninstall"))
 					{
 						$DesktopFolder = Get-ItemPropertyValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name Desktop
-						New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "{B7BEDE81-DF94-4682-A7D8-57A52620B86F}" -PropertyType ExpandString -Value $DesktopFolder -Force | Out-Null
+						Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "{B7BEDE81-DF94-4682-A7D8-57A52620B86F}" -Type ExpandString -Value $DesktopFolder | Out-Null
 					}
 					else
 					{
@@ -2178,7 +2242,7 @@ function WinPrtScrFolder
 		{
 			Write-ConsoleStatus -Action "Setting the location to save screenshots by pressing Win+PrtScr to the default one"
 			LogInfo "Setting the location to save screenshots by pressing Win+PrtScr to the default one"
-			Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "{B7BEDE81-DF94-4682-A7D8-57A52620B86F}" -Force -ErrorAction Ignore | Out-Null
+			Remove-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "{B7BEDE81-DF94-4682-A7D8-57A52620B86F}" | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}

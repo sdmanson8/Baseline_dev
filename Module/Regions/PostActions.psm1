@@ -2,26 +2,31 @@ using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 #region Post Actions
-<#
-	.SYNOPSIS
-	Run the post-change refresh and cleanup actions after tweaks finish.
-
-	.DESCRIPTION
-	Refreshes shell state, applies any generated Local Group Policy text files,
-	cleans up temporary policy files, restores previously opened folders where
-	possible, and performs the extra post-run fixes expected by this preset.
-
-	.EXAMPLE
-	PostActions
-#>
 function PostActions
 {
+	<#
+		.SYNOPSIS
+		Run the post-change refresh and cleanup actions after tweaks finish.
+
+		.DESCRIPTION
+		Refreshes shell state, applies any generated Local Group Policy text files,
+		cleans up temporary policy files, restores previously opened folders where
+		possible, and performs the extra post-run fixes expected by this preset.
+
+		.EXAMPLE
+		PostActions
+	#>
 	Write-ConsoleStatus -Action "Performing post actions"
 	LogInfo "Performing post actions"
 
 	<#
 	    .SYNOPSIS
-	    Internal function .
+	    Gets post action requirement.
+
+	    
+.DESCRIPTION
+	    
+Supports post action requirement handling inside Baseline.
 	#>
 	function Get-PostActionRequirement
 	{
@@ -46,7 +51,12 @@ function PostActions
 
 	<#
 	    .SYNOPSIS
-	    Internal function Invoke-PostActionStep.
+	    Runs post action step.
+
+	    
+.DESCRIPTION
+	    
+Supports post action step handling inside Baseline.
 	#>
 
 	function Invoke-PostActionStep
@@ -87,7 +97,12 @@ function PostActions
 
 	<#
 	    .SYNOPSIS
-	    Internal function Invoke-PostActionProcess.
+	    Runs post action process.
+
+	    
+.DESCRIPTION
+	    
+Supports post action process handling inside Baseline.
 	#>
 
 	function Invoke-PostActionProcess
@@ -170,7 +185,12 @@ function PostActions
 
 	<#
 	    .SYNOPSIS
-	    Internal function Invoke-PostActionPowerShellProcess.
+	    Runs post action power shell process.
+
+	    
+.DESCRIPTION
+	    
+Supports post action power shell process handling inside Baseline.
 	#>
 
 	function Invoke-PostActionPowerShellProcess
@@ -389,13 +409,13 @@ public static void PostMessage()
 	#region Toast notifications
 	# Persist Baseline notifications to prevent to immediately disappear from Action Center
 	# Enable notifications in Action Center
-	Remove-ItemProperty -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer, HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer -Name DisableNotificationCenter -Force -ErrorAction Ignore
+	Remove-RegistryValueSafe -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer, HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer -Name DisableNotificationCenter | Out-Null
 	Set-Policy -Scope User -Path Software\Policies\Microsoft\Windows\Explorer -Name DisableNotificationCenter -Type CLEAR
 	Set-Policy -Scope Computer -Path SOFTWARE\Policies\Microsoft\Windows\Explorer -Name DisableNotificationCenter -Type CLEAR
 
 	# Enable notifications
-	Remove-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications -Name ToastEnabled -Force -ErrorAction Ignore
-	Remove-ItemProperty -Path HKCU:\Software\Policies\Microsoft\Windows\CurrentVersion\PushNotifications -Name NoToastApplicationNotification -Force -ErrorAction Ignore
+	Remove-RegistryValueSafe -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications -Name ToastEnabled | Out-Null
+	Remove-RegistryValueSafe -Path HKCU:\Software\Policies\Microsoft\Windows\CurrentVersion\PushNotifications -Name NoToastApplicationNotification | Out-Null
 	Set-Policy -Scope User -Path Software\Policies\Microsoft\Windows\Explorer -Name DisableNotificationCenter -Type CLEAR
 
 	if (-not (Test-Path -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Baseline))

@@ -20,6 +20,7 @@ Describe 'Taskbar.psm1 region' {
         $script:warningMessages = [System.Collections.Generic.List[string]]::new()
         $script:errorMessages = [System.Collections.Generic.List[string]]::new()
         $script:newItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
+        $script:setRegistrySafeCalls = [System.Collections.Generic.List[object]]::new()
         $script:newItemCalls = [System.Collections.Generic.List[string]]::new()
         $script:removeItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
         $script:policyCalls = [System.Collections.Generic.List[object]]::new()
@@ -50,6 +51,11 @@ Describe 'Taskbar.psm1 region' {
             [CmdletBinding()]
             param([string]$Path, [string]$Name, [string]$PropertyType, [object]$Value, [switch]$Force)
             [void]$script:newItemPropertyCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name; Value = $Value; PropertyType = $PropertyType })
+        }
+        function Set-RegistryValueSafe {
+            [CmdletBinding()]
+            param([string]$Path, [string]$Name, [object]$Value, [string]$Type)
+            [void]$script:setRegistrySafeCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name; Value = $Value; Type = $Type })
         }
         function Remove-ItemProperty {
             [CmdletBinding()]
@@ -90,7 +96,7 @@ Describe 'Taskbar.psm1 region' {
     }
 
     AfterEach {
-        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogWarning','LogError','Test-Path','New-Item','New-ItemProperty','Remove-ItemProperty','Get-ItemPropertyValue','Set-Policy','Get-AppxPackage','Invoke-UCPDBypassed','Get-Package','Set-NewsInterestsTaskbarViewMode','Remove-HandledErrorRecord','Get-TweakSkipLabel')) {
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogWarning','LogError','Test-Path','New-Item','New-ItemProperty','Set-RegistryValueSafe','Remove-ItemProperty','Get-ItemPropertyValue','Set-Policy','Get-AppxPackage','Invoke-UCPDBypassed','Get-Package','Set-NewsInterestsTaskbarViewMode','Remove-HandledErrorRecord','Get-TweakSkipLabel')) {
             Microsoft.PowerShell.Management\Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }
@@ -172,10 +178,10 @@ Describe 'Taskbar.psm1 region' {
 
             MeetNow -Hide
 
-            $script:newItemPropertyCalls.Count | Should -Be 1
-            $script:newItemPropertyCalls[0].Name | Should -Be 'Settings'
-            $script:newItemPropertyCalls[0].PropertyType | Should -Be 'Binary'
-            $script:newItemPropertyCalls[0].Value[9] | Should -Be 128
+            $script:setRegistrySafeCalls.Count | Should -Be 1
+            $script:setRegistrySafeCalls[0].Name | Should -Be 'Settings'
+            $script:setRegistrySafeCalls[0].Type | Should -Be 'Binary'
+            $script:setRegistrySafeCalls[0].Value[9] | Should -Be 128
         }
 
         It 'sets byte index 9 to 0 on Show' {
@@ -184,7 +190,7 @@ Describe 'Taskbar.psm1 region' {
 
             MeetNow -Show
 
-            $script:newItemPropertyCalls[0].Value[9] | Should -Be 0
+            $script:setRegistrySafeCalls[0].Value[9] | Should -Be 0
         }
 
         It 'reports failed when StuckRects3 cannot be read' {
@@ -200,13 +206,13 @@ Describe 'Taskbar.psm1 region' {
         It 'writes TaskbarAl=0 on Left' {
             TaskbarAlignment -Left
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'TaskbarAl' }).Value | Should -Be 0
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarAl' }).Value | Should -Be 0
         }
 
         It 'writes TaskbarAl=1 on Center' {
             TaskbarAlignment -Center
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'TaskbarAl' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarAl' }).Value | Should -Be 1
         }
 
         It 'creates Explorer\\Advanced when missing before writing TaskbarAl' {
@@ -254,7 +260,7 @@ Describe 'Taskbar.psm1 region' {
             TaskbarSearch -SearchBox
 
             $script:newItemCalls | Should -Contain 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search'
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'SearchboxTaskbarMode' }).Value | Should -Be 2
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'SearchboxTaskbarMode' }).Value | Should -Be 2
         }
     }
 
@@ -265,7 +271,7 @@ Describe 'Taskbar.psm1 region' {
             SearchHighlights -Show
 
             $script:newItemCalls | Should -Contain 'HKCU:\Software\Microsoft\Windows\CurrentVersion\SearchSettings'
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'IsDynamicSearchBoxEnabled' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'IsDynamicSearchBoxEnabled' }).Value | Should -Be 1
         }
     }
 
@@ -273,13 +279,13 @@ Describe 'Taskbar.psm1 region' {
         It 'writes ShowTaskViewButton=0 on Hide' {
             TaskViewButton -Hide
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'ShowTaskViewButton' }).Value | Should -Be 0
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'ShowTaskViewButton' }).Value | Should -Be 0
         }
 
         It 'writes ShowTaskViewButton=1 on Show' {
             TaskViewButton -Show
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'ShowTaskViewButton' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'ShowTaskViewButton' }).Value | Should -Be 1
         }
 
         It 'creates Explorer\\Advanced when missing before writing ShowTaskViewButton' {
@@ -295,13 +301,13 @@ Describe 'Taskbar.psm1 region' {
         It 'writes TaskbarGlomLevel=0 on Always' {
             TaskbarCombine -Always
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'TaskbarGlomLevel' }).Value | Should -Be 0
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarGlomLevel' }).Value | Should -Be 0
         }
 
         It 'writes TaskbarGlomLevel=2 on Never' {
             TaskbarCombine -Never
 
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'TaskbarGlomLevel' }).Value | Should -Be 2
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarGlomLevel' }).Value | Should -Be 2
         }
 
         It 'creates Explorer\\Advanced when missing before writing TaskbarGlomLevel' {
@@ -320,7 +326,7 @@ Describe 'Taskbar.psm1 region' {
             TaskbarEndTask -Enable
 
             $script:newItemCalls.Count | Should -Be 1
-            ($script:newItemPropertyCalls | Where-Object { $_.Name -eq 'TaskbarEndTask' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarEndTask' }).Value | Should -Be 1
         }
     }
 

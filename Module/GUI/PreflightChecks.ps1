@@ -118,6 +118,7 @@ function Get-BaselineRiskCategoryList
         [object]$ManagedPolicyCheck,
         [object]$PendingRebootCheck,
         [object]$WinRMCheck,
+        [object]$HostTaintCheck,
         [switch]$IncludePartialSuccessHistory
     )
 
@@ -150,6 +151,27 @@ function Get-BaselineRiskCategoryList
             -DocumentationPath 'dev_docs/Remediation/ManagedEndpoints.md' `
             -LogHint (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryLogHintPolicy' -Fallback 'Review managed-policy entries in the support bundle (PolicyConflictSignals).') `
             -Details $mpDetails))
+    }
+
+    # --- Host taint / third-party tweaker detection --------------------
+    if ($HostTaintCheck)
+    {
+        $hostStatus = [string]$HostTaintCheck.Status
+        $hostRemediation = @()
+        if ($HostTaintCheck.PSObject.Properties['RemediationActions'] -and $HostTaintCheck.RemediationActions)
+        {
+            $hostRemediation = @($HostTaintCheck.RemediationActions)
+        }
+
+        [void]$categories.Add((New-BaselineRiskCategory `
+            -Key 'HostTaint' `
+            -Name (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryHostTaintName' -Fallback 'Host integrity') `
+            -Status $hostStatus `
+            -Summary ([string]$HostTaintCheck.Message) `
+            -RemediationActions $hostRemediation `
+            -DocumentationPath 'dev_docs/Remediation/HostIntegrity.md' `
+            -LogHint (Get-UxLocalizedString -Key 'GuiPreflightRiskCategoryLogHintHostTaint' -Fallback 'Review InitialActions warnings and attach a support bundle before remediation.') `
+            -Details $(if ($HostTaintCheck.PSObject.Properties['Details']) { $HostTaintCheck.Details } else { $null })))
     }
 
     # --- Pending reboot --------------------------------------------------
@@ -271,6 +293,7 @@ function Get-BaselinePartialSuccessRolloutRisk
     }
     catch
     {
+        Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreflightChecks.Get-BaselinePartialSuccessRolloutRisk.LoadOutcomes'
         return $null
     }
 
@@ -361,6 +384,15 @@ function Get-BaselinePreflightContract
     $managedPolicyCheck = if ($items.Count -gt 6) { $items[6] } else { $null }
     $pendingRebootCheck = if ($items.Count -gt 7) { $items[7] } else { $null }
     $winrmCheck = if ($items.Count -gt 8) { $items[8] } else { $null }
+    $hostTaintCheck = $null
+    foreach ($item in $items)
+    {
+        if ($item -and $item.PSObject.Properties['Key'] -and [string]$item.Key -eq 'HostTaint')
+        {
+            $hostTaintCheck = $item
+            break
+        }
+    }
 
     $policyConflictChecks = @($managedPolicyCheck, $pendingRebootCheck | Where-Object { $null -ne $_ })
     $policyConflictCount = @($policyConflictChecks | Where-Object { [string]$_.Status -ne 'Passed' }).Count
@@ -391,7 +423,7 @@ function Get-BaselinePreflightContract
     $environmentClassification = if ($failedCount -gt 0) { 'Unsupported' } elseif ($warningCount -gt 0) { 'AttentionRequired' } else { 'Supported' }
     $topLevelStatus = if ($failedCount -gt 0) { 'Failed' } elseif ($warningCount -gt 0) { 'Warning' } else { 'Passed' }
 
-    $riskCategories = @(Get-BaselineRiskCategoryList -ManagedPolicyCheck $managedPolicyCheck -PendingRebootCheck $pendingRebootCheck -WinRMCheck $winrmCheck -IncludePartialSuccessHistory)
+    $riskCategories = @(Get-BaselineRiskCategoryList -ManagedPolicyCheck $managedPolicyCheck -PendingRebootCheck $pendingRebootCheck -WinRMCheck $winrmCheck -HostTaintCheck $hostTaintCheck -IncludePartialSuccessHistory)
     $categoryIssueCount = @($riskCategories | Where-Object { [string]$_.Status -ne 'Passed' }).Count
 
     return [pscustomobject]@{
@@ -438,12 +470,80 @@ function Get-BaselinePreflightContract
             CategoryIssueCount    = $categoryIssueCount
             Summary               = if ($categoryIssueCount -gt 0) { (Get-BaselineRiskCategorySummaryText -Categories $riskCategories) } elseif ($policyConflictCount -gt 0) { 'Policy conflict signals detected.' } else { 'No policy conflict signals detected.' }
         }
+        HostIntegrity = if ($hostTaintCheck) {
+            [pscustomobject]@{
+                Status  = [string]$hostTaintCheck.Status
+                Check   = $hostTaintCheck
+                Summary = [string]$hostTaintCheck.Message
+                Details = if ($hostTaintCheck.PSObject.Properties['Details']) { $hostTaintCheck.Details } else { $null }
+            }
+        } else { $null }
         RiskCategories = @($riskCategories)
         AllResults = $items
         PassedCount = $passedCount
         WarningCount = $warningCount
         FailedCount = $failedCount
     }
+}
+
+<#
+    .SYNOPSIS
+    Internal function Test-PreflightHostTaint.
+#>
+
+function Test-PreflightHostTaint
+{
+    $assessment = $Global:BaselineHostTaint
+    if ($null -eq $assessment)
+    {
+        return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameHostTaint' -Fallback 'Host integrity') -Key 'HostTaint' -Status 'Passed' -Message (Get-UxLocalizedString -Key 'GuiPreflightHostTaintPassed' -Fallback 'No host-tamper assessment is currently flagged.') -Category 'Security' -Details ([ordered]@{ Level = 'None'; Detected = @(); BackdoorFound = $false; AdvisoryUrls = @() }))
+    }
+
+    $level = if ($assessment.PSObject.Properties['Level']) { [string]$assessment.Level } else { 'None' }
+    $detected = if ($assessment.PSObject.Properties['Detected']) { @($assessment.Detected | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ }) } else { @() }
+    $advisoryUrls = if ($assessment.PSObject.Properties['AdvisoryUrls']) { @($assessment.AdvisoryUrls | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ }) } else { @() }
+    $backdoorFound = if ($assessment.PSObject.Properties['BackdoorFound']) { [bool]$assessment.BackdoorFound } else { $false }
+    $detectedText = if ($detected.Count -gt 0) { $detected -join ', ' } else { 'none' }
+
+    $details = [ordered]@{
+        Level         = $level
+        Detected      = @($detected)
+        BackdoorFound = $backdoorFound
+        AdvisoryUrls  = @($advisoryUrls)
+    }
+
+    if ($level -eq 'Blocked')
+    {
+        return (New-PreflightCheckResult `
+            -Name (Get-UxLocalizedString -Key 'GuiPreflightNameHostTaint' -Fallback 'Host integrity') `
+            -Key 'HostTaint' `
+            -Status 'Failed' `
+            -Message ((Get-UxLocalizedString -Key 'GuiPreflightHostTaintBlocked' -Fallback 'Potentially compromised host detected: {0}. Baseline will not apply system changes on this host.') -f $detectedText) `
+            -Category 'Security' `
+            -RemediationActions @(
+                (Get-UxLocalizedString -Key 'GuiPreflightHostTaintBlockedAction1' -Fallback 'Do not apply additional tweaks on this Windows installation.')
+                (Get-UxLocalizedString -Key 'GuiPreflightHostTaintBlockedAction2' -Fallback 'Reinstall Windows using genuine installation media before running Baseline again.')
+                (Get-UxLocalizedString -Key 'GuiPreflightHostTaintBlockedAction3' -Fallback 'Use the support bundle only for diagnostics; do not treat this host as trusted.')
+            ) `
+            -Details $details)
+    }
+
+    if ($level -eq 'Warning')
+    {
+        return (New-PreflightCheckResult `
+            -Name (Get-UxLocalizedString -Key 'GuiPreflightNameHostTaint' -Fallback 'Host integrity') `
+            -Key 'HostTaint' `
+            -Status 'Warning' `
+            -Message ((Get-UxLocalizedString -Key 'GuiPreflightHostTaintWarning' -Fallback 'Third-party Windows tweaker traces detected: {0}. Review before applying more changes.') -f $detectedText) `
+            -Category 'Security' `
+            -RemediationActions @(
+                (Get-UxLocalizedString -Key 'GuiPreflightHostTaintWarningAction1' -Fallback 'Review the detected tool list and confirm the host is still trusted.')
+                (Get-UxLocalizedString -Key 'GuiPreflightHostTaintWarningAction2' -Fallback 'Export a support bundle if Baseline behavior looks inconsistent.')
+            ) `
+            -Details $details)
+    }
+
+    return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameHostTaint' -Fallback 'Host integrity') -Key 'HostTaint' -Status 'Passed' -Message (Get-UxLocalizedString -Key 'GuiPreflightHostTaintPassed' -Fallback 'No host-tamper assessment is currently flagged.') -Category 'Security' -Details $details)
 }
 
 <#
@@ -588,7 +688,7 @@ function Test-PreflightSystemRestore
             $srpStatus = Get-CimInstance -ClassName SystemRestoreConfig -Namespace 'root\default' -ErrorAction Stop
             if ($srpStatus -and $srpStatus.RPSessionInterval -eq 1) { $srpEnabled = $true }
         }
-        catch { $srpEnabled = $false }
+        catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreflightChecks.TestPreflightSystemRestore.LoadSrpStatus'; $srpEnabled = $false }
 
         if ($srpEnabled)
         {
@@ -619,6 +719,7 @@ function Test-PreflightManagedPolicyEnvironment
         }
         catch
         {
+            Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreflightChecks.TestPreflightManagedPolicyEnvironment.LoadDomainJoined'
             $domainJoined = $false
         }
 
@@ -642,7 +743,7 @@ function Test-PreflightManagedPolicyEnvironment
                     [void]$activePolicies.Add($path)
                 }
             }
-            catch { }
+            catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreflightChecks.TestPreflightManagedPolicyEnvironment.TestPathPolicy' }
         }
 
         if (-not $domainJoined -and $activePolicies.Count -eq 0)
@@ -701,13 +802,13 @@ function Test-PreflightPendingReboot
             $pfro = Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' -Name 'PendingFileRenameOperations' -ErrorAction Stop
             if ($pfro -and $pfro.PendingFileRenameOperations) { [void]$reasons.Add('Pending file rename operations') }
         }
-        catch { }
+        catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreflightChecks.TestPreflightPendingReboot.LoadPendingFileRenameOperations' }
         try
         {
             $crv = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update' -Name 'PostRebootReporting' -ErrorAction Stop
             if ($crv) { [void]$reasons.Add('Windows Update post-reboot reporting') }
         }
-        catch { }
+        catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreflightChecks.TestPreflightPendingReboot.LoadPostRebootReporting' }
 
         if ($reasons.Count -eq 0)
         {
@@ -833,6 +934,26 @@ function Invoke-PreflightChecks
         [string[]]$RemoteTargets = @()
     )
 
+    if (Get-Command -Name 'Test-IsDesignModeUX' -CommandType Function -ErrorAction SilentlyContinue)
+    {
+        if (Test-IsDesignModeUX)
+        {
+            return [pscustomobject]@{
+                Passed                              = $true
+                Status                              = 'Passed'
+                CriticalFailures                    = @()
+                Warnings                            = @()
+                AllResults                          = @()
+                WinRMReachability                   = $null
+                Credentials                         = $null
+                PolicyConflictSignals               = $null
+                HostIntegrity                       = $null
+                RiskCategories                      = @()
+                SupportedEnvironmentClassification  = $null
+            }
+        }
+    }
+
     $allResults = @(
         Test-PreflightAdminElevation
         Test-PreflightDiskSpace
@@ -843,6 +964,7 @@ function Invoke-PreflightChecks
         Test-PreflightManagedPolicyEnvironment
         Test-PreflightPendingReboot
         Test-PreflightWinRMReachability -Targets $RemoteTargets
+        Test-PreflightHostTaint
     )
 
     $criticalFailures = @($allResults | Where-Object { $_.Status -eq 'Failed' })
@@ -859,6 +981,7 @@ function Invoke-PreflightChecks
         WinRMReachability = $contract.WinRMReachability
         Credentials       = $contract.Credentials
         PolicyConflictSignals = $contract.PolicyConflictSignals
+        HostIntegrity    = $contract.HostIntegrity
         RiskCategories    = @($contract.RiskCategories)
         SupportedEnvironmentClassification = $contract.SupportedEnvironmentClassification
     }

@@ -1,11 +1,6 @@
-# Game Mode helper slice for Baseline.
-# Extracted from Manifest.Helpers.ps1 - contains all Game Mode profile,
-# allowlist, decision prompt, selection, and plan-building logic.
-#
-# Dependencies (from Manifest.Helpers.ps1, loaded first):
-#   Get-TweakManifestEntryValue, Test-TweakManifestEntryField,
-#   Import-TweakManifestFromData, Get-TweakManifestDefaultCommand,
-#   Get-ManifestEntryByFunction
+# Game Mode helpers for Baseline.
+# Resolve profile options, selections, and plan construction for game mode
+# workflows.
 
 <#
     .SYNOPSIS

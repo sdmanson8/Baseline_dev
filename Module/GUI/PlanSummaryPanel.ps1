@@ -15,7 +15,7 @@ function Show-PlanSummaryDialog
 	.DESCRIPTION
 		Shows selected tweaks grouped by category, impact summary cards,
 		optional pre-flight check results, and a scrollable tweak list.
-		Returns 'Run Tweaks' or 'Back'.
+		Returns the active run-label or 'Back'.
 	#>
 	[CmdletBinding()]
 	param (
@@ -26,13 +26,13 @@ function Show-PlanSummaryDialog
 	)
 
 	$theme = $Script:CurrentTheme
-	if (-not $theme) { return 'Run Tweaks' }
+	if (-not $theme) { return (Get-UxRunActionLabel) }
 	$bc = $Script:SharedBrushConverter
 	if (-not $bc) { $bc = New-SafeBrushConverter -Context 'Show-PlanSummaryDialog' }
 	$useDarkMode = ($Script:CurrentThemeName -eq 'Dark')
 
 	$selected = @($SelectedTweaks | Where-Object { $_ })
-	if ($selected.Count -eq 0) { return 'Run Tweaks' }
+	if ($selected.Count -eq 0) { return (Get-UxRunActionLabel) }
 
 	# ── Compute metrics ──────────────────────────────────────────────
 	$willChangeCount = 0
@@ -84,7 +84,7 @@ function Show-PlanSummaryDialog
 	$dlg.FontSize = $Script:GuiLayout.FontSizeBody
 	$dlg.ShowInTaskbar = $false
 
-	try { if ($Form) { $dlg.Owner = $Form } } catch { }
+	try { if ($Form) { $dlg.Owner = $Form } } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PlanSummaryPanel.ShowPlanSummaryPanel.SetOwner' }
 	$roundedParts = ConvertTo-RoundedWindow -Window $dlg -Theme $theme
 	[void](Set-GuiWindowChromeTheme -Window $dlg -UseDarkMode:$useDarkMode)
 
@@ -479,7 +479,7 @@ function Show-PlanSummaryDialog
 
 	# Continue button
 	$btnContinue = New-Object System.Windows.Controls.Button
-	$btnContinue.Content = (Get-UxLocalizedString -Key 'GuiPlanRunTweaks' -Fallback 'Run Tweaks')
+	$btnContinue.Content = (Get-UxRunActionLabel)
 	$btnContinue.MinWidth = $Script:GuiLayout.ButtonMinWidth
 	$btnContinue.Height = $Script:GuiLayout.ButtonHeight
 	$btnContinue.Margin = [System.Windows.Thickness]::new(0, 4, 0, 4)
@@ -491,7 +491,7 @@ function Show-PlanSummaryDialog
 	$dlgRefContinue = $dlg
 	$resRefContinue = $resultRef
 	$btnContinue.Add_Click({
-		$resRefContinue.Value = 'Run Tweaks'
+		$resRefContinue.Value = (Get-UxRunActionLabel)
 		$dlgRefContinue.Close()
 	}.GetNewClosure())
 	[void]($buttonPanel.Children.Add($btnContinue))

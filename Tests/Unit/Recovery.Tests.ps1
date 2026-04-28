@@ -197,6 +197,56 @@ Describe 'Get-DirectUndoCommandForEntry' {
     }
 }
 
+Describe 'Get-DirectUndoCommandLineForEntry' {
+    It 'returns the explicit counterpart command line when CounterpartFunction is declared' {
+        $manifest = @(
+            [pscustomobject]@{
+                Function = 'EnableFeature'
+                Type = 'Toggle'
+                OnParam = 'Enable'
+                OffParam = 'Disable'
+                CounterpartFunction = 'DisableFeature'
+                Default = $true
+            },
+            [pscustomobject]@{
+                Function = 'DisableFeature'
+                Type = 'Toggle'
+                OnParam = 'Enable'
+                OffParam = 'Disable'
+                Default = $false
+            }
+        )
+        $entry = [pscustomobject]@{
+            Restorable = $true
+            RecoveryLevel = 'Direct'
+            ToggleParam = 'Enable'
+        }
+
+        $result = Get-DirectUndoCommandLineForEntry -Entry $entry -ManifestEntry $manifest[0] -Manifest $manifest
+
+        $result | Should -Be 'DisableFeature -Disable'
+    }
+
+    It 'falls back to the legacy same-function inverse command line when no counterpart exists' {
+        $manifest = [pscustomobject]@{
+            Function = 'EnableFeature'
+            Type = 'Toggle'
+            OnParam = 'Enable'
+            OffParam = 'Disable'
+            Default = $true
+        }
+        $entry = [pscustomobject]@{
+            Restorable = $true
+            RecoveryLevel = 'Direct'
+            ToggleParam = 'Enable'
+        }
+
+        $result = Get-DirectUndoCommandLineForEntry -Entry $entry -ManifestEntry $manifest -Manifest @($manifest)
+
+        $result | Should -Be 'EnableFeature -Disable'
+    }
+}
+
 Describe 'Test-ShouldRecommendRestorePoint' {
     It 'returns ShouldRecommend false for safe tweaks' {
         $tweaks = @(

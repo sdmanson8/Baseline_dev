@@ -1,4 +1,4 @@
-# Shared helper slice for Baseline -- taskbar pin/unpin and News & Interests helpers.
+# Shared helpers for Baseline -- taskbar pin/unpin and News & Interests helpers.
 
 <#
     .SYNOPSIS
@@ -467,7 +467,7 @@ function Invoke-ARM64ShellUnpin
 
 				if ($UnpinVerb)
 				{
-					try { $UnpinVerb.DoIt() } catch {}
+					try { $UnpinVerb.DoIt() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TaskbarHelpers.Invoke-ARM64ShellUnpin.DoIt' }
 				}
 			}
 		}
@@ -478,13 +478,14 @@ function Invoke-ARM64ShellUnpin
 	if (-not $AsyncResult.AsyncWaitHandle.WaitOne([TimeSpan]::FromSeconds($TimeoutSeconds)))
 	{
 		LogWarning "ARM64 shell unpin timed out after $TimeoutSeconds seconds."
-		try { $PS.Stop() } catch {}
+		try { $PS.Stop() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TaskbarHelpers.Invoke-ARM64ShellUnpin.StopPowerShell' }
 	}
 	else
 	{
-		try { $PS.EndInvoke($AsyncResult) } catch {}
+		try { $PS.EndInvoke($AsyncResult) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TaskbarHelpers.Invoke-ARM64ShellUnpin.EndInvokePowerShell' }
 	}
 
-	try { $PS.Dispose() } catch {}
-	try { $Runspace.Close(); $Runspace.Dispose() } catch {}
+	try { $PS.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TaskbarHelpers.Invoke-ARM64ShellUnpin.DisposePowerShell' }
+	try { $Runspace.Close(); $Runspace.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TaskbarHelpers.Invoke-ARM64ShellUnpin.DisposeRunspace' }
 }
+

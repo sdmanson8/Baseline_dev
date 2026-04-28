@@ -83,6 +83,7 @@ Describe 'PowerShellScriptsLogging' {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:newItemCalls = [System.Collections.Generic.List[string]]::new()
         $script:newItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
+        $script:setRegistryCalls = [System.Collections.Generic.List[object]]::new()
         $script:removeRegCalls = [System.Collections.Generic.List[object]]::new()
         $script:policyCalls = [System.Collections.Generic.List[object]]::new()
 
@@ -101,6 +102,10 @@ Describe 'PowerShellScriptsLogging' {
             param([string]$Path, [string]$Name, [string]$PropertyType, [object]$Value, [switch]$Force, [object]$ErrorAction)
             [void]$script:newItemPropertyCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name; Value = $Value })
         }
+        function Set-RegistryValueSafe {
+            param([string]$Path, [string]$Name, [string]$Type, [object]$Value)
+            [void]$script:setRegistryCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name; Type = $Type; Value = $Value })
+        }
         function Remove-RegistryValueSafe {
             param([string]$Path, [string]$Name)
             [void]$script:removeRegCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name })
@@ -118,6 +123,7 @@ Describe 'PowerShellScriptsLogging' {
         Remove-Item Function:\Test-Path -ErrorAction SilentlyContinue
         Remove-Item Function:\New-Item -ErrorAction SilentlyContinue
         Remove-Item Function:\New-ItemProperty -ErrorAction SilentlyContinue
+        Remove-Item Function:\Set-RegistryValueSafe -ErrorAction SilentlyContinue
         Remove-Item Function:\Remove-RegistryValueSafe -ErrorAction SilentlyContinue
         Remove-Item Function:\Set-Policy -ErrorAction SilentlyContinue
     }
@@ -198,6 +204,7 @@ Describe 'SaveZoneInformation' {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:newItemCalls = [System.Collections.Generic.List[string]]::new()
         $script:newItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
+        $script:setRegistryCalls = [System.Collections.Generic.List[object]]::new()
         $script:removeRegCalls = [System.Collections.Generic.List[object]]::new()
         $script:policyCalls = [System.Collections.Generic.List[object]]::new()
 
@@ -216,6 +223,10 @@ Describe 'SaveZoneInformation' {
             param([string]$Path, [string]$Name, [string]$PropertyType, [object]$Value, [switch]$Force, [object]$ErrorAction)
             [void]$script:newItemPropertyCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name; Value = $Value })
         }
+        function Set-RegistryValueSafe {
+            param([string]$Path, [string]$Name, [string]$Type, [object]$Value)
+            [void]$script:setRegistryCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name; Type = $Type; Value = $Value })
+        }
         function Remove-RegistryValueSafe {
             param([string]$Path, [string]$Name)
             [void]$script:removeRegCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name })
@@ -233,6 +244,7 @@ Describe 'SaveZoneInformation' {
         Remove-Item Function:\Test-Path -ErrorAction SilentlyContinue
         Remove-Item Function:\New-Item -ErrorAction SilentlyContinue
         Remove-Item Function:\New-ItemProperty -ErrorAction SilentlyContinue
+        Remove-Item Function:\Set-RegistryValueSafe -ErrorAction SilentlyContinue
         Remove-Item Function:\Remove-RegistryValueSafe -ErrorAction SilentlyContinue
         Remove-Item Function:\Set-Policy -ErrorAction SilentlyContinue
     }
@@ -240,9 +252,9 @@ Describe 'SaveZoneInformation' {
     It 'writes the HKCU SaveZoneInformation=1 property on Disable' {
         SaveZoneInformation -Disable
 
-        $script:newItemPropertyCalls.Count | Should -Be 1
-        $script:newItemPropertyCalls[0].Name | Should -Be 'SaveZoneInformation'
-        $script:newItemPropertyCalls[0].Value | Should -Be 1
+        $script:setRegistryCalls.Count | Should -Be 1
+        $script:setRegistryCalls[0].Name | Should -Be 'SaveZoneInformation'
+        $script:setRegistryCalls[0].Value | Should -Be 1
         $script:consoleStatuses[-1] | Should -Be 'success'
     }
 
@@ -409,6 +421,7 @@ Describe 'WindowsScriptHost' {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:newItemCalls = [System.Collections.Generic.List[string]]::new()
         $script:newItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
+        $script:setRegistryCalls = [System.Collections.Generic.List[object]]::new()
         $script:removeRegCalls = [System.Collections.Generic.List[object]]::new()
         $Script:Localization = [pscustomobject]@{ Skipped = 'Skipped: {0}' }
 
@@ -428,6 +441,10 @@ Describe 'WindowsScriptHost' {
             param([string]$Path, [string]$Name, [string]$PropertyType, [object]$Value, [switch]$Force, [object]$ErrorAction)
             [void]$script:newItemPropertyCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name; Value = $Value })
         }
+        function Set-RegistryValueSafe {
+            param([string]$Path, [string]$Name, [string]$Type, [object]$Value)
+            [void]$script:setRegistryCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name; Type = $Type; Value = $Value })
+        }
         function Remove-RegistryValueSafe {
             param([string]$Path, [string]$Name)
             [void]$script:removeRegCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name })
@@ -446,6 +463,7 @@ Describe 'WindowsScriptHost' {
         Remove-Item Function:\Test-Path -ErrorAction SilentlyContinue
         Remove-Item Function:\New-Item -ErrorAction SilentlyContinue
         Remove-Item Function:\New-ItemProperty -ErrorAction SilentlyContinue
+        Remove-Item Function:\Set-RegistryValueSafe -ErrorAction SilentlyContinue
         Remove-Item Function:\Remove-RegistryValueSafe -ErrorAction SilentlyContinue
         Remove-Item Function:\Get-ScheduledTask -ErrorAction SilentlyContinue
     }
@@ -453,9 +471,9 @@ Describe 'WindowsScriptHost' {
     It 'disables the Script Host by writing Enabled=0' {
         WindowsScriptHost -Disable
 
-        $script:newItemPropertyCalls.Count | Should -Be 1
-        $script:newItemPropertyCalls[0].Name | Should -Be 'Enabled'
-        $script:newItemPropertyCalls[0].Value | Should -Be 0
+        $script:setRegistryCalls.Count | Should -Be 1
+        $script:setRegistryCalls[0].Name | Should -Be 'Enabled'
+        $script:setRegistryCalls[0].Value | Should -Be 0
     }
 
     It 'enables the Script Host by removing the Enabled value' {

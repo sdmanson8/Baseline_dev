@@ -91,7 +91,7 @@ Describe 'CABInstallContext' {
 Describe 'MultipleInvokeContext' {
     BeforeEach {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
-        $script:newItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
+        $script:setRegistrySafeCalls = [System.Collections.Generic.List[object]]::new()
         $script:removeRegCalls = [System.Collections.Generic.List[object]]::new()
         $script:errorMessages = [System.Collections.Generic.List[string]]::new()
 
@@ -101,18 +101,18 @@ Describe 'MultipleInvokeContext' {
         }
         function LogInfo { param([string]$Message) }
         function LogError { param([string]$Message) [void]$script:errorMessages.Add($Message) }
-        function New-ItemProperty {
-            param([string]$Path, [string]$Name, [string]$PropertyType, [object]$Value, [switch]$Force, [object]$ErrorAction)
-            [void]$script:newItemPropertyCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name; Value = $Value })
+        function Set-RegistryValueSafe {
+            param([string]$Path, [string]$Name, [object]$Value, [string]$Type)
+            [void]$script:setRegistrySafeCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name; Value = $Value; Type = $Type })
         }
         function Remove-RegistryValueSafe {
             param([string]$Path, [string]$Name)
-            [void]$script:removeRegCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name })
+            [void]$script:removeRegCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name })
         }
     }
 
     AfterEach {
-        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','New-ItemProperty','Remove-RegistryValueSafe')) {
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','Set-RegistryValueSafe','Remove-RegistryValueSafe')) {
             Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }
@@ -120,9 +120,9 @@ Describe 'MultipleInvokeContext' {
     It 'writes MultipleInvokePromptMinimum=300 on Enable' {
         MultipleInvokeContext -Enable
 
-        $script:newItemPropertyCalls.Count | Should -Be 1
-        $script:newItemPropertyCalls[0].Name | Should -Be 'MultipleInvokePromptMinimum'
-        $script:newItemPropertyCalls[0].Value | Should -Be 300
+        $script:setRegistrySafeCalls.Count | Should -Be 1
+        $script:setRegistrySafeCalls[0].Name | Should -Be 'MultipleInvokePromptMinimum'
+        $script:setRegistrySafeCalls[0].Value | Should -Be 300
         $script:consoleStatuses[-1] | Should -Be 'success'
     }
 
@@ -135,8 +135,8 @@ Describe 'MultipleInvokeContext' {
     }
 
     It 'reports failure and logs an error if registry op throws' {
-        function New-ItemProperty {
-            param([string]$Path, [string]$Name, [string]$PropertyType, [object]$Value, [switch]$Force, [object]$ErrorAction)
+        function Set-RegistryValueSafe {
+            param([string]$Path, [string]$Name, [object]$Value, [string]$Type)
             throw 'reg write failed'
         }
 
@@ -151,7 +151,7 @@ Describe 'EditWithPaintContext (appx-gated)' {
     BeforeEach {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:warningMessages = [System.Collections.Generic.List[string]]::new()
-        $script:newItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
+        $script:setRegistrySafeCalls = [System.Collections.Generic.List[object]]::new()
         $script:newItemCalls = [System.Collections.Generic.List[string]]::new()
         $script:removeRegCalls = [System.Collections.Generic.List[object]]::new()
         $script:paintInstalled = $true
@@ -178,18 +178,18 @@ Describe 'EditWithPaintContext (appx-gated)' {
             param([string]$Path, [switch]$Force, [object]$ErrorAction)
             [void]$script:newItemCalls.Add($Path)
         }
-        function New-ItemProperty {
-            param([string]$Path, [string]$Name, [string]$PropertyType, [object]$Value, [switch]$Force, [object]$ErrorAction)
-            [void]$script:newItemPropertyCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name; Value = $Value })
+        function Set-RegistryValueSafe {
+            param([string]$Path, [string]$Name, [object]$Value, [string]$Type)
+            [void]$script:setRegistrySafeCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name; Value = $Value; Type = $Type })
         }
         function Remove-RegistryValueSafe {
             param([string]$Path, [string]$Name)
-            [void]$script:removeRegCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name })
+            [void]$script:removeRegCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name })
         }
     }
 
     AfterEach {
-        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogWarning','LogError','Get-AppxPackage','Get-TweakSkipLabel','Remove-ItemProperty','Test-Path','New-Item','New-ItemProperty','Remove-RegistryValueSafe')) {
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogWarning','LogError','Get-AppxPackage','Get-TweakSkipLabel','Remove-ItemProperty','Test-Path','New-Item','Set-RegistryValueSafe','Remove-RegistryValueSafe')) {
             Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }
@@ -201,7 +201,7 @@ Describe 'EditWithPaintContext (appx-gated)' {
 
         $script:warningMessages.Count | Should -Be 1
         $script:warningMessages[0] | Should -Match 'Skipped'
-        $script:newItemPropertyCalls.Count | Should -Be 0
+        $script:setRegistrySafeCalls.Count | Should -Be 0
     }
 
     It 'writes the block-list string on Hide when Paint is installed' {
@@ -209,8 +209,8 @@ Describe 'EditWithPaintContext (appx-gated)' {
 
         EditWithPaintContext -Hide
 
-        $script:newItemPropertyCalls.Count | Should -Be 1
-        $script:newItemPropertyCalls[0].Name | Should -Be '{2430F218-B743-4FD6-97BF-5C76541B4AE9}'
+        $script:setRegistrySafeCalls.Count | Should -Be 1
+        $script:setRegistrySafeCalls[0].Name | Should -Be '{2430F218-B743-4FD6-97BF-5C76541B4AE9}'
     }
 
     It 'removes the block-list entry on Show when Paint is installed' {
@@ -278,6 +278,41 @@ Describe 'Set-TakeOwnershipContextMenu' {
 
         $script:removeItemCalls.Count | Should -Be 1
         $script:removeItemCalls[0] | Should -Match 'TakeOwnership'
+    }
+}
+
+Describe 'TakeOwnership ContextMenu JSON entry' {
+    BeforeAll {
+        $jsonPath = Join-Path $PSScriptRoot '..\..\Module\Data\ContextMenu.json'
+        $script:contextMenuJson = Get-Content -LiteralPath $jsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $script:takeOwnershipEntry = $script:contextMenuJson.Entries | Where-Object { $_.Function -eq 'TakeOwnershipContextMenu' }
+    }
+
+    It 'exposes TakeOwnershipContextMenu as a Toggle entry' {
+        $script:takeOwnershipEntry | Should -Not -BeNullOrEmpty
+        $script:takeOwnershipEntry.Type | Should -Be 'Toggle'
+        $script:takeOwnershipEntry.OnParam | Should -Be 'Add'
+        $script:takeOwnershipEntry.OffParam | Should -Be 'Remove'
+    }
+
+    It 'ships Caution=$true with a Defender ASR mitigation reason' {
+        $script:takeOwnershipEntry.Caution | Should -BeTrue
+        $script:takeOwnershipEntry.CautionReason | Should -Match 'ASR'
+        $script:takeOwnershipEntry.CautionReason | Should -Match 'takeown\.exe'
+    }
+
+    It 'surfaces the takeown.exe ASR exclusion guidance in Description' {
+        $script:takeOwnershipEntry.Description | Should -Match 'Defender'
+        $script:takeOwnershipEntry.Description | Should -Match 'takeown\.exe'
+    }
+
+    It 'tags the entry with defender-asr so future audits can find it' {
+        $script:takeOwnershipEntry.Tags | Should -Contain 'defender-asr'
+    }
+
+    It 'defaults to off (WinDefault=$false, Default=$false) so users opt in' {
+        $script:takeOwnershipEntry.Default | Should -BeFalse
+        $script:takeOwnershipEntry.WinDefault | Should -BeFalse
     }
 }
 

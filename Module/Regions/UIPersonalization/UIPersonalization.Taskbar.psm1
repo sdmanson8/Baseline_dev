@@ -1,9 +1,14 @@
-﻿using module ..\..\Logging.psm1
+using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
 <#
 	.SYNOPSIS
-	Internal function Ensure-TaskbarRegistryPath.
+	Ensure taskbar registry path.
+
+	
+.DESCRIPTION
+	
+Supports taskbar registry path handling inside Baseline.
 #>
 
 function Ensure-TaskbarRegistryPath
@@ -22,8 +27,13 @@ function Ensure-TaskbarRegistryPath
 
 <#
 	.SYNOPSIS
-	Internal admin utility for taskbar and shell placement settings.
+	Configures taskbar and shell placement settings.
 
+
+	
+.DESCRIPTION
+	
+Applies Baseline's taskbar and shell placement settings in GUI and headless runs.
 	.PARAMETER Left
 	Set the taskbar alignment to the left
 
@@ -69,7 +79,10 @@ function TaskbarAlignment
 			try
 			{
 				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
-				New-ItemProperty -Path $taskbarAdvancedPath -Name TaskbarAl -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $taskbarAdvancedPath `
+					-Name "TaskbarAl" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -85,7 +98,10 @@ function TaskbarAlignment
 			try
 			{
 				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
-				New-ItemProperty -Path $taskbarAdvancedPath -Name TaskbarAl -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $taskbarAdvancedPath `
+					-Name "TaskbarAl" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -101,6 +117,11 @@ function TaskbarAlignment
 	.SYNOPSIS
 	The widgets icon on the taskbar
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the widgets icon on the taskbar.
 	.PARAMETER Hide
 	Hide the widgets icon on the taskbar
 
@@ -188,6 +209,11 @@ function TaskbarWidgets
 	.SYNOPSIS
 	Search on the taskbar
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for search on the taskbar.
 	.PARAMETER Hide
 	Hide the search on the taskbar
 
@@ -249,7 +275,10 @@ function TaskbarSearch
 	$searchPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search'
 
 	# Remove all policies in order to make changes visible in UI only if it's possible
-	New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\PolicyManager\default\Search\DisableSearch -Name value -PropertyType DWord -Value 0 -Force -ErrorAction Ignore | Out-Null
+	Set-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\Search\DisableSearch" `
+		-Name "value" `
+		-Value 0 `
+		-Type DWord
 	Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name DisableSearch, SearchOnTaskbarMode -Force -ErrorAction Ignore | Out-Null
 	Set-Policy -Scope Computer -Path "SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name DisableSearch -Type CLEAR | Out-Null
 	Set-Policy -Scope Computer -Path "SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name SearchOnTaskbarMode -Type CLEAR | Out-Null
@@ -263,7 +292,10 @@ function TaskbarSearch
 			try
 			{
 				Ensure-TaskbarRegistryPath -Path $searchPath
-				New-ItemProperty -Path $searchPath -Name SearchboxTaskbarMode -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $searchPath `
+					-Name "SearchboxTaskbarMode" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -279,7 +311,10 @@ function TaskbarSearch
 			try
 			{
 				Ensure-TaskbarRegistryPath -Path $searchPath
-				New-ItemProperty -Path $searchPath -Name SearchboxTaskbarMode -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $searchPath `
+					-Name "SearchboxTaskbarMode" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -295,7 +330,10 @@ function TaskbarSearch
 			try
 			{
 				Ensure-TaskbarRegistryPath -Path $searchPath
-				New-ItemProperty -Path $searchPath -Name SearchboxTaskbarMode -PropertyType DWord -Value 3 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $searchPath `
+					-Name "SearchboxTaskbarMode" `
+					-Value 3 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -311,7 +349,10 @@ function TaskbarSearch
 			try
 			{
 				Ensure-TaskbarRegistryPath -Path $searchPath
-				New-ItemProperty -Path $searchPath -Name SearchboxTaskbarMode -PropertyType DWord -Value 2 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $searchPath `
+					-Name "SearchboxTaskbarMode" `
+					-Value 2 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -327,6 +368,11 @@ function TaskbarSearch
 	.SYNOPSIS
 	Search highlights
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for search highlights.
 	.PARAMETER Hide
 	Hide search highlights
 
@@ -384,7 +430,10 @@ function SearchHighlights
 			else
 			{
 				Ensure-TaskbarRegistryPath -Path $searchSettingsPath
-				New-ItemProperty -Path $searchSettingsPath -Name IsDynamicSearchBoxEnabled -PropertyType DWord -Value 0 -Force | Out-Null
+				Set-RegistryValueSafe -Path $searchSettingsPath `
+					-Name "IsDynamicSearchBoxEnabled" `
+					-Value 0 `
+					-Type DWord
 
 			}
 			Write-ConsoleStatus -Status success
@@ -394,10 +443,13 @@ function SearchHighlights
 			Write-ConsoleStatus -Action "Enabling search highlights"
 			LogInfo "Enabling search highlights"
 			# Enable "Ask Copilot" and "Find results in Web" icons in Windows Search in order to enable Search Highlights
-			Remove-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Search -Name BingSearchEnabled -Force -ErrorAction Ignore | Out-Null
-			Remove-ItemProperty -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer -Name DisableSearchBoxSuggestions -Force -ErrorAction Ignore | Out-Null
+			Remove-RegistryValueSafe -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Search -Name BingSearchEnabled | Out-Null
+			Remove-RegistryValueSafe -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer -Name DisableSearchBoxSuggestions | Out-Null
 			Ensure-TaskbarRegistryPath -Path $searchSettingsPath
-			New-ItemProperty -Path $searchSettingsPath -Name IsDynamicSearchBoxEnabled -PropertyType DWord -Value 1 -Force | Out-Null
+			Set-RegistryValueSafe -Path $searchSettingsPath `
+				-Name "IsDynamicSearchBoxEnabled" `
+				-Value 1 `
+				-Type DWord
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -407,6 +459,11 @@ function SearchHighlights
 	.SYNOPSIS
 	Task view button on the taskbar
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for task view button on the taskbar.
 	.PARAMETER Hide
 	Hide the Task view button on the taskbar
 
@@ -444,7 +501,7 @@ function TaskViewButton
 	$taskbarAdvancedPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
 
 	# Remove all policies in order to make changes visible in UI only if it's possible
-	Remove-ItemProperty -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer, HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer -Name HideTaskViewButton -Force -ErrorAction Ignore | Out-Null
+	Remove-RegistryValueSafe -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer, HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer -Name HideTaskViewButton | Out-Null
 	Set-Policy -Scope User -Path Software\Policies\Microsoft\Windows\Explorer -Name HideTaskViewButton -Type CLEAR | Out-Null
 	Set-Policy -Scope Computer -Path SOFTWARE\Policies\Microsoft\Windows\Explorer -Name HideTaskViewButton -Type CLEAR | Out-Null
 
@@ -457,7 +514,10 @@ function TaskViewButton
 			try
 			{
 				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
-				New-ItemProperty -Path $taskbarAdvancedPath -Name ShowTaskViewButton -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $taskbarAdvancedPath `
+					-Name "ShowTaskViewButton" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -473,7 +533,10 @@ function TaskViewButton
 			try
 			{
 				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
-				New-ItemProperty -Path $taskbarAdvancedPath -Name ShowTaskViewButton -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $taskbarAdvancedPath `
+					-Name "ShowTaskViewButton" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -489,6 +552,11 @@ function TaskViewButton
 	.SYNOPSIS
 	Combine taskbar buttons and hide labels
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for combine taskbar buttons and hide labels.
 	.PARAMETER Always
 	Combine taskbar buttons and always hide labels (default value)
 
@@ -540,7 +608,7 @@ function TaskbarCombine
 	$taskbarAdvancedPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
 
 	# Remove all policies in order to make changes visible in UI only if it's possible
-	Remove-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer, HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name NoTaskGrouping -Force -ErrorAction Ignore | Out-Null
+	Remove-RegistryValueSafe -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer, HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name NoTaskGrouping | Out-Null
 	Set-Policy -Scope Computer -Path SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name NoTaskGrouping -Type CLEAR | Out-Null
 	Set-Policy -Scope User -Path Software\Microsoft\Windows\CurrentVersion\Policies\Explorer -Name NoTaskGrouping -Type CLEAR | Out-Null
 
@@ -553,7 +621,10 @@ function TaskbarCombine
 			try
 			{
 				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
-				New-ItemProperty -Path $taskbarAdvancedPath -Name TaskbarGlomLevel -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $taskbarAdvancedPath `
+					-Name "TaskbarGlomLevel" `
+					-Value 0 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -569,7 +640,10 @@ function TaskbarCombine
 			try
 			{
 				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
-				New-ItemProperty -Path $taskbarAdvancedPath -Name TaskbarGlomLevel -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $taskbarAdvancedPath `
+					-Name "TaskbarGlomLevel" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -585,7 +659,10 @@ function TaskbarCombine
 			try
 			{
 				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
-				New-ItemProperty -Path $taskbarAdvancedPath -Name TaskbarGlomLevel -PropertyType DWord -Value 2 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $taskbarAdvancedPath `
+					-Name "TaskbarGlomLevel" `
+					-Value 2 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -601,6 +678,11 @@ function TaskbarCombine
 	.SYNOPSIS
 	Unpin shortcuts from the taskbar
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for unpin shortcuts from the taskbar.
 	.PARAMETER Edge
 	Unpin Microsoft Edge shortcut from the taskbar
 
@@ -643,12 +725,17 @@ function UnpinTaskbarShortcuts
 		([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq [System.Runtime.InteropServices.Architecture]::Arm64)
 	$IsWindows10 = [System.Environment]::OSVersion.Version.Build -lt 22000
 	# ARM64 and Windows 10 already needed the STA-runspace path (original condition).
-	# AMD64 Windows 11 also needs it — direct COM shell verb calls silently do nothing on Win11 x64.
+	# AMD64 Windows 11 also needs it â€” direct COM shell verb calls silently do nothing on Win11 x64.
 	$NeedsDeferredUnpin = $IsARM64 -or $IsWindows10 -or (-not $IsWindows10 -and -not $IsARM64)
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-TaskbarPinnedItems.
+	    Gets taskbar pinned items.
+
+	    
+.DESCRIPTION
+	    
+Supports taskbar pinned items handling inside Baseline.
 	#>
 
 	function Get-TaskbarPinnedItems
@@ -669,7 +756,12 @@ function UnpinTaskbarShortcuts
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-TaskbarPinnedMatches.
+	    Gets taskbar pinned matches.
+
+	    
+.DESCRIPTION
+	    
+Supports taskbar pinned matches handling inside Baseline.
 	#>
 
 	function Get-TaskbarPinnedMatches
@@ -702,7 +794,12 @@ function UnpinTaskbarShortcuts
 
 	<#
 	    .SYNOPSIS
-	    Internal function Invoke-TaskbarUnpin.
+	    Runs taskbar unpin.
+
+	    
+.DESCRIPTION
+	    
+Supports taskbar unpin handling inside Baseline.
 	#>
 
 	function Invoke-TaskbarUnpin
@@ -748,7 +845,12 @@ function UnpinTaskbarShortcuts
 
 	<#
 	    .SYNOPSIS
-	    Internal function Remove-TaskbarPinnedLink.
+	    Removes taskbar pinned link.
+
+	    
+.DESCRIPTION
+	    
+Supports taskbar pinned link handling inside Baseline.
 	#>
 
 	function Remove-TaskbarPinnedLink
@@ -779,7 +881,12 @@ function UnpinTaskbarShortcuts
 
 	<#
 	    .SYNOPSIS
-	    Internal function Invoke-TaskbarUnpinWithFallback.
+	    Runs taskbar unpin with fallback.
+
+	    
+.DESCRIPTION
+	    
+Supports taskbar unpin with fallback handling inside Baseline.
 	#>
 
 	function Invoke-TaskbarUnpinWithFallback
@@ -800,7 +907,12 @@ function UnpinTaskbarShortcuts
 
 	<#
 	    .SYNOPSIS
-	    Internal function Remove-TaskbarPinnedLinksByPattern.
+	    Removes taskbar pinned links by pattern.
+
+	    
+.DESCRIPTION
+	    
+Supports taskbar pinned links by pattern handling inside Baseline.
 	#>
 
 	function Remove-TaskbarPinnedLinksByPattern
@@ -852,7 +964,12 @@ function UnpinTaskbarShortcuts
 
 	<#
 	    .SYNOPSIS
-	    Internal function Invoke-ARM64ShellUnpin.
+	    Runs ARM64 shell unpin.
+
+	    
+.DESCRIPTION
+	    
+Supports ARM64 shell unpin handling inside Baseline.
 	#>
 
 	function Invoke-ARM64ShellUnpin
@@ -902,7 +1019,7 @@ function UnpinTaskbarShortcuts
 
 					if ($UnpinVerb)
 					{
-						try { $UnpinVerb.DoIt() } catch {}
+						try { $UnpinVerb.DoIt() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UIPersonalization.Taskbar.UnpinTaskbarShortcuts.DoIt' }
 					}
 				}
 			}
@@ -916,7 +1033,7 @@ function UnpinTaskbarShortcuts
 		}
 		else
 		{
-			try { $PS.EndInvoke($AsyncResult) } catch {}
+			try { $PS.EndInvoke($AsyncResult) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UIPersonalization.Taskbar.UnpinTaskbarShortcuts.EndInvoke' }
 		}
 
 		$PS.Dispose()
@@ -1088,10 +1205,16 @@ function UnpinTaskbarShortcuts
 			Copilot
 			{
 				# Disable the dedicated Copilot taskbar button
-				New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "ShowCopilotButton" -PropertyType DWord -Value 0 -Force | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "ShowCopilotButton" `
+					-Value 0 `
+					-Type DWord
 
 				# Disable Copilot companion in taskbar search
-				New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarCompanion" -PropertyType DWord -Value 0 -Force | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "TaskbarCompanion" `
+					-Value 0 `
+					-Type DWord
 
 				$CopilotPinPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins"
 
@@ -1100,8 +1223,14 @@ function UnpinTaskbarShortcuts
 					New-Item -Path $CopilotPinPath -Force | Out-Null
 				}
 
-				New-ItemProperty -Path $CopilotPinPath -Name "CopilotPWAPin" -PropertyType DWord -Value 0 -Force | Out-Null
-				New-ItemProperty -Path $CopilotPinPath -Name "RecallPin" -PropertyType DWord -Value 0 -Force | Out-Null
+				Set-RegistryValueSafe -Path $CopilotPinPath `
+					-Name "CopilotPWAPin" `
+					-Value 0 `
+					-Type DWord
+				Set-RegistryValueSafe -Path $CopilotPinPath `
+					-Name "RecallPin" `
+					-Value 0 `
+					-Type DWord
 
 				if ($NeedsDeferredUnpin)
 				{
@@ -1205,6 +1334,11 @@ function UnpinTaskbarShortcuts
 	.SYNOPSIS
 	End task in taskbar by right click
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for end task in taskbar by right click.
 	.PARAMETER Enable
 	Enable end task in taskbar by right click
 
@@ -1252,7 +1386,10 @@ function TaskbarEndTask
 			LogInfo "Enabling 'End task in taskbar by right click'"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings -Name TaskbarEndTask -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings" `
+					-Name "TaskbarEndTask" `
+					-Value 1 `
+					-Type DWord
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1286,6 +1423,11 @@ function TaskbarEndTask
 	.SYNOPSIS
 	Taskbar transparency/acrylic opacity slider
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for taskbar transparency/acrylic opacity slider.
 	.PARAMETER Opacity
 	Set taskbar acrylic opacity slider value (0-100)
 
@@ -1332,6 +1474,11 @@ function Set-TaskbarAcrylicOpacity
 	.SYNOPSIS
 	Small taskbar icons (Windows 10 only)
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for small taskbar icons (Windows 10 only).
 	.PARAMETER Enable
 	Use small taskbar icons
 
@@ -1409,6 +1556,11 @@ function Set-SmallTaskbarIcons
 	.SYNOPSIS
 	Alt+Tab filter to exclude Edge tabs
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for alt+Tab filter to exclude Edge tabs.
 	.PARAMETER Enable
 	Exclude Edge tabs from Alt+Tab switcher
 
@@ -1477,6 +1629,101 @@ function Set-AltTabEdgeTabFilter
 			{
 				Write-ConsoleStatus -Status failed
 				LogError "Failed to remove Alt+Tab Edge tab filter: $($_.Exception.Message)"
+			}
+		}
+	}
+}
+
+<#
+	.SYNOPSIS
+	Battery percentage in the system tray (laptops only)
+
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for battery percentage in the system tray (laptops only).
+	.PARAMETER Enable
+	Show battery percentage on the tray battery icon
+
+	.PARAMETER Disable
+	Restore the default (icon only, no percentage)
+
+	.EXAMPLE
+	BatteryPercentage -Enable
+
+	.EXAMPLE
+	BatteryPercentage -Disable
+
+	.NOTES
+	Current user. Short-circuits with no registry write on machines without
+	a battery (Win32_Battery returns null on desktops). Enable writes 1;
+	Disable deletes the value so the toggle isn't stuck off.
+#>
+function BatteryPercentage
+{
+	param
+	(
+		[Parameter(Mandatory = $true, ParameterSetName = "Enable")]
+		[switch]$Enable,
+
+		[Parameter(Mandatory = $true, ParameterSetName = "Disable")]
+		[switch]$Disable
+	)
+
+	$hasBattery = $false
+	try
+	{
+		$battery = Get-CimInstance -ClassName Win32_Battery -ErrorAction Stop
+		if ($battery) { $hasBattery = $true }
+	}
+	catch
+	{
+		Write-DebugSwallowedException -ErrorRecord $_ -Source 'UIPersonalization.Taskbar.BatteryPercentage.Detect'
+	}
+
+	if (-not $hasBattery)
+	{
+		LogInfo "No battery detected; skipping battery percentage toggle"
+		Write-ConsoleStatus -Action "Skipping battery percentage (no battery)"
+		Write-ConsoleStatus -Status success
+		return
+	}
+
+	switch ($PSCmdlet.ParameterSetName)
+	{
+		"Enable"
+		{
+			Write-ConsoleStatus -Action "Showing battery percentage in system tray"
+			LogInfo "Enabling battery percentage in system tray"
+			try
+			{
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "IsBatteryPercentageEnabled" `
+					-Value 1 `
+					-Type DWord | Out-Null
+				Write-ConsoleStatus -Status success
+			}
+			catch
+			{
+				Write-ConsoleStatus -Status failed
+				LogError "Failed to enable battery percentage: $($_.Exception.Message)"
+			}
+		}
+		"Disable"
+		{
+			Write-ConsoleStatus -Action "Hiding battery percentage in system tray"
+			LogInfo "Disabling battery percentage in system tray"
+			try
+			{
+				Remove-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
+					-Name "IsBatteryPercentageEnabled" | Out-Null
+				Write-ConsoleStatus -Status success
+			}
+			catch
+			{
+				Write-ConsoleStatus -Status failed
+				LogError "Failed to disable battery percentage: $($_.Exception.Message)"
 			}
 		}
 	}

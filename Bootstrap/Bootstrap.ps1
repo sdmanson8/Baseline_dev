@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Download and install Baseline from GitHub.
 
@@ -9,12 +9,11 @@
         iwr https://raw.githubusercontent.com/sdmanson8/Baseline/main/Bootstrap/Bootstrap.ps1 -UseBasicParsing | iex
 
     It queries the GitHub Releases API for the latest non-draft release,
-    downloads the release asset zip, extracts it to a folder under the user's
-    Downloads directory, and runs the Inno Setup installer
-    (Baseline-setup-<version>.exe) contained in the archive. After the
-    installer exits, if an installed Baseline.exe can be located it is
-    launched; when BASELINE_PRESET is set or -Preset is supplied, the preset
-    is forwarded to the installed launcher.
+    downloads the release asset zip, verifies it, extracts it to a folder under the user's
+    Downloads directory, and then runs Bootstrap.Install.ps1 from inside the
+    verified archive. The packaged installer script locates and verifies
+    Baseline-setup-<version>.exe before running it. When BASELINE_PRESET is
+    set or -Preset is supplied, the preset is forwarded to the installed launcher.
 
     .NOTES
     SECURITY: This bootstrap is still distributed via pipe-to-IEX, so the
@@ -61,7 +60,7 @@ function Enable-Tls12
             [System.Net.ServicePointManager]::SecurityProtocol = $current -bor $tls12
         }
     }
-    catch { $null = $_ }
+    catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Bootstrap.Enable-Tls12' }
 }
 
 <#
@@ -252,61 +251,26 @@ function Assert-BootstrapReleaseAssetHash
 
 <#
     .SYNOPSIS
-    Internal function Find-BootstrapSetupExecutable.
+    Finds the verified bootstrap install script in an extracted release archive.
 
     .DESCRIPTION
-    Locates the Baseline-setup-<version>.exe installer inside the extracted
-    release archive. Searches up to three directory levels so minor archive
-    layout changes do not break the bootstrap.
+    Requires exactly one Bootstrap.Install.ps1 file under the verified release archive so the raw bootstrap can hand off to packaged install logic without downloading helper scripts from raw GitHub.
 #>
-
-function Find-BootstrapSetupExecutable
+function Find-BootstrapInstallScript
 {
     param(
         [Parameter(Mandatory = $true)]
         [string]$ExtractRoot
     )
 
-    $match = Get-ChildItem -Path $ExtractRoot -Filter 'Baseline-setup-*.exe' -Recurse -File -Depth 3 -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    if (-not $match)
+    $matches = @(Get-ChildItem -Path $ExtractRoot -Filter 'Bootstrap.Install.ps1' -Recurse -File -Depth 4 -ErrorAction SilentlyContinue)
+    if ($matches.Count -ne 1)
     {
-        return $null
+        throw "Expected exactly one Bootstrap.Install.ps1 under $ExtractRoot. Found $($matches.Count)."
     }
 
-    return $match.FullName
+    return $matches[0].FullName
 }
-
-<#
-    .SYNOPSIS
-    Internal function Find-InstalledBaselineExecutable.
-
-    .DESCRIPTION
-    Probes the common Inno Setup install locations produced by
-    Baseline-Setup.iss (per-machine under Program Files, per-user under
-    %LOCALAPPDATA%\Programs) and returns the first Baseline.exe it finds.
-#>
-
-function Find-InstalledBaselineExecutable
-{
-    $candidates = @()
-    foreach ($root in @($env:ProgramFiles, ${env:ProgramFiles(x86)}, (Join-Path $env:LOCALAPPDATA 'Programs')))
-    {
-        if ([string]::IsNullOrWhiteSpace([string]$root)) { continue }
-        $candidates += (Join-Path $root 'Baseline\Baseline.exe')
-    }
-
-    foreach ($candidate in $candidates)
-    {
-        if (Test-Path -LiteralPath $candidate -PathType Leaf)
-        {
-            return $candidate
-        }
-    }
-
-    return $null
-}
-
 <#
     .SYNOPSIS
     Internal function Compare-BootstrapReleaseVersions.
@@ -496,7 +460,7 @@ function Get-BootstrapLatestRelease
                 $candidatePublishedAt = [DateTimeOffset]::Parse($rawPublishedAt, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal)
                 break
             }
-            catch { }
+            catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Bootstrap.Get-BootstrapLatestRelease.ParsePublishedAt' }
         }
 
         if ($null -eq $bestRelease)
@@ -580,7 +544,7 @@ try
     $integrityUrl         = [string]$integrityAsset.browser_download_url
     $integrityManifestPath = Join-Path $CacheRoot ([string]$integrityAsset.name)
 
-    # Write-Host: intentional — bootstrap progress output
+    # Write-Host: intentional bootstrap progress output.
     Write-Host "Downloading $Repository $($latest.tag_name) from $downloadUrl"
     Invoke-DownloadFile -Uri $downloadUrl -OutFile $archivePath
     Write-Host "Downloading release integrity manifest from $integrityUrl"
@@ -591,56 +555,9 @@ try
     New-Item -ItemType Directory -Path $extractRoot -Force | Out-Null
     Expand-Archive -LiteralPath $archivePath -DestinationPath $extractRoot -Force
 
-    $setupExe = Find-BootstrapSetupExecutable -ExtractRoot $extractRoot
-    if (-not $setupExe)
-    {
-        throw "Baseline-setup-*.exe was not found in the extracted archive under $extractRoot."
-    }
-
-    $setupHash = Assert-BootstrapReleaseAssetHash -ManifestPath $integrityManifestPath -AssetName ([System.IO.Path]::GetFileName($setupExe)) -FilePath $setupExe -Label 'Setup executable'
-    Write-Host "Verified SHA-256 for $([System.IO.Path]::GetFileName($setupExe)): $setupHash"
-
-    Write-Host "Running installer $setupExe..."
-    $setupProcess = Start-Process -FilePath $setupExe -Wait -PassThru
-    if ($setupProcess.ExitCode -ne 0)
-    {
-        throw "Baseline installer exited with code $($setupProcess.ExitCode)."
-    }
-
-    $installedExe = Find-InstalledBaselineExecutable
-    if (-not $installedExe)
-    {
-        Write-Host "Baseline installed. Launch it from the Start Menu — no installed Baseline.exe found in the default locations."
-        return
-    }
-
-    $previousPreset = $env:BASELINE_PRESET
-    $hadPreviousPreset = -not [string]::IsNullOrWhiteSpace([string]$previousPreset)
-    if (-not [string]::IsNullOrWhiteSpace([string]$Preset))
-    {
-        $env:BASELINE_PRESET = $Preset
-        Write-Host "Launching $installedExe with preset '$Preset'..."
-    }
-    else
-    {
-        Write-Host "Launching $installedExe..."
-    }
-
-    try
-    {
-        & $installedExe
-    }
-    finally
-    {
-        if ($hadPreviousPreset)
-        {
-            $env:BASELINE_PRESET = $previousPreset
-        }
-        else
-        {
-            Remove-Item -Path Env:\BASELINE_PRESET -ErrorAction SilentlyContinue
-        }
-    }
+    $installScript = Find-BootstrapInstallScript -ExtractRoot $extractRoot
+    Write-Host "Running verified bootstrap installer script $installScript..."
+    & $installScript -ExtractRoot $extractRoot -ManifestPath $integrityManifestPath -Repository $Repository -Preset $Preset
 }
 catch
 {

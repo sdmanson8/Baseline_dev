@@ -7,6 +7,11 @@ using module ..\SharedHelpers.psm1
 	.SYNOPSIS
 	Hardware-accelerated GPU scheduling
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for hardware-accelerated GPU scheduling.
 	.PARAMETER Enable
 	Enable hardware-accelerated GPU scheduling
 
@@ -99,6 +104,11 @@ function GPUScheduling
 	.SYNOPSIS
 	Processor scheduling preference
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for processor scheduling preference.
 	.PARAMETER Programs
 	Prioritize foreground programs (default value)
 
@@ -175,6 +185,11 @@ function Win32PrioritySeparation
 	.SYNOPSIS
 	System responsiveness tuning
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for system responsiveness tuning.
 	.PARAMETER Enable
 	Reduce background task interference by lowering system responsiveness
 
@@ -251,6 +266,11 @@ function SystemResponsiveness
 	.SYNOPSIS
 	CPU priority for games
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for cPU priority for games.
 	.PARAMETER Enable
 	Give games higher CPU priority
 
@@ -327,6 +347,11 @@ function GamingCpuPriority
 	.SYNOPSIS
 	Scheduling category for games
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for scheduling category for games.
 	.PARAMETER Enable
 	Set the game scheduling category to High
 
@@ -403,6 +428,11 @@ function GamingSchedulingCategory
 	.SYNOPSIS
 	GPU priority for games
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for gPU priority for games.
 	.PARAMETER Enable
 	Give games higher GPU priority
 
@@ -479,6 +509,11 @@ function GamingGpuPriority
 	.SYNOPSIS
 	Xbox Game Bar
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for xbox Game Bar.
 	.PARAMETER Disable
 	Disable Xbox Game Bar
 
@@ -578,6 +613,11 @@ function XboxGameBar
 	.SYNOPSIS
 	Xbox Game Bar tips
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for xbox Game Bar tips.
 	.PARAMETER Disable
 	Disable Xbox Game Bar tips
 
@@ -627,7 +667,7 @@ function XboxGameTips
 			{
 				Write-ConsoleStatus -Action "Disabling Xbox Game Bar tips"
 				LogInfo "Disabling Xbox Game Bar tips"
-				New-ItemProperty -Path HKCU:\Software\Microsoft\GameBar -Name ShowStartupPanel -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\GameBar" -Name ShowStartupPanel -Type DWord -Value 0 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -642,7 +682,7 @@ function XboxGameTips
 			{
 				Write-ConsoleStatus -Action "Enabling Xbox Game Bar tips"
 				LogInfo "Enabling Xbox Game Bar tips"
-				New-ItemProperty -Path HKCU:\Software\Microsoft\GameBar -Name ShowStartupPanel -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\GameBar" -Name ShowStartupPanel -Type DWord -Value 1 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -658,6 +698,11 @@ function XboxGameTips
 .SYNOPSIS
 Enable or disable Fullscreen Optimizations
 
+
+
+.DESCRIPTION
+
+Enables or disables Fullscreen Optimizations in GUI and headless runs.
 .PARAMETER Enable
 Enable Fullscreen Optimizations (default value)
 
@@ -693,7 +738,7 @@ function FullscreenOptimizations
 			LogInfo "Enabling Fullscreen Optimizations"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\System\GameConfigStore" -Name "GameDVR_DXGIHonorFSEWindowsCompatible" -Type DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_DXGIHonorFSEWindowsCompatible" -Type DWord -Value 0 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -708,7 +753,7 @@ function FullscreenOptimizations
 			LogInfo "Disabling Fullscreen Optimizations"
 			try
 			{
-				Set-ItemProperty -LiteralPath "HKCU:\System\GameConfigStore" -Name "GameDVR_DXGIHonorFSEWindowsCompatible" -Type DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_DXGIHonorFSEWindowsCompatible" -Type DWord -Value 1 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -724,6 +769,11 @@ function FullscreenOptimizations
 .SYNOPSIS
 Enable or disable Multiplane Overlay
 
+
+
+.DESCRIPTION
+
+Enables or disables Multiplane Overlay in GUI and headless runs.
 .PARAMETER Enable
 Enable Multiplane Overlay (default value)
 
@@ -797,6 +847,11 @@ function MultiplaneOverlay
 .SYNOPSIS
 Enable or disable Game DVR / Background Recording
 
+
+
+.DESCRIPTION
+
+Enables or disables Game DVR / Background Recording in GUI and headless runs.
 .PARAMETER Enable
 Enable Game DVR background recording (default value)
 
@@ -878,6 +933,11 @@ function GameDVR
 .SYNOPSIS
 Enable or disable Windows Game Mode
 
+
+
+.DESCRIPTION
+
+Enables or disables Windows Game Mode in GUI and headless runs.
 .PARAMETER Enable
 Enable Windows Game Mode (default value)
 
@@ -956,6 +1016,11 @@ function WindowsGameMode
 	.SYNOPSIS
 	DirectX flip model optimizations for windowed games
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for directX flip model optimizations for windowed games.
 	.PARAMETER Enable
 	Enable the DirectX flip presentation model optimizations
 
@@ -1032,6 +1097,11 @@ function DirectXFlipModel
 	.SYNOPSIS
 	Variable Refresh Rate optimizations
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for variable Refresh Rate optimizations.
 	.PARAMETER Enable
 	Enable VRR optimizations
 
@@ -1108,6 +1178,11 @@ function DirectXVrrOptimizations
 	.SYNOPSIS
 	Auto HDR
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for auto HDR.
 	.PARAMETER Enable
 	Enable Auto HDR
 
@@ -1184,6 +1259,11 @@ function DirectXAutoHdr
 	.SYNOPSIS
 	Legacy NVIDIA sharpening
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for legacy NVIDIA sharpening.
 	.PARAMETER Enable
 	Enable the legacy NVIDIA sharpening flag
 
@@ -1260,6 +1340,11 @@ function NvidiaSharpening
 .SYNOPSIS
 Enable or disable mouse acceleration (Enhance Pointer Precision)
 
+
+
+.DESCRIPTION
+
+Enables or disables mouse acceleration (Enhance Pointer Precision) in GUI and headless runs.
 .PARAMETER Enable
 Enable mouse acceleration (default value)
 
@@ -1332,6 +1417,11 @@ function MouseAcceleration
 .SYNOPSIS
 Enable or disable Nagle's Algorithm for active network adapters
 
+
+
+.DESCRIPTION
+
+Enables or disables Nagle's Algorithm for active network adapters in GUI and headless runs.
 .PARAMETER Enable
 Enable Nagle's Algorithm (default value, lower throughput overhead)
 
@@ -1442,6 +1532,11 @@ function NaglesAlgorithm
 	.SYNOPSIS
 	Network throttling for multimedia traffic
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for network throttling for multimedia traffic.
 	.PARAMETER Enable
 	Keep Windows multimedia network throttling enabled (default value)
 
@@ -1518,6 +1613,11 @@ function NetworkThrottling
 	.SYNOPSIS
 	Game Bar controller access
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for game Bar controller access.
 	.PARAMETER Enable
 	Allow an Xbox or compatible controller to open Game Bar with the Xbox button
 
@@ -1602,6 +1702,11 @@ function GameBarController
 	.SYNOPSIS
 	Desktop composition effects
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for desktop composition effects.
 	.PARAMETER Enable
 	Enable desktop composition effects
 
@@ -1678,6 +1783,11 @@ function DesktopComposition
 	.SYNOPSIS
 	Xbox Live Auth Manager
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for xbox Live Auth Manager.
 	.PARAMETER Disabled
 	Disable Xbox Live Auth Manager
 
@@ -1784,6 +1894,11 @@ function XboxAuthManager
 	.SYNOPSIS
 	Xbox Live Game Save
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for xbox Live Game Save.
 	.PARAMETER Disabled
 	Disable Xbox Live Game Save
 
@@ -1890,6 +2005,11 @@ function XboxGameSave
 	.SYNOPSIS
 	Xbox Live Networking Service
 
+
+
+.DESCRIPTION
+
+Applies the Baseline behavior for xbox Live Networking Service.
 	.PARAMETER Disabled
 	Disable Xbox Live Networking Service
 
@@ -1994,60 +2114,140 @@ function XboxNetworking
 
 <#
 	.SYNOPSIS
-	Choose an app and set the "High performance" graphics performance for it
+	Set the "High performance" graphics-performance preference for an executable.
+
+	.DESCRIPTION
+	Writes `GpuPreference=2;` under
+	`HKCU\Software\Microsoft\DirectX\UserGpuPreferences` keyed by the
+	executable's full path. Returns `$true` on success, `$false` when the
+	preference was not written (no dedicated GPU, no path supplied in
+	non-interactive host, registry write failed). Skips silently on
+	integrated-only graphics — the preference has no effect there.
+
+	.PARAMETER AppPath
+	Full path to the executable. When provided, the function writes the
+	registry value directly with no UI. Intended for GUI / scripted callers.
+	When omitted, the function falls back to the legacy interactive
+		console-host menu + Win32 OpenFileDialog (preserves console-mode
+	behaviour); skipped on non-interactive hosts.
 
 	.EXAMPLE
-	Set-AppGraphicsPerformance
+	Set-AppGraphicsPerformance -AppPath 'C:\Games\game.exe'
 
 	.NOTES
-	Works only with a dedicated GPU
-
-	.NOTES
-	Current user
+	Per-user (HKCU). Requires a dedicated GPU; integrated-only systems
+	short-circuit before any registry write.
 #>
 function Set-AppGraphicsPerformance
 {
-	if (Get-CimInstance -ClassName Win32_VideoController | Where-Object -FilterScript {($_.AdapterDACType -ne "Internal") -and ($null -ne $_.AdapterDACType)})
+	[CmdletBinding(SupportsShouldProcess = $true)]
+	[OutputType([bool])]
+	param (
+		[Parameter(Mandatory = $false)]
+		[string]$AppPath
+	)
+
+	$dedicatedAdapter = Get-CimInstance -ClassName Win32_VideoController -ErrorAction SilentlyContinue |
+		Where-Object -FilterScript { ($_.AdapterDACType -ne 'Internal') -and ($null -ne $_.AdapterDACType) } |
+		Select-Object -First 1
+	if (-not $dedicatedAdapter)
 	{
-		Write-ConsoleStatus -Action "Selecting an app to set the 'High performance' graphics performance"
-		LogInfo "Selecting an app to set the 'High performance' graphics performance"
-		do
-		{
-			$Choice = Show-Menu -Menu $Browse -Default 1 -AddSkip
-
-			switch ($Choice)
-			{
-				$Browse
-				{
-					Add-Type -AssemblyName System.Windows.Forms
-					$OpenFileDialog = New-Object -TypeName System.Windows.Forms.OpenFileDialog
-					$OpenFileDialog.Filter = "*.exe|*.exe|{0} (*.*)|*.*" -f $Localization.AllFilesFilter
-					$OpenFileDialog.InitialDirectory = "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}"
-					$OpenFileDialog.Multiselect = $false
-
-					# Force move the open file dialog to the foreground
-					$Focus = New-Object -TypeName System.Windows.Forms.Form -Property @{TopMost = $true}
-					$OpenFileDialog.ShowDialog($Focus)
-
-					if ($OpenFileDialog.FileName)
-					{
-						if (-not (Test-Path -Path HKCU:\Software\Microsoft\DirectX\UserGpuPreferences))
-						{
-							New-Item -Path HKCU:\Software\Microsoft\DirectX\UserGpuPreferences -Force | Out-Null
-						}
-						New-ItemProperty -Path HKCU:\Software\Microsoft\DirectX\UserGpuPreferences -Name $OpenFileDialog.FileName -PropertyType String -Value "GpuPreference=2;" -Force | Out-Null
-					}
-				}
-				$Skip
-				{
-					LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
-				}
-				$KeyboardArrows {}
-			}
-		}
-		until ($Choice -ne $KeyboardArrows)
-		Write-ConsoleStatus -Status success
+		LogInfo 'Set-AppGraphicsPerformance: skipped — no dedicated GPU detected'
+		return $false
 	}
+
+	$gpuPrefPath = 'HKCU:\Software\Microsoft\DirectX\UserGpuPreferences'
+
+	if (-not [string]::IsNullOrWhiteSpace($AppPath))
+	{
+		if (-not $PSCmdlet.ShouldProcess($AppPath, 'Set GpuPreference=2 (High performance)'))
+		{
+			return $false
+		}
+		try
+		{
+			if (-not (Test-Path -LiteralPath $gpuPrefPath))
+			{
+				New-Item -Path $gpuPrefPath -Force -ErrorAction Stop | Out-Null
+			}
+			Set-RegistryValueSafe -Path $gpuPrefPath -Name $AppPath -Value 'GpuPreference=2;' -Type String | Out-Null
+			LogInfo "Set-AppGraphicsPerformance: high-performance preference set for '$AppPath'"
+			return $true
+		}
+		catch
+		{
+			LogError "Set-AppGraphicsPerformance: failed to write GPU preference for '$AppPath': $($_.Exception.Message)"
+			return $false
+		}
+	}
+
+	if (-not (Test-InteractiveHost))
+	{
+		LogWarning 'Set-AppGraphicsPerformance: -AppPath was not supplied and the host is non-interactive; nothing to do'
+		return $false
+	}
+
+	Write-ConsoleStatus -Action "Selecting an app to set the 'High performance' graphics performance"
+	LogInfo "Selecting an app to set the 'High performance' graphics performance"
+	do
+	{
+		$Choice = Show-Menu -Menu $Script:Browse -Default 1 -AddSkip
+
+		switch ($Choice)
+		{
+			$Script:Browse
+			{
+				Add-Type -AssemblyName System.Windows.Forms
+				$OpenFileDialog = New-Object -TypeName System.Windows.Forms.OpenFileDialog
+				$OpenFileDialog.Filter = '*.exe|*.exe|All files (*.*)|*.*'
+				$OpenFileDialog.InitialDirectory = '::{20D04FE0-3AEA-1069-A2D8-08002B30309D}'
+				$OpenFileDialog.Multiselect = $false
+
+				# Force the open-file dialog into the foreground.
+				$Focus = New-Object -TypeName System.Windows.Forms.Form -Property @{TopMost = $true}
+				$null = $OpenFileDialog.ShowDialog($Focus)
+
+				if ($OpenFileDialog.FileName)
+				{
+					$null = Set-AppGraphicsPerformance -AppPath $OpenFileDialog.FileName
+				}
+			}
+			$Script:Skip
+			{
+				LogWarning (Get-BaselineBilingualString -Key 'Skipped' -Fallback 'Skipped {0}' -FormatArgs @((Get-TweakSkipLabel $MyInvocation)))
+			}
+			$Script:KeyboardArrows {}
+		}
+	}
+	until ($Choice -ne $Script:KeyboardArrows)
+	Write-ConsoleStatus -Status success
+	return $true
+}
+
+<#
+	.SYNOPSIS
+	Manifest entry point for the per-app high-performance graphics preference.
+
+	.DESCRIPTION
+	Bare-noun wrapper used by the GUI manifest runner. The implementation
+	lives in Set-AppGraphicsPerformance so console callers and tests can share
+	the same registry-write path.
+#>
+function AppGraphicsPerformance
+{
+	[CmdletBinding(SupportsShouldProcess = $true)]
+	[OutputType([bool])]
+	param (
+		[Parameter(Mandatory = $false)]
+		[string]$AppPath
+	)
+
+	if (-not [string]::IsNullOrWhiteSpace([string]$AppPath) -and -not $PSCmdlet.ShouldProcess($AppPath, 'Set per-app high-performance graphics preference'))
+	{
+		return $false
+	}
+
+	return (Set-AppGraphicsPerformance -AppPath $AppPath)
 }
 
 Export-ModuleMember -Function '*'

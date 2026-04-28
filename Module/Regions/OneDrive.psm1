@@ -7,6 +7,11 @@ using module ..\SharedHelpers.psm1
 	.SYNOPSIS
 	OneDrive
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for oneDrive.
 	.PARAMETER Uninstall
 	Uninstall OneDrive
 
@@ -56,7 +61,12 @@ function OneDrive
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-OneDriveSetupPath.
+	    Gets one drive setup path.
+
+	    
+.DESCRIPTION
+	    
+Supports one drive setup path handling inside Baseline.
 	#>
 
 	function Get-OneDriveSetupPath
@@ -161,7 +171,7 @@ function OneDrive
 	    			"$env:SystemDrive\OneDriveTemp"
 				)
 				Remove-Item -Path $PathsToRemove -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-				Remove-ItemProperty -Path HKCU:\Environment -Name OneDrive, OneDriveConsumer -Force -ErrorAction SilentlyContinue | Out-Null
+				Remove-RegistryValueSafe -Path HKCU:\Environment -Name OneDrive, OneDriveConsumer | Out-Null
 				Unregister-ScheduledTask -TaskName *OneDrive* -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
 				Write-ConsoleStatus -Status success
 			}
@@ -245,7 +255,7 @@ function OneDrive
 				}
 
 				# Save screenshots in the Pictures folder when pressing Windows+PrtScr or using Windows+Shift+S
-				Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "{B7BEDE81-DF94-4682-A7D8-57A52620B86F}" -Force -ErrorAction SilentlyContinue | Out-Null
+				Remove-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "{B7BEDE81-DF94-4682-A7D8-57A52620B86F}" | Out-Null
 
 				Get-ScheduledTask -TaskName "Onedrive* Update*" | Enable-ScheduledTask
 				Get-ScheduledTask -TaskName "Onedrive* Update*" | Start-ScheduledTask

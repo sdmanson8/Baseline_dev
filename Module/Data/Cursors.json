@@ -1,5 +1,11 @@
 {
   "Tab": "Cursors",
+  "PlatformSupportDefault": {
+    "Windows10": true,
+    "Windows11": true,
+    "Server": false,
+    "UnavailableReason": "Client-only shell feature not present on Windows Server."
+  },
   "Entries": [
     {
       "Name": "Cursors",

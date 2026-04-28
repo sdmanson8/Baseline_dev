@@ -3,8 +3,13 @@ using module ..\..\SharedHelpers.psm1
 
 <#
 	.SYNOPSIS
-	Internal admin utility for the Connected User Experiences and Telemetry (DiagTrack) service.
+	Configures the Connected User Experiences and Telemetry (DiagTrack) service.
 
+
+	
+.DESCRIPTION
+	
+Applies the Connected User Experiences and Telemetry (DiagTrack) service in GUI and headless runs.
 	.PARAMETER Disable
 	Disable the Connected User Experiences and Telemetry (DiagTrack) service, and block connection for the Unified Telemetry Client Outbound Traffic
 
@@ -83,6 +88,11 @@ function DiagTrackService
 	.SYNOPSIS
 	Diagnostic data
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for diagnostic data.
 	.PARAMETER Minimal
 	Set the diagnostic data collection to minimum
 
@@ -128,7 +138,17 @@ function DiagnosticDataLevel
 	}
 
     # Get Windows edition
-    $WindowsEdition = (Get-WmiObject -Class Win32_OperatingSystem).Caption
+    $isEnterpriseOrEducation = $false
+    if (Get-Command -Name 'Get-BaselineSystemPlatformInfo' -ErrorAction SilentlyContinue)
+    {
+        $editionId = [string](Get-BaselineSystemPlatformInfo).EditionID
+        $isEnterpriseOrEducation = $editionId -match '(?i)Enterprise|Education'
+    }
+    else
+    {
+        $WindowsEdition = (Get-WmiObject -Class Win32_OperatingSystem).Caption
+        $isEnterpriseOrEducation = ($WindowsEdition -match "Enterprise") -or ($WindowsEdition -match "Education")
+    }
 
     switch ($PSCmdlet.ParameterSetName) {
         "Minimal" {
@@ -136,14 +156,14 @@ function DiagnosticDataLevel
 			LogInfo "Setting Diagnostic Data Collection to Minimal"
 			try
 			{
-				if ($WindowsEdition -match "Enterprise" -or $WindowsEdition -match "Education") {
+				if ($isEnterpriseOrEducation) {
 					New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection -Name AllowTelemetry -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
 				} else {
 					New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection -Name AllowTelemetry -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
 				}
 
 				New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection -Name MaxTelemetryAllowed -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack -Name ShowedToastAtLevel -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack" -Name ShowedToastAtLevel -Type DWord -Value 1 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -159,7 +179,7 @@ function DiagnosticDataLevel
 			try
 			{
 				New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection -Name MaxTelemetryAllowed -PropertyType DWord -Value 3 -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack -Name ShowedToastAtLevel -PropertyType DWord -Value 3 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack" -Name ShowedToastAtLevel -Type DWord -Value 3 | Out-Null
 				if ((Get-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection -Name AllowTelemetry -ErrorAction SilentlyContinue))
 				{
 					Remove-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" | Out-Null
@@ -179,6 +199,11 @@ function DiagnosticDataLevel
 	.SYNOPSIS
 	The diagnostics tracking scheduled tasks
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the diagnostics tracking scheduled tasks.
 	.PARAMETER Disable
 	Turn off the diagnostics tracking scheduled tasks
 
@@ -253,7 +278,12 @@ function Request-GuiScheduledTasksSelection
 
 <#
     .SYNOPSIS
-    Internal function ScheduledTasks.
+    Runs scheduled tasks.
+
+    
+.DESCRIPTION
+    
+Supports scheduled tasks handling inside Baseline.
 #>
 
 function ScheduledTasks
@@ -351,13 +381,21 @@ function ScheduledTasks
 	#endregion Variables
 
 	#region Functions
-	<#
-	    .SYNOPSIS
-	    Internal function Get-CheckboxClicked.
-	#>
-
 	function Get-CheckboxClicked
 	{
+			<#
+			    .SYNOPSIS
+			    Sync a task checkbox into the scheduled-task selection list.
+
+			    .DESCRIPTION
+			    Adds or removes the task stored in the checkbox Tag from the SelectedTasks collection based on the current check state.
+
+			    .PARAMETER CheckBox
+			    Checkbox control whose Tag contains the task payload.
+
+			    .EXAMPLE
+			    $checkBox | Get-CheckboxClicked
+			#>
 		[CmdletBinding()]
 		param
 		(
@@ -398,7 +436,12 @@ function ScheduledTasks
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-ScheduledTaskSeedSelected.
+	    Checks scheduled task seed selected.
+
+	    
+.DESCRIPTION
+	    
+Supports scheduled task seed selected handling inside Baseline.
 	#>
 
 	function Test-ScheduledTaskSeedSelected
@@ -420,7 +463,12 @@ function ScheduledTasks
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-SelectedScheduledTaskList.
+	    Gets selected scheduled task list.
+
+	    
+.DESCRIPTION
+	    
+Supports selected scheduled task list handling inside Baseline.
 	#>
 
 	function Get-SelectedScheduledTaskList
@@ -430,7 +478,12 @@ function ScheduledTasks
 
 	<#
 	    .SYNOPSIS
-	    Internal function .
+	    Gets selected scheduled task names.
+
+	    
+.DESCRIPTION
+	    
+Supports selected scheduled task names handling inside Baseline.
 	#>
 	function Get-SelectedScheduledTaskNames
 	{
@@ -443,7 +496,12 @@ function ScheduledTasks
 
 	<#
 	    .SYNOPSIS
-	    Internal function Invoke-ScheduledTasksOperation.
+	    Runs scheduled tasks operation.
+
+	    
+.DESCRIPTION
+	    
+Supports scheduled tasks operation handling inside Baseline.
 	#>
 
 	function Invoke-ScheduledTasksOperation
@@ -473,7 +531,12 @@ function ScheduledTasks
 
 	<#
 	    .SYNOPSIS
-	    Internal function Confirm-ScheduledTasksSelection.
+	    Confirms scheduled tasks selection.
+
+	    
+.DESCRIPTION
+	    
+Supports scheduled tasks selection handling inside Baseline.
 	#>
 
 	function Confirm-ScheduledTasksSelection
@@ -523,7 +586,12 @@ function ScheduledTasks
 
 	<#
 	    .SYNOPSIS
-	    Internal function Add-TaskControl.
+	    Adds task control.
+
+	    
+.DESCRIPTION
+	    
+Supports task control handling inside Baseline.
 	#>
 
 	function Add-TaskControl
@@ -655,7 +723,7 @@ function ScheduledTasks
 	Add-Type -AssemblyName PresentationCore, PresentationFramework
 
 	#region XAML Markup
-	# The section defines the design of the upcoming dialog box
+	# This block defines the dialog XAML used at runtime.
 	[xml]$XAML = @"
 	<Window
 		xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -808,6 +876,11 @@ function ScheduledTasks
 	.SYNOPSIS
 	Windows Error Reporting
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for windows Error Reporting.
 	.PARAMETER Disable
 	Turn off Windows Error Reporting
 
@@ -843,7 +916,8 @@ function ErrorReporting
 	)
 
 	# Remove all policies in order to make changes visible in UI only if it's possible
-	Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting", "HKCU:\Software\Policies\Microsoft\Windows\Windows Error Reporting" -Name Disabled -Force -ErrorAction Ignore | Out-Null
+	Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting" -Name Disabled -Force -ErrorAction Ignore | Out-Null
+	Remove-RegistryValueSafe -Path "HKCU:\Software\Policies\Microsoft\Windows\Windows Error Reporting" -Name "Disabled" | Out-Null
 	Set-Policy -Scope Computer -Path "SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting" -Name Disabled -Type CLEAR | Out-Null
 	Set-Policy -Scope User -Path "Software\Policies\Microsoft\Windows\Windows Error Reporting" -Name Disabled -Type CLEAR | Out-Null
 
@@ -856,7 +930,7 @@ function ErrorReporting
 				try
 				{
 					Get-ScheduledTask -TaskName QueueReporting -ErrorAction Ignore | Disable-ScheduledTask | Out-Null
-					New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\Windows Error Reporting" -Name Disabled -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+					Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\Windows Error Reporting" -Name Disabled -Type DWord -Value 1 | Out-Null
 					try
 					{
 						Get-Service -Name WerSvc -ErrorAction Stop | Stop-Service -Force -ErrorAction Stop -WarningAction SilentlyContinue | Out-Null

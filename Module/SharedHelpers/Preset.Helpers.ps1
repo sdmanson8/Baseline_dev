@@ -1,6 +1,5 @@
-# Preset helper slice for Baseline.
-# Extracted from Bootstrap/Baseline.ps1 - contains headless preset name normalization
-# and preset command list loading for non-interactive execution paths.
+# Preset helpers for Baseline.
+# Normalize non-interactive preset names and prepare command sets.
 
 <#
     .SYNOPSIS
@@ -57,6 +56,167 @@ function Resolve-HeadlessEnvironmentPreset
 	}
 
 	return (ConvertTo-HeadlessPresetName -PresetName $EnvironmentPreset)
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-HeadlessPresetCommandFunctionName.
+#>
+function Get-HeadlessPresetCommandFunctionName
+{
+	param ([string]$CommandLine)
+
+	if ([string]::IsNullOrWhiteSpace([string]$CommandLine))
+	{
+		return $null
+	}
+
+	$trimmed = [string]$CommandLine.Trim()
+	if ($trimmed.StartsWith('!'))
+	{
+		$trimmed = $trimmed.Substring(1).TrimStart()
+	}
+
+	if ([string]::IsNullOrWhiteSpace($trimmed))
+	{
+		return $null
+	}
+
+	$functionName = ($trimmed -split '\s+', 2)[0].Trim()
+	if ([string]::IsNullOrWhiteSpace($functionName))
+	{
+		return $null
+	}
+
+	return $functionName
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-HeadlessPresetEntryFieldValue.
+#>
+function Get-HeadlessPresetEntryFieldValue
+{
+	param (
+		[AllowNull()][object]$Entry,
+		[Parameter(Mandatory = $true)]
+		[string]$FieldName
+	)
+
+	if ($null -eq $Entry)
+	{
+		return $null
+	}
+
+	if ($Entry -is [System.Collections.IDictionary])
+	{
+		if ($Entry.Contains($FieldName))
+		{
+			return $Entry[$FieldName]
+		}
+
+		return $null
+	}
+
+	if ($Entry.PSObject -and $Entry.PSObject.Properties[$FieldName])
+	{
+		return $Entry.$FieldName
+	}
+
+	return $null
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-HeadlessPresetIncludedFunctionSet.
+#>
+function Get-HeadlessPresetIncludedFunctionSet
+{
+	if ($Global:HeadlessPresetIncludedFunctionNames -is [System.Collections.Generic.HashSet[string]])
+	{
+		return $Global:HeadlessPresetIncludedFunctionNames
+	}
+
+	$Global:HeadlessPresetIncludedFunctionNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+	return $Global:HeadlessPresetIncludedFunctionNames
+}
+
+<#
+    .SYNOPSIS
+    Internal function Set-HeadlessPresetIncludedFunctionSet.
+#>
+function Set-HeadlessPresetIncludedFunctionSet
+{
+	param (
+		[string[]]$FunctionNames = @()
+	)
+
+	if ($Global:HeadlessPresetIncludedFunctionNames -isnot [System.Collections.Generic.HashSet[string]])
+	{
+		$Global:HeadlessPresetIncludedFunctionNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+	}
+
+	$includedFunctions = $Global:HeadlessPresetIncludedFunctionNames
+	$includedFunctions.Clear()
+
+	foreach ($functionName in @($FunctionNames))
+	{
+		if ([string]::IsNullOrWhiteSpace([string]$functionName))
+		{
+			continue
+		}
+
+		[void]$includedFunctions.Add(([string]$functionName).Trim())
+	}
+}
+
+<#
+    .SYNOPSIS
+    Internal function Get-HeadlessPresetIncludedTweakLibraryPathSet.
+#>
+function Get-HeadlessPresetIncludedTweakLibraryPathSet
+{
+	if ($Global:HeadlessPresetIncludedTweakLibraryPaths -is [System.Collections.Generic.List[string]])
+	{
+		return $Global:HeadlessPresetIncludedTweakLibraryPaths
+	}
+
+	$Global:HeadlessPresetIncludedTweakLibraryPaths = [System.Collections.Generic.List[string]]::new()
+	return $Global:HeadlessPresetIncludedTweakLibraryPaths
+}
+
+<#
+    .SYNOPSIS
+    Internal function Set-HeadlessPresetIncludedTweakLibraryPathSet.
+#>
+function Set-HeadlessPresetIncludedTweakLibraryPathSet
+{
+	param (
+		[string[]]$IncludePaths = @()
+	)
+
+	if ($Global:HeadlessPresetIncludedTweakLibraryPaths -isnot [System.Collections.Generic.List[string]])
+	{
+		$Global:HeadlessPresetIncludedTweakLibraryPaths = [System.Collections.Generic.List[string]]::new()
+	}
+
+	$includedPaths = $Global:HeadlessPresetIncludedTweakLibraryPaths
+	$includedPaths.Clear()
+	$seenPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
+	foreach ($includePath in @($IncludePaths))
+	{
+		if ([string]::IsNullOrWhiteSpace([string]$includePath))
+		{
+			continue
+		}
+
+		$normalizedIncludePath = ([string]$includePath).Trim()
+		if ($seenPaths.Add($normalizedIncludePath))
+		{
+			[void]$includedPaths.Add($normalizedIncludePath)
+		}
+	}
 }
 
 <#
@@ -132,6 +292,16 @@ function Get-HeadlessPresetValidFunctionSet
 		}
 	}
 
+	foreach ($functionName in @(Get-HeadlessPresetIncludedFunctionSet))
+	{
+		if ([string]::IsNullOrWhiteSpace([string]$functionName))
+		{
+			continue
+		}
+
+		[void]$validFunctions.Add(([string]$functionName).Trim())
+	}
+
 	return $validFunctions
 }
 
@@ -164,7 +334,7 @@ function Assert-HeadlessPresetCommandListValid
 		}
 
 		$trimmed = [string]$commandLine.Trim()
-		$functionName = ($trimmed -split '\s+', 2)[0].Trim()
+		$functionName = Get-HeadlessPresetCommandFunctionName -CommandLine $trimmed
 		if ([string]::IsNullOrWhiteSpace($functionName) -or $validFunctions.Contains($functionName))
 		{
 			continue
@@ -178,7 +348,7 @@ function Assert-HeadlessPresetCommandListValid
 		return
 	}
 
-	$message = "Preset '$PresetPath' contains unknown region entry point(s): {0}. Every preset command must start with a Function defined in Module/Data manifests." -f ($invalidEntries -join ', ')
+	$message = "Preset '$PresetPath' contains unknown region entry point(s): {0}. Every preset command must start with a Function defined in Module/Data manifests or an included tweak library." -f ($invalidEntries -join ', ')
 	if ($WarningOnly)
 	{
 		Write-Warning $message
@@ -194,7 +364,7 @@ function Assert-HeadlessPresetCommandListValid
 #>
 function Get-HeadlessPresetCommandList
 {
-	<# .SYNOPSIS Loads the command list from a preset JSON or TXT file with deduplication. #>
+	<# .SYNOPSIS Loads the command list from a preset JSON or TXT file with ordered add/remove operations and deduplication. #>
 	param (
 		[Parameter(Mandatory = $true)]
 		[string]
@@ -269,23 +439,151 @@ function Get-HeadlessPresetCommandList
 
 	foreach ($rawEntry in $rawEntries)
 	{
-		$commandLine = [string]$rawEntry
-		if ([string]::IsNullOrWhiteSpace($commandLine)) { continue }
-
-		$trimmed = $commandLine.Trim()
-		if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) { continue }
-
-		$functionName = ($trimmed -split '\s+', 2)[0].Trim()
-		if ([string]::IsNullOrWhiteSpace($functionName)) { continue }
-
-		if ($commandIndex.ContainsKey($functionName))
+		if ($null -eq $rawEntry)
 		{
-			$commandList[$commandIndex[$functionName]] = $trimmed
+			continue
 		}
-		else
+
+		if ($rawEntry -is [string])
 		{
-			$commandIndex[$functionName] = $commandList.Count
-			[void]$commandList.Add($trimmed)
+			$commandLine = [string]$rawEntry
+			if ([string]::IsNullOrWhiteSpace($commandLine))
+			{
+				continue
+			}
+
+			$trimmed = $commandLine.Trim()
+			if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#'))
+			{
+				continue
+			}
+
+			if ($trimmed.StartsWith('!'))
+			{
+				$removedFunctionName = Get-HeadlessPresetCommandFunctionName -CommandLine $trimmed
+				if ([string]::IsNullOrWhiteSpace($removedFunctionName))
+				{
+					throw "Preset '$presetPath' contains a removal directive without a function name: '$trimmed'."
+				}
+
+				for ($i = $commandList.Count - 1; $i -ge 0; $i--)
+				{
+					$currentFunctionName = Get-HeadlessPresetCommandFunctionName -CommandLine $commandList[$i]
+					if (-not [string]::IsNullOrWhiteSpace($currentFunctionName) -and $currentFunctionName.Equals($removedFunctionName, [System.StringComparison]::OrdinalIgnoreCase))
+					{
+						$commandList.RemoveAt($i)
+					}
+				}
+
+				$commandIndex.Clear()
+				for ($i = 0; $i -lt $commandList.Count; $i++)
+				{
+					$currentFunctionName = Get-HeadlessPresetCommandFunctionName -CommandLine $commandList[$i]
+					if ([string]::IsNullOrWhiteSpace($currentFunctionName))
+					{
+						continue
+					}
+
+					$commandIndex[$currentFunctionName] = $i
+				}
+
+				continue
+			}
+
+			$functionName = Get-HeadlessPresetCommandFunctionName -CommandLine $trimmed
+			if ([string]::IsNullOrWhiteSpace($functionName))
+			{
+				continue
+			}
+
+			if ($commandIndex.ContainsKey($functionName))
+			{
+				$commandList[$commandIndex[$functionName]] = $trimmed
+			}
+			else
+			{
+				$commandIndex[$functionName] = $commandList.Count
+				[void]$commandList.Add($trimmed)
+			}
+
+			continue
+		}
+
+		$actionValue = [string](Get-HeadlessPresetEntryFieldValue -Entry $rawEntry -FieldName 'Action')
+		if ([string]::IsNullOrWhiteSpace($actionValue))
+		{
+			throw "Preset '$presetPath' contains a JSON entry object without Action."
+		}
+
+		switch -Regex ($actionValue.Trim())
+		{
+			'^(?i)add$'
+			{
+				$commandLine = [string](Get-HeadlessPresetEntryFieldValue -Entry $rawEntry -FieldName 'Command')
+				if ([string]::IsNullOrWhiteSpace($commandLine))
+				{
+					throw "Preset '$presetPath' contains an Add action without a Command value."
+				}
+
+				$trimmed = $commandLine.Trim()
+				if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('!'))
+				{
+					throw "Preset '$presetPath' contains an Add action with an invalid Command value: '$trimmed'."
+				}
+
+				$functionName = Get-HeadlessPresetCommandFunctionName -CommandLine $trimmed
+				if ([string]::IsNullOrWhiteSpace($functionName))
+				{
+					throw "Preset '$presetPath' contains an Add action without a valid function name: '$trimmed'."
+				}
+
+				if ($commandIndex.ContainsKey($functionName))
+				{
+					$commandList[$commandIndex[$functionName]] = $trimmed
+				}
+				else
+				{
+					$commandIndex[$functionName] = $commandList.Count
+					[void]$commandList.Add($trimmed)
+				}
+				continue
+			}
+			'^(?i)remove$'
+			{
+				$functionName = [string](Get-HeadlessPresetEntryFieldValue -Entry $rawEntry -FieldName 'Function')
+				if ([string]::IsNullOrWhiteSpace($functionName))
+				{
+					throw "Preset '$presetPath' contains a Remove action without a Function value."
+				}
+
+				$functionName = $functionName.Trim()
+				for ($i = $commandList.Count - 1; $i -ge 0; $i--)
+				{
+					$currentFunctionName = Get-HeadlessPresetCommandFunctionName -CommandLine $commandList[$i]
+					if (-not [string]::IsNullOrWhiteSpace($currentFunctionName) -and $currentFunctionName.Equals($functionName, [System.StringComparison]::OrdinalIgnoreCase))
+					{
+						$commandList.RemoveAt($i)
+					}
+				}
+
+				$commandIndex.Clear()
+				for ($i = 0; $i -lt $commandList.Count; $i++)
+				{
+					$currentFunctionName = Get-HeadlessPresetCommandFunctionName -CommandLine $commandList[$i]
+					if ([string]::IsNullOrWhiteSpace($currentFunctionName))
+					{
+						continue
+					}
+
+					$commandIndex[$currentFunctionName] = $i
+				}
+
+				continue
+			}
+			default
+			{
+				throw "Preset '$presetPath' contains an unsupported Action value '$actionValue'."
+			}
 		}
 	}
 

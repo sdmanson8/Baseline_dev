@@ -26,7 +26,7 @@ function Show-ComplianceDialog
 	$dlg.FontSize = $layout.FontSizeBody
 	$dlg.ShowInTaskbar = $false
 
-	try { if ($Form) { $dlg.Owner = $Form } } catch { }
+	try { if ($Form) { $dlg.Owner = $Form } } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ComplianceView.ShowComplianceDialog.SetOwner' }
 	$roundedParts = ConvertTo-RoundedWindow -Window $dlg -Theme $theme
 	[void](Set-GuiWindowChromeTheme -Window $dlg -UseDarkMode:($Script:CurrentThemeName -eq 'Dark'))
 
@@ -177,7 +177,7 @@ function Show-ComplianceDialog
 		$summaryLabel.Text = (& $getLocalizedString -Key 'GuiComplianceChecking' -Fallback 'Checking compliance...')
 		# Flush dispatcher so 'Checking compliance...' renders before the blocking work.
 		# Uses direct dispatcher call because .GetNewClosure() doesn't capture functions.
-		try { [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::Render) } catch { }
+		try { [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::Render) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ComplianceView.ShowComplianceDialog.DispatcherYield' }
 
 		try
 		{
@@ -199,6 +199,7 @@ function Show-ComplianceDialog
 		}
 		catch
 		{
+			Write-DebugSwallowedException -ErrorRecord $_ -Source 'ComplianceView.ShowComplianceDialog.GetRemoteTargetContext'
 			$remoteContext = $null
 		}
 

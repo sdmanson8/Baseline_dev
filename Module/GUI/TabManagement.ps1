@@ -48,16 +48,26 @@
 			# that the content renderer uses. This keeps the header badge aligned with
 			# what the user can actually see after mode/search/filter/preset changes.
 			$tweakCount = 0
-			for ($i = 0; $i -lt $Script:TweakManifest.Count; $i++)
+			if ($pKey -eq 'Customizations')
 			{
-				$tweak = $Script:TweakManifest[$i]
-				if (-not $tweak) { continue }
-				$stateSource = if ($Script:Controls -and $Script:Controls.ContainsKey($i)) { $Script:Controls[$i] } else { $null }
-				if (-not (Test-TweakMatchesCurrentFilters -Tweak $tweak -PrimaryTab $pKey -SearchQuery $searchQuery -StateSource $stateSource -TweakIndex $i))
+				if (Get-Command -Name 'Get-BaselineStartupEntries' -CommandType Function -ErrorAction SilentlyContinue)
 				{
-					continue
+					try { $tweakCount = @(Get-BaselineStartupEntries).Count } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TabManagement.Get-PrimaryTabItemHeaderText.CustomizationsStartupEntries'; $tweakCount = 0 }
 				}
-				$tweakCount++
+			}
+			else
+			{
+				for ($i = 0; $i -lt $Script:TweakManifest.Count; $i++)
+				{
+					$tweak = $Script:TweakManifest[$i]
+					if (-not $tweak) { continue }
+					$stateSource = if ($Script:Controls -and $Script:Controls.ContainsKey($i)) { $Script:Controls[$i] } else { $null }
+					if (-not (Test-TweakMatchesCurrentFilters -Tweak $tweak -PrimaryTab $pKey -SearchQuery $searchQuery -StateSource $stateSource -TweakIndex $i))
+					{
+						continue
+					}
+					$tweakCount++
+				}
 			}
 
 			$displayName = Get-LocalizedTabHeader -PrimaryTab $pKey

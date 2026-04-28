@@ -9,6 +9,8 @@
     17.03.2026 - initial beta version
     21.03.2026 - Added GUI
 	06.04.2026 - Major changes to the GUI, and added more features
+    26.04.2026 - Minor Fixes
+    unreleased - unreleased
 
 	.AUTHOR
 	sdmanson8 - Copyright (c) 2026
@@ -59,18 +61,18 @@ else
     $logDirectory = $env:TEMP
 }
 
-$resolvedLogPath = Join-Path $logDirectory "Baseline - Utility for $osName.txt"
+$resolvedLogPath = [string]$global:LogFilePath
+if ([string]::IsNullOrWhiteSpace($resolvedLogPath))
+{
+    $resolvedLogPath = New-BaselineSessionLogPath -LogDirectory $logDirectory -OsName $osName
+}
 $previousLogPath = [string]$global:LogFilePath
 $hadPreviousLogPath = -not [string]::IsNullOrWhiteSpace([string]$previousLogPath)
 $alreadyInitialized = $hadPreviousLogPath -and $previousLogPath -eq $resolvedLogPath
 $global:LogFilePath = $resolvedLogPath
-if ($alreadyInitialized)
+Set-LogFile -Path $global:LogFilePath
+if (-not $alreadyInitialized)
 {
-    Set-LogFile -Path $global:LogFilePath
-}
-else
-{
-    Set-LogFile -Path $global:LogFilePath -Clear
     Initialize-SessionStatistics
     if ($hadPreviousLogPath)
     {
@@ -122,4 +124,3 @@ Get-ChildItem -Path $RegionDir -Filter '*.psm1' -File |
 # Region modules are imported with -Global so their functions are available
 # directly. Do not export with wildcard to avoid leaking internal helpers.
 Export-ModuleMember -Function @()
-

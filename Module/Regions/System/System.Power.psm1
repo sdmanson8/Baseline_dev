@@ -3,8 +3,13 @@ using module ..\..\SharedHelpers.psm1
 
 <#
     .SYNOPSIS
-    Internal admin utility for hibernation state management.
+    Configures hibernation state management.
 
+
+    
+.DESCRIPTION
+    
+Applies Baseline's hibernation state management in GUI and headless runs.
 	.PARAMETER Disable
 	Disable hibernation
 
@@ -84,6 +89,11 @@ function Hibernation
 	.SYNOPSIS
 	Power plan
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for power plan.
 	.PARAMETER High
 	Set power plan on "High performance"
 
@@ -126,7 +136,14 @@ function PowerPlan
 			ParameterSetName = "Ultimate"
 		)]
 		[switch]
-		$Ultimate
+		$Ultimate,
+
+		[Parameter(
+			Mandatory = $true,
+			ParameterSetName = "CustomPower"
+		)]
+		[switch]
+		$CustomPower
 	)
 
 	# Remove all policies in order to make changes visible in UI only if it's possible
@@ -180,6 +197,102 @@ function PowerPlan
 				}
 			}
 		}
+		"CustomPower"
+		{
+			# Custom power plan: duplicate the Ultimate Performance scheme
+			# under a stable, recognisable GUID and rename it.
+			# The GUID `57696e68-616e-6365-506f-776572000000` is used as the
+			# canonical identifier so subsequent toggles can find the plan by
+			# GUID alone.
+			Write-ConsoleStatus -Action "Setting power plan to Custom Power Plan"
+			LogInfo "Creating/activating Custom Power Plan"
+			$ultimateGuid = "e9a42b02-d5df-448d-aa00-03f14749eb61"
+			$customPowerGuid = "57696e68-616e-6365-506f-776572000000"
+			try
+			{
+				$existingPlans = POWERCFG /LIST 2>&1
+				if ($existingPlans -notmatch [regex]::Escape($customPowerGuid))
+				{
+					if ($existingPlans -notmatch [regex]::Escape($ultimateGuid))
+					{
+						POWERCFG /DUPLICATESCHEME $ultimateGuid 2>&1 | Out-Null
+					}
+					POWERCFG /DUPLICATESCHEME $ultimateGuid $customPowerGuid 2>&1 | Out-Null
+					POWERCFG -CHANGENAME $customPowerGuid "Custom Power Plan" "Optimized power plan for gaming and performance" 2>&1 | Out-Null
+				}
+				$verifyPlans = POWERCFG /LIST 2>&1
+				if ($verifyPlans -match [regex]::Escape($customPowerGuid))
+				{
+					POWERCFG /SETACTIVE $customPowerGuid | Out-Null
+					Write-ConsoleStatus -Status success
+				}
+				else
+				{
+					Write-ConsoleStatus -Status failed
+					LogWarning "Failed to create Custom Power Plan; falling back to High Performance."
+					POWERCFG /SETACTIVE SCHEME_MIN | Out-Null
+				}
+			}
+			catch
+			{
+				Write-ConsoleStatus -Status failed
+				LogError "Error creating Custom Power Plan: $($_.Exception.Message)"
+			}
+		}
+	}
+}
+
+<#
+	.SYNOPSIS
+	Toggle Hybrid Sleep (combines sleep + hibernate).
+
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for toggle Hybrid Sleep (combines sleep + hibernate)..
+	.PARAMETER Enable
+	Enable Hybrid Sleep on AC and DC.
+
+	.PARAMETER Disable
+	Disable Hybrid Sleep on AC and DC.
+
+	.NOTES
+	Driven by powercfg subgroup SUB_SLEEP / setting HYBRIDSLEEP. See
+	the power optimizations implementation for this setting.
+	Hardware that does not support hybrid sleep will return a non-zero
+	exit code from powercfg â€” the function logs and continues rather
+	than throwing because the surface is documented as best-effort.
+#>
+function HybridSleep
+{
+	param
+	(
+		[Parameter(Mandatory = $true, ParameterSetName = "Enable")]
+		[switch]
+		$Enable,
+
+		[Parameter(Mandatory = $true, ParameterSetName = "Disable")]
+		[switch]
+		$Disable
+	)
+
+	$subgroup = "238c9fa8-0aad-41ed-83f4-97be242c8f20"  # SUB_SLEEP
+	$setting  = "94ac6d29-73ce-41a6-809f-6363ba21b47e"  # HYBRIDSLEEP
+	$value = if ($PSCmdlet.ParameterSetName -eq "Enable") { 1 } else { 0 }
+	$displayName = if ($value -eq 1) { "Enabling Hybrid Sleep" } else { "Disabling Hybrid Sleep" }
+
+	Write-ConsoleStatus -Action $displayName
+	LogInfo $displayName
+	try
+	{
+		Set-PowerSchemeSettingVisibility -SubgroupGuid $subgroup -SettingGuid $setting
+		Set-PowerSchemeChoiceSetting -DisplayName 'Hybrid Sleep' -SubgroupGuid $subgroup -SettingGuid $setting -Value $value
+	}
+	catch
+	{
+		Write-ConsoleStatus -Status failed
+		LogWarning "HybridSleep not applied (may be unsupported on this hardware): $($_.Exception.Message)"
 	}
 }
 
@@ -187,6 +300,11 @@ function PowerPlan
 	.SYNOPSIS
 	Processor minimum state
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for processor minimum state.
 	.PARAMETER Value
 	Set the same processor minimum state on AC and DC.
 
@@ -254,6 +372,11 @@ function ProcessorMinimumState
 	.SYNOPSIS
 	Processor maximum state
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for processor maximum state.
 	.PARAMETER Value
 	Set the same processor maximum state on AC and DC.
 
@@ -321,6 +444,11 @@ function ProcessorMaximumState
 	.SYNOPSIS
 	Power throttling
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for power throttling.
 	.PARAMETER Enable
 	Enable power throttling (default value)
 
@@ -395,6 +523,11 @@ function PowerThrottling
 	.SYNOPSIS
 	Processor performance increase threshold
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for processor performance increase threshold.
 	.PARAMETER Value
 	Set the same increase threshold on AC and DC.
 
@@ -458,6 +591,11 @@ function ProcessorPerformanceIncreaseThreshold
 	.SYNOPSIS
 	Processor performance decrease threshold
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for processor performance decrease threshold.
 	.PARAMETER Value
 	Set the same decrease threshold on AC and DC.
 
@@ -521,6 +659,11 @@ function ProcessorPerformanceDecreaseThreshold
 	.SYNOPSIS
 	Processor performance boost mode
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for processor performance boost mode.
 	.PARAMETER Disabled
 	Disable processor boost mode.
 
@@ -673,6 +816,11 @@ function ProcessorPerformanceBoostMode
 	.SYNOPSIS
 	Processor energy performance preference
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for processor energy performance preference.
 	.PARAMETER Value
 	Set the same energy performance preference on AC and DC.
 
@@ -736,6 +884,11 @@ function ProcessorEnergyPerformancePreference
 	.SYNOPSIS
 	CPU core parking minimum cores
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for cPU core parking minimum cores.
 	.PARAMETER Value
 	Set the same minimum core parking percentage on AC and DC power.
 
@@ -799,6 +952,11 @@ function ProcessorCoreParkingMinimumCores
 	.SYNOPSIS
 	CPU core parking maximum cores
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for cPU core parking maximum cores.
 	.PARAMETER Value
 	Set the same maximum core parking percentage on AC and DC power.
 
@@ -862,6 +1020,11 @@ function ProcessorCoreParkingMaximumCores
 	.SYNOPSIS
 	USB Hub Selective Suspend Timeout
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for uSB Hub Selective Suspend Timeout.
 	.PARAMETER Value
 	Set the same USB hub suspend timeout on AC and DC power.
 
@@ -925,6 +1088,11 @@ function USBHubSelectiveSuspendTimeout
 	.SYNOPSIS
 	USB selective suspend setting
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for uSB selective suspend setting.
 	.PARAMETER Disabled
 	Disable USB selective suspend.
 
@@ -974,6 +1142,11 @@ function USBSelectiveSuspend
 	.SYNOPSIS
 	Intel(R) Graphics Power Plan
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for intel(R) Graphics Power Plan.
 	.PARAMETER MaximumBatteryLife
 	Use the maximum battery life power plan.
 
@@ -1037,6 +1210,11 @@ function IntelGraphicsPowerPlan
 	.SYNOPSIS
 	Video Playback Quality Bias
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for video Playback Quality Bias.
 	.PARAMETER PowerSavingBias
 	Prefer battery life over video playback smoothness.
 
@@ -1084,7 +1262,12 @@ function MultimediaVideoPlaybackQualityBias
 
 <#
     .SYNOPSIS
-    Internal function Set-PowerSchemeSettingVisibility.
+    Sets power scheme setting visibility.
+
+    
+.DESCRIPTION
+    
+Supports power scheme setting visibility handling inside Baseline.
 #>
 
 function Set-PowerSchemeSettingVisibility
@@ -1106,7 +1289,12 @@ function Set-PowerSchemeSettingVisibility
 
 <#
     .SYNOPSIS
-    Internal function Set-PowerSchemeNumericRangeSetting.
+    Sets power scheme numeric range setting.
+
+    
+.DESCRIPTION
+    
+Supports power scheme numeric range setting handling inside Baseline.
 #>
 
 function Set-PowerSchemeNumericRangeSetting
@@ -1195,7 +1383,12 @@ function Set-PowerSchemeNumericRangeSetting
 
 <#
     .SYNOPSIS
-    Internal function Set-PowerSchemeChoiceSetting.
+    Sets power scheme choice setting.
+
+    
+.DESCRIPTION
+    
+Supports power scheme choice setting handling inside Baseline.
 #>
 
 function Set-PowerSchemeChoiceSetting
@@ -1235,4 +1428,4 @@ function Set-PowerSchemeChoiceSetting
 	}
 }
 
-Export-ModuleMember -Function 'Hibernation', 'PowerPlan', 'ProcessorMinimumState', 'ProcessorMaximumState', 'PowerThrottling', 'ProcessorPerformanceIncreaseThreshold', 'ProcessorPerformanceDecreaseThreshold', 'ProcessorPerformanceBoostMode', 'ProcessorEnergyPerformancePreference', 'ProcessorCoreParkingMinimumCores', 'ProcessorCoreParkingMaximumCores', 'USBHubSelectiveSuspendTimeout', 'USBSelectiveSuspend', 'IntelGraphicsPowerPlan', 'MultimediaVideoPlaybackQualityBias'
+Export-ModuleMember -Function 'Hibernation', 'HybridSleep', 'PowerPlan', 'ProcessorMinimumState', 'ProcessorMaximumState', 'PowerThrottling', 'ProcessorPerformanceIncreaseThreshold', 'ProcessorPerformanceDecreaseThreshold', 'ProcessorPerformanceBoostMode', 'ProcessorEnergyPerformancePreference', 'ProcessorCoreParkingMinimumCores', 'ProcessorCoreParkingMaximumCores', 'USBHubSelectiveSuspendTimeout', 'USBSelectiveSuspend', 'IntelGraphicsPowerPlan', 'MultimediaVideoPlaybackQualityBias'

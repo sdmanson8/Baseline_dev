@@ -192,11 +192,11 @@
 
 		if ($Script:AppsPackageManagerBanner)
 		{
-			try { $Script:AppsPackageManagerBanner.Visibility = $(if ($showBanner) { 'Visible' } else { 'Collapsed' }) } catch { $null = $_ }
+			try { $Script:AppsPackageManagerBanner.Visibility = $(if ($showBanner) { 'Visible' } else { 'Collapsed' }) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsPackageManagerBanner.Visibility' }
 		}
 		if ($Script:TxtAppsPackageManagerBanner)
 		{
-			try { $Script:TxtAppsPackageManagerBanner.Text = [string]$bannerText } catch { $null = $_ }
+			try { $Script:TxtAppsPackageManagerBanner.Text = [string]$bannerText } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsPackageManagerBanner.Text' }
 		}
 	}
 
@@ -301,21 +301,21 @@
 			if ($Script:BtnAppsSourceFilterAll)
 			{
 				$isOn = ($current -eq 'All')
-				try { $Script:BtnAppsSourceFilterAll.IsChecked = $isOn } catch { $null = $_ }
+				try { $Script:BtnAppsSourceFilterAll.IsChecked = $isOn } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsSourceFilterControls.All' }
 				$Script:BtnAppsSourceFilterAll.Content = $allText
 				$Script:BtnAppsSourceFilterAll.ToolTip = $allTip
 			}
 			if ($Script:BtnAppsSourceFilterWinGet)
 			{
 				$isOn = ($current -eq 'winget')
-				try { $Script:BtnAppsSourceFilterWinGet.IsChecked = $isOn } catch { $null = $_ }
+				try { $Script:BtnAppsSourceFilterWinGet.IsChecked = $isOn } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsSourceFilterControls.WinGet' }
 				$Script:BtnAppsSourceFilterWinGet.Content = $wingetText
 				$Script:BtnAppsSourceFilterWinGet.ToolTip = $wingetTip
 			}
 			if ($Script:BtnAppsSourceFilterChocolatey)
 			{
 				$isOn = ($current -eq 'choco')
-				try { $Script:BtnAppsSourceFilterChocolatey.IsChecked = $isOn } catch { $null = $_ }
+				try { $Script:BtnAppsSourceFilterChocolatey.IsChecked = $isOn } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsSourceFilterControls.Chocolatey' }
 				$Script:BtnAppsSourceFilterChocolatey.Content = $chocoText
 				$Script:BtnAppsSourceFilterChocolatey.ToolTip = $chocoTip
 			}
@@ -352,12 +352,12 @@
 			if ($Script:BtnAppsViewCards)
 			{
 				$isOn = ($current -eq 'Cards')
-				try { $Script:BtnAppsViewCards.IsChecked = $isOn } catch { $null = $_ }
+				try { $Script:BtnAppsViewCards.IsChecked = $isOn } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsViewModeControls.Cards' }
 			}
 			if ($Script:BtnAppsViewList)
 			{
 				$isOn = ($current -eq 'List')
-				try { $Script:BtnAppsViewList.IsChecked = $isOn } catch { $null = $_ }
+				try { $Script:BtnAppsViewList.IsChecked = $isOn } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsViewModeControls.List' }
 			}
 		}
 		finally
@@ -944,8 +944,8 @@
 				$tabItem | Add-Member -NotePropertyName 'AppsIconName' -NotePropertyValue $iconName -Force
 				if ($Script:CurrentTheme)
 				{
-					try { $tabItem.Foreground = ConvertTo-GuiBrush -Color $Script:CurrentTheme.TextPrimary -Context 'AppsCategoryTabs/Foreground' } catch { $null = $_ }
-					try { $tabItem.Background = ConvertTo-GuiBrush -Color $Script:CurrentTheme.TabBg -Context 'AppsCategoryTabs/Background' } catch { $null = $_ }
+					try { $tabItem.Foreground = ConvertTo-GuiBrush -Color $Script:CurrentTheme.TextPrimary -Context 'AppsCategoryTabs/Foreground' } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsCategoryTabs.Foreground' }
+					try { $tabItem.Background = ConvertTo-GuiBrush -Color $Script:CurrentTheme.TabBg -Context 'AppsCategoryTabs/Background' } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsCategoryTabs.Background' }
 				}
 				$tabItem.Padding = [System.Windows.Thickness]::new(14, 7, 14, 7)
 				[void]$Script:AppsCategoryTabs.Items.Add($tabItem)
@@ -1186,7 +1186,7 @@
 			$Script:AppsStatusFilterInternalValues = [System.Collections.Generic.List[string]]::new()
 			if (Get-Command -Name 'Set-ChoiceComboStyle' -CommandType Function -ErrorAction SilentlyContinue)
 			{
-				try { Set-ChoiceComboStyle -Combo $statusCombo } catch { $null = $_ }
+				try { Set-ChoiceComboStyle -Combo $statusCombo } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppStatusFilterList.SetChoiceComboStyle' }
 			}
 			$statusBrushConverter = New-SafeBrushConverter -Context 'Update-AppStatusFilterList'
 			$statusForeground = $null
@@ -1216,8 +1216,8 @@
 				$item.Content = [string]$displayValue
 				if ($statusForeground)
 				{
-					try { $item.Foreground = $statusForeground } catch { $null = $_ }
-					try { $item.SetValue([System.Windows.Documents.TextElement]::ForegroundProperty, $statusForeground) } catch { $null = $_ }
+					try { $item.Foreground = $statusForeground } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppStatusFilterList.Foreground' }
+					try { $item.SetValue([System.Windows.Documents.TextElement]::ForegroundProperty, $statusForeground) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppStatusFilterList.ForegroundProperty' }
 				}
 				[void]$statusCombo.Items.Add($item)
 				[void]$Script:AppsStatusFilterInternalValues.Add($value)

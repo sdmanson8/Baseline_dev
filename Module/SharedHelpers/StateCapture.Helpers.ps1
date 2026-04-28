@@ -1,4 +1,4 @@
-# State capture helper slice for Baseline.
+# State capture helpers for Baseline.
 # Provides system state snapshot capture, comparison, and persistence for
 # tweaks tracked by the manifest system.
 #
@@ -561,3 +561,4 @@ function Get-TweakPlannedStateValue
 		}
 	}
 }
+

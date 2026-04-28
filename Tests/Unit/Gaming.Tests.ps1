@@ -165,7 +165,7 @@ Describe 'GamingCpuPriority and GamingSchedulingCategory and GamingGpuPriority' 
 Describe 'FullscreenOptimizations' {
     BeforeEach {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
-        $script:setItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
+        $script:setRegistrySafeCalls = [System.Collections.Generic.List[object]]::new()
 
         function Write-ConsoleStatus {
             param([string]$Action, [string]$Status)
@@ -173,9 +173,9 @@ Describe 'FullscreenOptimizations' {
         }
         function LogInfo { param([string]$Message) }
         function LogError { param([string]$Message) }
-        function Set-ItemProperty {
-            param([string]$Path, [string]$LiteralPath, [string]$Name, [string]$Type, [object]$Value, [switch]$Force, [object]$ErrorAction)
-            [void]$script:setItemPropertyCalls.Add([pscustomobject]@{ Name = $Name; Value = $Value })
+        function Set-RegistryValueSafe {
+            param([string]$Path, [string]$Name, [object]$Value, [string]$Type)
+            [void]$script:setRegistrySafeCalls.Add([pscustomobject]@{ Name = $Name; Value = $Value; Type = $Type })
         }
     }
 
@@ -183,18 +183,18 @@ Describe 'FullscreenOptimizations' {
         Remove-Item Function:\Write-ConsoleStatus -ErrorAction SilentlyContinue
         Remove-Item Function:\LogInfo -ErrorAction SilentlyContinue
         Remove-Item Function:\LogError -ErrorAction SilentlyContinue
-        Remove-Item Function:\Set-ItemProperty -ErrorAction SilentlyContinue
+        Remove-Item Function:\Set-RegistryValueSafe -ErrorAction SilentlyContinue
     }
 
     It 'writes GameDVR_DXGIHonorFSEWindowsCompatible=0 on Enable' {
         FullscreenOptimizations -Enable
-        $script:setItemPropertyCalls[0].Value | Should -Be 0
+        $script:setRegistrySafeCalls[0].Value | Should -Be 0
         $script:consoleStatuses[-1] | Should -Be 'success'
     }
 
     It 'writes GameDVR_DXGIHonorFSEWindowsCompatible=1 on Disable' {
         FullscreenOptimizations -Disable
-        $script:setItemPropertyCalls[0].Value | Should -Be 1
+        $script:setRegistrySafeCalls[0].Value | Should -Be 1
     }
 }
 
@@ -564,5 +564,114 @@ Describe 'XboxGameBar' {
         XboxGameBar -Enable
 
         foreach ($c in $script:newItemPropertyCalls) { $c.Value | Should -Be 1 }
+    }
+}
+
+Describe 'Set-AppGraphicsPerformance' {
+    BeforeEach {
+        $script:logInfoMessages = [System.Collections.Generic.List[string]]::new()
+        $script:logWarnMessages = [System.Collections.Generic.List[string]]::new()
+        $script:logErrorMessages = [System.Collections.Generic.List[string]]::new()
+        $script:setRegistrySafeCalls = [System.Collections.Generic.List[object]]::new()
+        $script:newItemCalls = [System.Collections.Generic.List[string]]::new()
+        $script:gpuPrefKeyExists = $true
+        $script:hasDedicatedGpu = $true
+        $script:setRegistryThrows = $false
+        $script:isInteractiveHost = $false
+
+        function LogInfo { param([string]$Message) [void]$script:logInfoMessages.Add($Message) }
+        function LogWarning { param([string]$Message) [void]$script:logWarnMessages.Add($Message) }
+        function LogError { param([string]$Message) [void]$script:logErrorMessages.Add($Message) }
+        function Write-ConsoleStatus { param([string]$Action, [string]$Status) }
+        function Get-CimInstance {
+            [CmdletBinding()]
+            param([string]$ClassName)
+            if ($script:hasDedicatedGpu) {
+                return @(
+                    [pscustomobject]@{ AdapterDACType = 'Internal' },
+                    [pscustomobject]@{ AdapterDACType = 'Direct VGA' }
+                )
+            }
+            return @([pscustomobject]@{ AdapterDACType = 'Internal' })
+        }
+        function Test-Path { param([string]$Path, [string]$LiteralPath) return $script:gpuPrefKeyExists }
+        function New-Item {
+            [CmdletBinding()]
+            param([string]$Path, [switch]$Force)
+            [void]$script:newItemCalls.Add($Path)
+        }
+        function Set-RegistryValueSafe {
+            param([string]$Path, [string]$Name, [object]$Value, [string]$Type)
+            if ($script:setRegistryThrows) { throw 'set-registry-value-safe failed' }
+            [void]$script:setRegistrySafeCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name; Value = $Value; Type = $Type })
+        }
+        function Test-InteractiveHost { return $script:isInteractiveHost }
+    }
+
+    AfterEach {
+        foreach ($n in @('LogInfo','LogWarning','LogError','Write-ConsoleStatus','Get-CimInstance','Test-Path','New-Item','Set-RegistryValueSafe','Test-InteractiveHost')) {
+            Microsoft.PowerShell.Management\Remove-Item Function:\$n -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'returns $false and logs an info note when no dedicated GPU is detected' {
+        $script:hasDedicatedGpu = $false
+
+        $result = Set-AppGraphicsPerformance -AppPath 'C:\game.exe'
+
+        $result | Should -BeFalse
+        $script:setRegistrySafeCalls.Count | Should -Be 0
+        ($script:logInfoMessages -join "`n") | Should -Match 'no dedicated GPU'
+    }
+
+    It 'writes GpuPreference=2 String value keyed by AppPath when key exists' {
+        $script:gpuPrefKeyExists = $true
+
+        $result = Set-AppGraphicsPerformance -AppPath 'C:\game.exe'
+
+        $result | Should -BeTrue
+        $script:newItemCalls.Count | Should -Be 0
+        $script:setRegistrySafeCalls.Count | Should -Be 1
+        $script:setRegistrySafeCalls[0].Path | Should -Be 'HKCU:\Software\Microsoft\DirectX\UserGpuPreferences'
+        $script:setRegistrySafeCalls[0].Name | Should -Be 'C:\game.exe'
+        $script:setRegistrySafeCalls[0].Value | Should -Be 'GpuPreference=2;'
+        $script:setRegistrySafeCalls[0].Type | Should -Be 'String'
+    }
+
+    It 'creates the UserGpuPreferences key when it does not yet exist' {
+        $script:gpuPrefKeyExists = $false
+
+        $result = Set-AppGraphicsPerformance -AppPath 'C:\game.exe'
+
+        $result | Should -BeTrue
+        $script:newItemCalls.Count | Should -Be 1
+        $script:newItemCalls[0] | Should -Be 'HKCU:\Software\Microsoft\DirectX\UserGpuPreferences'
+        $script:setRegistrySafeCalls.Count | Should -Be 1
+    }
+
+    It 'returns $false and logs an error if Set-RegistryValueSafe throws' {
+        $script:setRegistryThrows = $true
+
+        $result = Set-AppGraphicsPerformance -AppPath 'C:\game.exe'
+
+        $result | Should -BeFalse
+        ($script:logErrorMessages -join "`n") | Should -Match 'set-registry-value-safe failed'
+    }
+
+    It 'returns $false on a non-interactive host when AppPath is omitted' {
+        $script:isInteractiveHost = $false
+
+        $result = Set-AppGraphicsPerformance
+
+        $result | Should -BeFalse
+        $script:setRegistrySafeCalls.Count | Should -Be 0
+        ($script:logWarnMessages -join "`n") | Should -Match 'non-interactive'
+    }
+
+    It 'returns $false on -WhatIf and writes nothing' {
+        $result = Set-AppGraphicsPerformance -AppPath 'C:\game.exe' -WhatIf
+
+        $result | Should -BeFalse
+        $script:setRegistrySafeCalls.Count | Should -Be 0
     }
 }

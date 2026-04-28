@@ -57,6 +57,21 @@ BeforeAll {
         Internal function .
     #>
     function LogError { param([object]$Message) }
+    <#
+        .SYNOPSIS
+        Internal function Write-DebugSwallowedException.
+    #>
+    function Write-DebugSwallowedException {
+        param(
+            [object]$ErrorRecord,
+            [string]$Source
+        )
+
+        [void]$script:DebugSwallowedExceptionCalls.Add([pscustomobject]@{
+            Source  = [string]$Source
+            Message = if ($ErrorRecord -and $ErrorRecord.Exception) { [string]$ErrorRecord.Exception.Message } else { [string]$ErrorRecord }
+        })
+    }
 
     # Json helpers must load first — Environment.Helpers calls ConvertFrom-BaselineJson.
     . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Json.Helpers.ps1')
@@ -79,6 +94,96 @@ BeforeAll {
         Internal function .
     #>
     function Set-DownloadSecurityProtocol { }
+
+    Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase -ErrorAction Stop
+    if (-not ('TestSplashDispatcher' -as [type]))
+    {
+        Add-Type -TypeDefinition @'
+using System;
+
+public class TestSplashDispatcher
+{
+    public bool HasShutdownStarted { get; set; }
+
+    public void Invoke(Action action)
+    {
+        if (action != null)
+        {
+            action();
+        }
+    }
+}
+
+public class TestSplashElement
+{
+    public object Text { get; set; }
+    public object Visibility { get; set; }
+    public object Foreground { get; set; }
+    public object Stroke { get; set; }
+    public object Fill { get; set; }
+    public object RenderTransform { get; set; }
+    public double Opacity { get; set; }
+
+    public TestSplashElement()
+    {
+        Opacity = 1.0;
+    }
+
+    public void BeginAnimation(object property, object animation) { }
+    public void BeginAnimation(object property, object animation, object handoffBehavior) { }
+}
+
+public class TestProgressBar
+{
+    public object Visibility { get; set; }
+    public bool IsIndeterminate { get; set; }
+    public double Maximum { get; set; }
+    public double Value { get; set; }
+    public double Width { get; set; }
+    public double ActualWidth { get; set; }
+
+    public TestProgressBar()
+    {
+        Maximum = 330.0;
+        Width = 330.0;
+        ActualWidth = 330.0;
+    }
+
+    public void BeginAnimation(object property, object animation)
+    {
+        ApplyAnimation(animation);
+    }
+
+    public void BeginAnimation(object property, object animation, object handoffBehavior)
+    {
+        ApplyAnimation(animation);
+    }
+
+    private void ApplyAnimation(object animation)
+    {
+        if (animation == null)
+        {
+            return;
+        }
+
+        var animationType = animation.GetType();
+        var toProperty = animationType.GetProperty("To");
+        if (toProperty == null)
+        {
+            return;
+        }
+
+        var toValue = toProperty.GetValue(animation, null);
+        if (toValue is double)
+        {
+            Value = (double)toValue;
+        }
+    }
+}
+'@
+    }
+
+    $script:DebugSwallowedExceptionCalls = [System.Collections.Generic.List[object]]::new()
 }
 
 Describe 'Invoke-UCPDBypassed' {
@@ -123,6 +228,10 @@ Describe 'Get-UCPDTemporaryPowerShellPath' {
 }
 
 Describe 'Get-BaselineDisplayVersion' {
+    BeforeEach {
+        $script:DebugSwallowedExceptionCalls.Clear()
+    }
+
     It 'reads ModuleVersion from a module manifest and prefixes it with v' {
         $moduleRoot = Join-Path $TestDrive 'ModuleRoot'
         $null = New-Item -ItemType Directory -Path $moduleRoot -Force
@@ -133,9 +242,42 @@ Describe 'Get-BaselineDisplayVersion' {
 
         $result | Should -Be 'v2.0.0'
     }
+
+    It 'routes manifest parse failures through Write-DebugSwallowedException and returns null' {
+        $moduleRoot = Join-Path $TestDrive 'BrokenModuleRoot'
+        $null = New-Item -ItemType Directory -Path $moduleRoot -Force
+        $manifestPath = Join-Path $moduleRoot 'Baseline.psd1'
+        Set-Content -LiteralPath $manifestPath -Value "@{ ModuleVersion = '2.0.0' }" -Encoding ASCII
+
+        Mock Import-PowerShellDataFile { throw 'manifest parse failed' } -ParameterFilter { $Path -eq $manifestPath }
+
+        Get-BaselineDisplayVersion -ModuleRoot $moduleRoot | Should -BeNullOrEmpty
+        $script:DebugSwallowedExceptionCalls.Count | Should -Be 1
+        $script:DebugSwallowedExceptionCalls[0].Source | Should -Be 'Environment.GetBaselineDisplayVersion.LoadManifest'
+    }
+}
+
+Describe 'Get-BaselineWindowsThemePreference' {
+    BeforeEach {
+        $script:DebugSwallowedExceptionCalls.Clear()
+    }
+
+    It 'routes registry read failures through Write-DebugSwallowedException and returns null' {
+        Mock Get-ItemProperty { throw 'registry read failed' } -ParameterFilter {
+            $LiteralPath -eq 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+        }
+
+        Get-BaselineWindowsThemePreference | Should -BeNullOrEmpty
+        $script:DebugSwallowedExceptionCalls.Count | Should -Be 1
+        $script:DebugSwallowedExceptionCalls[0].Source | Should -Be 'Environment.GetBaselineWindowsThemePreference.LoadTheme'
+    }
 }
 
 Describe 'Get-BaselineStartupThemeName' {
+    BeforeEach {
+        $script:DebugSwallowedExceptionCalls.Clear()
+    }
+
     It 'prefers the saved session theme over the Windows theme' {
         Mock Test-Path { $true } -ParameterFilter { $LiteralPath -like '*Baseline-last-session.json' }
         Mock Get-Content { '{}' } -ParameterFilter { $LiteralPath -like '*Baseline-last-session.json' }
@@ -146,26 +288,25 @@ Describe 'Get-BaselineStartupThemeName' {
                 }
             }
         }
-        Mock Get-ItemProperty {
-            [pscustomobject]@{
-                AppsUseLightTheme   = 1
-                SystemUsesLightTheme = 1
-            }
-        }
 
         Get-BaselineStartupThemeName | Should -Be 'Dark'
     }
 
     It 'falls back to the current Windows theme when no saved session exists' {
         Mock Test-Path { $false } -ParameterFilter { $LiteralPath -like '*Baseline-last-session.json' }
-        Mock Get-ItemProperty {
-            [pscustomobject]@{
-                AppsUseLightTheme    = 1
-                SystemUsesLightTheme = 0
-            }
-        }
+        Mock Get-BaselineWindowsThemePreference { 'Light' }
 
         Get-BaselineStartupThemeName | Should -Be 'Light'
+    }
+
+    It 'routes session read failures through Write-DebugSwallowedException and falls back to the Windows theme' {
+        Mock Test-Path { $true } -ParameterFilter { $LiteralPath -like '*Baseline-last-session.json' }
+        Mock Get-Content { throw 'session read failed' } -ParameterFilter { $LiteralPath -like '*Baseline-last-session.json' }
+        Mock Get-BaselineWindowsThemePreference { 'Dark' }
+
+        Get-BaselineStartupThemeName | Should -Be 'Dark'
+        $script:DebugSwallowedExceptionCalls.Count | Should -Be 1
+        $script:DebugSwallowedExceptionCalls[0].Source | Should -Be 'Environment.GetBaselineStartupThemeName.LoadSession'
     }
 }
 
@@ -192,9 +333,37 @@ Describe 'Show-BootstrapLoadingSplash' {
         $script:EnvironmentHelpersContent | Should -Match 'ShowInTaskbar="True"'
         $script:EnvironmentHelpersContent | Should -Not -Match 'ShowInTaskbar="False"'
     }
+
+    It 'uses a value-driven progress bar template with standard named parts' {
+        $script:EnvironmentHelpersContent | Should -Match '<ProgressBar Name="ProgressBar"'
+        $script:EnvironmentHelpersContent | Should -Match 'x:Name="PART_Track"'
+        $script:EnvironmentHelpersContent | Should -Match 'x:Name="PART_Indicator"'
+        $script:EnvironmentHelpersContent | Should -Match 'x:Name="PART_GlowRect"'
+        $script:EnvironmentHelpersContent | Should -Match 'Width="\{TemplateBinding Value\}"'
+        $script:EnvironmentHelpersContent | Should -Not -Match '<Border Background="\{TemplateBinding Foreground\}" CornerRadius="2"\s*/>'
+    }
+
+    It 'scales splash progress values to the rendered bar width' {
+        $script:EnvironmentHelpersContent | Should -Match 'function Get-BaselineSplashProgressWidth'
+        $script:EnvironmentHelpersContent | Should -Match '\$barWidth = Get-BaselineSplashProgressWidth -ProgressBar \$progressBar'
+        $script:EnvironmentHelpersContent | Should -Match '\$progressBar.Maximum = \$barWidth'
+        $script:EnvironmentHelpersContent | Should -Match '\$progressBar.Value = \[Math\]::Round\(\(\(\$safeCompleted / \$safeTotal\) \* \$barWidth\), 3\)'
+        $script:EnvironmentHelpersContent | Should -Match '\$snapTo = \(\[double\]\$activeIdx / \$stepCount\) \* \$barWidth'
+        $script:EnvironmentHelpersContent | Should -Match '\$anim.To   = \(\[double\]\$completedCount / \$stepCount\) \* \$barWidth'
+    }
+
+    It 'routes splash icon and chrome setup fallbacks through Write-DebugSwallowedException' {
+        $script:EnvironmentHelpersContent | Should -Match 'function Show-BootstrapLoadingSplash'
+        $script:EnvironmentHelpersContent | Should -Match 'Environment\.ShowBootstrapLoadingSplash\.LoadSplashIcon'
+        $script:EnvironmentHelpersContent | Should -Match 'Environment\.ShowBootstrapLoadingSplash\.ApplySplashChrome'
+    }
 }
 
 Describe 'Get-BaselineLatestReleaseEntry' {
+    BeforeEach {
+        $script:DebugSwallowedExceptionCalls.Clear()
+    }
+
     It 'selects the highest non-draft release regardless of API ordering' {
         $releases = @(
             [pscustomobject]@{ draft = $false; tag_name = 'v3.0.0-beta'; published_at = '2026-03-01T00:00:00Z' }
@@ -215,6 +384,19 @@ Describe 'Get-BaselineLatestReleaseEntry' {
         $result = Get-BaselineLatestReleaseEntry -Releases $releases
 
         [string]$result.tag_name | Should -Be 'v4.0.0'
+    }
+
+    It 'skips malformed published_at values after routing the parse error' {
+        $releases = @(
+            [pscustomobject]@{ draft = $false; tag_name = 'v3.0.0-beta'; published_at = 'not-a-date' }
+            [pscustomobject]@{ draft = $false; tag_name = 'v4.0.0'; published_at = '2026-04-02T00:00:00Z' }
+        )
+
+        $result = Get-BaselineLatestReleaseEntry -Releases $releases
+
+        [string]$result.tag_name | Should -Be 'v4.0.0'
+        $script:DebugSwallowedExceptionCalls.Count | Should -Be 1
+        $script:DebugSwallowedExceptionCalls[0].Source | Should -Be 'Environment.GetBaselineLatestReleaseEntry.ParsePublishedAt'
     }
 }
 
@@ -386,6 +568,7 @@ Describe 'Get-LocalizedShellString' {
 Describe 'Baseline markdown runtime' {
     BeforeEach {
         $script:CachedBaselineMarkdownRuntimeLoaded = $false
+        $script:DebugSwallowedExceptionCalls.Clear()
     }
 
     It 'uses loaded AppDomain assemblies instead of Type.GetType for Markdig readiness checks' {
@@ -407,6 +590,55 @@ Describe 'Baseline markdown runtime' {
         $html | Should -Match '<h1'
         $html | Should -Match 'Title'
     }
+
+    It 'routes assembly load failures through Write-DebugSwallowedException' {
+        $moduleRoot = Join-Path $TestDrive 'MarkdownModuleRoot'
+        $librariesRoot = Join-Path $moduleRoot 'Libraries'
+        $null = New-Item -ItemType Directory -Path $librariesRoot -Force
+        foreach ($dllName in @(
+            'System.Buffers.dll',
+            'System.Runtime.CompilerServices.Unsafe.dll',
+            'System.Numerics.Vectors.dll',
+            'System.Memory.dll',
+            'Markdig.dll',
+            'Markdig.Wpf.dll'
+        ))
+        {
+            $null = New-Item -ItemType File -Path (Join-Path $librariesRoot $dllName) -Force
+        }
+
+        Mock Test-BaselineMarkdownRuntimeReady { $false }
+        Initialize-BaselineMarkdownRuntime -ModuleRoot $moduleRoot | Should -BeFalse
+        (@($script:DebugSwallowedExceptionCalls | Where-Object Source -eq 'Environment.InitializeBaselineMarkdownRuntime.AddAssembly')).Count | Should -Be 6
+    }
+}
+
+Describe 'Baseline webview2 runtime' {
+    BeforeEach {
+        $script:CachedBaselineWebView2RuntimeLoaded = $false
+        $script:DebugSwallowedExceptionCalls.Clear()
+    }
+
+    It 'routes assembly load failures through Write-DebugSwallowedException' {
+        $moduleRoot = Join-Path $TestDrive 'WebView2ModuleRoot'
+        $librariesRoot = Join-Path $moduleRoot 'Libraries'
+        $null = New-Item -ItemType Directory -Path $librariesRoot -Force
+        foreach ($dllName in @('Microsoft.Web.WebView2.Core.dll', 'Microsoft.Web.WebView2.WinForms.dll'))
+        {
+            $null = New-Item -ItemType File -Path (Join-Path $librariesRoot $dllName) -Force
+        }
+
+        Mock Test-Path { $true } -ParameterFilter {
+            $LiteralPath -eq $moduleRoot -or
+            $LiteralPath -eq $librariesRoot -or
+            $LiteralPath -eq (Join-Path $librariesRoot 'Microsoft.Web.WebView2.Core.dll') -or
+            $LiteralPath -eq (Join-Path $librariesRoot 'Microsoft.Web.WebView2.WinForms.dll')
+        }
+
+        Mock Test-BaselineWebView2RuntimeReady { $false }
+        Initialize-BaselineWebView2Runtime -ModuleRoot $moduleRoot | Should -BeFalse
+        (@($script:DebugSwallowedExceptionCalls | Where-Object Source -eq 'Environment.InitializeBaselineWebView2Runtime.AddAssembly')).Count | Should -Be 2
+    }
 }
 
 Describe 'Bootstrap splash defaults' {
@@ -424,8 +656,90 @@ Describe 'Bootstrap splash defaults' {
     It 'keeps every English splash localization on the neutral loading text' {
         foreach ($localeFile in $script:EnglishLocalizationFiles) {
             $content = Get-Content -LiteralPath $localeFile.FullName -Raw -Encoding UTF8
-            $content | Should -Match '"GuiSplashLoading": "Please Wait\.\.\."'
+            $content | Should -Match '"GuiSplashLoading": "(Please|Kindly) Wait\.\.\."'
         }
+    }
+}
+
+Describe 'Bootstrap splash progress' {
+    It 'preserves the current fill when an indeterminate status update arrives' {
+        $dispatcher = [TestSplashDispatcher]::new()
+        $statusText = [TestSplashElement]::new()
+        $subActionPanel = [TestSplashElement]::new()
+        $progressBar = [TestProgressBar]::new()
+        $progressBar.Value = 132
+        $progressBar.Maximum = 330
+        $progressBar.IsIndeterminate = $false
+        $progressBar.Visibility = [System.Windows.Visibility]::Collapsed
+
+        $splash = @{
+            Window = [pscustomobject]@{}
+            Dispatcher = $dispatcher
+            StatusText = $statusText
+            SubActionPanel = $subActionPanel
+            ProgressBar = $progressBar
+        }
+
+        Set-BootstrapLoadingSplashState -Splash $splash -StatusText 'Checking installation status...' -Indeterminate | Should -BeTrue
+
+        $statusText.Text | Should -Be 'Checking installation status...'
+        $subActionPanel.Visibility | Should -Be ([System.Windows.Visibility]::Visible)
+        $progressBar.Visibility | Should -Be ([System.Windows.Visibility]::Visible)
+        $progressBar.IsIndeterminate | Should -BeTrue
+        $progressBar.Value | Should -Be 132
+        $progressBar.Maximum | Should -Be 330
+    }
+
+    It 'restores determinate mode before a splash step advances the bar' {
+        $dispatcher = [TestSplashDispatcher]::new()
+        $progressBar = [TestProgressBar]::new()
+        $progressBar.IsIndeterminate = $true
+        $progressBar.Value = 0
+        $progressBar.Maximum = 1
+
+        $stepIds = @('updates', 'system', 'winget', 'chocolatey', 'finalize')
+        $stepGlyphs = @{}
+        $stepIdleDots = @{}
+        $stepPulseDots = @{}
+        $stepChecks = @{}
+        $stepLabels = @{}
+        $stepStates = @{}
+        foreach ($stepId in $stepIds)
+        {
+            $stepGlyphs[$stepId] = [TestSplashElement]::new()
+            $stepIdleDots[$stepId] = [TestSplashElement]::new()
+            $pulseDot = [TestSplashElement]::new()
+            $pulseDot.RenderTransform = [System.Windows.Media.ScaleTransform]::new()
+            $stepPulseDots[$stepId] = $pulseDot
+            $stepChecks[$stepId] = [TestSplashElement]::new()
+            $stepLabels[$stepId] = [TestSplashElement]::new()
+            $stepStates[$stepId] = 'pending'
+        }
+
+        $splash = @{
+            Window = [pscustomobject]@{}
+            Dispatcher = $dispatcher
+            StepGlyphs = $stepGlyphs
+            StepIdleDots = $stepIdleDots
+            StepPulseDots = $stepPulseDots
+            StepChecks = $stepChecks
+            StepLabels = $stepLabels
+            StepStates = $stepStates
+            ProgressBar = $progressBar
+            SplashTheme = [pscustomobject]@{
+                Muted   = '#6C7086'
+                Sub     = '#A6ADC8'
+                Primary = '#CDD6F4'
+                Accent  = '#89B4FA'
+            }
+            StepOrder = $stepIds
+        }
+
+        Set-BootstrapLoadingSplashStep -Splash $splash -StepId 'system' -Status 'in_progress' -SubAction '' | Should -BeTrue
+
+        $progressBar.IsIndeterminate | Should -BeFalse
+        $progressBar.Value | Should -BeGreaterThan 0
+        $progressBar.Maximum | Should -Be 330
     }
 }
 

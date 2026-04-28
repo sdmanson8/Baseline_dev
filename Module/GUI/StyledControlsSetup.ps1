@@ -117,8 +117,8 @@
 
 			if ($timerToStop)
 			{
-				try { $timerToStop.Stop() } catch { $null = $_ }
-				try { $timerToStop.Dispose() } catch { $null = $_ }
+				try { $timerToStop.Stop() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.TimerStop' }
+				try { $timerToStop.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.TimerDispose' }
 			}
 
 			$Script:SuppressRunClosePrompt = $true
@@ -141,7 +141,7 @@
 				try
 				{
 					$null = Invoke-GuiDispatcherAction -Dispatcher $Script:MainForm.Dispatcher -PriorityUsage 'Immediate' -Action {
-	                try { Close-GuiMainWindow -Reason 'ForceCloseExecutionFn requested immediate exit.' } catch { $null = $_ }
+	                try { Close-GuiMainWindow -Reason 'ForceCloseExecutionFn requested immediate exit.' } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.CloseMainWindow' }
 	                try
 	                {
 	                        if ([System.Windows.Application]::Current)
@@ -149,12 +149,12 @@
                                 [System.Windows.Application]::Current.Shutdown()
                         }
                 }
-                catch { $null = $_ }
+                catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.ShutdownApplication' }
 	        }
 				}
 				catch
 				{
-					try { Close-GuiMainWindow -Reason 'ForceCloseExecutionFn fallback close.' } catch { $null = $_ }
+					try { Close-GuiMainWindow -Reason 'ForceCloseExecutionFn fallback close.' } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.FallbackCloseMainWindow' }
 				}
 			}
 
@@ -254,5 +254,4 @@
 				}
 			}
 		}
-
 

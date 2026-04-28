@@ -3,8 +3,13 @@ using module ..\..\SharedHelpers.psm1
 
 <#
 	.SYNOPSIS
-	Internal admin utility for Windows Update and active-hours settings.
+	Configures Windows Update and active-hours settings.
 
+
+	
+.DESCRIPTION
+	
+Applies Baseline's Windows Update and active-hours settings in GUI and headless runs.
 	.PARAMETER Automatically
 	Automatically adjust active hours for me based on daily usage
 
@@ -72,6 +77,11 @@ function ActiveHours
 	.SYNOPSIS
 	Windows latest updates
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for windows latest updates.
 	.PARAMETER Disable
 	Do not get the latest updates as soon as they're available (default value)
 
@@ -134,6 +144,11 @@ function WindowsLatestUpdate
 	.SYNOPSIS
 	Allow updates to be downloaded automatically over metered connections
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for allow updates to be downloaded automatically over metered connections.
 	.PARAMETER Enable
 	Allow updates to be downloaded automatically over metered connections
 
@@ -217,6 +232,11 @@ function DownloadUpdatesOverMeteredConnection
 	.SYNOPSIS
 	Allow Microsoft Store apps to automatically download and install updates
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for allow Microsoft Store apps to automatically download and install updates.
 	.PARAMETER Enable
 	Allow Microsoft Store apps to automatically download and install updates
 
@@ -300,6 +320,11 @@ function StoreAppAutoDownload
 	.SYNOPSIS
 	Feature update deferral period
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for feature update deferral period.
 	.PARAMETER Enable
 	Defer feature updates by 365 days
 
@@ -381,6 +406,11 @@ function FeatureUpdateDeferral
 	.SYNOPSIS
 	Quality update deferral period
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for quality update deferral period.
 	.PARAMETER Default
 	Restore Windows default quality update behavior (default value)
 
@@ -492,6 +522,11 @@ function QualityUpdateDeferral
 	.SYNOPSIS
 	Security updates only mode
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for security updates only mode.
 	.PARAMETER Enable
 	Enable a security-first update posture by keeping automatic downloads, driver offers, and restart behavior under control while preserving feature and quality deferral policy
 
@@ -573,6 +608,11 @@ function WindowsUpdateSecurityOnlyMode
 	.SYNOPSIS
 	Pause Windows updates starting on a selected date
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for pause Windows updates starting on a selected date.
 	.PARAMETER Enable
 	Pause Windows updates starting on the selected date
 
@@ -681,6 +721,11 @@ function WindowsUpdatePause
 	.SYNOPSIS
 	Restart as soon as possible to finish updating
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for restart as soon as possible to finish updating.
 	.PARAMETER Enable
 	Restart as soon as possible to finish updating
 
@@ -744,6 +789,11 @@ function RestartDeviceAfterUpdate
 	.SYNOPSIS
 	Notification when your PC requires a restart to finish updating
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for notification when your PC requires a restart to finish updating.
 	.PARAMETER Show
 	Notify me when a restart is required to finish updating
 
@@ -805,6 +855,11 @@ function RestartNotification
 	.SYNOPSIS
 	Windows Update notification level
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for windows Update notification level.
 	.PARAMETER Default
 	Restore Windows default update notification behavior (default value)
 
@@ -946,6 +1001,11 @@ function UpdateNotificationLevel
 	.SYNOPSIS
 	Restart apps after signing in
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for restart apps after signing in.
 	.PARAMETER Enable
 	Automatically saving my restartable apps and restart them when I sign back in
 
@@ -986,14 +1046,14 @@ function SaveRestartableApps
 		{
 			Write-ConsoleStatus -Action "Enabling saving restartable apps and restarting them after signing in"
 			LogInfo "Enabling saving restartable apps and restarting them after signing in"
-			New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name RestartApps -PropertyType DWord -Value 1 -Force | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name RestartApps -Type DWord -Value 1 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 		"Disable"
 		{
 			Write-ConsoleStatus -Action "Disabling saving restartable apps and restarting them after signing in"
 			LogInfo "Disabling saving restartable apps and restarting them after signing in"
-			New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name RestartApps -PropertyType DWord -Value 0 -Force | Out-Null
+			Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name RestartApps -Type DWord -Value 0 | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -1003,6 +1063,11 @@ function SaveRestartableApps
 	.SYNOPSIS
 	Recommended troubleshooter preferences
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for recommended troubleshooter preferences.
 	.PARAMETER Automatically
 	Run troubleshooter automatically, then notify me
 
@@ -1043,13 +1108,13 @@ function RecommendedTroubleshooting
 
 	Remove-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection -Name AllowTelemetry -Force -ErrorAction SilentlyContinue | Out-Null
 	Remove-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection -Name MaxTelemetryAllowed -Force -ErrorAction SilentlyContinue | Out-Null
-	Remove-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack -Name ShowedToastAtLevel -Force -ErrorAction SilentlyContinue | Out-Null
+	Remove-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack" -Name "ShowedToastAtLevel" | Out-Null
 
 	Set-Policy -Scope Computer -Path SOFTWARE\Policies\Microsoft\Windows\DataCollection -Name AllowTelemetry -Type CLEAR | Out-Null
 
 	# Turn on Windows Error Reporting
 	Get-ScheduledTask -TaskName QueueReporting -ErrorAction SilentlyContinue | Enable-ScheduledTask | Out-Null
-	Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\Windows Error Reporting" -Name Disabled -Force -ErrorAction SilentlyContinue | Out-Null
+	Remove-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\Windows Error Reporting" -Name "Disabled" | Out-Null
 
 	Get-Service -Name WerSvc | Set-Service -StartupType Manual | Out-Null
 	Get-Service -Name WerSvc | Start-Service | Out-Null
@@ -1085,6 +1150,11 @@ function RecommendedTroubleshooting
 	.SYNOPSIS
 	Search for apps in Microsoft Store from Open with dialog
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for search for apps in Microsoft Store from Open with dialog.
 	.PARAMETER Enable
 	Allow searching for apps in Microsoft Store from Open with dialog
 
@@ -1161,6 +1231,11 @@ function SearchAppInStore
 	.SYNOPSIS
 	Block Microsoft Store search results
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for block Microsoft Store search results.
 	.PARAMETER Enable
 	Block recommended Microsoft Store apps when searching for apps in the Start menu
 
@@ -1250,6 +1325,11 @@ function StoreSearchResults
 	.SYNOPSIS
 	Repair Windows Update
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for repair Windows Update.
 	.PARAMETER Standard
 	Run the standard Windows Update repair sequence.
 
@@ -1415,6 +1495,11 @@ function WindowsUpdate
 	.SYNOPSIS
 	Receive updates for other Microsoft products
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for receive updates for other Microsoft products.
 	.PARAMETER Enable
 	Receive updates for other Microsoft products
 

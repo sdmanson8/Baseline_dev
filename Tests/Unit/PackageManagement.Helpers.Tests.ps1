@@ -100,7 +100,7 @@ Describe 'Get-WinGetBootstrapInstallerMetadata' {
 }
 
 Describe 'Get-WinGetBootstrapInstallerArguments' {
-    It 'keeps the upstream installer in charge of Server-specific method selection' {
+    It 'keeps the installer in charge of Server-specific method selection' {
         $arguments = @(Get-WinGetBootstrapInstallerArguments)
 
         $arguments | Should -Be @('-Force')
@@ -222,7 +222,7 @@ Describe 'Invoke-WinGetBootstrap' {
         ($script:wingetBootstrapWarningMessages -join "`n") | Should -Match 'installation completed, but winget\.exe is not available in the current session yet'
     }
 
-    It 'passes only the generic upstream installer switch so Server 2019 and 2022 stay on the repo-defined paths' {
+    It 'passes only the generic installer switch so Server 2019 and 2022 stay on the repo-defined paths' {
         Mock Invoke-DownloadFile {
             param($Uri, $OutFile)
             Set-Content -LiteralPath $OutFile -Value 'installer' -Encoding ASCII

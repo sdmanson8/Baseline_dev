@@ -1,9 +1,4 @@
-﻿# ──────────────────────────────────────────────────────────────────
-# ExecutionSummaryDialog.ps1
-# Execution-summary dialog wrapper extracted from Show-TweakGUI
-# (GUI.psm1).  Dot-sourced inside Show-TweakGUI so all $Script:
-# and local UI variables remain in scope.
-# ──────────────────────────────────────────────────────────────────
+# Execution summary dialog helpers for Baseline UI.
 
 <#
     .SYNOPSIS

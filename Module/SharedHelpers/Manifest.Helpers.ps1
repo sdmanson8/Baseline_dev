@@ -1,4 +1,4 @@
-# Shared helper slice for Baseline.
+# Shared helpers for Baseline.
 
 <#
     .SYNOPSIS
@@ -45,7 +45,6 @@ function Convert-JsonManifestValue
 
 	return $Value
 }
-
 <#
     .SYNOPSIS
     Internal function ConvertTo-NormalizedParameterName.
@@ -92,7 +91,6 @@ function ConvertTo-TweakRiskLevel
 		default          { return 'Low' }
 	}
 }
-
 <#
     .SYNOPSIS
     Internal function ConvertTo-TweakPresetTier.
@@ -195,6 +193,52 @@ function Convert-ToWhyThisMattersText
 
 <#
     .SYNOPSIS
+    Internal function Get-BaselineManifestPlatformSupportHintTags.
+#>
+
+function Get-BaselineManifestPlatformSupportHintTags
+{
+	<# .SYNOPSIS Returns manifest tags that imply platform-specific gating. #>
+	param([object]$Tags)
+
+	if ($null -eq $Tags)
+	{
+		return @()
+	}
+
+	$hintTags = [System.Collections.Generic.List[string]]::new()
+	$validHintTags = @(
+		'windows10only'
+		'win10only'
+		'windows11only'
+		'win11only'
+		'serveronly'
+		'clientonly'
+		'os-specific'
+	)
+
+	# Convert-JsonManifestValue already returns arrays via unary comma;
+	# wrapping in @() would double-nest and collapse to "A B" on [string] cast.
+	foreach ($tag in (Convert-JsonManifestValue $Tags))
+	{
+		$tagValue = [string]$tag
+		if ([string]::IsNullOrWhiteSpace($tagValue))
+		{
+			continue
+		}
+
+		$normalizedTag = $tagValue.Trim().ToLowerInvariant()
+		if ($validHintTags -contains $normalizedTag -and -not $hintTags.Contains($normalizedTag))
+		{
+			$hintTags.Add($normalizedTag)
+		}
+	}
+
+	return @($hintTags)
+}
+
+<#
+    .SYNOPSIS
     Internal function Write-ManifestValidationWarning.
 #>
 
@@ -278,6 +322,16 @@ function Import-TweakManifestFromData
 		}
 		$priority = if ($categoryPriority.ContainsKey($category)) { $categoryPriority[$category] } else { 50 }
 
+		# File-level PlatformSupport default. Lets a manifest declare "every entry
+		# in this file is client-only / Win11-only / etc." once at the top instead
+		# of pasting the same block onto dozens of entries. Per-entry PlatformSupport
+		# always wins; entries that omit the field inherit the default.
+		$platformSupportDefault = $null
+		if ($payload.PSObject.Properties['PlatformSupportDefault'] -and $null -ne $payload.PlatformSupportDefault)
+		{
+			$platformSupportDefault = Convert-JsonManifestValue $payload.PlatformSupportDefault
+		}
+
 		foreach ($entry in @($payload.Entries))
 		{
 			if (-not $entry) { continue }
@@ -289,13 +343,23 @@ function Import-TweakManifestFromData
 			$tagValues = @()
 			if ($entry.PSObject.Properties['Tags'] -and $null -ne $entry.Tags)
 			{
-				$tagValues = @(
-					@(Convert-JsonManifestValue $entry.Tags) |
-						ForEach-Object { [string]$_ } |
-						Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
-						ForEach-Object { $_.Trim().ToLowerInvariant() } |
-						Select-Object -Unique
-				)
+				# Convert-JsonManifestValue already returns arrays via unary comma;
+				# wrapping in @() would double-nest and collapse to "A B" on [string] cast.
+				# Avoid Select-Object -Unique here: it wraps strings in PSObject, which
+				# trips Convert-JsonManifestValue's pscustomobject branch downstream.
+				$tagSeen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+				$tagList = [System.Collections.Generic.List[string]]::new()
+				foreach ($rawTag in (Convert-JsonManifestValue $entry.Tags))
+				{
+					$tagText = [string]$rawTag
+					if ([string]::IsNullOrWhiteSpace($tagText)) { continue }
+					$normalized = $tagText.Trim().ToLowerInvariant()
+					if ($tagSeen.Add($normalized))
+					{
+						$tagList.Add($normalized)
+					}
+				}
+				$tagValues = $tagList.ToArray()
 			}
 
 			$impactValue = if ($entry.PSObject.Properties['Impact']) { [bool]$entry.Impact } else { [bool]$entry.Caution }
@@ -350,12 +414,17 @@ function Import-TweakManifestFromData
 				WhyThisMatters  = $whyThisMattersValue
 			}
 
-			foreach ($propName in @('WinDefaultDesc', 'Detail', 'CautionReason', 'LinkedWith', 'Scannable', 'Restorable', 'RecoveryLevel', 'OnParam', 'OffParam', 'DateParam', 'NumericRange', 'SubCategory', 'GamingPreviewGroup', 'GameModeDefault', 'TroubleshootingOnly', 'DecisionPromptKey'))
+			foreach ($propName in @('WinDefaultDesc', 'Detail', 'CautionReason', 'LinkedWith', 'Scannable', 'Restorable', 'RecoveryLevel', 'OnParam', 'OffParam', 'CounterpartFunction', 'DateParam', 'NumericRange', 'ActionPicker', 'SubCategory', 'GamingPreviewGroup', 'GameModeDefault', 'TroubleshootingOnly', 'DecisionPromptKey', 'PlatformSupport', 'SupportsExecution'))
 			{
 				if ($entry.PSObject.Properties[$propName] -and $null -ne $entry.$propName)
 				{
 					$tweakEntry[$propName] = Convert-JsonManifestValue $entry.$propName
 				}
+			}
+
+			if (-not $tweakEntry.Contains('PlatformSupport') -and $null -ne $platformSupportDefault)
+			{
+				$tweakEntry['PlatformSupport'] = $platformSupportDefault
 			}
 
 			foreach ($arrayProp in @('Options', 'DisplayOptions', 'ScenarioTags'))
@@ -889,7 +958,32 @@ function Test-TweakManifestIntegrity
 				[void]$issues.Add("$label : invalid RecoveryLevel '$recoveryLevelValue'")
 			}
 		}
+		if ((Test-TweakManifestEntryField -Entry $tweak -FieldName 'CounterpartFunction'))
+		{
+			$counterpartFunction = [string](Get-TweakManifestEntryValue -Entry $tweak -FieldName 'CounterpartFunction')
+			if ([string]::IsNullOrWhiteSpace($counterpartFunction))
+			{
+				[void]$issues.Add("$label : missing CounterpartFunction")
+			}
+			else
+			{
+				$functionName = [string](Get-TweakManifestEntryValue -Entry $tweak -FieldName 'Function')
+				if (-not [string]::IsNullOrWhiteSpace($functionName) -and $counterpartFunction.Equals($functionName, [System.StringComparison]::OrdinalIgnoreCase))
+				{
+					[void]$issues.Add("$label : CounterpartFunction cannot reference the entry itself")
+				}
+				elseif (-not (Get-ManifestEntryByFunction -Manifest $Manifest -Function $counterpartFunction))
+				{
+					[void]$issues.Add("$label : CounterpartFunction '$counterpartFunction' was not found in the manifest")
+				}
+			}
+		}
 		$scenarioTags = @(Get-TweakManifestEntryValue -Entry $tweak -FieldName 'ScenarioTags')
+		$platformSupportHintTags = @(Get-BaselineManifestPlatformSupportHintTags -Tags (Get-TweakManifestEntryValue -Entry $tweak -FieldName 'Tags'))
+		if ($platformSupportHintTags.Count -gt 0 -and (-not (Test-TweakManifestEntryField -Entry $tweak -FieldName 'PlatformSupport') -or $null -eq (Get-TweakManifestEntryValue -Entry $tweak -FieldName 'PlatformSupport')))
+		{
+			[void]$issues.Add("$label : OS-sensitive Tags ($($platformSupportHintTags -join ', ')) require PlatformSupport")
+		}
 		foreach ($scenarioTag in $scenarioTags)
 		{
 			$scenarioTagValue = [string]$scenarioTag

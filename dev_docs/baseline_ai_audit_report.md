@@ -941,7 +941,7 @@ This report does **not** claim authorship. It flags lines that **look AI-assiste
 - Example lines: 42: Internal implementation helper used by Baseline. | 79: Internal implementation helper used by Baseline. | 104: Internal implementation helper used by Baseline.
 
 
-### RemoveWindowsAI(1).ps1
+### AIRemoval(1).ps1
 
 - Complexity: High
 

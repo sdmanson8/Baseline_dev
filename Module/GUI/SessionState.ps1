@@ -45,40 +45,49 @@ function Get-GuiRemoteTargetContext
 	if (-not $Script:Ctx)
 	{
 		return [pscustomobject]@{
-			Connected       = $false
-			TargetComputers = @()
-			ApprovedTargetComputers = @()
-			Credential      = $null
-			ConnectedAt     = $null
-			ApprovedAt      = $null
-			StatusMessage   = $null
-			ApprovalMessage = $null
+			Connected                 = $false
+			TargetComputers           = @()
+			ApprovedTargetComputers   = @()
+			Credential                = $null
+			ConnectedAt               = $null
+			ApprovedAt                = $null
+			StatusMessage             = $null
+			ApprovalMessage           = $null
+			ConnectionMethod          = 'WinRM'
+			LastConnectivityResults   = @()
 		}
 	}
 
 	if (-not $Script:Ctx.ContainsKey('Remote'))
 	{
 		$Script:Ctx['Remote'] = @{
-			Connected       = $false
-			TargetComputers = @()
-			ApprovedTargetComputers = @()
-			Credential      = $null
-			ConnectedAt     = $null
-			ApprovedAt      = $null
-			StatusMessage   = $null
-			ApprovalMessage = $null
+			Connected                 = $false
+			TargetComputers           = @()
+			ApprovedTargetComputers   = @()
+			Credential                = $null
+			ConnectedAt               = $null
+			ApprovedAt                = $null
+			StatusMessage             = $null
+			ApprovalMessage           = $null
+			ConnectionMethod          = 'WinRM'
+			LastConnectivityResults   = @()
 		}
 	}
 
+	if (-not $Script:Ctx.Remote.ContainsKey('ConnectionMethod')) { $Script:Ctx.Remote['ConnectionMethod'] = 'WinRM' }
+	if (-not $Script:Ctx.Remote.ContainsKey('LastConnectivityResults')) { $Script:Ctx.Remote['LastConnectivityResults'] = @() }
+
 	return [pscustomobject]@{
-		Connected       = [bool]$Script:Ctx.Remote.Connected
-		TargetComputers = @($Script:Ctx.Remote.TargetComputers)
-		ApprovedTargetComputers = @($Script:Ctx.Remote.ApprovedTargetComputers)
-		Credential      = $Script:Ctx.Remote.Credential
-		ConnectedAt     = $Script:Ctx.Remote.ConnectedAt
-		ApprovedAt      = $Script:Ctx.Remote.ApprovedAt
-		StatusMessage   = $Script:Ctx.Remote.StatusMessage
-		ApprovalMessage = $Script:Ctx.Remote.ApprovalMessage
+		Connected                 = [bool]$Script:Ctx.Remote.Connected
+		TargetComputers           = @($Script:Ctx.Remote.TargetComputers)
+		ApprovedTargetComputers   = @($Script:Ctx.Remote.ApprovedTargetComputers)
+		Credential                = $Script:Ctx.Remote.Credential
+		ConnectedAt               = $Script:Ctx.Remote.ConnectedAt
+		ApprovedAt                = $Script:Ctx.Remote.ApprovedAt
+		StatusMessage             = $Script:Ctx.Remote.StatusMessage
+		ApprovalMessage           = $Script:Ctx.Remote.ApprovalMessage
+		ConnectionMethod          = [string]$Script:Ctx.Remote.ConnectionMethod
+		LastConnectivityResults   = @($Script:Ctx.Remote.LastConnectivityResults)
 	}
 }
 
@@ -107,7 +116,9 @@ function Set-GuiRemoteTargetContext
 
 		[System.Management.Automation.PSCredential]$Credential,
 
-		[string]$StatusMessage
+		[string]$StatusMessage,
+
+		[string]$ConnectionMethod = 'WinRM'
 	)
 
 	if (-not $Script:Ctx)
@@ -121,6 +132,12 @@ function Set-GuiRemoteTargetContext
 		throw 'At least one computer name is required.'
 	}
 
+	$canonicalMethod = if (Get-Command -Name 'ConvertTo-BaselineRemoteConnectionMethod' -CommandType Function -ErrorAction SilentlyContinue) {
+		ConvertTo-BaselineRemoteConnectionMethod -Method $ConnectionMethod
+	} else {
+		'WinRM'
+	}
+
 	$Script:Ctx.Remote.Connected = $true
 	$Script:Ctx.Remote.TargetComputers = @($targets)
 	$Script:Ctx.Remote.ApprovedTargetComputers = @()
@@ -129,10 +146,12 @@ function Set-GuiRemoteTargetContext
 	$Script:Ctx.Remote.ApprovedAt = $null
 	$Script:Ctx.Remote.StatusMessage = if ([string]::IsNullOrWhiteSpace($StatusMessage)) { 'Remote target connected.' } else { [string]$StatusMessage }
 	$Script:Ctx.Remote.ApprovalMessage = $null
+	$Script:Ctx.Remote.ConnectionMethod = $canonicalMethod
 
 	$displayTargets = ($targets -join ', ')
 	if ($Script:MenuActionsDisconnect) { $Script:MenuActionsDisconnect.IsEnabled = $true }
 	Set-GuiStatusText -Text ("Remote: {0}" -f $displayTargets) -Tone 'accent'
+	try { Update-GuiRemoteModeBanner } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Set-GuiRemoteTargetContext.UpdateGuiRemoteModeBanner' }
 	return (Get-GuiRemoteTargetContext)
 }
 
@@ -162,12 +181,116 @@ function Clear-GuiRemoteTargetContext
 	$Script:Ctx.Remote.ApprovedAt = $null
 	$Script:Ctx.Remote.StatusMessage = $null
 	$Script:Ctx.Remote.ApprovalMessage = $null
+	$Script:Ctx.Remote.ConnectionMethod = 'WinRM'
+	$Script:Ctx.Remote.LastConnectivityResults = @()
 	if (Get-Command -Name 'Clear-BaselineRemoteSessionCache' -CommandType Function -ErrorAction SilentlyContinue)
 	{
-		try { Clear-BaselineRemoteSessionCache } catch { }
+		try { Clear-BaselineRemoteSessionCache } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Clear-GuiRemoteTargetContext.ClearBaselineRemoteSessionCache' }
 	}
 	if ($Script:MenuActionsDisconnect) { $Script:MenuActionsDisconnect.IsEnabled = $false }
 	Set-GuiStatusText -Text (Get-UxLocalizedString -Key 'GuiRemoteDisconnected' -Fallback 'Remote target disconnected.') -Tone 'muted'
+	try { Update-GuiRemoteModeBanner } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Clear-GuiRemoteTargetContext.UpdateGuiRemoteModeBanner' }
+}
+
+<#
+    .SYNOPSIS
+    Internal function Set-GuiRemoteConnectivityResults.
+#>
+
+function Set-GuiRemoteConnectivityResults
+{
+	<#
+		.SYNOPSIS
+		Persists the most recent Test-BaselineRemoteConnectivity output on
+		the GUI remote-target context so the Support Bundle exporter and
+		Connect-dialog status panel can read it back. Stores a slim copy
+		(ComputerName / Reachable / Status / Error / FailureCategory /
+		BlockedByPolicy / ConnectionMethod / Timestamp) — full attempt
+		histories live in remote-orchestration.jsonl.
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter()]
+		[AllowNull()]
+		[AllowEmptyCollection()]
+		[object[]]$Results
+	)
+
+	if (-not $Script:Ctx)
+	{
+		throw 'GUI context has not been initialized.'
+	}
+	if (-not $Script:Ctx.ContainsKey('Remote'))
+	{
+		$null = Get-GuiRemoteTargetContext
+	}
+
+	$timestamp = [datetime]::UtcNow.ToString('o')
+	$slim = [System.Collections.Generic.List[pscustomobject]]::new()
+	if ($null -ne $Results)
+	{
+		foreach ($entry in @($Results))
+		{
+			if ($null -eq $entry) { continue }
+			$props = $entry.PSObject.Properties
+			$slim.Add([pscustomobject]@{
+				ComputerName     = if ($props['ComputerName']) { [string]$entry.ComputerName } else { '' }
+				Reachable        = if ($props['Reachable']) { [bool]$entry.Reachable } else { $false }
+				Status           = if ($props['Status']) { [string]$entry.Status } else { 'Unknown' }
+				Error            = if ($props['Error']) { [string]$entry.Error } else { '' }
+				FailureCategory  = if ($props['FailureCategory']) { [string]$entry.FailureCategory } else { '' }
+				BlockedByPolicy  = if ($props['BlockedByPolicy']) { [bool]$entry.BlockedByPolicy } else { $false }
+				ConnectionMethod = if ($props['ConnectionMethod']) { [string]$entry.ConnectionMethod } else { '' }
+				Timestamp        = $timestamp
+			})
+		}
+	}
+
+	$Script:Ctx.Remote.LastConnectivityResults = @($slim)
+	return @($slim)
+}
+
+<#
+    .SYNOPSIS
+    Internal function Update-GuiRemoteModeBanner.
+#>
+
+function Update-GuiRemoteModeBanner
+{
+	<#
+		.SYNOPSIS
+		Toggles the persistent RemoteModeBanner row in MainWindow.xaml so
+		the user always knows whether they are operating locally or
+		against remote targets. Reads context via Get-GuiRemoteTargetContext
+		and writes to the banner controls (Border / TextBlock / Disconnect
+		Button) bound to script-scope on window load. No-op when the banner
+		controls were not bound (headless / test runners).
+	#>
+	[CmdletBinding()]
+	param ()
+
+	$banner = $Script:RemoteModeBanner
+	$label = $Script:RemoteModeBannerText
+	if (-not $banner -or -not $label) { return }
+
+	$context = $null
+	try { $context = Get-GuiRemoteTargetContext } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Update-GuiRemoteModeBanner.LoadRemoteTargetContext'; $context = $null }
+
+	if (-not $context -or -not $context.Connected -or $context.TargetComputers.Count -eq 0)
+	{
+		$banner.Visibility = [System.Windows.Visibility]::Collapsed
+		return
+	}
+
+	$methodLabel = 'WinRM'
+	if (Get-Command -Name 'Get-BaselineRemoteConnectionMethodLabel' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		try { $methodLabel = Get-BaselineRemoteConnectionMethodLabel -Method $context.ConnectionMethod } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Update-GuiRemoteModeBanner.ResolveRemoteConnectionMethodLabel'; $methodLabel = 'WinRM' }
+	}
+
+	$targetList = ($context.TargetComputers -join ', ')
+	$label.Text = ('Remote Mode ({0}): {1}' -f $methodLabel, $targetList)
+	$banner.Visibility = [System.Windows.Visibility]::Visible
 }
 
 <#
@@ -177,57 +300,364 @@ function Clear-GuiRemoteTargetContext
 
 function Prompt-GuiRemoteTargetConnection
 {
-	<# .SYNOPSIS Prompts the user for remote target computers and optional credentials. #>
+	<#
+		.SYNOPSIS
+		Shows the Connect-to-Computer dialog and returns the user's
+		ComputerName / Credential / ConnectionMethod selection.
+
+		.DESCRIPTION
+		Renders a themed WPF dialog with a multiline target-list TextBox,
+		a connection-method ComboBox (WinRM / WinRM-HTTPS / SSH), and
+		credentials radio buttons (current vs. alternate). The Test
+		Connection button runs Test-BaselineRemoteConnectivity on a
+		background runspace, polled by a DispatcherTimer using the
+		same closure pattern, then renders
+		Format-BaselineRemoteConnectivityStatus rows into the status
+		panel and persists the slim copy via Set-GuiRemoteConnectivityResults.
+		Falls back to Read-Host/Get-Credential when WPF / theme is
+		unavailable (headless test runners).
+	#>
 	[CmdletBinding()]
 	param ()
 
-	try
-	{
-		Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction SilentlyContinue | Out-Null
-	}
-	catch
-	{
-		$null = $_
-	}
-
 	$currentContext = Get-GuiRemoteTargetContext
-	$defaultTargets = if ($currentContext.TargetComputers.Count -gt 0) { ($currentContext.TargetComputers -join ', ') } else { '' }
+	$defaultTargets = if ($currentContext -and $currentContext.TargetComputers.Count -gt 0) { ($currentContext.TargetComputers -join ', ') } else { '' }
+	$defaultMethod = if ($currentContext -and $currentContext.ConnectionMethod) { [string]$currentContext.ConnectionMethod } else { 'WinRM' }
 
-	$targetText = $null
-	try
+	$theme = $Script:CurrentTheme
+	$canUseWpf = $false
+	if ($theme)
 	{
-		$targetText = [Microsoft.VisualBasic.Interaction]::InputBox('Enter one or more computer names separated by commas or spaces.', 'Connect to Computer', $defaultTargets)
-	}
-	catch
-	{
-		$targetText = $null
-	}
-
-	if ([string]::IsNullOrWhiteSpace([string]$targetText))
-	{
-		return $null
-	}
-
-	$targets = @([string]$targetText -split '[,;\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
-	if ($targets.Count -eq 0)
-	{
-		throw 'At least one computer name must be provided.'
+		try
+		{
+			$null = [System.Windows.Window]
+			$null = [Windows.Markup.XamlReader]
+			$canUseWpf = $true
+		}
+		catch
+		{
+			$canUseWpf = $false
+		}
 	}
 
-	$credential = $null
-	try
+	if (-not $canUseWpf)
 	{
-		$credential = Get-Credential -Message 'Enter credentials for remote access, or click Cancel to continue without credentials.'
-	}
-	catch
-	{
-		$credential = $null
+		# Headless / test-runner fallback — uses the same contract minus the UI.
+		$prompt = if ($defaultTargets) { ('Computer name(s) [{0}]:' -f $defaultTargets) } else { 'Computer name(s):' }
+		$targetText = Read-Host -Prompt $prompt
+		if ([string]::IsNullOrWhiteSpace($targetText)) { $targetText = $defaultTargets }
+		if ([string]::IsNullOrWhiteSpace($targetText)) { return $null }
+		$parsed = ConvertFrom-BaselineRemoteTargetInput -InputText $targetText
+		if ($parsed.Targets.Count -eq 0) { throw 'At least one computer name must be provided.' }
+		$cred = $null
+		try { $cred = Get-Credential -Message 'Enter credentials for remote access, or Cancel for current user.' } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.GetCredential'; $cred = $null }
+		return [pscustomobject]@{
+			ComputerName     = @($parsed.Targets)
+			Credential       = $cred
+			ConnectionMethod = 'WinRM'
+		}
 	}
 
-	return [pscustomobject]@{
-		ComputerName = @($targets)
-		Credential   = $credential
+	$bc = New-SafeBrushConverter -Context 'DialogHelpers-RemoteConnect'
+	$windowTitle = Get-UxLocalizedString -Key 'GuiRemoteConnectTitle' -Fallback 'Connect to Computer'
+	$windowSubtitle = Get-UxLocalizedString -Key 'GuiRemoteConnectSubtitle' -Fallback 'Reach one or more remote computers over WinRM or SSH.'
+	$closeLabel = Get-UxLocalizedString -Key 'GuiCloseButton' -Fallback 'Close'
+	$cancelLabel = Get-UxLocalizedString -Key 'GuiCancelButton' -Fallback 'Cancel'
+	$connectLabel = Get-UxLocalizedString -Key 'GuiRemoteConnectAction' -Fallback 'Connect'
+	$testLabel = Get-UxLocalizedString -Key 'GuiRemoteConnectTest' -Fallback 'Test Connection'
+
+	[xml]$xaml = @"
+<Window
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	Title="$windowTitle"
+	Width="640" Height="640"
+	MinWidth="560" MinHeight="560"
+	WindowStartupLocation="CenterOwner"
+	ResizeMode="CanResizeWithGrip"
+	FontFamily="Segoe UI"
+	FontSize="12"
+	Background="Transparent"
+	WindowStyle="None"
+	AllowsTransparency="True">
+	<Border Name="RootBorder" CornerRadius="8">
+		<Grid>
+			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="*"/>
+				<RowDefinition Height="Auto"/>
+			</Grid.RowDefinitions>
+
+			<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
+				<Grid>
+					<TextBlock Text="$windowTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
+					<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
+						Background="Transparent" Foreground="$($theme.TextPrimary)" BorderThickness="0" Cursor="Hand"
+						HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+				</Grid>
+			</Border>
+
+			<Border Grid.Row="1" Background="$($theme.HeaderBg)"
+					BorderBrush="$($theme.BorderColor)" BorderThickness="0,0,0,1"
+					Padding="20,14,20,14">
+				<StackPanel>
+					<TextBlock Text="$windowTitle" FontSize="16" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)"/>
+					<TextBlock Text="$windowSubtitle" FontSize="12" Foreground="$($theme.TextMuted)" Margin="0,2,0,0" TextWrapping="Wrap"/>
+				</StackPanel>
+			</Border>
+
+			<ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="20,18,20,18">
+				<StackPanel>
+					<TextBlock Text="Computer name(s)" FontWeight="SemiBold" FontSize="13" Foreground="$($theme.TextPrimary)" Margin="0,0,0,4"/>
+					<TextBlock Text="Separate multiple names with commas, semicolons, pipes, or whitespace."
+							   FontSize="11" Foreground="$($theme.TextMuted)" Margin="0,0,0,6" TextWrapping="Wrap"/>
+					<TextBox Name="TxtTargets" Height="62" AcceptsReturn="True" TextWrapping="Wrap"
+							 VerticalScrollBarVisibility="Auto" FontSize="13" Padding="6,4"/>
+					<TextBlock Name="TxtInvalid" Foreground="#D9534F" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap" Visibility="Collapsed"/>
+
+					<TextBlock Text="Connection method" FontWeight="SemiBold" FontSize="13" Foreground="$($theme.TextPrimary)" Margin="0,16,0,4"/>
+					<ComboBox Name="CmbMethod" Height="28" FontSize="12">
+						<ComboBoxItem Content="WinRM (HTTP) — default, port 5985" Tag="WinRM"/>
+						<ComboBoxItem Content="WinRM over HTTPS — port 5986" Tag="WinRMHttps"/>
+						<ComboBoxItem Content="SSH (PowerShell over OpenSSH) — port 22" Tag="SSH"/>
+					</ComboBox>
+
+					<TextBlock Text="Credentials" FontWeight="SemiBold" FontSize="13" Foreground="$($theme.TextPrimary)" Margin="0,16,0,4"/>
+					<RadioButton Name="RbCurrentCreds" GroupName="CredsMode" Content="Use current credentials" IsChecked="True" Foreground="$($theme.TextPrimary)" Margin="0,2,0,2"/>
+					<RadioButton Name="RbAlternateCreds" GroupName="CredsMode" Content="Use alternate credentials" Foreground="$($theme.TextPrimary)" Margin="0,2,0,2"/>
+
+					<Grid Name="CredsGrid" IsEnabled="False" Margin="18,8,0,0">
+						<Grid.RowDefinitions>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+						</Grid.RowDefinitions>
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="140"/>
+							<ColumnDefinition Width="*"/>
+						</Grid.ColumnDefinitions>
+						<TextBlock Grid.Row="0" Grid.Column="0" Text="Domain\Username:" Foreground="$($theme.TextPrimary)" VerticalAlignment="Center" Margin="0,4,8,4"/>
+						<TextBox Name="TxtUsername" Grid.Row="0" Grid.Column="1" Height="26" FontSize="12" Margin="0,4,0,4" Padding="6,2"/>
+						<TextBlock Grid.Row="1" Grid.Column="0" Text="Password:" Foreground="$($theme.TextPrimary)" VerticalAlignment="Center" Margin="0,4,8,4"/>
+						<PasswordBox Name="PwdPassword" Grid.Row="1" Grid.Column="1" Height="26" FontSize="12" Margin="0,4,0,4" Padding="6,2"/>
+					</Grid>
+
+					<Grid Margin="0,16,0,0">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="Auto"/>
+							<ColumnDefinition Width="*"/>
+						</Grid.ColumnDefinitions>
+						<Button Name="BtnTest" Grid.Column="0" Content="$testLabel" Padding="14,6" FontSize="12"/>
+						<TextBlock Name="TxtTestStatus" Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="$($theme.TextMuted)" FontSize="12" TextWrapping="Wrap"/>
+					</Grid>
+
+					<Border Background="$($theme.HeaderBg)" BorderBrush="$($theme.BorderColor)" BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,12,0,0" MinHeight="120">
+						<ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="160">
+							<TextBlock Name="TxtResults" FontFamily="Consolas" FontSize="12" Foreground="$($theme.TextSecondary)" TextWrapping="NoWrap" Text="(no test run yet)"/>
+						</ScrollViewer>
+					</Border>
+				</StackPanel>
+			</ScrollViewer>
+
+			<Border Grid.Row="3" Background="$($theme.HeaderBg)"
+					BorderBrush="$($theme.BorderColor)" BorderThickness="0,1,0,0"
+					Padding="20,10,20,10">
+				<Grid>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="*"/>
+						<ColumnDefinition Width="Auto"/>
+						<ColumnDefinition Width="Auto"/>
+					</Grid.ColumnDefinitions>
+					<Button Name="BtnCancel" Grid.Column="1" Content="$cancelLabel" Padding="20,6" FontSize="13" Margin="0,0,8,0"/>
+					<Button Name="BtnConnect" Grid.Column="2" Content="$connectLabel" Padding="20,6" FontSize="13"/>
+				</Grid>
+			</Border>
+		</Grid>
+	</Border>
+</Window>
+"@
+
+	$reader = [System.Xml.XmlNodeReader]::new($xaml)
+	$dlg = [Windows.Markup.XamlReader]::Load($reader)
+	if ($Script:MainForm) { try { $dlg.Owner = $Script:MainForm } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.SetOwner' } }
+
+	$rootBorder = $dlg.FindName('RootBorder')
+	if ($rootBorder)
+	{
+		$rootBorder.Background = $bc.ConvertFromString($theme.WindowBg)
+		$rootBorder.BorderBrush = $bc.ConvertFromString($theme.BorderColor)
+		$rootBorder.BorderThickness = [System.Windows.Thickness]::new(1)
 	}
+
+	if (Get-Command -Name 'Set-GuiWindowChromeTheme' -ErrorAction SilentlyContinue)
+	{
+		try { [void](Set-GuiWindowChromeTheme -Window $dlg -UseDarkMode ($Script:CurrentThemeName -eq 'Dark')) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.SetWindowChromeTheme' }
+	}
+
+	$titleBar = $dlg.FindName('DlgTitleBar')
+	$btnDlgClose = $dlg.FindName('BtnDlgClose')
+	$txtTargets = $dlg.FindName('TxtTargets')
+	$txtInvalid = $dlg.FindName('TxtInvalid')
+	$cmbMethod = $dlg.FindName('CmbMethod')
+	$rbCurrent = $dlg.FindName('RbCurrentCreds')
+	$rbAlternate = $dlg.FindName('RbAlternateCreds')
+	$credsGrid = $dlg.FindName('CredsGrid')
+	$txtUsername = $dlg.FindName('TxtUsername')
+	$pwdPassword = $dlg.FindName('PwdPassword')
+	$btnTest = $dlg.FindName('BtnTest')
+	$txtTestStatus = $dlg.FindName('TxtTestStatus')
+	$txtResults = $dlg.FindName('TxtResults')
+	$btnCancel = $dlg.FindName('BtnCancel')
+	$btnConnect = $dlg.FindName('BtnConnect')
+
+	if ($titleBar) { $titleBar.Add_MouseLeftButtonDown({ $dlg.DragMove() }.GetNewClosure()) }
+	if ($btnDlgClose) { $btnDlgClose.Add_Click({ $dlg.Close() }.GetNewClosure()) }
+	if ($btnCancel) { $btnCancel.Add_Click({ $dlg.Close() }.GetNewClosure()) }
+
+	foreach ($btn in @($btnTest, $btnCancel, $btnConnect))
+	{
+		if ($btn -and (Get-Command -Name 'Set-ButtonChrome' -ErrorAction SilentlyContinue))
+		{
+			$variant = if ($btn -eq $btnConnect) { 'Primary' } else { 'Secondary' }
+			try { Set-ButtonChrome -Button $btn -Variant $variant -Compact } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.SetButtonChrome' }
+		}
+	}
+
+	$txtTargets.Text = $defaultTargets
+	$selectedMethodIndex = switch ($defaultMethod) { 'WinRMHttps' { 1 } 'SSH' { 2 } default { 0 } }
+	$cmbMethod.SelectedIndex = $selectedMethodIndex
+
+	$rbCurrent.Add_Checked({ $credsGrid.IsEnabled = $false }.GetNewClosure())
+	$rbAlternate.Add_Checked({ $credsGrid.IsEnabled = $true; $txtUsername.Focus() | Out-Null }.GetNewClosure())
+
+	$resultBox = @{ Value = $null }
+
+	$buildSelection = {
+		$parsed = ConvertFrom-BaselineRemoteTargetInput -InputText $txtTargets.Text
+		if ($parsed.Invalid.Count -gt 0)
+		{
+			$txtInvalid.Text = ('Ignored invalid entries: {0}' -f ($parsed.Invalid -join ', '))
+			$txtInvalid.Visibility = [System.Windows.Visibility]::Visible
+		}
+		else
+		{
+			$txtInvalid.Text = ''
+			$txtInvalid.Visibility = [System.Windows.Visibility]::Collapsed
+		}
+		if ($parsed.Targets.Count -eq 0)
+		{
+			throw [System.ArgumentException]::new('At least one valid computer name is required.', 'ComputerName')
+		}
+		$methodTag = if ($cmbMethod.SelectedItem) { [string]$cmbMethod.SelectedItem.Tag } else { 'WinRM' }
+		$method = ConvertTo-BaselineRemoteConnectionMethod -Method $methodTag
+		$cred = $null
+		if ($rbAlternate.IsChecked)
+		{
+			$cred = New-BaselineRemoteTargetCredential -Username $txtUsername.Text -SecurePassword $pwdPassword.SecurePassword
+		}
+		return [pscustomobject]@{
+			ComputerName     = @($parsed.Targets)
+			Credential       = $cred
+			ConnectionMethod = $method
+		}
+	}.GetNewClosure()
+
+	$renderResults = {
+		param ($Results)
+		$rows = Format-BaselineRemoteConnectivityStatus -Result $Results
+		if ($rows.Count -eq 0)
+		{
+			$txtResults.Text = '(no per-target results)'
+			return
+		}
+		$txtResults.Text = (($rows | ForEach-Object { $_.Display }) -join [Environment]::NewLine)
+		try { $null = Set-GuiRemoteConnectivityResults -Results $Results } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.SetGuiRemoteConnectivityResults' }
+	}.GetNewClosure()
+
+	$testState = @{ PS = $null; Async = $null; Timer = $null }
+
+	$cleanupTest = {
+		if ($testState.Timer) { try { $testState.Timer.Stop() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.CleanupTestTimer' }; $testState.Timer = $null }
+		if ($testState.PS)
+		{
+			try { $testState.PS.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.CleanupTestDisposePowerShell' }
+			$testState.PS = $null
+		}
+		$testState.Async = $null
+		$btnTest.IsEnabled = $true
+	}.GetNewClosure()
+
+	$btnTest.Add_Click({
+		try
+		{
+			$selection = & $buildSelection
+		}
+		catch
+		{
+			$txtTestStatus.Text = $_.Exception.Message
+			return
+		}
+		$btnTest.IsEnabled = $false
+		$txtTestStatus.Text = ('Testing {0} target(s) via {1}...' -f $selection.ComputerName.Count, (Get-BaselineRemoteConnectionMethodLabel -Method $selection.ConnectionMethod))
+		$txtResults.Text = '(running...)'
+
+		$ps = [powershell]::Create()
+		$ps.AddCommand('Test-BaselineRemoteConnectivity') | Out-Null
+		$ps.AddParameter('ComputerName', $selection.ComputerName) | Out-Null
+		$ps.AddParameter('ConnectionMethod', $selection.ConnectionMethod) | Out-Null
+		if ($selection.Credential) { $ps.AddParameter('Credential', $selection.Credential) | Out-Null }
+		$async = $ps.BeginInvoke()
+		$testState.PS = $ps
+		$testState.Async = $async
+
+		$timer = New-Object System.Windows.Threading.DispatcherTimer
+		$timer.Interval = [TimeSpan]::FromMilliseconds(150)
+		$pollTick = {
+			if (-not $testState.Async -or -not $testState.PS) { & $cleanupTest; return }
+			if (-not $testState.Async.IsCompleted) { return }
+			try
+			{
+				$results = @($testState.PS.EndInvoke($testState.Async))
+				& $renderResults $results
+				$reachable = @($results | Where-Object { $_.Reachable }).Count
+				$total = $results.Count
+				$txtTestStatus.Text = ('Done: {0}/{1} reachable.' -f $reachable, $total)
+			}
+			catch
+			{
+				$txtTestStatus.Text = ('Test failed: {0}' -f $_.Exception.Message)
+				$txtResults.Text = ('Error: {0}' -f $_.Exception.Message)
+			}
+			finally
+			{
+				& $cleanupTest
+			}
+		}.GetNewClosure()
+		$timer.Add_Tick($pollTick)
+		$testState.Timer = $timer
+		$timer.Start()
+	}.GetNewClosure())
+
+	$btnConnect.Add_Click({
+		try
+		{
+			$selection = & $buildSelection
+		}
+		catch
+		{
+			$txtTestStatus.Text = $_.Exception.Message
+			return
+		}
+		$resultBox.Value = $selection
+		$dlg.Close()
+	}.GetNewClosure())
+
+	$dlg.Add_Closed({ & $cleanupTest }.GetNewClosure())
+
+	[void]$dlg.ShowDialog()
+	return $resultBox.Value
 }
 
 <#
@@ -492,7 +922,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 		$snapshot = [ordered]@{
 			Schema = 'Baseline.GuiSettings'
-			SchemaVersion = 15
+			SchemaVersion = 16
 			SavedAt = (Get-Date).ToString('o')
 			Theme = $themeName
 			Language = if ($Script:SelectedLanguage) { [string]$Script:SelectedLanguage } else { 'en' }
@@ -527,9 +957,12 @@ function Import-GuiRemoteTargetApprovalPolicy
 			GameModePreviousPrimaryTab = if ($Script:GameModePreviousPrimaryTab) { [string]$Script:GameModePreviousPrimaryTab } else { $null }
 			RiskFilter = if ($Script:RiskFilter) { [string]$Script:RiskFilter } else { 'All' }
 			CategoryFilter = if ($Script:CategoryFilter) { [string]$Script:CategoryFilter } else { 'All' }
+			PlatformFilter = if ($Script:PlatformFilter) { [string]$Script:PlatformFilter } else { 'ThisDevice' }
 			AppsCategoryFilter = if ($Script:AppsCategoryFilter) { [string]$Script:AppsCategoryFilter } else { 'All' }
 			AppsStatusFilter = if ($Script:AppsStatusFilter) { [string]$Script:AppsStatusFilter } else { 'All' }
 			SelectedOnlyFilter = [bool]$Script:SelectedOnlyFilter
+			HideUnavailableItems = [bool]$Script:HideUnavailableItems
+			DesignMode = [bool]$Script:DesignMode
 			HighRiskOnlyFilter = [bool]$Script:HighRiskOnlyFilter
 			RestorableOnlyFilter = [bool]$Script:RestorableOnlyFilter
 			GamingOnlyFilter = [bool]$Script:GamingOnlyFilter
@@ -769,11 +1202,14 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$desiredAdvanced = [bool]$desiredModePreference.AdvancedMode
 		$desiredRisk = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RiskFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.RiskFilter)) { [string]$Snapshot.RiskFilter } else { 'All' }
 		$desiredCategory = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'CategoryFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.CategoryFilter)) { [string]$Snapshot.CategoryFilter } else { 'All' }
+		$desiredPlatform = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'PlatformFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.PlatformFilter)) { [string]$Snapshot.PlatformFilter } else { 'ThisDevice' }
 		$desiredAppsCategory = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsCategoryFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsCategoryFilter)) { [string]$Snapshot.AppsCategoryFilter } else { 'All' }
 		$desiredAppsStatus = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsStatusFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsStatusFilter)) { [string]$Snapshot.AppsStatusFilter } else { 'All' }
 		$allowedAppsStatus = @('All', 'Installed', 'NotInstalled', 'UpdateAvailable')
 		if ($allowedAppsStatus -notcontains $desiredAppsStatus) { $desiredAppsStatus = 'All' }
 		$desiredSelectedOnly = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'SelectedOnlyFilter')) { [bool]$Snapshot.SelectedOnlyFilter } else { $false }
+		$desiredHideUnavailableItems = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'HideUnavailableItems')) { [bool]$Snapshot.HideUnavailableItems } else { [bool]$Script:HideUnavailableItems }
+		$desiredDesignMode = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'DesignMode')) { [bool]$Snapshot.DesignMode } else { [bool]$Script:DesignMode }
 		$desiredHighRiskOnly = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'HighRiskOnlyFilter')) { [bool]$Snapshot.HighRiskOnlyFilter } else { $false }
 		$desiredRestorableOnly = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RestorableOnlyFilter')) { [bool]$Snapshot.RestorableOnlyFilter } else { $false }
 		$desiredGamingOnly = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'GamingOnlyFilter')) { [bool]$Snapshot.GamingOnlyFilter } else { $false }
@@ -887,6 +1323,9 @@ function Import-GuiRemoteTargetApprovalPolicy
 				}
 			}
 
+			$Script:PlatformFilter = $desiredPlatform
+			$Script:HideUnavailableItems = $desiredHideUnavailableItems
+			if ($ChkHideUnavailableItems) { $ChkHideUnavailableItems.IsChecked = $desiredHideUnavailableItems }
 			$Script:SelectedOnlyFilter = $desiredSelectedOnly
 			if ($ChkSelectedOnly) { $ChkSelectedOnly.IsChecked = $desiredSelectedOnly }
 			$Script:HighRiskOnlyFilter = $desiredHighRiskOnly
@@ -901,6 +1340,8 @@ function Import-GuiRemoteTargetApprovalPolicy
 			$Script:FilterUiUpdating = $false
 		}
 
+		$null = Set-PlatformFilterState -PlatformFilter $desiredPlatform
+		$null = Set-HideUnavailableItemsState -HideUnavailableItems $desiredHideUnavailableItems
 		$Script:SearchText = $desiredSearch
 		$Script:AppsSearchText = $desiredAppsSearch
 		$Script:AuditRetentionDays = [int]$desiredAuditRetentionDays
@@ -1067,6 +1508,11 @@ function Import-GuiRemoteTargetApprovalPolicy
 			}
 		}
 
+		if (Get-Command -Name 'Set-DesignModeState' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Set-DesignModeState -Enabled $desiredDesignMode
+		}
+
 		# Invalidate tab content cache so the preset panel rebuilds with the
 		# restored Safe Mode / Advanced Mode state instead of reusing stale
 		# cached content that was built with the default mode values.
@@ -1120,7 +1566,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			{
 				Restore-GuiSettingsSnapshot -Snapshot $redoSnapshot
 			}
-			catch { $null = $_ }
+			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Restore-GuiSnapshot.RestoreRedoSnapshot' }
 			throw "Failed to restore the previous GUI snapshot: $($_.Exception.Message)"
 		}
 
@@ -1536,7 +1982,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 				{
 					Restore-GuiSettingsSnapshot -Snapshot $Script:UiSnapshotUndo
 				}
-				catch { $null = $_ }
+				catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Import-GuiSettingsProfile.RestoreUndoSnapshot' }
 			}
 			$Script:UiSnapshotUndo = $null
 			Set-GuiActionButtonsEnabled -Enabled (-not (& $Script:TestGuiRunInProgressScript))

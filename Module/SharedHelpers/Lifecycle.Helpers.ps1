@@ -1,4 +1,4 @@
-# Lifecycle helper slice for Baseline.
+# Lifecycle helpers for Baseline.
 # Provides release lifecycle playbooks, rollback execution, and incident
 # reproduction pack generation from existing Baseline artifacts.
 
@@ -717,3 +717,4 @@ function New-BaselineIncidentReproductionPack
 		}
 	}
 }
+

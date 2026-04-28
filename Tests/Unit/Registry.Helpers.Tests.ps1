@@ -98,6 +98,10 @@ Describe 'ConvertTo-RegExeValueType' {
     It 'converts MultiString to REG_MULTI_SZ' {
         ConvertTo-RegExeValueType -Type 'MultiString' | Should -Be 'REG_MULTI_SZ'
     }
+
+    It 'converts None to REG_NONE' {
+        ConvertTo-RegExeValueType -Type 'None' | Should -Be 'REG_NONE'
+    }
 }
 
 Describe 'Test-RegistryValueEquivalent' {
@@ -175,6 +179,13 @@ Describe 'Test-RegistryValueEquivalent' {
 
         It 'returns false when byte arrays differ in content' {
             Test-RegistryValueEquivalent -CurrentValue @([byte]0x01, [byte]0xFF) -DesiredValue @([byte]0x01, [byte]0x02) -Type 'Binary' | Should -Be $false
+        }
+    }
+
+    Context 'None comparisons' {
+        It 'uses byte-array comparison for REG_NONE payloads' {
+            Test-RegistryValueEquivalent -CurrentValue @([byte]0x01, [byte]0x02) -DesiredValue @([byte]0x01, [byte]0x02) -Type 'None' -CurrentType 'None' | Should -Be $true
+            Test-RegistryValueEquivalent -CurrentValue @([byte]0x01) -DesiredValue @([byte]0x01, [byte]0x02) -Type 'None' -CurrentType 'None' | Should -Be $false
         }
     }
 

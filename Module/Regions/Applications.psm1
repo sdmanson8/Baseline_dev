@@ -1,11 +1,16 @@
-﻿using module ..\Logging.psm1
+using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 #region Applications
 
 <#
     .SYNOPSIS
-    Internal function Test-ApplicationCatalogField.
+    Checks application catalog field.
+
+    
+.DESCRIPTION
+    
+Supports application catalog field handling inside Baseline.
 #>
 
 function Test-ApplicationCatalogField
@@ -30,7 +35,12 @@ function Test-ApplicationCatalogField
 
 <#
     .SYNOPSIS
-    Internal function Get-ApplicationCatalogFieldValue.
+    Gets application catalog field value.
+
+    
+.DESCRIPTION
+    
+Supports application catalog field value handling inside Baseline.
 #>
 
 function Get-ApplicationCatalogFieldValue
@@ -55,7 +65,12 @@ function Get-ApplicationCatalogFieldValue
 
 <#
     .SYNOPSIS
-    Internal function Get-PackageManagerAvailabilityStateValue.
+    Gets package manager availability state value.
+
+    
+.DESCRIPTION
+    
+Supports package manager availability state value handling inside Baseline.
 #>
 
 function Get-PackageManagerAvailabilityStateValue
@@ -90,7 +105,12 @@ function Get-PackageManagerAvailabilityStateValue
 
 <#
     .SYNOPSIS
-    Internal function Resolve-ApplicationExecutionRoute.
+    Resolves application execution route.
+
+    
+.DESCRIPTION
+    
+Supports application execution route handling inside Baseline.
 #>
 
 function Resolve-ApplicationExecutionRoute
@@ -496,7 +516,12 @@ function Resolve-ApplicationExecutionRoute
 
 <#
     .SYNOPSIS
-    Internal function Save-ChocolateyBootstrapScript.
+    Saves chocolatey bootstrap script.
+
+    
+.DESCRIPTION
+    
+Supports chocolatey bootstrap script handling inside Baseline.
 #>
 
 function Save-ChocolateyBootstrapScript
@@ -521,7 +546,12 @@ function Save-ChocolateyBootstrapScript
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineEnvironmentFlagEnabled.
+    Checks baseline environment flag enabled.
+
+    
+.DESCRIPTION
+    
+Supports baseline environment flag enabled handling inside Baseline.
 #>
 
 function Test-BaselineEnvironmentFlagEnabled
@@ -551,7 +581,12 @@ function Test-BaselineEnvironmentFlagEnabled
 
 <#
     .SYNOPSIS
-    Internal function Test-ChocolateyBootstrapInteractiveHost.
+    Checks chocolatey bootstrap interactive host.
+
+    
+.DESCRIPTION
+    
+Supports chocolatey bootstrap interactive host handling inside Baseline.
 #>
 
 function Test-ChocolateyBootstrapInteractiveHost
@@ -599,7 +634,12 @@ function Test-ChocolateyBootstrapInteractiveHost
 
 <#
     .SYNOPSIS
-    Internal function Confirm-ChocolateyBootstrapExecution.
+    Confirms chocolatey bootstrap execution.
+
+    
+.DESCRIPTION
+    
+Supports chocolatey bootstrap execution handling inside Baseline.
 #>
 
 function Confirm-ChocolateyBootstrapExecution
@@ -615,7 +655,12 @@ function Confirm-ChocolateyBootstrapExecution
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-ApplicationCommandLiteral.
+    Converts values to application command literal.
+
+    
+.DESCRIPTION
+    
+Supports application command literal handling inside Baseline.
 #>
 
 function ConvertTo-ApplicationCommandLiteral
@@ -658,7 +703,12 @@ function ConvertTo-ApplicationCommandLiteral
 
 <#
     .SYNOPSIS
-    Internal function Assert-ApplicationCommandAstIsSafe.
+    Assert application command AST is safe.
+
+    
+.DESCRIPTION
+    
+Supports application command AST is safe handling inside Baseline.
 #>
 
 function Assert-ApplicationCommandAstIsSafe
@@ -740,7 +790,12 @@ function Assert-ApplicationCommandAstIsSafe
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-ApplicationCommandInvocation.
+    Converts values to application command invocation.
+
+    
+.DESCRIPTION
+    
+Supports application command invocation handling inside Baseline.
 #>
 
 function ConvertTo-ApplicationCommandInvocation
@@ -821,7 +876,7 @@ function ConvertTo-ApplicationCommandInvocation
 
 <#
 	.SYNOPSIS
-	Internal function Invoke-StreamingProcess.
+	Runs streaming process.
 	.DESCRIPTION
 	Runs an external process with no visible window. Stdout and stderr are drained
 	asynchronously so the subprocess never blocks on a full pipe, but the lines are
@@ -866,17 +921,22 @@ function Invoke-StreamingProcess
 
 	$process.WaitForExit()
 
-	try { $null = $stdoutTask.GetAwaiter().GetResult() } catch { $null = $_ }
-	try { $null = $stderrTask.GetAwaiter().GetResult() } catch { $null = $_ }
+	try { $null = $stdoutTask.GetAwaiter().GetResult() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessCapture.StdoutAwait' }
+	try { $null = $stderrTask.GetAwaiter().GetResult() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessCapture.StderrAwait' }
 
 	$exitCode = [int]$process.ExitCode
-	try { $process.Dispose() } catch { $null = $_ }
+	try { $process.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessCapture.DisposeProcess' }
 	return $exitCode
 }
 
 <#
     .SYNOPSIS
-    Internal function Invoke-WingetInstall.
+    Runs winget install.
+
+    
+.DESCRIPTION
+    
+Supports winget install handling inside Baseline.
 #>
 
 function Invoke-WingetInstall
@@ -947,7 +1007,12 @@ function Invoke-WingetInstall
 
 <#
     .SYNOPSIS
-    Internal function Invoke-WingetUninstall.
+    Runs winget uninstall.
+
+    
+.DESCRIPTION
+    
+Supports winget uninstall handling inside Baseline.
 #>
 
 function Invoke-WingetUninstall
@@ -1017,7 +1082,12 @@ function Invoke-WingetUninstall
 
 <#
     .SYNOPSIS
-    Internal function Invoke-WingetUpdate.
+    Runs winget update.
+
+    
+.DESCRIPTION
+    
+Supports winget update handling inside Baseline.
 #>
 
 function Invoke-WingetUpdate
@@ -1087,7 +1157,12 @@ function Invoke-WingetUpdate
 
 <#
     .SYNOPSIS
-    Internal function Invoke-ChocolateyBootstrapInstall.
+    Runs chocolatey bootstrap install.
+
+    
+.DESCRIPTION
+    
+Supports chocolatey bootstrap install handling inside Baseline.
 #>
 
 function Invoke-ChocolateyBootstrapInstall
@@ -1127,7 +1202,12 @@ function Invoke-ChocolateyBootstrapInstall
 
 <#
     .SYNOPSIS
-    Internal function Invoke-ChocoInstall.
+    Runs choco install.
+
+    
+.DESCRIPTION
+    
+Supports choco install handling inside Baseline.
 #>
 
 function Invoke-ChocoInstall
@@ -1187,7 +1267,12 @@ function Invoke-ChocoInstall
 
 <#
     .SYNOPSIS
-    Internal function Invoke-ChocoUninstall.
+    Runs choco uninstall.
+
+    
+.DESCRIPTION
+    
+Supports choco uninstall handling inside Baseline.
 #>
 
 function Invoke-ChocoUninstall
@@ -1247,7 +1332,12 @@ function Invoke-ChocoUninstall
 
 <#
     .SYNOPSIS
-    Internal function Invoke-ChocoUpdate.
+    Runs choco update.
+
+    
+.DESCRIPTION
+    
+Supports choco update handling inside Baseline.
 #>
 
 function Invoke-ChocoUpdate
@@ -1307,7 +1397,12 @@ function Invoke-ChocoUpdate
 
 <#
     .SYNOPSIS
-    Internal function Invoke-WingetUpdateAll.
+    Runs winget update all.
+
+    
+.DESCRIPTION
+    
+Supports winget update all handling inside Baseline.
 #>
 
 function Invoke-WingetUpdateAll
@@ -1371,7 +1466,12 @@ function Invoke-WingetUpdateAll
 
 <#
     .SYNOPSIS
-    Internal function Invoke-ChocoUpdateAll.
+    Runs choco update all.
+
+    
+.DESCRIPTION
+    
+Supports choco update all handling inside Baseline.
 #>
 
 function Invoke-ChocoUpdateAll
@@ -1435,7 +1535,12 @@ function Invoke-ChocoUpdateAll
 
 <#
     .SYNOPSIS
-    Internal function Invoke-StoreInstall.
+    Runs store install.
+
+    
+.DESCRIPTION
+    
+Supports store install handling inside Baseline.
 #>
 
 function Invoke-StoreInstall
@@ -1515,7 +1620,12 @@ function Invoke-StoreInstall
 
 <#
     .SYNOPSIS
-    Internal function Invoke-DirectUrlInstall.
+    Runs direct URL install.
+
+    
+.DESCRIPTION
+    
+Supports direct URL install handling inside Baseline.
 #>
 
 function Invoke-DirectUrlInstall
@@ -1601,7 +1711,12 @@ function Invoke-DirectUrlInstall
 
 <#
     .SYNOPSIS
-    Internal function Invoke-CommandInstall.
+    Runs command install.
+
+    
+.DESCRIPTION
+    
+Supports command install handling inside Baseline.
 #>
 
 function Invoke-CommandInstall
@@ -1685,7 +1800,12 @@ function Invoke-CommandInstall
 
 <#
     .SYNOPSIS
-    Internal function Invoke-ApplicationAction.
+    Runs application action.
+
+    
+.DESCRIPTION
+    
+Supports application action handling inside Baseline.
 #>
 
 function Invoke-ApplicationAction
@@ -1893,6 +2013,11 @@ function Invoke-ApplicationAction
 	.SYNOPSIS
 	Compatibility wrapper for install and uninstall actions.
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for compatibility wrapper for install and uninstall actions..
 	.PARAMETER Install
 	Install the specified application.
 
@@ -1960,6 +2085,11 @@ function AppInstall
 <#
 	.SYNOPSIS
 	Retrieves a cached list of installed applications via WinGet to prevent UI freezing.
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for retrieves a cached list of installed applications via WinGet to prevent UI freezing..
 #>
 function Get-InstalledAppCache
 {
@@ -2057,7 +2187,12 @@ function Get-InstalledAppCache
 
 <#
     .SYNOPSIS
-    Internal function Get-InstalledChocolateyAppCache.
+    Gets installed chocolatey app cache.
+
+    
+.DESCRIPTION
+    
+Supports installed chocolatey app cache handling inside Baseline.
 #>
 
 function Get-InstalledChocolateyAppCache
@@ -2111,7 +2246,12 @@ function Get-InstalledChocolateyAppCache
 
 <#
     .SYNOPSIS
-    Internal function Get-AvailableAppUpdateCache.
+    Gets available app update cache.
+
+    
+.DESCRIPTION
+    
+Supports available app update cache handling inside Baseline.
 #>
 
 function Get-AvailableAppUpdateCache
@@ -2210,7 +2350,12 @@ function Get-AvailableAppUpdateCache
 
 <#
     .SYNOPSIS
-    Internal function Get-AvailableChocolateyUpdateCache.
+    Gets available chocolatey update cache.
+
+    
+.DESCRIPTION
+    
+Supports available chocolatey update cache handling inside Baseline.
 #>
 
 function Get-AvailableChocolateyUpdateCache
@@ -2266,6 +2411,11 @@ function Get-AvailableChocolateyUpdateCache
 	.SYNOPSIS
 	Updates a specific application or all available applications.
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for updates a specific application or all available applications..
 	.PARAMETER WinGetId
 	Optional WinGet package identifier for the application to update.
 
@@ -2389,6 +2539,11 @@ function AppUpdate
 <#
 	.SYNOPSIS
 	Applies a single app action across multiple selected applications.
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for applies a single app action across multiple selected applications..
 #>
 function Invoke-AppBatchAction
 {

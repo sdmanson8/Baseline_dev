@@ -1,18 +1,6 @@
-# Scenario Mode helper slice for Baseline.
-# Extracted from Manifest.Helpers.ps1 - contains scenario profile definitions,
-# plan building, and command list generation.
-#
-# Dependencies (from Manifest.Helpers.ps1, loaded first):
-#   Get-TweakManifestEntryValue, Import-TweakManifestFromData,
-#   Get-ManifestEntryByFunction, Get-TweakManifestDefaultCommand
-#
-# --- Scenario expansion policy ---
-# Scenario modes are SEPARATE from the preset ladder (Minimal/Basic/Balanced/Advanced).
-# They are workflow-driven profiles, not risk-tiered presets.
-#
-# Before adding a new scenario profile:
-#   1. It must have a clear, distinct purpose that presets do not already cover
-#   2. Its function list must be small, focused, and manually reviewed
+# Scenario mode helpers for Baseline.
+# Keep scenario workflows separate from preset tiers and build command plans for
+# focused workflows.
 #   3. All included functions must have safe defaults (no high-risk-by-default)
 #   4. It must preview clearly - each entry needs ReasonIncluded text
 #   5. It must not silently change behavior; recommendations only in v1
@@ -47,7 +35,6 @@ function Get-ScenarioProfileDefinitions
 			Functions = @(
 				'DefaultTerminalApp'
 				'Win32LongPathLimit'
-				'NTFSLongPaths'
 				'TaskbarEndTask'
 				'FileExtensions'
 				'UpdateMicrosoftProducts'

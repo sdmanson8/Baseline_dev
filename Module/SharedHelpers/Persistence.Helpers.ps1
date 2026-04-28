@@ -1,4 +1,4 @@
-# Persistence helper slice for Baseline.
+# Persistence helpers for Baseline.
 # Provides standardized JSON document persistence with schema versioning.
 # All writes use UTF-8 no BOM (project convention from L-6 fix).
 # JSON serialization uses -Depth 16 (project convention from D-45 fix).
@@ -69,7 +69,21 @@ function Write-BaselineDocument
 	$baselineVersion = $null
 	if (Get-Command -Name 'Get-BaselineDisplayVersion' -ErrorAction SilentlyContinue)
 	{
-		try { $baselineVersion = Get-BaselineDisplayVersion } catch { }
+		try
+		{
+			$baselineVersion = Get-BaselineDisplayVersion
+		}
+		catch
+		{
+			if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'Persistence.Write-BaselineDocument.BaselineVersion'
+			}
+			else
+			{
+				Write-Verbose ("Persistence.Write-BaselineDocument.BaselineVersion: {0}" -f $_.Exception.Message)
+			}
+		}
 	}
 
 	$envelope = [ordered]@{

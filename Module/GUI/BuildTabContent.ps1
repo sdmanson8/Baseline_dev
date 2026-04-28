@@ -192,7 +192,7 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 			$Script:PresetStatusBadge = $null
 			if (Get-Command -Name 'Update-PrimaryTabHeaders' -CommandType Function -ErrorAction SilentlyContinue)
 			{
-				try { Update-PrimaryTabHeaders } catch { $null = $_ }
+				try { Update-PrimaryTabHeaders } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.Update-PrimaryTabHeaders' }
 			}
 			if (Restore-CachedTabContent -PrimaryTab $PrimaryTab)
 			{
@@ -201,6 +201,81 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 		}
 		elseif ($Script:TabContentCache.ContainsKey($PrimaryTab))
 		{
+			return
+		}
+
+		if ($PrimaryTab -eq 'Customizations')
+		{
+			try
+			{
+				$customPanel = New-GuiStartupManagerTabContent
+			}
+			catch
+			{
+				throw "Build-TabContent/CustomizationsPanel for tab '$PrimaryTab' failed: $($_.Exception.Message)"
+			}
+			if (-not $customPanel)
+			{
+				throw "Build-TabContent/CustomizationsPanel for tab '$PrimaryTab' failed: no panel was returned."
+			}
+
+			$customBuildContext = [pscustomobject]@{
+				PrimaryTab = $PrimaryTab
+				MainPanel  = $customPanel
+			}
+
+			try
+			{
+				Save-TabContentCacheEntry -BuildContext $customBuildContext -AllTabIndexes @() -CacheOnly:$BackgroundBuild
+			}
+			catch
+			{
+				throw "Build-TabContent/AssignContent for tab '$PrimaryTab' failed: $($_.Exception.Message)"
+			}
+
+			if ($Script:TabContentCache -and $Script:TabContentCache.ContainsKey($PrimaryTab))
+			{
+				$Script:TabContentCache[$PrimaryTab].PresetStatusBadge = $null
+				$Script:TabContentCache[$PrimaryTab].FilterGeneration = $null
+			}
+
+			if (-not $BackgroundBuild)
+			{
+				try
+				{
+					Update-MainContentPanelWidth -Panel $customPanel
+				}
+				catch
+				{
+					throw "Build-TabContent/UpdatePanelWidth for tab '$PrimaryTab' failed: $($_.Exception.Message)"
+				}
+				try
+				{
+					Restore-CurrentTabScrollOffset -TabKey $PrimaryTab
+				}
+				catch
+				{
+					throw "Build-TabContent/RestoreScrollOffset for tab '$PrimaryTab' failed: $($_.Exception.Message)"
+				}
+
+				if (-not $SkipIdlePrebuild -and $PrimaryTabs -and $PrimaryTabs.Dispatcher)
+				{
+					$searchTag = $Script:SearchResultsTabTag
+					foreach ($tabItem in $PrimaryTabs.Items)
+					{
+						if (-not ($tabItem -is [System.Windows.Controls.TabItem]) -or -not $tabItem.Tag) { continue }
+						$tabTag = [string]$tabItem.Tag
+						if ($tabTag -eq $PrimaryTab -or $tabTag -eq $searchTag) { continue }
+						if ($Script:TabContentCache -and $Script:TabContentCache.ContainsKey($tabTag)) { continue }
+						$preBuildAction = New-TabPreBuildAction -Tag $tabTag
+						$null = $PrimaryTabs.Dispatcher.BeginInvoke(
+							[System.Action]$preBuildAction,
+							[System.Windows.Threading.DispatcherPriority]::ApplicationIdle
+						)
+					}
+				}
+			}
+
 			return
 		}
 
@@ -272,13 +347,13 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 				$panelSuspended = $true
 			}
 		}
-		catch { <# BeginInit not critical — continue without suspension #> }
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.MainPanel.BeginInit' }
 
 		Add-TabSectionsToPanel -BuildContext $buildContext
 
 		if ($panelSuspended)
 		{
-			try { $buildContext.MainPanel.EndInit() } catch { <# non-fatal #> }
+			try { $buildContext.MainPanel.EndInit() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.MainPanel.EndInit' }
 		}
 
 		try
@@ -309,8 +384,24 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 				throw "Build-TabContent/RestoreScrollOffset for tab '$PrimaryTab' failed: $($_.Exception.Message)"
 			}
 
+			# Signal GuiReady NOW — the foreground tab is built and the GUI is
+			# interactive. The background pre-builds below run silently after
+			# the splash closes; the user shouldn't wait ~55 s for every tab
+			# to finish building before they can use the app.
+			try
+			{
+				if ($Global:LoadingSplash -and $Global:LoadingSplash -is [hashtable])
+				{
+					$Global:LoadingSplash.GuiReady = $true
+				}
+			}
+			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.UpdateView.SignalGuiReady' }
+
 			# Schedule pre-builds for uncached tabs at idle priority so first-visit
-			# switches are instant instead of waiting for on-demand construction.
+			# switches are instant. Each pre-build runs with -BackgroundBuild,
+			# which makes Add-TabSectionsToPanel yield to the dispatcher every
+			# N rows. That keeps the GUI responsive (user input drains in the
+			# yield gaps) while tabs warm up in the background.
 			if (-not $SkipIdlePrebuild -and $PrimaryTabs -and $PrimaryTabs.Dispatcher)
 			{
 				$searchTag = $Script:SearchResultsTabTag
@@ -326,6 +417,34 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 					$preBuildAction = New-TabPreBuildAction -Tag $tabTag
 					$null = $PrimaryTabs.Dispatcher.BeginInvoke(
 						[System.Action]$preBuildAction,
+						[System.Windows.Threading.DispatcherPriority]::ApplicationIdle
+					)
+				}
+
+				# Queue the four-phase startup orchestrator after pre-builds.
+				# ApplicationIdle priority is FIFO so this drains last, after
+				# every tab is warm. Phases 2-4 cooperatively yield internally
+				# to keep user input responsive during the work.
+				if ($Script:TweakManifest -and -not $Script:StartupOrchestratorRan)
+				{
+					# Stash the dispatcher in a script-scoped slot — the
+					# orchestrator scriptblock is invoked later from the
+					# dispatcher's stripped session state, where local
+					# function parameters like $PrimaryTabs aren't visible.
+					$Script:StartupOrchestratorDispatcher = $PrimaryTabs.Dispatcher
+					$orchestratorBody = {
+						try
+						{
+							$mr = $null
+							if ($Script:GuiExtractedRoot) { $mr = Split-Path -Path $Script:GuiExtractedRoot -Parent }
+							Invoke-BaselineStartupOrchestrator -TweakManifest $Script:TweakManifest -ModuleRoot $mr -BaselineVersion ([string]$Script:CurrentBaselineVersion) -Dispatcher $Script:StartupOrchestratorDispatcher
+						}
+						catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.UpdateView.StartupOrchestrator' }
+					}
+					$mod = $ExecutionContext.SessionState.Module
+					if ($mod) { $orchestratorBody = $mod.NewBoundScriptBlock($orchestratorBody) }
+					$null = $PrimaryTabs.Dispatcher.BeginInvoke(
+						[System.Action]$orchestratorBody,
 						[System.Windows.Threading.DispatcherPriority]::ApplicationIdle
 					)
 				}

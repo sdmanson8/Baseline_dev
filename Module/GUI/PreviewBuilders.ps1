@@ -9,6 +9,88 @@
     runtime. This is internal implementation plumbing, not user-facing docs.
 #>
 
+	function Get-GuiPreviewActionPickerField
+	{
+		param (
+			[object]$ActionPicker,
+			[string]$FieldName
+		)
+
+		if (-not $ActionPicker -or [string]::IsNullOrWhiteSpace([string]$FieldName))
+		{
+			return $null
+		}
+		if (Test-GuiObjectField -Object $ActionPicker -FieldName $FieldName)
+		{
+			return (Get-GuiObjectField -Object $ActionPicker -FieldName $FieldName)
+		}
+		return $null
+	}
+
+	function Get-GuiPreviewActionPickerParameterName
+	{
+		param ([object]$Tweak)
+
+		if (-not $Tweak -or -not (Test-GuiObjectField -Object $Tweak -FieldName 'ActionPicker'))
+		{
+			return $null
+		}
+
+		$actionPicker = Get-GuiObjectField -Object $Tweak -FieldName 'ActionPicker'
+		$kind = [string](Get-GuiPreviewActionPickerField -ActionPicker $actionPicker -FieldName 'Kind')
+		if (-not [string]::IsNullOrWhiteSpace($kind) -and [string]$kind -ne 'OpenFile')
+		{
+			return $null
+		}
+
+		$parameterName = [string](Get-GuiPreviewActionPickerField -ActionPicker $actionPicker -FieldName 'ParameterName')
+		if ([string]::IsNullOrWhiteSpace($parameterName))
+		{
+			return $null
+		}
+
+		return $parameterName.Trim().TrimStart('-')
+	}
+
+	function Get-GuiPreviewActionPickerSelectedPath
+	{
+		param (
+			[object]$Selection,
+			[string]$ParameterName
+		)
+
+		if (-not $Selection -or [string]::IsNullOrWhiteSpace([string]$ParameterName))
+		{
+			return $null
+		}
+
+		if ((Test-GuiObjectField -Object $Selection -FieldName 'ExtraArgs') -and $Selection.ExtraArgs)
+		{
+			$extraArgs = $Selection.ExtraArgs
+			if ($extraArgs -is [System.Collections.IDictionary])
+			{
+				if ($extraArgs.Contains($ParameterName) -and -not [string]::IsNullOrWhiteSpace([string]$extraArgs[$ParameterName]))
+				{
+					return [string]$extraArgs[$ParameterName]
+				}
+			}
+			elseif ($extraArgs.PSObject -and $extraArgs.PSObject.Properties[$ParameterName] -and -not [string]::IsNullOrWhiteSpace([string]$extraArgs.PSObject.Properties[$ParameterName].Value))
+			{
+				return [string]$extraArgs.PSObject.Properties[$ParameterName].Value
+			}
+		}
+
+		foreach ($fieldName in @('Value', 'Selection', 'SelectedValue'))
+		{
+			if ((Test-GuiObjectField -Object $Selection -FieldName $fieldName) -and -not [string]::IsNullOrWhiteSpace([string](Get-GuiObjectField -Object $Selection -FieldName $fieldName)))
+			{
+				return [string](Get-GuiObjectField -Object $Selection -FieldName $fieldName)
+			}
+		}
+
+		return $null
+	}
+
 	function Get-SelectedTweakRunList
 	{
 		param (
@@ -299,9 +381,45 @@
 				}
 				'Action'
 				{
-					if ($rctl.IsChecked)
+					$explicitActionSelection = Get-GuiExplicitSelectionDefinition -FunctionName ([string]$rt.Function)
+					$selectedActionSource = $null
+					$isActionChecked = $false
+					if ($explicitActionSelection -and [string]$explicitActionSelection.Type -eq 'Action' -and (Test-GuiObjectField -Object $explicitActionSelection -FieldName 'Run') -and [bool]$explicitActionSelection.Run)
+					{
+						$selectedActionSource = $explicitActionSelection
+						$isActionChecked = $true
+					}
+					elseif ($rctl.IsChecked)
+					{
+						$selectedActionSource = $rctl
+						$isActionChecked = $true
+					}
+
+					if ($isActionChecked)
 					{
 						$visual = Get-TweakVisualMetadata -Tweak $rt -StateSource $rctl
+						$selectionText = if ($rt.Name) { [string]$rt.Name } else { 'Run action' }
+						$selectedExtraArgs = $rt.ExtraArgs
+						$actionPickerParameterName = Get-GuiPreviewActionPickerParameterName -Tweak $rt
+						if (-not [string]::IsNullOrWhiteSpace([string]$actionPickerParameterName))
+						{
+							$selectedPath = Get-GuiPreviewActionPickerSelectedPath -Selection $selectedActionSource -ParameterName $actionPickerParameterName
+							if ([string]::IsNullOrWhiteSpace([string]$selectedPath) -and $explicitActionSelection)
+							{
+								$selectedPath = Get-GuiPreviewActionPickerSelectedPath -Selection $explicitActionSelection -ParameterName $actionPickerParameterName
+							}
+							if ([string]::IsNullOrWhiteSpace([string]$selectedPath))
+							{
+								continue
+							}
+							$selectedExtraArgs = @{}
+							$selectedExtraArgs[$actionPickerParameterName] = [string]$selectedPath
+							$selectionText = [string]$selectedPath
+						}
+						elseif ($explicitActionSelection -and (Test-GuiObjectField -Object $explicitActionSelection -FieldName 'ExtraArgs') -and $explicitActionSelection.ExtraArgs)
+						{
+							$selectedExtraArgs = $explicitActionSelection.ExtraArgs
+						}
 						$selectedTweaks.Add(@{
 							Key       = [string]$ri
 							Index     = $ri
@@ -319,7 +437,7 @@
 							RequiresRestart = [bool]$rt.RequiresRestart
 							Impact    = $rt.Impact
 							PresetTier = $rt.PresetTier
-							Selection = if ($rt.Name) { [string]$rt.Name } else { 'Run action' }
+							Selection = $selectionText
 							IsChecked = [bool]$rctl.IsChecked
 							CurrentState = [string]$visual.StateLabel
 							CurrentStateTone = [string]$visual.StateTone
@@ -329,7 +447,7 @@
 							ReasonIncluded = [string]$visual.ReasonIncluded
 							BlastRadius = [string]$visual.BlastRadius
 							IsRemoval = [bool]$visual.IsRemoval
-							ExtraArgs = $rt.ExtraArgs
+							ExtraArgs = $selectedExtraArgs
 							GamingPreviewGroup = if ((Test-GuiObjectField -Object $rt -FieldName 'GamingPreviewGroup')) { [string]$rt.GamingPreviewGroup } else { $null }
 							TroubleshootingOnly = if ((Test-GuiObjectField -Object $rt -FieldName 'TroubleshootingOnly')) { [bool]$rt.TroubleshootingOnly } else { $false }
 						})
@@ -873,7 +991,7 @@
 			if ($Script:Form) { $previousCursor = $Script:Form.Cursor; $Script:Form.Cursor = [System.Windows.Input.Cursors]::Wait }
 			[System.Windows.Input.Mouse]::UpdateCursor()
 		}
-		catch { <# non-fatal #> }
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreviewBuilders.Show-SelectedTweakPreview.SetWaitCursor' }
 
 		# Track this preview run in session statistics
 		Add-SessionStatistic -Name 'PreviewRunCount'
@@ -939,7 +1057,7 @@
 			if ($Script:Form) { $Script:Form.Cursor = $previousCursor }
 			[System.Windows.Input.Mouse]::UpdateCursor()
 		}
-		catch { <# non-fatal #> }
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreviewBuilders.Show-SelectedTweakPreview.RestoreCursor' }
 
 		$previewDialogResult = $null
 		do

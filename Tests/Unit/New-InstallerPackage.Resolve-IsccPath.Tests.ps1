@@ -59,6 +59,6 @@ Describe 'Get-InstallerPayloadPathBudgetReport' {
             -RootName 'BaselineInstaller_1234567890abcdef1234567890abcdef'
 
         $report.MaxLength | Should -BeLessOrEqual 259
-        $report.MaxRelativePath | Should -Match 'Assets\\RemoveWindowsAIPackage\\'
+        $report.MaxRelativePath | Should -Match 'Assets\\AIRemovalPackage\\'
     }
 }

@@ -1,4 +1,4 @@
-﻿# Shared helper slice for Baseline -- error handling, classification, and user-facing error info.
+# Shared helpers for Baseline -- error handling, classification, and user-facing error info.
 
 <#
     .SYNOPSIS
@@ -142,7 +142,7 @@ function Test-IgnorableErrorMessage
 		'Security error\.'
 
 		# Why: Optional cleanup paths for files/dirs that the user may have already
-		# removed; mirrors "Cannot find path" but for native APIs.
+		# removed; uses the native-API equivalent of "Cannot find path".
 		'The system cannot find the path specified\.'
 		'The system cannot find the file specified\.'
 	)
@@ -573,3 +573,4 @@ function Format-BaselineErrorDialogMessage
 
 	return ($messageLines -join [Environment]::NewLine)
 }
+

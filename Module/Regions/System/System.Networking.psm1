@@ -3,8 +3,13 @@ using module ..\..\SharedHelpers.psm1
 
 <#
     .SYNOPSIS
-    Internal admin utility for network interface configuration.
+    Configures network interface configuration.
 
+
+    
+.DESCRIPTION
+    
+Applies Baseline's network interface configuration in GUI and headless runs.
 	.PARAMETER Enable
 	Enable Client for Microsoft Networks on all installed network interfaces (default value)
 
@@ -62,6 +67,11 @@ function MSNetClient
 	.SYNOPSIS
 	Set current network profile category
 
+
+	
+.DESCRIPTION
+	
+Sets current network profile category using Baseline's source configuration.
 	.PARAMETER Private
 	Set current network profile to Private
 
@@ -137,6 +147,11 @@ function CurrentNetwork
 	.SYNOPSIS
 	Plain DNS provider presets for all active network adapters
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for plain DNS provider presets for all active network adapters.
 	.PARAMETER Default
 	Leave the current DNS settings unchanged
 
@@ -389,6 +404,11 @@ function DnsProvider
 	.SYNOPSIS
 	Delivery Optimization
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for delivery Optimization.
 	.PARAMETER Disable
 	Turn off Delivery Optimization
 
@@ -491,6 +511,11 @@ function DeliveryOptimization
 	.SYNOPSIS
 	SMB Server file and printer sharing configuration
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for sMB Server file and printer sharing configuration.
 	.PARAMETER Enable
 	Enable SMB Server file and printer sharing
 
@@ -553,6 +578,11 @@ function SMBServer
 	.SYNOPSIS
 	HomeGroup services configuration
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for homeGroup services configuration.
 	.PARAMETER Enable
 	Enable HomeGroup services
 
@@ -637,6 +667,11 @@ function HomeGroups
 	.SYNOPSIS
 	Internet Connection Sharing (ICS) configuration, e.g., mobile hotspot
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for internet Connection Sharing (ICS) configuration, e.g., mobile hotspot.
 	.PARAMETER Enable
 	Allow Internet Connection Sharing
 
@@ -694,6 +729,11 @@ function ConnectionSharing
 	.SYNOPSIS
 	Link-Local Multicast Name Resolution (LLMNR) protocol configuration
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for link-Local Multicast Name Resolution (LLMNR) protocol configuration.
 	.PARAMETER Enable
 	Enable LLMNR protocol (default value)
 
@@ -754,6 +794,11 @@ function LLMNR
 	.SYNOPSIS
 	Network Connectivity Status Indicator (NCSI) active probe configuration
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for network Connectivity Status Indicator (NCSI) active probe configuration.
 	.PARAMETER Enable
 	Enable NCSI active probe (default value)
 
@@ -769,7 +814,6 @@ function LLMNR
 	.NOTES
 	Current user
 	Disabling may reduce OS ability to detect internet connectivity
-	See https://github.com/Disassembler0/Win10-Initial-Setup-Script/pull/111 for details
 #>
 function NCSIProbe
 {
@@ -813,6 +857,11 @@ function NCSIProbe
 	.SYNOPSIS
 	NetBIOS over TCP/IP configuration on installed network interfaces
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for netBIOS over TCP/IP configuration on installed network interfaces.
 	.PARAMETER Enable
 	Enable NetBIOS over TCP/IP on all installed network interfaces
 
@@ -870,6 +919,11 @@ function NetBIOS
 	.SYNOPSIS
 	Windows Time NTP server override
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for windows Time NTP server override.
 	.PARAMETER Enable
 	Override Windows Time to use pool.ntp.org
 
@@ -953,6 +1007,11 @@ function NtpServerOverride
 	.SYNOPSIS
 	OpenSSH Server dedicated installer
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for openSSH Server dedicated installer.
 	.NOTES
 	Machine-wide
 #>
@@ -1018,6 +1077,11 @@ function OpenSSHServer
 	.SYNOPSIS
 	Network adapters power management
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for network adapters power management.
 	.PARAMETER Disable
 	Do not allow the computer to turn off the network adapters to save power
 
@@ -1132,6 +1196,11 @@ function NetworkAdaptersSavePower
 	.SYNOPSIS
 	Automatic installation of network devices
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for automatic installation of network devices.
 	.PARAMETER Enable
 	Allow automatic installation of network devices (default value)
 
@@ -1192,6 +1261,11 @@ function NetDevicesAutoInst
 	.SYNOPSIS
 	Network Discovery File and Printers Sharing
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for network Discovery File and Printers Sharing.
 	.PARAMETER Enable
 	Enable "Network Discovery" and "File and Printers Sharing" for workgroup networks
 
@@ -1268,6 +1342,11 @@ function NetworkDiscovery
 	.SYNOPSIS
 	Set network category for unidentified networks
 
+
+	
+.DESCRIPTION
+	
+Sets network category for unidentified networks using Baseline's source configuration.
 	.PARAMETER Private
 	Set unidentified networks to Private profile
 
@@ -1328,6 +1407,11 @@ function UnknownNetworks
 	.SYNOPSIS
 	SMB 1.0 protocol configuration
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for sMB 1.0 protocol configuration.
 	.PARAMETER Enable
 	Enable SMB 1.0 protocol
 

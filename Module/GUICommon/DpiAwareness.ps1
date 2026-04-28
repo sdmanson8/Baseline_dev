@@ -37,7 +37,11 @@ namespace WinAPI
 			}
 			catch
 			{
-				try { SetProcessDpiAwareness(2); } catch { }
+				try { SetProcessDpiAwareness(2); }
+				catch (Exception ex)
+				{
+					System.Diagnostics.Debug.WriteLine("Baseline DPI fallback failed: " + ex.Message);
+				}
 			}
 		}
 	}
@@ -45,6 +49,6 @@ namespace WinAPI
 "@ -ErrorAction Stop | Out-Null
 	}
 
-	try { [WinAPI.GuiDpiHelper]::Enable() } catch { <# non-fatal #> }
+	try { [WinAPI.GuiDpiHelper]::Enable() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DpiAwareness.Initialize-GuiDpiAwareness.Enable' }
 }
 

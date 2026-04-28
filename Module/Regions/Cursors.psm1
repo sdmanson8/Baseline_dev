@@ -5,13 +5,18 @@ using module ..\SharedHelpers.psm1
 
 <#
 	.SYNOPSIS
-	Free "Windows 11 Cursors Concept" cursors from Jepri Creations
+	Free Windows 11 cursors
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for free Windows 11 cursors.
 	.PARAMETER Dark
-	Download and install free dark "Windows 11 Cursors Concept" cursors from Jepri Creations
+	Download and install the dark cursor pack
 
 	.PARAMETER Light
-	Download and install free light "Windows 11 Cursors Concept" cursors from Jepri Creations
+	Download and install the light cursor pack
 
 	.PARAMETER Default
 	Set default cursors
@@ -24,9 +29,6 @@ using module ..\SharedHelpers.psm1
 
 	.EXAMPLE
 	Cursors -Default
-
-	.LINK
-	https://www.deviantart.com/jepricreations/art/Windows-11-Cursors-Concept-886489356
 
 	.NOTES
 	The 14/12/24 version
@@ -57,10 +59,35 @@ function Expand-CursorArchiveFolder
 		throw "tar.exe returned exit code $LASTEXITCODE"
 	}
 }
+<#
+    .SYNOPSIS
+    Return the cursor archive URL configured for Baseline.
+
+    .DESCRIPTION
+    Reads BASELINE_CURSOR_ARCHIVE_URL from the process environment and throws when it is not set so cursor installation fails with a clear error.
+
+    .EXAMPLE
+    Get-BaselineCursorArchiveUrl
+#>
+function Get-BaselineCursorArchiveUrl
+{
+	$cursorArchiveUrl = [string]$env:BASELINE_CURSOR_ARCHIVE_URL
+	if ([string]::IsNullOrWhiteSpace($cursorArchiveUrl))
+	{
+		throw 'BASELINE_CURSOR_ARCHIVE_URL is not set.'
+	}
+
+	return $cursorArchiveUrl
+}
 
 <#
     .SYNOPSIS
-    Internal function Cursors.
+    Runs cursors.
+
+    
+.DESCRIPTION
+    
+Supports cursors handling inside Baseline.
 #>
 
 function Cursors
@@ -93,13 +120,14 @@ function Cursors
 	{
 		$DownloadsFolder = Get-ItemPropertyValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "{374DE290-123F-4565-9164-39C4925E467B}"
 		$cursorArchivePath = Join-Path $DownloadsFolder 'Windows11Cursors.zip'
+		$cursorArchiveUrl = Get-BaselineCursorArchiveUrl
 
 		try
 		{
-			# Download cursors from the curated upstream mirror, then verify the
+			# Download cursors, then verify the
 			# archive fingerprint before extraction.
 			Invoke-DownloadFile `
-				-Uri 'https://raw.githubusercontent.com/farag2/Sophia-Script-for-Windows/refs/heads/master/Cursors/Windows11Cursors.zip' `
+				-Uri $cursorArchiveUrl `
 				-OutFile $cursorArchivePath
 			$null = Assert-FileHash `
 				-Path $cursorArchivePath `
@@ -117,8 +145,8 @@ function Cursors
 	{
 		"Dark"
 		{
-			Write-ConsoleStatus -Action "Installing 'Windows 11 Cursors Concept' dark cursors"
-			LogInfo "Installing 'Windows 11 Cursors Concept' dark cursors"
+			Write-ConsoleStatus -Action "Installing dark cursors"
+			LogInfo "Installing dark cursors"
 			try
 			{
 				if (-not (Test-Path -Path "$env:SystemRoot\Cursors\W11 Cursor Dark Free"))
@@ -128,25 +156,82 @@ function Cursors
 
 				Expand-CursorArchiveFolder -ArchivePath $cursorArchivePath -DestinationPath "$env:SystemRoot\Cursors\W11 Cursor Dark Free" -FolderName 'dark'
 
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name "(default)" -PropertyType String -Value "W11 Cursor Dark Free by Jepri Creations" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name AppStarting -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\appstarting.ani" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Arrow -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\arrow.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Crosshair -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\crosshair.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Hand -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\hand.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Help -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\help.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name IBeam -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\ibeam.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name No -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\no.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name NWPen -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\nwpen.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Person -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\person.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Pin -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\pin.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name "Scheme Source" -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name SizeAll -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\sizeall.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name SizeNESW -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\sizenesw.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name SizeNS -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\sizens.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name SizeNWSE -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\sizenwse.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name SizeWE -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\sizewe.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name UpArrow -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\uparrow.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Wait -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\wait.ani" -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "(default)" `
+					-Value "W11 Cursor Dark Free" `
+					-Type String
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "AppStarting" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\appstarting.ani" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Arrow" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\arrow.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Crosshair" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\crosshair.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Hand" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\hand.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Help" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\help.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "IBeam" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\ibeam.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "No" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\no.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "NWPen" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\nwpen.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Person" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\person.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Pin" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\pin.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Scheme Source" `
+					-Value 1 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "SizeAll" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\sizeall.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "SizeNESW" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\sizenesw.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "SizeNS" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\sizens.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "SizeNWSE" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\sizenwse.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "SizeWE" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\sizewe.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "UpArrow" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\uparrow.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Wait" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Dark Free\wait.ani" `
+					-Type ExpandString
 
 				if (-not (Test-Path -Path "HKCU:\Control Panel\Cursors\Schemes"))
 				{
@@ -171,7 +256,10 @@ function Cursors
 					"%SystemRoot%\Cursors\W11 Cursor Dark Free\person.cur",
 					"%SystemRoot%\Cursors\W11 Cursor Dark Free\pin.cur"
 				) -join ","
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors\Schemes" -Name "W11 Cursor Dark Free by Jepri Creations" -PropertyType String -Value $Schemes -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors\Schemes" `
+					-Name "W11 Cursor Dark Free" `
+					-Value $Schemes `
+					-Type String
 
 				Start-Sleep -Seconds 1
 
@@ -186,8 +274,8 @@ function Cursors
 		}
 		"Light"
 		{
-			Write-ConsoleStatus -Action "Installing 'Windows 11 Cursors Concept' light cursors"
-			LogInfo "Installing 'Windows 11 Cursors Concept' light cursors"
+			Write-ConsoleStatus -Action "Installing light cursors"
+			LogInfo "Installing light cursors"
 			try
 			{
 				if (-not (Test-Path -Path "$env:SystemRoot\Cursors\W11 Cursor Light Free"))
@@ -197,25 +285,82 @@ function Cursors
 
 				Expand-CursorArchiveFolder -ArchivePath $cursorArchivePath -DestinationPath "$env:SystemRoot\Cursors\W11 Cursor Light Free" -FolderName 'light'
 
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name "(default)" -PropertyType String -Value "W11 Cursor Light Free by Jepri Creations" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name AppStarting -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\appstarting.ani" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Arrow -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\arrow.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Crosshair -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\crosshair.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Hand -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\hand.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Help -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\help.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name IBeam -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\ibeam.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name No -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\no.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name NWPen -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\nwpen.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Person -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\person.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Pin -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\pin.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name "Scheme Source" -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name SizeAll -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\sizeall.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name SizeNESW -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\sizenesw.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name SizeNS -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\sizens.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name SizeNWSE -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\sizenwse.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name SizeWE -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\sizewe.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name UpArrow -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\uparrow.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Wait -PropertyType ExpandString -Value "%SystemRoot%\Cursors\W11 Cursor Light Free\wait.ani" -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "(default)" `
+					-Value "W11 Cursor Light Free" `
+					-Type String
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "AppStarting" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\appstarting.ani" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Arrow" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\arrow.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Crosshair" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\crosshair.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Hand" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\hand.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Help" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\help.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "IBeam" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\ibeam.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "No" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\no.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "NWPen" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\nwpen.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Person" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\person.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Pin" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\pin.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Scheme Source" `
+					-Value 1 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "SizeAll" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\sizeall.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "SizeNESW" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\sizenesw.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "SizeNS" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\sizens.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "SizeNWSE" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\sizenwse.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "SizeWE" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\sizewe.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "UpArrow" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\uparrow.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Wait" `
+					-Value "%SystemRoot%\Cursors\W11 Cursor Light Free\wait.ani" `
+					-Type ExpandString
 
 				if (-not (Test-Path -Path "HKCU:\Control Panel\Cursors\Schemes"))
 				{
@@ -240,7 +385,10 @@ function Cursors
 					"%SystemRoot%\Cursors\W11 Cursor Light Free\person.cur",
 					"%SystemRoot%\Cursors\W11 Cursor Light Free\pin.cur"
 				) -join ","
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors\Schemes" -Name "W11 Cursor Light Free by Jepri Creations" -PropertyType String -Value $Schemes -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors\Schemes" `
+					-Name "W11 Cursor Light Free" `
+					-Value $Schemes `
+					-Type String
 
 				Start-Sleep -Seconds 1
 
@@ -259,25 +407,82 @@ function Cursors
 			LogInfo "Setting default cursors"
 			try
 			{
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name "(default)" -PropertyType String -Value "" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name AppStarting -PropertyType ExpandString -Value "%SystemRoot%\cursors\aero_working.ani" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Arrow -PropertyType ExpandString -Value "%SystemRoot%\cursors\aero_arrow.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Crosshair -PropertyType ExpandString -Value "" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Hand -PropertyType ExpandString -Value "%SystemRoot%\cursors\aero_link.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Help -PropertyType ExpandString -Value "%SystemRoot%\cursors\aero_helpsel.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name IBeam -PropertyType ExpandString -Value "" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name No -PropertyType ExpandString -Value "%SystemRoot%\cursors\aero_unavail.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name NWPen -PropertyType ExpandString -Value "%SystemRoot%\cursors\aero_pen.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Person -PropertyType ExpandString -Value "%SystemRoot%\cursors\aero_person.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Pin -PropertyType ExpandString -Value "%SystemRoot%\cursors\aero_pin.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name "Scheme Source" -PropertyType DWord -Value 2 -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name SizeAll -PropertyType ExpandString -Value "%SystemRoot%\cursors\aero_move.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name SizeNESW -PropertyType ExpandString -Value "%SystemRoot%\cursors\aero_nesw.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name SizeNS -PropertyType ExpandString -Value "%SystemRoot%\cursors\aero_ns.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name SizeNWSE -PropertyType ExpandString -Value "%SystemRoot%\cursors\aero_nwse.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name SizeWE -PropertyType ExpandString -Value "%SystemRoot%\cursors\aero_ew.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name UpArrow -PropertyType ExpandString -Value "%SystemRoot%\cursors\aero_up.cur" -Force -ErrorAction Stop | Out-Null
-				New-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name Wait -PropertyType ExpandString -Value "%SystemRoot%\cursors\aero_up.cur" -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "(default)" `
+					-Value "" `
+					-Type String
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "AppStarting" `
+					-Value "%SystemRoot%\cursors\aero_working.ani" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Arrow" `
+					-Value "%SystemRoot%\cursors\aero_arrow.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Crosshair" `
+					-Value "" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Hand" `
+					-Value "%SystemRoot%\cursors\aero_link.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Help" `
+					-Value "%SystemRoot%\cursors\aero_helpsel.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "IBeam" `
+					-Value "" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "No" `
+					-Value "%SystemRoot%\cursors\aero_unavail.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "NWPen" `
+					-Value "%SystemRoot%\cursors\aero_pen.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Person" `
+					-Value "%SystemRoot%\cursors\aero_person.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Pin" `
+					-Value "%SystemRoot%\cursors\aero_pin.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Scheme Source" `
+					-Value 2 `
+					-Type DWord
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "SizeAll" `
+					-Value "%SystemRoot%\cursors\aero_move.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "SizeNESW" `
+					-Value "%SystemRoot%\cursors\aero_nesw.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "SizeNS" `
+					-Value "%SystemRoot%\cursors\aero_ns.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "SizeNWSE" `
+					-Value "%SystemRoot%\cursors\aero_nwse.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "SizeWE" `
+					-Value "%SystemRoot%\cursors\aero_ew.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "UpArrow" `
+					-Value "%SystemRoot%\cursors\aero_up.cur" `
+					-Type ExpandString
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\Cursors" `
+					-Name "Wait" `
+					-Value "%SystemRoot%\cursors\aero_up.cur" `
+					-Type ExpandString
 				Write-ConsoleStatus -Status success
 			}
 			catch

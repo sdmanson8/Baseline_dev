@@ -180,3 +180,68 @@
 			Update-WindowMinWidthFromHeader
 		}
 	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Set-DesignModeState.
+	#>
+
+	function Set-DesignModeState
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param ([bool]$Enabled)
+
+		$previousState = [bool]$Script:DesignMode
+		$normalized = [bool]$Enabled
+		$Script:FilterUiUpdating = $true
+		try
+		{
+			$Script:DesignMode = $normalized
+			if ($Script:Ctx)
+			{
+				if ($Script:Ctx.ContainsKey('UI')) { $Script:Ctx.UI.DesignMode = $normalized }
+				if ($Script:Ctx.ContainsKey('Mode')) { $Script:Ctx.Mode.Design = $normalized }
+			}
+			if ($ChkDesignMode)
+			{
+				$ChkDesignMode.IsChecked = $normalized
+				$ChkDesignMode.Content = 'Design Mode'
+			}
+			if (Get-Command -Name 'Set-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				try { Set-BaselineUserPreference -Key 'DesignMode' -Value $normalized } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ModeState.Set-DesignModeState.SavePreference' }
+			}
+		}
+		finally
+		{
+			$Script:FilterUiUpdating = $false
+		}
+
+		if ($previousState -eq $normalized)
+		{
+			return
+		}
+
+		$message = if ($normalized)
+		{
+			'Design Mode enabled. Detection now uses manifest defaults and the action button becomes {0}.' -f (Get-UxRunActionLabel)
+		}
+		else
+		{
+			'Design Mode disabled. The action button returns to {0}.' -f (Get-UxRunActionLabel)
+		}
+
+		Invoke-GuiStateTransition `
+			-Context 'DesignMode' `
+			-StatusMessage $message `
+			-StatusTone $(if ($normalized) { 'success' } else { 'muted' }) `
+			-ClearCache `
+			-RebuildTab `
+			-SyncActionButton `
+			-UpdateModeText
+
+		if (Get-Command -Name 'Update-WindowMinWidthFromHeader' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-WindowMinWidthFromHeader
+		}
+	}

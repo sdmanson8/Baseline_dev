@@ -2,6 +2,7 @@ Set-StrictMode -Version Latest
 
 BeforeAll {
     $applicationsPath = Join-Path $PSScriptRoot '../../Module/Regions/Applications.psm1'
+    $script:ApplicationsContent = Get-Content -LiteralPath $applicationsPath -Raw -Encoding UTF8
     $applicationsAst = [System.Management.Automation.Language.Parser]::ParseFile($applicationsPath, [ref]$null, [ref]$null)
     $applicationsFunctions = $applicationsAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $applicationsFunctions)
@@ -14,7 +15,10 @@ BeforeAll {
     # regardless of which file they currently live in.
     $guiSourceFiles = @(
         (Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'),
-        (Join-Path $PSScriptRoot '../../Module/GUI/AppsModule.ps1')
+        (Join-Path $PSScriptRoot '../../Module/GUI/AppsModule.ps1'),
+        (Join-Path $PSScriptRoot '../../Module/GUI/AppsModule/CatalogHelpers.ps1'),
+        (Join-Path $PSScriptRoot '../../Module/GUI/AppsModule/SelectionQueueState.ps1'),
+        (Join-Path $PSScriptRoot '../../Module/GUI/AppsModule/ProgressNavChrome.ps1')
     )
     $targetAppsFunctions = @('Initialize-AppsSelectionState', 'Update-AppsSelectionSummary', 'Start-AppsModuleActionAsync', 'Start-AppsModuleBatchActionAsync', 'Initialize-AppsQueuedActionState')
     foreach ($srcFile in $guiSourceFiles)
@@ -433,13 +437,13 @@ Describe 'WinGet availability' {
     }
 
     It 'launches winget installs with non-interactive flags' {
-        Mock Start-Process { [pscustomobject]@{ ExitCode = 0 } }
+        Mock Invoke-StreamingProcess { 0 }
 
         Invoke-WingetInstall -WinGetId 'Google.Chrome' -DisplayName 'Google Chrome'
 
-        Should -Invoke Start-Process -Times 1 -ParameterFilter {
+        Should -Invoke Invoke-StreamingProcess -Times 1 -ParameterFilter {
             $FilePath -eq 'winget.exe' -and
-            -not $WindowStyle -and
+            @($ArgumentList) -contains 'install' -and
             @($ArgumentList) -contains '--disable-interactivity'
         }
     }
@@ -500,13 +504,14 @@ Describe 'Chocolatey availability' {
 
     It 'launches Chocolatey installs without forcing a hidden window' {
         Mock Resolve-ChocolateyExecutable { 'choco.exe' }
-        Mock Start-Process { [pscustomobject]@{ ExitCode = 0 } }
+        Mock Invoke-StreamingProcess { 0 }
 
         Invoke-ChocoInstall -ChocoId 'googlechrome' -DisplayName 'Google Chrome'
 
-        Should -Invoke Start-Process -Times 1 -ParameterFilter {
+        Should -Invoke Invoke-StreamingProcess -Times 1 -ParameterFilter {
             $FilePath -eq 'choco.exe' -and
-            -not $WindowStyle
+            @($ArgumentList) -contains 'install' -and
+            @($ArgumentList) -contains '--no-progress'
         }
     }
 }
@@ -720,6 +725,14 @@ Describe 'Command execution routes' {
             Remove-Item -Path Function:\Get-TestApplicationItem -ErrorAction SilentlyContinue
             Remove-Item -Path Function:\Invoke-TestPipelineCommand -ErrorAction SilentlyContinue
         }
+    }
+}
+
+Describe 'Process capture cleanup' {
+    It 'routes subprocess drain and dispose failures through Write-DebugSwallowedException' {
+        $script:ApplicationsContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Applications\.Invoke-ProcessCapture\.StdoutAwait'''
+        $script:ApplicationsContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Applications\.Invoke-ProcessCapture\.StderrAwait'''
+        $script:ApplicationsContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Applications\.Invoke-ProcessCapture\.DisposeProcess'''
     }
 }
 
@@ -1093,7 +1106,7 @@ Describe 'Update-AppsSelectionSummary' {
             IsEnabled = $false
             ToolTip = $null
         }
-        $script:BtnClearAppSelection = [pscustomobject]@{
+        $script:BtnClearQueuedActions = [pscustomobject]@{
             IsEnabled = $false
             ToolTip = $null
         }
@@ -1110,9 +1123,9 @@ Describe 'Update-AppsSelectionSummary' {
         $script:BtnInstallSelectedApps.IsEnabled | Should -BeTrue
         $script:BtnUninstallSelectedApps.IsEnabled | Should -BeFalse
         $script:BtnUpdateSelectedApps.IsEnabled | Should -BeFalse
-        $script:BtnClearAppSelection.IsEnabled | Should -BeTrue
+        $script:BtnClearQueuedActions.IsEnabled | Should -BeTrue
         $script:BtnScanInstalledApps.IsEnabled | Should -BeTrue
-        $script:BtnInstallSelectedApps.ToolTip | Should -Be 'Install every checked application.'
+        $script:BtnInstallSelectedApps.ToolTip | Should -Be 'Stage installs for every checked app. They run when you click Apply Changes.'
         $script:BtnUninstallSelectedApps.ToolTip | Should -Match 'Scan installed apps before uninstalling or updating\.'
         $script:BtnUpdateSelectedApps.ToolTip | Should -Match 'Scan installed apps before uninstalling or updating\.'
         $script:BtnScanInstalledApps.ToolTip | Should -Be 'Scan installed apps to update install status.'
@@ -1125,7 +1138,7 @@ Describe 'Update-AppsSelectionSummary' {
         $script:BtnInstallSelectedApps.IsEnabled | Should -BeTrue
         $script:BtnUninstallSelectedApps.IsEnabled | Should -BeTrue
         $script:BtnUpdateSelectedApps.IsEnabled | Should -BeTrue
-        $script:BtnClearAppSelection.IsEnabled | Should -BeTrue
+        $script:BtnClearQueuedActions.IsEnabled | Should -BeTrue
         $script:BtnScanInstalledApps.IsEnabled | Should -BeTrue
     }
 }

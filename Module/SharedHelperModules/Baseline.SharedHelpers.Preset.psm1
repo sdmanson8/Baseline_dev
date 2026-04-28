@@ -1,10 +1,10 @@
-﻿<#
+<#
     .SYNOPSIS
-    Named module boundary for Preset.Helpers.ps1 — exposes its functions through the module system.
+    Module wrapper for Preset.Helpers.ps1.
 
     .DESCRIPTION
-    Loads the shared helper slice into an explicitly named module so the helper
-    inventory is visible through Get-Module.
+    Exposes helper functions through this dedicated module boundary so they are loaded via PowerShell's module system.
+
 #>
 
 $Script:SharedHelpersModuleRoot = Split-Path -Path $PSScriptRoot -Parent
@@ -21,9 +21,17 @@ if (-not (Test-Path -LiteralPath $helperPath))
 $ExportedFunctions = @(
     'ConvertTo-HeadlessPresetName'
     'Resolve-HeadlessEnvironmentPreset'
+    'Set-HeadlessPresetIncludedFunctionSet'
+    'Get-HeadlessPresetIncludedTweakLibraryPathSet'
+    'Set-HeadlessPresetIncludedTweakLibraryPathSet'
     'Get-HeadlessPresetValidFunctionSet'
     'Assert-HeadlessPresetCommandListValid'
     'Get-HeadlessPresetCommandList'
 )
 
 Export-ModuleMember -Function $ExportedFunctions
+
+
+
+
+

@@ -17,7 +17,7 @@
 		$isVisible = $true
 		if ($st.VisibleIf)
 		{
-			try { $isVisible = [bool](& $st.VisibleIf) } catch { $isVisible = $false }
+			try { $isVisible = [bool](& $st.VisibleIf) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTweakControls.SeedControlVisibility.VisibleIf'; $isVisible = $false }
 		}
 			switch ($st.Type)
 			{
@@ -103,7 +103,7 @@
 				}
 			}
 
-		$targetTab = if ($PrimaryTabs -and $PrimaryTabs.SelectedItem -and $PrimaryTabs.SelectedItem.Tag)
+			$targetTab = if ($PrimaryTabs -and $PrimaryTabs.SelectedItem -and $PrimaryTabs.SelectedItem.Tag)
 		{
 			[string]$PrimaryTabs.SelectedItem.Tag
 		}
@@ -114,14 +114,26 @@
 		else
 		{
 			$null
-		}
+			}
 
 			if ([string]::IsNullOrWhiteSpace($targetTab)) { return }
+			$updatePlatformFilterListScript = if ($Script:UpdatePlatformFilterListScript) { $Script:UpdatePlatformFilterListScript } else { ${function:Update-PlatformFilterList} }
 			$updateRiskFilterListScript = if ($Script:UpdateRiskFilterListScript) { $Script:UpdateRiskFilterListScript } else { ${function:Update-RiskFilterList} }
 			$updateCategoryFilterListScript = if ($Script:UpdateCategoryFilterListScript) { $Script:UpdateCategoryFilterListScript } else { ${function:Update-CategoryFilterList} }
 			$updatePrimaryTabHeadersScript = if ($Script:UpdatePrimaryTabHeadersScript) { $Script:UpdatePrimaryTabHeadersScript } else { ${function:Update-PrimaryTabHeaders} }
 			$updatePrimaryTabVisualsScript = if ($Script:UpdatePrimaryTabVisualsScript) { $Script:UpdatePrimaryTabVisualsScript } else { ${function:Update-PrimaryTabVisuals} }
 			$buildTabContentScript = if ($Script:BuildTabContentScript) { $Script:BuildTabContentScript } else { ${function:Build-TabContent} }
+			if ($updatePlatformFilterListScript)
+			{
+				try
+				{
+					& $updatePlatformFilterListScript
+				}
+				catch
+				{
+					throw "Update-CurrentTabContent/UpdatePlatformFilterList for tab '$targetTab' failed: $($_.Exception.Message)"
+				}
+			}
 			if ($updateRiskFilterListScript)
 			{
 				try
@@ -254,6 +266,8 @@
 			$Script:BtnClearSearch,
 			$CmbRiskFilter,
 			$CmbCategoryFilter,
+			$CmbPlatformFilter,
+			$ChkHideUnavailableItems,
 			$ChkSelectedOnly,
 			$ChkHighRiskOnly,
 			$ChkRestorableOnly,
@@ -293,4 +307,3 @@
 
 
 	. (Join-Path $Script:GuiExtractedRoot 'TweakRowFactory.ps1')
-

@@ -1,4 +1,4 @@
-# Audit trail helper slice for Baseline.
+# Audit trail helpers for Baseline.
 # Provides structured JSONL audit logging for execution runs, defaults
 # restoration, profile imports, and other auditable actions.
 
@@ -126,7 +126,17 @@ function Write-AuditRecord
 	$json = ConvertTo-Json -InputObject $record -Compress -Depth 4
 	$auditPath = Get-AuditLogPath
 	[System.IO.File]::AppendAllText($auditPath, "$json`n", [System.Text.UTF8Encoding]::new($false))
-	try { Invoke-BaselineAuditRetentionPolicy | Out-Null } catch { }
+	try
+	{
+		Invoke-BaselineAuditRetentionPolicy | Out-Null
+	}
+	catch
+	{
+		if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Write-DebugSwallowedException -ErrorRecord $_ -Source 'AuditTrail.Write-AuditRecord.InvokeRetentionPolicy'
+		}
+	}
 }
 
 <#
@@ -639,3 +649,4 @@ function Get-BaselineAuditRetentionReport
 
 	return [pscustomobject]$report
 }
+

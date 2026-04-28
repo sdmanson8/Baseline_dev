@@ -1,4 +1,4 @@
-﻿<#
+<#
 	.SYNOPSIS
 	WPF GUI for Windows 10 & Windows 11 fine-tuning and automating the routine tasks
 
@@ -9,7 +9,8 @@
     17.03.2026 - initial beta version
     21.03.2026 - Added GUI
     06.04.2026 - Major changes to the GUI, and added more features
-    undetermined - undetermined
+    26.04.2026 - Minor Fixes
+    unreleased - unreleased
 
 	.AUTHOR
 	sdmanson8 - Copyright (c) 2026
@@ -45,13 +46,6 @@
 	Supported Windows 11 versions
 	Version: 23H2+
 	Editions: Home/Pro/Enterprise
-
-	.NOTES
-	The below sources were used, and edited for my purposes:
-	https://github.com/Disassembler0/Win10-Initial-Setup-Script
-	https://gist.github.com/ricardojba/ecdfe30dadbdab6c514a530bc5d51ef6
-	https://github.com/farag2/Sophia-Script-for-Windows
-	https://github.com/zoicware/RemoveWindowsAI/tree/main
 #>
 
 [CmdletBinding()]
@@ -60,6 +54,10 @@ param
 	[Parameter(Mandatory = $false)]
 	[string[]]
 	$Functions,
+
+	[Parameter(Mandatory = $false)]
+	[string[]]
+	$Include,
 
 	[Parameter(Mandatory = $false)]
 	[string]
@@ -121,6 +119,37 @@ param
 	[Parameter(Mandatory = $false)]
 	[switch]
 	$Apply,
+
+	# Suppress the GUI even when no other headless intent is supplied. Combined
+	# with -ApplyPreset/-ApplyProfile/-ConfigFile/-ListPresets it forces the
+	# unattended path; on its own it exits cleanly with no work performed.
+	[Parameter(Mandatory = $false)]
+	[switch]
+	$NoGui,
+
+	# Run the GUI in config-creation mode so detection reads defaults and
+	# the run action becomes Save Config instead of applying changes.
+	[Parameter(Mandatory = $false)]
+	[switch]
+	$Design,
+
+	# Print the catalog of shipped presets and exit. Implies -NoGui.
+	[Parameter(Mandatory = $false)]
+	[switch]
+	$ListPresets,
+
+	# Long form of -Preset for parity with the tracked preset contract.
+	# Implies Apply
+	# unless -DryRun is also specified.
+	[Parameter(Mandatory = $false)]
+	[string]
+	$ApplyPreset,
+
+	# Override the default session log path. Accepts a file or a directory;
+	# directory inputs receive the auto-generated default filename.
+	[Parameter(Mandatory = $false)]
+	[string]
+	$LogPath,
 
 	# Lifecycle automation entry point. When set, runs the named automation
 	# instead of the default GUI/CLI flow and exits.
@@ -317,6 +346,15 @@ function New-BaselineElevationArgumentList
 		}
 	}
 
+	if ($Include)
+	{
+		[void]$argumentList.Add('-Include')
+		foreach ($includePath in @($Include))
+		{
+			[void]$argumentList.Add([string]$includePath)
+		}
+	}
+
 	if ($Preset)
 	{
 		[void]$argumentList.Add('-Preset')
@@ -333,6 +371,37 @@ function New-BaselineElevationArgumentList
 	{
 		[void]$argumentList.Add('-ScenarioProfile')
 		[void]$argumentList.Add([string]$ScenarioProfile)
+	}
+
+	if ($Apply)
+	{
+		[void]$argumentList.Add('-Apply')
+	}
+
+	if ($ApplyProfile)
+	{
+		[void]$argumentList.Add('-ApplyProfile')
+	}
+
+	if ($NoGui)
+	{
+		[void]$argumentList.Add('-NoGui')
+	}
+
+	if ($Design)
+	{
+		[void]$argumentList.Add('-Design')
+	}
+
+	if ($ListPresets)
+	{
+		[void]$argumentList.Add('-ListPresets')
+	}
+
+	if ($ApplyPreset)
+	{
+		[void]$argumentList.Add('-ApplyPreset')
+		[void]$argumentList.Add([string]$ApplyPreset)
 	}
 
 	if ($GameModeDecisionOverrides -and $GameModeDecisionOverrides.Count -gt 0)
@@ -356,10 +425,27 @@ function New-BaselineElevationArgumentList
 		[void]$argumentList.Add('-ScheduledRun')
 	}
 
+	if ($ReadOnly)
+	{
+		[void]$argumentList.Add('-ReadOnly')
+	}
+
+	if ($PSBoundParameters.ContainsKey('LogPath') -and -not [string]::IsNullOrWhiteSpace($LogPath))
+	{
+		[void]$argumentList.Add('-LogPath')
+		[void]$argumentList.Add([string]$LogPath)
+	}
+
 	if ($ProfilePath)
 	{
 		[void]$argumentList.Add('-ProfilePath')
 		[void]$argumentList.Add([string]$ProfilePath)
+	}
+
+	if ($OutputFormat)
+	{
+		[void]$argumentList.Add('-OutputFormat')
+		[void]$argumentList.Add([string]$OutputFormat)
 	}
 
 	if ($TargetComputer)
@@ -369,6 +455,41 @@ function New-BaselineElevationArgumentList
 		{
 			[void]$argumentList.Add([string]$computerName)
 		}
+	}
+
+	if (-not [string]::IsNullOrWhiteSpace([string]$LifecycleOperation))
+	{
+		[void]$argumentList.Add('-LifecycleOperation')
+		[void]$argumentList.Add([string]$LifecycleOperation)
+	}
+
+	if ($LifecycleInstallerPath)
+	{
+		[void]$argumentList.Add('-LifecycleInstallerPath')
+		[void]$argumentList.Add([string]$LifecycleInstallerPath)
+	}
+
+	if ($LifecycleRollbackProfilePath)
+	{
+		[void]$argumentList.Add('-LifecycleRollbackProfilePath')
+		[void]$argumentList.Add([string]$LifecycleRollbackProfilePath)
+	}
+
+	if ($LifecycleSupportBundlePath)
+	{
+		[void]$argumentList.Add('-LifecycleSupportBundlePath')
+		[void]$argumentList.Add([string]$LifecycleSupportBundlePath)
+	}
+
+	if ($LifecycleOutputPath)
+	{
+		[void]$argumentList.Add('-LifecycleOutputPath')
+		[void]$argumentList.Add([string]$LifecycleOutputPath)
+	}
+
+	if ($LifecycleExecute)
+	{
+		[void]$argumentList.Add('-LifecycleExecute')
 	}
 
 	if ($PSBoundParameters.ContainsKey('RemoteCredential'))
@@ -395,6 +516,11 @@ if ([string]::IsNullOrWhiteSpace($Script:BootstrapDir))
 
 Write-LaunchTrace ("Bootstrap dir resolved: {0}" -f $Script:BootstrapDir)
 
+# P5 rollback checkpoint: bootstrap startup helpers are split into Bootstrap\Helpers\Bootstrap.Helpers.ps1.
+# Keep this explicit import before localization, module loading, and InitialActions.
+$bootstrapHelpersPath = Join-Path $Script:BootstrapDir 'Helpers\Bootstrap.Helpers.ps1'
+. $bootstrapHelpersPath
+
 if (-not $Script:IsEmbeddedHost)
 {
 	Clear-Host
@@ -417,6 +543,7 @@ $RequiredFiles += if ($Script:ModuleRootExists)
 {
 	@(
 		(Join-Path $Script:ModuleRoot 'SharedHelpers.psm1')
+		(Join-Path (Join-Path $Script:ModuleRoot 'SharedHelpers') 'Json.Helpers.ps1')
 		(Join-Path (Join-Path $Script:ModuleRoot 'SharedHelpers') 'Localization.Helpers.ps1')
 		(Join-Path (Join-Path $Script:ModuleRoot 'SharedHelpers') 'ErrorHandling.Helpers.ps1')
 		(Join-Path (Join-Path $Script:ModuleRoot 'SharedHelpers') 'Registry.Helpers.ps1')
@@ -480,81 +607,10 @@ Write-LaunchTrace 'Bootstrap files verified'
 # Resolve the startup UI culture before loading localization so the bootstrap
 # splash, auto-update check, and initial package-manager checks all use the
 # last selected GUI language when one exists.
-<#
-    .SYNOPSIS
-    Internal function Get-BaselineBootstrapSessionStatePath.
-#>
-
-function Get-BaselineBootstrapSessionStatePath
-{
-	param([string]$AppName = 'Baseline')
-
-	$stateRoot = [System.Environment]::GetEnvironmentVariable('BASELINE_STATE_ROOT')
-	if (-not [string]::IsNullOrWhiteSpace([string]$stateRoot))
-	{
-		$profileRoot = Join-Path $stateRoot 'Profiles'
-	}
-	elseif ($env:LOCALAPPDATA)
-	{
-		$profileRoot = Join-Path $env:LOCALAPPDATA "$AppName\Profiles"
-	}
-	else
-	{
-		$profileRoot = Join-Path $env:TEMP "$AppName\Profiles"
-	}
-
-	return (Join-Path $profileRoot "$AppName-last-session.json")
-}
-
-<#
-    .SYNOPSIS
-    Internal function Resolve-BaselineBootstrapUICulture.
-#>
-
-function Resolve-BaselineBootstrapUICulture
-{
-	param([string]$FallbackUICulture = $PSUICulture)
-
-	$envLanguage = [string]([System.Environment]::GetEnvironmentVariable('BASELINE_LANGUAGE'))
-	if (-not [string]::IsNullOrWhiteSpace($envLanguage))
-	{
-		return $envLanguage.Trim()
-	}
-
-	$sessionPath = Get-BaselineBootstrapSessionStatePath
-	if (Test-Path -LiteralPath $sessionPath -PathType Leaf)
-	{
-		try
-		{
-			$sessionPayload = Get-Content -LiteralPath $sessionPath -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
-			$sessionLanguage = $null
-			if ($sessionPayload -and $sessionPayload.State -and $sessionPayload.State.Language)
-			{
-				$sessionLanguage = [string]$sessionPayload.State.Language
-			}
-			elseif ($sessionPayload -and $sessionPayload.Language)
-			{
-				$sessionLanguage = [string]$sessionPayload.Language
-			}
-
-			if (-not [string]::IsNullOrWhiteSpace($sessionLanguage))
-			{
-				return $sessionLanguage.Trim()
-			}
-		}
-		catch
-		{
-			$null = $_
-		}
-	}
-
-	if ([string]::IsNullOrWhiteSpace([string]$FallbackUICulture))
-	{
-		return 'en-US'
-	}
-
-	return [string]$FallbackUICulture
-}
+# JSON helpers are dependency-free wrappers used by localization parsing and
+# the user-prefs reader; source them before localization so both layers share
+# the same depth-aware ConvertFrom-Json shim.
+. (Join-Path $Script:ModuleRoot 'SharedHelpers\Json.Helpers.ps1')
 
 # Load localization before the bootstrap splash so the first splash frame can
 # render localized text and culture-sensitive controls immediately.
@@ -595,57 +651,6 @@ Write-LaunchTrace ('CLI output format set to {0}.' -f $OutputFormat)
 
 # Resolve the running Baseline version early so headless lifecycle ops can
 # stamp it into playbooks/incident packs before the GUI/auto-update path runs.
-function Resolve-BaselineCurrentVersion
-{
-	$psdPath = Join-Path $Script:ModuleRoot 'Baseline.psd1'
-	try
-	{
-		if (Test-Path -LiteralPath $psdPath -PathType Leaf)
-		{
-			$data = Import-PowerShellDataFile -LiteralPath $psdPath
-			if ($data -and -not [string]::IsNullOrWhiteSpace([string]$data.ModuleVersion))
-			{
-				return [string]$data.ModuleVersion
-			}
-			Write-LaunchTrace ('Version lookup: Baseline.psd1 at {0} missing ModuleVersion' -f $psdPath)
-		}
-		else
-		{
-			Write-LaunchTrace ('Version lookup: Baseline.psd1 not found at {0}' -f $psdPath)
-		}
-	}
-	catch
-	{
-		Write-LaunchTrace ('Version lookup via Baseline.psd1 failed: {0}' -f $_.Exception.Message)
-	}
-
-	# Fall back to the launcher assembly metadata. The Baseline.exe PE stamps
-	# AssemblyInformationalVersion at build time, so even if the embedded
-	# Baseline.psd1 cannot be read we can still recover the real version.
-	try
-	{
-		$exePath = [string]$env:BASELINE_LAUNCHER_PATH
-		if (-not [string]::IsNullOrWhiteSpace($exePath) -and (Test-Path -LiteralPath $exePath -PathType Leaf))
-		{
-			$info = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($exePath)
-			$candidate = $info.ProductVersion
-			if ([string]::IsNullOrWhiteSpace($candidate)) { $candidate = $info.FileVersion }
-			if (-not [string]::IsNullOrWhiteSpace($candidate))
-			{
-				$plus = $candidate.IndexOf('+')
-				if ($plus -gt 0) { $candidate = $candidate.Substring(0, $plus) }
-				return [string]$candidate
-			}
-		}
-	}
-	catch
-	{
-		Write-LaunchTrace ('Version lookup via launcher assembly failed: {0}' -f $_.Exception.Message)
-	}
-
-	return '0.0.0'
-}
-
 $Script:CurrentAppVersion = Resolve-BaselineCurrentVersion
 Write-LaunchTrace ('Baseline current version resolved: {0}' -f $Script:CurrentAppVersion)
 
@@ -733,6 +738,85 @@ if (-not [string]::IsNullOrWhiteSpace([string]$LifecycleOperation))
 	}
 }
 
+# Normalize the CLI intent so the rest of the bootstrap can keep speaking the
+# original parameter vocabulary (-Preset / -ApplyProfile / etc.) regardless of
+# whether the user typed the long-form spelling.
+$Script:CliIntent = $null
+$cliIntentCmd = Get-Command -Name 'Resolve-BaselineCliIntent' -CommandType Function -ErrorAction SilentlyContinue
+if ($cliIntentCmd)
+{
+	$cliIntentParams = @{
+		Apply = [bool]$Apply
+		ApplyProfile = [bool]$ApplyProfile
+		DryRun = [bool]$DryRun
+		ListPresets = [bool]$ListPresets
+		NoGui = [bool]$NoGui
+		ApplyPreset = [string]$ApplyPreset
+		ConfigFile = [string]$ProfilePath
+		ProfilePath = [string]$ProfilePath
+		Preset = [string]$Preset
+	}
+	$Script:CliIntent = & $cliIntentCmd -ParamValues $cliIntentParams
+	foreach ($cliWarning in @($Script:CliIntent.Warnings))
+	{
+		if (-not [string]::IsNullOrWhiteSpace([string]$cliWarning))
+		{
+			Write-LaunchTrace ('CLI intent warning: {0}' -f [string]$cliWarning)
+			Write-Warning ([string]$cliWarning)
+		}
+	}
+	if (@($Script:CliIntent.Errors).Count -gt 0)
+	{
+		foreach ($cliError in @($Script:CliIntent.Errors))
+		{
+			if (-not [string]::IsNullOrWhiteSpace([string]$cliError))
+			{
+				Write-LaunchTrace ('CLI intent error: {0}' -f [string]$cliError)
+				Write-Error ([string]$cliError)
+			}
+		}
+		$Global:LASTEXITCODE = 2
+		if ($Script:IsEmbeddedHost) { return } else { exit 2 }
+	}
+}
+
+# Long-form -ApplyPreset is just an alternate spelling of -Preset; normalize so
+# the preset expansion path below sees a single canonical value.
+if (-not [string]::IsNullOrWhiteSpace([string]$ApplyPreset) -and [string]::IsNullOrWhiteSpace([string]$Preset))
+{
+	$Preset = $ApplyPreset
+	Write-LaunchTrace ("Normalized -ApplyPreset '{0}' to -Preset." -f $ApplyPreset)
+}
+
+# A config/profile path supplied without -ApplyProfile/-ComplianceCheck must not
+# silently no-op. Promote to ApplyProfile so the user actually gets what they
+# asked for (or sees the manifest in dry-run mode).
+if (-not [string]::IsNullOrWhiteSpace([string]$ProfilePath) -and -not $ComplianceCheck -and -not $ApplyProfile -and -not $TargetComputer -and -not $DryRun)
+{
+	$ApplyProfile = $true
+	Write-LaunchTrace ("Promoting -ProfilePath '{0}' to -ApplyProfile." -f $ProfilePath)
+	Write-Warning ("ProfilePath '{0}' supplied without -ApplyProfile/-ComplianceCheck; promoting to -ApplyProfile (use -DryRun to preview only)." -f $ProfilePath)
+}
+
+# Handle --list-presets early: it short-circuits everything else.
+if ($ListPresets)
+{
+	$presetCatalogCmd = Get-Command -Name 'Get-BaselinePresetCatalog' -CommandType Function -ErrorAction SilentlyContinue
+	$presetFormatCmd = Get-Command -Name 'Format-BaselinePresetCatalog' -CommandType Function -ErrorAction SilentlyContinue
+	if (-not $presetCatalogCmd -or -not $presetFormatCmd)
+	{
+		Write-LaunchTrace 'Preset catalog helpers missing — cannot honor -ListPresets.'
+		Write-Error 'Preset catalog helpers are unavailable; cannot list presets.'
+		$Global:LASTEXITCODE = 2
+		if ($Script:IsEmbeddedHost) { return } else { exit 2 }
+	}
+	$presetCatalog = & $presetCatalogCmd -PresetDirectory (Join-Path $Script:ModuleRoot 'Data\Presets')
+	$rendered = & $presetFormatCmd -Catalog $presetCatalog
+	Write-Output $rendered
+	$Global:LASTEXITCODE = 0
+	if ($Script:IsEmbeddedHost) { return } else { exit 0 }
+}
+
 # Multi-target preview safety: when more than one target is supplied without
 # explicit -Apply, force preview-only mode. The user must opt in to changes.
 $Script:RemoteTargetCount = if ($TargetComputer) { @($TargetComputer).Count } else { 0 }
@@ -766,8 +850,19 @@ else
 {
 	$logDirectory = $env:TEMP
 }
-$Global:LogFilePath = Join-Path $logDirectory "Baseline - Utility for $osName.txt"
-Set-LogFile -Path $Global:LogFilePath -Clear
+$Global:LogFilePath = New-BaselineSessionLogPath -LogDirectory $logDirectory -OsName $osName
+$Script:LogDefaultFileName = [System.IO.Path]::GetFileName($Global:LogFilePath)
+if ($PSBoundParameters.ContainsKey('LogPath') -and -not [string]::IsNullOrWhiteSpace($LogPath))
+{
+	$logResolution = Resolve-BaselineCliLogPath -RequestedPath $LogPath -DefaultPath $Global:LogFilePath -DefaultFileName $Script:LogDefaultFileName -WorkingDirectory (Get-Location).ProviderPath
+	if ($logResolution.Warning)
+	{
+		Write-LaunchTrace ('LogPath override rejected: {0}' -f [string]$logResolution.Warning)
+		Write-Warning ([string]$logResolution.Warning)
+	}
+	$Global:LogFilePath = [string]$logResolution.ResolvedPath
+}
+Set-LogFile -Path $Global:LogFilePath
 Initialize-SessionStatistics
 Write-LaunchTrace 'Logging initialized'
 
@@ -776,8 +871,75 @@ if ($Script:IsEmbeddedHost)
 	$null = Initialize-BaselineProcessIdentity
 }
 
-$Script:BootstrapSplash = Show-BootstrapLoadingSplash
-Write-LaunchTrace 'Bootstrap splash shown'
+# Decide whether the GUI bootstrap splash + single-instance gate should run.
+# Headless work intents (preset, profile, functions, list-presets, etc.) skip
+# the splash entirely so unattended runs do not flash a window. -NoGui without
+# any work to do exits cleanly so scripts can probe the launcher safely.
+$hasHeadlessWorkIntent = (
+	($Functions -and $Functions.Count -gt 0) -or
+	-not [string]::IsNullOrWhiteSpace([string]$Preset) -or
+	-not [string]::IsNullOrWhiteSpace([string]$GameModeProfile) -or
+	-not [string]::IsNullOrWhiteSpace([string]$ScenarioProfile) -or
+	-not [string]::IsNullOrWhiteSpace([string]$ProfilePath) -or
+	-not [string]::IsNullOrWhiteSpace([string]$ApplyPreset) -or
+	$ApplyProfile -or $ComplianceCheck -or $ListPresets
+)
+$hasHeadlessIntent = (
+	$hasHeadlessWorkIntent -or
+	$ComplianceCheck -or $ScheduledRun -or $TargetComputer -or $NoGui
+)
+if ($NoGui -and -not $hasHeadlessWorkIntent)
+{
+	Write-LaunchTrace '-NoGui supplied without any headless work intent; exiting cleanly.'
+	Write-Warning '-NoGui supplied with no work to do (no -Preset/-Functions/-ApplyProfile/-ApplyPreset/-ListPresets/-ConfigFile). Exiting.'
+	$Global:LASTEXITCODE = 0
+	if ($Script:IsEmbeddedHost) { return } else { exit 0 }
+}
+$shouldShowBootstrapSplash = -not $hasHeadlessIntent
+
+if ($shouldShowBootstrapSplash)
+{
+	# Single-instance gate: when starting the GUI, refuse to launch a second
+	# Baseline window over an existing one. Fails closed — if the helper is
+	# missing or throws we abort with exit code 2 rather than risk a second
+	# GUI fighting the first one over the same daily log.
+	$singleInstanceLockCmd = Get-Command -Name 'Test-BaselineSingleInstanceLockAvailable' -CommandType Function -ErrorAction SilentlyContinue
+	$singleInstanceMutexCmd = Get-Command -Name 'Get-BaselineSingleInstanceMutexName' -CommandType Function -ErrorAction SilentlyContinue
+	$singleInstanceDecideCmd = Get-Command -Name 'Resolve-BaselineSingleInstanceDecision' -CommandType Function -ErrorAction SilentlyContinue
+	if (-not $singleInstanceLockCmd -or -not $singleInstanceMutexCmd -or -not $singleInstanceDecideCmd)
+	{
+		Write-LaunchTrace 'Single-instance helper is missing — cannot enforce the GUI gate. Failing closed.'
+		Write-Warning 'Single-instance helper is missing; cannot safely launch a second GUI instance. Aborting.'
+		$Global:LASTEXITCODE = 2
+		if ($Script:IsEmbeddedHost) { return } else { exit 2 }
+	}
+	try
+	{
+		$Script:SingleInstanceMutexName = & $singleInstanceMutexCmd
+		$Script:SingleInstanceLock = & $singleInstanceLockCmd -MutexName $Script:SingleInstanceMutexName
+		$Script:SingleInstanceDecision = & $singleInstanceDecideCmd -LockResult $Script:SingleInstanceLock -RunningInstance $null
+		if ($Script:SingleInstanceDecision -and $Script:SingleInstanceDecision.Action -eq 'HandoffAndExit')
+		{
+			Write-LaunchTrace ('Single-instance handoff: {0}' -f [string]$Script:SingleInstanceDecision.Reason)
+			$Global:LASTEXITCODE = 0
+			if ($Script:IsEmbeddedHost) { return } else { exit 0 }
+		}
+	}
+	catch
+	{
+		Write-LaunchTrace ('SingleInstance gate failed: {0}' -f $_.Exception.Message)
+		Write-Warning ('SingleInstance gate failed: {0}. Aborting to avoid concurrent GUI runs.' -f $_.Exception.Message)
+		$Global:LASTEXITCODE = 2
+		if ($Script:IsEmbeddedHost) { return } else { exit 2 }
+	}
+
+	$Script:BootstrapSplash = Show-BootstrapLoadingSplash
+	Write-LaunchTrace 'Bootstrap splash shown'
+}
+else
+{
+	Write-LaunchTrace 'Bootstrap splash skipped (headless intent detected).'
+}
 
 # Auto-update: check GitHub for a newer release and apply before continuing
 $Global:LoadingSplash = $Script:BootstrapSplash
@@ -799,38 +961,6 @@ catch
 	$null = $_
 }
 
-<#
-    .SYNOPSIS
-    Internal function Get-ErrorDetailText.
-#>
-
-function Get-ErrorDetailText
-{
-	param(
-		[Parameter(Mandatory = $true)]
-		[System.Management.Automation.ErrorRecord]
-		$ErrorRecord
-	)
-
-	$detailParts = @()
-	if (-not [string]::IsNullOrWhiteSpace($ErrorRecord.Exception.Message))
-	{
-		$detailParts += $ErrorRecord.Exception.Message
-	}
-
-	if ($ErrorRecord.InvocationInfo -and -not [string]::IsNullOrWhiteSpace($ErrorRecord.InvocationInfo.PositionMessage))
-	{
-		$detailParts += $ErrorRecord.InvocationInfo.PositionMessage.Trim()
-	}
-
-	if (-not [string]::IsNullOrWhiteSpace($ErrorRecord.ScriptStackTrace))
-	{
-		$detailParts += "Stack:`n$($ErrorRecord.ScriptStackTrace.Trim())"
-	}
-
-	return ($detailParts -join "`n`n")
-}
-
 if ([string]::IsNullOrWhiteSpace($Preset) -and [string]::IsNullOrWhiteSpace($GameModeProfile) -and [string]::IsNullOrWhiteSpace($ScenarioProfile) -and -not $Functions)
 {
 	$Preset = Resolve-HeadlessEnvironmentPreset -EnvironmentPreset $env:BASELINE_PRESET
@@ -842,7 +972,7 @@ if ($Script:BootstrapSplash -and $Script:BootstrapSplash.IsAlive)
 		$Script:BootstrapSplash.Dispatcher.Invoke([System.Action]{
 			$Script:BootstrapSplash.Window.Title = $Script:BaselineWindowTitle
 		})
-	} catch { $null = $_ }
+	} catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Bootstrap.BootstrapSplash.SetWindowTitle' }
 }
 
 Remove-Module -Name Baseline -Force -ErrorAction Ignore
@@ -857,6 +987,8 @@ catch [System.InvalidOperationException]
 	Write-Warning -Message $Localization.UnsupportedPowerShell
 	if ($Script:IsEmbeddedHost) { return } else { exit }
 }
+
+Import-BaselineIncludedTweakLibraries -IncludePaths $Include
 
 # Validate mutual exclusion using original bound parameters before any expansion.
 # Keep this as a string array so Count remains reliable even for a single mode.
@@ -921,66 +1053,9 @@ if ($TargetComputer)
 	$TargetComputer = @(ConvertTo-ValidatedTargetComputerList -ComputerName $TargetComputer)
 }
 
-<#
-    .SYNOPSIS
-    Internal function Get-HeadlessCommandInvocation.
-#>
-
-function Get-HeadlessCommandInvocation
+if ($TargetComputer -and $Include -and @($Include).Count -gt 0)
 {
-	param
-	(
-		[Parameter(Mandatory = $true)]
-		[System.Management.Automation.Language.CommandAst]
-		$CommandAst
-	)
-
-	$namedArguments = @{}
-	$positionalArguments = [System.Collections.Generic.List[object]]::new()
-	$displayArguments = [System.Collections.Generic.List[string]]::new()
-
-	for ($i = 1; $i -lt $CommandAst.CommandElements.Count; $i++)
-	{
-		$element = $CommandAst.CommandElements[$i]
-
-		if ($element -is [System.Management.Automation.Language.CommandParameterAst])
-		{
-			$parameterName = $element.ParameterName
-			$valueAst = $null
-
-			if ($element.Argument)
-			{
-				$valueAst = $element.Argument
-			}
-			elseif (($i + 1) -lt $CommandAst.CommandElements.Count -and $CommandAst.CommandElements[$i + 1] -isnot [System.Management.Automation.Language.CommandParameterAst])
-			{
-				$i++
-				$valueAst = $CommandAst.CommandElements[$i]
-			}
-
-			if ($null -ne $valueAst)
-			{
-				$namedArguments[$parameterName] = $valueAst.SafeGetValue()
-				$displayArguments.Add("-$parameterName $($valueAst.Extent.Text)")
-			}
-			else
-			{
-				$namedArguments[$parameterName] = $true
-				$displayArguments.Add("-$parameterName")
-			}
-
-			continue
-		}
-
-		$positionalArguments.Add($element.SafeGetValue())
-		$displayArguments.Add($element.Extent.Text)
-	}
-
-	[pscustomobject]@{
-		NamedArguments = $namedArguments
-		PositionalArguments = $positionalArguments.ToArray()
-		DisplayArguments = $displayArguments.ToArray()
-	}
+	throw '-Include cannot be combined with -TargetComputer. Included tweak libraries are local-only.'
 }
 
 if ($GameModeProfile)
@@ -1044,6 +1119,28 @@ if ($TargetComputer)
 	if (-not (Test-Path -LiteralPath $resolvedRemoteProfile))
 	{
 		Write-Error "Profile file not found: $resolvedRemoteProfile"
+		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+	}
+
+	try
+	{
+		$remoteProfileDocument = Get-Content -LiteralPath $resolvedRemoteProfile -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+		if ($remoteProfileDocument -and $remoteProfileDocument.PSObject.Properties['IncludePaths'])
+		{
+			$remoteIncludePaths = @(
+				@($remoteProfileDocument.IncludePaths) |
+					Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+					ForEach-Object { ([string]$_).Trim() }
+			)
+			if ($remoteIncludePaths.Count -gt 0)
+			{
+				throw 'Configuration profiles that include custom tweak libraries are local-only and cannot be applied to remote targets.'
+			}
+		}
+	}
+	catch
+	{
+		Write-Error "Failed to validate include libraries for remote profile '$resolvedRemoteProfile': $_"
 		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
 	}
 
@@ -1260,6 +1357,16 @@ if ($ApplyProfile)
 	catch
 	{
 		Write-Error "Failed to read profile '$applyResolvedPath': $_"
+		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+	}
+
+	try
+	{
+		Import-ConfigurationProfileIncludeLibraries -Profile $applyProfile
+	}
+	catch
+	{
+		Write-Error "Failed to import include libraries from profile '$applyResolvedPath': $_"
 		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
 	}
 
@@ -1571,7 +1678,10 @@ if ($ApplyProfile)
 	if ($applyFunctions.Count -eq 0 -and $applyAppActions.Count -eq 0)
 	{
 		Write-Warning "Profile '$applyResolvedPath' produced no applicable changes. Nothing to apply."
-		if ($Script:IsEmbeddedHost) { return 0 } else { exit 0 }
+		$emptyExit = Get-BaselineHeadlessExitCode -Total 0
+		Write-LaunchTrace ('Profile apply: no work selected, exitCode={0} reason={1}' -f [int]$emptyExit.ExitCode, [string]$emptyExit.Reason)
+		$Global:LASTEXITCODE = [int]$emptyExit.ExitCode
+		if ($Script:IsEmbeddedHost) { return [int]$emptyExit.ExitCode } else { exit ([int]$emptyExit.ExitCode) }
 	}
 
 	Write-Host ''
@@ -1618,6 +1728,7 @@ if ($ApplyProfile)
 		}
 		Write-Host ''
 		Write-Host "  Total: $idx command$(if ($idx -ne 1) { 's' }) would be executed." -ForegroundColor Cyan
+		$Global:LASTEXITCODE = 0
 		if ($Script:IsEmbeddedHost) { return 0 } else { exit 0 }
 	}
 
@@ -1626,6 +1737,9 @@ if ($ApplyProfile)
 	Add-SessionStatistic -Name 'ApplyRunCount'
 
 	$applyErrors = 0
+	$applyAppErrors = 0
+	try
+	{
 	foreach ($call in $applyFunctions)
 	{
 		$tokens = $null; $parseErrors = $null
@@ -1658,7 +1772,6 @@ if ($ApplyProfile)
 		if ($Global:Error.Count -gt $errBefore) { $applyErrors++ } else { Add-SessionStatistic -Name 'SucceededCount' }
 	}
 
-	$applyAppErrors = 0
 	if ($applyAppActions.Count -gt 0)
 	{
 		foreach ($actionName in @('Install', 'Uninstall'))
@@ -1673,17 +1786,35 @@ if ($ApplyProfile)
 			}
 		}
 	}
-
-	Invoke-Command -ScriptBlock { PostActions; Errors }
-
-	Write-AuditRecord -Action 'ProfileApply' -Mode 'Profile' -ProfilePath $applyResolvedPath -Details @{
-		Entries    = $applyFunctions.Count
-		AppActions = $applyAppActions.Count
-		Failed     = ($applyErrors + $applyAppErrors)
 	}
+	finally
+	{
+		# Always run PostActions/Errors and emit the structured exit code, even
+		# if a tweak threw out of the loop above. Same tracked contract
+		# the headless-functions path uses: never block, never throw, never pop
+		# a dialog.
+		try { Invoke-Command -ScriptBlock { PostActions; Errors } }
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Bootstrap.ApplyProfile.PostActions' }
 
-	if (($applyErrors + $applyAppErrors) -gt 0) { if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 } }
-	if ($Script:IsEmbeddedHost) { return 0 } else { exit 0 }
+		try
+		{
+			Write-AuditRecord -Action 'ProfileApply' -Mode 'Profile' -ProfilePath $applyResolvedPath -Details @{
+				Entries    = $applyFunctions.Count
+				AppActions = $applyAppActions.Count
+				Failed     = ($applyErrors + $applyAppErrors)
+			}
+		}
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Bootstrap.ApplyProfile.Audit' }
+
+		$applyTotal = [int]$applyFunctions.Count + [int]$applyAppActions.Count
+		$applyTotalFailed = [int]$applyErrors + [int]$applyAppErrors
+		$applySucceeded = $applyTotal - $applyTotalFailed
+		if ($applySucceeded -lt 0) { $applySucceeded = 0 }
+		$applyExit = Get-BaselineHeadlessExitCode -Total $applyTotal -Succeeded $applySucceeded -Failed $applyTotalFailed
+		Write-LaunchTrace ('Profile apply finished: exitCode={0} reason={1} total={2} succeeded={3} failed={4}' -f [int]$applyExit.ExitCode, [string]$applyExit.Reason, $applyTotal, $applySucceeded, $applyTotalFailed)
+		$Global:LASTEXITCODE = [int]$applyExit.ExitCode
+	}
+	if ($Script:IsEmbeddedHost) { return [int]$Global:LASTEXITCODE } else { exit ([int]$Global:LASTEXITCODE) }
 }
 
 # Headless mode: run specific functions or a preset from the command line
@@ -1787,10 +1918,18 @@ if ($Functions)
 					}
 				}
 
-				$risk = if ($manifestEntry -and $manifestEntry.PSObject.Properties['Risk']) { [string]$manifestEntry.Risk } else { '?' }
-				$category = if ($manifestEntry -and $manifestEntry.PSObject.Properties['Category']) { [string]$manifestEntry.Category } else { '?' }
-				$restart = if ($manifestEntry -and $manifestEntry.PSObject.Properties['RequiresRestart'] -and [bool]$manifestEntry.RequiresRestart) { 'Yes' } else { 'No' }
-				$restorable = if ($manifestEntry -and $manifestEntry.PSObject.Properties['Restorable']) { if ([bool]$manifestEntry.Restorable) { 'Yes' } else { 'No' } } else { '?' }
+				# Read manifest fields through the canonical accessor so dry-run
+				# output handles dictionary-shaped and PSCustomObject-shaped entries
+				# identically (and stays in sync with the rest of the codebase).
+				$riskValue = if ($manifestEntry) { Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'Risk' } else { $null }
+				$categoryValue = if ($manifestEntry) { Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'Category' } else { $null }
+				$restartValue = if ($manifestEntry) { Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'RequiresRestart' } else { $null }
+				$restorableValue = if ($manifestEntry) { Get-TweakManifestEntryValue -Entry $manifestEntry -FieldName 'Restorable' } else { $null }
+
+				$risk = if ($null -ne $riskValue -and -not [string]::IsNullOrWhiteSpace([string]$riskValue)) { [string]$riskValue } else { '?' }
+				$category = if ($null -ne $categoryValue -and -not [string]::IsNullOrWhiteSpace([string]$categoryValue)) { [string]$categoryValue } else { '?' }
+				$restart = if ($null -ne $restartValue -and [bool]$restartValue) { 'Yes' } else { 'No' }
+				$restorable = if ($null -eq $restorableValue) { '?' } elseif ([bool]$restorableValue) { 'Yes' } else { 'No' }
 
 				$riskColor = switch ($risk) { 'High' { 'Red' }; 'Medium' { 'Yellow' }; default { 'Green' } }
 
@@ -1841,16 +1980,32 @@ if ($Functions)
 		Write-Host "  Total: $dryRunOrder command$(if ($dryRunOrder -ne 1) { 's' }) would be executed." -ForegroundColor Cyan
 		Write-Host '  No changes were applied.' -ForegroundColor Cyan
 		Write-Host ''
+		$Global:LASTEXITCODE = 0
+		if ($Script:IsEmbeddedHost) { return 0 } else { exit 0 }
 	}
-	else
+
+	# Always run PostActions/Errors and emit the structured exit code, even if a
+	# tweak threw out of the loop above — the documented unattended contract
+	# says we never block, never throw, never pop a dialog.
+	try
 	{
 		Invoke-Command -ScriptBlock {PostActions; Errors}
 	}
-	if ($Script:IsEmbeddedHost) { return } else { exit }
+	finally
+	{
+		$sessionStats = Get-SessionStatistics
+		$headlessSucceeded = if ($sessionStats -and $sessionStats.ContainsKey('SucceededCount')) { [int]$sessionStats['SucceededCount'] } else { 0 }
+		$headlessFailed = if ($sessionStats -and $sessionStats.ContainsKey('FailedCount')) { [int]$sessionStats['FailedCount'] } else { 0 }
+		$headlessTotal = [int]$Functions.Count
+		$headlessExit = Get-BaselineHeadlessExitCode -Total $headlessTotal -Succeeded $headlessSucceeded -Failed $headlessFailed
+		Write-LaunchTrace ('Headless function run finished: exitCode={0} reason={1} total={2} succeeded={3} failed={4}' -f [int]$headlessExit.ExitCode, [string]$headlessExit.Reason, $headlessTotal, $headlessSucceeded, $headlessFailed)
+		$Global:LASTEXITCODE = [int]$headlessExit.ExitCode
+	}
+	if ($Script:IsEmbeddedHost) { return [int]$Global:LASTEXITCODE } else { exit ([int]$Global:LASTEXITCODE) }
 }
 
 # Restart under Windows PowerShell 5.1 unless we are already running there
-Restart-Script -ScriptPath $MyInvocation.MyCommand.Path -Preset $Preset -GameModeProfile $GameModeProfile -ScenarioProfile $ScenarioProfile -Functions $Functions -DryRun:$DryRun
+Restart-Script -ScriptPath $MyInvocation.MyCommand.Path -Preset $Preset -GameModeProfile $GameModeProfile -ScenarioProfile $ScenarioProfile -Functions $Functions -Include $Include -DryRun:$DryRun
 
 # WPF requires an STA thread. If Windows PowerShell was launched with -MTA,
 # restart just the GUI path in a clean STA host before any windows are created.
@@ -1868,12 +2023,18 @@ if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -ne [System.Thr
 	}
 
 	Write-Warning 'Baseline GUI requires STA. Restarting in Windows PowerShell STA mode...'
-	Start-Process -FilePath $staHost -ArgumentList @(
-		'-STA',
-		'-ExecutionPolicy', (Get-ExecutionPolicy).ToString(),
-		'-NoProfile',
-		'-File', $MyInvocation.MyCommand.Path
-	)
+	$staArgumentList = [System.Collections.Generic.List[string]]::new()
+	[void]$staArgumentList.Add('-STA')
+	[void]$staArgumentList.Add('-ExecutionPolicy')
+	[void]$staArgumentList.Add((Get-ExecutionPolicy).ToString())
+	[void]$staArgumentList.Add('-NoProfile')
+	[void]$staArgumentList.Add('-File')
+	[void]$staArgumentList.Add($MyInvocation.MyCommand.Path)
+	foreach ($argument in @(New-BaselineElevationArgumentList))
+	{
+		[void]$staArgumentList.Add([string]$argument)
+	}
+	Start-Process -FilePath $staHost -ArgumentList $staArgumentList.ToArray()
 	if ($Script:IsEmbeddedHost) { return } else { exit }
 }
 
@@ -1881,6 +2042,7 @@ if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -ne [System.Thr
 # Region modules check this flag to skip the "Press Enter to close" prompt
 # and suppress PostActions from running during startup.
 $Global:GUIMode = $true
+$Global:DesignMode = [bool]$Design
 
 # Mark the session as GUI mode for the session summary
 Update-SessionStatistics -Values @{ IsGUI = $true }
@@ -1899,7 +2061,10 @@ try
 catch
 {
 	$startupError = $_
-	$null = Close-LoadingSplashWindow -Splash $Script:LoadingSplash -DisposeResources
+	if ($Script:LoadingSplash -and $Script:LoadingSplash.IsAlive)
+	{
+		$null = Close-LoadingSplashWindow -Splash $Script:LoadingSplash -DisposeResources
+	}
 	$Script:LoadingSplash = $null
 	$Global:LoadingSplash = $null
 	Show-ConsoleWindow
@@ -1947,12 +2112,12 @@ catch
 	$importError = $_
 	# Restore log path in case a -Force import reset it before failing
 	if ($global:LogFilePath) { Set-LogFile -Path $global:LogFilePath }
-	if ($Script:LoadingSplash)
+	if ($Script:LoadingSplash -and $Script:LoadingSplash.IsAlive)
 	{
 		$null = Close-LoadingSplashWindow -Splash $Script:LoadingSplash -DisposeResources
-		$Script:LoadingSplash = $null
-		$Global:LoadingSplash = $null
 	}
+	$Script:LoadingSplash = $null
+	$Global:LoadingSplash = $null
 	Show-ConsoleWindow
 	LogError "Failed to import GUI modules: $($importError.Exception.Message)"
 	$friendlyImportError = Get-BaselineErrorInfo -Exception $importError.Exception -Context 'GUI module import'
@@ -1982,25 +2147,25 @@ try
 	# Only hide the console once startup checks and GUI module imports have completed.
 	# This keeps Windows 10 startup failures visible instead of silently disappearing.
 	Hide-ConsoleWindow
-	Write-LaunchTrace 'Preparing GUI open'
-	Show-TweakGUI
-	Write-LaunchTrace 'GUI opened'
-	if ($Script:LoadingSplash)
-	{
-		$null = Close-LoadingSplashWindow -Splash $Script:LoadingSplash -DisposeResources
-		$Script:LoadingSplash = $null
-		$Global:LoadingSplash = $null
-	}
+Write-LaunchTrace 'Preparing GUI open'
+Show-TweakGUI
+Write-LaunchTrace 'GUI opened'
+if ($Script:LoadingSplash -and $Script:LoadingSplash.IsAlive)
+{
+	$null = Close-LoadingSplashWindow -Splash $Script:LoadingSplash -DisposeResources
+}
+$Script:LoadingSplash = $null
+$Global:LoadingSplash = $null
 }
 catch
 {
 	$guiError = $_
-	if ($Script:LoadingSplash)
+	if ($Script:LoadingSplash -and $Script:LoadingSplash.IsAlive)
 	{
 		$null = Close-LoadingSplashWindow -Splash $Script:LoadingSplash -DisposeResources
-		$Script:LoadingSplash = $null
-		$Global:LoadingSplash = $null
 	}
+	$Script:LoadingSplash = $null
+	$Global:LoadingSplash = $null
 	Show-ConsoleWindow
 
 	$guiErrorMessage = Get-ErrorDetailText -ErrorRecord $guiError

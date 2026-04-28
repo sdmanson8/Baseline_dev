@@ -3,7 +3,7 @@ using module ..\..\SharedHelpers.psm1
 
 <#
     .SYNOPSIS
-    Internal admin utility for Windows feature bundle state.
+    Configures Windows feature bundle state.
 
     .DESCRIPTION
     Exposes the feature-bundle toggles used by Baseline's system maintenance
@@ -94,7 +94,12 @@ function Set-OptionalFeatureBundleState
 
 <#
     .SYNOPSIS
-    Internal function LegacyMediaBundle.
+    Runs legacy media bundle.
+
+    
+.DESCRIPTION
+    
+Supports legacy media bundle handling inside Baseline.
 #>
 
 function LegacyMediaBundle
@@ -126,7 +131,12 @@ function LegacyMediaBundle
 
 <#
     .SYNOPSIS
-    Internal function NfsBundle.
+    Runs NFS bundle.
+
+    
+.DESCRIPTION
+    
+Supports NFS bundle handling inside Baseline.
 #>
 
 function NfsBundle
@@ -164,7 +174,12 @@ function NfsBundle
 
 <#
     .SYNOPSIS
-    Internal function HyperVManagementTools.
+    Runs hyper v management tools.
+
+    
+.DESCRIPTION
+    
+Supports hyper v management tools handling inside Baseline.
 #>
 
 function HyperVManagementTools

@@ -2,8 +2,13 @@
 
 <#
     .SYNOPSIS
-    Internal admin utility for privacy and telemetry settings.
+    Configures privacy and telemetry settings.
 
+
+    
+.DESCRIPTION
+    
+Applies Baseline's privacy and telemetry settings in GUI and headless runs.
     .PARAMETER Hide
     Do not show Activity History-related notifications in Task View
 
@@ -81,6 +86,11 @@ function ActivityHistory
 	.SYNOPSIS
 	The permission for apps to show me personalized ads by using my advertising ID
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the permission for apps to show me personalized ads by using my advertising ID.
 	.PARAMETER Disable
 	Do not let apps show me personalized ads by using my advertising ID
 
@@ -132,7 +142,7 @@ function AdvertisingID
 			LogInfo "Disabling apps showing personalized ads by using advertising ID"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo -Name Enabled -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name Enabled -Type DWord -Value 0 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -147,7 +157,7 @@ function AdvertisingID
 			LogInfo "Enabling apps showing personalized ads by using advertising ID"
 			try
 			{
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo -Name Enabled -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name Enabled -Type DWord -Value 1 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -163,6 +173,11 @@ function AdvertisingID
     .SYNOPSIS
     Automatic reboot on crash (BSOD) settings
 
+
+    
+.DESCRIPTION
+    
+Applies the Baseline behavior for automatic reboot on crash (BSOD) settings.
     .PARAMETER Enable
     Enable automatic reboot on crash
 
@@ -320,6 +335,11 @@ function UpdateRestart
 	.SYNOPSIS
 	Online speech recognition
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for online speech recognition.
 	.PARAMETER Enable
 	Enable online speech recognition
 
@@ -403,6 +423,11 @@ function OnlineSpeechRecognition
 	.SYNOPSIS
 	Narrator online services
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for narrator online services.
 	.PARAMETER Enable
 	Enable Narrator online services
 
@@ -482,6 +507,11 @@ function NarratorOnlineServices
 	.SYNOPSIS
 	Narrator scripting support
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for narrator scripting support.
 	.PARAMETER Enable
 	Enable Narrator scripting support
 
@@ -561,6 +591,11 @@ function NarratorScriptingSupport
 	.SYNOPSIS
 	Inking and typing personalization
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for inking and typing personalization.
 	.PARAMETER Enable
 	Enable inking and typing personalization
 
@@ -644,6 +679,11 @@ function InkingAndTypingPersonalization
 	.SYNOPSIS
 	Search history on this device
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for search history on this device.
 	.PARAMETER Enable
 	Enable search history on this device
 
@@ -723,6 +763,11 @@ function DeviceSearchHistory
 	.SYNOPSIS
 	Cloud content search
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for cloud content search.
 	.PARAMETER Enable
 	Enable cloud content search for Microsoft and work/school accounts
 
@@ -804,6 +849,11 @@ function CloudContentSearch
 	.SYNOPSIS
 	Block Workplace Join and AAD device join messages
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for block Workplace Join and AAD device join messages.
 	.PARAMETER Enable
 	Block Workplace Join and AAD device join messages
 
@@ -890,6 +940,11 @@ function WorkplaceJoinMessages
 	.SYNOPSIS
 	Prevent BitLocker auto encryption
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for prevent BitLocker auto encryption.
 	.PARAMETER Enable
 	Prevent BitLocker auto encryption
 
@@ -973,6 +1028,11 @@ function BitLockerAutoEncryption
     .SYNOPSIS
     Automatic Map Updates settings and scripting
 
+
+    
+.DESCRIPTION
+    
+Applies the Baseline behavior for automatic Map Updates settings and scripting.
     .PARAMETER Enable
     Enable automatic map updates
 
@@ -1132,6 +1192,11 @@ function Camera
     .SYNOPSIS
     Clipboard History feature settings
 
+
+    
+.DESCRIPTION
+    
+Applies the Baseline behavior for clipboard History feature settings.
     .PARAMETER Enable
     Enable the Clipboard History feature
 
@@ -1166,6 +1231,22 @@ function ClipboardHistory
 		$Disable
 	)
 
+	$isServer = $false
+	if (Get-Command -Name 'Get-BaselineSystemPlatformInfo' -ErrorAction SilentlyContinue)
+	{
+		$isServer = [bool](Get-BaselineSystemPlatformInfo).IsServer
+	}
+	else
+	{
+		$isServer = ((Get-CimInstance Win32_OperatingSystem).ProductType -ne 1)
+	}
+
+	if ($isServer)
+	{
+		LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
+		return
+	}
+
 	switch ($PSCmdlet.ParameterSetName)
 	{
 		"Enable"
@@ -1179,7 +1260,7 @@ function ClipboardHistory
 				{
 					New-Item -Path $ClipboardPath -Force -ErrorAction Stop | Out-Null
 				}
-				Set-ItemProperty -LiteralPath $ClipboardPath -Name "EnableClipboardHistory" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path $ClipboardPath -Name "EnableClipboardHistory" -Type DWord -Value 1 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1218,6 +1299,11 @@ function ClipboardHistory
 	.SYNOPSIS
 	Controls sensor-related features, such as screen auto-rotation
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for controls sensor-related features, such as screen auto-rotation.
 	.PARAMETER Disable
 	Disable sensor-related features, such as screen auto-rotation
 
@@ -1298,6 +1384,11 @@ function Sensors
     .SYNOPSIS
     Display and sleep mode timeouts
 
+
+    
+.DESCRIPTION
+    
+Applies the Baseline behavior for display and sleep mode timeouts.
     .PARAMETER Enable
     Enable the display and sleep mode timeouts (default value)
 
@@ -1490,6 +1581,11 @@ function UpdateDriver
     .SYNOPSIS
     Fast Startup feature settings
 
+
+    
+.DESCRIPTION
+    
+Applies the Baseline behavior for fast Startup feature settings.
     .PARAMETER Enable
     Enable the Fast Startup feature (default value)
 
@@ -1563,6 +1659,11 @@ function FastStartup
 	.SYNOPSIS
 	The feedback frequency
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the feedback frequency.
 	.PARAMETER Never
 	Change the feedback frequency to "Never"
 
@@ -1613,7 +1714,7 @@ function FeedbackFrequency
 				{
 					New-Item -Path HKCU:\Software\Microsoft\Siuf\Rules -Force -ErrorAction Stop | Out-Null
 				}
-				New-ItemProperty -Path HKCU:\Software\Microsoft\Siuf\Rules -Name NumberOfSIUFInPeriod -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Siuf\Rules" -Name NumberOfSIUFInPeriod -Type DWord -Value 0 | Out-Null
 				if ((Get-ItemProperty -Path HKCU:\Software\Microsoft\Siuf\Rules -Name PeriodInNanoSeconds -ErrorAction SilentlyContinue))
 				{
 					Remove-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Siuf\Rules" -Name "PeriodInNanoSeconds" | Out-Null
@@ -1632,7 +1733,8 @@ function FeedbackFrequency
 			LogInfo "Setting Feedback Frequency to Automatic"
 			try
 			{
-				Remove-ItemProperty -Path HKCU:\Software\Microsoft\Siuf\Rules -Name PeriodInNanoSeconds, NumberOfSIUFInPeriod -Force -ErrorAction Ignore | Out-Null
+				Remove-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Siuf\Rules" -Name "PeriodInNanoSeconds" | Out-Null
+				Remove-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Siuf\Rules" -Name "NumberOfSIUFInPeriod" | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1648,6 +1750,11 @@ function FeedbackFrequency
 	.SYNOPSIS
 	The provision to websites a locally relevant content by accessing my language list
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for the provision to websites a locally relevant content by accessing my language list.
 	.PARAMETER Disable
 	Do not let websites show me locally relevant content by accessing my language list
 
@@ -1690,7 +1797,7 @@ function LanguageListAccess
 			LogInfo "Disabling websites showing locally relevant content by accessing language list"
 			try
 			{
-				New-ItemProperty -Path "HKCU:\Control Panel\International\User Profile" -Name HttpAcceptLanguageOptOut -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				Set-RegistryValueSafe -Path "HKCU:\Control Panel\International\User Profile" -Name HttpAcceptLanguageOptOut -Type DWord -Value 1 | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1724,6 +1831,11 @@ function LanguageListAccess
     .SYNOPSIS
     Location feature settings and scripting
 
+
+    
+.DESCRIPTION
+    
+Applies the Baseline behavior for location feature settings and scripting.
     .PARAMETER Enable
     Enable the location feature
 
@@ -1771,6 +1883,7 @@ function LocationService
 					Remove-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors" -Name "DisableLocation" | Out-Null
 					Remove-RegistryValueSafe -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors" -Name "DisableLocationScripting" | Out-Null
 				}
+				Set-Service -Name "lfsvc" -StartupType Manual -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1790,6 +1903,8 @@ function LocationService
 				}
 				Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors" -Name "DisableLocation" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
 				Set-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors" -Name "DisableLocationScripting" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
+				Stop-Service -Name "lfsvc" -WarningAction SilentlyContinue -ErrorAction SilentlyContinue | Out-Null
+				Set-Service -Name "lfsvc" -StartupType Disabled -ErrorAction Stop | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1805,6 +1920,11 @@ function LocationService
     .SYNOPSIS
     Enable or disable the Windows Web Experience Pack (used for widgets and lock screen features)
 
+
+    
+.DESCRIPTION
+    
+Enables or disables the Windows Web Experience Pack (used for widgets and lock screen features) in GUI and headless runs.
     .PARAMETER Enable
     Install or re-register the Windows Web Experience Pack
 
@@ -1864,6 +1984,11 @@ function LockWidgets {
 	.SYNOPSIS
 	Remote Assistance
 
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for remote Assistance.
 	.PARAMETER Enable
 	Allow remote assistance connections
 

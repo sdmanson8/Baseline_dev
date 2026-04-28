@@ -136,10 +136,10 @@ Describe 'Embedded host bootstrap flow' {
     }
 
     It 'treats startup AppX package probes as non-fatal checks' {
-        $script:InitialActionsContent | Should -Match 'Get-AppxPackage -Name MicrosoftWindows\.Client\.CBS -WarningAction SilentlyContinue -ErrorAction Stop'
-        $script:InitialActionsContent | Should -Match 'Get-AppxPackage -Name Microsoft\.WindowsStore -WarningAction SilentlyContinue -ErrorAction Stop'
-        $script:InitialActionsContent | Should -Match 'Windows Feature Experience Pack check could not be completed'
-        $script:InitialActionsContent | Should -Match 'Microsoft Store presence check could not be completed'
+        $script:InitialActionsContent | Should -Match "Test-BaselineAppxPackagePresence -Name 'MicrosoftWindows\.Client\.CBS'"
+        $script:InitialActionsContent | Should -Match 'Bootstrap_FeatureExperiencePackNotApplicable'
+        $script:InitialActionsContent | Should -Match "Test-BaselineAppxPackagePresence -Name 'Microsoft\.WindowsStore'"
+        $script:InitialActionsContent | Should -Match 'Bootstrap_MicrosoftStoreNotApplicable'
     }
 
     It 'keeps the headless apply loop on valid splatting syntax' {
