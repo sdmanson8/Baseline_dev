@@ -40,6 +40,188 @@
 			& $raiseButtonClick $Script:BtnExportSettings
 		}.GetNewClosure()) | Out-Null
 	}
+	if ($MenuFileSettings)
+	{
+		Register-GuiEventHandler -Source $MenuFileSettings -EventName 'Click' -Handler ({
+			if (& $testGuiRunInProgressCapture) { return }
+			try
+			{
+				$currentPrefs = @{
+					Language = if ($Script:SelectedLanguage) { [string]$Script:SelectedLanguage } else { 'en' }
+					DefaultStartupMode = if ($Script:DefaultStartupMode) { [string]$Script:DefaultStartupMode } else { 'Safe' }
+					RestoreLastSession = if ($null -ne $Script:RestoreLastSession) { [bool]$Script:RestoreLastSession } else { $true }
+					AutoScanOnLaunch = [bool]$Script:AutoScanOnLaunch
+					HideUnavailableItems = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'HideUnavailableItems' -Default $true) } else { $true }
+					Theme = if ($Script:ThemePreference) { [string]$Script:ThemePreference } elseif ($Script:CurrentThemeName) { [string]$Script:CurrentThemeName } else { 'Dark' }
+					UIDensity = if ($Script:UIDensity) { [string]$Script:UIDensity } else { 'Comfortable' }
+					SafeMode = [bool]$Script:SafeMode
+					RequireRunConfirmation = if ($null -ne $Script:RequireRunConfirmation) { [bool]$Script:RequireRunConfirmation } else { $true }
+					PreviewBeforeRunDefault = [bool]$Script:PreviewBeforeRunDefault
+					AuditRetentionDays = if ($Script:AuditRetentionDays) { [int]$Script:AuditRetentionDays } else { 90 }
+					AppsPackageSourcePreference = if ($Script:AppsPackageSourcePreference) { [string]$Script:AppsPackageSourcePreference } else { 'auto' }
+					AppsSilentInstall = if ($null -ne $Script:AppsSilentInstall) { [bool]$Script:AppsSilentInstall } else { $true }
+					AppsAutoUpdate = [bool]$Script:AppsAutoUpdate
+					LoggingEnabled = if ($null -ne $Script:LoggingEnabled) { [bool]$Script:LoggingEnabled } else { $true }
+					DebugLoggingEnabled = if (Get-Command -Name 'Get-BaselineDebugLogging' -ErrorAction SilentlyContinue) { [bool](Get-BaselineDebugLogging) } else { $false }
+					LogLevel = if ($Script:LogLevel) { [string]$Script:LogLevel } else { 'Info' }
+					LogFilePath = if ($Script:LogFilePath) { [string]$Script:LogFilePath } else { '' }
+					AdvancedMode = [bool]$Script:AdvancedMode
+					ExperimentalFeatures = [bool]$Script:ExperimentalFeatures
+				}
+
+				$result = & $showGuiSettingsDialogCommand -Current $currentPrefs
+				if (-not $result) { return }
+
+				# Wired preferences (affect behavior now):
+				if ($result.ContainsKey('Theme'))
+				{
+					if (Get-Command -Name 'Apply-BaselineThemePreference' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						try { Apply-BaselineThemePreference -Preference ([string]$result.Theme) }
+						catch { LogWarning ("Apply-BaselineThemePreference failed: {0}" -f $_.Exception.Message) }
+					}
+					elseif ($ChkTheme)
+					{
+						$wantLight = ([string]$result.Theme -eq 'Light')
+						if ($ChkTheme.IsChecked -ne $wantLight) { $ChkTheme.IsChecked = $wantLight }
+					}
+				}
+				# Apply Safe / Expert mode transitions on save. Flipping ChkSafeMode
+				# alone is not enough — when the checkbox is already at the target
+				# value no Checked/Unchecked event fires, so the mode transition
+				# function is never invoked and the GUI stays put. Call the mode
+				# functions directly and let them handle the checkbox + side effects.
+				$wantAdvanced = $result.ContainsKey('AdvancedMode') -and [bool]$result.AdvancedMode
+				$wantSafe = $result.ContainsKey('SafeMode') -and [bool]$result.SafeMode
+				if ($result.ContainsKey('DefaultStartupMode') -and ([string]$result.DefaultStartupMode -eq 'Expert'))
+				{
+					$wantAdvanced = $true
+					$wantSafe = $false
+				}
+				$Script:SafeMode = $wantSafe
+				$Script:AdvancedMode = $wantAdvanced
+				if ($wantAdvanced -and (Get-Command -Name 'Set-AdvancedModeState' -CommandType Function -ErrorAction SilentlyContinue))
+				{
+					try { Set-AdvancedModeState -Enabled $true } catch { LogWarning ("Set-AdvancedModeState failed: {0}" -f $_.Exception.Message) }
+				}
+				elseif ($wantSafe -and (Get-Command -Name 'Set-SafeModeState' -CommandType Function -ErrorAction SilentlyContinue))
+				{
+					try { Set-SafeModeState -Enabled $true } catch { LogWarning ("Set-SafeModeState failed: {0}" -f $_.Exception.Message) }
+				}
+				elseif ((-not $wantSafe) -and (-not $wantAdvanced))
+				{
+					if (Get-Command -Name 'Set-SafeModeState' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						try { Set-SafeModeState -Enabled $false } catch { LogWarning ("Set-SafeModeState off failed: {0}" -f $_.Exception.Message) }
+					}
+				}
+				if ($result.ContainsKey('AuditRetentionDays'))
+				{
+					$Script:AuditRetentionDays = [int]$result.AuditRetentionDays
+					if ($Script:Ctx -and $Script:Ctx.UI)
+					{
+						$Script:Ctx.UI.AuditRetentionDays = [int]$result.AuditRetentionDays
+					}
+				}
+				if ($result.ContainsKey('AppsPackageSourcePreference') -and $setAppPackageSourcePreferenceStateCommand)
+				{
+					try { & $setAppPackageSourcePreferenceStateCommand -Source ([string]$result.AppsPackageSourcePreference) }
+					catch { LogWarning ("Set-AppPackageSourcePreferenceState failed: {0}" -f $_.Exception.Message) }
+				}
+
+				# Stub preferences (persisted only):
+				if ($result.ContainsKey('Language'))
+				{
+					$desiredLanguage = [string]$result.Language
+					$currentLanguage = if ($Script:SelectedLanguage) { [string]$Script:SelectedLanguage } else { 'en' }
+					if (-not [string]::Equals($desiredLanguage, $currentLanguage, [System.StringComparison]::OrdinalIgnoreCase))
+					{
+						if ($Script:SetSelectedGuiLanguageScript)
+						{
+							& $Script:SetSelectedGuiLanguageScript -langCode $desiredLanguage
+						}
+						else
+						{
+							$Script:SelectedLanguage = $desiredLanguage
+						}
+					}
+				}
+				if ($result.ContainsKey('DefaultStartupMode')) { $Script:DefaultStartupMode = [string]$result.DefaultStartupMode }
+				if ($result.ContainsKey('RestoreLastSession'))
+				{
+					# Only update the in-memory flag. Save-GuiSessionState (run on
+					# close) persists the preference itself in the same JSON, and
+					# strips ephemeral fields when this flag is false. Calling
+					# Delete-GuiSessionState here would wipe the very file that
+					# stores RestoreLastSession=false, so on relaunch the default
+					# ($true) wins and the checkbox keeps re-enabling itself.
+					$Script:RestoreLastSession = [bool]$result.RestoreLastSession
+				}
+				if ($result.ContainsKey('AutoScanOnLaunch')) { $Script:AutoScanOnLaunch = [bool]$result.AutoScanOnLaunch }
+				if ($result.ContainsKey('HideUnavailableItems'))
+				{
+					$hideUnavailWanted = [bool]$result.HideUnavailableItems
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'HideUnavailableItems' -Value $hideUnavailWanted } catch { LogWarning ("Persist HideUnavailableItems failed: {0}" -f $_.Exception.Message) }
+					}
+				}
+				if ($result.ContainsKey('UIDensity'))
+				{
+					if (Get-Command -Name 'Set-BaselineUiDensity' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUiDensity -Density ([string]$result.UIDensity) } catch { LogWarning ("Set-BaselineUiDensity failed: {0}" -f $_.Exception.Message) }
+					}
+					else
+					{
+						$Script:UIDensity = [string]$result.UIDensity
+					}
+				}
+				if ($result.ContainsKey('RequireRunConfirmation')) { $Script:RequireRunConfirmation = [bool]$result.RequireRunConfirmation }
+				if ($result.ContainsKey('PreviewBeforeRunDefault')) { $Script:PreviewBeforeRunDefault = [bool]$result.PreviewBeforeRunDefault }
+				if ($result.ContainsKey('AppsSilentInstall')) { $Script:AppsSilentInstall = [bool]$result.AppsSilentInstall }
+				if ($result.ContainsKey('AppsAutoUpdate')) { $Script:AppsAutoUpdate = [bool]$result.AppsAutoUpdate }
+				if ($result.ContainsKey('LoggingEnabled')) { $Script:LoggingEnabled = [bool]$result.LoggingEnabled }
+				if ($result.ContainsKey('DebugLoggingEnabled'))
+				{
+					$debugWanted = [bool]$result.DebugLoggingEnabled
+					if (Get-Command -Name 'Set-BaselineDebugLogging' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineDebugLogging -Enabled $debugWanted } catch { LogWarning ("Set-BaselineDebugLogging failed: {0}" -f $_.Exception.Message) }
+					}
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'DebugLoggingEnabled' -Value $debugWanted } catch { LogWarning ("Persist DebugLoggingEnabled failed: {0}" -f $_.Exception.Message) }
+					}
+					if ($debugWanted -and -not $env:BASELINE_PERF_LOG)
+					{
+						$env:BASELINE_PERF_LOG = '1'
+					}
+				}
+				if ($result.ContainsKey('LogLevel')) { $Script:LogLevel = [string]$result.LogLevel }
+				if ($result.ContainsKey('LogFilePath')) { $Script:LogFilePath = [string]$result.LogFilePath }
+				if ($result.ContainsKey('ExperimentalFeatures')) { $Script:ExperimentalFeatures = [bool]$result.ExperimentalFeatures }
+
+				& $setGuiStatusTextCommand -Text (Get-UxLocalizedString -Key 'GuiSettingsSavedStatus' -Fallback 'Settings saved.') -Tone 'success'
+				LogInfo 'Settings dialog: preferences saved.'
+			}
+			catch
+			{
+				$fullErr = $_.Exception
+				$chain = [System.Collections.Generic.List[string]]::new()
+				while ($fullErr)
+				{
+					[void]$chain.Add(('{0}: {1}' -f $fullErr.GetType().FullName, $fullErr.Message))
+					$fullErr = $fullErr.InnerException
+				}
+				$scriptTrace = if ($_.ScriptStackTrace) { [string]$_.ScriptStackTrace } else { '(no script trace)' }
+				$posMsg = if ($_.InvocationInfo -and $_.InvocationInfo.PositionMessage) { [string]$_.InvocationInfo.PositionMessage } else { '' }
+				$detail = "{0}`n{1}`n{2}" -f ($chain -join "`n"), $scriptTrace, $posMsg
+				LogError (Get-UxBilingualLocalizedString -Key 'GuiLogSettingsFailed' -Fallback 'Failed to update settings: {0}' -FormatArgs @($detail))
+				[void](Show-ThemedDialog -Title 'Settings' -Message ("Failed to update settings.`n`n{0}" -f $detail) -Buttons @('OK') -AccentButton 'OK')
+			}
+		}) | Out-Null
+	}
 	if ($MenuFileAuditSettings)
 	{
 		Register-GuiEventHandler -Source $MenuFileAuditSettings -EventName 'Click' -Handler ({

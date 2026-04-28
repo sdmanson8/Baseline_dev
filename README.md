@@ -151,7 +151,7 @@ Baseline is intentionally opinionated about when it warns and when it stays cons
   - category tabs with icon headers
   - quick search and multi-filter panel (risk, category, selected-only, gaming-related)
   - risk and impact labels with inline details and rationale
-  - Dark and Light theme with session persistence
+  - Light, Dark, and System theme with session persistence
   - localization with runtime language switching
 
 - **Headless workflow**
@@ -175,7 +175,7 @@ Baseline is intentionally opinionated about when it warns and when it stays cons
   - file logging with thread-safe Named Mutex protection
   - GUI log forwarding with color-coded viewer
   - bootstrap/launcher support
-  - GUI settings import/export, restore snapshot, and single-level undo
+  - File -> Settings... dialog, GUI settings import/export, restore snapshot, and single-level undo
   - helper modules for environment, registry, packages, maintenance, taskbar, and error handling
 
 ## Screenshots

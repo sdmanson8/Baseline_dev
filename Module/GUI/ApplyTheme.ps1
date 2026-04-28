@@ -22,12 +22,18 @@
 			{
 				$Script:CurrentThemeName = 'Custom'
 			}
-			$Theme = Repair-GuiThemePalette -Theme $Theme -ThemeName $themeRepairName
-			$Script:CurrentTheme = $Theme
-			$Script:BrushCache = @{}
-			$Script:SharedCardShadow = $null
-			$Script:CardHoverResources = $null
-			$bc = New-SafeBrushConverter -Context 'Set-GUITheme'
+		$Theme = Repair-GuiThemePalette -Theme $Theme -ThemeName $themeRepairName
+		$Script:CurrentTheme = $Theme
+		Set-Variable -Name 'BaselineCurrentTheme' -Value $Theme -Scope Global -Force
+		Set-Variable -Name 'BaselineCurrentThemeName' -Value $Script:CurrentThemeName -Scope Global -Force
+		Set-Variable -Name 'BaselineUseDarkMode' -Value ($Script:CurrentThemeName -eq 'Dark') -Scope Global -Force
+		$env:BASELINE_THEME_NAME = $Script:CurrentThemeName
+		$env:BASELINE_USE_DARK_MODE = if ($Script:CurrentThemeName -eq 'Dark') { '1' } else { '0' }
+		try { $env:BASELINE_THEME_JSON = ($Theme | ConvertTo-Json -Compress -Depth 4) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplyTheme.SerializeThemeToEnv' }
+		$Script:BrushCache = @{}
+		$Script:SharedCardShadow = $null
+		$Script:CardHoverResources = $null
+		$bc = New-SafeBrushConverter -Context 'Set-GUITheme'
 
 		$Form.Foreground  = $bc.ConvertFromString($Theme.TextPrimary)
 		[void](GUICommon\Set-GuiWindowChromeTheme -Window $Form -UseDarkMode ($Script:CurrentThemeName -eq 'Dark'))
@@ -135,4 +141,89 @@
 		{
 			Update-RunPathContextLabel
 		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Get-BaselineSystemThemePreference.
+	    Returns 'Light' or 'Dark' based on the Windows AppsUseLightTheme registry value.
+	#>
+	function Get-BaselineSystemThemePreference
+	{
+		[CmdletBinding()]
+		param ()
+
+		try
+		{
+			$value = Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name 'AppsUseLightTheme' -ErrorAction Stop
+			if ([int]$value.AppsUseLightTheme -eq 1) { return 'Light' }
+			return 'Dark'
+		}
+		catch
+		{
+			return 'Dark'
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Resolve-BaselineThemePreference.
+	    Maps a theme preference ('Light', 'Dark', 'System') to a concrete theme name.
+	#>
+	function Resolve-BaselineThemePreference
+	{
+		[CmdletBinding()]
+		param (
+			[string]$Preference
+		)
+
+		$normalized = if ([string]::IsNullOrWhiteSpace($Preference)) { 'Dark' } else { [string]$Preference }
+		if ($normalized -eq 'System') { return (Get-BaselineSystemThemePreference) }
+		if ($normalized -eq 'Light' -or $normalized -eq 'Dark') { return $normalized }
+		return 'Dark'
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Apply-BaselineThemePreference.
+	    Records the user's preference ('Light', 'Dark', 'System') and applies the
+	    resolved concrete theme without losing the System preference.
+	#>
+	function Apply-BaselineThemePreference
+	{
+		[CmdletBinding()]
+		param (
+			[Parameter(Mandatory)]
+			[string]$Preference
+		)
+
+		$normalized = if ([string]::IsNullOrWhiteSpace($Preference)) { 'Dark' } else { [string]$Preference }
+		if ($normalized -ne 'Light' -and $normalized -ne 'Dark' -and $normalized -ne 'System') { $normalized = 'Dark' }
+
+		$Script:ThemePreference = $normalized
+		$resolved = Resolve-BaselineThemePreference -Preference $normalized
+
+		if ($ChkTheme)
+		{
+			$wantLight = ($resolved -eq 'Light')
+			# Setting IsChecked triggers the Checked/Unchecked handler which
+			# calls Set-GUITheme; the handler also overwrites $Script:ThemePreference,
+			# so re-record the preference immediately afterward.
+			if ([bool]$ChkTheme.IsChecked -ne $wantLight)
+			{
+				$ChkTheme.IsChecked = $wantLight
+			}
+			else
+			{
+				if ($wantLight) { Set-GUITheme -Theme $Script:LightTheme }
+				else { Set-GUITheme -Theme $Script:DarkTheme }
+			}
+		}
+		else
+		{
+			if ($resolved -eq 'Light') { Set-GUITheme -Theme $Script:LightTheme }
+			else { Set-GUITheme -Theme $Script:DarkTheme }
+		}
+
+		$Script:ThemePreference = $normalized
 	}

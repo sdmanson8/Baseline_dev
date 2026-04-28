@@ -364,6 +364,7 @@
 	$MenuFile                   = $Form.FindName("MenuFile")
 	$MenuFileImportSettings     = $Form.FindName("MenuFileImportSettings")
 	$MenuFileExportSettings     = $Form.FindName("MenuFileExportSettings")
+	$MenuFileSettings           = $Form.FindName("MenuFileSettings")
 	$MenuFileAuditSettings      = $Form.FindName("MenuFileAuditSettings")
 	$MenuFileExportConfigProfile = $Form.FindName("MenuFileExportConfigProfile")
 	$MenuFileExportSystemState  = $Form.FindName("MenuFileExportSystemState")
@@ -444,6 +445,7 @@
 	$Script:MenuActionsRunTweaks         = $MenuActionsRunTweaks
 	$Script:MenuFileExportSettings       = $MenuFileExportSettings
 	$Script:MenuFileImportSettings       = $MenuFileImportSettings
+	$Script:MenuFileSettings             = $MenuFileSettings
 	$Script:MenuFileAuditSettings        = $MenuFileAuditSettings
 	$Script:MenuFileExportConfigProfile  = $MenuFileExportConfigProfile
 	$Script:MenuFileExportSystemState    = $MenuFileExportSystemState

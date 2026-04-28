@@ -593,7 +593,7 @@ function Set-GuiAppsMode
 
 	if ($Script:ThemeToggleGroup)
 	{
-		$Script:ThemeToggleGroup.Visibility = $visible
+		$Script:ThemeToggleGroup.Visibility = $collapsed
 	}
 
 	# Tweaks-only menu items: hide while in Apps mode.

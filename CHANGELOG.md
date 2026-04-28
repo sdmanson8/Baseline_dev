@@ -98,6 +98,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Remote-target helper module import no longer fails under `Set-StrictMode`.
 - GUI footer and style refresh now keep the Export First-Logon Command button synchronized.
 - Non-fatal GUI dialog and theme fallbacks now route through `Write-DebugSwallowedException`.
+- GUI theme preference now round-trips Light, Dark, and System through Settings and session restore, and Safe/Expert header toggles keep `DefaultStartupMode` in sync with the active mode.
 - Aborted GUI runs no longer silently report exit code `0` / `clean`.
 - Restored the completed HKCU safe-registry sweep.
 - GUI composition and menu localization now stay aligned after runtime refreshes.

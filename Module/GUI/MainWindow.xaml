@@ -338,6 +338,8 @@
 				<MenuItem Name="MenuFile" Header="_File">
 					<MenuItem Name="MenuFileImportSettings" Header="Import Settings..."/>
 					<MenuItem Name="MenuFileExportSettings" Header="Export Settings..."/>
+					<Separator/>
+					<MenuItem Name="MenuFileSettings" Header="Settings..."/>
 					<MenuItem Name="MenuFileAuditSettings" Header="Audit Settings..."/>
 					<Separator/>
 					<MenuItem Name="MenuFileExportConfigProfile" Header="Export Config Profile..."/>
@@ -450,26 +452,26 @@
 					</StackPanel>
 					<!-- Separator between actions and state toggles -->
 					<Border Name="HeaderSeparator" Grid.Column="6" Width="1" Height="28"
-						Margin="4,0,10,0" VerticalAlignment="Center" Opacity="0.4"/>
+						Margin="6,0,12,0" VerticalAlignment="Center" Opacity="0.65"/>
 					<StackPanel Name="SafeModeGroup" Grid.Column="7" Orientation="Vertical" Margin="0,0,12,0" VerticalAlignment="Center">
 						<StackPanel Orientation="Horizontal">
-							<CheckBox Name="ChkSafeMode" VerticalAlignment="Center" Content="" Margin="0,0,10,0"/>
-							<CheckBox Name="ChkDesignMode" VerticalAlignment="Center" Content="Design Mode" Margin="0,0,10,0" ToolTip="Build a config using default values instead of reading live system state."/>
-							<CheckBox Name="ChkGameMode" Visibility="Collapsed"/>
+							<CheckBox Name="ChkSafeMode" VerticalAlignment="Center" Content="" Margin="0,0,10,0" AutomationProperties.Name="Safe mode"/>
+							<CheckBox Name="ChkDesignMode" VerticalAlignment="Center" Content="Design Mode" Margin="0,0,10,0" ToolTip="Build a config using default values instead of reading live system state." Visibility="Collapsed"/>
+							<CheckBox Name="ChkGameMode" Visibility="Collapsed" AutomationProperties.Name="Game mode"/>
 						</StackPanel>
 						<TextBlock Name="TxtAdvancedModeState" Margin="2,4,0,0" FontSize="10" Text="" ToolTip=""/>
 					</StackPanel>
-					<StackPanel Name="ThemeToggleGroup" Grid.Column="8" Orientation="Vertical" VerticalAlignment="Center" Margin="0,0,12,0">
-						<CheckBox Name="ChkTheme" VerticalAlignment="Center" Content=""/>
+					<StackPanel Name="ThemeToggleGroup" Grid.Column="8" Orientation="Vertical" VerticalAlignment="Center" Margin="0,0,12,0" Visibility="Collapsed">
+						<CheckBox Name="ChkTheme" VerticalAlignment="Center" Content="" AutomationProperties.Name="Toggle light or dark theme"/>
 						<TextBlock Name="TxtThemeState" Margin="2,4,0,0" FontSize="10" Text="" ToolTip=""/>
 					</StackPanel>
-					<StackPanel Grid.Column="9" Orientation="Vertical" VerticalAlignment="Center" Margin="0,0,4,0">
-						<ToggleButton Name="BtnLanguage" Padding="8,4" Cursor="Hand" VerticalAlignment="Center" ToolTip="" Content=""/>
+					<StackPanel Name="LanguageToggleGroup" Grid.Column="9" Orientation="Vertical" VerticalAlignment="Center" Margin="0,0,4,0" Visibility="Collapsed">
+						<ToggleButton Name="BtnLanguage" Padding="8,4" Cursor="Hand" VerticalAlignment="Center" ToolTip="" Content="" AutomationProperties.Name="Choose language"/>
 						<Popup Name="LanguagePopup" StaysOpen="False" Placement="Bottom" PlacementTarget="{Binding ElementName=BtnLanguage}" AllowsTransparency="True" IsOpen="{Binding IsChecked, ElementName=BtnLanguage, Mode=TwoWay}">
 							<Border Name="LanguagePopupBorder" BorderThickness="1" CornerRadius="6" Padding="6">
 								<StackPanel Width="208">
 									<Grid Margin="0,0,0,6">
-										<TextBox Name="TxtLanguageSearch" Height="28" Padding="10,4" VerticalContentAlignment="Center" ToolTip=""/>
+										<TextBox Name="TxtLanguageSearch" Height="28" Padding="10,4" VerticalContentAlignment="Center" ToolTip="" AutomationProperties.Name="Search languages"/>
 										<TextBlock Name="TxtLanguageSearchPlaceholder" Text=""
 											Margin="12,0,28,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
 									</Grid>

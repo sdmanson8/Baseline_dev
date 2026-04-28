@@ -21,6 +21,7 @@
 		$showLogDialogCommand = Get-GuiRuntimeCommand -Name 'Show-LogDialog' -CommandType 'Function'
 		$showChangelogDialogCommand = Get-GuiRuntimeCommand -Name 'Show-ChangelogDialog' -CommandType 'Function'
 		$showGuiAuditSettingsDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiAuditSettingsDialog' -CommandType 'Function'
+		$showGuiSettingsDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiSettingsDialog' -CommandType 'Function'
 		$showGuiRemoteConsoleDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiRemoteConsoleDialog' -CommandType 'Function'
 		$showGuiOperatorConsoleDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiOperatorConsoleDialog' -CommandType 'Function'
 		$showGuiReleaseStatusDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiReleaseStatusDialog' -CommandType 'Function'
@@ -66,6 +67,7 @@
 		if (-not $startAppsModuleBatchActionAsyncCommand) { throw 'Start-AppsModuleBatchActionAsync not found.' }
 		if (-not $clearAppSelectionStateCommand) { throw 'Clear-AppSelectionState not found.' }
 		if (-not $showGuiAuditSettingsDialogCommand) { throw 'Show-GuiAuditSettingsDialog not found.' }
+		if (-not $showGuiSettingsDialogCommand) { throw 'Show-GuiSettingsDialog not found.' }
 		if (-not $showGuiRemoteConsoleDialogCommand) { throw 'Show-GuiRemoteConsoleDialog not found.' }
 		if (-not $showGuiReleaseStatusDialogCommand) { throw 'Show-GuiReleaseStatusDialog not found.' }
 		if (-not $showGuiTroubleshootingGuideDialogCommand) { throw 'Show-GuiTroubleshootingGuideDialog not found.' }

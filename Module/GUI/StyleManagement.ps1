@@ -669,6 +669,7 @@
 		if ($Script:MenuActionsDisconnect)       { $Script:MenuActionsDisconnect.Header       = (Get-UxLocalizedString -Key 'GuiMenuActionsDisconnect' -Fallback 'Disconnect') }
 		if ($Script:MenuFileImportSettings)      { $Script:MenuFileImportSettings.Header      = (Get-UxLocalizedString -Key 'GuiMenuFileImportSettings' -Fallback 'Import Settings...') }
 		if ($Script:MenuFileExportSettings)      { $Script:MenuFileExportSettings.Header      = (Get-UxLocalizedString -Key 'GuiMenuFileExportSettings' -Fallback 'Export Settings...') }
+		if ($Script:MenuFileSettings)            { $Script:MenuFileSettings.Header            = (Get-UxLocalizedString -Key 'GuiMenuFileSettings' -Fallback 'Settings...') }
 		if ($Script:MenuFileAuditSettings)       { $Script:MenuFileAuditSettings.Header       = (Get-UxLocalizedString -Key 'GuiMenuFileAuditSettings' -Fallback 'Audit Settings...') }
 		if ($Script:MenuFileExportConfigProfile) { $Script:MenuFileExportConfigProfile.Header = (Get-UxLocalizedString -Key 'GuiMenuFileExportConfigProfile' -Fallback 'Export Config Profile...') }
 		if ($Script:MenuFileExportSystemState)   { $Script:MenuFileExportSystemState.Header   = (Get-UxLocalizedString -Key 'GuiMenuFileExportSystemState' -Fallback 'Export System State...') }
@@ -1532,6 +1533,7 @@
 		if ($Script:BtnExportSystemState) { $Script:BtnExportSystemState.IsEnabled = $Enabled }
 		if ($Script:BtnExportConfigProfile) { $Script:BtnExportConfigProfile.IsEnabled = $Enabled }
 		if ($Script:BtnExportFirstLogonCommand) { $Script:BtnExportFirstLogonCommand.IsEnabled = $Enabled }
+		if ($Script:MenuFileSettings) { $Script:MenuFileSettings.IsEnabled = $Enabled }
 		if ($Script:MenuFileAuditSettings) { $Script:MenuFileAuditSettings.IsEnabled = $Enabled }
 		if ($Script:MenuToolsExportSupportBundle) { $Script:MenuToolsExportSupportBundle.IsEnabled = $Enabled }
 		if ($Script:MenuToolsApproveRemoteTargets) { $Script:MenuToolsApproveRemoteTargets.IsEnabled = ($Enabled -and $isRemoteConnected) }

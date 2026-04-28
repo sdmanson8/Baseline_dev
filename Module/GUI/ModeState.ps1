@@ -14,6 +14,11 @@
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ([bool]$Enabled)
 
+		# Toggling Safe Mode on via the header is also a vote for Safe being the
+		# default mode at the next launch, so keep DefaultStartupMode in sync
+		# (Settings dialog reads it back from $Script:DefaultStartupMode).
+		if ($Enabled) { $Script:DefaultStartupMode = 'Safe' }
+
 		$previousState = Test-GuiModeActive -Mode 'Safe'
 		$advancedWasEnabled = Test-GuiModeActive -Mode 'Expert'
 		$Script:FilterUiUpdating = $true
@@ -104,6 +109,11 @@
 	{
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ([bool]$Enabled)
+
+		# Enabling Expert via the header makes Expert the new startup default;
+		# disabling drops back to Safe (Standard isn't a startup option).
+		if ($Enabled) { $Script:DefaultStartupMode = 'Expert' }
+		else { $Script:DefaultStartupMode = 'Safe' }
 
 		$previousState = Test-GuiModeActive -Mode 'Expert'
 		$safeWasEnabled = Test-GuiModeActive -Mode 'Safe'

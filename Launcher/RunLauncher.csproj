@@ -61,11 +61,15 @@
     <EmbeddedResource Include="../Module/SharedHelperModules/*.psm1">
       <LogicalName>BaselinePayload/Module/SharedHelperModules/%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="../Module/GUI/*.ps1">
-      <LogicalName>BaselinePayload/Module/GUI/%(Filename)%(Extension)</LogicalName>
+    <!-- GUI and region code lives in nested split files, so recurse to hydrate the full runtime tree. -->
+    <EmbeddedResource Include="../Module/GUI/**/*.ps1">
+      <LogicalName>BaselinePayload/Module/GUI/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="../Module/GUI/*.xaml">
-      <LogicalName>BaselinePayload/Module/GUI/%(Filename)%(Extension)</LogicalName>
+    <EmbeddedResource Include="../Module/GUI/**/*.xaml">
+      <LogicalName>BaselinePayload/Module/GUI/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="../Module/Regions/**/*.ps1">
+      <LogicalName>BaselinePayload/Module/Regions/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="../Module/Regions/**/*.psm1">
       <LogicalName>BaselinePayload/Module/Regions/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>

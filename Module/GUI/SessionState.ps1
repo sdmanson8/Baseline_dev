@@ -895,7 +895,13 @@ function Import-GuiRemoteTargetApprovalPolicy
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ()
 
-		$themeName = if ($ChkTheme) {
+		# Theme preference can be 'Light', 'Dark', or 'System'. The header ChkTheme
+		# only reflects the resolved Light/Dark state, so we persist the user's
+		# preference (if any) so 'System' round-trips across launches.
+		$themeName = if ($Script:ThemePreference) {
+			[string]$Script:ThemePreference
+		}
+		elseif ($ChkTheme) {
 			if ($ChkTheme.IsChecked) { 'Light' } else { 'Dark' }
 		}
 		elseif ($Script:CurrentThemeName) {
@@ -1225,26 +1231,44 @@ function Import-GuiRemoteTargetApprovalPolicy
 			$Script:GameModePreviousPrimaryTab = $desiredGameModePreviousPrimaryTab
 		}
 
-		if ($ChkTheme)
+		# Resolve 'System' preference to a concrete Light/Dark theme based on the
+		# Windows AppsUseLightTheme registry value, but keep $Script:ThemePreference
+		# as 'System' so the choice persists across relaunches.
+		if (Get-Command -Name 'Apply-BaselineThemePreference' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			if ($desiredTheme -eq 'Light' -and -not $ChkTheme.IsChecked)
-			{
-				$ChkTheme.IsChecked = $true
-			}
-			elseif ($desiredTheme -ne 'Light' -and $ChkTheme.IsChecked)
-			{
-				$ChkTheme.IsChecked = $false
-			}
+			try { Apply-BaselineThemePreference -Preference $desiredTheme } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.ApplyThemePreference' }
 		}
 		else
 		{
-			if ($desiredTheme -eq 'Light')
+			$resolvedTheme = if ($desiredTheme -eq 'System') {
+				if (Get-Command -Name 'Get-BaselineSystemThemePreference' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineSystemThemePreference } else { 'Dark' }
+			} elseif ($desiredTheme -eq 'Light' -or $desiredTheme -eq 'Dark') {
+				$desiredTheme
+			} else {
+				'Dark'
+			}
+			$Script:ThemePreference = $desiredTheme
+			if ($ChkTheme)
 			{
-				Set-GUITheme -Theme $Script:LightTheme
+				if ($resolvedTheme -eq 'Light' -and -not $ChkTheme.IsChecked)
+				{
+					$ChkTheme.IsChecked = $true
+				}
+				elseif ($resolvedTheme -ne 'Light' -and $ChkTheme.IsChecked)
+				{
+					$ChkTheme.IsChecked = $false
+				}
 			}
 			else
 			{
-				Set-GUITheme -Theme $Script:DarkTheme
+				if ($resolvedTheme -eq 'Light')
+				{
+					Set-GUITheme -Theme $Script:LightTheme
+				}
+				else
+				{
+					Set-GUITheme -Theme $Script:DarkTheme
+				}
 			}
 		}
 

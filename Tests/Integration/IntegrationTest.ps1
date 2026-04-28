@@ -912,9 +912,9 @@ function Invoke-GameModeTests
             foreach ($jsonFile in Get-ChildItem -Path $dataDir -Filter '*.json' -File)
             {
                 $data = Get-Content -LiteralPath $jsonFile.FullName -Raw | ConvertFrom-Json
-                if ($data.Entries)
+                if ($data -and $data.PSObject.Properties['Entries'])
                 {
-                    $manifest += $data.Entries
+                    $manifest += @($data.Entries)
                 }
             }
 

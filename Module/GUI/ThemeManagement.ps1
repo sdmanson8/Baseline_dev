@@ -57,6 +57,8 @@
 		StatusPillText = "#D6E7FF"
 		ActiveTabBorder = "#89B4FA"
 		ActiveTabIndicator = "#4ADE80"
+		ProgressGreen      = "#22C55E"
+		ProgressGreenTrack = "#1F3A2A"
 	}
 	$Script:LightTheme = @{
 		WindowBg      = "#E4E8F0"
@@ -115,6 +117,8 @@
 		StatusPillText = "#0F4EA8"
 		ActiveTabBorder = "#89B4FA"
 		ActiveTabIndicator = "#22C55E"
+		ProgressGreen      = "#16A34A"
+		ProgressGreenTrack = "#D8EDDB"
 	}
 
 	$Script:GuiThemeFallbackWarnings = [System.Collections.Generic.HashSet[string]]::new()
