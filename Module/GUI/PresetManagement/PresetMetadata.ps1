@@ -37,6 +37,7 @@
 		switch -Regex ($normalizedTier.Trim())
 		{
 			'^\s*(aggressive|advanced)\s*$' { return 4 }
+			'^\s*standard\s*$'              { return 4 }
 			'^\s*balanced\s*$'              { return 3 }
 			'^\s*(basic|safe)\s*$'          { return 2 }
 			'^\s*minimal\s*$'               { return 1 }

@@ -1,4 +1,4 @@
-# App-focused helpers used by the Baseline GUI.
+﻿# App-focused helpers used by the Baseline GUI.
 
 # P5 rollback checkpoint: AppsModule helpers are split into Module\GUI\AppsModule\*.ps1.
 # Keep this explicit order so catalog, state, and chrome helpers load before orchestration entrypoints.

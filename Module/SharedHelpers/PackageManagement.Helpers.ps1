@@ -1,4 +1,4 @@
-# Shared helpers for Baseline.
+﻿# Shared helpers for Baseline.
 
 <#
     .SYNOPSIS

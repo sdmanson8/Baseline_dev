@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 # Tracked issues #12 / #586 — guard against the Settings app's "..." → Uninstall flow
 # silently breaking after Baseline runs. The reported root cause is a

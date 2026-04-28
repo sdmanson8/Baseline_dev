@@ -293,6 +293,10 @@
     "Cursors -Default",
     "RecentlyAddedStartApps -Hide",
     "MostUsedStartApps -Hide",
-    "StartMenuAllSectionCategories -Show"
+    "StartMenuAllSectionCategories -Show",
+    "DefenderScanCPULimit -Enable",
+    "LockScreenCamera -Enable",
+    "HybridSleep -Disable",
+    "DefenderSignatureUpdateInterval -Enable"
   ]
 }

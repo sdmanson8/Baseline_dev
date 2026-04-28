@@ -1582,7 +1582,7 @@
       "RequiresRestart": true,
       "WhyThisMatters": "NTLM is the carrier protocol for relay attacks (PetitPotam, PrintNightmare, NTLM-to-LDAP, NTLM-to-AD-CS). Auditing inbound and outbound NTLM is the documented prerequisite for safely moving the environment to NTLM-deny, which closes those relay chains entirely. PowerShell CLM blocks COM creation, Add-Type, .NET reflection, and module loading from non-allowlisted paths -- the standard offensive PowerShell tradecraft (Invoke-Mimikatz, PowerSploit, Empire) cannot run under CLM.",
       "PresetTier": "Advanced",
-      "RecoveryLevel": "RestorePoint",
+      "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "High"
     }
   ]

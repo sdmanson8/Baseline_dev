@@ -1,4 +1,4 @@
-$Script:DetectCache = $null
+﻿$Script:DetectCache = $null
 $Script:DetectCacheDirty = $false
 $Script:DetectCachePath = $null
 $Script:DetectCacheVersion = $null

@@ -1,4 +1,4 @@
-# RemovalPersistenceDialog.ps1
+﻿# RemovalPersistenceDialog.ps1
 #
 # Themed WPF dialog that surfaces removal-script persistence tasks
 # registered under \Baseline\Persistence\ by the back-end at

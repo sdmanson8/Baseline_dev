@@ -98,7 +98,7 @@ function ConvertTo-TweakRiskLevel
 
 function ConvertTo-TweakPresetTier
 {
-	<# .SYNOPSIS Normalizes preset tier strings to Minimal, Basic, Balanced, or Advanced. #>
+	<# .SYNOPSIS Normalizes preset tier strings to Minimal, Basic, Balanced, Standard, or Advanced. #>
 	param (
 		[object]$Value,
 		[string]$Risk = 'Low',
@@ -113,6 +113,7 @@ function ConvertTo-TweakPresetTier
 			'^\s*balanced\s*$'              { return 'Balanced' }
 			'^\s*minimal\s*$'               { return 'Minimal' }
 			'^\s*(basic|safe)\s*$'          { return 'Basic' }
+			'^\s*standard\s*$'              { return 'Standard' }
 			default                         { return 'Basic' }
 		}
 	}
@@ -883,8 +884,9 @@ function Test-TweakManifestIntegrity
 	$requiredFields = @('Name', 'Function', 'Type', 'Category', 'Risk', 'PresetTier')
 	$validTypes = @('Toggle', 'Action', 'Choice', 'Date', 'NumericRange')
 	$validRisks = @('Low', 'Medium', 'High')
-	# Safe remains as a legacy alias while the preset tier naming settles on Basic.
-	$validTiers = @('Minimal', 'Basic', 'Safe', 'Balanced', 'Advanced')
+	# Safe remains as a legacy alias while Standard marks curated entries that
+	# stay out of the low-risk preset ladder.
+	$validTiers = @('Minimal', 'Basic', 'Safe', 'Balanced', 'Standard', 'Advanced')
 	$validWorkflowSensitivities = @('Low', 'Moderate', 'High')
 	$validRecoveryLevels = @('Direct', 'DefaultsOnly', 'RestorePoint', 'Manual')
 	$validScenarioTags = @(Get-ValidScenarioTagCatalog)

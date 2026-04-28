@@ -1,4 +1,4 @@
-# StartupManagerDialog.ps1
+﻿# StartupManagerDialog.ps1
 #
 # Themed WPF dialog and Customizations-tab surface for the Startup-folder /
 # Run-key enumerator and per-entry enable / disable primitives from

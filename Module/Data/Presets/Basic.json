@@ -73,6 +73,7 @@
     "WindowsManageDefaultPrinter -Disable",
     "CortanaAutostart -Disable",
     "AccountProtectionWarn -Disable",
+    "DefenderScanCPULimit -Enable",
     "DefenderTrayIcon -Disable",
     "DismissMSAccount",
     "DismissSmartScreenFilter",

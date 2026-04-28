@@ -2,14 +2,14 @@
 # Persists the GUI window placement (Left/Top/Width/Height/Maximized) across
 # sessions and validates that the saved rectangle still falls on a connected
 # display before reusing it. Window placement contract:
-# the saved rectangle is only restored when at least
-# $Script:BaselineWindowMinVisibleWidth x $Script:BaselineWindowMinVisibleHeight
-# of it overlaps the working area of any display, otherwise the caller falls
+# the saved rectangle is only restored when at least the minimum visible
+# width x height overlaps the working area of any display, otherwise the
+# caller falls
 # back to the default centred placement.
 
-$Script:BaselineWindowMinVisibleWidth  = 120
-$Script:BaselineWindowMinVisibleHeight = 40
-$Script:BaselineWindowPrefKeys = @{
+$BaselineWindowMinVisibleWidth  = 120
+$BaselineWindowMinVisibleHeight = 40
+$BaselineWindowPrefKeys = @{
 	Left       = 'WindowLeft'
 	Top        = 'WindowTop'
 	Width      = 'WindowWidth'
@@ -98,8 +98,8 @@ function Test-BaselineWindowRectVisible
 		[AllowNull()]
 		[object[]]$WorkAreas,
 
-		[double]$MinVisibleWidth  = $Script:BaselineWindowMinVisibleWidth,
-		[double]$MinVisibleHeight = $Script:BaselineWindowMinVisibleHeight
+		[double]$MinVisibleWidth  = $BaselineWindowMinVisibleWidth,
+		[double]$MinVisibleHeight = $BaselineWindowMinVisibleHeight
 	)
 
 	if (-not $Rect) { return $false }
@@ -150,11 +150,11 @@ function Get-BaselineSavedWindowPlacement
 	$getPref = Get-Command -Name 'Get-BaselineUserPreference' -ErrorAction SilentlyContinue
 	if (-not $getPref) { return $null }
 
-	$left      = & $getPref -Key $Script:BaselineWindowPrefKeys.Left
-	$top       = & $getPref -Key $Script:BaselineWindowPrefKeys.Top
-	$width     = & $getPref -Key $Script:BaselineWindowPrefKeys.Width
-	$height    = & $getPref -Key $Script:BaselineWindowPrefKeys.Height
-	$maximized = & $getPref -Key $Script:BaselineWindowPrefKeys.Maximized -Default $false
+	$left      = & $getPref -Key $BaselineWindowPrefKeys.Left
+	$top       = & $getPref -Key $BaselineWindowPrefKeys.Top
+	$width     = & $getPref -Key $BaselineWindowPrefKeys.Width
+	$height    = & $getPref -Key $BaselineWindowPrefKeys.Height
+	$maximized = & $getPref -Key $BaselineWindowPrefKeys.Maximized -Default $false
 
 	if ($null -eq $width -or $null -eq $height) { return $null }
 	if ($null -eq $left -or $null -eq $top) { return $null }
@@ -204,16 +204,16 @@ function Save-BaselineWindowPlacement
 	$getPref = Get-Command -Name 'Get-BaselineUserPreference' -ErrorAction SilentlyContinue
 	if (-not $setPref -or -not $getPref) { return $false }
 
-	$remember = & $getPref -Key $Script:BaselineWindowPrefKeys.Remember -Default $true
+	$remember = & $getPref -Key $BaselineWindowPrefKeys.Remember -Default $true
 	if (-not [bool]$remember) { return $false }
 
 	if ($Width -le 0 -or $Height -le 0) { return $false }
 
-	& $setPref -Key $Script:BaselineWindowPrefKeys.Left      -Value ([double]$Left)
-	& $setPref -Key $Script:BaselineWindowPrefKeys.Top       -Value ([double]$Top)
-	& $setPref -Key $Script:BaselineWindowPrefKeys.Width     -Value ([double]$Width)
-	& $setPref -Key $Script:BaselineWindowPrefKeys.Height    -Value ([double]$Height)
-	& $setPref -Key $Script:BaselineWindowPrefKeys.Maximized -Value ([bool]$Maximized)
+	& $setPref -Key $BaselineWindowPrefKeys.Left      -Value ([double]$Left)
+	& $setPref -Key $BaselineWindowPrefKeys.Top       -Value ([double]$Top)
+	& $setPref -Key $BaselineWindowPrefKeys.Width     -Value ([double]$Width)
+	& $setPref -Key $BaselineWindowPrefKeys.Height    -Value ([double]$Height)
+	& $setPref -Key $BaselineWindowPrefKeys.Maximized -Value ([bool]$Maximized)
 	return $true
 }
 
@@ -246,15 +246,15 @@ function Resolve-BaselineWindowPlacement
 
 		[object[]]$WorkAreas,
 
-		[double]$MinVisibleWidth  = $Script:BaselineWindowMinVisibleWidth,
-		[double]$MinVisibleHeight = $Script:BaselineWindowMinVisibleHeight
+		[double]$MinVisibleWidth  = $BaselineWindowMinVisibleWidth,
+		[double]$MinVisibleHeight = $BaselineWindowMinVisibleHeight
 	)
 
 	$getPref = Get-Command -Name 'Get-BaselineUserPreference' -ErrorAction SilentlyContinue
 	$remember = $true
 	if ($getPref)
 	{
-		$remember = [bool](& $getPref -Key $Script:BaselineWindowPrefKeys.Remember -Default $true)
+		$remember = [bool](& $getPref -Key $BaselineWindowPrefKeys.Remember -Default $true)
 	}
 
 	$default = [pscustomobject]@{

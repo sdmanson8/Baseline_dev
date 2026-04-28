@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 Startup-folder / Run-key enumerator and per-entry enable / disable.
 

@@ -1,4 +1,4 @@
-# Review Mode helpers — pure diff and acceptance logic for the
+﻿# Review Mode helpers — pure diff and acceptance logic for the
 # per-setting review banner pattern modelled on the tracked review mode.
 #
 # It uses `Compare-ConfigurationProfiles` (ConfigProfile.Helpers.ps1), which

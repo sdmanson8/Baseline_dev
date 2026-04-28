@@ -1,4 +1,4 @@
-# ActionHandlers split file loaded by Module\GUI\ActionHandlers.ps1.
+﻿# ActionHandlers split file loaded by Module\GUI\ActionHandlers.ps1.
 
 	#region Top Menu Bar handlers
 	# Menu items route to existing buttons by raising their Click event, reusing all existing logic.

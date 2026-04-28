@@ -1,4 +1,4 @@
-# Removal-script persistence helpers.
+﻿# Removal-script persistence helpers.
 #
 # Removal persistence flow:
 # Baseline saves uninstall scripts under ProgramData\Scripts\<Name>.ps1 and

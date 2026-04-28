@@ -1,4 +1,4 @@
-# Apps view filter state, source preference, and catalog helpers
+﻿# Apps view filter state, source preference, and catalog helpers
 
 	<#
 	    .SYNOPSIS

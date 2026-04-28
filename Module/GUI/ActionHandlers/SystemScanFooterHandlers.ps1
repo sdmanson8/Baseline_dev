@@ -1,4 +1,4 @@
-# ActionHandlers split file loaded by Module\GUI\ActionHandlers.ps1.
+﻿# ActionHandlers split file loaded by Module\GUI\ActionHandlers.ps1.
 
 	#region System scan state
 	$buildTabContentCommand = Get-GuiRuntimeCommand -Name 'Build-TabContent' -CommandType 'Function'

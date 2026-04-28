@@ -1,4 +1,4 @@
-# CLI / unattended-mode helpers for Baseline.
+﻿# CLI / unattended-mode helpers for Baseline.
 #
 # These helpers exist so the launcher's CLI surface can be unit-tested without
 # spinning up the full GUI/host pipeline. They intentionally hold no state and

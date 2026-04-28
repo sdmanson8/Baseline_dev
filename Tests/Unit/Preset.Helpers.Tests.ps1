@@ -370,6 +370,7 @@ Describe 'ConvertTo-TweakPresetTier' {
         ConvertTo-TweakPresetTier -Value 'Advanced' | Should -Be 'Advanced'
         ConvertTo-TweakPresetTier -Value 'Balanced' | Should -Be 'Balanced'
         ConvertTo-TweakPresetTier -Value 'Minimal' | Should -Be 'Minimal'
+        ConvertTo-TweakPresetTier -Value 'Standard' | Should -Be 'Standard'
     }
 
     It 'normalizes aliases (aggressive -> Advanced, safe -> Basic)' {

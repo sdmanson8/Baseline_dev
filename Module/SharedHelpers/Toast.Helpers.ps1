@@ -1,4 +1,4 @@
-<#
+﻿<#
 	.SYNOPSIS
 	Toast notification helpers for Baseline (Windows PowerShell 5.1).
 

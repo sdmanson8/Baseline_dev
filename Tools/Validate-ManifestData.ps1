@@ -401,30 +401,45 @@ foreach ($regionFile in (Get-ChildItem -LiteralPath $regionDir -Filter '*.psm1' 
 	$regionFunctions[$regionName] = @($functionNames | Sort-Object -Unique)
 }
 
-foreach ($dataFile in (Get-ChildItem -LiteralPath $dataDir -Filter '*.json' -File | Sort-Object Name))
-{
-	$dataFileCount++
+	foreach ($dataFile in (Get-ChildItem -LiteralPath $dataDir -Filter '*.json' -File | Sort-Object Name))
+	{
+		$dataFileCount++
 
 	try
 	{
 		$payload = Get-Content -LiteralPath $dataFile.FullName -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
 	}
-	catch
-	{
-		[void]$issues.Add([PSCustomObject]@{
-			Type = 'InvalidJson'
-			File = $dataFile.Name
-			Entry = $null
-			Message = $_.Exception.Message
-		})
-		continue
-	}
+		catch
+		{
+			[void]$issues.Add([PSCustomObject]@{
+				Type = 'InvalidJson'
+				File = $dataFile.Name
+				Entry = $null
+				Message = $_.Exception.Message
+			})
+			continue
+		}
 
-	if (-not $payload.PSObject.Properties['Entries'])
-	{
-		[void]$issues.Add([PSCustomObject]@{
-			Type = 'MissingEntries'
-			File = $dataFile.Name
+		if ($dataFile.Name -eq 'AddedInVersions.json')
+		{
+			if (-not $payload.PSObject.Properties['Functions'] -or $null -eq $payload.Functions)
+			{
+				[void]$issues.Add([PSCustomObject]@{
+					Type = 'MissingFunctions'
+					File = $dataFile.Name
+					Entry = $null
+					Message = 'Top-level Functions map is missing.'
+				})
+			}
+
+			continue
+		}
+
+		if (-not $payload.PSObject.Properties['Entries'])
+		{
+			[void]$issues.Add([PSCustomObject]@{
+				Type = 'MissingEntries'
+				File = $dataFile.Name
 			Entry = $null
 			Message = 'Top-level Entries array is missing.'
 		})

@@ -1,4 +1,4 @@
-# Style helper utilities for Baseline UI themes and visual defaults.
+﻿# Style helper utilities for Baseline UI themes and visual defaults.
 
 <#
 	    .SYNOPSIS

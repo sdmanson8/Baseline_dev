@@ -1,4 +1,4 @@
-# Support bundle helpers for Baseline.
+﻿# Support bundle helpers for Baseline.
 # Builds a portable, operator-facing archive with environment, audit,
 # compliance, and execution context for troubleshooting and enterprise review.
 
@@ -645,7 +645,7 @@ function Export-BaselineSupportBundle
 		# --- Connect-to-Computer dialog pre-flight results ---
 		# Snapshot of the most recent Test-BaselineRemoteConnectivity output
 		# captured by the GUI dialog (Set-GuiRemoteConnectivityResults stores
-		# this on $Script:Ctx.Remote.LastConnectivityResults). Distinct from
+		# this on the GUI context's Remote.LastConnectivityResults). Distinct from
 		# remote-orchestration.jsonl, which only logs actual operations.
 		if ($null -ne $ConnectivityResults -and $ConnectivityResults.Count -gt 0)
 		{
@@ -757,7 +757,7 @@ function Export-BaselineSupportBundle
 
 		# --- ConfigState.json: GUI / preset / mode state, before/after a run ---
 		# Pre-run state is captured by ExecutionOrchestration.ps1 into
-		# $Script:PreRunConfigState; post-run state is the live snapshot at
+		# the pre-run config snapshot; post-run state is the live snapshot at
 		# bundle time. If no run has happened this session, only Post is
 		# populated and the diff is null. Field selection follows todo.md #14
 		# (preset, overrides, Safe Mode, Onboarding, Game Mode, Preview Run).

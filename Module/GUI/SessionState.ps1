@@ -1,4 +1,4 @@
-# GUI session state, undo snapshots, and settings profile management
+﻿# GUI session state, undo snapshots, and settings profile management
 
 <#
     .SYNOPSIS

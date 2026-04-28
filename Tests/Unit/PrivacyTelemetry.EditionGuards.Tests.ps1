@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 # Covers the IsServer skip path for SharedExperiences (CDP / Connected Devices
 # Platform — client-only) and ClipboardHistory (Win+V history — client-only).

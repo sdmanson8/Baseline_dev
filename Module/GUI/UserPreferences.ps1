@@ -1,4 +1,4 @@
-$Script:UserPreferencesPath = $null
+﻿$Script:UserPreferencesPath = $null
 $Script:UserPreferencesData = $null
 $Script:UserPreferencesDirty = $false
 

@@ -1,4 +1,4 @@
-# One-shot propagation script for the 35 regression locale keys
+﻿# One-shot propagation script for the 35 regression locale keys
 # (todo.md P3 #22). Inserts each missing key into every locale .json under
 # Localizations/, picking translations from the localization bundle
 # /Localizations/<de-DE|es-ES|fr-FR|hu-HU|it-IT|pl-PL|pt-BR|ru-RU|tr-TR|uk-UA|

@@ -1,4 +1,4 @@
-# Configuration profile helpers for Baseline.
+﻿# Configuration profile helpers for Baseline.
 # Provides portable configuration profile creation, import/export, compatibility
 # checking, comparison, and conversion from existing presets.
 # Uses Write-BaselineDocument / Read-BaselineDocument patterns for persistence.

@@ -1,4 +1,4 @@
-# Single-instance launcher helpers.
+﻿# Single-instance launcher helpers.
 #
 # Launcher single-instance contract (HandleSingleInstance via
 # AppInstance.FindOrRegisterForKey + RedirectActivationToAsync +

@@ -1,4 +1,4 @@
-$Script:NewBadgeBaseline = $null
+﻿$Script:NewBadgeBaseline = $null
 $Script:NewBadgeAddedInVersions = $null
 $Script:NewBadgeShowEnabled = $true
 
