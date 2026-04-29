@@ -1611,7 +1611,7 @@
 	function Show-ReadmeDialog
 	{
 		param (
-			[string]$ReadmePath = $(Resolve-BaselineReadmePath)
+			[string]$ReadmePath
 		)
 
 		$theme = $Script:CurrentTheme
@@ -1749,9 +1749,17 @@
 		if ($btnDlgClose) { $btnDlgClose.Add_Click({ $dlg.Close() }.GetNewClosure()) }
 
 		$btnClose.Content = $closeLabel
-		Set-ButtonChrome -Button $btnRefresh -Variant 'Subtle' -Compact -Muted
-		Set-ButtonChrome -Button $btnClose -Variant 'Primary' -Compact
+		if ($Script:SetButtonChromeScript)
+		{
+			& $Script:SetButtonChromeScript -Button $btnRefresh -Variant 'Subtle' -Compact -Muted
+			& $Script:SetButtonChromeScript -Button $btnClose -Variant 'Primary' -Compact
+		}
 		$btnClose.IsCancel = $true
+
+		if ([string]::IsNullOrWhiteSpace([string]$ReadmePath))
+		{
+			try { $ReadmePath = Resolve-BaselineReadmePath } catch { $ReadmePath = $null }
+		}
 
 		$getReadmeTheme = {
 			param([hashtable]$ThemeOverride = $null)
@@ -1821,13 +1829,13 @@
 				$readmeFooterBorder.BorderBrush = $bc.ConvertFromString($activeTheme.BorderColor)
 				$readmeFooterBorder.BorderThickness = [System.Windows.Thickness]::new(0, 1, 0, 0)
 			}
-			if ($btnRefresh)
+			if ($btnRefresh -and $Script:SetButtonChromeScript)
 			{
-				Set-ButtonChrome -Button $btnRefresh -Variant 'Subtle' -Compact -Muted
+				& $Script:SetButtonChromeScript -Button $btnRefresh -Variant 'Subtle' -Compact -Muted
 			}
-			if ($btnClose)
+			if ($btnClose -and $Script:SetButtonChromeScript)
 			{
-				Set-ButtonChrome -Button $btnClose -Variant 'Primary' -Compact
+				& $Script:SetButtonChromeScript -Button $btnClose -Variant 'Primary' -Compact
 			}
 		}.GetNewClosure()
 
@@ -1886,6 +1894,9 @@
 			& $setMarkdownViewerTheme -Viewer $readmeFlowViewer -ForegroundHex $ForegroundHex -ThemeOverride $ThemeOverride
 		}.GetNewClosure()
 
+		$setReadmeFlowThemeScript = ${function:Set-BaselineReadmeFlowDocumentTheme}
+		$resolveReadmePathScript = ${function:Resolve-BaselineReadmePath}
+
 		$showReadmeAsFlowDocument = {
 			param(
 				[System.Windows.Documents.FlowDocument]$Document,
@@ -1897,7 +1908,7 @@
 			$Document.PagePadding = [System.Windows.Thickness]::new(0)
 			$Document.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI')
 			$Document.FontSize = [double]$readmeFontSize
-			Set-BaselineReadmeFlowDocumentTheme -Document $Document -ActiveTheme $activeTheme -BrushConverter $bc -ReadmeFontSize $readmeFontSize
+			& $setReadmeFlowThemeScript -Document $Document -ActiveTheme $activeTheme -BrushConverter $bc -ReadmeFontSize $readmeFontSize
 			$readmeFlowViewer.Document = $Document
 			$readmeFlowViewer.Visibility = [System.Windows.Visibility]::Visible
 			if ($readmeWebHost) { $readmeWebHost.Visibility = [System.Windows.Visibility]::Collapsed }
@@ -1920,6 +1931,33 @@
 				$readmeWebHost.Child = $readmeWebView
 				$null = $readmeWebView.EnsureCoreWebView2Async().GetAwaiter().GetResult()
 				$webView2Ready = $true
+
+				$readmeWebView.CoreWebView2.add_NavigationStarting({
+					param($navSender, $navArgs)
+					$null = $navSender
+					try
+					{
+						$navUri = [string]$navArgs.Uri
+						if ([string]::IsNullOrWhiteSpace($navUri)) { return }
+						if ($navUri.StartsWith('about:', [System.StringComparison]::OrdinalIgnoreCase) -or $navUri.StartsWith('data:', [System.StringComparison]::OrdinalIgnoreCase)) { return }
+						if ($navUri.StartsWith('http://', [System.StringComparison]::OrdinalIgnoreCase) -or $navUri.StartsWith('https://', [System.StringComparison]::OrdinalIgnoreCase) -or $navUri.StartsWith('mailto:', [System.StringComparison]::OrdinalIgnoreCase))
+						{
+							$navArgs.Cancel = $true
+							try { [System.Diagnostics.Process]::Start($navUri) | Out-Null } catch { }
+						}
+						elseif ($navUri.StartsWith('file://', [System.StringComparison]::OrdinalIgnoreCase))
+						{
+							$navArgs.Cancel = $true
+							try
+							{
+								$localPath = [System.Uri]::new($navUri).LocalPath
+								[System.Diagnostics.Process]::Start($localPath) | Out-Null
+							}
+							catch { }
+						}
+					}
+					catch { }
+				})
 			}
 		}
 		catch
@@ -1943,13 +1981,76 @@
 			return $false
 		}.GetNewClosure()
 
+		$wireFlowDocumentNavigation = {
+			param(
+				[Parameter(Mandatory = $true)]
+				$Result,
+
+				[string]$ReadmeDirectory
+			)
+
+			if (-not $Result) { return }
+			$anchorMap = $Result.AnchorMap
+			$localReadmeDir = [string]$ReadmeDirectory
+
+			foreach ($hyperlink in $Result.Hyperlinks)
+			{
+				$hyperlink.add_RequestNavigate({
+					param($linkSender, $linkArgs)
+					try
+					{
+						$linkUri = if ($linkArgs -and $linkArgs.Uri) { $linkArgs.Uri } else { $linkSender.NavigateUri }
+						if (-not $linkUri) { return }
+						if ($linkArgs) { $linkArgs.Handled = $true }
+						$uriText = [string]$linkUri.OriginalString
+						if ([string]::IsNullOrWhiteSpace($uriText)) { return }
+
+						if ($uriText.StartsWith('#'))
+						{
+							$fragment = $uriText.Substring(1)
+							if ($anchorMap -and $anchorMap.ContainsKey($fragment))
+							{
+								$target = $anchorMap[$fragment]
+								try { $target.BringIntoView() } catch { }
+							}
+						}
+						elseif ($linkUri.IsAbsoluteUri)
+						{
+							$scheme = [string]$linkUri.Scheme
+							if ($scheme -eq 'http' -or $scheme -eq 'https' -or $scheme -eq 'mailto')
+							{
+								try { [System.Diagnostics.Process]::Start($linkUri.AbsoluteUri) | Out-Null } catch { }
+							}
+							elseif ($scheme -eq 'file')
+							{
+								try { [System.Diagnostics.Process]::Start($linkUri.LocalPath) | Out-Null } catch { }
+							}
+						}
+						else
+						{
+							$resolved = $uriText
+							if (-not [string]::IsNullOrWhiteSpace($localReadmeDir))
+							{
+								try { $resolved = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($localReadmeDir, $uriText)) } catch { $resolved = $uriText }
+							}
+							if (Test-Path -LiteralPath $resolved -ErrorAction SilentlyContinue)
+							{
+								try { [System.Diagnostics.Process]::Start($resolved) | Out-Null } catch { }
+							}
+						}
+					}
+					catch { }
+				}.GetNewClosure())
+			}
+		}.GetNewClosure()
+
 		$loadReadmeContent = {
 			param([hashtable]$ThemeOverride = $null)
 
 			$activeTheme = & $getReadmeTheme -ThemeOverride $ThemeOverride
 			& $applyReadmeDialogTheme -ThemeOverride $activeTheme
 
-			$resolvedPath = if ([string]::IsNullOrWhiteSpace([string]$ReadmePath)) { Resolve-BaselineReadmePath } else { $ReadmePath }
+			$resolvedPath = if ([string]::IsNullOrWhiteSpace([string]$ReadmePath)) { & $resolveReadmePathScript } else { $ReadmePath }
 			$txtReadmePath.Text = if ([string]::IsNullOrWhiteSpace([string]$resolvedPath)) { '' } else { $resolvedPath }
 
 			if ([string]::IsNullOrWhiteSpace([string]$resolvedPath) -or -not (Test-Path -LiteralPath $resolvedPath -PathType Leaf -ErrorAction SilentlyContinue))
@@ -1982,14 +2083,18 @@
 				if (-not (& $showReadmeAsWebView -Html $html))
 				{
 					$flowDocument = $null
+					$anchoredResult = $null
 					if (Test-BaselineMarkdownRuntimeReady)
 					{
-						try { $flowDocument = [Markdig.Wpf.Markdown]::ToFlowDocument($markdownText) }
-						catch { $flowDocument = $null }
+						try { $anchoredResult = ConvertFrom-BaselineMarkdownToAnchoredFlowDocument -Markdown $markdownText }
+						catch { $anchoredResult = $null }
+						if ($anchoredResult) { $flowDocument = $anchoredResult.Document }
 					}
 
 					if ($flowDocument)
 					{
+						$readmeDirectory = [System.IO.Path]::GetDirectoryName($resolvedFullPath)
+						if ($anchoredResult) { & $wireFlowDocumentNavigation -Result $anchoredResult -ReadmeDirectory $readmeDirectory }
 						& $showReadmeAsFlowDocument -Document $flowDocument -ThemeOverride $activeTheme
 					}
 					else
@@ -2020,7 +2125,7 @@
 		& $loadReadmeContent
 
 		Register-GuiEventHandler -Source $btnRefresh -EventName 'Click' -Handler ({
-			$ReadmePath = Resolve-BaselineReadmePath
+			$ReadmePath = & $resolveReadmePathScript
 			& $loadReadmeContent
 		}.GetNewClosure())
 		Register-GuiEventHandler -Source $btnClose -EventName 'Click' -Handler { $dlg.Close() }
@@ -2029,7 +2134,7 @@
 			if ($e.Key -eq [System.Windows.Input.Key]::Escape) { $dlg.Close() }
 		}
 
-		[void]($dlg.ShowDialog())
+		[void](GUICommon\Show-GuiActivatedDialog -Window $dlg)
 	}
 
 	<#

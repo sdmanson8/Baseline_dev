@@ -43,6 +43,7 @@ Export-ModuleMember -Function @(
 	'Set-GuiWindowChromeTheme'
 	'Add-GuiPopupWindowChrome'
 	'Register-GuiPopupThemeWindow'
+	'Show-GuiActivatedDialog'
 	'Set-GuiPopupWindowProgress'
 	'Update-GuiPopupWindowThemes'
 	'Start-GuiPopupCommandAsync'

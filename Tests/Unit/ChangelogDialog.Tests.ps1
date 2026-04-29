@@ -10,8 +10,13 @@ BeforeAll {
 
     $script:DialogHelpersPath = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers.ps1'
     $script:DialogHelpersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers'
+    $script:GuiCommonPath = Join-Path $PSScriptRoot '../../Module/GUICommon.psm1'
+    $script:PopupWindowsPath = Join-Path $PSScriptRoot '../../Module/GUICommon/PopupWindows.ps1'
+    $script:RegionGuiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
     $script:ActionHandlersPath = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers.ps1'
     $script:ActionHandlersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers'
+    $script:GuiCommonContent = Get-BaselineTestSourceText -Path $script:GuiCommonPath
+    $script:PopupWindowsContent = Get-BaselineTestSourceText -Path $script:PopupWindowsPath
     $script:DialogHelpersContent = Get-BaselineTestSourceText -Path @(
         $script:DialogHelpersPath
         (Join-Path $script:DialogHelpersSplitRoot 'DialogThemeHelpers.ps1')
@@ -20,6 +25,7 @@ BeforeAll {
         (Join-Path $script:DialogHelpersSplitRoot 'ContentDialogs.ps1')
         (Join-Path $script:DialogHelpersSplitRoot 'AuditOperatorDialogs.ps1')
     )
+    $script:RegionGuiContent = Get-BaselineTestSourceText -Path $script:RegionGuiPath
     $script:ActionHandlersContent = Get-BaselineTestSourceText -Path @(
         $script:ActionHandlersPath
         (Join-Path $script:ActionHandlersSplitRoot 'ThemeNavigationHandlers.ps1')
@@ -93,6 +99,23 @@ Describe 'Documentation viewer wiring' {
         $script:DialogHelpersContent | Should -Match 'ReadmeFooterBorder'
     }
 
+    It 'exports the GUI activation helper used by module-qualified dialog callers' {
+        $script:PopupWindowsContent | Should -Match 'function Show-GuiActivatedDialog'
+        $script:GuiCommonContent | Should -Match "'Show-GuiActivatedDialog'"
+    }
+
+    It 'captures Set-ButtonChrome at module scope so menu-driven dialogs can theme their buttons' {
+        $script:RegionGuiContent | Should -Match '\$Script:SetButtonChromeScript = \$null'
+        $script:RegionGuiContent | Should -Match 'function Set-ButtonChrome'
+        $script:RegionGuiContent | Should -Match '\$Script:SetButtonChromeScript = \$\{function:Set-ButtonChrome\}'
+    }
+
+    It 'uses the module-captured button chrome helper in the README dialog callbacks' {
+        $script:DialogHelpersContent | Should -Match 'if \(\$Script:SetButtonChromeScript\)'
+        $script:DialogHelpersContent | Should -Match '& \$Script:SetButtonChromeScript -Button \$btnRefresh -Variant ''Subtle'' -Compact -Muted'
+        $script:DialogHelpersContent | Should -Match '& \$Script:SetButtonChromeScript -Button \$btnClose -Variant ''Primary'' -Compact'
+    }
+
     It 'themes rendered README FlowDocuments after markdown conversion so code content stays readable' {
         $script:DialogHelpersContent | Should -Match 'function Set-BaselineReadmeInlineTheme'
         $script:DialogHelpersContent | Should -Match 'function Set-BaselineReadmeBlockTheme'
@@ -101,7 +124,9 @@ Describe 'Documentation viewer wiring' {
         $script:DialogHelpersContent | Should -Match '\$codeBackgroundBrush = \$BrushConverter\.ConvertFromString\(\$ActiveTheme\.HeaderBg\)'
         $script:DialogHelpersContent | Should -Match '\$Inline\.Background = if \(\$WithinCodeBlock\) \{ \[System\.Windows\.Media\.Brushes\]::Transparent \} else \{ \$CodeBackgroundBrush \}'
         $script:DialogHelpersContent | Should -Match '\$Block\.BorderThickness = \[System\.Windows\.Thickness\]::new\(1\)'
-        $script:DialogHelpersContent | Should -Match 'Set-BaselineReadmeFlowDocumentTheme -Document \$Document -ActiveTheme \$activeTheme -BrushConverter \$bc -ReadmeFontSize \$readmeFontSize'
+        $script:DialogHelpersContent | Should -Match '& \$setReadmeFlowThemeScript -Document \$Document -ActiveTheme \$activeTheme -BrushConverter \$bc -ReadmeFontSize \$readmeFontSize'
+        $script:DialogHelpersContent | Should -Match 'ConvertFrom-BaselineMarkdownToAnchoredFlowDocument -Markdown \$markdownText'
+        $script:DialogHelpersContent | Should -Match '\$wireFlowDocumentNavigation = \{'
 
         $brushConverter = [System.Windows.Media.BrushConverter]::new()
         $theme = @{

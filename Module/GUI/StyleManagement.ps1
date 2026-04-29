@@ -613,6 +613,9 @@
 		$bc = New-SafeBrushConverter -Context 'Update-HeaderModeStateText'
 		$safeEnabled = [bool]$Script:SafeMode
 		$advancedEnabled = [bool]$Script:AdvancedMode
+		$safeModeLabel = Get-UxLocalizedString -Key 'GuiHelpSectionSafeMode' -Fallback 'Safe Mode'
+		$expertModeLabel = Get-UxLocalizedString -Key 'GuiHelpSectionExpertMode' -Fallback 'Expert Mode'
+		$modeToggleLabel = if ($safeEnabled) { $safeModeLabel } else { $expertModeLabel }
 		if ($TxtAdvancedModeState)
 		{
 			if ($advancedEnabled)
@@ -627,7 +630,9 @@
 		}
 		if ($ChkSafeMode)
 		{
-			$ChkSafeMode.Content = (Get-UxLocalizedString -Key 'GuiChkSafeMode' -Fallback 'Safe Mode')
+			$ChkSafeMode.Content = $modeToggleLabel
+			$ChkSafeMode.ToolTip = ('{0} / {1}' -f $safeModeLabel, $expertModeLabel)
+			[System.Windows.Automation.AutomationProperties]::SetName($ChkSafeMode, ('{0} / {1}' -f $safeModeLabel, $expertModeLabel))
 		}
 		if ($TitleBarText -and $Form)
 		{

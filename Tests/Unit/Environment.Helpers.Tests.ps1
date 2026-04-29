@@ -249,7 +249,7 @@ Describe 'Get-BaselineDisplayVersion' {
         $manifestPath = Join-Path $moduleRoot 'Baseline.psd1'
         Set-Content -LiteralPath $manifestPath -Value "@{ ModuleVersion = '2.0.0' }" -Encoding ASCII
 
-        Mock Import-PowerShellDataFile { throw 'manifest parse failed' } -ParameterFilter { $Path -eq $manifestPath }
+        Mock Import-EnvironmentPowerShellDataFile { throw 'manifest parse failed' } -ParameterFilter { $Path -eq $manifestPath }
 
         Get-BaselineDisplayVersion -ModuleRoot $moduleRoot | Should -BeNullOrEmpty
         $script:DebugSwallowedExceptionCalls.Count | Should -Be 1
@@ -334,13 +334,14 @@ Describe 'Show-BootstrapLoadingSplash' {
         $script:EnvironmentHelpersContent | Should -Not -Match 'ShowInTaskbar="False"'
     }
 
-    It 'can prime the updates step, status, and progress bar during construction' {
+    It 'can prime the updates step, status, and progress bar when the splash loads' {
         $script:EnvironmentHelpersContent | Should -Match '\[switch\]\$StartUpdatesPulse'
         $script:EnvironmentHelpersContent | Should -Match 'splashLocCheckingForUpdates'
         $script:EnvironmentHelpersContent | Should -Match 'bootstrapLoadingSplashStepCommand'
         $script:EnvironmentHelpersContent | Should -Match 'bootstrapLoadingSplashStateCommand'
         $script:EnvironmentHelpersContent | Should -Match '& \$bootstrapLoadingSplashStepCommand -Splash \$syncHash -StepId ''updates'' -Status ''in_progress'''
         $script:EnvironmentHelpersContent | Should -Match '& \$bootstrapLoadingSplashStateCommand -Splash \$syncHash -StatusText \$splashLocCheckingForUpdates -Indeterminate'
+        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_Loaded\(\{[\s\S]*& \$startUpdatesPulseAction'
     }
 
     It 'uses a value-driven progress bar template with standard named parts' {
@@ -361,10 +362,32 @@ Describe 'Show-BootstrapLoadingSplash' {
         $script:EnvironmentHelpersContent | Should -Match '\$anim.To   = \(\[double\]\$completedCount / \$stepCount\) \* \$barWidth'
     }
 
-    It 'routes splash icon and chrome setup fallbacks through Write-DebugSwallowedException' {
+    It 'routes splash icon failures through debug logging and chrome failures through launch tracing' {
         $script:EnvironmentHelpersContent | Should -Match 'function Show-BootstrapLoadingSplash'
         $script:EnvironmentHelpersContent | Should -Match 'Environment\.ShowBootstrapLoadingSplash\.LoadSplashIcon'
-        $script:EnvironmentHelpersContent | Should -Match 'Environment\.ShowBootstrapLoadingSplash\.ApplySplashChrome'
+        $script:EnvironmentHelpersContent | Should -Match 'Bootstrap splash chrome setup failed'
+    }
+
+    It 'does not release startup until the splash content has rendered' {
+        $script:EnvironmentHelpersContent | Should -Match 'WasLoaded\s*=\s*\$false'
+        $script:EnvironmentHelpersContent | Should -Match 'WasRendered\s*=\s*\$false'
+        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_Loaded\(\{[\s\S]*\$syncHash\.WasLoaded = \$true'
+        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_ContentRendered\(\{[\s\S]*\$syncHash\.WasRendered = \$true[\s\S]*\$syncHash\.IsReady = \$true'
+        $script:EnvironmentHelpersContent | Should -Match 'if \(\(-not \$syncHash\.IsAlive\) -or \(-not \$syncHash\.WasRendered\)\)'
+
+        $loadedBlock = [regex]::Match(
+            $script:EnvironmentHelpersContent,
+            '(?s)\$splash\.Add_Loaded\(\{.*?\}\)\s*\r?\n\r?\n\s*\$splash\.Add_ContentRendered'
+        ).Value
+        $loadedSuccessBlock = [regex]::Match($loadedBlock, '(?s)try\s*\{(?<Body>.*?)\}\s*catch').Groups['Body'].Value
+        $loadedSuccessBlock | Should -Not -Match '\$syncHash\.WasShown = \$true'
+        $loadedSuccessBlock | Should -Not -Match '\$syncHash\.IsReady = \$true'
+    }
+
+    It 'records splash thread failures instead of reporting a successful splash' {
+        $script:EnvironmentHelpersContent | Should -Match 'ErrorMessage\s*=\s*\$null'
+        $script:EnvironmentHelpersContent | Should -Match 'Bootstrap splash runspace failed'
+        $script:EnvironmentHelpersContent | Should -Match 'Bootstrap splash failed before it became visible'
     }
 }
 
@@ -598,6 +621,20 @@ Describe 'Baseline markdown runtime' {
 
         $html | Should -Match '<h1'
         $html | Should -Match 'Title'
+    }
+
+    It 'renders anchored FlowDocuments for README in-page links' {
+        $moduleRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Module'))
+
+        Initialize-BaselineMarkdownRuntime -ModuleRoot $moduleRoot | Should -BeTrue
+        Test-BaselineMarkdownRuntimeReady | Should -BeTrue
+
+        $result = ConvertFrom-BaselineMarkdownToAnchoredFlowDocument -Markdown "# Title`r`n`r`n[Jump](#title)"
+
+        $result.Document | Should -Not -BeNullOrEmpty
+        $result.AnchorMap.ContainsKey('title') | Should -BeTrue
+        @($result.Hyperlinks).Count | Should -BeGreaterThan 0
+        [string]$result.Hyperlinks[0].NavigateUri.OriginalString | Should -Be '#title'
     }
 
     It 'routes assembly load failures through Write-DebugSwallowedException' {

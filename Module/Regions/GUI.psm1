@@ -6,6 +6,39 @@ using module ..\GUIExecution.psm1
 # GUI scripts are dot-sourced here so their $Script: state belongs to GUI.psm1.
 $Script:GuiLayout = GUICommon\Get-GuiLayout
 $Script:GuiFontSizeWarnings = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+$Script:SetButtonChromeScript = $null
+
+function Set-ButtonChrome
+{
+	[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+	param (
+		[System.Windows.Controls.Primitives.ButtonBase]$Button,
+		[ValidateSet('Primary', 'Preview', 'Danger', 'DangerSubtle', 'Secondary', 'Subtle', 'Selection', 'SegmentNeutral')]
+		[string]$Variant = 'Secondary',
+		[switch]$Compact,
+		[switch]$Muted
+	)
+
+	if ($Script:SetButtonChromeScript -isnot [scriptblock])
+	{
+		throw 'Set-ButtonChrome proxy is not initialized.'
+	}
+
+	& $Script:SetButtonChromeScript @PSBoundParameters
+}
+
+function Test-GuiStartupSplashLive
+{
+	param (
+		[object]$Splash
+	)
+
+	if ($Splash -isnot [hashtable]) { return $false }
+	if (-not $Splash.ContainsKey('IsAlive')) { return $false }
+	if (-not $Splash.ContainsKey('WasRendered')) { return $false }
+
+	return ([bool]$Splash.IsAlive -and [bool]$Splash.WasRendered)
+}
 
 # Load GUI subsystem scripts during module import so Show-TweakGUI can call their top-level functions.
 . (Join-Path $PSScriptRoot '..' | Join-Path -ChildPath 'GUI' | Join-Path -ChildPath 'AppsModule.ps1')
@@ -1133,6 +1166,7 @@ Supports GUI primary tab for tweak handling inside Baseline.
 	$Script:SyncGameModeContextStateScript = ${function:Sync-GameModeContextState}
 	$Script:SyncGameModePlanToGamingControlsScript = ${function:Sync-GameModePlanToGamingControls}
 	$Script:UpdateGameModeStatusTextScript = ${function:Update-GameModeStatusText}
+	$Script:SetButtonChromeScript = ${function:Set-ButtonChrome}
 	$Script:ShowThemedDialogScript = ${function:Show-ThemedDialog}
 	$Script:ShowSelectedTweakPreviewScript = ${function:Show-SelectedTweakPreview}
 	$Script:GetUxRunActionLabelScript = ${function:Get-UxRunActionLabel}
@@ -1232,6 +1266,7 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 	# Resolve all first-run dependencies ONCE, here, while module scope is valid.
 	$firstRunDialogDispatcher = if ($Form -and $Form.Dispatcher) { $Form.Dispatcher } else { $null }
 	$closeLoadingSplashBlock = (Get-Item function:Close-LoadingSplashWindow -ErrorAction Stop).ScriptBlock
+	$testGuiStartupSplashLiveBlock = (Get-Item function:Test-GuiStartupSplashLive -ErrorAction Stop).ScriptBlock
 	$hideConsoleWindowBlock  = (Get-Item function:Hide-ConsoleWindow -ErrorAction Stop).ScriptBlock
 	$showThemedDialogBlock   = (Get-Item function:Show-ThemedDialog -ErrorAction Stop).ScriptBlock
 	$showWelcomeDialogBlock  = (Get-Item function:Show-FirstRunWelcomeDialog -ErrorAction Stop).ScriptBlock
@@ -1242,6 +1277,7 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 	$firstRunUseDarkMode     = ($Script:CurrentThemeName -eq 'Dark')
 
 	if ($closeLoadingSplashBlock -isnot [scriptblock]) { throw "Close-LoadingSplashWindow did not resolve to a scriptblock." }
+	if ($testGuiStartupSplashLiveBlock -isnot [scriptblock]) { throw "Test-GuiStartupSplashLive did not resolve to a scriptblock." }
 	if ($hideConsoleWindowBlock  -isnot [scriptblock]) { throw "Hide-ConsoleWindow did not resolve to a scriptblock." }
 	if ($showThemedDialogBlock   -isnot [scriptblock]) { throw "Show-ThemedDialog did not resolve to a scriptblock." }
 	if ($showWelcomeDialogBlock  -isnot [scriptblock]) { throw "Show-FirstRunWelcomeDialog did not resolve to a scriptblock." }
@@ -1282,6 +1318,26 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 	$firstRunDialogTitle = Get-UxFirstRunDialogTitle
 	$firstRunPresetLoadedStatusText = Get-UxPresetLoadedStatusText -PresetName $firstRunRecommendedPreset
 
+	$startupSplashHandle = $Global:LoadingSplash
+	$hasLiveStartupSplash = & $testGuiStartupSplashLiveBlock -Splash $startupSplashHandle
+	try
+	{
+		if ($hasLiveStartupSplash)
+		{
+			$Form.ShowInTaskbar = $false
+			$Form.Opacity = 0
+		}
+		else
+		{
+			$Form.ShowInTaskbar = $true
+			$Form.Opacity = 1
+		}
+	}
+	catch
+	{
+		Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.StartupVisibility.Apply'
+	}
+
 	$startupPresentationCompleted = $false
 	Register-GuiEventHandler -Source $Form -EventName 'ContentRendered' -Handler ({
 		if ($startupPresentationCompleted) { return }
@@ -1310,7 +1366,7 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 		try
 		{
 			$splashHandle = $Global:LoadingSplash
-			if ($splashHandle)
+			if (& $testGuiStartupSplashLiveBlock -Splash $splashHandle)
 			{
 				if (-not $splashHandle.ContainsKey('GuiReady')) { $splashHandle.GuiReady = $false }
 				$closeRunspace = [runspacefactory]::CreateRunspace()
@@ -1340,10 +1396,10 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 
 						# Reveal the GUI BEFORE closing the splash so the
 						# transition is instant: the GUI is already painted
-						# and ShowInTaskbar=true under the splash, so when
-						# the splash disappears the GUI is right there. If
-						# we close the splash first, there's a gap where
-						# neither window is visible (desktop flashes).
+						# before the splash disappears, so the main window is
+						# ready the moment the splash is hidden. If we close
+						# the splash first, there's a gap where neither window
+						# is visible (desktop flashes).
 						try
 						{
 							if ($mainWindow -and $mainWindow.Dispatcher -and -not $mainWindow.Dispatcher.HasShutdownStarted)
@@ -1524,8 +1580,8 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 		}
 	}.GetNewClosure()) | Out-Null
 
-	# Activate the main window only when it is about to be shown.
-	$Form.ShowActivated = $true
+	# Activate immediately only when the GUI is visible at ShowDialog time.
+	$Form.ShowActivated = -not $hasLiveStartupSplash
 	Initialize-WpfWindowForeground -Window $Form
 
 	# Set Preview Run as the default-focused action so it feels like the natural next step.

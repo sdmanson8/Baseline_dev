@@ -115,7 +115,7 @@ Describe 'Bootstrap CLI intent wiring' {
 
     It 'exits before showing the bootstrap splash for NoGui without work' {
         $noGuiExitIndex = $script:BootstrapContent.IndexOf('if ($NoGui -and -not $hasHeadlessWorkIntent)')
-        $splashIndex = $script:BootstrapContent.IndexOf('$Script:BootstrapSplash = Show-BootstrapLoadingSplash')
+        $splashIndex = $script:BootstrapContent.IndexOf("Get-Command -Name 'Show-BootstrapLoadingSplash'")
 
         $noGuiExitIndex | Should -BeGreaterThan 0
         $splashIndex | Should -BeGreaterThan 0
@@ -126,12 +126,20 @@ Describe 'Bootstrap CLI intent wiring' {
         $script:BootstrapContent | Should -Match '\$hasHeadlessIntent = \('
         $script:BootstrapContent | Should -Match '\$ComplianceCheck -or \$ScheduledRun -or \$TargetComputer -or \$NoGui'
         $script:BootstrapContent | Should -Match '\$shouldShowBootstrapSplash = -not \$hasHeadlessIntent'
-        $script:BootstrapContent | Should -Match 'if \(\$shouldShowBootstrapSplash\)\s*\{[\s\S]*\$Script:BootstrapSplash = Show-BootstrapLoadingSplash'
+        $script:BootstrapContent | Should -Match 'if \(\$shouldShowBootstrapSplash\)\s*\{[\s\S]*Get-Command -Name ''Show-BootstrapLoadingSplash'''
+        $script:BootstrapContent | Should -Match '\$env:BASELINE_INSTALLER_MODE -eq ''1'' -or \$env:BASELINE_SKIP_UPDATE -eq ''1'''
+        $script:BootstrapContent | Should -Match '\$Script:BootstrapSplash = & \$showBootstrapSplashCommand -StartUpdatesPulse'
     }
 
-    It 'primes the updates pulse from splash construction before the auto-update check runs' {
-        $script:BootstrapContent | Should -Match 'Show-BootstrapLoadingSplash -StartUpdatesPulse:\$shouldStartUpdatesPulse'
-        $startPulseIndex = $script:BootstrapContent.IndexOf('Show-BootstrapLoadingSplash -StartUpdatesPulse:$shouldStartUpdatesPulse')
+    It 'materializes headless modes as an array before counting them' {
+        $script:BootstrapContent | Should -Match '\[string\[\]\]\$headlessModes = @\('
+        $script:BootstrapContent | Should -Match '\$headlessModes.Count -gt 1'
+        $script:BootstrapContent | Should -Match '\$headlessModes.Count -eq 0'
+    }
+
+    It 'requests the updates pulse before the auto-update check runs' {
+        $script:BootstrapContent | Should -Match '& \$showBootstrapSplashCommand -StartUpdatesPulse'
+        $startPulseIndex = $script:BootstrapContent.IndexOf('& $showBootstrapSplashCommand -StartUpdatesPulse')
         $autoUpdateIndex = $script:BootstrapContent.IndexOf('Invoke-BaselineAutoUpdate -Splash $Script:BootstrapSplash -CurrentVersion $Script:CurrentAppVersion')
 
         $startPulseIndex | Should -BeGreaterThan 0
@@ -139,11 +147,16 @@ Describe 'Bootstrap CLI intent wiring' {
         $startPulseIndex | Should -BeLessThan $autoUpdateIndex
     }
 
+    It 'logs the bootstrap splash as shown only after the splash content rendered' {
+        $script:BootstrapContent | Should -Match '\$Script:BootstrapSplash\.WasRendered'
+        $script:BootstrapContent | Should -Match "Write-LaunchTrace 'Bootstrap splash shown'"
+        $script:BootstrapContent | Should -Match "Write-LaunchTrace 'Bootstrap splash was not shown'"
+    }
+
     It 'only primes the updates pulse when auto-update is eligible' {
-        $script:BootstrapContent | Should -Match '\$shouldStartUpdatesPulse = \('
-        $script:BootstrapContent | Should -Match '\$env:BASELINE_INSTALLER_MODE -ne ''1'''
-        $script:BootstrapContent | Should -Match '\$env:BASELINE_SKIP_UPDATE -ne ''1'''
-        $script:BootstrapContent | Should -Match '\$Script:CurrentAppVersion -ne ''0\.0\.0'''
+        $script:BootstrapContent | Should -Match '\$env:BASELINE_INSTALLER_MODE -eq ''1'' -or \$env:BASELINE_SKIP_UPDATE -eq ''1'''
+        $script:BootstrapContent | Should -Match '\$Script:BootstrapSplash = & \$showBootstrapSplashCommand\s*\r?\n'
+        $script:BootstrapContent | Should -Match '\$Script:BootstrapSplash = & \$showBootstrapSplashCommand -StartUpdatesPulse'
     }
 
     It 'fails closed when the GUI single-instance gate cannot run' {

@@ -28,7 +28,14 @@
 			if ($ChkSafeMode)
 			{
 				$ChkSafeMode.IsChecked = $Enabled
-				$ChkSafeMode.Content = (Get-UxLocalizedString -Key 'GuiChkSafeMode' -Fallback '')
+				$ChkSafeMode.Content = if ($Enabled)
+				{
+					Get-UxLocalizedString -Key 'GuiHelpSectionSafeMode' -Fallback 'Safe Mode'
+				}
+				else
+				{
+					Get-UxLocalizedString -Key 'GuiHelpSectionExpertMode' -Fallback 'Expert Mode'
+				}
 			}
 		}
 		finally
@@ -124,7 +131,14 @@
 			if ($ChkSafeMode)
 			{
 				$ChkSafeMode.IsChecked = $false
-				$ChkSafeMode.Content = (Get-UxLocalizedString -Key 'GuiChkSafeMode' -Fallback '')
+				$ChkSafeMode.Content = if ($Enabled)
+				{
+					Get-UxLocalizedString -Key 'GuiHelpSectionExpertMode' -Fallback 'Expert Mode'
+				}
+				else
+				{
+					Get-UxLocalizedString -Key 'GuiHelpSectionSafeMode' -Fallback 'Safe Mode'
+				}
 			}
 		}
 		finally

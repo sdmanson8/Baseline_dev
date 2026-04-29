@@ -364,7 +364,6 @@
 				<MenuItem Name="MenuView" Header="_View">
 					<MenuItem Name="MenuViewFilters" Header="Show Filters Panel" IsCheckable="True"/>
 					<MenuItem Name="MenuViewLogsPanel" Header="Open Logs"/>
-					<MenuItem Name="MenuViewTheme" Header="Switch to Light Mode" IsCheckable="True"/>
 				</MenuItem>
 				<MenuItem Name="MenuTools" Header="_Tools">
 					<MenuItem Name="MenuToolsAppsManager" Header="Apps Manager" Visibility="Collapsed"/>
@@ -462,8 +461,8 @@
 					<Border Name="HeaderSeparator" Grid.Column="6" Width="1" Height="28"
 						Margin="6,0,12,0" VerticalAlignment="Center" Opacity="0.65"/>
 					<StackPanel Name="SafeModeGroup" Grid.Column="7" Orientation="Vertical" Margin="0,0,12,0" VerticalAlignment="Center">
-						<StackPanel Orientation="Horizontal">
-							<CheckBox Name="ChkSafeMode" VerticalAlignment="Center" Content="" Margin="0,0,10,0" AutomationProperties.Name="Safe mode"/>
+						<StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+							<CheckBox Name="ChkSafeMode" VerticalAlignment="Center" Content="Safe Mode" Margin="0,0,10,0" AutomationProperties.Name="Safe / Expert mode"/>
 							<CheckBox Name="ChkDesignMode" VerticalAlignment="Center" Content="Design Mode" Margin="0,0,10,0" ToolTip="Build a config using default values instead of reading live system state." Visibility="Collapsed"/>
 							<CheckBox Name="ChkGameMode" Visibility="Collapsed" AutomationProperties.Name="Game mode"/>
 						</StackPanel>

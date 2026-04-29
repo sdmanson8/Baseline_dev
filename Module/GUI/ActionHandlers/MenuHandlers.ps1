@@ -73,6 +73,7 @@
 					LogFilePath = if ($Script:LogFilePath) { [string]$Script:LogFilePath } else { '' }
 					AdvancedMode = [bool]$Script:AdvancedMode
 					ExperimentalFeatures = [bool]$Script:ExperimentalFeatures
+					DesignMode = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'DesignMode' -Default $false) } else { [bool]$Script:DesignMode }
 				}
 
 				$result = & $showGuiSettingsDialogCommand -Current $currentPrefs
@@ -206,6 +207,22 @@
 				if ($result.ContainsKey('LogLevel')) { $Script:LogLevel = [string]$result.LogLevel }
 				if ($result.ContainsKey('LogFilePath')) { $Script:LogFilePath = [string]$result.LogFilePath }
 				if ($result.ContainsKey('ExperimentalFeatures')) { $Script:ExperimentalFeatures = [bool]$result.ExperimentalFeatures }
+				if ($result.ContainsKey('DesignMode'))
+				{
+					$desiredDesignMode = [bool]$result.DesignMode
+					if (Get-Command -Name 'Set-DesignModeState' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						try { Set-DesignModeState -Enabled $desiredDesignMode } catch { LogWarning ("Set-DesignModeState failed: {0}" -f $_.Exception.Message) }
+					}
+					else
+					{
+						$Script:DesignMode = $desiredDesignMode
+						if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+						{
+							try { Set-BaselineUserPreference -Key 'DesignMode' -Value $desiredDesignMode } catch { LogWarning ("Persist DesignMode failed: {0}" -f $_.Exception.Message) }
+						}
+					}
+				}
 
 				& $setGuiStatusTextCommand -Text (Get-UxLocalizedString -Key 'GuiSettingsSavedStatus' -Fallback 'Settings saved.') -Tone 'success'
 				LogInfo 'Settings dialog: preferences saved.'

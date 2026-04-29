@@ -1040,6 +1040,8 @@ $ExportedFunctions = @(
     'Initialize-BaselineMarkdownRuntime'
     'Test-BaselineMarkdownRuntimeReady'
     'ConvertFrom-BaselineMarkdownToFlowDocument'
+    'ConvertFrom-BaselineMarkdownToAnchoredFlowDocument'
+    'Get-BaselineMarkdownPipeline'
     'ConvertFrom-BaselineMarkdownToHtml'
     'Initialize-BaselineWebView2Runtime'
     'Test-BaselineWebView2RuntimeReady'

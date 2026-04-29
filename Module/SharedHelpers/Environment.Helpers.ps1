@@ -131,6 +131,207 @@ function Test-InteractiveHost
 
 <#
     .SYNOPSIS
+    Internal function Write-EnvironmentLaunchTrace.
+#>
+
+function Write-EnvironmentLaunchTrace
+{
+	<# .SYNOPSIS Writes environment-helper startup diagnostics to the launcher trace. #>
+	param(
+		[Parameter(Mandatory = $true)]
+		[AllowEmptyString()]
+		[string]
+		$Message
+	)
+
+	try
+	{
+		if ([string]::IsNullOrWhiteSpace([string]$Message)) { return }
+		$tracePath = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline-launch-trace.txt'
+		[System.IO.File]::AppendAllText(
+			$tracePath,
+			("{0:o} {1}`r`n" -f [DateTime]::UtcNow, [string]$Message),
+			[System.Text.Encoding]::UTF8
+		)
+	}
+	catch
+	{
+		$null = $_
+	}
+}
+
+<#
+    .SYNOPSIS
+    Internal function Write-EnvironmentSwallowedException.
+#>
+
+function Write-EnvironmentSwallowedException
+{
+	<# .SYNOPSIS Routes swallowed environment-helper exceptions without requiring the logging module to be in scope. #>
+	param(
+		[Parameter(Mandatory = $false)]
+		[object]
+		$ErrorRecord,
+
+		[Parameter(Mandatory = $true)]
+		[string]
+		$Source
+	)
+
+	try
+	{
+		$debugWriter = Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue
+		if ($debugWriter)
+		{
+			& $debugWriter -ErrorRecord $ErrorRecord -Source $Source
+			return
+		}
+
+		$message = if ($ErrorRecord -and $ErrorRecord.Exception) { [string]$ErrorRecord.Exception.Message } else { [string]$ErrorRecord }
+		if (-not [string]::IsNullOrWhiteSpace($message))
+		{
+			Write-EnvironmentLaunchTrace ("{0}: {1}" -f $Source, $message)
+		}
+	}
+	catch
+	{
+		$null = $_
+	}
+}
+
+<#
+    .SYNOPSIS
+    Internal function ConvertFrom-EnvironmentPowerShellDataFileAst.
+#>
+
+function ConvertFrom-EnvironmentPowerShellDataFileAst
+{
+	<# .SYNOPSIS Converts supported constant PowerShell data-file AST nodes to .NET values. #>
+	param(
+		[Parameter(Mandatory = $true)]
+		[System.Management.Automation.Language.Ast]
+		$Ast
+	)
+
+	if ($Ast -is [System.Management.Automation.Language.HashtableAst])
+	{
+		$result = @{}
+		foreach ($pair in $Ast.KeyValuePairs)
+		{
+			$key = ConvertFrom-EnvironmentPowerShellDataFileAst -Ast $pair.Item1
+			if ([string]::IsNullOrWhiteSpace([string]$key))
+			{
+				throw 'PowerShell data file contains an empty hashtable key.'
+			}
+
+			$result[[string]$key] = ConvertFrom-EnvironmentPowerShellDataFileAst -Ast $pair.Item2
+		}
+
+		return $result
+	}
+
+	if ($Ast -is [System.Management.Automation.Language.CommandExpressionAst])
+	{
+		return ConvertFrom-EnvironmentPowerShellDataFileAst -Ast $Ast.Expression
+	}
+
+	if ($Ast -is [System.Management.Automation.Language.PipelineAst])
+	{
+		if (@($Ast.PipelineElements).Count -ne 1)
+		{
+			throw 'PowerShell data file pipelines must contain exactly one constant expression.'
+		}
+
+		return ConvertFrom-EnvironmentPowerShellDataFileAst -Ast $Ast.PipelineElements[0]
+	}
+
+	if ($Ast -is [System.Management.Automation.Language.StringConstantExpressionAst])
+	{
+		return $Ast.Value
+	}
+
+	if ($Ast -is [System.Management.Automation.Language.ConstantExpressionAst])
+	{
+		return $Ast.Value
+	}
+
+	if ($Ast -is [System.Management.Automation.Language.VariableExpressionAst])
+	{
+		switch -Exact ($Ast.VariablePath.UserPath)
+		{
+			'true'  { return $true }
+			'false' { return $false }
+			'null'  { return $null }
+			default { throw ("PowerShell data file contains unsupported variable expression: {0}" -f $Ast.Extent.Text) }
+		}
+	}
+
+	if ($Ast -is [System.Management.Automation.Language.ArrayLiteralAst])
+	{
+		$values = foreach ($element in $Ast.Elements)
+		{
+			ConvertFrom-EnvironmentPowerShellDataFileAst -Ast $element
+		}
+
+		return @($values)
+	}
+
+	if ($Ast -is [System.Management.Automation.Language.ArrayExpressionAst])
+	{
+		$values = foreach ($statement in $Ast.SubExpression.Statements)
+		{
+			ConvertFrom-EnvironmentPowerShellDataFileAst -Ast $statement
+		}
+
+		return @($values)
+	}
+
+	if ($Ast -is [System.Management.Automation.Language.ParenExpressionAst])
+	{
+		return ConvertFrom-EnvironmentPowerShellDataFileAst -Ast $Ast.Pipeline
+	}
+
+	throw ("PowerShell data file contains unsupported expression: {0}" -f $Ast.Extent.Text)
+}
+
+<#
+    .SYNOPSIS
+    Internal function Import-EnvironmentPowerShellDataFile.
+#>
+
+function Import-EnvironmentPowerShellDataFile
+{
+	<# .SYNOPSIS Imports a constant PowerShell data file on Windows PowerShell 5.1. #>
+	param(
+		[Parameter(Mandatory = $true)]
+		[string]
+		$Path
+	)
+
+	$tokens = $null
+	$errors = $null
+	$ast = [System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$tokens, [ref]$errors)
+	if ($errors -and @($errors).Count -gt 0)
+	{
+		throw ("PowerShell data file parse failed: {0}" -f [string]$errors[0].Message)
+	}
+
+	if (-not $ast.EndBlock -or @($ast.EndBlock.Statements).Count -ne 1)
+	{
+		throw 'PowerShell data file must contain exactly one hashtable.'
+	}
+
+	$data = ConvertFrom-EnvironmentPowerShellDataFileAst -Ast $ast.EndBlock.Statements[0]
+	if ($data -isnot [hashtable])
+	{
+		throw 'PowerShell data file root must be a hashtable.'
+	}
+
+	return $data
+}
+
+<#
+    .SYNOPSIS
     Internal function Initialize-WpfWindowForeground.
 #>
 
@@ -701,13 +902,18 @@ function Get-BaselineWindowsThemePreference
 		{
 			if ($themeSettings.PSObject.Properties[$propertyName])
 			{
-				return if ([int]$themeSettings.$propertyName -eq 1) { 'Light' } else { 'Dark' }
+				if ([int]$themeSettings.$propertyName -eq 1)
+				{
+					return 'Light'
+				}
+
+				return 'Dark'
 			}
 		}
 	}
 	catch
 	{
-		Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineWindowsThemePreference.LoadTheme'
+		Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineWindowsThemePreference.LoadTheme'
 	}
 
 	return $null
@@ -761,7 +967,7 @@ function Get-BaselineStartupThemeName
 	}
 	catch
 	{
-		Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineStartupThemeName.LoadSession'
+		Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineStartupThemeName.LoadSession'
 	}
 
 	$windowsTheme = Get-BaselineWindowsThemePreference
@@ -789,6 +995,7 @@ function Show-BootstrapLoadingSplash
 
 	try
 	{
+		Write-EnvironmentLaunchTrace ('Bootstrap splash helper entered: embedded={0} startUpdatesPulse={1}' -f [System.Environment]::GetEnvironmentVariable('BASELINE_EMBEDDED_HOST'), [bool]$StartUpdatesPulse)
 		Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase -ErrorAction Stop
 
 		# Match the main GUI's startup sizing logic so the splash and the
@@ -833,6 +1040,12 @@ function Show-BootstrapLoadingSplash
 				GuiReady   = $false
 				IsReady    = $false
 				IsAlive    = $true
+				WasLoaded  = $false
+				WasShown   = $false
+				WasRendered = $false
+				WindowHandle = [IntPtr]::Zero
+				ErrorType  = $null
+				ErrorMessage = $null
 			})
 
 		# Theme colors
@@ -947,6 +1160,7 @@ function Show-BootstrapLoadingSplash
 	Foreground="$splashFg"
 	FontFamily="Segoe UI"
 	ShowInTaskbar="True"
+	ShowActivated="True"
 	Topmost="True"
 	WindowStyle="None"
 	AllowsTransparency="True">
@@ -1153,6 +1367,12 @@ function Show-BootstrapLoadingSplash
 					(New-Object System.Xml.XmlNodeReader $xaml)
 				)
 
+				$tracePath = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline-launch-trace.txt'
+				$writeSplashTrace = {
+					param([string]$Message)
+					try { [System.IO.File]::AppendAllText($tracePath, ("{0:o} {1}`r`n" -f [DateTime]::UtcNow, $Message), [System.Text.Encoding]::UTF8) } catch { }
+				}
+
 				if (-not [string]::IsNullOrWhiteSpace([string]$splashIconPath) -and (Test-Path -LiteralPath $splashIconPath -PathType Leaf))
 				{
 					try
@@ -1182,7 +1402,7 @@ function Show-BootstrapLoadingSplash
 							$splashCenterIcon.Source = $iconSource
 						}
 					}
-					catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.LoadSplashIcon' }
+					catch { & $writeSplashTrace ('Environment.ShowBootstrapLoadingSplash.LoadSplashIcon: {0}' -f $_.Exception.Message) }
 				}
 
 				# Apply Windows 11 rounded corners and dark title bar
@@ -1215,6 +1435,7 @@ namespace WinAPI {
 						$hwnd = (New-Object System.Windows.Interop.WindowInteropHelper($splash)).Handle
 						if ($hwnd -ne [IntPtr]::Zero)
 						{
+							$syncHash.WindowHandle = $hwnd
 							$darkMode = if ($splashDarkMode) { 1 } else { 0 }
 							$immAttr = if ([Environment]::OSVersion.Version.Build -ge 18362) { 20 } else { 19 }
 							[void]([WinAPI.SplashChrome]::DwmSetWindowAttribute($hwnd, $immAttr, [ref]$darkMode, 4))
@@ -1230,9 +1451,15 @@ namespace WinAPI {
 							$styleInt = $styleInt -bor [WinAPI.SplashChrome]::WS_MINIMIZEBOX
 							[void]([WinAPI.SplashChrome]::SetWindowLongPtr($hwnd, [WinAPI.SplashChrome]::GWL_STYLE, [IntPtr]::new($styleInt)))
 							[void]([WinAPI.SplashChrome]::SetWindowPos($hwnd, [IntPtr]::Zero, 0, 0, 0, 0, 0x27))
+							& $writeSplashTrace ('Bootstrap splash source initialized: hwnd={0}' -f $hwnd)
 						}
 					}
-					catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.ApplySplashChrome' }
+					catch
+					{
+						$syncHash.ErrorType = $_.Exception.GetType().FullName
+						$syncHash.ErrorMessage = $_.Exception.Message
+						& $writeSplashTrace ('Bootstrap splash chrome setup failed: {0}' -f $_.Exception.Message)
+					}
 				})
 
 				# Wire up minimize/close buttons and drag-to-move
@@ -1317,8 +1544,8 @@ namespace WinAPI {
 						'finalize'   = 'pending'
 					}
 					$syncHash.SplashTheme = $SplashTheme
-					if ($startUpdatesPulse)
-					{
+					$startUpdatesPulseAction = {
+						if (-not $startUpdatesPulse) { return }
 						try
 						{
 							if ($bootstrapLoadingSplashStepCommand)
@@ -1330,36 +1557,112 @@ namespace WinAPI {
 								& $bootstrapLoadingSplashStateCommand -Splash $syncHash -StatusText $splashLocCheckingForUpdates -Indeterminate
 							}
 						}
-						catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.StartUpdatesPulse' }
-					}
+						catch
+						{
+							$syncHash.ErrorType = $_.Exception.GetType().FullName
+							$syncHash.ErrorMessage = $_.Exception.Message
+							& $writeSplashTrace ('Bootstrap splash update pulse failed: {0}' -f $_.Exception.Message)
+						}
+					}.GetNewClosure()
 
-					$splash.Add_ContentRendered({ $syncHash.IsReady = $true })
+					$splash.Add_Loaded({
+						try
+						{
+							if ($splash.WindowState -eq [System.Windows.WindowState]::Minimized)
+							{
+								$splash.WindowState = [System.Windows.WindowState]::Normal
+							}
+							$splash.Topmost = $true
+							[void]$splash.Activate()
+							[void]$splash.Focus()
+							& $startUpdatesPulseAction
+							$syncHash.WasLoaded = $true
+							& $writeSplashTrace 'Bootstrap splash loaded and activated'
+						}
+						catch
+						{
+							$syncHash.ErrorType = $_.Exception.GetType().FullName
+							$syncHash.ErrorMessage = $_.Exception.Message
+							$syncHash.IsReady = $true
+							$syncHash.IsAlive = $false
+							& $writeSplashTrace ('Bootstrap splash load failed: {0}' -f $_.Exception.Message)
+							try { $splash.Close() } catch { }
+						}
+					})
+
+					$splash.Add_ContentRendered({
+						try
+						{
+							$syncHash.WasShown = $true
+							$syncHash.WasRendered = $true
+							$syncHash.IsReady = $true
+							& $writeSplashTrace 'Bootstrap splash content rendered'
+						}
+						catch
+						{
+							$syncHash.ErrorType = $_.Exception.GetType().FullName
+							$syncHash.ErrorMessage = $_.Exception.Message
+							$syncHash.IsReady = $true
+							$syncHash.IsAlive = $false
+							& $writeSplashTrace ('Bootstrap splash content render failed: {0}' -f $_.Exception.Message)
+							try { $splash.Close() } catch { }
+						}
+					})
+
+					$splash.Add_Activated({
+						try { & $writeSplashTrace 'Bootstrap splash activated' } catch { }
+					})
+
 				$splash.Add_Closed({
 					$syncHash.IsAlive = $false
+					& $writeSplashTrace 'Bootstrap splash closed'
 					$splash.Dispatcher.InvokeShutdown()
 				})
 
+				& $writeSplashTrace 'Bootstrap splash ShowDialog starting'
 				$splash.ShowDialog() | Out-Null
 			}
 			catch
 			{
+				$syncHash.ErrorType = $_.Exception.GetType().FullName
+				$syncHash.ErrorMessage = $_.Exception.Message
 				$syncHash.IsReady = $true
 				$syncHash.IsAlive = $false
+				try
+				{
+					$tracePath = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline-launch-trace.txt'
+					[System.IO.File]::AppendAllText($tracePath, ("{0:o} Bootstrap splash runspace failed: {1}`r`n" -f [DateTime]::UtcNow, $_.Exception.Message), [System.Text.Encoding]::UTF8)
+				}
+				catch { }
 			}
 		})
 
+		Write-EnvironmentLaunchTrace 'Bootstrap splash helper BeginInvoke starting'
 		$asyncResult = $ps.BeginInvoke()
 		$deadline = [datetime]::Now.AddSeconds(10)
 		while (-not $syncHash.IsReady -and [datetime]::Now -lt $deadline)
 		{
 			Start-Sleep -Milliseconds 50
 		}
+		Write-EnvironmentLaunchTrace ('Bootstrap splash helper wait complete: IsReady={0} IsAlive={1} WasLoaded={2} WasRendered={3} Error={4}' -f [bool]$syncHash.IsReady, [bool]$syncHash.IsAlive, [bool]$syncHash.WasLoaded, [bool]$syncHash.WasRendered, [string]$syncHash.ErrorMessage)
 
-		if (-not $syncHash.IsAlive)
+		if ((-not $syncHash.IsAlive) -or (-not $syncHash.WasRendered))
 		{
 			# Splash never became ready - clean up the background runspace.
-			try { $ps.Stop(); $ps.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.CleanupPowerShell' }
-			try { $runspace.Close(); $runspace.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.CleanupRunspace' }
+			try
+			{
+				if (-not [string]::IsNullOrWhiteSpace([string]$syncHash.ErrorMessage))
+				{
+					Write-EnvironmentLaunchTrace ('Bootstrap splash failed before it became visible: {0}' -f [string]$syncHash.ErrorMessage)
+				}
+				else
+				{
+					Write-EnvironmentLaunchTrace 'Bootstrap splash failed before it became visible.'
+				}
+			}
+			catch { }
+			try { $ps.Stop(); $ps.Dispose() } catch { Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.CleanupPowerShell' }
+			try { $runspace.Close(); $runspace.Dispose() } catch { Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.CleanupRunspace' }
 			return $null
 		}
 
@@ -1367,12 +1670,15 @@ namespace WinAPI {
 		$syncHash._AsyncResult = $asyncResult
 		$syncHash._Runspace    = $runspace
 
+		Write-EnvironmentLaunchTrace ('Bootstrap splash helper returning live splash: IsAlive={0} WasRendered={1} WindowHandle={2}' -f [bool]$syncHash.IsAlive, [bool]$syncHash.WasRendered, [string]$syncHash.WindowHandle)
 		return $syncHash
 	}
 	catch
 	{
-		try { if ($ps) { $ps.Stop(); $ps.Dispose() } } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.StopPowerShell' }
-		try { if ($runspace) { $runspace.Close(); $runspace.Dispose() } } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.StopRunspace' }
+		Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash'
+		Write-EnvironmentLaunchTrace ('Bootstrap splash helper failed: {0}' -f $_.Exception.Message)
+		try { if ($ps) { $ps.Stop(); $ps.Dispose() } } catch { Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.StopPowerShell' }
+		try { if ($runspace) { $runspace.Close(); $runspace.Dispose() } } catch { Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.StopRunspace' }
 		return $null
 	}
 }
@@ -2931,7 +3237,7 @@ function Get-BaselineDisplayVersion
 
 	try
 	{
-		$moduleManifest = Import-PowerShellDataFile -Path $moduleManifestPath -ErrorAction Stop
+		$moduleManifest = Import-EnvironmentPowerShellDataFile -Path $moduleManifestPath
 		if ($moduleManifest.ContainsKey('ModuleVersion') -and -not [string]::IsNullOrWhiteSpace([string]$moduleManifest.ModuleVersion))
 		{
 			$version = "v{0}" -f [string]$moduleManifest.ModuleVersion
@@ -2942,7 +3248,7 @@ function Get-BaselineDisplayVersion
 			return $version
 		}
 	}
-	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineDisplayVersion.LoadManifest' }
+	catch { Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineDisplayVersion.LoadManifest' }
 
 	return $null
 }
@@ -3202,6 +3508,31 @@ function Test-BaselineMarkdownRuntimeReady
 
 <#
     .SYNOPSIS
+    Internal function Get-BaselineMarkdownPipeline.
+#>
+function Get-BaselineMarkdownPipeline
+{
+	<# .SYNOPSIS Returns a cached MarkdownPipeline configured with GitHub-style heading identifiers. #>
+	if ($Script:CachedBaselineMarkdownPipeline) { return $Script:CachedBaselineMarkdownPipeline }
+
+	if (-not (Test-BaselineMarkdownRuntimeReady))
+	{
+		[void](Initialize-BaselineMarkdownRuntime)
+	}
+
+	if (-not (Test-BaselineMarkdownRuntimeReady))
+	{
+		throw 'Markdig runtime is not available.'
+	}
+
+	$builder = New-Object Markdig.MarkdownPipelineBuilder
+	$builder = [Markdig.MarkdownExtensions]::UseAutoIdentifiers($builder, [Markdig.Extensions.AutoIdentifiers.AutoIdentifierOptions]::GitHub)
+	$Script:CachedBaselineMarkdownPipeline = $builder.Build()
+	return $Script:CachedBaselineMarkdownPipeline
+}
+
+<#
+    .SYNOPSIS
     Internal function .
 #>
 function ConvertFrom-BaselineMarkdownToFlowDocument
@@ -3225,6 +3556,156 @@ function ConvertFrom-BaselineMarkdownToFlowDocument
 	}
 
 	return [Markdig.Wpf.Markdown]::ToFlowDocument([string]$Markdown)
+}
+
+<#
+    .SYNOPSIS
+    Internal function ConvertFrom-BaselineMarkdownToAnchoredFlowDocument.
+#>
+function ConvertFrom-BaselineMarkdownToAnchoredFlowDocument
+{
+	<#
+		.SYNOPSIS
+		Renders Markdown into a FlowDocument with anchor map and repaired hyperlinks.
+		.DESCRIPTION
+		Markdig.Wpf can drop fragment-only URLs from anchor links. This helper
+		parses the Markdown AST with the same pipeline, pairs AST links/headings
+		with the rendered FlowDocument, and returns enough metadata for callers to
+		handle in-document navigation without replacing the README body.
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[AllowEmptyString()]
+		[string]$Markdown
+	)
+
+	if (-not (Test-BaselineMarkdownRuntimeReady))
+	{
+		[void](Initialize-BaselineMarkdownRuntime)
+	}
+
+	if (-not (Test-BaselineMarkdownRuntimeReady))
+	{
+		throw 'Markdig runtime is not available.'
+	}
+
+	$pipeline = Get-BaselineMarkdownPipeline
+	$ast = [Markdig.Markdown]::Parse([string]$Markdown, $pipeline)
+
+	$allNodes = @([Markdig.Syntax.MarkdownObjectExtensions]::Descendants($ast))
+	$astHeadings = @($allNodes | Where-Object { $_ -is [Markdig.Syntax.HeadingBlock] })
+	$astLinks = @($allNodes | Where-Object { $_ -is [Markdig.Syntax.Inlines.LinkInline] })
+
+	$astHeadingIds = New-Object System.Collections.Generic.List[string]
+	foreach ($heading in $astHeadings)
+	{
+		$attributes = [Markdig.Renderers.Html.HtmlAttributesExtensions]::GetAttributes($heading)
+		$id = if ($attributes -and $attributes.Id) { [string]$attributes.Id } else { $null }
+		[void]$astHeadingIds.Add($id)
+	}
+
+	$astLinkUrls = New-Object System.Collections.Generic.List[string]
+	foreach ($link in $astLinks)
+	{
+		[void]$astLinkUrls.Add([string]$link.Url)
+	}
+
+	$document = [Markdig.Wpf.Markdown]::ToFlowDocument([string]$Markdown)
+	$docHeadings = New-Object System.Collections.Generic.List[System.Windows.Documents.Paragraph]
+	$docHyperlinks = New-Object System.Collections.Generic.List[System.Windows.Documents.Hyperlink]
+	$defaultFontSize = [double]$document.FontSize
+	if ($defaultFontSize -le 0) { $defaultFontSize = 14.0 }
+
+	$blockStack = New-Object System.Collections.Generic.Stack[object]
+	foreach ($block in ($document.Blocks | ForEach-Object { $_ })) { $blockStack.Push($block) }
+	$orderedBlocks = New-Object System.Collections.Generic.List[object]
+	while ($blockStack.Count -gt 0)
+	{
+		$block = $blockStack.Pop()
+		[void]$orderedBlocks.Insert(0, $block)
+		if ($block -is [System.Windows.Documents.Section])
+		{
+			foreach ($subBlock in ($block.Blocks | ForEach-Object { $_ })) { $blockStack.Push($subBlock) }
+		}
+		elseif ($block -is [System.Windows.Documents.List])
+		{
+			foreach ($listItem in ($block.ListItems | ForEach-Object { $_ }))
+			{
+				foreach ($subBlock in ($listItem.Blocks | ForEach-Object { $_ })) { $blockStack.Push($subBlock) }
+			}
+		}
+		elseif ($block -is [System.Windows.Documents.Table])
+		{
+			foreach ($rowGroup in ($block.RowGroups | ForEach-Object { $_ }))
+			{
+				foreach ($row in ($rowGroup.Rows | ForEach-Object { $_ }))
+				{
+					foreach ($cell in ($row.Cells | ForEach-Object { $_ }))
+					{
+						foreach ($subBlock in ($cell.Blocks | ForEach-Object { $_ })) { $blockStack.Push($subBlock) }
+					}
+				}
+			}
+		}
+	}
+
+	foreach ($block in $orderedBlocks)
+	{
+		if (-not ($block -is [System.Windows.Documents.Paragraph])) { continue }
+		$paragraph = [System.Windows.Documents.Paragraph]$block
+		try { $paragraphFontSize = [double]$paragraph.FontSize } catch { $paragraphFontSize = 0.0 }
+		if ($paragraphFontSize -gt ($defaultFontSize + 0.5))
+		{
+			[void]$docHeadings.Add($paragraph)
+		}
+
+		$inlineStack = New-Object System.Collections.Generic.Stack[object]
+		foreach ($inline in ($paragraph.Inlines | ForEach-Object { $_ })) { $inlineStack.Push($inline) }
+		$inlineOrdered = New-Object System.Collections.Generic.List[object]
+		while ($inlineStack.Count -gt 0)
+		{
+			$inline = $inlineStack.Pop()
+			[void]$inlineOrdered.Insert(0, $inline)
+			if ($inline -is [System.Windows.Documents.Span])
+			{
+				foreach ($child in ($inline.Inlines | ForEach-Object { $_ })) { $inlineStack.Push($child) }
+			}
+		}
+		foreach ($inline in $inlineOrdered)
+		{
+			if ($inline -is [System.Windows.Documents.Hyperlink]) { [void]$docHyperlinks.Add($inline) }
+		}
+	}
+
+	$anchorMap = New-Object "System.Collections.Generic.Dictionary[string, System.Windows.Documents.Paragraph]"
+	$headingPairs = [Math]::Min($astHeadingIds.Count, $docHeadings.Count)
+	for ($i = 0; $i -lt $headingPairs; $i++)
+	{
+		$id = $astHeadingIds[$i]
+		if ([string]::IsNullOrWhiteSpace([string]$id)) { continue }
+		$docHeadings[$i].Tag = $id
+		if (-not $anchorMap.ContainsKey($id)) { $anchorMap[$id] = $docHeadings[$i] }
+	}
+
+	$linkPairs = [Math]::Min($astLinkUrls.Count, $docHyperlinks.Count)
+	for ($i = 0; $i -lt $linkPairs; $i++)
+	{
+		$url = $astLinkUrls[$i]
+		if ([string]::IsNullOrWhiteSpace([string]$url)) { continue }
+		$docHyperlinks[$i].Tag = $url
+		try
+		{
+			$docHyperlinks[$i].NavigateUri = [System.Uri]::new([string]$url, [System.UriKind]::RelativeOrAbsolute)
+		}
+		catch { }
+	}
+
+	return [PSCustomObject]@{
+		Document = $document
+		AnchorMap = $anchorMap
+		Hyperlinks = $docHyperlinks
+	}
 }
 
 <#
@@ -3257,7 +3738,7 @@ function ConvertFrom-BaselineMarkdownToHtml
 		throw 'Markdig runtime is not available.'
 	}
 
-	$bodyHtml = [Markdig.Markdown]::ToHtml([string]$Markdown)
+	$bodyHtml = [Markdig.Markdown]::ToHtml([string]$Markdown, (Get-BaselineMarkdownPipeline))
 	return @"
 <!doctype html>
 <html>

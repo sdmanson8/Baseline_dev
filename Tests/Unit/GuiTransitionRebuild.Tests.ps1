@@ -125,6 +125,14 @@ Describe 'Focused GUI rebuilds' {
 
     It 'routes GUI region search refresh and splash-close cleanup through Write-DebugSwallowedException' {
         $script:GuiContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Regions\.GUI\.SearchRefreshTimer\.Stop'''
+        $script:GuiContent | Should -Match 'function Test-GuiStartupSplashLive'
+        $script:GuiContent | Should -Match 'if \(-not \$Splash\.ContainsKey\(''WasRendered''\)\) \{ return \$false \}'
+        $script:GuiContent | Should -Match 'return \(\[bool\]\$Splash\.IsAlive -and \[bool\]\$Splash\.WasRendered\)'
+        $script:GuiContent | Should -Match '\$testGuiStartupSplashLiveBlock = \(Get-Item function:Test-GuiStartupSplashLive -ErrorAction Stop\)\.ScriptBlock'
+        $script:GuiContent | Should -Match '\$hasLiveStartupSplash = & \$testGuiStartupSplashLiveBlock -Splash \$startupSplashHandle'
+        $script:GuiContent | Should -Match 'if \(& \$testGuiStartupSplashLiveBlock -Splash \$splashHandle\)'
+        $script:GuiContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Regions\.GUI\.StartupVisibility\.Apply'''
+        $script:GuiContent | Should -Match '\$Form\.ShowActivated = -not \$hasLiveStartupSplash'
         $script:GuiContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Regions\.GUI\.SplashClose\.LogWarning\.MainWindowTaskbarOpacity'''
         $script:GuiContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Regions\.GUI\.SplashClose\.LogWarning\.MainWindowActivate'''
         $script:GuiContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Regions\.GUI\.SplashClose\.LogWarning\.DispatcherInvokeShutdown'''

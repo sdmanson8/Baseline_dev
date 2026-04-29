@@ -933,14 +933,56 @@ if ($Script:SingleInstanceDecision -and $Script:SingleInstanceDecision.Action -e
 		if ($Script:IsEmbeddedHost) { return } else { exit 2 }
 	}
 
-	$shouldStartUpdatesPulse = (
-		$env:BASELINE_INSTALLER_MODE -ne '1' -and
-		$env:BASELINE_SKIP_UPDATE -ne '1' -and
-		-not [string]::IsNullOrWhiteSpace([string]$Script:CurrentAppVersion) -and
-		$Script:CurrentAppVersion -ne '0.0.0'
-	)
-	$Script:BootstrapSplash = Show-BootstrapLoadingSplash -StartUpdatesPulse:$shouldStartUpdatesPulse
-	Write-LaunchTrace 'Bootstrap splash shown'
+	Write-LaunchTrace 'Bootstrap splash requested'
+	$showBootstrapSplashCommand = Get-Command -Name 'Show-BootstrapLoadingSplash' -CommandType Function -ErrorAction SilentlyContinue
+	if ($showBootstrapSplashCommand)
+	{
+		Write-LaunchTrace ('Bootstrap splash command resolved: {0}' -f [string]$showBootstrapSplashCommand.ModuleName)
+		try
+		{
+			if ($env:BASELINE_INSTALLER_MODE -eq '1' -or $env:BASELINE_SKIP_UPDATE -eq '1')
+			{
+				$Script:BootstrapSplash = & $showBootstrapSplashCommand
+			}
+			else
+			{
+				$Script:BootstrapSplash = & $showBootstrapSplashCommand -StartUpdatesPulse
+			}
+		}
+		catch
+		{
+			Write-LaunchTrace ('Bootstrap splash command failed: {0}' -f $_.Exception.Message)
+			Write-DebugSwallowedException -ErrorRecord $_ -Source 'Bootstrap.ShowBootstrapLoadingSplash'
+			$Script:BootstrapSplash = $null
+		}
+	}
+	else
+	{
+		Write-LaunchTrace 'Bootstrap splash command was not found'
+		$Script:BootstrapSplash = $null
+	}
+	$bootstrapSplashType = if ($Script:BootstrapSplash) { $Script:BootstrapSplash.GetType().FullName } else { '<null>' }
+	$bootstrapSplashIsAlive = '<missing>'
+	$bootstrapSplashWasRendered = '<missing>'
+	if ($Script:BootstrapSplash -is [hashtable])
+	{
+		if ($Script:BootstrapSplash.ContainsKey('IsAlive')) { $bootstrapSplashIsAlive = [string]$Script:BootstrapSplash.IsAlive }
+		if ($Script:BootstrapSplash.ContainsKey('WasRendered')) { $bootstrapSplashWasRendered = [string]$Script:BootstrapSplash.WasRendered }
+	}
+	elseif ($Script:BootstrapSplash)
+	{
+		if ($Script:BootstrapSplash.PSObject.Properties['IsAlive']) { $bootstrapSplashIsAlive = [string]$Script:BootstrapSplash.IsAlive }
+		if ($Script:BootstrapSplash.PSObject.Properties['WasRendered']) { $bootstrapSplashWasRendered = [string]$Script:BootstrapSplash.WasRendered }
+	}
+	Write-LaunchTrace ('Bootstrap splash handle state: null={0} type={1} isAlive={2} wasRendered={3}' -f ($null -eq $Script:BootstrapSplash), $bootstrapSplashType, $bootstrapSplashIsAlive, $bootstrapSplashWasRendered)
+	if ($Script:BootstrapSplash -and $Script:BootstrapSplash.IsAlive -and $Script:BootstrapSplash.WasRendered)
+	{
+		Write-LaunchTrace 'Bootstrap splash shown'
+	}
+	else
+	{
+		Write-LaunchTrace 'Bootstrap splash was not shown'
+	}
 }
 else
 {
@@ -997,8 +1039,12 @@ catch [System.InvalidOperationException]
 Import-BaselineIncludedTweakLibraries -IncludePaths $Include
 
 # Validate mutual exclusion using original bound parameters before any expansion.
-# Keep this as a string array so Count remains reliable even for a single mode.
-[string[]]$headlessModes = @($Preset, $GameModeProfile, $ScenarioProfile, $(if ($Functions) { 'Functions' }), $(if ($ApplyProfile) { 'ApplyProfile' })) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+# Keep this as a string array so Count remains reliable even for a single mode
+# or when no headless mode is present.
+[string[]]$headlessModes = @(
+	@($Preset, $GameModeProfile, $ScenarioProfile, $(if ($Functions) { 'Functions' }), $(if ($ApplyProfile) { 'ApplyProfile' })) |
+		Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+)
 if ($ComplianceCheck -and $headlessModes.Count -gt 0)
 {
 	throw '-ComplianceCheck cannot be combined with -Preset, -GameModeProfile, -ScenarioProfile, or -Functions.'

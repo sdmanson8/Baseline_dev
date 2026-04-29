@@ -394,6 +394,17 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 				{
 					$Global:LoadingSplash.GuiReady = $true
 				}
+				if ($Script:MainForm)
+				{
+					$Script:MainForm.Visibility = [System.Windows.Visibility]::Visible
+					$Script:MainForm.ShowInTaskbar = $true
+					$Script:MainForm.Opacity = 1
+					if ($Script:MainForm.WindowState -eq [System.Windows.WindowState]::Minimized)
+					{
+						$Script:MainForm.WindowState = [System.Windows.WindowState]::Normal
+					}
+					[void]$Script:MainForm.Activate()
+				}
 			}
 			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.UpdateView.SignalGuiReady' }
 

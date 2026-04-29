@@ -21,6 +21,19 @@ Describe 'MainWindow.xaml accessibility coverage' {
             $reader.Dispose()
         }
     }
+
+    It 'starts hidden while the startup splash owns presentation handoff' {
+        $script:xamlText | Should -Match 'Opacity="0"'
+        $script:xamlText | Should -Match 'ShowInTaskbar="False"'
+        $script:xamlText | Should -Match 'MenuFileSettings'
+        $script:xamlText | Should -Not -Match 'MenuViewTheme'
+    }
+
+    It 'uses one dynamic Safe or Expert label on the header mode toggle' {
+        $script:xamlText | Should -Not -Match 'TxtSafeModeLabel|TxtExpertModeLabel'
+        $script:xamlText | Should -Match 'Name="ChkSafeMode"[^>]+Content="Safe Mode"'
+        $script:xamlText | Should -Match 'AutomationProperties.Name="Safe / Expert mode"'
+    }
 }
 
 Describe 'MainWindow tab order coverage' {

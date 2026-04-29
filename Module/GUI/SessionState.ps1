@@ -1322,7 +1322,14 @@ function Import-GuiRemoteTargetApprovalPolicy
 			if ($ChkSafeMode)
 			{
 				$ChkSafeMode.IsChecked = $desiredSafe
-				$ChkSafeMode.Content = (Get-UxLocalizedString -Key 'GuiChkSafeMode' -Fallback '')
+				$ChkSafeMode.Content = if ($desiredSafe)
+				{
+					Get-UxLocalizedString -Key 'GuiHelpSectionSafeMode' -Fallback 'Safe Mode'
+				}
+				else
+				{
+					Get-UxLocalizedString -Key 'GuiHelpSectionExpertMode' -Fallback 'Expert Mode'
+				}
 			}
 
 			$Script:GameMode = $desiredGameMode

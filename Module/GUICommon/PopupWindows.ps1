@@ -368,6 +368,38 @@ function Add-GuiPopupWindowChrome
 
 <#
     .SYNOPSIS
+    Internal function Show-GuiActivatedDialog.
+#>
+function Show-GuiActivatedDialog
+{
+	# Without forcing activation, WPF dialogs sometimes open unactivated and the
+	# first click only focuses the window instead of firing the control. A short
+	# Topmost toggle on Loaded and ContentRendered reliably pulls the dialog to the
+	# foreground and keeps first interaction consistent.
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory = $true)]
+		[System.Windows.Window]$Window
+	)
+
+	$activate = {
+		param($s, $e)
+		$null = $e
+		try { if (-not $s.IsVisible) { return } } catch { return }
+		try { $s.Topmost = $true } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.FocusSelf.TopmostOn' }
+		try { [void]$s.Activate() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.FocusSelf.Activate' }
+		try { [void]$s.Focus() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.FocusSelf.Focus' }
+		try { $s.Topmost = $false } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.FocusSelf.TopmostOff' }
+	}
+
+	$Window.Add_Loaded($activate)
+	$Window.Add_ContentRendered($activate)
+
+	return $Window.ShowDialog()
+}
+
+<#
+    .SYNOPSIS
     Internal function Register-GuiPopupThemeWindow.
 #>
 function Register-GuiPopupThemeWindow

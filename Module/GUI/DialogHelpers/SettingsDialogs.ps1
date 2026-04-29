@@ -259,42 +259,50 @@
 	    preferences when the user clicks Save, or $null when cancelled.
 	#>
 
-	function Show-GuiSettingsDialog
+function Show-GuiSettingsDialog
+{
+	param (
+		[hashtable]$Current
+	)
+
+	$__perf = Start-GuiPerfScope -Name 'Show-GuiSettingsDialog.Open'
+	$theme = $Script:CurrentTheme
+	if (-not $theme)
 	{
-		param (
-			[hashtable]$Current
-		)
+		Stop-GuiPerfScope -Scope $__perf -ExtraNote 'no-theme'
+		return $null
+	}
 
-		$__perf = Start-GuiPerfScope -Name 'Show-GuiSettingsDialog.Open'
-		$theme = $Script:CurrentTheme
-		if (-not $theme)
-		{
-			Stop-GuiPerfScope -Scope $__perf -ExtraNote 'no-theme'
-			return $null
-		}
+	if (-not $Current) { $Current = @{} }
 
-		if (-not $Current) { $Current = @{} }
+	$bc = New-SafeBrushConverter -Context 'DialogHelpers-Settings'
+	$windowTitle = Get-UxLocalizedString -Key 'GuiSettings' -Fallback 'Settings'
+	$windowSubtitle = Get-UxLocalizedString -Key 'GuiSettingsSubtitle' -Fallback 'Configure how Baseline looks and behaves. These are user preferences only.'
+	$cancelLabel = Get-UxLocalizedString -Key 'GuiCancelButton' -Fallback 'Cancel'
+	$saveLabel = Get-UxLocalizedString -Key 'GuiSaveButton' -Fallback 'Save'
 
-		$bc = New-SafeBrushConverter -Context 'DialogHelpers-Settings'
-		$windowTitle = Get-UxLocalizedString -Key 'GuiSettings' -Fallback 'Settings'
-		$windowSubtitle = Get-UxLocalizedString -Key 'GuiSettingsSubtitle' -Fallback 'Configure how Baseline looks and behaves. These are user preferences only.'
-		$cancelLabel = Get-UxLocalizedString -Key 'GuiCancelButton' -Fallback 'Cancel'
-		$saveLabel = Get-UxLocalizedString -Key 'GuiSaveButton' -Fallback 'Save'
+	$generalHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupGeneral' -Fallback 'General'
+	$appearanceHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupAppearance' -Fallback 'Appearance'
+	$safetyHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupSafety' -Fallback 'Safety / Execution'
+	$appsHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupApplications' -Fallback 'Applications'
+	$loggingHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupLogging' -Fallback 'Logging'
+	$advancedHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupAdvanced' -Fallback 'Advanced'
 
-		$generalHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupGeneral' -Fallback 'General'
-		$appearanceHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupAppearance' -Fallback 'Appearance'
-		$safetyHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupSafety' -Fallback 'Safety / Execution'
-		$appsHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupApplications' -Fallback 'Applications'
-		$loggingHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupLogging' -Fallback 'Logging'
-		$advancedHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupAdvanced' -Fallback 'Advanced'
+	$cardBg = if ($theme.CardBg) { [string]$theme.CardBg } else { [string]$theme.PanelBg }
+	$cardBorder = if ($theme.CardBorder) { [string]$theme.CardBorder } else { [string]$theme.BorderColor }
+	$tabHoverBg = if ($theme.InputHoverBg) { [string]$theme.InputHoverBg } else { [string]$theme.CardBg }
+	$textPrimary = if ($theme.TextPrimary) { [string]$theme.TextPrimary } else { '#CDD6F4' }
+	$textMuted = if ($theme.TextMuted) { [string]$theme.TextMuted } else { '#828AA2' }
+	$accentBlue = if ($theme.AccentBlue) { [string]$theme.AccentBlue } else { '#89B4FA' }
+	$activeBorder = if ($theme.ActiveTabBorder) { [string]$theme.ActiveTabBorder } else { $accentBlue }
 
-		[xml]$xaml = @"
+	[xml]$xaml = @"
 <Window
 	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
 	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 	Title="$windowTitle"
-	Width="900" Height="720"
-	MinWidth="780" MinHeight="560"
+	Width="880" Height="660"
+	MinWidth="760" MinHeight="560"
 	WindowStartupLocation="CenterOwner"
 	ResizeMode="CanResizeWithGrip"
 	FontFamily="Segoe UI"
@@ -302,6 +310,90 @@
 	Background="Transparent"
 	WindowStyle="None"
 	AllowsTransparency="True">
+	<Window.Resources>
+		<Style TargetType="TextBlock" x:Key="SectionHeading">
+			<Setter Property="FontSize" Value="14"/>
+			<Setter Property="FontWeight" Value="SemiBold"/>
+			<Setter Property="Foreground" Value="$textPrimary"/>
+			<Setter Property="Margin" Value="0,0,0,4"/>
+		</Style>
+		<Style TargetType="TextBlock" x:Key="SectionSubtitle">
+			<Setter Property="FontSize" Value="11"/>
+			<Setter Property="Foreground" Value="$textMuted"/>
+			<Setter Property="Margin" Value="0,0,0,16"/>
+			<Setter Property="TextWrapping" Value="Wrap"/>
+		</Style>
+		<Style TargetType="TextBlock" x:Key="FieldLabel">
+			<Setter Property="FontSize" Value="12"/>
+			<Setter Property="FontWeight" Value="Medium"/>
+			<Setter Property="Foreground" Value="$textPrimary"/>
+			<Setter Property="Margin" Value="0,0,0,6"/>
+		</Style>
+		<Style TargetType="TextBlock" x:Key="HelperText">
+			<Setter Property="FontSize" Value="11"/>
+			<Setter Property="Foreground" Value="$textMuted"/>
+			<Setter Property="Margin" Value="0,4,0,0"/>
+			<Setter Property="TextWrapping" Value="Wrap"/>
+		</Style>
+		<Style TargetType="CheckBox" x:Key="SettingsCheck">
+			<Setter Property="Foreground" Value="$textPrimary"/>
+			<Setter Property="FontSize" Value="12"/>
+			<Setter Property="FontWeight" Value="Medium"/>
+			<Setter Property="Margin" Value="0,0,0,10"/>
+		</Style>
+		<Style TargetType="ComboBox" x:Key="SettingsCombo">
+			<Setter Property="Width" Value="320"/>
+			<Setter Property="HorizontalAlignment" Value="Left"/>
+			<Setter Property="Margin" Value="0,0,0,18"/>
+			<Setter Property="Padding" Value="10,4"/>
+			<Setter Property="MinHeight" Value="30"/>
+		</Style>
+		<Style TargetType="TextBox" x:Key="SettingsTextBox">
+			<Setter Property="HorizontalAlignment" Value="Left"/>
+			<Setter Property="Margin" Value="0,0,0,18"/>
+			<Setter Property="Padding" Value="8,6"/>
+			<Setter Property="MinHeight" Value="30"/>
+		</Style>
+		<Style TargetType="TabItem">
+			<Setter Property="Padding" Value="18,10"/>
+			<Setter Property="Margin" Value="0,0,4,0"/>
+			<Setter Property="FontSize" Value="13"/>
+			<Setter Property="FontWeight" Value="Normal"/>
+			<Setter Property="Foreground" Value="$textMuted"/>
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="Cursor" Value="Hand"/>
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="TabItem">
+						<Border Name="TabRoot"
+								Background="{TemplateBinding Background}"
+								BorderBrush="Transparent"
+								BorderThickness="0,0,0,3"
+								Padding="{TemplateBinding Padding}"
+								CornerRadius="4,4,0,0"
+								SnapsToDevicePixels="True">
+							<ContentPresenter ContentSource="Header"
+											  HorizontalAlignment="Center"
+											  VerticalAlignment="Center"
+											  RecognizesAccessKey="True"/>
+						</Border>
+						<ControlTemplate.Triggers>
+							<Trigger Property="IsMouseOver" Value="True">
+								<Setter Property="Foreground" Value="$textPrimary"/>
+								<Setter TargetName="TabRoot" Property="Background" Value="$tabHoverBg"/>
+							</Trigger>
+							<Trigger Property="IsSelected" Value="True">
+								<Setter Property="Foreground" Value="$textPrimary"/>
+								<Setter Property="FontWeight" Value="SemiBold"/>
+								<Setter TargetName="TabRoot" Property="Background" Value="$cardBg"/>
+								<Setter TargetName="TabRoot" Property="BorderBrush" Value="$activeBorder"/>
+							</Trigger>
+						</ControlTemplate.Triggers>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+		</Style>
+	</Window.Resources>
 	<Border Name="RootBorder" CornerRadius="8">
 		<Grid>
 			<Grid.RowDefinitions>
@@ -311,7 +403,7 @@
 				<RowDefinition Height="Auto"/>
 			</Grid.RowDefinitions>
 
-			<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="14,8,8,8">
+			<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="14,8,8,8" Cursor="Arrow">
 				<Grid>
 					<TextBlock Text="$windowTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
 					<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
@@ -329,66 +421,179 @@
 				</StackPanel>
 			</Border>
 
-			<ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-				<StackPanel Margin="24,18,24,18">
-					<TextBlock Text="$generalHeading" FontSize="14" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)" Margin="0,0,0,4"/>
-					<TextBlock Text="Startup behavior, language, and visibility." FontSize="11" Foreground="$($theme.TextMuted)" Margin="0,0,0,12" TextWrapping="Wrap"/>
-					<TextBlock Text="Language" FontSize="12" FontWeight="Medium" Foreground="$($theme.TextPrimary)" Margin="0,0,0,6"/>
-					<ComboBox Name="CmbLanguage" Width="380" HorizontalAlignment="Left" Margin="0,0,0,12" Padding="8,4"/>
-					<TextBlock Text="Default startup mode" FontSize="12" FontWeight="Medium" Foreground="$($theme.TextPrimary)" Margin="0,0,0,6"/>
-					<ComboBox Name="CmbDefaultStartupMode" Width="240" HorizontalAlignment="Left" Margin="0,0,0,12" Padding="8,4"/>
-					<CheckBox Name="ChkRestoreLastSession" Content="Restore last session on launch" Margin="0,0,0,8" Foreground="$($theme.TextPrimary)"/>
-					<CheckBox Name="ChkAutoScanOnLaunch" Content="Auto-scan system on launch" Margin="0,0,0,8" Foreground="$($theme.TextPrimary)"/>
-					<CheckBox Name="ChkHideUnavailableItems" Content="Hide items not available on this system" Margin="0,0,0,12" Foreground="$($theme.TextPrimary)"/>
+			<TabControl Name="SettingsTabs" Grid.Row="2" Margin="20,14,20,14"
+						Background="Transparent" BorderThickness="0" Padding="0">
 
-					<Border Background="$($theme.BorderColor)" Height="1" Margin="0,0,0,16" Opacity="0.35"/>
+				<TabItem Header="$generalHeading">
+					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
+						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
+							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
+								<TextBlock Style="{StaticResource SectionHeading}" Text="General preferences"/>
+								<TextBlock Style="{StaticResource SectionSubtitle}" Text="Startup behavior and language."/>
 
-					<TextBlock Text="$appearanceHeading" FontSize="14" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)" Margin="0,0,0,4"/>
-					<TextBlock Text="Theme and density." FontSize="11" Foreground="$($theme.TextMuted)" Margin="0,0,0,12" TextWrapping="Wrap"/>
-					<TextBlock Text="Theme" FontSize="12" FontWeight="Medium" Foreground="$($theme.TextPrimary)" Margin="0,0,0,6"/>
-					<ComboBox Name="CmbTheme" Width="240" HorizontalAlignment="Left" Margin="0,0,0,12" Padding="8,4"/>
-					<TextBlock Text="UI density" FontSize="12" FontWeight="Medium" Foreground="$($theme.TextPrimary)" Margin="0,0,0,6"/>
-					<ComboBox Name="CmbUIDensity" Width="240" HorizontalAlignment="Left" Margin="0,0,0,12" Padding="8,4"/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblLanguage" Text="Language"/>
+								<Grid Width="360" HorizontalAlignment="Left" Margin="0,0,0,18">
+									<ToggleButton Name="BtnSettingsLanguage" Height="30" Padding="10,4" Cursor="Hand"
+											HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center"
+											Background="#FFFFFF" Foreground="#1A1C2E"
+											BorderBrush="#A7B0C0" BorderThickness="1">
+										<ToggleButton.Template>
+											<ControlTemplate TargetType="{x:Type ToggleButton}">
+												<Border x:Name="LangBtnBorder" CornerRadius="4"
+														Background="{TemplateBinding Background}"
+														BorderBrush="{TemplateBinding BorderBrush}"
+														BorderThickness="{TemplateBinding BorderThickness}"
+														Padding="{TemplateBinding Padding}">
+													<ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+																	  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+												</Border>
+												<ControlTemplate.Triggers>
+													<Trigger Property="IsMouseOver" Value="True">
+														<Setter TargetName="LangBtnBorder" Property="BorderBrush" Value="#6E7A94"/>
+													</Trigger>
+													<Trigger Property="IsChecked" Value="True">
+														<Setter TargetName="LangBtnBorder" Property="BorderBrush" Value="#1550AA"/>
+													</Trigger>
+												</ControlTemplate.Triggers>
+											</ControlTemplate>
+										</ToggleButton.Template>
+										<Grid>
+											<Grid.ColumnDefinitions>
+												<ColumnDefinition Width="*"/>
+												<ColumnDefinition Width="Auto"/>
+											</Grid.ColumnDefinitions>
+											<TextBlock Name="TxtSettingsLanguageDisplay" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis" Foreground="#1A1C2E" Text=""/>
+											<Path Grid.Column="1" Margin="8,0,2,0" VerticalAlignment="Center" Data="M 0 0 L 4 4 L 8 0" Stroke="#1A1C2E" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="Fill" Width="8" Height="4" IsHitTestVisible="False"/>
+										</Grid>
+									</ToggleButton>
+									<Popup Name="SettingsLanguagePopup" StaysOpen="False" Placement="Bottom" PlacementTarget="{Binding ElementName=BtnSettingsLanguage}" AllowsTransparency="True" IsOpen="{Binding IsChecked, ElementName=BtnSettingsLanguage, Mode=TwoWay}">
+										<Border Background="#FFFFFF" BorderBrush="#A7B0C0" BorderThickness="1" CornerRadius="6" Padding="6">
+											<StackPanel Width="360">
+												<TextBox Name="TxtSettingsLanguageSearch" Height="28" Padding="10,4" Margin="0,0,0,6" VerticalContentAlignment="Center"
+														Background="#FFFFFF" Foreground="#1A1C2E"
+														BorderBrush="#A7B0C0" BorderThickness="1" CaretBrush="#1A1C2E"/>
+												<ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="320">
+													<StackPanel Name="SettingsLanguageListPanel"/>
+												</ScrollViewer>
+											</StackPanel>
+										</Border>
+									</Popup>
+								</Grid>
+								<TextBlock Style="{StaticResource HelperText}" Text="Choose the UI language used throughout Baseline."/>
 
-					<Border Background="$($theme.BorderColor)" Height="1" Margin="0,0,0,16" Opacity="0.35"/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblDefaultStartupMode" Text="Default startup mode"/>
+								<ComboBox Style="{StaticResource SettingsCombo}" Name="CmbDefaultStartupMode"/>
 
-					<TextBlock Text="$safetyHeading" FontSize="14" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)" Margin="0,0,0,4"/>
-					<TextBlock Text="Defaults that affect runs and cleanup." FontSize="11" Foreground="$($theme.TextMuted)" Margin="0,0,0,12" TextWrapping="Wrap"/>
-					<CheckBox Name="ChkSafeModeDefault" Content="Enable Safe Mode by default" Margin="0,0,0,8" Foreground="$($theme.TextPrimary)"/>
-					<CheckBox Name="ChkRequireRunConfirmation" Content="Require confirmation before Run" Margin="0,0,0,8" Foreground="$($theme.TextPrimary)"/>
-					<CheckBox Name="ChkPreviewBeforeRunDefault" Content="Show preview before Run by default" Margin="0,0,0,12" Foreground="$($theme.TextPrimary)"/>
-					<TextBlock Text="Audit retention" FontSize="12" FontWeight="Medium" Foreground="$($theme.TextPrimary)" Margin="0,0,0,6"/>
-					<ComboBox Name="CmbAuditRetention" Width="240" HorizontalAlignment="Left" Margin="0,0,0,12" Padding="8,4"/>
+								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,4,0,18" Opacity="0.35"/>
 
-					<Border Background="$($theme.BorderColor)" Height="1" Margin="0,0,0,16" Opacity="0.35"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkRestoreLastSession" Content="Restore last session on launch"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkAutoScanOnLaunch" Content="Auto-scan system on launch"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkHideUnavailableItems" Content="Hide items not available on this system"/>
+								<TextBlock Style="{StaticResource HelperText}" Text="When off, items that don't apply to this system are shown greyed-out with a badge instead of being hidden."/>
+							</StackPanel>
+						</ScrollViewer>
+					</Border>
+				</TabItem>
 
-					<TextBlock Text="$appsHeading" FontSize="14" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)" Margin="0,0,0,4"/>
-					<TextBlock Text="Installer preferences for managed apps." FontSize="11" Foreground="$($theme.TextMuted)" Margin="0,0,0,12" TextWrapping="Wrap"/>
-					<TextBlock Text="Preferred package source" FontSize="12" FontWeight="Medium" Foreground="$($theme.TextPrimary)" Margin="0,0,0,6"/>
-					<ComboBox Name="CmbPackageSource" Width="240" HorizontalAlignment="Left" Margin="0,0,0,12" Padding="8,4"/>
-					<CheckBox Name="ChkAppsSilentInstall" Content="Silent install when supported" Margin="0,0,0,8" Foreground="$($theme.TextPrimary)"/>
-					<CheckBox Name="ChkAppsAutoUpdate" Content="Automatically update managed apps" Margin="0,0,0,12" Foreground="$($theme.TextPrimary)"/>
+				<TabItem Header="$appearanceHeading">
+					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
+						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
+							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
+								<TextBlock Style="{StaticResource SectionHeading}" Text="Appearance"/>
+								<TextBlock Style="{StaticResource SectionSubtitle}" Text="Theme and UI density."/>
 
-					<Border Background="$($theme.BorderColor)" Height="1" Margin="0,0,0,16" Opacity="0.35"/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblTheme" Text="Theme"/>
+								<ComboBox Style="{StaticResource SettingsCombo}" Name="CmbTheme"/>
 
-					<TextBlock Text="$loggingHeading" FontSize="14" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)" Margin="0,0,0,4"/>
-					<TextBlock Text="Diagnostic output and log file location." FontSize="11" Foreground="$($theme.TextMuted)" Margin="0,0,0,12" TextWrapping="Wrap"/>
-					<CheckBox Name="ChkLoggingEnabled" Content="Enable logging" Margin="0,0,0,8" Foreground="$($theme.TextPrimary)"/>
-					<CheckBox Name="ChkDebugLogging" Content="Debug Mode (verbose logging + perf trace)" Margin="0,0,0,12" Foreground="$($theme.TextPrimary)"/>
-					<TextBlock Text="Log level" FontSize="12" FontWeight="Medium" Foreground="$($theme.TextPrimary)" Margin="0,0,0,6"/>
-					<ComboBox Name="CmbLogLevel" Width="240" HorizontalAlignment="Left" Margin="0,0,0,12" Padding="8,4"/>
-					<TextBlock Text="Log file path" FontSize="12" FontWeight="Medium" Foreground="$($theme.TextPrimary)" Margin="0,0,0,6"/>
-					<TextBox Name="TxtLogFilePath" Width="560" HorizontalAlignment="Left" Margin="0,0,0,12" Padding="8,6"/>
-					<TextBlock Text="Leave blank to use the default location." FontSize="11" Foreground="$($theme.TextMuted)" Margin="0,0,0,12" TextWrapping="Wrap"/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblUIDensity" Text="UI density"/>
+								<ComboBox Style="{StaticResource SettingsCombo}" Name="CmbUIDensity"/>
+								<TextBlock Style="{StaticResource HelperText}" Text="Compact reduces padding around rows and controls."/>
+							</StackPanel>
+						</ScrollViewer>
+					</Border>
+				</TabItem>
 
-					<Border Background="$($theme.BorderColor)" Height="1" Margin="0,0,0,16" Opacity="0.35"/>
+				<TabItem Header="$safetyHeading">
+					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
+						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
+							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
+								<TextBlock Style="{StaticResource SectionHeading}" Text="Run behavior"/>
+								<TextBlock Style="{StaticResource SectionSubtitle}" Text="Defaults that apply before tweaks are executed."/>
 
-					<TextBlock Text="$advancedHeading" FontSize="14" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)" Margin="0,0,0,4"/>
-					<TextBlock Text="Features intended for power users." FontSize="11" Foreground="$($theme.TextMuted)" Margin="0,0,0,12" TextWrapping="Wrap"/>
-					<CheckBox Name="ChkAdvancedMode" Content="Enable Expert mode" Margin="0,0,0,8" Foreground="$($theme.TextPrimary)"/>
-					<CheckBox Name="ChkExperimentalFeatures" Content="Enable experimental features" Margin="0,0,0,0" Foreground="$($theme.TextPrimary)"/>
-				</StackPanel>
-			</ScrollViewer>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkSafeModeDefault" Content="Enable Safe Mode by default"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkRequireRunConfirmation" Content="Require confirmation before Run"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkPreviewBeforeRunDefault" Content="Show preview before Run by default"/>
+
+								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,12,0,20" Opacity="0.35"/>
+
+								<TextBlock Style="{StaticResource SectionHeading}" Text="Audit retention"/>
+								<TextBlock Style="{StaticResource SectionSubtitle}" Text="Used by audit exports, log cleanup, and support bundles."/>
+
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblAuditRetention" Text="Retention window"/>
+								<ComboBox Style="{StaticResource SettingsCombo}" Name="CmbAuditRetention"/>
+							</StackPanel>
+						</ScrollViewer>
+					</Border>
+				</TabItem>
+
+				<TabItem Header="$appsHeading">
+					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
+						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
+							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
+								<TextBlock Style="{StaticResource SectionHeading}" Text="Application management"/>
+								<TextBlock Style="{StaticResource SectionSubtitle}" Text="Installer preferences for managed apps."/>
+
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblPackageSource" Text="Preferred package source"/>
+								<ComboBox Style="{StaticResource SettingsCombo}" Name="CmbPackageSource"/>
+								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,4,0,18" Opacity="0.35"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkAppsSilentInstall" Content="Silent install when supported"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkAppsAutoUpdate" Content="Automatically update managed apps"/>
+							</StackPanel>
+						</ScrollViewer>
+					</Border>
+				</TabItem>
+
+				<TabItem Header="$loggingHeading">
+					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
+						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
+							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
+								<TextBlock Style="{StaticResource SectionHeading}" Text="Logging"/>
+								<TextBlock Style="{StaticResource SectionSubtitle}" Text="Control diagnostic output and log file location."/>
+
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkLoggingEnabled" Content="Enable logging"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkDebugLogging" Content="Debug Mode (verbose logging + perf trace)"/>
+								<TextBlock Style="{StaticResource HelperText}" Text="When on, DEBUG-level entries are written to the daily log and the perf tracer is force-enabled. Use before exporting a Support Bundle to maximize what maintainers can replay."/>
+
+								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,8,0,20" Opacity="0.35"/>
+
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblLogLevel" Text="Log level"/>
+								<ComboBox Style="{StaticResource SettingsCombo}" Name="CmbLogLevel"/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblLogFilePath" Text="Log file path"/>
+								<TextBox Style="{StaticResource SettingsTextBox}" Name="TxtLogFilePath" Width="560"/>
+								<TextBlock Style="{StaticResource HelperText}" Text="Leave blank to use the default location."/>
+							</StackPanel>
+						</ScrollViewer>
+					</Border>
+				</TabItem>
+
+				<TabItem Header="$advancedHeading">
+					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
+						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
+							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
+								<TextBlock Style="{StaticResource SectionHeading}" Text="Advanced"/>
+								<TextBlock Style="{StaticResource SectionSubtitle}" Text="Features intended for power users."/>
+
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkAdvancedMode" Content="Enable Expert mode"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkExperimentalFeatures" Content="Enable experimental features"/>
+								<TextBlock Style="{StaticResource HelperText}" Text="Experimental options may change behavior without notice."/>
+								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,8,0,18" Opacity="0.35"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkDesignMode" Content="Design Mode"/>
+								<TextBlock Style="{StaticResource HelperText}" Text="Build a config using default values instead of reading live system state."/>
+							</StackPanel>
+						</ScrollViewer>
+					</Border>
+				</TabItem>
+			</TabControl>
 
 			<Border Grid.Row="3" Background="$($theme.HeaderBg)"
 					BorderBrush="$($theme.BorderColor)" BorderThickness="0,1,0,0"
@@ -421,7 +626,11 @@
 		$btnDlgClose = $dlg.FindName('BtnDlgClose')
 		$btnCancel = $dlg.FindName('BtnCancel')
 		$btnSave = $dlg.FindName('BtnSave')
-		$cmbLanguage = $dlg.FindName('CmbLanguage')
+		$btnSettingsLanguage = $dlg.FindName('BtnSettingsLanguage')
+		$txtSettingsLanguageDisplay = $dlg.FindName('TxtSettingsLanguageDisplay')
+		$settingsLanguagePopup = $dlg.FindName('SettingsLanguagePopup')
+		$txtSettingsLanguageSearch = $dlg.FindName('TxtSettingsLanguageSearch')
+		$settingsLanguageListPanel = $dlg.FindName('SettingsLanguageListPanel')
 		$cmbDefaultStartupMode = $dlg.FindName('CmbDefaultStartupMode')
 		$chkRestoreLastSession = $dlg.FindName('ChkRestoreLastSession')
 		$chkAutoScanOnLaunch = $dlg.FindName('ChkAutoScanOnLaunch')
@@ -441,6 +650,7 @@
 		$txtLogFilePath = $dlg.FindName('TxtLogFilePath')
 		$chkAdvancedMode = $dlg.FindName('ChkAdvancedMode')
 		$chkExperimentalFeatures = $dlg.FindName('ChkExperimentalFeatures')
+		$chkDesignMode = $dlg.FindName('ChkDesignMode')
 		$resultRef = @{ Value = $null }
 
 		$addComboItem = {
@@ -478,20 +688,172 @@
 		}
 
 		$languageEntries = @(Get-GuiLanguageEntries -LocalizationDirectory $Script:GuiLocalizationDirectoryPath)
-		foreach ($entry in $languageEntries)
+		$settingsLanguageState = @{
+			Code = if ($Current.ContainsKey('Language') -and -not [string]::IsNullOrWhiteSpace([string]$Current.Language))
+			{
+				[string]$Current.Language
+			}
+			elseif ($Script:SelectedLanguage)
+			{
+				[string]$Script:SelectedLanguage
+			}
+			else
+			{
+				'en'
+			}
+		}
+		if ([string]::IsNullOrWhiteSpace($settingsLanguageState.Code) -or [string]$settingsLanguageState.Code -eq 'en') { $settingsLanguageState.Code = 'en-US' }
+
+		$languageBrushConverter = New-Object System.Windows.Media.BrushConverter
+		$textPrimaryBrush = $languageBrushConverter.ConvertFromString('#1A1C2E')
+		$textMutedBrush = $languageBrushConverter.ConvertFromString('#646C7F')
+		$activeBrush = $languageBrushConverter.ConvertFromString('#CCE4F7')
+		$accentBrush = $languageBrushConverter.ConvertFromString('#1550AA')
+		$hoverColor = '#EDF2FA'
+
+		$languageUiState = @{ Render = $null }
+
+		$updateLanguageButtonText = {
+			if (-not $txtSettingsLanguageDisplay) { return }
+			$currentCode = [string]$settingsLanguageState.Code
+			if ($currentCode -eq 'en') { $currentCode = 'en-US' }
+			$matched = $languageEntries | Where-Object { [string]$_.Code -eq $currentCode } | Select-Object -First 1
+			if ($matched)
+			{
+				$txtSettingsLanguageDisplay.Text = (& $formatLanguageDisplay $matched)
+			}
+			else
+			{
+				$txtSettingsLanguageDisplay.Text = $currentCode
+			}
+		}.GetNewClosure()
+
+		$languageClickHandler = {
+			param ($btnSender, $btnArgs)
+			$null = $btnArgs
+			$selectedCode = [string]$btnSender.Tag
+			if ([string]::IsNullOrWhiteSpace($selectedCode)) { return }
+			$settingsLanguageState.Code = $selectedCode
+			& $updateLanguageButtonText
+			if ($settingsLanguagePopup) { $settingsLanguagePopup.IsOpen = $false }
+			if ($btnSettingsLanguage) { $btnSettingsLanguage.IsChecked = $false }
+			if ($txtSettingsLanguageSearch) { $txtSettingsLanguageSearch.Text = '' }
+			if ($languageUiState.Render) { & $languageUiState.Render '' }
+		}.GetNewClosure()
+
+		$renderLanguageList = {
+			param ([string]$FilterText = '')
+			if (-not $settingsLanguageListPanel) { return }
+			$settingsLanguageListPanel.Children.Clear()
+
+			$normalizedFilter = if ([string]::IsNullOrWhiteSpace([string]$FilterText)) { '' } else { ([string]$FilterText).Trim().ToLowerInvariant() }
+			$filtered = if ([string]::IsNullOrWhiteSpace($normalizedFilter))
+			{
+				@($languageEntries)
+			}
+			else
+			{
+				@($languageEntries | Where-Object { [string]$_.SearchIndex -like "*$normalizedFilter*" })
+			}
+
+			if ($filtered.Count -eq 0)
+			{
+				$emptyState = [System.Windows.Controls.TextBlock]::new()
+				$emptyState.Text = (Get-UxLocalizedString -Key 'GuiLanguageSearchNoResults' -Fallback 'No languages found.')
+				$emptyState.Margin = [System.Windows.Thickness]::new(10, 8, 10, 6)
+				$emptyState.FontSize = 12
+				$emptyState.Foreground = $textMutedBrush
+				[void]$settingsLanguageListPanel.Children.Add($emptyState)
+				return
+			}
+
+			$templateXaml = @"
+<ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" TargetType="{x:Type Button}">
+	<Border x:Name="Bd" CornerRadius="4" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}">
+		<ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+	</Border>
+	<ControlTemplate.Triggers>
+		<Trigger Property="IsMouseOver" Value="True">
+			<Setter TargetName="Bd" Property="Background" Value="$hoverColor"/>
+		</Trigger>
+	</ControlTemplate.Triggers>
+</ControlTemplate>
+"@
+			$langTemplate = [Windows.Markup.XamlReader]::Parse($templateXaml)
+
+			$currentCode = [string]$settingsLanguageState.Code
+			foreach ($entry in $filtered)
+			{
+				$isActive = [string]$entry.Code -eq $currentCode
+				$langBtn = [System.Windows.Controls.Button]::new()
+				$langBtn.Tag = [string]$entry.Code
+				$langBtn.Cursor = [System.Windows.Input.Cursors]::Hand
+				$langBtn.HorizontalContentAlignment = 'Left'
+				$langBtn.Padding = [System.Windows.Thickness]::new(12, 5, 12, 5)
+				$langBtn.Margin = [System.Windows.Thickness]::new(0, 1, 0, 1)
+				$langBtn.BorderThickness = [System.Windows.Thickness]::new(0)
+				$langBtn.Background = if ($isActive) { $activeBrush } else { [System.Windows.Media.Brushes]::Transparent }
+				$langBtn.Foreground = $textPrimaryBrush
+				$langBtn.FocusVisualStyle = $null
+				$langBtn.ClickMode = [System.Windows.Controls.ClickMode]::Press
+				$langBtn.Template = $langTemplate
+
+				$langStack = [System.Windows.Controls.StackPanel]::new()
+				$langStack.Orientation = 'Vertical'
+
+				$nativeBlock = [System.Windows.Controls.TextBlock]::new()
+				$nativeBlock.Text = [string]$entry.NativeName
+				$nativeBlock.FontSize = 12
+				$nativeBlock.Foreground = if ($isActive) { $accentBrush } else { $textPrimaryBrush }
+				$nativeBlock.FontWeight = if ($isActive) { [System.Windows.FontWeights]::Bold } else { [System.Windows.FontWeights]::Normal }
+				[void]$langStack.Children.Add($nativeBlock)
+
+				if ([string]$entry.NativeName -ne [string]$entry.EnglishName)
+				{
+					$engBlock = [System.Windows.Controls.TextBlock]::new()
+					$engBlock.Text = [string]$entry.EnglishName
+					$engBlock.FontSize = 10
+					$engBlock.Foreground = $textMutedBrush
+					[void]$langStack.Children.Add($engBlock)
+				}
+
+				$langBtn.Content = $langStack
+				$langBtn.Add_Click($languageClickHandler)
+				[void]$settingsLanguageListPanel.Children.Add($langBtn)
+			}
+		}.GetNewClosure()
+
+		$languageUiState.Render = $renderLanguageList
+
+		& $updateLanguageButtonText
+		& $renderLanguageList ''
+
+		if ($txtSettingsLanguageSearch)
 		{
-			& $addComboItem $cmbLanguage (& $formatLanguageDisplay $entry) ([string]$entry.Code)
+			$txtSettingsLanguageSearch.Add_TextChanged({
+				param ($textSender, $textArgs)
+				$null = $textArgs
+				if ($languageUiState.Render)
+				{
+					& $languageUiState.Render ([string]$textSender.Text)
+				}
+			}.GetNewClosure())
 		}
 
-		$initialLanguage = if ($Current.ContainsKey('Language') -and -not [string]::IsNullOrWhiteSpace([string]$Current.Language))
+		if ($settingsLanguagePopup)
 		{
-			[string]$Current.Language
+			$settingsLanguagePopup.Add_Opened({
+				param ($popupSender, $popupArgs)
+				$null = $popupSender
+				$null = $popupArgs
+				if ($txtSettingsLanguageSearch)
+				{
+					$txtSettingsLanguageSearch.Text = ''
+					[void]$txtSettingsLanguageSearch.Focus()
+				}
+				if ($languageUiState.Render) { & $languageUiState.Render '' }
+			}.GetNewClosure())
 		}
-		else
-		{
-			'en-US'
-		}
-		& $selectComboByTag $cmbLanguage $initialLanguage
 
 		if ($cmbDefaultStartupMode)
 		{
@@ -556,6 +918,7 @@
 		if ($txtLogFilePath) { $txtLogFilePath.Text = if ($Current.ContainsKey('LogFilePath') -and $null -ne $Current.LogFilePath) { [string]$Current.LogFilePath } else { '' } }
 		if ($chkAdvancedMode) { $chkAdvancedMode.IsChecked = if ($Current.ContainsKey('AdvancedMode')) { [bool]$Current.AdvancedMode } else { $false } }
 		if ($chkExperimentalFeatures) { $chkExperimentalFeatures.IsChecked = if ($Current.ContainsKey('ExperimentalFeatures')) { [bool]$Current.ExperimentalFeatures } else { $false } }
+		if ($chkDesignMode) { $chkDesignMode.IsChecked = if ($Current.ContainsKey('DesignMode')) { [bool]$Current.DesignMode } else { [bool]$Script:DesignMode } }
 
 		$syncStartupMode = {
 			param ([switch]$InitialLoad)
@@ -616,7 +979,7 @@
 					return $default
 				}
 
-				$selectedLanguage = if ($cmbLanguage -and $cmbLanguage.SelectedItem -and $cmbLanguage.SelectedItem.Tag) { [string]$cmbLanguage.SelectedItem.Tag } else { 'en' }
+				$selectedLanguage = if ($settingsLanguageState -and $settingsLanguageState.Code) { [string]$settingsLanguageState.Code } else { 'en' }
 				$resultRef.Value = @{
 					Language = $selectedLanguage
 					DefaultStartupMode = [string](& $getTag $cmbDefaultStartupMode 'Safe')
@@ -638,6 +1001,7 @@
 					LogFilePath = [string]$txtLogFilePath.Text
 					AdvancedMode = [bool]$chkAdvancedMode.IsChecked
 					ExperimentalFeatures = [bool]$chkExperimentalFeatures.IsChecked
+					DesignMode = [bool]$chkDesignMode.IsChecked
 				}
 				$dlg.Close()
 			}.GetNewClosure())
