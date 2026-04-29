@@ -2,7 +2,7 @@
 
 <p align="center">
   <kbd>
-    <a href="https://github.com/sdmanson8/Baseline_dev/releases/latest"><img src="https://img.shields.io/badge/Download_Beta_Release-green?labelColor=151B23&color=151B23&style=for-the-badge"></a>
+    <a href="https://github.com/sdmanson8/Baseline_dev/releases/latest"><img src="https://img.shields.io/badge/Download_Beta_Release-green?labelColor=151B23&color=151B23&style=for-the-badge"></a> |
     <a href="https://github.com/sdmanson8/Baseline/releases/latest"><img src="https://img.shields.io/badge/Download_Stable_Release-green?labelColor=151B23&color=151B23&style=for-the-badge"></a>
   </kbd>
 </p>
