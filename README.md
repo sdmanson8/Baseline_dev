@@ -2,10 +2,15 @@
 
 <p align="center">
   <a href="https://github.com/sdmanson8/Baseline_dev/releases/latest">
-    <img alt="Download Beta Release" src="https://img.shields.io/badge/Download%20Beta%20Release-orange?style=for-the-badge&labelColor=151B23">
+    <kbd>
+      <img alt="Download Beta Release" src="https://img.shields.io/badge/Download%20Beta%20Release-151B23?style=for-the-badge&labelColor=151B23">
+    </kbd>
   </a>
+  &nbsp;
   <a href="https://github.com/sdmanson8/Baseline/releases/latest">
-    <img alt="Download Stable Release" src="https://img.shields.io/badge/Download%20Stable%20Release-green?style=for-the-badge&labelColor=151B23">
+    <kbd>
+      <img alt="Download Stable Release" src="https://img.shields.io/badge/Download%20Stable%20Release-151B23?style=for-the-badge&labelColor=151B23">
+    </kbd>
   </a>
 </p>
 
