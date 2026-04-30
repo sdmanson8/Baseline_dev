@@ -836,7 +836,7 @@ function Get-BaselineApplicationsCatalog
 	}
 	catch
 	{
-		LogError (Get-UxBilingualLocalizedString -Key 'GuiLogApplicationsCatalogLoadFailed' -Fallback 'Failed to load applications catalog: {0}' -FormatArgs @($_.Exception.Message))
+		LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogApplicationsCatalogLoadFailed' -Fallback 'Failed to load applications catalog'))
 		$Script:BaselineApplicationsCatalog = @()
 		return $Script:BaselineApplicationsCatalog
 	}

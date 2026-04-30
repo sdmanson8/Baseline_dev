@@ -134,6 +134,9 @@ Describe 'Responsive tab/dropdown switching contracts' {
             $script:TabMgmtContent | Should -Match '\$tab -eq \$PrimaryTabs\.SelectedItem'
             $script:TabMgmtContent | Should -Match 'FontWeight.*SemiBold'
             $script:TabMgmtContent | Should -Match 'FontWeight.*Normal'
+            $script:TabMgmtContent | Should -Match '\$tab\.Foreground = \$bc\.ConvertFromString\(''#FFFFFF''\)'
+            $script:TabMgmtContent | Should -Match '\[bool\]\$Script:SafeMode -and \$Script:CurrentTheme\.ContainsKey\(''StateAccent''\)'
+            $script:TabMgmtContent | Should -Match '\$tab\.BorderThickness = \[System\.Windows\.Thickness\]::new\(0, 0, 0, 2\)'
         }
 
         It 'hover effects register MouseEnter, MouseLeave, GotKeyboardFocus, LostKeyboardFocus handlers' {

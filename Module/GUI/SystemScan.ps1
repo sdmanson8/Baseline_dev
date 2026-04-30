@@ -165,7 +165,7 @@
 			}
 			catch
 			{
-				LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogSystemScanGpuDetectionFailed' -Fallback 'GUI GPU detection failed during system scan: {0}' -FormatArgs @($_.Exception.Message))
+				LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogSystemScanGpuDetectionFailed' -Fallback 'GUI GPU detection failed during system scan'))
 			}
 
 			if ($gpuVendors.Count -gt 0)

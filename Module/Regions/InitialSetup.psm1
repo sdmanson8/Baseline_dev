@@ -728,54 +728,82 @@ function Initialize-PackageManagersBootstrap
 
 <#
 	.SYNOPSIS
-	Hide the Spotlight "About this picture" desktop icon.
+	Install or update to the latest PowerShell 7 release.
 
 	.DESCRIPTION
-	Removes the Spotlight namespace entry from the desktop and sets the matching
-	HideDesktopIcons value so the icon stays hidden for the current user.
+	Uses WinGet to install the latest stable PowerShell 7 release. If WinGet is
+	unavailable or the install fails, downloads the official Microsoft MSI and
+	verifies the Authenticode signer before running it.
 
 	.EXAMPLE
-	DesktopRegistry
+	UpdatePowershell
 
 	.NOTES
-	Current user
+	Machine-wide
 #>
-function DesktopRegistry
+function UpdatePowershell
 {
-	# Write-Host: intentional — user-visible progress indicator
-	Write-Host 'Removing "About this Picture" from Desktop - ' -NoNewline
-	LogInfo 'Removing "About this Picture" from Desktop'
-    # Define registry paths and key/value
-    $namespaceKeyPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{2cc5ca98-6485-489a-920e-b3e88a6ccce3}"
-    $hideIconsPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel"
-    $valueName = "{2cc5ca98-6485-489a-920e-b3e88a6ccce3}"
-    $valueData = 1
-
-    # Remove the specified namespace registry key
-    try
+	Write-ConsoleStatus -Action "Installing/Updating PowerShell 7"
+	LogInfo "Installing/Updating PowerShell 7"
+	try
 	{
-        Remove-Item -Path $namespaceKeyPath -Force -ErrorAction SilentlyContinue | Out-Null
-    }
-	catch
-	{
-        LogError "Registry key not found or could not be removed: $namespaceKeyPath"
-    }
-
-    # Ensure the HideDesktopIcons path exists and set the DWORD value
-    try
-	{
-        if (-not (Test-Path -Path $hideIconsPath))
+		$WingetPath = Resolve-WinGetExecutable
+		$wingetSucceeded = $false
+		if (-not [string]::IsNullOrWhiteSpace([string]$WingetPath))
 		{
-            New-Item -Path $hideIconsPath -Force -ErrorAction Stop | Out-Null
-        }
-        Set-ItemProperty -LiteralPath $hideIconsPath -Name $valueName -Value $valueData -Type DWord -ErrorAction Stop | Out-Null
+			LogInfo "Using winget executable: $WingetPath"
+		}
+
+		if ($WingetPath)
+		{
+			$process = Start-Process -FilePath $WingetPath `
+				-ArgumentList "install --id Microsoft.PowerShell --source winget --accept-package-agreements --accept-source-agreements --silent" `
+				-WindowStyle Hidden -Wait -PassThru -ErrorAction Stop
+			if ($process.ExitCode -in 0, -1978335189)
+			{
+				$wingetSucceeded = $true
+			}
+			else
+			{
+				LogWarning "winget install returned exit code $($process.ExitCode), falling back to MSI installer"
+			}
+		}
+
+		if (-not $WingetPath -or -not $wingetSucceeded)
+		{
+			$installerPath = $null
+			try
+			{
+				LogInfo "Downloading the official PowerShell MSI package from GitHub"
+				$installerUri = Resolve-PowerShellInstallerUri
+				$installerFileName = Split-Path -Path $installerUri -Leaf
+				$installerPath = Join-Path $env:TEMP $installerFileName
+				Invoke-DownloadFile -Uri $installerUri -OutFile $installerPath
+				$null = Assert-AuthenticodeSignature -Path $installerPath -AllowedSubjects @('CN=Microsoft Corporation')
+				$process = Start-Process -FilePath 'msiexec.exe' `
+					-ArgumentList "/i `"$installerPath`" /qn /norestart" `
+					-WindowStyle Hidden -Wait -PassThru -ErrorAction Stop
+				if ($process.ExitCode -notin 0, 3010)
+				{
+					throw "msiexec returned exit code $($process.ExitCode)"
+				}
+			}
+			finally
+			{
+				if ($installerPath -and (Test-Path -LiteralPath $installerPath))
+				{
+					Remove-Item -LiteralPath $installerPath -Force -ErrorAction SilentlyContinue
+				}
+			}
+		}
+
 		Write-ConsoleStatus -Status success
-    }
+	}
 	catch
 	{
-        Write-ConsoleStatus -Status failed
-        LogError "Failed to set registry value: $valueName"
-    }
+		Write-ConsoleStatus -Status failed
+		LogError "Failed to install/update PowerShell 7: $($_.Exception.Message)"
+	}
 }
 
 <#

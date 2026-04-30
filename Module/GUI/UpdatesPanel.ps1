@@ -90,15 +90,34 @@ function Get-GuiWindowsUpdateSelectedItems
 {
 	Initialize-GuiWindowsUpdateRuntimeState
 	$selected = New-Object 'System.Collections.Generic.List[object]'
-	foreach ($entry in @($Script:WindowsUpdateSelectionControls))
+	foreach ($entry in [object[]]$Script:WindowsUpdateSelectionControls.ToArray())
 	{
-		if ($entry -and $entry.CheckBox -and [bool]$entry.CheckBox.IsChecked -and $entry.Update)
+		if (-not $entry -or -not $entry.Update) { continue }
+		$isSelected = [bool]$entry.Selected
+		if (-not $isSelected -and $entry.CheckBox)
+		{
+			$isSelected = [bool]$entry.CheckBox.IsChecked
+		}
+		if ($isSelected)
 		{
 			[void]$selected.Add($entry.Update)
 		}
 	}
 
 	return [object[]]$selected.ToArray()
+}
+
+function Sync-GuiWindowsUpdateSelectionEntry
+{
+	param (
+		[object]$SelectionEntry
+	)
+
+	if ($SelectionEntry -and $SelectionEntry.CheckBox)
+	{
+		$SelectionEntry.Selected = [bool]$SelectionEntry.CheckBox.IsChecked
+	}
+	Update-GuiWindowsUpdateActionState
 }
 
 function ConvertTo-GuiWindowsUpdateIdentitySelection
@@ -132,10 +151,290 @@ function New-GuiWindowsUpdateActionButton
 	$button = New-PresetButton -Label $Label -Variant $Variant -Compact
 	$button.Margin = [System.Windows.Thickness]::new(0, 0, 8, 8)
 	$button.MinWidth = 118
+	$invokeGuiSafeActionScript = ${function:Invoke-GuiSafeAction}
 	Register-GuiEventHandler -Source $button -EventName 'Click' -Handler ({
-		Invoke-GuiSafeAction -Context 'WindowsUpdate.RuntimePanel' -ShowDialog -Action $Action
+		& $invokeGuiSafeActionScript -Context 'WindowsUpdate.RuntimePanel' -ShowDialog -Action $Action
 	}.GetNewClosure()) | Out-Null
 	return $button
+}
+
+function Show-GuiWindowsUpdateRuntimeView
+{
+	$theme = Get-GuiCurrentTheme
+	$brushConverter = Get-GuiWindowsUpdateBrushConverter
+
+	$window = New-Object System.Windows.Window
+	$window.Title = 'Run Windows Updates'
+	$window.Width = 960
+	$window.Height = 720
+	$window.MinWidth = 760
+	$window.MinHeight = 520
+	$window.WindowStartupLocation = [System.Windows.WindowStartupLocation]::CenterScreen
+	$window.Background = $brushConverter.ConvertFromString($theme.WindowBg)
+	$window.Foreground = $brushConverter.ConvertFromString($theme.TextPrimary)
+	if (Get-Command -Name 'GUICommon\Set-GuiWindowChromeTheme' -ErrorAction SilentlyContinue)
+	{
+		[void](GUICommon\Set-GuiWindowChromeTheme -Window $window -UseDarkMode ($Script:CurrentThemeName -eq 'Dark'))
+	}
+	if ((Test-Path -Path Variable:\Script:MainForm) -and $Script:MainForm)
+	{
+		$window.Owner = $Script:MainForm
+		$window.WindowStartupLocation = [System.Windows.WindowStartupLocation]::CenterOwner
+	}
+
+	$scrollViewer = New-Object System.Windows.Controls.ScrollViewer
+	$scrollViewer.VerticalScrollBarVisibility = [System.Windows.Controls.ScrollBarVisibility]::Auto
+	$scrollViewer.HorizontalScrollBarVisibility = [System.Windows.Controls.ScrollBarVisibility]::Disabled
+	$scrollViewer.Background = $brushConverter.ConvertFromString($theme.WindowBg)
+	$scrollViewer.Content = New-GuiUpdatesRuntimePanel
+	$window.Content = $scrollViewer
+
+	[void]$window.Show()
+	[void]$window.Activate()
+}
+
+function Set-GuiWindowsUpdatePresetSelection
+{
+	param (
+		[Parameter(Mandatory = $true)]
+		[ValidateSet('Default', 'Security', 'DisableAll')]
+		[string]$PresetName
+	)
+
+	$commandList = switch ($PresetName)
+	{
+		'Default'
+		{
+			@(
+				'WindowsUpdateDisableAll -Disable'
+				'WindowsUpdateSecurityOnlyMode -Disable'
+				'WindowsUpdatePause -Disable'
+				'UpdateAutoDownload -Enable'
+				'UpdateDriver -Enable'
+				'UpdateRestart -Enable'
+				'FeatureUpdateDeferral -Disable'
+				'QualityUpdateDeferral -Default'
+			)
+		}
+		'Security'
+		{
+			@(
+				'WindowsUpdateDisableAll -Disable'
+				'UpdateAutoDownload -Disable'
+				'UpdateDriver -Disable'
+				'UpdateRestart -Disable'
+				'FeatureUpdateDeferral -Enable'
+				'QualityUpdateDeferral -FourDays'
+			)
+		}
+		'DisableAll'
+		{
+			@(
+				'WindowsUpdateDisableAll -Enable'
+			)
+		}
+	}
+
+	$displayName = switch ($PresetName)
+	{
+		'Default' { 'Default Windows Update Settings' }
+		'Security' { 'Security Windows Update Settings' }
+		'DisableAll' { 'Disable All Windows Updates' }
+	}
+
+	$summary = switch ($PresetName)
+	{
+		'Default' { 'Loads a selection that clears Baseline Windows Update policy controls back to Windows defaults.' }
+		'Security' { 'Loads a selection that delays feature updates, applies a short quality update delay, and blocks update drivers/restarts.' }
+		'DisableAll' { 'Loads a high-risk selection that disables Windows Update policy, services, and scheduled update tasks.' }
+	}
+
+	$selectionDefinitionCommand = Get-GuiRuntimeCommand -Name 'Get-GuiSelectionDefinitionFromCommands' -CommandType 'Function'
+	$setTabPresetCommand = Get-GuiRuntimeCommand -Name 'Set-TabPreset' -CommandType 'Function'
+	if (-not $selectionDefinitionCommand)
+	{
+		throw 'Get-GuiSelectionDefinitionFromCommands is not available.'
+	}
+	if (-not $setTabPresetCommand)
+	{
+		throw 'Set-TabPreset is not available.'
+	}
+
+	$selectionDefinition = & $selectionDefinitionCommand `
+		-Name $displayName `
+		-CommandLines $commandList `
+		-SourcePath ("WindowsUpdates::{0}" -f $PresetName) `
+		-ModeKind 'Preset' `
+		-StatusMessagePrefix 'Windows Update preset loaded' `
+		-Summary $summary
+
+	& $setTabPresetCommand -PrimaryTab 'Updates' -PresetTier $displayName -SelectionDefinition $selectionDefinition
+}
+
+function New-GuiWindowsUpdateLeadCard
+{
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$Title,
+		[Parameter(Mandatory = $true)]
+		[string]$Description,
+		[string[]]$Bullets = @(),
+		[string]$ButtonLabel,
+		[string]$ButtonVariant = 'Secondary',
+		[scriptblock]$Action,
+		[string]$BorderColor,
+		[string]$TitleColor
+	)
+
+	$theme = Get-GuiCurrentTheme
+	$brushConverter = Get-GuiWindowsUpdateBrushConverter
+	$resolvedBorderColor = if ([string]::IsNullOrWhiteSpace($BorderColor)) { $theme.CardBorder } else { $BorderColor }
+	$resolvedTitleColor = if ([string]::IsNullOrWhiteSpace($TitleColor)) { $theme.TextPrimary } else { $TitleColor }
+
+	$card = New-Object System.Windows.Controls.Border
+	$card.Background = $brushConverter.ConvertFromString($theme.CardBg)
+	$card.BorderBrush = $brushConverter.ConvertFromString($resolvedBorderColor)
+	$card.BorderThickness = [System.Windows.Thickness]::new(1.5)
+	$card.CornerRadius = [System.Windows.CornerRadius]::new($Script:GuiLayout.CardCornerRadius)
+	$card.Margin = [System.Windows.Thickness]::new(0, 0, 10, 10)
+	$card.Padding = [System.Windows.Thickness]::new(14, 12, 14, 12)
+	$card.Width = 300
+	$card.MinHeight = 190
+
+	$stack = New-Object System.Windows.Controls.StackPanel
+	$stack.Orientation = 'Vertical'
+
+	$titleBlock = New-GuiWindowsUpdateTextBlock -Text $Title -FontSize $Script:GuiLayout.FontSizeLabel -Foreground ($brushConverter.ConvertFromString($resolvedTitleColor)) -Bold -Wrap
+	[void]$stack.Children.Add($titleBlock)
+
+	$descriptionBlock = New-GuiWindowsUpdateTextBlock -Text $Description -FontSize $Script:GuiLayout.FontSizeSmall -Foreground ($brushConverter.ConvertFromString($theme.TextSecondary)) -Wrap
+	$descriptionBlock.Margin = [System.Windows.Thickness]::new(0, 5, 0, 8)
+	[void]$stack.Children.Add($descriptionBlock)
+
+	foreach ($bullet in @($Bullets))
+	{
+		if ([string]::IsNullOrWhiteSpace([string]$bullet)) { continue }
+		$bulletBlock = New-GuiWindowsUpdateTextBlock -Text ("- {0}" -f [string]$bullet) -FontSize $Script:GuiLayout.FontSizeSmall -Foreground ($brushConverter.ConvertFromString($theme.TextSecondary)) -Wrap
+		$bulletBlock.Margin = [System.Windows.Thickness]::new(0, 0, 0, 3)
+		[void]$stack.Children.Add($bulletBlock)
+	}
+
+	if (-not [string]::IsNullOrWhiteSpace($ButtonLabel) -and $Action)
+	{
+		$button = New-PresetButton -Label $ButtonLabel -Variant $ButtonVariant -Compact
+		$button.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
+		$button.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
+		$invokeGuiSafeActionScript = ${function:Invoke-GuiSafeAction}
+		Register-GuiEventHandler -Source $button -EventName 'Click' -Handler ({
+			& $invokeGuiSafeActionScript -Context ('WindowsUpdate.Card.{0}' -f $Title) -ShowDialog -Action $Action
+		}.GetNewClosure()) | Out-Null
+		[void]$stack.Children.Add($button)
+	}
+
+	$card.Child = $stack
+	return $card
+}
+
+function New-GuiWindowsUpdatePresetCard
+{
+	$theme = Get-GuiCurrentTheme
+	$brushConverter = Get-GuiWindowsUpdateBrushConverter
+	$card = New-GuiWindowsUpdateLeadCard `
+		-Title 'Update Settings Presets' `
+		-Description 'Load a Windows Update policy selection, then review the regular tweak toggles below before running.' `
+		-Bullets @(
+			'Default Settings restores Baseline-controlled update policy values.'
+			'Security Settings delays feature updates and keeps quality updates near current.'
+		) `
+		-BorderColor $theme.CardBorder
+
+	$stack = [System.Windows.Controls.StackPanel]$card.Child
+	$buttonPanel = New-Object System.Windows.Controls.WrapPanel
+	$buttonPanel.Orientation = 'Horizontal'
+	$buttonPanel.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
+
+	foreach ($presetButton in @(
+		[pscustomobject]@{ Label = 'Default Settings'; Preset = 'Default'; Variant = 'Secondary' }
+		[pscustomobject]@{ Label = 'Security Settings'; Preset = 'Security'; Variant = 'Secondary' }
+	))
+	{
+		$button = New-PresetButton -Label ([string]$presetButton.Label) -Variant ([string]$presetButton.Variant) -Compact
+		$button.Margin = [System.Windows.Thickness]::new(0, 0, 8, 8)
+		$presetName = [string]$presetButton.Preset
+		$invokeGuiSafeActionScript = ${function:Invoke-GuiSafeAction}
+		$setGuiWindowsUpdatePresetSelectionScript = ${function:Set-GuiWindowsUpdatePresetSelection}
+		$applyPresetAction = {
+			& $setGuiWindowsUpdatePresetSelectionScript -PresetName $presetName
+		}.GetNewClosure()
+		Register-GuiEventHandler -Source $button -EventName 'Click' -Handler ({
+			& $invokeGuiSafeActionScript -Context ('WindowsUpdate.Preset.{0}' -f $presetName) -ShowDialog -Action $applyPresetAction
+		}.GetNewClosure()) | Out-Null
+		[void]$buttonPanel.Children.Add($button)
+	}
+
+	[void]$stack.Children.Add($buttonPanel)
+	return $card
+}
+
+function New-GuiWindowsUpdateLeadCardsPanel
+{
+	$theme = Get-GuiCurrentTheme
+	$brushConverter = Get-GuiWindowsUpdateBrushConverter
+
+	$outer = New-Object System.Windows.Controls.Border
+	$outer.Background = $brushConverter.ConvertFromString($theme.HeaderBg)
+	$outer.BorderBrush = $brushConverter.ConvertFromString($theme.CardBorder)
+	$outer.BorderThickness = [System.Windows.Thickness]::new(1)
+	$outer.CornerRadius = [System.Windows.CornerRadius]::new($Script:GuiLayout.CardCornerRadius)
+	$outer.Margin = [System.Windows.Thickness]::new(8, 8, 8, 10)
+	$outer.Padding = [System.Windows.Thickness]::new(14, 12, 14, 8)
+
+	$stack = New-Object System.Windows.Controls.StackPanel
+	$stack.Orientation = 'Vertical'
+
+	$title = New-GuiWindowsUpdateTextBlock -Text 'Windows Updates' -FontSize $Script:GuiLayout.FontSizeSubheading -Foreground ($brushConverter.ConvertFromString($theme.TextPrimary)) -Bold
+	[void]$stack.Children.Add($title)
+
+	$description = New-GuiWindowsUpdateTextBlock -Text 'Use the cards for update actions and policy presets. The regular update tweak controls remain below for review and fine tuning.' -FontSize $Script:GuiLayout.FontSizeSmall -Foreground ($brushConverter.ConvertFromString($theme.TextSecondary)) -Wrap
+	$description.Margin = [System.Windows.Thickness]::new(0, 4, 0, 12)
+	[void]$stack.Children.Add($description)
+
+	$cards = New-Object System.Windows.Controls.WrapPanel
+	$cards.Orientation = 'Horizontal'
+	$showGuiWindowsUpdateRuntimeViewScript = ${function:Show-GuiWindowsUpdateRuntimeView}
+	$openUpdateRunnerAction = {
+		& $showGuiWindowsUpdateRuntimeViewScript
+	}.GetNewClosure()
+	$setGuiWindowsUpdatePresetSelectionScript = ${function:Set-GuiWindowsUpdatePresetSelection}
+	$loadDisableUpdatesPresetAction = {
+		& $setGuiWindowsUpdatePresetSelectionScript -PresetName 'DisableAll'
+	}.GetNewClosure()
+
+	[void]$cards.Children.Add((New-GuiWindowsUpdateLeadCard `
+		-Title 'Run Updates' `
+		-Description 'Open the Windows Update runner in a separate view for scan, download, install, and history.' `
+		-Bullets @('Does not apply policy tweaks.', 'Runs the Windows Update Agent workflow.') `
+		-ButtonLabel 'Open Update Runner' `
+		-ButtonVariant 'Primary' `
+		-Action $openUpdateRunnerAction `
+		-BorderColor $theme.AccentBlue `
+		-TitleColor $theme.TextPrimary))
+
+	[void]$cards.Children.Add((New-GuiWindowsUpdateLeadCard `
+		-Title 'Disable Updates' `
+		-Description 'High-risk policy selection that disables Windows Update. Use only for isolated systems.' `
+		-Bullets @('Not recommended for daily-use systems.', 'Disables update policy, services, and scheduled tasks.') `
+		-ButtonLabel 'Load Disable Selection' `
+		-ButtonVariant 'DangerSubtle' `
+		-Action $loadDisableUpdatesPresetAction `
+		-BorderColor $theme.DangerText `
+		-TitleColor $theme.DangerText))
+
+	[void]$cards.Children.Add((New-GuiWindowsUpdatePresetCard))
+
+	[void]$stack.Children.Add($cards)
+	$outer.Child = $stack
+	return $outer
 }
 
 function New-GuiWindowsUpdateEmptyMessage
@@ -205,13 +504,18 @@ function New-GuiWindowsUpdateUpdateRow
 
 	$checkBox.Content = $content
 	$row.Child = $checkBox
-	Register-GuiEventHandler -Source $checkBox -EventName 'Checked' -Handler ({ Update-GuiWindowsUpdateActionState }.GetNewClosure()) | Out-Null
-	Register-GuiEventHandler -Source $checkBox -EventName 'Unchecked' -Handler ({ Update-GuiWindowsUpdateActionState }.GetNewClosure()) | Out-Null
 
-	[void]$Script:WindowsUpdateSelectionControls.Add([pscustomobject]@{
+	$selectionEntry = [pscustomobject]@{
 		CheckBox = $checkBox
 		Update   = $Update
-	})
+		Selected = $false
+	}
+	[void]$Script:WindowsUpdateSelectionControls.Add($selectionEntry)
+
+	$syncGuiWindowsUpdateSelectionEntryScript = ${function:Sync-GuiWindowsUpdateSelectionEntry}
+	Register-GuiEventHandler -Source $checkBox -EventName 'Checked' -Handler ({ & $syncGuiWindowsUpdateSelectionEntryScript -SelectionEntry $selectionEntry }.GetNewClosure()) | Out-Null
+	Register-GuiEventHandler -Source $checkBox -EventName 'Unchecked' -Handler ({ & $syncGuiWindowsUpdateSelectionEntryScript -SelectionEntry $selectionEntry }.GetNewClosure()) | Out-Null
+	Register-GuiEventHandler -Source $checkBox -EventName 'Click' -Handler ({ & $syncGuiWindowsUpdateSelectionEntryScript -SelectionEntry $selectionEntry }.GetNewClosure()) | Out-Null
 
 	return $row
 }
@@ -227,7 +531,7 @@ function Update-GuiWindowsUpdateAvailableList
 	$Script:WindowsUpdateAvailableListPanel.Children.Clear()
 	$Script:WindowsUpdateSelectionControls.Clear()
 
-	$updates = @($Script:WindowsUpdateAvailableUpdates)
+	$updates = [object[]]$Script:WindowsUpdateAvailableUpdates.ToArray()
 	if ($updates.Count -eq 0)
 	{
 		[void]$Script:WindowsUpdateAvailableListPanel.Children.Add((New-GuiWindowsUpdateEmptyMessage -Text 'No available updates have been scanned yet.'))
@@ -264,7 +568,7 @@ function Update-GuiWindowsUpdateHistoryList
 	}
 
 	$Script:WindowsUpdateHistoryList.Items.Clear()
-	foreach ($entry in @($Script:WindowsUpdateHistoryEntries))
+	foreach ($entry in [object[]]$Script:WindowsUpdateHistoryEntries.ToArray())
 	{
 		[void]$Script:WindowsUpdateHistoryList.Items.Add($entry)
 	}
@@ -461,44 +765,105 @@ function Start-GuiWindowsUpdateOperation
 			return [object[]]$selectedUpdates.ToArray()
 		}
 
-		switch ($Action)
+		function Test-BaselineWindowsUpdateDisabledForManualRun
 		{
-			'Scan'
+			$policyPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
+			try
 			{
-				$Sync.Status = 'Scanning Windows Update...'
-				$updates = @(Get-WindowsUpdateList)
-				$portableUpdates = @($updates | ForEach-Object { ConvertTo-PortableWindowsUpdateRecord -Update $_ })
-				return [pscustomobject]@{ Action = 'Scan'; Updates = $portableUpdates }
+				$policy = Get-ItemProperty -Path $policyPath -Name NoAutoUpdate -ErrorAction Stop
+				return ([int]$policy.NoAutoUpdate -eq 1)
 			}
-			'History'
+			catch
 			{
-				$Sync.Status = 'Reading Windows Update history...'
-				$history = @(Get-WindowsUpdateHistory -Count 50)
-				return [pscustomobject]@{ Action = 'History'; History = $history }
+				return $false
 			}
-			'Download'
+		}
+
+		function Set-BaselineWindowsUpdateManualRunServiceState
+		{
+			param (
+				[Parameter(Mandatory = $true)]
+				[bool]$Enabled
+			)
+
+			$serviceDefinitions = @(
+				[pscustomobject]@{ Name = 'BITS'; EnabledStartupType = 'Manual'; DisabledStartupType = 'Disabled' }
+				[pscustomobject]@{ Name = 'wuauserv'; EnabledStartupType = 'Manual'; DisabledStartupType = 'Disabled' }
+				[pscustomobject]@{ Name = 'UsoSvc'; EnabledStartupType = 'Automatic'; DisabledStartupType = 'Disabled' }
+			)
+
+			foreach ($serviceDefinition in $serviceDefinitions)
 			{
-				$Sync.Status = 'Resolving selected Windows updates...'
-				$availableUpdates = @(Get-WindowsUpdateList)
-				$selectedUpdates = @(Resolve-SelectedWindowsUpdateRecords -AvailableUpdates $availableUpdates -Selections $SelectedIdentities)
-				$Sync.Status = 'Downloading selected Windows updates...'
-				$downloadResult = Download-WindowsUpdates -Updates $selectedUpdates
-				return [pscustomobject]@{ Action = 'Download'; DownloadResult = $downloadResult }
-			}
-			'Install'
-			{
-				$Sync.Status = 'Resolving selected Windows updates...'
-				$availableUpdates = @(Get-WindowsUpdateList)
-				$selectedUpdates = @(Resolve-SelectedWindowsUpdateRecords -AvailableUpdates $availableUpdates -Selections $SelectedIdentities)
-				$Sync.Status = 'Downloading selected Windows updates...'
-				$downloadResult = Download-WindowsUpdates -Updates $selectedUpdates
-				$installResult = $null
-				if ([bool]$downloadResult.Succeeded)
+				$serviceName = [string]$serviceDefinition.Name
+				if ($Enabled)
 				{
-					$Sync.Status = 'Installing selected Windows updates...'
-					$installResult = Install-WindowsUpdates -Updates $selectedUpdates
+					Set-Service -Name $serviceName -StartupType ([string]$serviceDefinition.EnabledStartupType) -ErrorAction SilentlyContinue | Out-Null
+					Start-Service -Name $serviceName -ErrorAction SilentlyContinue | Out-Null
 				}
-				return [pscustomobject]@{ Action = 'Install'; DownloadResult = $downloadResult; InstallResult = $installResult }
+				else
+				{
+					Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue | Out-Null
+					Set-Service -Name $serviceName -StartupType ([string]$serviceDefinition.DisabledStartupType) -ErrorAction SilentlyContinue | Out-Null
+				}
+			}
+		}
+
+		$disableUpdatesAfterManualRun = Test-BaselineWindowsUpdateDisabledForManualRun
+		if ($disableUpdatesAfterManualRun)
+		{
+			$Sync.Status = 'Temporarily enabling Windows Update service for manual update run...'
+			Set-BaselineWindowsUpdateManualRunServiceState -Enabled $true
+		}
+
+		try
+		{
+			switch ($Action)
+			{
+				'Scan'
+				{
+					$Sync.Status = 'Scanning Windows Update...'
+					$updates = @(Get-WindowsUpdateList)
+					$portableUpdates = @($updates | ForEach-Object { ConvertTo-PortableWindowsUpdateRecord -Update $_ })
+					return [pscustomobject]@{ Action = 'Scan'; Updates = $portableUpdates }
+				}
+				'History'
+				{
+					$Sync.Status = 'Reading Windows Update history...'
+					$history = @(Get-WindowsUpdateHistory -Count 50)
+					return [pscustomobject]@{ Action = 'History'; History = $history }
+				}
+				'Download'
+				{
+					$Sync.Status = 'Resolving selected Windows updates...'
+					$availableUpdates = @(Get-WindowsUpdateList)
+					$selectedUpdates = @(Resolve-SelectedWindowsUpdateRecords -AvailableUpdates $availableUpdates -Selections $SelectedIdentities)
+					$Sync.Status = 'Downloading selected Windows updates...'
+					$downloadResult = Download-WindowsUpdates -Updates $selectedUpdates
+					return [pscustomobject]@{ Action = 'Download'; DownloadResult = $downloadResult }
+				}
+				'Install'
+				{
+					$Sync.Status = 'Resolving selected Windows updates...'
+					$availableUpdates = @(Get-WindowsUpdateList)
+					$selectedUpdates = @(Resolve-SelectedWindowsUpdateRecords -AvailableUpdates $availableUpdates -Selections $SelectedIdentities)
+					$Sync.Status = 'Downloading selected Windows updates...'
+					$downloadResult = Download-WindowsUpdates -Updates $selectedUpdates
+					$installResult = $null
+					if ([bool]$downloadResult.Succeeded)
+					{
+						$Sync.Status = 'Installing selected Windows updates...'
+						$installResult = Install-WindowsUpdates -Updates $selectedUpdates
+					}
+					return [pscustomobject]@{ Action = 'Install'; DownloadResult = $downloadResult; InstallResult = $installResult }
+				}
+			}
+		}
+		finally
+		{
+			if ($disableUpdatesAfterManualRun)
+			{
+				$Sync.Status = 'Disabling Windows Update service after manual update run...'
+				Set-BaselineWindowsUpdateManualRunServiceState -Enabled $false
 			}
 		}
 	}).AddArgument($helperPath).AddArgument($Action).AddArgument($selectedIdentities).AddArgument($syncHash)
@@ -516,10 +881,13 @@ function Start-GuiWindowsUpdateOperation
 	$timer = [System.Windows.Threading.DispatcherTimer]::new()
 	$timer.Interval = [TimeSpan]::FromMilliseconds(150)
 	$showFailureScript = $Script:ShowGuiRuntimeFailureScript
+	$setGuiWindowsUpdateStatusScript = ${function:Set-GuiWindowsUpdateStatus}
+	$completeGuiWindowsUpdateOperationScript = ${function:Complete-GuiWindowsUpdateOperation}
+	$updateGuiWindowsUpdateActionStateScript = ${function:Update-GuiWindowsUpdateActionState}
 	$timer.Add_Tick({
 		if (-not [string]::IsNullOrWhiteSpace([string]$syncHash.Status))
 		{
-			Set-GuiWindowsUpdateStatus -Message ([string]$syncHash.Status)
+			& $setGuiWindowsUpdateStatusScript -Message ([string]$syncHash.Status)
 		}
 
 		if (-not $asyncResult.IsCompleted)
@@ -532,24 +900,24 @@ function Start-GuiWindowsUpdateOperation
 		{
 			$result = @($ps.EndInvoke($asyncResult))
 			$payload = if ($result.Count -gt 0) { $result[0] } else { $null }
-			Complete-GuiWindowsUpdateOperation -Payload $payload
+			& $completeGuiWindowsUpdateOperationScript -Payload $payload
 		}
 		catch
 		{
-			Set-GuiWindowsUpdateStatus -Message ('Windows Update operation failed: {0}' -f $_.Exception.Message) -State 'Error'
+			& $setGuiWindowsUpdateStatusScript -Message ('Windows Update operation failed: {0}' -f $_.Exception.Message) -State 'Error'
 			if ($showFailureScript)
 			{
 				& $showFailureScript -Context ('WindowsUpdate.{0}' -f $Action) -Exception $_.Exception -ShowDialog
 			}
 			else
 			{
-				Write-Warning ("Windows Update operation failed [{0}]: {1}" -f $Action, $_.Exception.Message)
+				Write-Warning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix ("Windows Update operation failed [{0}]" -f $Action))
 			}
 		}
 		finally
 		{
 			$Script:WindowsUpdateOperationInProgress = $false
-			Update-GuiWindowsUpdateActionState
+			& $updateGuiWindowsUpdateActionStateScript
 			try { $ps.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdatesPanel.Start-GuiWindowsUpdateOperation.DisposePowerShell' }
 			try { $runspace.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdatesPanel.Start-GuiWindowsUpdateOperation.DisposeRunspace' }
 		}
@@ -586,10 +954,18 @@ function New-GuiUpdatesRuntimePanel
 	$buttonPanel.Orientation = 'Horizontal'
 	$buttonPanel.Margin = [System.Windows.Thickness]::new(0, 0, 0, 4)
 
-	$Script:BtnWindowsUpdateScan = New-GuiWindowsUpdateActionButton -Label 'Scan for Updates' -Variant 'Primary' -Action { Start-GuiWindowsUpdateOperation -Action 'Scan' }
-	$Script:BtnWindowsUpdateDownload = New-GuiWindowsUpdateActionButton -Label 'Download Only' -Variant 'Secondary' -Action { Start-GuiWindowsUpdateOperation -Action 'Download' }
-	$Script:BtnWindowsUpdateInstall = New-GuiWindowsUpdateActionButton -Label 'Install Selected' -Variant 'Secondary' -Action { Start-GuiWindowsUpdateOperation -Action 'Install' }
-	$Script:BtnWindowsUpdateHistory = New-GuiWindowsUpdateActionButton -Label 'Refresh History' -Variant 'Subtle' -Action { Start-GuiWindowsUpdateOperation -Action 'History' }
+	$Script:GuiWindowsUpdateOperationInvoker = {
+		param (
+			[ValidateSet('Scan', 'Download', 'Install', 'History')]
+			[string]$Action
+		)
+
+		Start-GuiWindowsUpdateOperation -Action $Action
+	}
+	$Script:BtnWindowsUpdateScan = New-GuiWindowsUpdateActionButton -Label 'Scan for Updates' -Variant 'Primary' -Action { & $Script:GuiWindowsUpdateOperationInvoker -Action 'Scan' }
+	$Script:BtnWindowsUpdateDownload = New-GuiWindowsUpdateActionButton -Label 'Download Only' -Variant 'Secondary' -Action { & $Script:GuiWindowsUpdateOperationInvoker -Action 'Download' }
+	$Script:BtnWindowsUpdateInstall = New-GuiWindowsUpdateActionButton -Label 'Install Selected' -Variant 'Secondary' -Action { & $Script:GuiWindowsUpdateOperationInvoker -Action 'Install' }
+	$Script:BtnWindowsUpdateHistory = New-GuiWindowsUpdateActionButton -Label 'Refresh History' -Variant 'Subtle' -Action { & $Script:GuiWindowsUpdateOperationInvoker -Action 'History' }
 
 	[void]$buttonPanel.Children.Add($Script:BtnWindowsUpdateScan)
 	[void]$buttonPanel.Children.Add($Script:BtnWindowsUpdateDownload)

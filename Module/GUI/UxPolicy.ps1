@@ -907,7 +907,7 @@ function Get-UxQuickStartSteps
 			'Safe'
 			{
 				$qsLabel = Get-UxLocalizedString -Key 'GuiPresetQuickStart' -Fallback 'Quick Start'
-				return (Get-UxLocalizedString -Key 'GuiPresetStartHereEmphasis' -Fallback ("Start here {0} {1} is recommended for your first run." -f ([char]0x2014), $qsLabel))
+				return (Get-UxLocalizedString -Key 'GuiPresetStartHereEmphasis' -Fallback '{0} is recommended for your first run.' -FormatArgs @($qsLabel))
 			}
 			'Expert'
 			{

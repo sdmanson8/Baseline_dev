@@ -893,6 +893,31 @@ function Test-TweakManifestIntegrity
 	$validGamingPreviewGroups = @(Get-ValidGamingPreviewGroups)
 	$validGameModeProfiles = @(Get-ValidGameModeProfileNames)
 	$validDecisionPromptKeys = @(Get-GameModeDecisionPromptKeyCatalog)
+	$manifestFunctionSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+	foreach ($entry in @($Manifest))
+	{
+		$entryFunction = [string](Get-TweakManifestEntryValue -Entry $entry -FieldName 'Function')
+		if (-not [string]::IsNullOrWhiteSpace($entryFunction))
+		{
+			[void]$manifestFunctionSet.Add($entryFunction)
+		}
+	}
+	$gameModeAllowlistSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+	foreach ($functionName in @(Get-GameModeAllowlist))
+	{
+		if (-not [string]::IsNullOrWhiteSpace([string]$functionName))
+		{
+			[void]$gameModeAllowlistSet.Add([string]$functionName)
+		}
+	}
+	$gameModeReviewedCrossCategorySet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+	foreach ($functionName in @(Get-GameModeReviewedCrossCategoryAllowlist))
+	{
+		if (-not [string]::IsNullOrWhiteSpace([string]$functionName))
+		{
+			[void]$gameModeReviewedCrossCategorySet.Add([string]$functionName)
+		}
+	}
 	$issues = [System.Collections.ArrayList]::new()
 
 	foreach ($tweak in $Manifest)
@@ -974,7 +999,7 @@ function Test-TweakManifestIntegrity
 				{
 					[void]$issues.Add("$label : CounterpartFunction cannot reference the entry itself")
 				}
-				elseif (-not (Get-ManifestEntryByFunction -Manifest $Manifest -Function $counterpartFunction))
+				elseif (-not $manifestFunctionSet.Contains($counterpartFunction))
 				{
 					[void]$issues.Add("$label : CounterpartFunction '$counterpartFunction' was not found in the manifest")
 				}
@@ -1047,9 +1072,15 @@ function Test-TweakManifestIntegrity
 		{
 			[void]$issues.Add("$label : TroubleshootingOnly is true but no troubleshooting ScenarioTag is present")
 		}
-		if ((@(Get-GameModeAllowlist) -contains [string](Get-TweakManifestEntryValue -Entry $tweak -FieldName 'Function')) -and -not (Test-GameModeAllowlistEntryReviewed -Entry $tweak))
+		$gameModeFunctionName = [string](Get-TweakManifestEntryValue -Entry $tweak -FieldName 'Function')
+		if ($gameModeAllowlistSet.Contains($gameModeFunctionName))
 		{
-			[void]$issues.Add("$label : cross-category Game Mode allowlist entries must be added to the reviewed cross-category allowlist")
+			$scopeCategory = Get-GameModeEntryScopeCategory -Entry $tweak
+			$isReviewedGameModeEntry = ([string]::IsNullOrWhiteSpace($scopeCategory) -or $scopeCategory -eq 'Gaming' -or $gameModeReviewedCrossCategorySet.Contains($gameModeFunctionName))
+			if (-not $isReviewedGameModeEntry)
+			{
+				[void]$issues.Add("$label : cross-category Game Mode allowlist entries must be added to the reviewed cross-category allowlist")
+			}
 		}
 		if ((Test-GameModeManifestDefaultEnabled -Entry $tweak) -and -not (Test-GameModeProfileDefaultEligible -Entry $tweak))
 		{

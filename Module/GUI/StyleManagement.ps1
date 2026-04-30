@@ -37,6 +37,7 @@
 			return $color
 		}.GetNewClosure()
 		$borderThickness = 1
+		$hoverBorder = $null
 		switch ($Variant)
 		{
 			'Selection'
@@ -44,7 +45,7 @@
 				$normalBg     = & $getSafeColor -ColorName 'AccentBlue' -DefaultColor '#3B82F6'
 				$hoverBg      = & $getSafeColor -ColorName 'AccentHover' -DefaultColor '#60A5FA'
 				$pressBg      = & $getSafeColor -ColorName 'AccentPress' -DefaultColor '#2563EB'
-				$normalBorder = & $getSafeColor -ColorName 'ActiveTabIndicator' -DefaultColor '#4ADE80'
+				$normalBorder = & $getSafeColor -ColorName 'ActiveTabIndicator' -DefaultColor '#7CB7FF'
 				$foreground   = '#FFFFFF'
 				$borderThickness = 2
 			}
@@ -58,11 +59,12 @@
 			}
 			'Preview'
 			{
-				$normalBg     = & $getSafeColor -ColorName 'SecondaryButtonBg' -DefaultColor '#30374A'
-				$hoverBg      = & $getSafeColor -ColorName 'SecondaryButtonHoverBg' -DefaultColor '#39415A'
-				$pressBg      = & $getSafeColor -ColorName 'SecondaryButtonPressBg' -DefaultColor '#262D3E'
+				$normalBg     = '#00FFFFFF'
+				$hoverBg      = & $getSafeColor -ColorName 'SecondaryButtonHoverBg' -DefaultColor '#1E2433'
+				$pressBg      = & $getSafeColor -ColorName 'SecondaryButtonPressBg' -DefaultColor '#262D40'
 				$normalBorder = & $getSafeColor -ColorName 'AccentBlue' -DefaultColor '#3B82F6'
 				$foreground   = & $getSafeColor -ColorName 'AccentBlue' -DefaultColor '#3B82F6'
+				$hoverBorder  = & $getSafeColor -ColorName 'AccentHover' -DefaultColor '#60A5FA'
 			}
 			'Danger'
 			{
@@ -74,64 +76,50 @@
 			}
 			'DangerSubtle'
 			{
-				$normalBg     = & $getSafeColor -ColorName 'SecondaryButtonBg' -DefaultColor '#30374A'
-				$hoverBg      = & $getSafeColor -ColorName 'DestructiveHover' -DefaultColor '#A6294E'
-				$pressBg      = & $getSafeColor -ColorName 'DestructiveBg' -DefaultColor '#C0325A'
-				$normalBorder = & $getSafeColor -ColorName 'CautionBorder' -DefaultColor '#F38BA8'
-				$foreground   = & $getSafeColor -ColorName 'CautionBorder' -DefaultColor '#F38BA8'
+				$normalBg     = '#00FFFFFF'
+				$hoverBg      = & $getSafeColor -ColorName 'DestructiveSubtleHoverBg' -DefaultColor '#14FF6B8A'
+				$pressBg      = & $getSafeColor -ColorName 'DestructiveSubtlePressBg' -DefaultColor '#24FF6B8A'
+				$normalBorder = & $getSafeColor -ColorName 'DestructiveSubtleBorder' -DefaultColor '#59FF6B8A'
+				$foreground   = & $getSafeColor -ColorName 'RiskHighBadge' -DefaultColor '#FF6B8A'
+				$hoverBorder  = $foreground
 			}
 			'Subtle'
 			{
 				if ($Muted)
 				{
-					# Passive / unselected Subtle — keep the existing weak chrome so
-					# Clear Search, Refresh, footer buttons, unselected filter pills,
-					# etc. don't grow heavier.
-					$normalBg     = & $getSafeColor -ColorName 'TabBg' -DefaultColor '#2F3445'
-					$hoverBg      = & $getSafeColor -ColorName 'TabHoverBg' -DefaultColor '#3670B8'
-					$pressBg      = & $getSafeColor -ColorName 'TabActiveBg' -DefaultColor '#3670B8'
-					$normalBorder = & $getSafeColor -ColorName 'BorderColor' -DefaultColor '#4C556D'
-					$foreground   = & $getSafeColor -ColorName 'TextSecondary' -DefaultColor '#9CA3AF'
+					$normalBg     = '#00FFFFFF'
+					$hoverBg      = & $getSafeColor -ColorName 'TabHoverBg' -DefaultColor '#202638'
+					$pressBg      = & $getSafeColor -ColorName 'TabActiveBg' -DefaultColor '#262D40'
+					$normalBorder = & $getSafeColor -ColorName 'BorderColor' -DefaultColor '#293044'
+					$foreground   = & $getSafeColor -ColorName 'TextMuted' -DefaultColor '#8F99B2'
 				}
 				else
 				{
-					# Non-muted Subtle — used as the selected-neutral pill (Source=All,
-					# View=Cards, View=List). TabBg + BorderColor is too close to the
-					# parent panel to read as a pill, so step the fill one shade
-					# brighter and use a distinctly stronger neutral-cool border at
-					# 2px so the silhouette is unmistakable without going accent.
-					$normalBg     = & $getSafeColor -ColorName 'SecondaryButtonHoverBg' -DefaultColor '#39415A'
-					$hoverBg      = & $getSafeColor -ColorName 'TabHoverBg' -DefaultColor '#3670B8'
-					$pressBg      = & $getSafeColor -ColorName 'TabActiveBg' -DefaultColor '#3670B8'
-					$normalBorder = & $getSafeColor -ColorName 'ActiveTabBorder' -DefaultColor '#89B4FA'
-					$foreground   = & $getSafeColor -ColorName 'TextPrimary' -DefaultColor '#CDD6F4'
-					$borderThickness = 2
+					$normalBg     = & $getSafeColor -ColorName 'TabActiveBg' -DefaultColor '#262D40'
+					$hoverBg      = & $getSafeColor -ColorName 'TabHoverBg' -DefaultColor '#202638'
+					$pressBg      = & $getSafeColor -ColorName 'TabActiveBg' -DefaultColor '#262D40'
+					$normalBorder = & $getSafeColor -ColorName 'BorderColor' -DefaultColor '#293044'
+					$foreground   = & $getSafeColor -ColorName 'TextPrimary' -DefaultColor '#F4F7FF'
 				}
 			}
 			'SegmentNeutral'
 			{
-				# Neutral "selected" state for segmented controls (e.g. Source=All,
-				# View=Cards/List). Must still read as a real pill — distinct
-				# fill AND visible border — but non-accent so WinGet/Chocolatey
-				# keep the accent to themselves. Use a stronger neutral-selected
-				# fill than the generic secondary chrome so "All" never blends
-				# into the panel.
-				$normalBg     = & $getSafeColor -ColorName 'SecondaryButtonHoverBg' -DefaultColor '#39415A'
-				$hoverBg      = & $getSafeColor -ColorName 'SecondaryButtonHoverBg' -DefaultColor '#39415A'
-				$pressBg      = & $getSafeColor -ColorName 'SecondaryButtonHoverBg' -DefaultColor '#39415A'
-				$normalBorder = & $getSafeColor -ColorName 'ActiveTabBorder' -DefaultColor '#89B4FA'
-				$foreground   = & $getSafeColor -ColorName 'TextPrimary' -DefaultColor '#CDD6F4'
-				$borderThickness = 2
+				$normalBg     = & $getSafeColor -ColorName 'TabActiveBg' -DefaultColor '#262D40'
+				$hoverBg      = & $getSafeColor -ColorName 'TabHoverBg' -DefaultColor '#202638'
+				$pressBg      = & $getSafeColor -ColorName 'TabActiveBg' -DefaultColor '#262D40'
+				$normalBorder = & $getSafeColor -ColorName 'BorderColor' -DefaultColor '#293044'
+				$foreground   = & $getSafeColor -ColorName 'TextPrimary' -DefaultColor '#F4F7FF'
 			}
 			default
 			{
-				$normalBg     = & $getSafeColor -ColorName 'SecondaryButtonBg' -DefaultColor '#30374A'
-				$hoverBg      = & $getSafeColor -ColorName 'SecondaryButtonHoverBg' -DefaultColor '#39415A'
-				$pressBg      = & $getSafeColor -ColorName 'SecondaryButtonPressBg' -DefaultColor '#262D3E'
-				$normalBorder = & $getSafeColor -ColorName 'SecondaryButtonBorder' -DefaultColor '#5F6984'
-				$foreground   = & $getSafeColor -ColorName 'SecondaryButtonFg' -DefaultColor '#E5EAF7'
+				$normalBg     = & $getSafeColor -ColorName 'SecondaryButtonBg' -DefaultColor '#00FFFFFF'
+				$hoverBg      = & $getSafeColor -ColorName 'SecondaryButtonHoverBg' -DefaultColor '#1E2433'
+				$pressBg      = & $getSafeColor -ColorName 'SecondaryButtonPressBg' -DefaultColor '#262D40'
+				$normalBorder = & $getSafeColor -ColorName 'SecondaryButtonBorder' -DefaultColor '#293044'
+				$foreground   = & $getSafeColor -ColorName 'SecondaryButtonFg' -DefaultColor '#B8C1D9'
 			}
 		}
+		if ([string]::IsNullOrWhiteSpace($hoverBorder)) { $hoverBorder = $normalBorder }
 
 		$cornerRadius = if ($Compact) { 5 } else { 6 }
 		$paddingValue = if ($Button.Padding -and ($Button.Padding.Left -ne 0 -or $Button.Padding.Top -ne 0 -or $Button.Padding.Right -ne 0 -or $Button.Padding.Bottom -ne 0)) {
@@ -146,7 +134,8 @@
 		$hoverBgBrush = $bc.ConvertFromString($hoverBg)
 		$pressBgBrush = $bc.ConvertFromString($pressBg)
 		$normalBorderBrush = $bc.ConvertFromString($normalBorder)
-		$focusBorderBrush = $bc.ConvertFromString((& $getSafeColor -ColorName 'FocusRing' -DefaultColor '#C9DEFF'))
+		$hoverBorderBrush = $bc.ConvertFromString($hoverBorder)
+		$focusBorderBrush = $bc.ConvertFromString((& $getSafeColor -ColorName 'FocusRing' -DefaultColor '#9ACAFF'))
 		$foregroundBrush = $bc.ConvertFromString($foreground)
 
 		$Button.Foreground = $foregroundBrush
@@ -176,7 +165,7 @@
 		$hoverTrigger.Property = [System.Windows.UIElement]::IsMouseOverProperty
 		$hoverTrigger.Value = $true
 		[void]($hoverTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BackgroundProperty) -Value $hoverBgBrush -TargetName 'Bd')))
-		[void]($hoverTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BorderBrushProperty) -Value $focusBorderBrush -TargetName 'Bd')))
+		[void]($hoverTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BorderBrushProperty) -Value $hoverBorderBrush -TargetName 'Bd')))
 		[void]($tmpl.Triggers.Add($hoverTrigger))
 		$focusTrigger = New-Object System.Windows.Trigger
 		$focusTrigger.Property = [System.Windows.UIElement]::IsKeyboardFocusedProperty
@@ -188,7 +177,7 @@
 		$pressTrigger.Property = [System.Windows.Controls.Primitives.ButtonBase]::IsPressedProperty
 		$pressTrigger.Value = $true
 		[void]($pressTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BackgroundProperty) -Value $pressBgBrush -TargetName 'Bd')))
-		[void]($pressTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BorderBrushProperty) -Value $focusBorderBrush -TargetName 'Bd')))
+		[void]($pressTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BorderBrushProperty) -Value $hoverBorderBrush -TargetName 'Bd')))
 		[void]($tmpl.Triggers.Add($pressTrigger))
 		$disabledTrigger = New-Object System.Windows.Trigger
 		$disabledTrigger.Property = [System.Windows.UIElement]::IsEnabledProperty
@@ -247,17 +236,17 @@
 			return $color
 		}.GetNewClosure()
 
-		$foreground = & $getSafeColor -ColorName 'TextPrimary' -DefaultColor '#CDD6F4'
+		$foreground = & $getSafeColor -ColorName 'TextPrimary' -DefaultColor '#F4F7FF'
 		$normalBgBrush = [System.Windows.Media.Brushes]::Transparent
 		$hoverBg = if ($Variant -eq 'Close') {
 			& $getSafeColor -ColorName 'DestructiveHover' -DefaultColor '#A6294E'
 		} else {
-			& $getSafeColor -ColorName 'SecondaryButtonHoverBg' -DefaultColor '#39415A'
+			& $getSafeColor -ColorName 'SecondaryButtonHoverBg' -DefaultColor '#343C55'
 		}
 		$pressBg = if ($Variant -eq 'Close') {
 			& $getSafeColor -ColorName 'DestructiveBg' -DefaultColor '#C0325A'
 		} else {
-			& $getSafeColor -ColorName 'SecondaryButtonPressBg' -DefaultColor '#262D3E'
+			& $getSafeColor -ColorName 'SecondaryButtonPressBg' -DefaultColor '#202638'
 		}
 		$hoverForeground = if ($Variant -eq 'Close') { '#FFFFFF' } else { $foreground }
 
@@ -265,7 +254,7 @@
 		$hoverForegroundBrush = $bc.ConvertFromString($hoverForeground)
 		$hoverBgBrush = $bc.ConvertFromString($hoverBg)
 		$pressBgBrush = $bc.ConvertFromString($pressBg)
-		$focusBorderBrush = $bc.ConvertFromString((& $getSafeColor -ColorName 'FocusRing' -DefaultColor '#C9DEFF'))
+		$focusBorderBrush = $bc.ConvertFromString((& $getSafeColor -ColorName 'FocusRing' -DefaultColor '#9ACAFF'))
 
 		$Button.Foreground = $foregroundBrush
 		$Button.Background = $normalBgBrush
@@ -342,7 +331,7 @@
 
 		# Helper to ensure a color is a valid hex string
 		$ensureHexColor = {
-			param($Color, $Default = '#89B4FA')
+			param($Color, $Default = '#7CB7FF')
 			if ([string]::IsNullOrWhiteSpace($Color)) { return $Default }
 			if ($Color -match '^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$') { return $Color }
 			return $Default
@@ -356,7 +345,7 @@
 		$thumbOnFill = '#FFFFFF'
 		$hoverOffBorder = $null
 		$hoverOnBorder = $null
-		$focusBorder  = & $ensureHexColor $theme.FocusRing      '#C9DEFF'
+		$focusBorder  = & $ensureHexColor $theme.FocusRing      '#9ACAFF'
 
 		switch ($Palette)
 		{
@@ -377,8 +366,8 @@
 				$lightSurface = & $ensureHexColor $(if ($Script:LightTheme) { $Script:LightTheme.CardBg } else { $null }) '#FFFFFF'
 				$lightBorder = & $ensureHexColor $(if ($Script:LightTheme) { $Script:LightTheme.BorderColor } else { $null }) '#A7B0C0'
 				$lightAccent = & $ensureHexColor $(if ($Script:LightTheme) { $Script:LightTheme.AccentBlue } else { $null }) '#1550AA'
-				$darkSurface = & $ensureHexColor $(if ($Script:DarkTheme) { $Script:DarkTheme.CardBg } else { $null }) '#272B3A'
-				$darkBorder = & $ensureHexColor $(if ($Script:DarkTheme) { $Script:DarkTheme.BorderColor } else { $null }) '#4C556D'
+				$darkSurface = & $ensureHexColor $(if ($Script:DarkTheme) { $Script:DarkTheme.CardBg } else { $null }) '#202638'
+				$darkBorder = & $ensureHexColor $(if ($Script:DarkTheme) { $Script:DarkTheme.BorderColor } else { $null }) '#293044'
 
 				$trackOffBg = $darkSurface
 				$trackOffBorder = $darkBorder
@@ -766,7 +755,7 @@
 		}
 		catch
 		{
-			try { LogWarning ("Menu bar theme update failed: {0}" -f $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-GuiMenuBarTheme.LogWarning' }
+			try { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Menu bar theme update failed') } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-GuiMenuBarTheme.LogWarning' }
 		}
 		if ($Script:MenuBarBorder)
 		{
@@ -844,7 +833,7 @@
 		}
 		catch
 		{
-			try { LogWarning ("Scrollbar theme update failed: {0}" -f $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-GuiScrollBarTheme.LogWarning' }
+			try { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Scrollbar theme update failed') } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-GuiScrollBarTheme.LogWarning' }
 		}
 	}
 
@@ -929,12 +918,19 @@
 			[System.Windows.Controls.ToolTipService]::SetInitialShowDelay($Script:NavModeApps, 350)
 			[System.Windows.Controls.ToolTipService]::SetShowDuration($Script:NavModeApps, 15000)
 		}
+		if ($Script:NavModeUpdates)
+		{
+			$updatesTip = (Get-UxLocalizedString -Key 'Nav_WindowsUpdatesTooltip' -Fallback "Scan, download, and install Windows updates from a dedicated workflow.")
+			Set-GuiButtonIconContent -Button $Script:NavModeUpdates -IconName 'ArrowSync' -Text (Get-UxLocalizedString -Key 'Nav_WindowsUpdates' -Fallback 'Windows Updates') -ToolTip $updatesTip -IconSize 14 -Gap 6 -TextFontSize 11
+			[System.Windows.Controls.ToolTipService]::SetInitialShowDelay($Script:NavModeUpdates, 350)
+			[System.Windows.Controls.ToolTipService]::SetShowDuration($Script:NavModeUpdates, 15000)
+		}
 		if ($Script:ModeSubtitle)
 		{
-			$modeSubtitleKey = if ($Script:AppsModeActive) { 'Nav_SoftwareAndAppsSubtitle' } else { 'Nav_OptimizeSubtitle' }
-			$modeSubtitleFallback = if ($Script:AppsModeActive) { 'Manage installed applications' } else { 'Configure system behavior' }
+			$modeSubtitleKey = if ($Script:UpdatesModeActive) { 'Nav_WindowsUpdatesSubtitle' } elseif ($Script:AppsModeActive) { 'Nav_SoftwareAndAppsSubtitle' } else { 'Nav_OptimizeSubtitle' }
+			$modeSubtitleFallback = if ($Script:UpdatesModeActive) { 'Manage Windows Update' } elseif ($Script:AppsModeActive) { 'Manage installed applications' } else { 'Configure system behavior' }
 			$Script:ModeSubtitle.Text = (Get-UxLocalizedString -Key $modeSubtitleKey -Fallback $modeSubtitleFallback)
-			$Script:ModeSubtitle.HorizontalAlignment = if ($Script:AppsModeActive) { [System.Windows.HorizontalAlignment]::Right } else { [System.Windows.HorizontalAlignment]::Left }
+			$Script:ModeSubtitle.HorizontalAlignment = if ($Script:UpdatesModeActive) { [System.Windows.HorizontalAlignment]::Center } elseif ($Script:AppsModeActive) { [System.Windows.HorizontalAlignment]::Right } else { [System.Windows.HorizontalAlignment]::Left }
 		}
 		if ($Script:BtnUpdateAllApps)
 		{
@@ -1125,7 +1121,7 @@
 		# Expert mode banner
 		if ($Script:ExpertModeBanner -and $Script:ExpertModeBanner.Child -is [System.Windows.Controls.TextBlock])
 		{
-			$Script:ExpertModeBanner.Child.Text = (Get-UxLocalizedString -Key 'GuiExpertModeBanner' -Fallback 'EXPERT MODE — all presets and advanced tweaks are available')
+			$Script:ExpertModeBanner.Child.Text = (Get-UxLocalizedString -Key 'GuiExpertModeBanner' -Fallback 'Expert Mode enabled - advanced tweaks visible')
 		}
 
 		# Update mode/theme state indicators
@@ -1236,18 +1232,18 @@
 
 		# Helper to ensure a color is a valid hex string
 		$ensureHexColor = {
-			param($Color, $Default = '#89B4FA')
+			param($Color, $Default = '#7CB7FF')
 			if ([string]::IsNullOrWhiteSpace($Color)) { return $Default }
 			if ($Color -match '^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$') { return $Color }
 			return $Default
 		}
 
-		$inputBg       = & $ensureHexColor $theme.InputBg       '#313244'
-		$textPrimary   = & $ensureHexColor $theme.TextPrimary   '#CDD6F4'
+		$inputBg       = & $ensureHexColor $theme.InputBg       '#2A3146'
+		$textPrimary   = & $ensureHexColor $theme.TextPrimary   '#F4F7FF'
 		$borderBrush   = & $ensureHexColor $theme.SearchBorder  '#585B70'
-		$hoverBg       = & $ensureHexColor $theme.CardHoverBg   '#323A4E'
+		$hoverBg       = & $ensureHexColor $theme.CardHoverBg   '#343C55'
 		$activeBg      = & $ensureHexColor $theme.TabActiveBg   '#3670B8'
-		$activeBorder  = & $ensureHexColor $theme.ActiveTabBorder '#89B4FA'
+		$activeBorder  = & $ensureHexColor $theme.ActiveTabBorder '#7CB7FF'
 		if (-not $Script:ChoiceComboTemplateLoadFailures)
 		{
 			$Script:ChoiceComboTemplateLoadFailures = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
@@ -1459,6 +1455,7 @@
 		if ($Script:BtnAppsFilterToggle) { $Script:BtnAppsFilterToggle.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
 		if ($CmbRiskFilter) { Set-ChoiceComboStyle -Combo $CmbRiskFilter }
 		if ($CmbCategoryFilter) { Set-ChoiceComboStyle -Combo $CmbCategoryFilter }
+		if ($CmbPlatformFilter) { Set-ChoiceComboStyle -Combo $CmbPlatformFilter }
 		if ($CmbAppsStatusFilter) { Set-ChoiceComboStyle -Combo $CmbAppsStatusFilter }
 		if ($TxtLanguageState) { $TxtLanguageState.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
 		if ($LanguagePopupBorder)
@@ -1497,6 +1494,7 @@
 		if ($Script:BtnClearSearch) { $Script:BtnClearSearch.IsEnabled = $Enabled }
 		if ($CmbRiskFilter) { $CmbRiskFilter.IsEnabled = $Enabled }
 		if ($CmbCategoryFilter) { $CmbCategoryFilter.IsEnabled = $Enabled }
+		if ($CmbPlatformFilter) { $CmbPlatformFilter.IsEnabled = $Enabled }
 		if ($ChkSelectedOnly) { $ChkSelectedOnly.IsEnabled = $Enabled }
 		if ($ChkHighRiskOnly) { $ChkHighRiskOnly.IsEnabled = $Enabled }
 		if ($ChkRestorableOnly) { $ChkRestorableOnly.IsEnabled = $Enabled }

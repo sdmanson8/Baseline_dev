@@ -53,12 +53,12 @@
 			{
 				try { [string]$Value.GetType().FullName } catch { 'unknown' }
 			}
-			$warningMessage = "Failed to set property '{0}' on {1} (expected {2}, actual {3}): {4}" -f `
+			$warningPrefix = "Failed to set property '{0}' on {1} (expected {2}, actual {3})" -f `
 				$PropertyName, `
 				$(try { $Control.GetType().FullName } catch { 'unknown' }), `
 				$propertyType, `
-				$valueType, `
-				$_.Exception.Message
+				$valueType
+			$warningMessage = Format-BaselineErrorForLog -ErrorObject $_ -Prefix $warningPrefix
 
 			$warningKey = '{0}|{1}' -f $Context, $warningMessage
 			$shouldLog = $true
@@ -175,7 +175,7 @@
 			}
 			else
 			{
-				Write-Warning ("GUI event failed [{0}]: {1}" -f $(if ($Context) { $Context } else { 'GUI' }), $_.Exception.Message)
+				Write-Warning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix ("GUI event failed [{0}]" -f $(if ($Context) { $Context } else { 'GUI' })))
 			}
 		}
 	}

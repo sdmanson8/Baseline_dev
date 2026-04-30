@@ -117,7 +117,7 @@ function Start-AppsModuleQueuedActionAsync
 		}
 		catch
 		{
-			LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionAppQueueStateFailed' -Fallback 'Failed to apply queued app actions: {0}' -FormatArgs @($_.Exception.Message))
+			LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionAppQueueStateFailed' -Fallback 'Failed to apply queued app actions'))
 			try { $applyState.Timer.Stop() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Start-AppsModuleQueuedActionAsync.TimerStop' }
 			try { $applyState.Timer.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Start-AppsModuleQueuedActionAsync.TimerDispose' }
 			$applyState.Timer = $null

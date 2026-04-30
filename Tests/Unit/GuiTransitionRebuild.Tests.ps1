@@ -12,6 +12,7 @@ BeforeAll {
     $applyThemePath = Join-Path $PSScriptRoot '../../Module/GUI/ApplyTheme.ps1'
     $contentManagementPath = Join-Path $PSScriptRoot '../../Module/GUI/ContentManagement.ps1'
     $styledControlsSetupPath = Join-Path $PSScriptRoot '../../Module/GUI/StyledControlsSetup.ps1'
+    $dialogHelpersPath = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers.ps1'
     $mainWindowPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
     $stylePath = Join-Path $PSScriptRoot '../../Module/GUI/StyleManagement.ps1'
     $applicationsViewPath = Join-Path $PSScriptRoot '../../Module/GUI/ApplicationsView.ps1'
@@ -19,6 +20,7 @@ BeforeAll {
     $actionHandlersPath = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers.ps1'
     $actionHandlersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers'
     $stateTransitionPath = Join-Path $PSScriptRoot '../../Module/GUI/StateTransitions.ps1'
+    $sessionStatePath = Join-Path $PSScriptRoot '../../Module/GUI/SessionState.ps1'
     $gameModePath = Join-Path $PSScriptRoot '../../Module/GUI/GameModeUI.ps1'
     $updatesPanelPath = Join-Path $PSScriptRoot '../../Module/GUI/UpdatesPanel.ps1'
 
@@ -37,10 +39,12 @@ BeforeAll {
         Get-Content -LiteralPath $applyThemePath -Raw -Encoding UTF8
         Get-Content -LiteralPath $updatesPanelPath -Raw -Encoding UTF8
     ) -join "`n"
+    $script:BuildPrimaryTabsContent = Get-Content -LiteralPath $buildPrimaryTabsPath -Raw -Encoding UTF8
     $script:StyleContent = Get-Content -LiteralPath $stylePath -Raw -Encoding UTF8
     $script:ApplicationsViewContent = Get-Content -LiteralPath $applicationsViewPath -Raw -Encoding UTF8
     $script:ContentManagementContent = Get-Content -LiteralPath $contentManagementPath -Raw -Encoding UTF8
     $script:StyledControlsSetupContent = Get-Content -LiteralPath $styledControlsSetupPath -Raw -Encoding UTF8
+    $script:DialogHelpersContent = Get-Content -LiteralPath $dialogHelpersPath -Raw -Encoding UTF8
     $script:PresetUiContent = Get-Content -LiteralPath $presetUiPath -Raw -Encoding UTF8
     $script:ActionHandlersContent = Get-BaselineTestSourceText -Path @(
         $actionHandlersPath
@@ -50,6 +54,7 @@ BeforeAll {
         (Join-Path $actionHandlersSplitRoot 'MenuHandlers.ps1')
     )
     $script:StateTransitionContent = Get-Content -LiteralPath $stateTransitionPath -Raw -Encoding UTF8
+    $script:SessionStateContent = Get-Content -LiteralPath $sessionStatePath -Raw -Encoding UTF8
     $script:GameModeContent = Get-Content -LiteralPath $gameModePath -Raw -Encoding UTF8
     $script:UpdatesPanelContent = Get-Content -LiteralPath $updatesPanelPath -Raw -Encoding UTF8
 }
@@ -60,6 +65,25 @@ Describe 'Focused GUI rebuilds' {
         $script:GuiContent | Should -Match '\[switch\]\$SkipIdlePrebuild'
         $script:GuiContent | Should -Match 'if \(-not \$SkipIdlePrebuild -and \$PrimaryTabs -and \$PrimaryTabs\.Dispatcher\)'
         $script:GuiContent | Should -Match '\[System\.Windows\.Threading\.DispatcherPriority\]::ApplicationIdle'
+    }
+
+    It 'keeps the splash until startup tab content is hydrated' {
+        $script:GuiContent | Should -Match '# Signal GuiReady NOW'
+        $script:GuiContent | Should -Match 'Set-BootstrapLoadingSplashStep'' -CommandType Function'
+        $script:GuiContent | Should -Match "-StepId 'finalize' -Status 'completed'"
+        $script:GuiContent | Should -Match '\$Global:LoadingSplash\.GuiReady = \$true'
+        $script:GuiContent | Should -Match '\$null = Invoke-GuiDispatcherAction -Dispatcher \$PrimaryTabs\.Dispatcher -PriorityUsage ''Immediate'' -Action \{'
+        $script:GuiContent | Should -Match '\$PrimaryTabs\.Dispatcher\.BeginInvoke\(\s*\[System\.Action\]\$initialTabBuildAction,\s*\[System\.Windows\.Threading\.DispatcherPriority\]::Background'
+        $script:GuiContent | Should -Match 'if \(-not \$startupRestoreSessionPending\)'
+        $script:BuildPrimaryTabsContent | Should -Not -Match '\$Global:LoadingSplash\.GuiReady = \$true'
+        $script:BuildPrimaryTabsContent | Should -Not -Match '\$Script:MainForm\.Visibility = \[System\.Windows\.Visibility\]::Visible'
+        $script:GuiContent | Should -Match '\$startGuiPerfScopeScript = Get-GuiFunctionCapture -Name ''Start-GuiPerfScope'''
+        $script:GuiContent | Should -Match '\$stopGuiPerfScopeScript = Get-GuiFunctionCapture -Name ''Stop-GuiPerfScope'''
+    }
+
+    It 'initializes perf tracing before the dialog helpers load' {
+        $script:DialogHelpersContent | Should -Match '\. \(Join-Path \$Script:DialogHelpersRoot ''PerfTrace\.ps1''\)'
+        $script:DialogHelpersContent | Should -Match 'Initialize-GuiPerfTrace'
     }
 
     It 'threads the focused rebuild flag through the current-tab refresh path' {
@@ -74,10 +98,51 @@ Describe 'Focused GUI rebuilds' {
         $script:StateTransitionContent | Should -Match '& \$Script:UpdateCurrentTabContentScript -SkipIdlePrebuild'
     }
 
+    It 'skips duplicate content rebuild during initial startup theme application' {
+        $script:GuiContent | Should -Match 'Set-GUITheme -Theme \$\(if \(\$initialThemeName -eq ''Light''\) \{ \$Script:LightTheme \} else \{ \$Script:DarkTheme \}\) -SkipContentRebuild'
+        $script:GuiContent | Should -Match 'param \(\s*\[hashtable\]\$Theme,\s*\[switch\]\$SkipContentRebuild\s*\)'
+        $script:GuiContent | Should -Match 'if \(-not \$SkipContentRebuild\)\s*\{\s*# Rebuild content for current tab to pick up new theme colors\.'
+    }
+
+    It 'defers startup session-tab hydration onto the dispatcher' {
+        $script:SessionStateContent | Should -Match '\$refreshCurrentTabContentScript = \$\{function:Update-CurrentTabContent\}'
+        $script:SessionStateContent | Should -Match '\$startGuiPerfScopeScript = Get-GuiFunctionCapture -Name ''Start-GuiPerfScope'''
+        $script:SessionStateContent | Should -Match '\$stopGuiPerfScopeScript = Get-GuiFunctionCapture -Name ''Stop-GuiPerfScope'''
+        $script:SessionStateContent | Should -Match '\$__perf = if \(\$startGuiPerfScopeScript\) \{ & \$startGuiPerfScopeScript -Name ''RestoreGuiSessionState\.TabHydrate'' \} else \{ \$null \}'
+        $script:SessionStateContent | Should -Match '\$Script:MainForm\.Dispatcher\.BeginInvoke\('
+        $script:SessionStateContent | Should -Match '\[System\.Windows\.Threading\.DispatcherPriority\]::Background'
+        $script:SessionStateContent | Should -Match '& \$refreshCurrentTabContentScript -SkipIdlePrebuild'
+    }
+
+    It 'loads the AppData startup session snapshot before primary tab hydration' {
+        $script:GuiContent | Should -Match '\$Script:StartupSessionSnapshot = \$null'
+        $script:GuiContent | Should -Match 'GUICommon\\Read-GuiSessionStateDocument -AppName ''Baseline'' -ExpectedSchema ''Baseline\.GuiSettings'''
+        $script:GuiContent | Should -Match '\$Script:StartupHydratePrimaryTab = \$desiredTab'
+        $script:GuiContent | Should -Match '\$Script:StartupHydratePrimaryTab = \$desiredLast'
+        $script:GuiContent | Should -Match '\$startupHydratePrimaryTab = if \(-not \[string\]::IsNullOrWhiteSpace\(\[string\]\$Script:StartupHydratePrimaryTab\)\)'
+        $script:GuiContent | Should -Match '\$startupRestoreSessionPending = \[bool\]\$Script:StartupRestoreSessionPending'
+    }
+
+    It 'restores the startup session before the splash can close' {
+        $script:GuiContent | Should -Match '\$restoredSessionAction = \{'
+        $script:GuiContent | Should -Not -Match 'Regions\.GUI\.RestoreLastSessionAsync'
+        $script:GuiContent | Should -Not -Match '\$Form\.Dispatcher\.BeginInvoke\(\s*\[System\.Action\]\$restoredSessionAction'
+        $script:GuiContent | Should -Match '\$restoredSessionStatusText = Get-UxLocalizedString -Key ''GuiLogSessionRestoredPreviousState'''
+        $script:GuiContent | Should -Match '\$restoreGuiSessionStateScript = Get-GuiFunctionCapture -Name ''Restore-GuiSessionState'''
+        $script:GuiContent | Should -Match '\$setGuiStatusTextScript = Get-GuiFunctionCapture -Name ''Set-GuiStatusText'''
+        $script:GuiContent | Should -Match '& \$restoreGuiSessionStateScript -Snapshot \$Script:StartupSessionSnapshot'
+        $script:SessionStateContent | Should -Match 'param \(\s*\[object\]\s*\$Snapshot = \$null\s*\)'
+    }
+
     It 'routes Build-TabContent init cleanup failures through Write-DebugSwallowedException' {
         $script:GuiContent | Should -Match "BuildTabContent\.MainPanel\.BeginInit"
         $script:GuiContent | Should -Match "BuildTabContent\.MainPanel\.EndInit"
         $script:GuiContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''BuildTabContent\.Update-PrimaryTabHeaders'''
+    }
+
+    It 'captures the startup orchestrator before deferring it to the dispatcher' {
+        $script:GuiContent | Should -Match '\$invokeBaselineStartupOrchestratorScript = Get-GuiFunctionCapture -Name ''Invoke-BaselineStartupOrchestrator'''
+        $script:GuiContent | Should -Match '& \$invokeBaselineStartupOrchestratorScript -TweakManifest'
     }
 
     It 'routes dispatcher-yield failures in state transitions through Write-DebugSwallowedException' {
@@ -153,6 +218,12 @@ Describe 'Focused GUI rebuilds' {
         $script:GuiContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Regions\.GUI\.ShowTweakGUI\.InitializeGuiDpiAwareness'''
     }
 
+    It 'preserves primitive WPF setter values when unwrapping PSObjects' {
+        $script:GuiContent | Should -Match '\$unwrappedValue = \$resolvedValue\.psobject\.BaseObject'
+        $script:GuiContent | Should -Match 'if \(\$null -ne \$unwrappedValue\)'
+        $script:GuiContent | Should -Not -Match '\$resolvedValue = \$resolvedValue\.BaseObject'
+    }
+
     It 'uses focused rebuilds for game mode refreshes' {
         $script:GameModeContent | Should -Match '& \$Script:UpdateCurrentTabContentScript -SkipIdlePrebuild'
         $script:GameModeContent | Should -Match '& \$updateCurrentTabContentScript -SkipIdlePrebuild'
@@ -177,9 +248,13 @@ Describe 'Focused GUI rebuilds' {
 
     It 'wires the Updates tab runtime workflow outside manifest execution' {
         $script:GuiContent | Should -Match "UpdatesPanel\.ps1"
-        $script:PresetUiContent | Should -Match "Get-GuiRuntimeCommand -Name 'New-GuiUpdatesRuntimePanel'"
+        $script:PresetUiContent | Should -Match "Get-GuiRuntimeCommand -Name 'New-GuiWindowsUpdateLeadCardsPanel'"
         $script:UpdatesPanelContent | Should -Match 'function New-GuiUpdatesRuntimePanel'
+        $script:UpdatesPanelContent | Should -Match 'function Show-GuiWindowsUpdateRuntimeView'
+        $script:UpdatesPanelContent | Should -Match 'function New-GuiWindowsUpdateLeadCardsPanel'
+        $script:UpdatesPanelContent | Should -Match 'function Set-GuiWindowsUpdatePresetSelection'
         $script:UpdatesPanelContent | Should -Match 'function Start-GuiWindowsUpdateOperation'
+        $script:UpdatesPanelContent | Should -Match 'function Sync-GuiWindowsUpdateSelectionEntry'
         $script:UpdatesPanelContent | Should -Match "SharedHelpers\\WindowsUpdate\.Helpers\.ps1"
         $script:UpdatesPanelContent | Should -Match 'Get-WindowsUpdateList'
         $script:UpdatesPanelContent | Should -Match 'Download-WindowsUpdates'
@@ -188,8 +263,70 @@ Describe 'Focused GUI rebuilds' {
         $script:UpdatesPanelContent | Should -Match 'Scan for Updates'
         $script:UpdatesPanelContent | Should -Match 'Download Only'
         $script:UpdatesPanelContent | Should -Match 'Install Selected'
+        $script:UpdatesPanelContent | Should -Match 'Open Update Runner'
+        $script:UpdatesPanelContent | Should -Match 'Disable Updates'
+        $script:UpdatesPanelContent | Should -Match 'Load Disable Selection'
+        $script:UpdatesPanelContent | Should -Match 'Update Settings Presets'
+        $script:UpdatesPanelContent | Should -Match "WindowsUpdateDisableAll -Enable"
+        $script:UpdatesPanelContent | Should -Match "WindowsUpdateDisableAll -Disable"
+        $script:UpdatesPanelContent | Should -Match "QualityUpdateDeferral -FourDays"
+        $script:UpdatesPanelContent | Should -Match 'ButtonVariant ''DangerSubtle'''
+        $script:UpdatesPanelContent | Should -Match 'BorderColor \$theme\.DangerText'
+        $script:UpdatesPanelContent | Should -Match 'Temporarily enabling Windows Update service for manual update run'
+        $script:UpdatesPanelContent | Should -Match 'Disabling Windows Update service after manual update run'
+        $script:UpdatesPanelContent | Should -Match 'function Set-BaselineWindowsUpdateManualRunServiceState'
+        $script:UpdatesPanelContent | Should -Match '\$invokeGuiSafeActionScript = \$\{function:Invoke-GuiSafeAction\}'
+        $script:UpdatesPanelContent | Should -Match '& \$invokeGuiSafeActionScript -Context ''WindowsUpdate\.RuntimePanel'''
+        $script:UpdatesPanelContent | Should -Match '& \$invokeGuiSafeActionScript -Context \(''WindowsUpdate\.Card\.\{0\}'''
+        $script:UpdatesPanelContent | Should -Match '& \$invokeGuiSafeActionScript -Context \(''WindowsUpdate\.Preset\.\{0\}'''
+        $script:UpdatesPanelContent | Should -Match '\$showGuiWindowsUpdateRuntimeViewScript = \$\{function:Show-GuiWindowsUpdateRuntimeView\}'
+        $script:UpdatesPanelContent | Should -Match '\$openUpdateRunnerAction = \{[\s\S]*& \$showGuiWindowsUpdateRuntimeViewScript'
+        $script:UpdatesPanelContent | Should -Match '\$setGuiWindowsUpdatePresetSelectionScript = \$\{function:Set-GuiWindowsUpdatePresetSelection\}'
+        $script:UpdatesPanelContent | Should -Match '\$applyPresetAction = \{[\s\S]*& \$setGuiWindowsUpdatePresetSelectionScript -PresetName \$presetName'
+        $script:UpdatesPanelContent | Should -Match '\$loadDisableUpdatesPresetAction = \{[\s\S]*& \$setGuiWindowsUpdatePresetSelectionScript -PresetName ''DisableAll'''
+        $script:UpdatesPanelContent | Should -Match '-ShowDialog -Action \$applyPresetAction'
+        $script:UpdatesPanelContent | Should -Match '\$setGuiWindowsUpdateStatusScript = \$\{function:Set-GuiWindowsUpdateStatus\}'
+        $script:UpdatesPanelContent | Should -Match '\$completeGuiWindowsUpdateOperationScript = \$\{function:Complete-GuiWindowsUpdateOperation\}'
+        $script:UpdatesPanelContent | Should -Match '\$updateGuiWindowsUpdateActionStateScript = \$\{function:Update-GuiWindowsUpdateActionState\}'
+        $script:UpdatesPanelContent | Should -Match '\$syncGuiWindowsUpdateSelectionEntryScript = \$\{function:Sync-GuiWindowsUpdateSelectionEntry\}'
+        $script:UpdatesPanelContent | Should -Match '\$Script:GuiWindowsUpdateOperationInvoker = \{'
+        $script:UpdatesPanelContent | Should -Match '& \$setGuiWindowsUpdateStatusScript -Message'
+        $script:UpdatesPanelContent | Should -Match '& \$completeGuiWindowsUpdateOperationScript -Payload'
+        $script:UpdatesPanelContent | Should -Match '& \$updateGuiWindowsUpdateActionStateScript'
+        $script:UpdatesPanelContent | Should -Match '& \$syncGuiWindowsUpdateSelectionEntryScript -SelectionEntry \$selectionEntry'
+        $script:UpdatesPanelContent | Should -Match 'EventName ''Click'' -Handler \(\{ & \$syncGuiWindowsUpdateSelectionEntryScript'
+        $script:UpdatesPanelContent | Should -Match '& \$Script:GuiWindowsUpdateOperationInvoker -Action'
         $script:UpdatesPanelContent | Should -Match 'Restart required\.'
+        $script:UpdatesPanelContent | Should -Match '\[object\[\]\]\$Script:WindowsUpdateAvailableUpdates\.ToArray\(\)'
+        $script:UpdatesPanelContent | Should -Match '\[object\[\]\]\$Script:WindowsUpdateHistoryEntries\.ToArray\(\)'
         $script:UpdatesPanelContent | Should -Not -Match '\$Script:TweakManifest'
+    }
+
+    It 'keeps GUI error and warning logs from collapsing exceptions to message-only text' {
+        $guiSource = Get-BaselineTestSourceText -Path @(
+            (Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1')
+            (Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot '../../Module/GUI') -Recurse -File -Include '*.ps1','*.psm1' | Select-Object -ExpandProperty FullName)
+        )
+
+        $guiSource | Should -Not -Match 'LogWarning\s*\([^\r\n]*Exception\.Message'
+        $guiSource | Should -Not -Match 'LogError\s*\([^\r\n]*Exception\.Message'
+        $guiSource | Should -Not -Match 'Write-Warning\s*\([^\r\n]*Exception\.Message'
+    }
+
+    It 'exposes Windows Updates as a top navigation mode rather than a primary tab' {
+        $script:GuiContent | Should -Match 'Name="NavModeUpdates"'
+        $script:GuiContent | Should -Match '(?s)Name="NavModeTweaks".*Name="NavModeUpdates".*Name="NavModeApps"'
+        $script:GuiContent | Should -Match 'function Set-GuiUpdatesMode'
+        $script:GuiContent | Should -Match 'Build-TabContent -PrimaryTab ''Updates'' -SkipIdlePrebuild'
+        $script:GuiContent | Should -Match 'if \(\$Script:UpdatesModeActive\)\s*\{\s*\$targetTab = ''Updates'''
+        $script:GuiContent | Should -Match '\$Script:ModeSubtitle\.HorizontalAlignment = if \(\$Enable\) \{ \[System\.Windows\.HorizontalAlignment\]::Center \} else \{ \[System\.Windows\.HorizontalAlignment\]::Left \}'
+        $script:GuiContent | Should -Match '\$Script:PrimaryTabHost\.Visibility = if \(\$Enable\) \{ \$collapsed \} else \{ \$visible \}'
+        $script:GuiContent | Should -Match 'if \(\$Script:SafeModeGroup\) \{ \$Script:SafeModeGroup\.Visibility = \$visible \}'
+        $script:GuiContent | Should -Not -Match '"Updates"\s+=\s+@\(\)'
+    }
+
+    It 'themes the platform filter ComboBox with the same popup style as other filters' {
+        $script:StyleContent | Should -Match 'if \(\$CmbPlatformFilter\) \{ Set-ChoiceComboStyle -Combo \$CmbPlatformFilter \}'
     }
 
     It 'captures apps callbacks through runtime commands instead of raw function names' {

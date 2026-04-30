@@ -848,8 +848,9 @@ if (-not [string]::IsNullOrWhiteSpace([string]$stateRoot))
 }
 else
 {
-	$logDirectory = $env:TEMP
+	$logDirectory = Get-BaselineLogDirectory -FallbackRoot $env:TEMP
 }
+$logDirectory = Get-BaselineConfiguredLogDirectory -DefaultDirectory $logDirectory -FallbackRoot $env:TEMP
 $Global:LogFilePath = New-BaselineSessionLogPath -LogDirectory $logDirectory -OsName $osName
 $Script:LogDefaultFileName = [System.IO.Path]::GetFileName($Global:LogFilePath)
 if ($PSBoundParameters.ContainsKey('LogPath') -and -not [string]::IsNullOrWhiteSpace($LogPath))
@@ -903,10 +904,8 @@ if ($shouldShowBootstrapSplash)
 	# Baseline window over an existing one. Fails closed — if the helper is
 	# missing or throws we abort with exit code 2 rather than risk a second
 	# GUI fighting the first one over the same daily log.
-	$singleInstanceLockCmd = Get-Command -Name 'Test-BaselineSingleInstanceLockAvailable' -CommandType Function -ErrorAction SilentlyContinue
-	$singleInstanceMutexCmd = Get-Command -Name 'Get-BaselineSingleInstanceMutexName' -CommandType Function -ErrorAction SilentlyContinue
-	$singleInstanceDecideCmd = Get-Command -Name 'Resolve-BaselineSingleInstanceDecision' -CommandType Function -ErrorAction SilentlyContinue
-	if (-not $singleInstanceLockCmd -or -not $singleInstanceMutexCmd -or -not $singleInstanceDecideCmd)
+	$singleInstanceAcquireCmd = Get-Command -Name 'Acquire-BaselineSingleInstance' -CommandType Function -ErrorAction SilentlyContinue
+	if (-not $singleInstanceAcquireCmd)
 	{
 		Write-LaunchTrace 'Single-instance helper is missing — cannot enforce the GUI gate. Failing closed.'
 		Write-Warning 'Single-instance helper is missing; cannot safely launch a second GUI instance. Aborting.'
@@ -915,15 +914,16 @@ if ($shouldShowBootstrapSplash)
 	}
 	try
 	{
-		$Script:SingleInstanceMutexName = & $singleInstanceMutexCmd
-		$Script:SingleInstanceLock = & $singleInstanceLockCmd -MutexName $Script:SingleInstanceMutexName
-		$Script:SingleInstanceDecision = & $singleInstanceDecideCmd -LockResult $Script:SingleInstanceLock -RunningInstance $null
-if ($Script:SingleInstanceDecision -and $Script:SingleInstanceDecision.Action -eq 'HandoffAndExit')
-	{
-		Write-LaunchTrace ('Single-instance handoff: {0}' -f [string]$Script:SingleInstanceDecision.Reason)
-		$Global:LASTEXITCODE = 0
-		if ($Script:IsEmbeddedHost) { return } else { exit 0 }
-	}
+		$Script:SingleInstanceState = & $singleInstanceAcquireCmd
+		$Script:SingleInstanceMutexName = $Script:SingleInstanceState.MutexName
+		$Script:SingleInstanceLock = $Script:SingleInstanceState.LockResult
+		$Script:SingleInstanceDecision = $Script:SingleInstanceState.Decision
+		if ($Script:SingleInstanceDecision -and $Script:SingleInstanceDecision.Action -eq 'HandoffAndExit')
+		{
+			Write-LaunchTrace ('Single-instance handoff: {0}' -f [string]$Script:SingleInstanceDecision.Reason)
+			$Global:LASTEXITCODE = 0
+			if ($Script:IsEmbeddedHost) { return } else { exit 0 }
+		}
 	}
 	catch
 	{
@@ -940,7 +940,20 @@ if ($Script:SingleInstanceDecision -and $Script:SingleInstanceDecision.Action -e
 		Write-LaunchTrace ('Bootstrap splash command resolved: {0}' -f [string]$showBootstrapSplashCommand.ModuleName)
 		try
 		{
-			if ($env:BASELINE_INSTALLER_MODE -eq '1' -or $env:BASELINE_SKIP_UPDATE -eq '1')
+			$shouldPrimeUpdatesPulse = $false
+			if ($env:BASELINE_INSTALLER_MODE -ne '1' -and $env:BASELINE_SKIP_UPDATE -ne '1' -and $env:BASELINE_EMBEDDED_HOST -eq '1')
+			{
+				$autoUpdateThrottlePathCmd = Get-Command -Name 'Get-BaselineAutoUpdateThrottlePath' -CommandType Function -ErrorAction SilentlyContinue
+				$autoUpdateThrottleDecisionCmd = Get-Command -Name 'Get-BaselineAutoUpdateThrottleDecision' -CommandType Function -ErrorAction SilentlyContinue
+				if ($autoUpdateThrottlePathCmd -and $autoUpdateThrottleDecisionCmd)
+				{
+					$autoUpdateThrottlePath = & $autoUpdateThrottlePathCmd
+					$autoUpdateThrottleDecision = & $autoUpdateThrottleDecisionCmd -Path $autoUpdateThrottlePath -MinimumIntervalHours 4
+					$shouldPrimeUpdatesPulse = [bool]$autoUpdateThrottleDecision.ShouldCheck
+				}
+			}
+
+			if (-not $shouldPrimeUpdatesPulse)
 			{
 				$Script:BootstrapSplash = & $showBootstrapSplashCommand
 			}

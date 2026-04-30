@@ -589,20 +589,20 @@
 		{
 			try
 			{
-				$updatesRuntimePanelCommand = Get-GuiRuntimeCommand -Name 'New-GuiUpdatesRuntimePanel' -CommandType 'Function'
-				if (-not $updatesRuntimePanelCommand)
+				$updatesLeadPanelCommand = Get-GuiRuntimeCommand -Name 'New-GuiWindowsUpdateLeadCardsPanel' -CommandType 'Function'
+				if (-not $updatesLeadPanelCommand)
 				{
-					throw 'New-GuiUpdatesRuntimePanel is not available.'
+					throw 'New-GuiWindowsUpdateLeadCardsPanel is not available.'
 				}
-				$updatesRuntimePanel = & $updatesRuntimePanelCommand
-				if ($updatesRuntimePanel)
+				$updatesLeadPanel = & $updatesLeadPanelCommand
+				if ($updatesLeadPanel)
 				{
-					[void]($BuildContext.MainPanel.Children.Add($updatesRuntimePanel))
+					[void]($BuildContext.MainPanel.Children.Add($updatesLeadPanel))
 				}
 			}
 			catch
 			{
-				throw "Build-TabContent/UpdatesRuntimePanel for tab '$($BuildContext.PrimaryTab)' failed: $($_.Exception.Message)"
+				throw "Build-TabContent/UpdatesLeadCardsPanel for tab '$($BuildContext.PrimaryTab)' failed: $($_.Exception.Message)"
 			}
 		}
 

@@ -1,77 +1,83 @@
 # Theme palette definitions, fallback/repair, and brush conversion utilities
 
 	$Script:DarkTheme = @{
-		WindowBg      = "#1E1E2E"
-		HeaderBg      = "#181825"
-		PanelBg       = "#1E1E2E"
-		CardBg        = "#272B3A"
-		TabBg         = "#2F3445"
-		TabActiveBg   = "#3670B8"
-		TabHoverBg    = "#3670B8"
-		BorderColor   = "#4C556D"
-		TextPrimary   = "#CDD6F4"
-		TextSecondary = "#B6BED8"
-		TextMuted     = "#828AA2"
-		AccentBlue    = "#89B4FA"
-		AccentHover   = "#74C7EC"
-		AccentPress   = "#94E2D5"
-		FocusRing     = "#C9DEFF"
-		CautionBg     = "#3B2028"
-		CautionBorder = "#F38BA8"
-		CautionText   = "#F38BA8"
-		ImpactBadge   = "#F38BA8"
-		ImpactBadgeBg = "#3B2028"
-		LowRiskBadge     = "#B8E6C1"
-		LowRiskBadgeBg   = "#213326"
-		RiskMediumBadge   = "#F9E2AF"
-		RiskMediumBadgeBg = "#3B3020"
-		RiskHighBadge     = "#F38BA8"
-		RiskHighBadgeBg   = "#3B2028"
-		DestructiveBg = "#C0325A"
-		DestructiveHover = "#A6294E"
-		SectionLabel  = "#89B4FA"
-		ScrollBg          = "#1E1E2E"
-		ScrollThumb       = "#4A4D5E"
-		ScrollThumbHover  = "#6C7086"
-		ScrollThumbActive = "#7F849C"
-		ToggleOn      = "#A6E3A1"
-		ToggleOff     = "#F38BA8"
-		StateEnabled  = "#9FD6AA"
-		StateDisabled = "#98A0B7"
-		SearchBg      = "#313244"
-		SearchBorder  = "#585B70"
-		SearchPlaceholder = "#8188A0"
-		InputBg       = "#313244"
-		InputHoverBg  = "#383D52"
-		CardBorder    = "#394256"
-		CardHoverBg   = "#323A4E"
-		SecondaryButtonBg = "#30374A"
-		SecondaryButtonHoverBg = "#39415A"
-		SecondaryButtonPressBg = "#262D3E"
-		SecondaryButtonBorder = "#5F6984"
-		SecondaryButtonFg = "#E5EAF7"
-		PresetPanelBg = "#23283A"
-		PresetPanelBorder = "#52607E"
-		StatusPillBg = "#20385C"
-		StatusPillBorder = "#5C86C7"
-		StatusPillText = "#D6E7FF"
-		ActiveTabBorder = "#89B4FA"
-		ActiveTabIndicator = "#4ADE80"
-		ProgressGreen      = "#22C55E"
-		ProgressGreenTrack = "#1F3A2A"
+		WindowBg      = "#0E111A"
+		HeaderBg      = "#121624"
+		PanelBg       = "#161A26"
+		CardBg        = "#1E2433"
+		TabBg         = "#00FFFFFF"
+		TabActiveBg   = "#262D40"
+		TabHoverBg    = "#202638"
+		BorderColor   = "#2430445A"
+		TextPrimary   = "#F4F7FF"
+		TextSecondary = "#B8C1D9"
+		TextMuted     = "#8F99B2"
+		TextDisabled  = "#586178"
+		AccentBlue    = "#7CB7FF"
+		AccentHover   = "#9ACAFF"
+		AccentPress   = "#4D9CFF"
+		FocusRing     = "#9ACAFF"
+		CautionBg     = "#14D6A84A"
+		CautionBorder = "#4DD6A84A"
+		CautionText   = "#D6A84A"
+		ImpactBadge   = "#D6A84A"
+		ImpactBadgeBg = "#1FD6A84A"
+		LowRiskBadge     = "#35D07F"
+		LowRiskBadgeBg   = "#1F35D07F"
+		RiskMediumBadge   = "#D6A84A"
+		RiskMediumBadgeBg = "#1FD6A84A"
+		RiskHighBadge     = "#FF6B8A"
+		RiskHighBadgeBg   = "#1FFF6B8A"
+		DestructiveSubtleBorder = "#33FF6B8A"
+		DestructiveSubtleHoverBg = "#10FF6B8A"
+		DestructiveSubtlePressBg = "#18FF6B8A"
+		DestructiveBg = "#B93D5B"
+		DestructiveHover = "#D64B6D"
+		SectionLabel  = "#7CB7FF"
+		ScrollBg          = "#121624"
+		ScrollThumb       = "#3A4561"
+		ScrollThumbHover  = "#4D5875"
+		ScrollThumbActive = "#5E6C8E"
+		ToggleOn      = "#7CB7FF"
+		ToggleOff     = "#586178"
+		StateEnabled  = "#35D07F"
+		StateDisabled = "#586178"
+		SearchBg      = "#262D40"
+		SearchBorder  = "#2430445A"
+		SearchPlaceholder = "#8F99B2"
+		InputBg       = "#262D40"
+		InputHoverBg  = "#30384E"
+		CardBorder    = "#293044"
+		CardHoverBg   = "#202638"
+		SecondaryButtonBg = "#00FFFFFF"
+		SecondaryButtonHoverBg = "#1E2433"
+		SecondaryButtonPressBg = "#262D40"
+		SecondaryButtonBorder = "#1FFFFFFF"
+		SecondaryButtonFg = "#B8C1D9"
+		PresetPanelBg = "#1E2433"
+		PresetPanelBorder = "#293044"
+		StatusPillBg = "#202638"
+		StatusPillBorder = "#293044"
+		StatusPillText = "#B8C1D9"
+		ActiveTabBorder = "#7CB7FF"
+		ActiveTabIndicator = "#7CB7FF"
+		StateAccent = "#B34FD1A5"
+		StateAccentStrong = "#4FD1A5"
+		ProgressGreen      = "#35D07F"
+		ProgressGreenTrack = "#2A3146"
 	}
 	$Script:LightTheme = @{
-		WindowBg      = "#E4E8F0"
-		HeaderBg      = "#D6DBE5"
-		PanelBg       = "#E4E8F0"
-		CardBg        = "#FFFFFF"
-		TabBg         = "#D4D9E4"
-		TabActiveBg   = "#3670B8"
-		TabHoverBg    = "#3670B8"
-		BorderColor   = "#A7B0C0"
-		TextPrimary   = "#1A1C2E"
-		TextSecondary = "#31384A"
-		TextMuted     = "#646C7F"
+		WindowBg      = "#F0F2F6"
+		HeaderBg      = "#E9EDF3"
+		PanelBg       = "#F0F2F6"
+		CardBg        = "#FBFCFE"
+		TabBg         = "#E8EDF5"
+		TabActiveBg   = "#1550AA"
+		TabHoverBg    = "#1A60C4"
+		BorderColor   = "#E6EAF0"
+		TextPrimary   = "#1F2937"
+		TextSecondary = "#6B7280"
+		TextMuted     = "#7A8494"
 		AccentBlue    = "#1550AA"
 		AccentHover   = "#1A60C4"
 		AccentPress   = "#104090"
@@ -81,44 +87,49 @@
 		CautionText   = "#A02040"
 		ImpactBadge   = "#A02040"
 		ImpactBadgeBg = "#F5D0D0"
-		LowRiskBadge     = "#245A2D"
-		LowRiskBadgeBg   = "#DDEFD9"
+		LowRiskBadge     = "#2F8F6F"
+		LowRiskBadgeBg   = "#DFF3EC"
 		RiskMediumBadge   = "#7A5A00"
 		RiskMediumBadgeBg = "#FFF3D0"
 		RiskHighBadge     = "#A02040"
 		RiskHighBadgeBg   = "#F5D0D0"
+		DestructiveSubtleBorder = "#33A02040"
+		DestructiveSubtleHoverBg = "#10A02040"
+		DestructiveSubtlePressBg = "#18A02040"
 		DestructiveBg = "#C0304E"
 		DestructiveHover = "#A02840"
 		SectionLabel  = "#1550AA"
-		ScrollBg          = "#ECEEF5"
+		ScrollBg          = "#E9EDF3"
 		ScrollThumb       = "#B4B6C2"
 		ScrollThumbHover  = "#8D8FA0"
 		ScrollThumbActive = "#6C6E80"
-		ToggleOn      = "#1A7A2A"
+		ToggleOn      = "#B34FD1A5"
 		ToggleOff     = "#B02040"
-		StateEnabled  = "#2F6E38"
-		StateDisabled = "#778096"
-		SearchBg      = "#FFFFFF"
-		SearchBorder  = "#98A2B4"
-		SearchPlaceholder = "#7A8296"
-		InputBg       = "#FFFFFF"
-		InputHoverBg  = "#F5F8FD"
-		CardBorder    = "#B2BBCB"
-		CardHoverBg   = "#F2F6FC"
-		SecondaryButtonBg = "#FFFFFF"
-		SecondaryButtonHoverBg = "#F4F7FC"
-		SecondaryButtonPressBg = "#E7EDF8"
-		SecondaryButtonBorder = "#98A7BF"
+		StateEnabled  = "#B34FD1A5"
+		StateDisabled = "#8B95A6"
+		SearchBg      = "#FBFCFE"
+		SearchBorder  = "#D6DDE8"
+		SearchPlaceholder = "#7A8494"
+		InputBg       = "#FBFCFE"
+		InputHoverBg  = "#F6F8FB"
+		CardBorder    = "#E6EAF0"
+		CardHoverBg   = "#F6F8FB"
+		SecondaryButtonBg = "#FBFCFE"
+		SecondaryButtonHoverBg = "#F6F8FB"
+		SecondaryButtonPressBg = "#E9EEF6"
+		SecondaryButtonBorder = "#D6DDE8"
 		SecondaryButtonFg = "#263248"
-		PresetPanelBg = "#FFFFFF"
-		PresetPanelBorder = "#AAB7CC"
-		StatusPillBg = "#E6F0FF"
-		StatusPillBorder = "#8FAAD8"
+		PresetPanelBg = "#FBFCFE"
+		PresetPanelBorder = "#E6EAF0"
+		StatusPillBg = "#EEF4FF"
+		StatusPillBorder = "#D7E5FF"
 		StatusPillText = "#0F4EA8"
-		ActiveTabBorder = "#89B4FA"
-		ActiveTabIndicator = "#22C55E"
-		ProgressGreen      = "#16A34A"
-		ProgressGreenTrack = "#D8EDDB"
+		ActiveTabBorder = "#1550AA"
+		ActiveTabIndicator = "#1550AA"
+		StateAccent = "#B34FD1A5"
+		StateAccentStrong = "#4FD1A5"
+		ProgressGreen      = "#6BBFA4"
+		ProgressGreenTrack = "#E1EEE9"
 	}
 
 	$Script:GuiThemeFallbackWarnings = [System.Collections.Generic.HashSet[string]]::new()
@@ -180,7 +191,7 @@
 			return [string]$Script:DarkTheme.AccentBlue
 		}
 
-		return '#89B4FA'
+		return '#7CB7FF'
 	}
 
 	<#
@@ -206,14 +217,14 @@
 
 		# Ensure core interactive colors always exist before downstream theme repair runs.
 		$defaultColors = @{
-			'TabHoverBg' = '#3670B8'
-			'TextPrimary' = '#CDD6F4'
-			'FocusRing' = '#C9DEFF'
-			'AccentBlue' = '#89B4FA'
-			'AccentHover' = '#74C7EC'
-			'AccentPress' = '#94E2D5'
-			'HeaderBg' = '#181825'
-			'TextSecondary' = '#B6BED8'
+			'TabHoverBg' = '#343C55'
+			'TextPrimary' = '#F4F7FF'
+			'FocusRing' = '#9ACAFF'
+			'AccentBlue' = '#7CB7FF'
+			'AccentHover' = '#9ACAFF'
+			'AccentPress' = '#4D9CFF'
+			'HeaderBg' = '#151824'
+			'TextSecondary' = '#B8C1D9'
 		}
 		foreach ($key in $defaultColors.Keys)
 		{
@@ -255,7 +266,7 @@
 			}
 			else
 			{
-				$fallbackValue = '#89B4FA'
+				$fallbackValue = '#7CB7FF'
 			}
 
 			$repairedTheme[$key] = $fallbackValue
@@ -263,6 +274,100 @@
 		}
 
 		return $repairedTheme
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Resolve-GuiThemeResourcePath.
+	#>
+
+	function Resolve-GuiThemeResourcePath
+	{
+		param (
+			[ValidateSet('Dark', 'Light')]
+			[string]$ThemeName
+		)
+
+		$themeRoot = if (-not [string]::IsNullOrWhiteSpace([string]$Script:GuiExtractedRoot))
+		{
+			[string]$Script:GuiExtractedRoot
+		}
+		else
+		{
+			$PSScriptRoot
+		}
+
+		return (Join-Path -Path $themeRoot -ChildPath ('Themes\{0}.xaml' -f $ThemeName))
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Import-GuiThemeResourceDictionary.
+	#>
+
+	function Import-GuiThemeResourceDictionary
+	{
+		param (
+			[ValidateSet('Dark', 'Light')]
+			[string]$ThemeName
+		)
+
+		$themePath = Resolve-GuiThemeResourcePath -ThemeName $ThemeName
+		if (-not (Test-Path -LiteralPath $themePath -PathType Leaf))
+		{
+			throw "Theme resource dictionary not found: $themePath"
+		}
+
+		$reader = $null
+		try
+		{
+			$reader = [System.Xml.XmlReader]::Create($themePath)
+			$dictionary = [System.Windows.Markup.XamlReader]::Load($reader)
+			if (-not ($dictionary -is [System.Windows.ResourceDictionary]))
+			{
+				throw "Theme resource file did not load as a ResourceDictionary: $themePath"
+			}
+			$dictionary['Baseline.ThemeDictionaryMarker'] = $ThemeName
+			return $dictionary
+		}
+		finally
+		{
+			if ($reader) { $reader.Close() }
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Set-GuiThemeResources.
+	#>
+
+	function Set-GuiThemeResources
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param (
+			[object]$Target,
+			[ValidateSet('Dark', 'Light')]
+			[string]$ThemeName
+		)
+
+		if (-not $Target) { throw 'Cannot apply theme resources because the target is null.' }
+		if (-not ($Target.PSObject.Properties['Resources'] -or $Target.GetType().GetProperty('Resources'))) { throw 'Cannot apply theme resources because the target has no Resources property.' }
+
+		$resources = $Target.Resources
+		if (-not $resources) { throw 'Cannot apply theme resources because the target Resources property is null.' }
+
+		$oldThemeDictionaries = @(
+			$resources.MergedDictionaries |
+				Where-Object { $_ -is [System.Windows.ResourceDictionary] -and $_.Contains('Baseline.ThemeDictionaryMarker') }
+		)
+		foreach ($dict in $oldThemeDictionaries)
+		{
+			[void]$resources.MergedDictionaries.Remove($dict)
+		}
+
+		$newDictionary = Import-GuiThemeResourceDictionary -ThemeName $ThemeName
+		[void]$resources.MergedDictionaries.Add($newDictionary)
+		return $true
 	}
 
 	<#

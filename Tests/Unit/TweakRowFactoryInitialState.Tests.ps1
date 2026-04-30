@@ -71,6 +71,29 @@ Describe 'Tweak row content pins' {
         $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_LostKeyboardFocus'''
         $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.UpdateChrome'''
     }
+
+    It 'separates tweak cards with soft elevation instead of hard shadow offsets' {
+        $script:FileContent | Should -Match '\$shadow\.ShadowDepth = 0'
+        $script:FileContent | Should -Match '\$shadow\.Opacity = if \(\$isLight\) \{ 0\.10 \} else \{ 0\.18 \}'
+        $script:FileContent | Should -Match '\$shadow\.BlurRadius = if \(\$isLight\) \{ 12 \} else \{ 18 \}'
+    }
+
+    It 'uses divider-only row chrome instead of boxed row borders' {
+        $script:FileContent | Should -Match 'RowDivider\s+= \[System\.Windows\.Thickness\]::new\(0, 0, 0, 1\)'
+        $script:FileContent | Should -Match 'RowDividerFocus\s+= \[System\.Windows\.Thickness\]::new\(0, 0, 0, 2\)'
+        $script:FileContent | Should -Match 'Thickness1\s+= \$Script:T\.RowDivider'
+        $script:FileContent | Should -Match 'Thickness2\s+= \$Script:T\.RowDividerFocus'
+        $script:FileContent | Should -Match 'AccentBorder\s+= \[System\.Windows\.Thickness\]::new\(3, 0, 0, 1\)'
+        $script:FileContent | Should -Match 'RowCardPadding\s+= \[System\.Windows\.Thickness\]::new\(12, 8, 12, 8\)'
+    }
+
+    It 'does not render per-row reset actions in the primary row header' {
+        $script:FileContent | Should -Not -Match '-ActionButton \$ResetButton'
+        $script:FunctionTextByName['New-ToggleLikeHeaderGrid'] | Should -Not -Match 'ResetButton'
+        $script:FunctionTextByName['New-ChoiceHeaderGrid'] | Should -Not -Match 'ResetButton'
+        $script:FileContent | Should -Not -Match 'New-ToggleLikeHeaderGrid[^\r\n]+-ResetButton'
+        $script:FileContent | Should -Not -Match 'New-ChoiceHeaderGrid[^\r\n]+-ResetButton'
+    }
 }
 
 Describe 'Tweak row initial state recovery' {

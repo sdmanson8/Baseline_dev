@@ -1574,7 +1574,32 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$Script:FilterGeneration++
 		if ($Script:ClearTabContentCacheScript) { & $Script:ClearTabContentCacheScript }
 
-		Update-CurrentTabContent
+		$refreshCurrentTabContentScript = ${function:Update-CurrentTabContent}
+		$startGuiPerfScopeScript = Get-GuiFunctionCapture -Name 'Start-GuiPerfScope'
+		$stopGuiPerfScopeScript = Get-GuiFunctionCapture -Name 'Stop-GuiPerfScope'
+		$refreshCurrentTabContentAction = {
+			$__perf = if ($startGuiPerfScopeScript) { & $startGuiPerfScopeScript -Name 'RestoreGuiSessionState.TabHydrate' } else { $null }
+			try
+			{
+				& $refreshCurrentTabContentScript -SkipIdlePrebuild
+			}
+			finally
+			{
+				if ($stopGuiPerfScopeScript) { & $stopGuiPerfScopeScript -Scope $__perf }
+			}
+		}.GetNewClosure()
+
+		if ($Script:MainForm -and $Script:MainForm.Dispatcher -and -not $Script:MainForm.Dispatcher.HasShutdownStarted)
+		{
+			$null = $Script:MainForm.Dispatcher.BeginInvoke(
+				[System.Action]$refreshCurrentTabContentAction,
+				[System.Windows.Threading.DispatcherPriority]::Background
+			)
+		}
+		else
+		{
+			& $refreshCurrentTabContentScript -SkipIdlePrebuild
+		}
 		Update-HeaderModeStateText
 		if ($TxtLanguageState -and -not [string]::IsNullOrWhiteSpace([string]$Script:SelectedLanguage))
 		{
@@ -1694,7 +1719,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 		}
 		catch
 		{
-			LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogSessionPersistWelcomeStateFailed' -Fallback 'Failed to persist first-run welcome state: {0}' -FormatArgs @($_.Exception.Message))
+			LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogSessionPersistWelcomeStateFailed' -Fallback 'Failed to persist first-run welcome state'))
 			return $false
 		}
 	}
@@ -1720,7 +1745,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 		}
 		catch
 		{
-			LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogSessionLoadLastRunFailed' -Fallback 'Failed to load last run profile: {0}' -FormatArgs @($_.Exception.Message))
+			LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogSessionLoadLastRunFailed' -Fallback 'Failed to load last run profile'))
 			return $null
 		}
 	}
@@ -1746,7 +1771,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 		}
 		catch
 		{
-			LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogSessionLoadInterruptedRunFailed' -Fallback 'Failed to load interrupted run profile: {0}' -FormatArgs @($_.Exception.Message))
+			LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogSessionLoadInterruptedRunFailed' -Fallback 'Failed to load interrupted run profile'))
 			return $null
 		}
 	}
@@ -1769,7 +1794,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			}
 			catch
 			{
-				LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogSessionRemoveLastRunFailed' -Fallback 'Failed to remove last run profile: {0}' -FormatArgs @($_.Exception.Message))
+				LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogSessionRemoveLastRunFailed' -Fallback 'Failed to remove last run profile'))
 			}
 		}
 		$Script:LastRunProfile = $null
@@ -1793,7 +1818,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			}
 			catch
 			{
-				LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogSessionRemoveInterruptedRunFailed' -Fallback 'Failed to remove interrupted run profile: {0}' -FormatArgs @($_.Exception.Message))
+				LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogSessionRemoveInterruptedRunFailed' -Fallback 'Failed to remove interrupted run profile'))
 			}
 		}
 		$Script:InterruptedRunProfile = $null
@@ -1838,7 +1863,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 		}
 		catch
 		{
-			LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogSessionSaveInterruptedRunFailed' -Fallback 'Failed to save interrupted run profile: {0}' -FormatArgs @($_.Exception.Message))
+			LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogSessionSaveInterruptedRunFailed' -Fallback 'Failed to save interrupted run profile'))
 			return $false
 		}
 	}
@@ -1860,9 +1885,16 @@ function Import-GuiRemoteTargetApprovalPolicy
 	#>
 	function Restore-GuiSessionState
 	{
-		param ()
+		param (
+			[object]
+			$Snapshot = $null
+		)
 
-		$snapshot = GUICommon\Read-GuiSessionStateDocument -AppName 'Baseline' -ExpectedSchema 'Baseline.GuiSettings'
+		$snapshot = $Snapshot
+		if (-not $snapshot)
+		{
+			$snapshot = GUICommon\Read-GuiSessionStateDocument -AppName 'Baseline' -ExpectedSchema 'Baseline.GuiSettings'
+		}
 		if (-not $snapshot)
 		{
 			return $false
@@ -1876,7 +1908,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 		}
 		catch
 		{
-			LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogRestoreSessionFailed' -Fallback 'Failed to restore GUI session state: {0}' -FormatArgs @($_.Exception.Message))
+			LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogRestoreSessionFailed' -Fallback 'Failed to restore GUI session state'))
 			return $false
 		}
 	}
@@ -1906,7 +1938,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 		}
 		catch
 		{
-			LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExportGuiSettingsFailed' -Fallback 'Failed to export GUI settings: {0}' -FormatArgs @($_.Exception.Message))
+			LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to export GUI settings')
 			[void](Show-ThemedDialog -Title (Get-UxLocalizedString -Key 'GuiExportSettings' -Fallback '') -Message (Get-UxLocalizedString -Key 'GuiLogExportGuiSettingsFailed' -Fallback '' -FormatArgs @($_.Exception.Message)) -Buttons @('OK') -AccentButton 'OK')
 			return $false
 		}
@@ -2008,7 +2040,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 		catch
 		{
 			Hide-BaselineUpdateOverlay
-			LogError (Get-UxBilingualLocalizedString -Key 'GuiLogImportGuiSettingsReadFailed' -Fallback 'Failed to read GUI settings profile: {0}' -FormatArgs @($_.Exception.Message))
+			LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to read GUI settings profile')
 			[void](Show-ThemedDialog -Title $importTitle -Message (Get-UxLocalizedString -Key 'GuiLogImportGuiSettingsReadFailed' -Fallback '' -FormatArgs @($_.Exception.Message)) -Buttons @('OK') -AccentButton 'OK')
 			return $false
 		}
@@ -2030,7 +2062,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 		}
 		catch
 		{
-			LogError (Get-UxBilingualLocalizedString -Key 'GuiLogImportGuiSettingsFailed' -Fallback 'Failed to import GUI settings: {0}' -FormatArgs @($_.Exception.Message))
+			LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to import GUI settings')
 			if ($Script:UiSnapshotUndo)
 			{
 				try

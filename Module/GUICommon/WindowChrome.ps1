@@ -323,6 +323,7 @@ function ConvertTo-RoundedWindow
 	$roundBorder.Background = $bc.ConvertFromString($Theme.WindowBg)
 	$roundBorder.BorderBrush = $bc.ConvertFromString($Theme.BorderColor)
 	$roundBorder.BorderThickness = [System.Windows.Thickness]::new(1)
+	$roundBorder.ClipToBounds = $true
 
 	$dock = New-Object System.Windows.Controls.DockPanel
 	$dock.LastChildFill = $true

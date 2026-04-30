@@ -2,10 +2,101 @@ Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/GUI/ThemeManagement.ps1'
+    $script:RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
+    $script:DarkThemeResourcePath = Join-Path $script:RepoRoot 'Module/GUI/Themes/Dark.xaml'
+    $script:LightThemeResourcePath = Join-Path $script:RepoRoot 'Module/GUI/Themes/Light.xaml'
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
         Invoke-Expression $fn.Extent.Text
+    }
+}
+
+Describe 'GUI theme resource dictionaries' {
+    It 'ships dark and light WPF dictionaries' {
+        Test-Path -LiteralPath $script:DarkThemeResourcePath -PathType Leaf | Should -BeTrue
+        Test-Path -LiteralPath $script:LightThemeResourcePath -PathType Leaf | Should -BeTrue
+    }
+
+    It 'defines shared brush tokens and implicit base control styles' {
+        $content = Get-Content -LiteralPath $script:DarkThemeResourcePath -Raw -Encoding UTF8
+        foreach ($token in @(
+            'Brush.WindowBg',
+            'Brush.Surface',
+            'Brush.SurfaceElevated',
+            'Brush.SurfaceControl',
+            'Brush.TextPrimary',
+            'Brush.TextSecondary',
+            'Brush.TextDisabled',
+            'Brush.Border',
+            'Brush.BorderStrong',
+            'Brush.Accent',
+            'Brush.SplashBackdrop',
+            'Brush.SplashCard',
+            'Brush.SplashCardBorder',
+            'Brush.SplashSubtitle',
+            'Brush.SplashStepActive'
+        )) {
+            $content | Should -Match ([regex]::Escape(('x:Key="{0}"' -f $token)))
+        }
+        $content | Should -Match '<Style TargetType="TextBox">'
+        $content | Should -Match '<Setter Property="CaretBrush" Value="\{DynamicResource Brush\.TextPrimary\}"/>'
+		$content | Should -Match '<Style TargetType="ComboBox">'
+		$content | Should -Match '<Style TargetType="Button">'
+		$content | Should -Match 'x:Key="\{x:Static SystemColors\.WindowBrushKey\}"'
+		$content | Should -Match 'x:Key="\{x:Static SystemColors\.ControlBrushKey\}"'
+		$content | Should -Match 'x:Key="\{x:Static SystemColors\.MenuBrushKey\}"'
+		$content | Should -Match 'x:Key="\{x:Static SystemColors\.HighlightBrushKey\}"'
+		$content | Should -Match '<Style TargetType="FlowDocumentScrollViewer">'
+	}
+
+    It 'uses the layered Baseline dark palette instead of the old flat purple theme' {
+        $content = Get-Content -LiteralPath $script:DarkThemeResourcePath -Raw -Encoding UTF8
+        $content | Should -Match '<Color x:Key="Color\.WindowBg">#0E111A</Color>'
+        $content | Should -Match '<Color x:Key="Color\.HeaderBg">#121624</Color>'
+        $content | Should -Match '<Color x:Key="Color\.Surface">#161A26</Color>'
+        $content | Should -Match '<Color x:Key="Color\.SurfaceElevated">#1E2433</Color>'
+        $content | Should -Match '<Color x:Key="Color\.SurfaceControl">#262D40</Color>'
+        $content | Should -Match '<Color x:Key="Color\.TextPrimary">#F4F7FF</Color>'
+        $content | Should -Match '<Color x:Key="Color\.TextSecondary">#B8C1D9</Color>'
+        $content | Should -Match '<Color x:Key="Color\.TextMuted">#8F99B2</Color>'
+        $content | Should -Match '<Color x:Key="Color\.TextDisabled">#586178</Color>'
+        $content | Should -Match '<Color x:Key="Color\.Border">#2430445A</Color>'
+        $content | Should -Match '<Color x:Key="Color\.BorderStrong">#344059</Color>'
+        $content | Should -Match '<Color x:Key="Color\.Accent">#7CB7FF</Color>'
+        $content | Should -Match '<Color x:Key="Color\.Success">#35D07F</Color>'
+        $content | Should -Match '<Color x:Key="Color\.Progress">#35D07F</Color>'
+        $content | Should -Match '<Color x:Key="Color\.SplashCard">#0FFFFFFF</Color>'
+        $content | Should -Match '<Color x:Key="Color\.SplashCardBorder">#00FFFFFF</Color>'
+        $content | Should -Match '<Color x:Key="Color\.SplashSubtitle">#AEB7D1</Color>'
+        $content | Should -Match '<Color x:Key="Color\.SplashStepActive">#E6EBFF</Color>'
+        $content | Should -Match '<Color x:Key="Color\.Warning">#D6A84A</Color>'
+        $content | Should -Match '<Color x:Key="Color\.Danger">#FF6B8A</Color>'
+    }
+
+    It 'uses a toned light palette with subtle borders and muted state progress' {
+        $content = Get-Content -LiteralPath $script:LightThemeResourcePath -Raw -Encoding UTF8
+        $themeContent = Get-Content -LiteralPath (Join-Path $script:RepoRoot 'Module/GUI/ThemeManagement.ps1') -Raw -Encoding UTF8
+
+        $content | Should -Match '<Color x:Key="Color\.WindowBg">#F0F2F6</Color>'
+        $content | Should -Match '<Color x:Key="Color\.SurfaceElevated">#FBFCFE</Color>'
+        $content | Should -Match '<Color x:Key="Color\.SurfaceControl">#F9FAFC</Color>'
+        $content | Should -Match '<Color x:Key="Color\.TextPrimary">#1F2937</Color>'
+        $content | Should -Match '<Color x:Key="Color\.TextSecondary">#6B7280</Color>'
+        $content | Should -Match '<Color x:Key="Color\.Border">#E6EAF0</Color>'
+        $content | Should -Match '<Color x:Key="Color\.Success">#6BBFA4</Color>'
+        $content | Should -Match '<Color x:Key="Color\.Progress">#6BBFA4</Color>'
+        $content | Should -Match '<Color x:Key="Color\.SplashCardTop">#FBFCFE</Color>'
+        $content | Should -Match '<Color x:Key="Color\.SplashCardBottom">#F4F6FA</Color>'
+        $content | Should -Match '<LinearGradientBrush x:Key="Brush\.SplashCard" StartPoint="0\.5,0" EndPoint="0\.5,1">'
+        $content | Should -Not -Match '<Color x:Key="Color\.WindowBg">#FFFFFF</Color>|<Color x:Key="Color\.SurfaceElevated">#FFFFFF</Color>|<Color x:Key="Color\.Progress">#16A34A</Color>'
+
+        $themeContent | Should -Match 'WindowBg\s+= "#F0F2F6"'
+        $themeContent | Should -Match 'CardBg\s+= "#FBFCFE"'
+        $themeContent | Should -Match 'CardBorder\s+= "#E6EAF0"'
+        $themeContent | Should -Match 'StateAccent\s+= "#B34FD1A5"'
+        $themeContent | Should -Match 'StateAccentStrong\s+= "#4FD1A5"'
+        $themeContent | Should -Match 'ProgressGreen\s+= "#6BBFA4"'
     }
 }
 
@@ -39,7 +130,7 @@ Describe 'Write-GuiThemeFallbackWarning' {
 
 Describe 'Get-GuiFallbackColor' {
     BeforeEach {
-        $Script:DarkTheme = @{ AccentBlue = '#89B4FA' }
+        $Script:DarkTheme = @{ AccentBlue = '#7CB7FF' }
     }
 
     It 'returns the provided fallback color when non-empty' {
@@ -47,11 +138,11 @@ Describe 'Get-GuiFallbackColor' {
     }
 
     It 'returns DarkTheme AccentBlue when no fallback provided' {
-        Get-GuiFallbackColor -FallbackColor '' | Should -Be '#89B4FA'
+        Get-GuiFallbackColor -FallbackColor '' | Should -Be '#7CB7FF'
     }
 
     It 'returns DarkTheme AccentBlue for null fallback' {
-        Get-GuiFallbackColor -FallbackColor $null | Should -Be '#89B4FA'
+        Get-GuiFallbackColor -FallbackColor $null | Should -Be '#7CB7FF'
     }
 
     It 'returns hardcoded default when DarkTheme is missing' {
@@ -65,20 +156,20 @@ Describe 'Repair-GuiThemePalette' {
     BeforeEach {
         $Script:GuiThemeFallbackWarnings = [System.Collections.Generic.HashSet[string]]::new()
         $Script:DarkTheme = @{
-            AccentBlue = '#89B4FA'
-            TextPrimary = '#CDD6F4'
-            TextSecondary = '#B6BED8'
-            CardBg = '#272B3A'
-            HeaderBg = '#181825'
-            FocusRing = '#C9DEFF'
-            TabHoverBg = '#3670B8'
-            AccentHover = '#74C7EC'
-            AccentPress = '#94E2D5'
+            AccentBlue = '#7CB7FF'
+            TextPrimary = '#F4F7FF'
+            TextSecondary = '#B8C1D9'
+            CardBg = '#202638'
+            HeaderBg = '#151824'
+            FocusRing = '#9ACAFF'
+            TabHoverBg = '#343C55'
+            AccentHover = '#9ACAFF'
+            AccentPress = '#4D9CFF'
         }
         $Script:LightTheme = @{
             AccentBlue = '#1550AA'
-            TextPrimary = '#1A1C2E'
-            TextSecondary = '#31384A'
+            TextPrimary = '#1F2937'
+            TextSecondary = '#6B7280'
             CardBg = '#FFFFFF'
             HeaderBg = '#D6DBE5'
             FocusRing = '#0D63E0'
@@ -90,18 +181,18 @@ Describe 'Repair-GuiThemePalette' {
 
     It 'returns the theme unchanged when all keys present' {
         $theme = @{
-            AccentBlue = '#89B4FA'
-            TextPrimary = '#CDD6F4'
-            TextSecondary = '#B6BED8'
-            CardBg = '#272B3A'
-            HeaderBg = '#181825'
-            FocusRing = '#C9DEFF'
-            TabHoverBg = '#3670B8'
-            AccentHover = '#74C7EC'
-            AccentPress = '#94E2D5'
+            AccentBlue = '#7CB7FF'
+            TextPrimary = '#F4F7FF'
+            TextSecondary = '#B8C1D9'
+            CardBg = '#202638'
+            HeaderBg = '#151824'
+            FocusRing = '#9ACAFF'
+            TabHoverBg = '#343C55'
+            AccentHover = '#9ACAFF'
+            AccentPress = '#4D9CFF'
         }
         $result = Repair-GuiThemePalette -Theme $theme -ThemeName 'Dark' 3>$null
-        $result.AccentBlue | Should -Be '#89B4FA'
+        $result.AccentBlue | Should -Be '#7CB7FF'
     }
 
     It 'fills missing keys from the opposite theme' {

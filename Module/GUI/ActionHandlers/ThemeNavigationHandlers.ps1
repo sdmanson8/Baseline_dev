@@ -10,13 +10,30 @@
 	if ($NavModeTweaks)
 	{
 		Register-GuiEventHandler -Source $NavModeTweaks -EventName 'Checked' -Handler ({
+			if (Get-Command -Name 'Set-GuiUpdatesMode' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Set-GuiUpdatesMode -Enable:$false
+			}
 			Set-GuiAppsMode -Enable:$false
 		}) | Out-Null
 	}
 	if ($NavModeApps)
 	{
 		Register-GuiEventHandler -Source $NavModeApps -EventName 'Checked' -Handler ({
+			if (Get-Command -Name 'Set-GuiUpdatesMode' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Set-GuiUpdatesMode -Enable:$false
+			}
 			Set-GuiAppsMode -Enable:$true
+		}) | Out-Null
+	}
+	if ($NavModeUpdates)
+	{
+		Register-GuiEventHandler -Source $NavModeUpdates -EventName 'Checked' -Handler ({
+			if (Get-Command -Name 'Set-GuiUpdatesMode' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Set-GuiUpdatesMode -Enable:$true
+			}
 		}) | Out-Null
 	}
 	#endregion

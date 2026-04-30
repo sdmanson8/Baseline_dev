@@ -17,6 +17,24 @@
 	})
 	$Script:SearchRefreshTimer = $searchRefreshTimer
 
+	$Script:PendingFilterValues = @{}
+	$filterRefreshTimer = New-Object System.Windows.Threading.DispatcherTimer
+	$filterRefreshTimer.Interval = [TimeSpan]::FromMilliseconds(120)
+	$null = Register-GuiEventHandler -Source $filterRefreshTimer -EventName 'Tick' -Handler ({
+		$filterRefreshTimer.Stop()
+		$pending = $Script:PendingFilterValues
+		if (-not $pending -or $pending.Count -eq 0) { return }
+
+		$keys = @($pending.Keys)
+		foreach ($key in $keys)
+		{
+			try { & $Script:GuiState.Set $key $pending[$key] }
+			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SearchFilterHandlers.ApplyPendingFilter' }
+		}
+		$pending.Clear()
+	})
+	$Script:FilterRefreshTimer = $filterRefreshTimer
+
 	Set-SearchInputStyle
 	Set-FilterControlStyle
 	# Cache the icon content command once to avoid Get-Command on every filter click.
@@ -41,6 +59,15 @@
 		}
 	})
 	$TxtSearch.Text = if ($Script:AppsModeActive) { [string]$Script:AppsSearchText } else { [string]$Script:SearchText }
+	$isSearchEmpty = [string]::IsNullOrWhiteSpace([string]$TxtSearch.Text)
+	if ($Script:TxtSearchPlaceholder)
+	{
+		$Script:TxtSearchPlaceholder.Visibility = if ($isSearchEmpty) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+	}
+	if ($Script:BtnClearSearch)
+	{
+		$Script:BtnClearSearch.Visibility = if ($isSearchEmpty) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
+	}
 	$null = Register-GuiEventHandler -Source $TxtSearch -EventName 'GotKeyboardFocus' -Handler ({
 		Invoke-CapturedFunction -Name 'Set-SearchInputStyle'
 	})
@@ -49,15 +76,24 @@
 	})
 	$null = Register-GuiEventHandler -Source $TxtSearch -EventName 'TextChanged' -Handler ({
 		if ((& $testGuiRunInProgressCapture) -or $Script:SearchUiUpdating) { return }
+		$currentText = [string]$TxtSearch.Text
 		if ($Script:AppsModeActive)
 		{
-			$Script:AppsSearchText = [string]$TxtSearch.Text
+			$Script:AppsSearchText = $currentText
 		}
 		else
 		{
-			$Script:SearchText = [string]$TxtSearch.Text
+			$Script:SearchText = $currentText
 		}
-		& $Script:SetSearchInputStyleScript
+		$isEmpty = [string]::IsNullOrWhiteSpace($currentText)
+		if ($Script:TxtSearchPlaceholder)
+		{
+			$Script:TxtSearchPlaceholder.Visibility = if ($isEmpty) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+		}
+		if ($Script:BtnClearSearch)
+		{
+			$Script:BtnClearSearch.Visibility = if ($isEmpty) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
+		}
 		if ($Script:SearchRefreshTimer)
 		{
 			$Script:SearchRefreshTimer.Stop()
@@ -71,7 +107,16 @@
 	$null = Register-GuiEventHandler -Source $CmbRiskFilter -EventName 'SelectionChanged' -Handler ({
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
 		$selectedRisk = if ($CmbRiskFilter.SelectedIndex -ge 0 -and $Script:RiskFilterInternalValues -and $CmbRiskFilter.SelectedIndex -lt $Script:RiskFilterInternalValues.Count) { $Script:RiskFilterInternalValues[$CmbRiskFilter.SelectedIndex] } else { 'All' }
-		& $Script:GuiState.Set 'RiskFilter' $selectedRisk
+		if ($Script:FilterRefreshTimer)
+		{
+			$Script:PendingFilterValues['RiskFilter'] = $selectedRisk
+			$Script:FilterRefreshTimer.Stop()
+			$Script:FilterRefreshTimer.Start()
+		}
+		else
+		{
+			& $Script:GuiState.Set 'RiskFilter' $selectedRisk
+		}
 		if ($selectedRisk -ne 'All' -and $FilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Collapsed)
 		{
 			$FilterOptionsPanel.Visibility = [System.Windows.Visibility]::Visible
@@ -84,7 +129,16 @@
 	$null = Register-GuiEventHandler -Source $CmbCategoryFilter -EventName 'SelectionChanged' -Handler ({
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
 		$selectedCat = if ($CmbCategoryFilter.SelectedIndex -ge 0 -and $Script:CategoryFilterInternalValues -and $CmbCategoryFilter.SelectedIndex -lt $Script:CategoryFilterInternalValues.Count) { $Script:CategoryFilterInternalValues[$CmbCategoryFilter.SelectedIndex] } else { 'All' }
-		& $Script:GuiState.Set 'CategoryFilter' $selectedCat
+		if ($Script:FilterRefreshTimer)
+		{
+			$Script:PendingFilterValues['CategoryFilter'] = $selectedCat
+			$Script:FilterRefreshTimer.Stop()
+			$Script:FilterRefreshTimer.Start()
+		}
+		else
+		{
+			& $Script:GuiState.Set 'CategoryFilter' $selectedCat
+		}
 		if ($selectedCat -ne 'All' -and $FilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Collapsed)
 		{
 			$FilterOptionsPanel.Visibility = [System.Windows.Visibility]::Visible
@@ -280,8 +334,35 @@
 		})
 	}
 	$null = Register-GuiEventHandler -Source $BtnClearSearch -EventName 'Click' -Handler ({
-		$TxtSearch.Text = ''
+		$Script:SearchUiUpdating = $true
+		try
+		{
+			$Script:SearchText = ''
+			$Script:AppsSearchText = ''
+			$TxtSearch.Text = ''
+		}
+		finally
+		{
+			$Script:SearchUiUpdating = $false
+		}
+		if ($Script:TxtSearchPlaceholder)
+		{
+			$Script:TxtSearchPlaceholder.Visibility = [System.Windows.Visibility]::Visible
+		}
+		if ($Script:BtnClearSearch)
+		{
+			$Script:BtnClearSearch.Visibility = [System.Windows.Visibility]::Collapsed
+		}
 		[void]($TxtSearch.Focus())
+		if ($Script:SearchRefreshTimer)
+		{
+			$Script:SearchRefreshTimer.Stop()
+			$Script:SearchRefreshTimer.Start()
+		}
+		else
+		{
+			& $refreshSearchContent
+		}
 	})
 	# Enable pixel-based smooth scrolling
 	[System.Windows.Controls.ScrollViewer]::SetCanContentScroll($ContentScroll, $false)

@@ -362,25 +362,40 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_RemovingHostsEntries' -Fallback 'Remove IP addresses from hosts file that block Microsoft resources added by WindowsSpyBlocker')
 		try
 		{
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingGitHubAlive' -Fallback 'Checking whether {0} is alive' -FormatArgs @('https://github.com'))
-			$Parameters = @{
-				Uri              = "https://github.com"
-				Method           = "Head"
-				DisableKeepAlive = $true
-				UseBasicParsing  = $true
-				TimeoutSec       = 15
-			}
-			(Invoke-WebRequest @Parameters).StatusDescription | Out-Null
+			$HostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
+			$HostsContent = Get-Content -Path $HostsPath -Encoding Default -Force
+			$ActiveHostsEntries = @(
+				$HostsContent | Where-Object {
+					$Line = $_.Trim()
+					$Line -and (-not $Line.StartsWith("#"))
+				}
+			)
 
-			Clear-Variable -Name IPArray -ErrorAction Ignore
-
-			# https://github.com/crazy-max/WindowsSpyBlocker/tree/master/data/hosts
-			$Parameters = @{
-				Uri             = "https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/extra.txt"
-				UseBasicParsing = $true
-				TimeoutSec      = 15
+			if ($ActiveHostsEntries.Count -eq 0)
+			{
+				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_NoActiveHostsEntries' -Fallback 'No active hosts entries detected; skipping WindowsSpyBlocker hosts cleanup lookup.')
 			}
-			$extra = (Invoke-WebRequest @Parameters).Content
+			else
+			{
+				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingGitHubAlive' -Fallback 'Checking whether {0} is alive' -FormatArgs @('https://github.com'))
+				$Parameters = @{
+					Uri              = "https://github.com"
+					Method           = "Head"
+					DisableKeepAlive = $true
+					UseBasicParsing  = $true
+					TimeoutSec       = 15
+				}
+				(Invoke-WebRequest @Parameters).StatusDescription | Out-Null
+
+				Clear-Variable -Name IPArray -ErrorAction Ignore
+
+				# https://github.com/crazy-max/WindowsSpyBlocker/tree/master/data/hosts
+				$Parameters = @{
+					Uri             = "https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/extra.txt"
+					UseBasicParsing = $true
+					TimeoutSec      = 15
+				}
+				$extra = (Invoke-WebRequest @Parameters).Content
 
 			$Parameters = @{
 				Uri             = "https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/extra_v6.txt"
@@ -440,10 +455,7 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 
 			$IPArray = $ValidLines
 
-			$HostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
-			$HostsContent = Get-Content -Path $HostsPath -Encoding Default -Force
-
-			$MatchedHostsEntries = $HostsContent | Where-Object {
+			$MatchedHostsEntries = $ActiveHostsEntries | Where-Object {
 				$Line = $_.Trim()
 				$Line -and
 				(-not $Line.StartsWith("#")) -and
@@ -504,6 +516,7 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 
 					Start-Process -FilePath notepad.exe -ArgumentList $HostsPath | Out-Null
 				}
+			}
 			}
 		}
 		catch [System.Net.WebException]

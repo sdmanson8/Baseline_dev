@@ -17,9 +17,9 @@
 		$shadow = New-Object System.Windows.Media.Effects.DropShadowEffect
 		$shadow.Color = [System.Windows.Media.Colors]::Black
 		$shadow.Direction = 270
-		$shadow.ShadowDepth = if ($isLight) { 2 } else { 1 }
-		$shadow.Opacity = if ($isLight) { 0.09 } else { 0.18 }
-		$shadow.BlurRadius = if ($isLight) { 8 } else { 10 }
+		$shadow.ShadowDepth = 0
+		$shadow.Opacity = if ($isLight) { 0.04 } else { 0.18 }
+		$shadow.BlurRadius = if ($isLight) { 8 } else { 18 }
 		if ($shadow.CanFreeze) { $shadow.Freeze() }
 		$Script:CardHoverResources = @{
 			ThemeName      = $themeName
@@ -28,10 +28,10 @@
 			HoverBg        = $bc.ConvertFromString($Script:CurrentTheme.CardHoverBg)
 			PressBg        = $bc.ConvertFromString($Script:CurrentTheme.TabActiveBg)
 			DefaultBorder  = $bc.ConvertFromString($Script:CurrentTheme.CardBorder)
-			HoverBorder    = $bc.ConvertFromString($Script:CurrentTheme.AccentHover)
+			HoverBorder    = $bc.ConvertFromString($Script:CurrentTheme.CardBorder)
 			FocusBorder    = $bc.ConvertFromString($Script:CurrentTheme.FocusRing)
-			Thickness1     = [System.Windows.Thickness]::new(1)
-			Thickness2     = [System.Windows.Thickness]::new(2)
+			Thickness1     = if ($isLight) { $Script:T.CardBorder } else { $Script:T.RowDivider }
+			Thickness2     = if ($isLight) { $Script:T.CardBorderFocus } else { $Script:T.RowDividerFocus }
 		}
 		return $Script:CardHoverResources
 	}
@@ -210,16 +210,18 @@
 		# consequence text is visible by default without expanding the caution section.
 		if ([string]$Tweak.Risk -eq 'High' -and [bool]$Tweak.Caution -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.CautionReason))
 		{
-			$cautionColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.CautionText) { $Script:CurrentTheme.CautionText } else { '#E5A84B' }
+			$cautionColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.CautionText) { $Script:CurrentTheme.CautionText } else { '#D6A84A' }
+			$neutralTextColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.TextSecondary) { $Script:CurrentTheme.TextSecondary } else { '#B8C1D9' }
 			$cautionInline = New-Object System.Windows.Controls.TextBlock
 			$cautionInline.TextWrapping = 'Wrap'
 			$cautionInline.Margin = $DescriptionMargin
 			$cautionInline.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
 			$cautionInline.FontWeight = [System.Windows.FontWeights]::Medium
-			$cautionInline.Foreground = $RowContext.BrushConverter.ConvertFromString($cautionColor)
+			$cautionInline.Foreground = $RowContext.BrushConverter.ConvertFromString($neutralTextColor)
 
 			$cautionIcon = New-Object System.Windows.Documents.Run
 			$cautionIcon.Text = ([char]0x26A0).ToString() + ' '
+			$cautionIcon.Foreground = $RowContext.BrushConverter.ConvertFromString($cautionColor)
 			[void]($cautionInline.Inlines.Add($cautionIcon))
 
 			$cautionText = New-Object System.Windows.Documents.Run

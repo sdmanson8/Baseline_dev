@@ -7,7 +7,7 @@ BeforeAll {
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
-        if ($fn.Name -in @('StoreSearchResults', 'WindowsUpdate', 'DownloadUpdatesOverMeteredConnection', 'StoreAppAutoDownload', 'FeatureUpdateDeferral', 'QualityUpdateDeferral', 'UpdateNotificationLevel', 'WindowsUpdateSecurityOnlyMode', 'WindowsUpdatePause')) {
+        if ($fn.Name -in @('StoreSearchResults', 'WindowsUpdate', 'DownloadUpdatesOverMeteredConnection', 'StoreAppAutoDownload', 'FeatureUpdateDeferral', 'QualityUpdateDeferral', 'UpdateNotificationLevel', 'WindowsUpdateDisableAll', 'WindowsUpdateSecurityOnlyMode', 'WindowsUpdatePause')) {
             Invoke-Expression $fn.Extent.Text
         }
     }
@@ -150,7 +150,7 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
         @($script:updateSecurityOnlyCalls.Driver) | Should -Be @('Disable')
         @($script:updateSecurityOnlyCalls.Restart) | Should -Be @('Disable')
         @($script:updateSecurityOnlyCalls.FeatureDeferral) | Should -Be @('Enable')
-        @($script:updateSecurityOnlyCalls.QualityDeferral) | Should -Be @('SevenDays')
+        @($script:updateSecurityOnlyCalls.QualityDeferral) | Should -Be @('FourDays')
     }
 
     It 'restores the normal update posture when disabled' {
@@ -306,6 +306,279 @@ Describe 'WindowsUpdatePause' {
             'PausedQualityDate'
         )
         $script:newItemPropertyCalls.Count | Should -Be 0
+    }
+}
+
+Describe 'WindowsUpdateDisableAll' {
+    BeforeEach {
+        $script:newItemCalls = [System.Collections.Generic.List[string]]::new()
+        $script:newItemPropertyCalls = [System.Collections.Generic.List[object]]::new()
+        $script:removedPropertyCalls = [System.Collections.Generic.List[object]]::new()
+        $script:stoppedServices = [System.Collections.Generic.List[string]]::new()
+        $script:setServiceCalls = [System.Collections.Generic.List[object]]::new()
+        $script:disabledTasks = [System.Collections.Generic.List[string]]::new()
+        $script:enabledTasks = [System.Collections.Generic.List[string]]::new()
+        $script:scheduledTaskActions = [System.Collections.Generic.List[object]]::new()
+        $script:scheduledTaskTriggers = [System.Collections.Generic.List[object]]::new()
+        $script:scheduledTaskSettings = [System.Collections.Generic.List[object]]::new()
+        $script:scheduledTaskPrincipals = [System.Collections.Generic.List[object]]::new()
+        $script:registeredTasks = [System.Collections.Generic.List[object]]::new()
+        $script:unregisteredTasks = [System.Collections.Generic.List[object]]::new()
+
+        function Write-ConsoleStatus {
+            param(
+                [string]$Action,
+                [string]$Status
+            )
+        }
+
+        function LogInfo {
+            param([string]$Message)
+        }
+
+        function LogError {
+            param([string]$Message)
+        }
+
+        function Test-Path {
+            param([string]$Path)
+            return $false
+        }
+
+        function New-Item {
+            param(
+                [string]$Path,
+                [switch]$Force,
+                [object]$ErrorAction
+            )
+
+            [void]$script:newItemCalls.Add($Path)
+        }
+
+        function New-ItemProperty {
+            param(
+                [string]$Path,
+                [string]$Name,
+                [string]$PropertyType,
+                [object]$Value,
+                [switch]$Force,
+                [object]$ErrorAction
+            )
+
+            [void]$script:newItemPropertyCalls.Add([pscustomobject]@{
+                Path = $Path
+                Name = $Name
+                PropertyType = $PropertyType
+                Value = $Value
+            })
+        }
+
+        function Remove-ItemProperty {
+            param(
+                [string]$Path,
+                [object]$Name,
+                [switch]$Force,
+                [object]$ErrorAction
+            )
+
+            [void]$script:removedPropertyCalls.Add([pscustomobject]@{
+                Path = $Path
+                Name = $Name
+            })
+        }
+
+        function Stop-Service {
+            param(
+                [string]$Name,
+                [switch]$Force,
+                [object]$ErrorAction
+            )
+
+            [void]$script:stoppedServices.Add($Name)
+        }
+
+        function Set-Service {
+            param(
+                [string]$Name,
+                [string]$StartupType,
+                [object]$ErrorAction
+            )
+
+            [void]$script:setServiceCalls.Add([pscustomobject]@{
+                Name = $Name
+                StartupType = $StartupType
+            })
+        }
+
+        function Get-ScheduledTask {
+            param(
+                [string]$TaskName,
+                [string]$TaskPath,
+                [object]$ErrorAction
+            )
+
+            [pscustomobject]@{ TaskName = $TaskName; TaskPath = $TaskPath }
+        }
+
+        function Disable-ScheduledTask {
+            process {
+                [void]$script:disabledTasks.Add([string]$_.TaskPath)
+            }
+        }
+
+        function Enable-ScheduledTask {
+            process {
+                [void]$script:enabledTasks.Add([string]$_.TaskPath)
+            }
+        }
+
+        function New-ScheduledTaskAction {
+            param(
+                [string]$Execute,
+                [string]$Argument
+            )
+
+            $action = [pscustomobject]@{ Execute = $Execute; Argument = $Argument }
+            [void]$script:scheduledTaskActions.Add($action)
+            return $action
+        }
+
+        function New-ScheduledTaskTrigger {
+            param(
+                [switch]$AtStartup,
+                [switch]$AtLogon
+            )
+
+            $trigger = [pscustomobject]@{
+                AtStartup = [bool]$AtStartup
+                AtLogon = [bool]$AtLogon
+            }
+            [void]$script:scheduledTaskTriggers.Add($trigger)
+            return $trigger
+        }
+
+        function New-ScheduledTaskSettingsSet {
+            param(
+                [switch]$AllowStartIfOnBatteries,
+                [switch]$DontStopIfGoingOnBatteries,
+                [switch]$StartWhenAvailable
+            )
+
+            $settings = [pscustomobject]@{
+                AllowStartIfOnBatteries = [bool]$AllowStartIfOnBatteries
+                DontStopIfGoingOnBatteries = [bool]$DontStopIfGoingOnBatteries
+                StartWhenAvailable = [bool]$StartWhenAvailable
+            }
+            [void]$script:scheduledTaskSettings.Add($settings)
+            return $settings
+        }
+
+        function New-ScheduledTaskPrincipal {
+            param(
+                [string]$UserId,
+                [string]$LogonType,
+                [string]$RunLevel
+            )
+
+            $principal = [pscustomobject]@{
+                UserId = $UserId
+                LogonType = $LogonType
+                RunLevel = $RunLevel
+            }
+            [void]$script:scheduledTaskPrincipals.Add($principal)
+            return $principal
+        }
+
+        function Unregister-ScheduledTask {
+            param(
+                [string]$TaskName,
+                [string]$TaskPath,
+                [switch]$Confirm,
+                [object]$ErrorAction
+            )
+
+            [void]$script:unregisteredTasks.Add([pscustomobject]@{
+                TaskName = $TaskName
+                TaskPath = $TaskPath
+            })
+        }
+
+        function Register-ScheduledTask {
+            param(
+                [string]$TaskName,
+                [string]$TaskPath,
+                [object]$Action,
+                [object[]]$Trigger,
+                [object]$Settings,
+                [object]$Principal,
+                [string]$Description,
+                [switch]$Force
+            )
+
+            [void]$script:registeredTasks.Add([pscustomobject]@{
+                TaskName = $TaskName
+                TaskPath = $TaskPath
+                Action = $Action
+                Trigger = $Trigger
+                Settings = $Settings
+                Principal = $Principal
+                Description = $Description
+            })
+        }
+    }
+
+    AfterEach {
+        Remove-Item Function:\Write-ConsoleStatus -ErrorAction SilentlyContinue
+        Remove-Item Function:\LogInfo -ErrorAction SilentlyContinue
+        Remove-Item Function:\LogError -ErrorAction SilentlyContinue
+        Remove-Item Function:\Test-Path -ErrorAction SilentlyContinue
+        Remove-Item Function:\New-Item -ErrorAction SilentlyContinue
+        Remove-Item Function:\New-ItemProperty -ErrorAction SilentlyContinue
+        Remove-Item Function:\Remove-ItemProperty -ErrorAction SilentlyContinue
+        Remove-Item Function:\Stop-Service -ErrorAction SilentlyContinue
+        Remove-Item Function:\Set-Service -ErrorAction SilentlyContinue
+        Remove-Item Function:\Get-ScheduledTask -ErrorAction SilentlyContinue
+        Remove-Item Function:\Disable-ScheduledTask -ErrorAction SilentlyContinue
+        Remove-Item Function:\Enable-ScheduledTask -ErrorAction SilentlyContinue
+        Remove-Item Function:\New-ScheduledTaskAction -ErrorAction SilentlyContinue
+        Remove-Item Function:\New-ScheduledTaskTrigger -ErrorAction SilentlyContinue
+        Remove-Item Function:\New-ScheduledTaskSettingsSet -ErrorAction SilentlyContinue
+        Remove-Item Function:\New-ScheduledTaskPrincipal -ErrorAction SilentlyContinue
+        Remove-Item Function:\Unregister-ScheduledTask -ErrorAction SilentlyContinue
+        Remove-Item Function:\Register-ScheduledTask -ErrorAction SilentlyContinue
+    }
+
+    It 'writes policy values, disables update services, disables update tasks, and registers the guard task when enabled' {
+        WindowsUpdateDisableAll -Enable
+
+        $script:newItemCalls | Should -Contain 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
+        $script:newItemCalls | Should -Contain 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Config'
+        ($script:newItemPropertyCalls | Where-Object Name -eq 'NoAutoUpdate').Value | Should -Be 1
+        ($script:newItemPropertyCalls | Where-Object Name -eq 'AUOptions').Value | Should -Be 1
+        ($script:newItemPropertyCalls | Where-Object Name -eq 'DODownloadMode').Value | Should -Be 0
+        @($script:stoppedServices) | Should -Be @('BITS', 'wuauserv', 'UsoSvc', 'WaaSMedicSvc')
+        @($script:setServiceCalls | ForEach-Object StartupType) | Should -Be @('Disabled', 'Disabled', 'Disabled', 'Disabled')
+        $script:disabledTasks.Count | Should -Be 6
+        $script:registeredTasks.Count | Should -Be 1
+        $script:registeredTasks[0].TaskName | Should -Be 'WindowsUpdateGuard'
+        $script:registeredTasks[0].TaskPath | Should -Be '\Baseline\'
+        $script:registeredTasks[0].Action.Execute | Should -Be 'powershell.exe'
+        $script:registeredTasks[0].Action.Argument | Should -Match 'NoAutoUpdate'
+        $script:registeredTasks[0].Action.Argument | Should -Match 'WaaSMedicSvc'
+        $script:registeredTasks[0].Trigger.Count | Should -Be 2
+        $script:registeredTasks[0].Principal.UserId | Should -Be 'NT AUTHORITY\SYSTEM'
+    }
+
+    It 'removes policy values, unregisters the guard task, restores service startup, and enables update tasks when disabled' {
+        WindowsUpdateDisableAll -Disable
+
+        $script:removedPropertyCalls[0].Path | Should -Be 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
+        $script:removedPropertyCalls[0].Name | Should -Be @('NoAutoUpdate', 'AUOptions')
+        $script:removedPropertyCalls[1].Path | Should -Be 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Config'
+        $script:removedPropertyCalls[1].Name | Should -Be 'DODownloadMode'
+        $script:unregisteredTasks | Where-Object TaskName -eq 'WindowsUpdateGuard' | Should -Not -BeNullOrEmpty
+        @($script:setServiceCalls | ForEach-Object StartupType) | Should -Be @('Manual', 'Manual', 'Automatic', 'Manual')
+        $script:enabledTasks.Count | Should -Be 6
     }
 }
 

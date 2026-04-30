@@ -86,6 +86,7 @@ function Add-GuiPopupWindowChrome
 
 	$windowTitle = if ([string]::IsNullOrWhiteSpace([string]$Title)) { [string]$Window.Title } else { [string]$Title }
 	$Window.Title = $windowTitle
+	$Window.Background = [System.Windows.Media.Brushes]::Transparent
 
 	$titleBarBackground = & $getThemeColor -ColorName 'HeaderBg' -DefaultColor (& $getThemeColor -ColorName 'WindowBg' -DefaultColor $fallbackHeaderBg)
 	$titleBarTextColor = & $getThemeColor -ColorName 'TextPrimary' -DefaultColor $fallbackTextPrimary
@@ -200,6 +201,7 @@ function Add-GuiPopupWindowChrome
 
 	$popupDock = New-Object System.Windows.Controls.DockPanel
 	$popupDock.LastChildFill = $true
+	$popupDock.Background = [System.Windows.Media.Brushes]::Transparent
 	[System.Windows.Controls.DockPanel]::SetDock($titleBar, [System.Windows.Controls.Dock]::Top)
 	[void]$popupDock.Children.Add($titleBar)
 
@@ -259,6 +261,8 @@ function Add-GuiPopupWindowChrome
 	}
 
 	[void]$popupDock.Children.Add($contentElement)
+	$RootBorder.CornerRadius = [System.Windows.CornerRadius]::new(8)
+	$RootBorder.ClipToBounds = $true
 	$RootBorder.Child = $popupDock
 
 	try
@@ -616,7 +620,7 @@ function Set-GuiPopupWindowTheme
 	$borderColor = & $getThemeColor -ColorName 'BorderColor' -DefaultColor $fallbackBorderColor
 	$accentBlue = & $getThemeColor -ColorName 'AccentBlue' -DefaultColor $fallbackAccentBlue
 
-	try { $Window.Background = $bc.ConvertFromString($windowBg) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetWindowBackground' }
+	try { $Window.Background = [System.Windows.Media.Brushes]::Transparent } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetWindowBackground' }
 	try { $Window.Foreground = $bc.ConvertFromString($titleBarTextColor) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetWindowForeground' }
 
 	$rootBorder = Get-GuiObjectField -Object $Window -FieldName 'GuiPopupRootBorder'
@@ -625,6 +629,8 @@ function Set-GuiPopupWindowTheme
 		try { $rootBorder.Background = $bc.ConvertFromString($windowBg) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetRootBorderBackground' }
 		try { $rootBorder.BorderBrush = $bc.ConvertFromString($borderColor) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetRootBorderBorderBrush' }
 		try { $rootBorder.BorderThickness = [System.Windows.Thickness]::new(1) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetRootBorderThickness' }
+		try { $rootBorder.CornerRadius = [System.Windows.CornerRadius]::new(8) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetRootBorderCornerRadius' }
+		try { $rootBorder.ClipToBounds = $true } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetRootBorderClipToBounds' }
 	}
 
 	$titleBar = Get-GuiObjectField -Object $Window -FieldName 'GuiPopupTitleBar'

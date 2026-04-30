@@ -334,14 +334,35 @@ Describe 'Show-BootstrapLoadingSplash' {
         $script:EnvironmentHelpersContent | Should -Not -Match 'ShowInTaskbar="False"'
     }
 
+    It 'does not force the splash into the foreground' {
+        $script:EnvironmentHelpersContent | Should -Match 'ShowActivated="False"'
+        $script:EnvironmentHelpersContent | Should -Match 'Topmost="False"'
+        $script:EnvironmentHelpersContent | Should -Not -Match '\$splash\.Topmost = \$true'
+        $script:EnvironmentHelpersContent | Should -Not -Match '\[void\]\$splash\.Activate\(\)'
+        $script:EnvironmentHelpersContent | Should -Not -Match '\[void\]\$splash\.Focus\(\)'
+        $script:EnvironmentHelpersContent | Should -Match 'Bootstrap splash loaded'
+        $script:EnvironmentHelpersContent | Should -Not -Match 'Bootstrap splash loaded and activated'
+    }
+
+    It 'uses a danger hover style for the splash close caption button' {
+        $script:EnvironmentHelpersContent | Should -Match 'x:Key="SplashCloseButtonStyle"'
+        $script:EnvironmentHelpersContent | Should -Match 'BasedOn="\{StaticResource SplashCaptionButtonStyle\}"'
+        $script:EnvironmentHelpersContent | Should -Match '<Setter Property="Background" Value="\{DynamicResource Brush\.Danger\}"'
+        $script:EnvironmentHelpersContent | Should -Match 'Name="BtnClose"[\s\S]*Style="\{StaticResource SplashCloseButtonStyle\}"'
+        $script:EnvironmentHelpersContent | Should -Not -Match 'Name="BtnClose"[^>]*Background="Transparent"'
+        $script:EnvironmentHelpersContent | Should -Not -Match 'Name="BtnClose"[^>]*Foreground="\{DynamicResource Brush\.TextSecondary\}"'
+    }
+
     It 'can prime the updates step, status, and progress bar when the splash loads' {
         $script:EnvironmentHelpersContent | Should -Match '\[switch\]\$StartUpdatesPulse'
         $script:EnvironmentHelpersContent | Should -Match 'splashLocCheckingForUpdates'
         $script:EnvironmentHelpersContent | Should -Match 'bootstrapLoadingSplashStepCommand'
         $script:EnvironmentHelpersContent | Should -Match 'bootstrapLoadingSplashStateCommand'
+        $script:EnvironmentHelpersContent | Should -Match '& \$bootstrapLoadingSplashStateCommand -Splash \$syncHash -StatusText \$splashLocCheckingForUpdates -Completed 0 -Total 5'
+        $script:EnvironmentHelpersContent | Should -Not -Match '& \$bootstrapLoadingSplashStateCommand -Splash \$syncHash -StatusText \$splashLocCheckingForUpdates -Indeterminate'
         $script:EnvironmentHelpersContent | Should -Match '& \$bootstrapLoadingSplashStepCommand -Splash \$syncHash -StepId ''updates'' -Status ''in_progress'''
-        $script:EnvironmentHelpersContent | Should -Match '& \$bootstrapLoadingSplashStateCommand -Splash \$syncHash -StatusText \$splashLocCheckingForUpdates -Indeterminate'
-        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_Loaded\(\{[\s\S]*& \$startUpdatesPulseAction'
+        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_Loaded\(\{[\s\S]*& \$startUpdatesPulseAction ''Loaded'''
+        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_ContentRendered\(\{[\s\S]*& \$startUpdatesPulseAction ''ContentRendered'''
     }
 
     It 'uses a value-driven progress bar template with standard named parts' {
@@ -366,6 +387,24 @@ Describe 'Show-BootstrapLoadingSplash' {
         $script:EnvironmentHelpersContent | Should -Match 'function Show-BootstrapLoadingSplash'
         $script:EnvironmentHelpersContent | Should -Match 'Environment\.ShowBootstrapLoadingSplash\.LoadSplashIcon'
         $script:EnvironmentHelpersContent | Should -Match 'Bootstrap splash chrome setup failed'
+    }
+
+    It 'loads the splash theme dictionary and binds splash chrome with DynamicResource brushes' {
+        $script:EnvironmentHelpersContent | Should -Match 'Module\\GUI\\Themes\\\{0\}'
+        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Resources\.MergedDictionaries\.Add\(\$themeDictionary\)'
+        $script:EnvironmentHelpersContent | Should -Match 'Background="Transparent"\s+BorderBrush="Transparent"\s+BorderThickness="0"'
+        $script:EnvironmentHelpersContent | Should -Match '<Border Name="RootBorder"[^>]+Background="\{DynamicResource Brush\.SplashBackdrop\}"[^>]+BorderBrush="\{DynamicResource Brush\.Border\}"[^>]+BorderThickness="1"[^>]+HorizontalAlignment="Stretch"[^>]+VerticalAlignment="Stretch"'
+        $script:EnvironmentHelpersContent | Should -Match '<Grid Background="Transparent" Margin="0"[^>]+HorizontalAlignment="Stretch"[^>]+VerticalAlignment="Stretch"'
+        $script:EnvironmentHelpersContent | Should -Match '<Grid Grid\.Row="0" Background="\{DynamicResource Brush\.HeaderBg\}"'
+        $script:EnvironmentHelpersContent | Should -Match '<Border Name="SplashContentCard"[^>]+Background="\{DynamicResource Brush\.SplashCard\}"[^>]+BorderThickness="0"'
+        $script:EnvironmentHelpersContent | Should -Not -Match '<Border Name="SplashContentCard"[^>]+BorderBrush="\{DynamicResource Brush\.SplashCardBorder\}"'
+        $script:EnvironmentHelpersContent | Should -Match '<DropShadowEffect Color="#000000" BlurRadius="34" ShadowDepth="0" Opacity="0\.18"\s*/>'
+        $script:EnvironmentHelpersContent | Should -Not -Match 'Name="SplashLogoCard"'
+        $script:EnvironmentHelpersContent | Should -Match 'Background="\{DynamicResource Brush\.SplashBackdrop\}"'
+        $script:EnvironmentHelpersContent | Should -Match 'Foreground="\{DynamicResource Brush\.TextPrimary\}"'
+        $script:EnvironmentHelpersContent | Should -Match 'Foreground="\{DynamicResource Brush\.SplashSubtitle\}"'
+        $script:EnvironmentHelpersContent | Should -Match 'Width="360" Height="6"'
+        $script:EnvironmentHelpersContent | Should -Match '<DropShadowEffect Color="\{DynamicResource Color\.Progress\}" BlurRadius="10" ShadowDepth="0" Opacity="0\.35"\s*/>'
     }
 
     It 'does not release startup until the splash content has rendered' {
@@ -521,11 +560,41 @@ Describe 'Invoke-BaselineAutoUpdate' {
         Remove-Item Env:\BASELINE_INSTALLER_MODE -ErrorAction SilentlyContinue
         Remove-Item Env:\BASELINE_SKIP_UPDATE -ErrorAction SilentlyContinue
         Remove-Item Env:\BASELINE_LAUNCHER_PATH -ErrorAction SilentlyContinue
+        $script:autoUpdateThrottlePath = Join-Path $TestDrive 'auto-update-check.json'
+        Remove-Item -LiteralPath $script:autoUpdateThrottlePath -Force -ErrorAction SilentlyContinue
         $script:loggedInfoMessages = [System.Collections.Generic.List[string]]::new()
         Mock LogInfo {
             param([object]$Message)
             [void]$script:loggedInfoMessages.Add([string]$Message)
         }
+        Mock Get-BaselineAutoUpdateThrottlePath { $script:autoUpdateThrottlePath }
+    }
+
+    It 'allows the startup auto-update check when no throttle file exists' {
+        $path = Join-Path $TestDrive 'missing-auto-update-check.json'
+
+        $decision = Get-BaselineAutoUpdateThrottleDecision -Path $path -NowUtc ([datetime]'2026-04-30T12:00:00Z') -MinimumIntervalHours 4
+
+        $decision.ShouldCheck | Should -BeTrue
+    }
+
+    It 'blocks the startup auto-update check inside the four-hour throttle window' {
+        $path = Join-Path $TestDrive 'recent-auto-update-check.json'
+        Set-BaselineAutoUpdateThrottleTimestamp -Path $path -NowUtc ([datetime]'2026-04-30T10:00:00Z')
+
+        $decision = Get-BaselineAutoUpdateThrottleDecision -Path $path -NowUtc ([datetime]'2026-04-30T13:59:59Z') -MinimumIntervalHours 4
+
+        $decision.ShouldCheck | Should -BeFalse
+        $decision.NextEligibleUtc.ToUniversalTime().ToString('o') | Should -Be '2026-04-30T14:00:00.0000000Z'
+    }
+
+    It 'allows the startup auto-update check after the four-hour throttle window' {
+        $path = Join-Path $TestDrive 'elapsed-auto-update-check.json'
+        Set-BaselineAutoUpdateThrottleTimestamp -Path $path -NowUtc ([datetime]'2026-04-30T10:00:00Z')
+
+        $decision = Get-BaselineAutoUpdateThrottleDecision -Path $path -NowUtc ([datetime]'2026-04-30T14:00:00Z') -MinimumIntervalHours 4
+
+        $decision.ShouldCheck | Should -BeTrue
     }
 
     It 'stays idle when the launcher flag is missing' {
@@ -558,6 +627,26 @@ Describe 'Invoke-BaselineAutoUpdate' {
         { Invoke-BaselineAutoUpdate -CurrentVersion '4.0.0' } | Should -Not -Throw
         Assert-MockCalled Set-DownloadSecurityProtocol -Times 1
         Assert-MockCalled Invoke-RestMethod -Times 1
+        Test-Path -LiteralPath $script:autoUpdateThrottlePath | Should -BeTrue
+    }
+
+    It 'does not query GitHub again within four hours' {
+        $env:BASELINE_EMBEDDED_HOST = '1'
+        $env:BASELINE_LAUNCHER_PATH = Join-Path $TestDrive 'Baseline.exe'
+        Set-Content -LiteralPath $env:BASELINE_LAUNCHER_PATH -Value '' -Encoding ASCII
+        Set-BaselineAutoUpdateThrottleTimestamp -Path $script:autoUpdateThrottlePath -NowUtc ([datetime]::UtcNow.AddHours(-1))
+
+        Mock Set-DownloadSecurityProtocol {}
+        Mock Invoke-RestMethod {
+            throw 'release lookup should not run'
+        }
+        Mock Set-BootstrapLoadingSplashState {}
+        Mock Close-LoadingSplashWindow {}
+
+        { Invoke-BaselineAutoUpdate -CurrentVersion '4.0.0' } | Should -Not -Throw
+
+        Assert-MockCalled Invoke-RestMethod -Times 0
+        ($script:loggedInfoMessages -join "`n") | Should -Match 'checked within the last 4 hours'
     }
 
     It 'uses the highest non-draft release tag when deciding whether the current build is up to date' {
@@ -760,7 +849,34 @@ Describe 'Bootstrap splash progress' {
         $progressBar.IsIndeterminate | Should -BeTrue
     }
 
-    It 'restores determinate mode before a splash step advances the bar' {
+    It 'keeps checklist progress determinate when an indeterminate status update follows an active step' {
+        $dispatcher = [TestSplashDispatcher]::new()
+        $statusText = [TestSplashElement]::new()
+        $subActionPanel = [TestSplashElement]::new()
+        $progressBar = [TestProgressBar]::new()
+        $progressBar.IsIndeterminate = $false
+        $progressBar.Value = 24
+        $progressBar.Maximum = 330
+
+        $splash = @{
+            Window = [pscustomobject]@{}
+            Dispatcher = $dispatcher
+            StatusText = $statusText
+            SubActionPanel = $subActionPanel
+            ProgressBar = $progressBar
+            ChecklistProgressActive = $true
+        }
+
+        Set-BootstrapLoadingSplashState -Splash $splash -StatusText 'Checking for updates...' -Indeterminate | Should -BeTrue
+
+        $subActionPanel.Visibility | Should -Be ([System.Windows.Visibility]::Visible)
+        $progressBar.Visibility | Should -Be ([System.Windows.Visibility]::Visible)
+        $progressBar.IsIndeterminate | Should -BeFalse
+        $progressBar.Value | Should -Be 24
+        $progressBar.Maximum | Should -Be 330
+    }
+
+    It 'starts determinate progress when the first splash step advances the bar' {
         $dispatcher = [TestSplashDispatcher]::new()
         $progressBar = [TestProgressBar]::new()
         $progressBar.IsIndeterminate = $true
@@ -796,6 +912,7 @@ Describe 'Bootstrap splash progress' {
             StepLabels = $stepLabels
             StepStates = $stepStates
             ProgressBar = $progressBar
+            ChecklistProgressActive = $false
             SplashTheme = [pscustomobject]@{
                 Muted   = '#6C7086'
                 Sub     = '#A6ADC8'
@@ -805,11 +922,88 @@ Describe 'Bootstrap splash progress' {
             StepOrder = $stepIds
         }
 
-        Set-BootstrapLoadingSplashStep -Splash $splash -StepId 'system' -Status 'in_progress' -SubAction '' | Should -BeTrue
+        Set-BootstrapLoadingSplashStep -Splash $splash -StepId 'updates' -Status 'in_progress' -SubAction '' | Should -BeTrue
 
         $progressBar.IsIndeterminate | Should -BeFalse
         $progressBar.Value | Should -BeGreaterThan 0
         $progressBar.Maximum | Should -Be 330
+        $splash.ChecklistProgressActive | Should -BeTrue
+    }
+
+    It 'keeps the final splash handoff moving until GUI readiness completes it' {
+        $dispatcher = [TestSplashDispatcher]::new()
+        $progressBar = [TestProgressBar]::new()
+        $progressBar.IsIndeterminate = $false
+        $progressBar.Value = 264
+        $progressBar.Maximum = 330
+
+        $stepIds = @('updates', 'system', 'winget', 'chocolatey', 'finalize')
+        $stepGlyphs = @{}
+        $stepIdleDots = @{}
+        $stepPulseDots = @{}
+        $stepChecks = @{}
+        $stepLabels = @{}
+        $stepStates = @{}
+        foreach ($stepId in $stepIds)
+        {
+            $stepGlyphs[$stepId] = [TestSplashElement]::new()
+            $stepIdleDots[$stepId] = [TestSplashElement]::new()
+            $pulseDot = [TestSplashElement]::new()
+            $pulseDot.RenderTransform = [System.Windows.Media.ScaleTransform]::new()
+            $stepPulseDots[$stepId] = $pulseDot
+            $stepChecks[$stepId] = [TestSplashElement]::new()
+            $stepLabels[$stepId] = [TestSplashElement]::new()
+            $stepStates[$stepId] = if ($stepId -eq 'finalize') { 'pending' } else { 'completed' }
+        }
+
+        $splash = @{
+            Window = [pscustomobject]@{}
+            Dispatcher = $dispatcher
+            StepGlyphs = $stepGlyphs
+            StepIdleDots = $stepIdleDots
+            StepPulseDots = $stepPulseDots
+            StepChecks = $stepChecks
+            StepLabels = $stepLabels
+            StepStates = $stepStates
+            ProgressBar = $progressBar
+            ChecklistProgressActive = $false
+            SplashTheme = [pscustomobject]@{
+                Muted   = '#6C7086'
+                Sub     = '#A6ADC8'
+                Primary = '#CDD6F4'
+                Accent  = '#89B4FA'
+            }
+            StepOrder = $stepIds
+        }
+
+        Set-BootstrapLoadingSplashStep -Splash $splash -StepId 'finalize' -Status 'in_progress' -SubAction '' | Should -BeTrue
+
+        $progressBar.IsIndeterminate | Should -BeFalse
+        $progressBar.Value | Should -BeGreaterThan 320
+        $progressBar.Value | Should -BeLessOrEqual 321
+        $splash.ChecklistProgressActive | Should -BeTrue
+
+        Set-BootstrapLoadingSplashStep -Splash $splash -StepId 'finalize' -Status 'completed' -SubAction '' | Should -BeTrue
+
+        $progressBar.Value | Should -Be 330
+        $splash.ChecklistProgressActive | Should -BeFalse
+        $splash.CompletionAnimationDeadlineUtc | Should -BeOfType ([datetime])
+    }
+
+    It 'keeps splash step pulse animation scoped to the active step and responsive' {
+        $script:EnvironmentHelpersContent | Should -Match '\$sxa\.From = 1\.0; \$sxa\.To = 1\.4'
+        $script:EnvironmentHelpersContent | Should -Match '\$sxa\.Duration = New-Object System\.Windows\.Duration \(\[TimeSpan\]::FromMilliseconds\(360\)\)'
+        $script:EnvironmentHelpersContent | Should -Match '\$sya\.From = 1\.0; \$sya\.To = 1\.4'
+        $script:EnvironmentHelpersContent | Should -Match '\$sya\.Duration = New-Object System\.Windows\.Duration \(\[TimeSpan\]::FromMilliseconds\(360\)\)'
+        $script:EnvironmentHelpersContent | Should -Match '\$oa\.From = 0\.6; \$oa\.To = 1\.0'
+        $script:EnvironmentHelpersContent | Should -Match '\$oa\.Duration = New-Object System\.Windows\.Duration \(\[TimeSpan\]::FromMilliseconds\(360\)\)'
+        $script:EnvironmentHelpersContent | Should -Match '\$stopInactivePulseDots = \{'
+        $script:EnvironmentHelpersContent | Should -Match '\$activePulseStepId = if \(\$Status -eq ''in_progress''\) \{ \$StepId \} else \{ \$null \}'
+        $script:EnvironmentHelpersContent | Should -Match '& \$stopInactivePulseDots \$activePulseStepId'
+        $script:EnvironmentHelpersContent | Should -Match '\$fillDurationMs = 2200'
+        $script:EnvironmentHelpersContent | Should -Match '\$fillDurationMs = 24000'
+        $script:EnvironmentHelpersContent | Should -Match '\$handoffCeiling = \$barWidth \* 0\.97'
+        $script:EnvironmentHelpersContent | Should -Not -Match '\[TimeSpan\]::FromSeconds\(5\)'
     }
 }
 

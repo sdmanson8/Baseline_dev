@@ -192,7 +192,7 @@ function Acquire-BaselineSingleInstance
 
 	$decision = Resolve-BaselineSingleInstanceDecision -LockResult $lockResult -RunningInstance $resolvedRunningInstance -AllowMultipleInstances:$AllowMultipleInstances
 	$foregroundResult = $null
-	if ($decision.Action -eq 'HandoffAndExit')
+	if ($decision.Action -eq 'HandoffAndExit' -and $decision.TargetHandle -and $decision.TargetHandle -ne [IntPtr]::Zero)
 	{
 		$foregroundResult = Invoke-BaselineSingleInstanceForeground -WindowHandle $decision.TargetHandle
 	}
@@ -328,10 +328,9 @@ function Resolve-BaselineSingleInstanceDecision
 		  AllowMultipleInstances=$true               → Continue (CI/test escape hatch)
 		  Lock acquired                              → Continue
 		  Lock not acquired AND running instance     → HandoffAndExit
-		  Lock not acquired AND no running instance  → WarnAndContinue
-		    (the lock is held by something we can't bring forward —
-		     a hung previous run, a service-account session — so we let
-		     the new run proceed instead of leaving the user stuck)
+		  Lock not acquired AND no running instance  → HandoffAndExit
+		    (the lock is held by another startup path before the WPF main
+		     window can be discovered; exit instead of opening a second GUI)
 	#>
 	[CmdletBinding()]
 	[OutputType([pscustomobject])]
@@ -378,8 +377,8 @@ function Resolve-BaselineSingleInstanceDecision
 	}
 
 	return [pscustomobject]@{
-		Action = 'WarnAndContinue'
-		Reason = 'Lock unavailable but no foregrounding target found; allowing the new instance to start.'
+		Action = 'HandoffAndExit'
+		Reason = 'Single-instance lock is held and no foregrounding target was found; exiting to preserve one GUI instance.'
 		TargetProcessId = $null
 		TargetHandle = $null
 	}

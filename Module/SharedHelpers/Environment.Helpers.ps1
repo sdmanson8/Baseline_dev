@@ -1043,6 +1043,8 @@ function Show-BootstrapLoadingSplash
 				WasLoaded  = $false
 				WasShown   = $false
 				WasRendered = $false
+				StartUpdatesPulseApplied = $false
+				ChecklistProgressActive = $false
 				WindowHandle = [IntPtr]::Zero
 				ErrorType  = $null
 				ErrorMessage = $null
@@ -1051,15 +1053,15 @@ function Show-BootstrapLoadingSplash
 		# Theme colors
 		if ($useLightTheme)
 		{
-			$splashBg = '#E4E8F0'; $splashBorder = '#A7B0C0'; $splashFg = '#1A1C2E'
-			$splashSub = '#31384A'; $splashAccent = '#1550AA'; $splashFooterBg = '#D6DBE5'
-			$splashMuted = '#646C7F'; $splashBtnFg = '#31384A'; $splashDarkMode = $false
+			$splashBg = '#F0F2F6'; $splashBorder = '#E6EAF0'; $splashFg = '#1F2937'
+			$splashSub = '#6B7280'; $splashAccent = '#1550AA'; $splashFooterBg = '#E9EDF3'
+			$splashMuted = '#7A8494'; $splashBtnFg = '#6B7280'; $splashStepActive = '#1F2937'; $splashDarkMode = $false
 		}
 		else
 		{
-			$splashBg = '#1E1E2E'; $splashBorder = '#333346'; $splashFg = '#CDD6F4'
-			$splashSub = '#A6ADC8'; $splashAccent = '#89B4FA'; $splashFooterBg = '#181825'
-			$splashMuted = '#6C7086'; $splashBtnFg = '#A6ADC8'; $splashDarkMode = $true
+			$splashBg = '#10131C'; $splashBorder = '#293044'; $splashFg = '#F4F7FF'
+			$splashSub = '#AEB7D1'; $splashAccent = '#7CB7FF'; $splashFooterBg = '#151824'
+			$splashMuted = '#7E89A8'; $splashBtnFg = '#B8C1D9'; $splashStepActive = '#E6EBFF'; $splashDarkMode = $true
 		}
 		$CurrentTheme = [ordered]@{
 			WindowBg    = $splashBg
@@ -1073,7 +1075,7 @@ function Show-BootstrapLoadingSplash
 		$SplashTheme = [ordered]@{
 			Muted   = $splashMuted
 			Sub     = $splashSub
-			Primary = $splashFg
+			Primary = $splashStepActive
 			Accent  = $splashAccent
 		}
 
@@ -1082,6 +1084,7 @@ function Show-BootstrapLoadingSplash
 		$runspace.ThreadOptions  = 'ReuseThread'
 		$runspace.Open()
 		$splashIconPath = $null
+		$splashThemePath = $null
 		try
 		{
 			$repoBasePath = Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent
@@ -1090,13 +1093,21 @@ function Show-BootstrapLoadingSplash
 			{
 				$splashIconPath = [System.IO.Path]::GetFullPath($candidateSplashIcon)
 			}
+			$splashThemeFileName = if ($useLightTheme) { 'Light.xaml' } else { 'Dark.xaml' }
+			$candidateSplashTheme = Join-Path -Path $repoBasePath -ChildPath ('Module\GUI\Themes\{0}' -f $splashThemeFileName)
+			if (Test-Path -LiteralPath $candidateSplashTheme -PathType Leaf)
+			{
+				$splashThemePath = [System.IO.Path]::GetFullPath($candidateSplashTheme)
+			}
 		}
 		catch
 		{
 			$splashIconPath = $null
+			$splashThemePath = $null
 		}
 		$runspace.SessionStateProxy.SetVariable('syncHash', $syncHash)
 		$runspace.SessionStateProxy.SetVariable('splashIconPath', $splashIconPath)
+		$runspace.SessionStateProxy.SetVariable('splashThemePath', $splashThemePath)
 		$runspace.SessionStateProxy.SetVariable('splashBg', $splashBg)
 		$runspace.SessionStateProxy.SetVariable('splashBorder', $splashBorder)
 		$runspace.SessionStateProxy.SetVariable('splashFg', $splashFg)
@@ -1127,8 +1138,9 @@ function Show-BootstrapLoadingSplash
 		$runspace.SessionStateProxy.SetVariable('splashLocStepChocolatey', $splashLocStepChocolatey)
 		$runspace.SessionStateProxy.SetVariable('splashLocStepFinalize', $splashLocStepFinalize)
 		$runspace.SessionStateProxy.SetVariable('startUpdatesPulse', [bool]$StartUpdatesPulse)
-		$runspace.SessionStateProxy.SetVariable('bootstrapLoadingSplashStateCommand', ${function:Set-BootstrapLoadingSplashState})
-		$runspace.SessionStateProxy.SetVariable('bootstrapLoadingSplashStepCommand', ${function:Set-BootstrapLoadingSplashStep})
+		$runspace.SessionStateProxy.SetVariable('bootstrapSplashProgressWidthDefinition', (Get-Command -Name 'Get-BaselineSplashProgressWidth' -CommandType Function -ErrorAction Stop).ScriptBlock.ToString())
+		$runspace.SessionStateProxy.SetVariable('bootstrapLoadingSplashStateDefinition', (Get-Command -Name 'Set-BootstrapLoadingSplashState' -CommandType Function -ErrorAction Stop).ScriptBlock.ToString())
+		$runspace.SessionStateProxy.SetVariable('bootstrapLoadingSplashStepDefinition', (Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction Stop).ScriptBlock.ToString())
 
 		$ps = [powershell]::Create()
 		$ps.Runspace = $runspace
@@ -1136,6 +1148,26 @@ function Show-BootstrapLoadingSplash
 			try
 			{
 				Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
+
+				$installSplashFunction = {
+					param(
+						[string]$Name,
+						[string]$Definition
+					)
+
+					if ([string]::IsNullOrWhiteSpace($Definition))
+					{
+						throw "Bootstrap splash function definition is empty: $Name"
+					}
+
+					Set-Item -Path ('Function:\global:{0}' -f $Name) -Value ([scriptblock]::Create($Definition)) -ErrorAction Stop
+				}
+
+				& $installSplashFunction 'Get-BaselineSplashProgressWidth' $bootstrapSplashProgressWidthDefinition
+				& $installSplashFunction 'Set-BootstrapLoadingSplashState' $bootstrapLoadingSplashStateDefinition
+				& $installSplashFunction 'Set-BootstrapLoadingSplashStep' $bootstrapLoadingSplashStepDefinition
+				$bootstrapLoadingSplashStateCommand = (Get-Command -Name 'Set-BootstrapLoadingSplashState' -CommandType Function -ErrorAction Stop).ScriptBlock
+				$bootstrapLoadingSplashStepCommand = (Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction Stop).ScriptBlock
 
 				$subtitleEsc = [System.Security.SecurityElement]::Escape($splashLocSubtitle)
 				$loadingEsc = [System.Security.SecurityElement]::Escape($splashLocLoading)
@@ -1157,38 +1189,78 @@ function Show-BootstrapLoadingSplash
 	ResizeMode="NoResize"
 	WindowStartupLocation="CenterScreen"
 	Background="Transparent"
-	Foreground="$splashFg"
+	BorderBrush="Transparent"
+	BorderThickness="0"
+	Foreground="{DynamicResource Brush.TextPrimary}"
 	FontFamily="Segoe UI"
 	ShowInTaskbar="True"
-	ShowActivated="True"
-	Topmost="True"
+	ShowActivated="False"
+	Topmost="False"
 	WindowStyle="None"
-	AllowsTransparency="True">
+	AllowsTransparency="True"
+	SnapsToDevicePixels="True"
+	UseLayoutRounding="True">
 	<Window.Resources>
-		<Storyboard x:Key="LogoHeartbeat" RepeatBehavior="Forever">
-			<DoubleAnimation Storyboard.TargetName="SplashCenterIcon" Storyboard.TargetProperty="Opacity" From="1" To="0.72" Duration="0:0:2.2" AutoReverse="True">
-				<DoubleAnimation.EasingFunction>
-					<SineEase EasingMode="EaseInOut"/>
-				</DoubleAnimation.EasingFunction>
-			</DoubleAnimation>
-		</Storyboard>
 		<Storyboard x:Key="SpinnerRotation" RepeatBehavior="Forever">
-			<DoubleAnimation Storyboard.TargetName="SubActionSpinnerRotate" Storyboard.TargetProperty="Angle" From="0" To="360" Duration="0:0:1.1"/>
+			<DoubleAnimation Storyboard.TargetName="SubActionSpinnerRotate" Storyboard.TargetProperty="Angle" From="0" To="360" Duration="0:0:1.2"/>
 		</Storyboard>
+		<Style x:Key="SplashCaptionButtonStyle" TargetType="Button">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}"/>
+			<Setter Property="BorderBrush" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="Button">
+						<Border x:Name="CaptionBd"
+							Background="{TemplateBinding Background}"
+							BorderBrush="{TemplateBinding BorderBrush}"
+							BorderThickness="{TemplateBinding BorderThickness}"
+							CornerRadius="6"
+							SnapsToDevicePixels="True">
+							<ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+						</Border>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+			<Style.Triggers>
+				<Trigger Property="IsMouseOver" Value="True">
+					<Setter Property="Background" Value="{DynamicResource Brush.SurfaceHover}"/>
+					<Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}"/>
+				</Trigger>
+				<Trigger Property="IsPressed" Value="True">
+					<Setter Property="Background" Value="{DynamicResource Brush.ButtonPressBg}"/>
+					<Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}"/>
+				</Trigger>
+			</Style.Triggers>
+		</Style>
+		<Style x:Key="SplashCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource SplashCaptionButtonStyle}">
+			<Style.Triggers>
+				<Trigger Property="IsMouseOver" Value="True">
+					<Setter Property="Background" Value="{DynamicResource Brush.Danger}"/>
+					<Setter Property="Foreground" Value="White"/>
+				</Trigger>
+				<Trigger Property="IsPressed" Value="True">
+					<Setter Property="Background" Value="{DynamicResource Brush.Danger}"/>
+					<Setter Property="Foreground" Value="White"/>
+				</Trigger>
+			</Style.Triggers>
+		</Style>
 	</Window.Resources>
 	<Window.Triggers>
 		<EventTrigger RoutedEvent="FrameworkElement.Loaded">
-			<BeginStoryboard Storyboard="{StaticResource LogoHeartbeat}"/>
 			<BeginStoryboard Storyboard="{StaticResource SpinnerRotation}"/>
 		</EventTrigger>
 	</Window.Triggers>
-	<Border Name="RootBorder" CornerRadius="8" Background="$($CurrentTheme.WindowBg)" BorderBrush="$($CurrentTheme.BorderColor)" BorderThickness="1">
-			<Grid>
+	<Border Name="RootBorder" CornerRadius="8" Background="{DynamicResource Brush.SplashBackdrop}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" Margin="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SnapsToDevicePixels="True" ClipToBounds="True">
+			<Grid Background="Transparent" Margin="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SnapsToDevicePixels="True">
 				<Grid.RowDefinitions>
 					<RowDefinition Height="Auto"/>
 					<RowDefinition Height="*"/>
 				</Grid.RowDefinitions>
-			<Grid Grid.Row="0" Margin="10,6,6,0">
+			<Grid Grid.Row="0" Background="{DynamicResource Brush.HeaderBg}" Margin="10,6,6,0">
 				<Grid.ColumnDefinitions>
 					<ColumnDefinition Width="*"/>
 					<ColumnDefinition Width="Auto"/>
@@ -1199,96 +1271,98 @@ function Show-BootstrapLoadingSplash
 						Text="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=Title}"
 						FontSize="12"
 						FontWeight="SemiBold"
-						Foreground="$splashFg"
+						Foreground="{DynamicResource Brush.TextPrimary}"
 						VerticalAlignment="Center"
 						TextTrimming="CharacterEllipsis"/>
 				</DockPanel>
 				<StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
 					<Button Name="BtnMinimize" Content="&#x2015;" Width="28" Height="24" FontSize="11"
-						Background="Transparent" Foreground="$splashBtnFg" BorderThickness="0"
-						Cursor="Hand" ToolTip="Minimize" Margin="0,0,2,0"/>
+						Cursor="Hand" ToolTip="Minimize" Margin="0,0,2,0" Style="{StaticResource SplashCaptionButtonStyle}"/>
 					<Button Name="BtnClose" Content="&#x2715;" Width="28" Height="24" FontSize="11"
-						Background="Transparent" Foreground="$splashBtnFg" BorderThickness="0"
-						Cursor="Hand" ToolTip="Close"/>
+						Cursor="Hand" ToolTip="Close" Style="{StaticResource SplashCloseButtonStyle}"/>
 				</StackPanel>
 			</Grid>
-			<StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,0">
-				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+			<Border Name="SplashContentCard" Grid.Row="1" Background="{DynamicResource Brush.SplashCard}" BorderThickness="0" CornerRadius="18" Padding="52,44" VerticalAlignment="Center" HorizontalAlignment="Center" SnapsToDevicePixels="True">
+				<Border.Effect>
+					<DropShadowEffect Color="#000000" BlurRadius="34" ShadowDepth="0" Opacity="0.18"/>
+				</Border.Effect>
+				<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0">
+				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,16">
 					<Image Name="SplashCenterIcon" Width="58" Height="58" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,16,0"
 						RenderOptions.BitmapScalingMode="HighQuality" UseLayoutRounding="True" SnapsToDevicePixels="True"/>
 					<TextBlock Text="Baseline"
 						FontWeight="SemiBold"
 						FontSize="56"
-						Foreground="$splashFg"
+						Foreground="{DynamicResource Brush.TextPrimary}"
 						VerticalAlignment="Center"/>
 				</StackPanel>
 				<TextBlock Name="SubtitleText" Text="$subtitleEsc"
-					FontSize="14" Foreground="$splashSub"
-					HorizontalAlignment="Center" Margin="0,0,0,24"/>
-				<StackPanel Name="StepListPanel" HorizontalAlignment="Center" MinWidth="360" Margin="0,0,0,16">
-					<Grid Margin="0,0,0,5">
+					FontSize="14" Foreground="{DynamicResource Brush.SplashSubtitle}"
+					HorizontalAlignment="Center" Margin="0,0,0,32"/>
+				<StackPanel Name="StepListPanel" HorizontalAlignment="Center" MinWidth="360" Margin="0,0,0,24">
+					<Grid Margin="0,0,0,7">
 						<Grid.ColumnDefinitions>
 							<ColumnDefinition Width="22"/>
 							<ColumnDefinition Width="*"/>
 						</Grid.ColumnDefinitions>
 						<Grid Name="StepGlyph_updates" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-							<Ellipse Name="StepIdle_updates" Width="8" Height="8" Stroke="$splashMuted" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-							<Ellipse Name="StepPulse_updates" Width="8" Height="8" Fill="$splashAccent" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+							<Ellipse Name="StepIdle_updates" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+							<Ellipse Name="StepPulse_updates" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
 								<Ellipse.RenderTransform>
 									<ScaleTransform/>
 								</Ellipse.RenderTransform>
 							</Ellipse>
-							<TextBlock Name="StepCheck_updates" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="$splashAccent" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
+							<TextBlock Name="StepCheck_updates" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
 						</Grid>
-						<TextBlock Name="StepLabel_updates" Grid.Column="1" Text="$stepUpdatesEsc" FontSize="13" Foreground="$splashMuted" VerticalAlignment="Center" Margin="8,0,0,0"/>
+						<TextBlock Name="StepLabel_updates" Grid.Column="1" Text="$stepUpdatesEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
 					</Grid>
-					<Grid Margin="0,0,0,5">
+					<Grid Margin="0,0,0,7">
 						<Grid.ColumnDefinitions>
 							<ColumnDefinition Width="22"/>
 							<ColumnDefinition Width="*"/>
 						</Grid.ColumnDefinitions>
 						<Grid Name="StepGlyph_system" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-							<Ellipse Name="StepIdle_system" Width="8" Height="8" Stroke="$splashMuted" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-							<Ellipse Name="StepPulse_system" Width="8" Height="8" Fill="$splashAccent" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+							<Ellipse Name="StepIdle_system" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+							<Ellipse Name="StepPulse_system" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
 								<Ellipse.RenderTransform>
 									<ScaleTransform/>
 								</Ellipse.RenderTransform>
 							</Ellipse>
-							<TextBlock Name="StepCheck_system" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="$splashAccent" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
+							<TextBlock Name="StepCheck_system" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
 						</Grid>
-						<TextBlock Name="StepLabel_system" Grid.Column="1" Text="$stepSystemEsc" FontSize="13" Foreground="$splashMuted" VerticalAlignment="Center" Margin="8,0,0,0"/>
+						<TextBlock Name="StepLabel_system" Grid.Column="1" Text="$stepSystemEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
 					</Grid>
-					<Grid Margin="0,0,0,5">
+					<Grid Margin="0,0,0,7">
 						<Grid.ColumnDefinitions>
 							<ColumnDefinition Width="22"/>
 							<ColumnDefinition Width="*"/>
 						</Grid.ColumnDefinitions>
 						<Grid Name="StepGlyph_winget" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-							<Ellipse Name="StepIdle_winget" Width="8" Height="8" Stroke="$splashMuted" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-							<Ellipse Name="StepPulse_winget" Width="8" Height="8" Fill="$splashAccent" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+							<Ellipse Name="StepIdle_winget" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+							<Ellipse Name="StepPulse_winget" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
 								<Ellipse.RenderTransform>
 									<ScaleTransform/>
 								</Ellipse.RenderTransform>
 							</Ellipse>
-							<TextBlock Name="StepCheck_winget" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="$splashAccent" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
+							<TextBlock Name="StepCheck_winget" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
 						</Grid>
-						<TextBlock Name="StepLabel_winget" Grid.Column="1" Text="$stepWingetEsc" FontSize="13" Foreground="$splashMuted" VerticalAlignment="Center" Margin="8,0,0,0"/>
+						<TextBlock Name="StepLabel_winget" Grid.Column="1" Text="$stepWingetEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
 					</Grid>
-					<Grid Margin="0,0,0,5">
+					<Grid Margin="0,0,0,7">
 						<Grid.ColumnDefinitions>
 							<ColumnDefinition Width="22"/>
 							<ColumnDefinition Width="*"/>
 						</Grid.ColumnDefinitions>
 						<Grid Name="StepGlyph_chocolatey" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-							<Ellipse Name="StepIdle_chocolatey" Width="8" Height="8" Stroke="$splashMuted" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-							<Ellipse Name="StepPulse_chocolatey" Width="8" Height="8" Fill="$splashAccent" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+							<Ellipse Name="StepIdle_chocolatey" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+							<Ellipse Name="StepPulse_chocolatey" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
 								<Ellipse.RenderTransform>
 									<ScaleTransform/>
 								</Ellipse.RenderTransform>
 							</Ellipse>
-							<TextBlock Name="StepCheck_chocolatey" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="$splashAccent" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
+							<TextBlock Name="StepCheck_chocolatey" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
 						</Grid>
-						<TextBlock Name="StepLabel_chocolatey" Grid.Column="1" Text="$stepChocolateyEsc" FontSize="13" Foreground="$splashMuted" VerticalAlignment="Center" Margin="8,0,0,0"/>
+						<TextBlock Name="StepLabel_chocolatey" Grid.Column="1" Text="$stepChocolateyEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
 					</Grid>
 					<Grid Margin="0,0,0,0">
 						<Grid.ColumnDefinitions>
@@ -1296,40 +1370,43 @@ function Show-BootstrapLoadingSplash
 							<ColumnDefinition Width="*"/>
 						</Grid.ColumnDefinitions>
 						<Grid Name="StepGlyph_finalize" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-							<Ellipse Name="StepIdle_finalize" Width="8" Height="8" Stroke="$splashMuted" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-							<Ellipse Name="StepPulse_finalize" Width="8" Height="8" Fill="$splashAccent" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+							<Ellipse Name="StepIdle_finalize" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+							<Ellipse Name="StepPulse_finalize" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
 								<Ellipse.RenderTransform>
 									<ScaleTransform/>
 								</Ellipse.RenderTransform>
 							</Ellipse>
-							<TextBlock Name="StepCheck_finalize" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="$splashAccent" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
+							<TextBlock Name="StepCheck_finalize" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
 						</Grid>
-						<TextBlock Name="StepLabel_finalize" Grid.Column="1" Text="$stepFinalizeEsc" FontSize="13" Foreground="$splashMuted" VerticalAlignment="Center" Margin="8,0,0,0"/>
+						<TextBlock Name="StepLabel_finalize" Grid.Column="1" Text="$stepFinalizeEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
 					</Grid>
 				</StackPanel>
-				<StackPanel Name="SubActionPanel" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12" Visibility="Collapsed">
+				<StackPanel Name="SubActionPanel" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,14" Visibility="Collapsed">
 					<TextBlock Name="SubActionSpinner" Text="&#x27F3;" FontFamily="Segoe UI Symbol" FontSize="11"
-						Foreground="$splashSub" VerticalAlignment="Center" Margin="0,0,6,0" RenderTransformOrigin="0.5,0.5">
+						Foreground="{DynamicResource Brush.TextSecondary}" VerticalAlignment="Center" Margin="0,0,6,0" RenderTransformOrigin="0.5,0.5">
 						<TextBlock.RenderTransform>
 							<RotateTransform x:Name="SubActionSpinnerRotate" Angle="0"/>
 						</TextBlock.RenderTransform>
 					</TextBlock>
-					<TextBlock Name="StatusText" Text="$loadingEsc" FontSize="11" Foreground="$splashMuted"
+					<TextBlock Name="StatusText" Text="$loadingEsc" FontSize="11" Foreground="{DynamicResource Brush.TextMuted}"
 						VerticalAlignment="Center"/>
 				</StackPanel>
 				<ProgressBar Name="ProgressBar"
-					Width="330" Height="5"
+					Width="360" Height="6"
 					Visibility="Visible"
 					Minimum="0" Maximum="330" Value="0"
 					IsIndeterminate="False"
-					Foreground="#22C55E"
-					Background="$splashBorder"
+					Foreground="{DynamicResource Brush.Progress}"
+					Background="{DynamicResource Brush.ProgressTrack}"
 					BorderThickness="0">
 					<ProgressBar.Template>
 						<ControlTemplate TargetType="ProgressBar">
 							<Grid SnapsToDevicePixels="True">
-								<Border x:Name="PART_Track" Background="{TemplateBinding Background}" CornerRadius="2"/>
-								<Border x:Name="PART_Indicator" Width="{TemplateBinding Value}" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="2">
+								<Border x:Name="PART_Track" Background="{TemplateBinding Background}" CornerRadius="3" Opacity="0.82"/>
+								<Border x:Name="PART_Indicator" Width="{TemplateBinding Value}" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="3">
+									<Border.Effect>
+										<DropShadowEffect Color="{DynamicResource Color.Progress}" BlurRadius="10" ShadowDepth="0" Opacity="0.35"/>
+									</Border.Effect>
 									<Grid ClipToBounds="True">
 										<Rectangle x:Name="PART_GlowRect" Width="84" HorizontalAlignment="Left" RenderTransformOrigin="0,0">
 											<Rectangle.Fill>
@@ -1358,7 +1435,8 @@ function Show-BootstrapLoadingSplash
 						</ControlTemplate>
 					</ProgressBar.Template>
 				</ProgressBar>
-			</StackPanel>
+				</StackPanel>
+			</Border>
 		</Grid>
 	</Border>
 </Window>
@@ -1366,6 +1444,25 @@ function Show-BootstrapLoadingSplash
 				$splash = [System.Windows.Markup.XamlReader]::Load(
 					(New-Object System.Xml.XmlNodeReader $xaml)
 				)
+				if ([string]::IsNullOrWhiteSpace([string]$splashThemePath))
+				{
+					throw 'Bootstrap splash theme resource dictionary was not found.'
+				}
+
+				$themeReader = [System.Xml.XmlReader]::Create($splashThemePath)
+				try
+				{
+					$themeDictionary = [System.Windows.Markup.XamlReader]::Load($themeReader)
+					if (-not ($themeDictionary -is [System.Windows.ResourceDictionary]))
+					{
+						throw "Bootstrap splash theme resource did not load as a ResourceDictionary: $splashThemePath"
+					}
+					[void]$splash.Resources.MergedDictionaries.Add($themeDictionary)
+				}
+				finally
+				{
+					if ($themeReader) { $themeReader.Close() }
+				}
 
 				$tracePath = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline-launch-trace.txt'
 				$writeSplashTrace = {
@@ -1377,29 +1474,73 @@ function Show-BootstrapLoadingSplash
 				{
 					try
 					{
+						$selectSplashIconFrame = {
+							param(
+								[Parameter(Mandatory = $true)]
+								[System.Collections.IEnumerable]
+								$Frames,
+								[Parameter(Mandatory = $true)]
+								[int]$TargetPixelWidth
+							)
+
+							$closest = $Frames |
+								Sort-Object -Property @{ Expression = { [Math]::Abs($_.PixelWidth - $TargetPixelWidth) } } |
+								Select-Object -First 1
+							return $closest
+						}
+
 						$iconUri = [System.Uri]::new($splashIconPath, [System.UriKind]::Absolute)
 						$iconDecoder = [System.Windows.Media.Imaging.IconBitmapDecoder]::new(
 							$iconUri,
 							[System.Windows.Media.Imaging.BitmapCreateOptions]::None,
 							[System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
 						)
-						$iconSource = $iconDecoder.Frames |
-							Sort-Object -Property PixelWidth -Descending |
-							Select-Object -First 1
-						if (-not $iconSource)
+						$iconForWindow = if ($iconDecoder.Frames -and $iconDecoder.Frames.Count -gt 0)
 						{
-							$iconSource = [System.Windows.Media.Imaging.BitmapFrame]::Create($iconUri)
+							& $selectSplashIconFrame -Frames $iconDecoder.Frames -TargetPixelWidth 32
 						}
-						$splash.Icon = $iconSource
+						else
+						{
+							$null
+						}
+						$iconForTitleBar = if ($iconDecoder.Frames -and $iconDecoder.Frames.Count -gt 0)
+						{
+							& $selectSplashIconFrame -Frames $iconDecoder.Frames -TargetPixelWidth 20
+						}
+						else
+						{
+							$null
+						}
+						$iconForCenterLogo = if ($iconDecoder.Frames -and $iconDecoder.Frames.Count -gt 0)
+						{
+							& $selectSplashIconFrame -Frames $iconDecoder.Frames -TargetPixelWidth 58
+						}
+						else
+						{
+							$null
+						}
+						if (-not $iconForWindow) { $iconForWindow = [System.Windows.Media.Imaging.BitmapFrame]::Create($iconUri) }
+						if (-not $iconForTitleBar) { $iconForTitleBar = $iconForWindow }
+						if (-not $iconForCenterLogo) { $iconForCenterLogo = $iconForWindow }
+						if ($iconForWindow -and $iconForWindow.CanFreeze) { $iconForWindow.Freeze() }
+						if ($iconForTitleBar -and $iconForTitleBar.CanFreeze) { $iconForTitleBar.Freeze() }
+						if ($iconForCenterLogo -and $iconForCenterLogo.CanFreeze) { $iconForCenterLogo.Freeze() }
+						$splash.Icon = $iconForWindow
 						$splashTopLeftIcon = $splash.FindName('SplashTopLeftIcon')
 						if ($splashTopLeftIcon)
 						{
-							$splashTopLeftIcon.Source = $iconSource
+							$splashTopLeftIcon.Source = $iconForTitleBar
+							[System.Windows.Media.RenderOptions]::SetBitmapScalingMode($splashTopLeftIcon, [System.Windows.Media.BitmapScalingMode]::HighQuality)
+							$splashTopLeftIcon.SnapsToDevicePixels = $true
+							$splashTopLeftIcon.UseLayoutRounding = $true
 						}
 						$splashCenterIcon = $splash.FindName('SplashCenterIcon')
 						if ($splashCenterIcon)
 						{
-							$splashCenterIcon.Source = $iconSource
+							$splashCenterIcon.Source = $iconForCenterLogo
+							[System.Windows.Media.RenderOptions]::SetBitmapScalingMode($splashCenterIcon, [System.Windows.Media.BitmapScalingMode]::HighQuality)
+							$splashCenterIcon.SnapsToDevicePixels = $true
+							$splashCenterIcon.UseLayoutRounding = $true
 						}
 					}
 					catch { & $writeSplashTrace ('Environment.ShowBootstrapLoadingSplash.LoadSplashIcon: {0}' -f $_.Exception.Message) }
@@ -1545,17 +1686,23 @@ namespace WinAPI {
 					}
 					$syncHash.SplashTheme = $SplashTheme
 					$startUpdatesPulseAction = {
+						param([string]$Source = 'unknown')
 						if (-not $startUpdatesPulse) { return }
+						if ([bool]$syncHash.StartUpdatesPulseApplied) { return }
 						try
 						{
-							if ($bootstrapLoadingSplashStepCommand)
-							{
-								& $bootstrapLoadingSplashStepCommand -Splash $syncHash -StepId 'updates' -Status 'in_progress' -SubAction ''
-							}
+							$stateApplied = $true
+							$stepApplied = $false
 							if ($bootstrapLoadingSplashStateCommand)
 							{
-								& $bootstrapLoadingSplashStateCommand -Splash $syncHash -StatusText $splashLocCheckingForUpdates -Indeterminate
+								$stateApplied = [bool](& $bootstrapLoadingSplashStateCommand -Splash $syncHash -StatusText $splashLocCheckingForUpdates -Completed 0 -Total 5)
 							}
+							if ($bootstrapLoadingSplashStepCommand)
+							{
+								$stepApplied = [bool](& $bootstrapLoadingSplashStepCommand -Splash $syncHash -StepId 'updates' -Status 'in_progress' -SubAction '')
+							}
+							$syncHash.StartUpdatesPulseApplied = $stepApplied
+							& $writeSplashTrace ('Bootstrap splash update pulse {0}: state={1} step={2}' -f $Source, $stateApplied, $stepApplied)
 						}
 						catch
 						{
@@ -1572,12 +1719,9 @@ namespace WinAPI {
 							{
 								$splash.WindowState = [System.Windows.WindowState]::Normal
 							}
-							$splash.Topmost = $true
-							[void]$splash.Activate()
-							[void]$splash.Focus()
-							& $startUpdatesPulseAction
+							& $startUpdatesPulseAction 'Loaded'
 							$syncHash.WasLoaded = $true
-							& $writeSplashTrace 'Bootstrap splash loaded and activated'
+							& $writeSplashTrace 'Bootstrap splash loaded'
 						}
 						catch
 						{
@@ -1595,6 +1739,7 @@ namespace WinAPI {
 						{
 							$syncHash.WasShown = $true
 							$syncHash.WasRendered = $true
+							& $startUpdatesPulseAction 'ContentRendered'
 							$syncHash.IsReady = $true
 							& $writeSplashTrace 'Bootstrap splash content rendered'
 						}
@@ -1859,6 +2004,7 @@ function Set-BootstrapLoadingSplashState
 	$statusControl = $null
 	$subActionPanel = $null
 	$progressBar = $null
+	$checklistProgressActive = $false
 
 	if ($Splash -is [hashtable])
 	{
@@ -1867,6 +2013,7 @@ function Set-BootstrapLoadingSplashState
 		if ($Splash.ContainsKey('StatusText')) { $statusControl = $Splash.StatusText }
 		if ($Splash.ContainsKey('SubActionPanel')) { $subActionPanel = $Splash.SubActionPanel }
 		if ($Splash.ContainsKey('ProgressBar')) { $progressBar = $Splash.ProgressBar }
+		if ($Splash.ContainsKey('ChecklistProgressActive')) { $checklistProgressActive = [bool]$Splash.ChecklistProgressActive }
 	}
 	else
 	{
@@ -1934,9 +2081,13 @@ function Set-BootstrapLoadingSplashState
 						$showProgress = [bool]$Indeterminate -or ($Total -gt 0)
 						$progressBar.Visibility = if ($showProgress) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
 
-						if ($Indeterminate -or $Total -le 0)
+						if (-not $showProgress)
 						{
-							if ($progressBar.PSObject.Properties['IsIndeterminate']) { $progressBar.IsIndeterminate = $true }
+							if ($progressBar.PSObject.Properties['IsIndeterminate']) { $progressBar.IsIndeterminate = $false }
+						}
+						elseif ($Indeterminate -or $Total -le 0)
+						{
+							if ($progressBar.PSObject.Properties['IsIndeterminate']) { $progressBar.IsIndeterminate = -not $checklistProgressActive }
 						}
 						else
 						{
@@ -2033,6 +2184,18 @@ function Set-BootstrapLoadingSplashStep
 	if (-not $stepGlyphs -or -not $stepLabels -or -not $stepStates) { return $false }
 
 	$hasSubActionArg = $PSBoundParameters.ContainsKey('SubAction')
+	if ($Splash -is [hashtable])
+	{
+		if ($Status -eq 'in_progress')
+		{
+			$Splash.ChecklistProgressActive = $true
+		}
+		elseif ($StepId -eq 'finalize' -and $Status -eq 'completed')
+		{
+			$Splash.ChecklistProgressActive = $false
+			$Splash.CompletionAnimationDeadlineUtc = [datetime]::UtcNow.AddMilliseconds(360)
+		}
+	}
 
 	try
 	{
@@ -2082,29 +2245,30 @@ function Set-BootstrapLoadingSplashStep
 					if (-not $pulseEllipse) { return }
 					try
 					{
+						& $stopPulseDot $pulseEllipse
 						$rt = $pulseEllipse.RenderTransform
 						if ($rt -is [System.Windows.Media.ScaleTransform])
 						{
 							$sxa = New-Object System.Windows.Media.Animation.DoubleAnimation
 							$sxa.From = 1.0; $sxa.To = 1.4
-							$sxa.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(600))
+							$sxa.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(360))
 							$sxa.AutoReverse = $true
 							$sxa.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-							$rt.BeginAnimation($scaleXProp, $sxa)
+							$rt.BeginAnimation($scaleXProp, $sxa, $snapAndKeep)
 
 							$sya = New-Object System.Windows.Media.Animation.DoubleAnimation
 							$sya.From = 1.0; $sya.To = 1.4
-							$sya.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(600))
+							$sya.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(360))
 							$sya.AutoReverse = $true
 							$sya.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-							$rt.BeginAnimation($scaleYProp, $sya)
+							$rt.BeginAnimation($scaleYProp, $sya, $snapAndKeep)
 						}
 						$oa = New-Object System.Windows.Media.Animation.DoubleAnimation
 						$oa.From = 0.6; $oa.To = 1.0
-						$oa.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(600))
+						$oa.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(360))
 						$oa.AutoReverse = $true
 						$oa.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-						$pulseEllipse.BeginAnimation($opacityProp, $oa)
+						$pulseEllipse.BeginAnimation($opacityProp, $oa, $snapAndKeep)
 					}
 					catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.Splash.PulseDot.Start' }
 				}
@@ -2119,10 +2283,26 @@ function Set-BootstrapLoadingSplashStep
 						{
 							$rt.BeginAnimation($scaleXProp, $null)
 							$rt.BeginAnimation($scaleYProp, $null)
+							$rt.ScaleX = 1.0
+							$rt.ScaleY = 1.0
 						}
 						$pulseEllipse.BeginAnimation($opacityProp, $null)
+						$pulseEllipse.Opacity = 0.6
 					}
 					catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.Splash.PulseDot.Stop' }
+				}
+
+				$stopInactivePulseDots = {
+					param($activeStepId)
+					if (-not $stepPulseDots) { return }
+					foreach ($pulseId in @($stepPulseDots.Keys))
+					{
+						if ($pulseId -eq $activeStepId) { continue }
+						$pulseDot = $stepPulseDots[$pulseId]
+						if (-not $pulseDot) { continue }
+						& $stopPulseDot $pulseDot
+						$pulseDot.Visibility = $visCollapsed
+					}
 				}
 
 				$applyRowState = {
@@ -2221,6 +2401,9 @@ function Set-BootstrapLoadingSplashStep
 					}
 				}
 
+				$activePulseStepId = if ($Status -eq 'in_progress') { $StepId } else { $null }
+				& $stopInactivePulseDots $activePulseStepId
+
 				$stepStates[$StepId] = $Status
 				& $applyRowState $StepId $Status
 
@@ -2230,8 +2413,9 @@ function Set-BootstrapLoadingSplashStep
 					if ($stepStates[$id] -eq 'completed') { $completedCount++ }
 				}
 
-				# Progress bar Option B: snap on completion, slow fill during in_progress
-				# so the bar reads the long-running step rather than freezing between snaps.
+				# Snap on step completion; while the final handoff is active, keep
+				# the bar moving slowly toward a reserved near-complete ceiling
+				# until the foreground GUI tab signals readiness.
 				if ($progressBar)
 				{
 					try
@@ -2245,38 +2429,36 @@ function Set-BootstrapLoadingSplashStep
 						{
 							$activeIdx = [Array]::IndexOf($stepOrder, $StepId)
 							if ($activeIdx -lt 0) { $activeIdx = $completedCount }
+							$lastStepIndex = [Math]::Max(0, ([int]$stepOrder.Count) - 1)
+							$isFinalHandoffStep = ([string]$StepId -eq [string]$stepOrder[$lastStepIndex])
 							$snapTo = ([double]$activeIdx / $stepCount) * $barWidth
-							$fillTo = (([double]$activeIdx + 0.7) / $stepCount) * $barWidth
-
-							$snap = New-Object System.Windows.Media.Animation.DoubleAnimation
-							$snap.From = $current
-							$snap.To   = $snapTo
-							$snap.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(220))
-							$snapEase = New-Object System.Windows.Media.Animation.QuadraticEase
-							$snapEase.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut
-							$snap.EasingFunction = $snapEase
-
-							$fill = New-Object System.Windows.Media.Animation.DoubleAnimation
-							$fill.BeginTime = [TimeSpan]::FromMilliseconds(220)
-							$fill.From = $snapTo
-							$fill.To   = $fillTo
-							$fill.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds(5))
+							$fillFrom = $snapTo
+							$fillTo = (([double]$activeIdx + 0.35) / $stepCount) * $barWidth
+							$fillDurationMs = 2200
 							$fillEase = New-Object System.Windows.Media.Animation.CubicEase
 							$fillEase.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut
-							$fill.EasingFunction = $fillEase
+							if ($isFinalHandoffStep)
+							{
+								$handoffCeiling = $barWidth * 0.97
+								if ($current -gt $snapTo -and $current -lt $handoffCeiling)
+								{
+									$fillFrom = $current
+								}
+								$fillTo = $handoffCeiling
+								$fillDurationMs = 24000
+								$fillEase = $null
+							}
 
-							$sb = New-Object System.Windows.Media.Animation.Storyboard
-							[System.Windows.Media.Animation.Storyboard]::SetTarget($snap, $progressBar)
-							[System.Windows.Media.Animation.Storyboard]::SetTarget($fill, $progressBar)
-							$path = New-Object System.Windows.PropertyPath ([System.Windows.Controls.ProgressBar]::ValueProperty)
-							[System.Windows.Media.Animation.Storyboard]::SetTargetProperty($snap, $path)
-							[System.Windows.Media.Animation.Storyboard]::SetTargetProperty($fill, $path)
-							$sb.Children.Add($snap) | Out-Null
-							$sb.Children.Add($fill) | Out-Null
-							$sb.FillBehavior = $holdEnd
-							# Clear any prior animation on Value before starting the storyboard.
+							$fill = New-Object System.Windows.Media.Animation.DoubleAnimation
+							$fill.From = $fillFrom
+							$fill.To   = $fillTo
+							$fill.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds($fillDurationMs))
+							if ($fillEase) { $fill.EasingFunction = $fillEase }
+							$fill.FillBehavior = $holdEnd
+							# Clear any prior animation on Value before starting the step-owned fill.
 							$progressBar.BeginAnimation([System.Windows.Controls.ProgressBar]::ValueProperty, $null)
-							$sb.Begin()
+							if ($progressBar.PSObject.Properties['Value']) { $progressBar.Value = $fillFrom }
+							$progressBar.BeginAnimation([System.Windows.Controls.ProgressBar]::ValueProperty, $fill, $snapAndKeep)
 						}
 						else
 						{
@@ -2360,7 +2542,13 @@ function Set-BootstrapLoadingSplashStep
 			}
 			catch
 			{
-				$null = $_
+				if ($Splash -is [hashtable])
+				{
+					$Splash.ErrorType = $_.Exception.GetType().FullName
+					$Splash.ErrorMessage = $_.Exception.Message
+				}
+				try { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.SetBootstrapLoadingSplashStep.DispatcherUpdate' } catch { }
+				throw
 			}
 		})
 
@@ -2758,6 +2946,115 @@ function Get-BaselineLatestReleaseEntry
     Internal function Invoke-BaselineAutoUpdate.
 #>
 
+function Get-BaselineAutoUpdateThrottlePath
+{
+	<#
+	.SYNOPSIS
+	Returns the per-user state file used to throttle automatic startup
+	update checks.
+	#>
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[string]$LocalAppData = ([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData))
+	)
+
+	if ([string]::IsNullOrWhiteSpace($LocalAppData))
+	{
+		throw 'LocalApplicationData is not available; cannot persist the Baseline auto-update throttle state.'
+	}
+
+	return (Join-Path (Join-Path (Join-Path $LocalAppData 'Baseline') 'UserState') 'auto-update-check.json')
+}
+
+function Get-BaselineAutoUpdateThrottleDecision
+{
+	<#
+	.SYNOPSIS
+	Determines whether the startup auto-update check is eligible to run.
+	#>
+	[CmdletBinding()]
+	[OutputType([pscustomobject])]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$Path,
+
+		[datetime]$NowUtc = [DateTime]::UtcNow,
+
+		[int]$MinimumIntervalHours = 4
+	)
+
+	$minimumInterval = [TimeSpan]::FromHours([Math]::Max(1, [int]$MinimumIntervalHours))
+	if (-not (Test-Path -LiteralPath $Path))
+	{
+		return [pscustomobject]@{
+			ShouldCheck = $true
+			LastCheckedUtc = $null
+			NextEligibleUtc = $NowUtc
+			Reason = 'No previous auto-update check was recorded.'
+		}
+	}
+
+	try
+	{
+		$raw = [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8)
+		$state = ConvertFrom-BaselineJson -InputObject $raw
+		$lastCheckedRaw = if ($state -and $state.PSObject.Properties['LastCheckedUtc']) { [string]$state.LastCheckedUtc } else { '' }
+		$lastCheckedUtc = [datetime]::MinValue
+		if ([string]::IsNullOrWhiteSpace($lastCheckedRaw) -or -not [datetime]::TryParse($lastCheckedRaw, [ref]$lastCheckedUtc))
+		{
+			throw 'LastCheckedUtc is missing or invalid.'
+		}
+
+		$lastCheckedUtc = $lastCheckedUtc.ToUniversalTime()
+		$nextEligibleUtc = $lastCheckedUtc.Add($minimumInterval)
+		return [pscustomobject]@{
+			ShouldCheck = ($NowUtc.ToUniversalTime() -ge $nextEligibleUtc)
+			LastCheckedUtc = $lastCheckedUtc
+			NextEligibleUtc = $nextEligibleUtc
+			Reason = if ($NowUtc.ToUniversalTime() -ge $nextEligibleUtc) { 'Auto-update throttle interval elapsed.' } else { 'Auto-update check was already performed inside the throttle interval.' }
+		}
+	}
+	catch
+	{
+		return [pscustomobject]@{
+			ShouldCheck = $true
+			LastCheckedUtc = $null
+			NextEligibleUtc = $NowUtc
+			Reason = 'Auto-update throttle state could not be read.'
+		}
+	}
+}
+
+function Set-BaselineAutoUpdateThrottleTimestamp
+{
+	<#
+	.SYNOPSIS
+	Records that the startup auto-update check was attempted.
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$Path,
+
+		[datetime]$NowUtc = [DateTime]::UtcNow
+	)
+
+	$directory = Split-Path -Path $Path -Parent
+	if (-not (Test-Path -LiteralPath $directory))
+	{
+		$null = New-Item -Path $directory -ItemType Directory -Force
+	}
+
+	$payload = [pscustomobject]@{
+		Schema = 'Baseline.AutoUpdateCheck'
+		SchemaVersion = 1
+		LastCheckedUtc = $NowUtc.ToUniversalTime().ToString('o')
+		MinimumIntervalHours = 4
+	}
+	[System.IO.File]::WriteAllText($Path, ($payload | ConvertTo-Json -Depth 4), [System.Text.Encoding]::UTF8)
+}
+
 function Invoke-BaselineAutoUpdate
 {
 	<#
@@ -2795,12 +3092,21 @@ function Invoke-BaselineAutoUpdate
 
 	try
 	{
+		$throttlePath = Get-BaselineAutoUpdateThrottlePath
+		$throttleDecision = Get-BaselineAutoUpdateThrottleDecision -Path $throttlePath -MinimumIntervalHours 4
+		if (-not [bool]$throttleDecision.ShouldCheck)
+		{
+			LogInfo ('Skipping auto-update check: checked within the last 4 hours. Next eligible UTC: {0:o}.' -f $throttleDecision.NextEligibleUtc)
+			return
+		}
+		Set-BaselineAutoUpdateThrottleTimestamp -Path $throttlePath
+
 		Set-DownloadSecurityProtocol
+		[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'Bootstrap_CheckingForUpdates' -Fallback 'Checking for updates...') -Indeterminate)
 		if (Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction SilentlyContinue)
 		{
 			[void](Set-BootstrapLoadingSplashStep -Splash $Splash -StepId 'updates' -Status 'in_progress' -SubAction '')
 		}
-		[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'Bootstrap_CheckingForUpdates' -Fallback 'Checking for updates...') -Indeterminate)
 		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingForUpdatesVerbose' -Fallback 'Checking for updates (current version: {0})...' -FormatArgs @($CurrentVersion))
 
 		$apiUrl  = 'https://api.github.com/repos/sdmanson8/Baseline/releases'

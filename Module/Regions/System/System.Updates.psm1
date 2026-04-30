@@ -520,6 +520,170 @@ function QualityUpdateDeferral
 
 <#
 	.SYNOPSIS
+	Disable all Windows updates
+
+
+	
+.DESCRIPTION
+	
+Applies the Baseline behavior for disabling all Windows updates.
+	.PARAMETER Enable
+	Disable Windows Update policy, update services, and update scheduled tasks
+
+	.PARAMETER Disable
+	Restore Windows Update policy, update services, and update scheduled tasks to the normal managed state
+
+	.EXAMPLE
+	WindowsUpdateDisableAll -Enable
+
+	.EXAMPLE
+	WindowsUpdateDisableAll -Disable
+
+	.NOTES
+	Machine-wide
+	High risk.
+	Restart recommended.
+#>
+
+function WindowsUpdateDisableAll
+{
+	param
+	(
+		[Parameter(
+			Mandatory = $true,
+			ParameterSetName = "Enable"
+		)]
+		[switch]
+		$Enable,
+
+		[Parameter(
+			Mandatory = $true,
+			ParameterSetName = "Disable"
+		)]
+		[switch]
+		$Disable
+	)
+
+	$updateAuPolicyPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
+	$deliveryOptimizationConfigPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Config'
+	$baselineGuardTaskName = 'WindowsUpdateGuard'
+	$baselineGuardTaskPath = '\Baseline\'
+	$updateTaskPaths = @(
+		'\Microsoft\Windows\InstallService\*'
+		'\Microsoft\Windows\UpdateOrchestrator\*'
+		'\Microsoft\Windows\UpdateAssistant\*'
+		'\Microsoft\Windows\WaaSMedic\*'
+		'\Microsoft\Windows\WindowsUpdate\*'
+		'\Microsoft\WindowsUpdate\*'
+	)
+	$updateServiceDefinitions = @(
+		[pscustomobject]@{ Name = 'BITS'; DisabledStartupType = 'Disabled'; RestoredStartupType = 'Manual' }
+		[pscustomobject]@{ Name = 'wuauserv'; DisabledStartupType = 'Disabled'; RestoredStartupType = 'Manual' }
+		[pscustomobject]@{ Name = 'UsoSvc'; DisabledStartupType = 'Disabled'; RestoredStartupType = 'Automatic' }
+		[pscustomobject]@{ Name = 'WaaSMedicSvc'; DisabledStartupType = 'Disabled'; RestoredStartupType = 'Manual' }
+	)
+	$guardCommand = @"
+`$policyPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
+if (-not (Test-Path -Path `$policyPath)) { New-Item -Path `$policyPath -Force -ErrorAction SilentlyContinue | Out-Null }
+New-ItemProperty -Path `$policyPath -Name NoAutoUpdate -PropertyType DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
+New-ItemProperty -Path `$policyPath -Name AUOptions -PropertyType DWord -Value 1 -Force -ErrorAction SilentlyContinue | Out-Null
+foreach (`$serviceName in @('BITS','wuauserv','UsoSvc','WaaSMedicSvc')) {
+	Stop-Service -Name `$serviceName -Force -ErrorAction SilentlyContinue | Out-Null
+	Set-Service -Name `$serviceName -StartupType Disabled -ErrorAction SilentlyContinue | Out-Null
+}
+"@
+
+	switch ($PSCmdlet.ParameterSetName)
+	{
+		"Enable"
+		{
+			Write-ConsoleStatus -Action "Disabling all Windows updates"
+			LogInfo "Disabling all Windows updates"
+			try
+			{
+				if (-not (Test-Path -Path $updateAuPolicyPath))
+				{
+					New-Item -Path $updateAuPolicyPath -Force -ErrorAction Stop | Out-Null
+				}
+				New-ItemProperty -Path $updateAuPolicyPath -Name NoAutoUpdate -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+				New-ItemProperty -Path $updateAuPolicyPath -Name AUOptions -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+
+				if (-not (Test-Path -Path $deliveryOptimizationConfigPath))
+				{
+					New-Item -Path $deliveryOptimizationConfigPath -Force -ErrorAction Stop | Out-Null
+				}
+				New-ItemProperty -Path $deliveryOptimizationConfigPath -Name DODownloadMode -PropertyType DWord -Value 0 -Force -ErrorAction Stop | Out-Null
+
+				foreach ($serviceDefinition in $updateServiceDefinitions)
+				{
+					$serviceName = [string]$serviceDefinition.Name
+					Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue | Out-Null
+					Set-Service -Name $serviceName -StartupType ([string]$serviceDefinition.DisabledStartupType) -ErrorAction SilentlyContinue | Out-Null
+				}
+
+				foreach ($taskPath in $updateTaskPaths)
+				{
+					Get-ScheduledTask -TaskPath $taskPath -ErrorAction SilentlyContinue | Disable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null
+				}
+
+				$guardAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "{0}"' -f ($guardCommand.Replace('"', '\"').Replace("`r", '').Replace("`n", '; ')))
+				$guardTriggers = @(
+					New-ScheduledTaskTrigger -AtStartup
+					New-ScheduledTaskTrigger -AtLogon
+				)
+				$guardSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+				$guardPrincipal = New-ScheduledTaskPrincipal -UserId 'NT AUTHORITY\SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+				$existingGuardTask = Get-ScheduledTask -TaskName $baselineGuardTaskName -TaskPath $baselineGuardTaskPath -ErrorAction SilentlyContinue
+				if ($existingGuardTask)
+				{
+					Unregister-ScheduledTask -TaskName $baselineGuardTaskName -TaskPath $baselineGuardTaskPath -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+				}
+				Register-ScheduledTask -TaskName $baselineGuardTaskName -TaskPath $baselineGuardTaskPath -Action $guardAction -Trigger $guardTriggers -Settings $guardSettings -Principal $guardPrincipal -Description 'Re-apply Baseline Windows Update disabled service policy at startup and logon.' -Force | Out-Null
+				Write-ConsoleStatus -Status success
+			}
+			catch
+			{
+				Write-ConsoleStatus -Status failed
+				LogError "Failed to disable all Windows updates: $($_.Exception.Message)"
+			}
+		}
+		"Disable"
+		{
+			Write-ConsoleStatus -Action "Restoring Windows update availability"
+			LogInfo "Restoring Windows update availability"
+			try
+			{
+				Remove-ItemProperty -Path $updateAuPolicyPath -Name NoAutoUpdate, AUOptions -Force -ErrorAction SilentlyContinue | Out-Null
+				Remove-ItemProperty -Path $deliveryOptimizationConfigPath -Name DODownloadMode -Force -ErrorAction SilentlyContinue | Out-Null
+
+				$existingGuardTask = Get-ScheduledTask -TaskName $baselineGuardTaskName -TaskPath $baselineGuardTaskPath -ErrorAction SilentlyContinue
+				if ($existingGuardTask)
+				{
+					Unregister-ScheduledTask -TaskName $baselineGuardTaskName -TaskPath $baselineGuardTaskPath -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+				}
+
+				foreach ($serviceDefinition in $updateServiceDefinitions)
+				{
+					Set-Service -Name ([string]$serviceDefinition.Name) -StartupType ([string]$serviceDefinition.RestoredStartupType) -ErrorAction SilentlyContinue | Out-Null
+				}
+
+				foreach ($taskPath in $updateTaskPaths)
+				{
+					Get-ScheduledTask -TaskPath $taskPath -ErrorAction SilentlyContinue | Enable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null
+				}
+				Write-ConsoleStatus -Status success
+			}
+			catch
+			{
+				Write-ConsoleStatus -Status failed
+				LogError "Failed to restore Windows update availability: $($_.Exception.Message)"
+			}
+		}
+	}
+}
+
+<#
+	.SYNOPSIS
 	Security updates only mode
 
 
@@ -573,7 +737,7 @@ function WindowsUpdateSecurityOnlyMode
 				UpdateDriver -Disable
 				UpdateRestart -Disable
 				FeatureUpdateDeferral -Enable
-				QualityUpdateDeferral -SevenDays
+				QualityUpdateDeferral -FourDays
 				Write-ConsoleStatus -Status success
 			}
 			catch

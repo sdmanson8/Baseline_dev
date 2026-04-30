@@ -101,6 +101,77 @@ function Get-BaselineLogDirectory {
     }
 }
 
+function Resolve-BaselineLogDirectory {
+    param(
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string]$RequestedDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DefaultDirectory
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RequestedDirectory))
+    {
+        return $DefaultDirectory
+    }
+
+    try
+    {
+        $resolvedDirectory = [System.IO.Path]::GetFullPath($RequestedDirectory.Trim())
+        if (-not [System.IO.Directory]::Exists($resolvedDirectory))
+        {
+            [void][System.IO.Directory]::CreateDirectory($resolvedDirectory)
+        }
+        return $resolvedDirectory
+    }
+    catch
+    {
+        return $DefaultDirectory
+    }
+}
+
+function Get-BaselineStoredLogDirectoryPreference {
+    $localAppData = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)
+    if ([string]::IsNullOrWhiteSpace($localAppData)) { return '' }
+
+    $preferencesPath = [System.IO.Path]::Combine($localAppData, 'Baseline', 'UserState', 'Profiles', 'Baseline-user-prefs.json')
+    if (-not [System.IO.File]::Exists($preferencesPath)) { return '' }
+
+    try
+    {
+        $raw = [System.IO.File]::ReadAllText($preferencesPath, [System.Text.Encoding]::UTF8)
+        if ([string]::IsNullOrWhiteSpace($raw)) { return '' }
+
+        $parsed = ConvertFrom-Json -InputObject $raw -ErrorAction Stop
+        if ($parsed -and $parsed.Values -and $parsed.Values.PSObject.Properties['LogFileDirectory'])
+        {
+            return [string]$parsed.Values.LogFileDirectory
+        }
+    }
+    catch
+    {
+        return ''
+    }
+
+    return ''
+}
+
+function Get-BaselineConfiguredLogDirectory {
+    param(
+        [string]$DefaultDirectory,
+        [string]$FallbackRoot = $env:TEMP
+    )
+
+    if ([string]::IsNullOrWhiteSpace($DefaultDirectory))
+    {
+        $DefaultDirectory = Get-BaselineLogDirectory -FallbackRoot $FallbackRoot
+    }
+
+    $configuredDirectory = Get-BaselineStoredLogDirectoryPreference
+    return (Resolve-BaselineLogDirectory -RequestedDirectory $configuredDirectory -DefaultDirectory $DefaultDirectory)
+}
+
 <#
     .SYNOPSIS
     Creates baseline session log path.
@@ -604,11 +675,133 @@ Applies the Baseline behavior for write a warning message to the log..
 function Write-BaselineWarning {
     param(
         [Parameter(Mandatory=$true)]
-        [string]$Message,
+        [object]$Message,
         [switch]$AddGap,
         [switch]$ShowConsole
     )
-    Write-LogMessage -Message $Message -Level 'WARNING' -AddGap:$AddGap -ShowConsole:$ShowConsole
+    $logMessage = Format-BaselineErrorForLog -ErrorObject $Message
+    Write-LogMessage -Message $logMessage -Level 'WARNING' -AddGap:$AddGap -ShowConsole:$ShowConsole
+}
+
+<#
+    .SYNOPSIS
+    Formats an exception or ErrorRecord with diagnostic detail for the session log.
+
+    .DESCRIPTION
+    Keeps full PowerShell error context in the log: type, category, fully qualified
+    error id, invocation position, script stack trace, target type, and .NET stack
+    traces. Plain strings are returned unchanged.
+#>
+function Format-BaselineErrorForLog {
+    param(
+        [Parameter(Mandatory=$true)]
+        [object]$ErrorObject,
+
+        [string]$Prefix
+    )
+
+    if ($null -eq $ErrorObject) {
+        return ''
+    }
+
+    $errorRecord = $null
+    $exception = $null
+
+    if ($ErrorObject -is [System.Management.Automation.ErrorRecord]) {
+        $errorRecord = $ErrorObject
+        $exception = $ErrorObject.Exception
+    }
+    elseif ($ErrorObject -is [System.Exception]) {
+        $exception = $ErrorObject
+        try {
+            if ($ErrorObject.PSObject.Properties['ErrorRecord']) {
+                $errorRecord = $ErrorObject.ErrorRecord
+            }
+        }
+        catch {
+            $errorRecord = $null
+        }
+    }
+    elseif ($ErrorObject.PSObject -and $ErrorObject.PSObject.Properties['Exception']) {
+        try {
+            $exception = $ErrorObject.Exception
+            if ($ErrorObject -is [System.Management.Automation.ErrorRecord]) {
+                $errorRecord = $ErrorObject
+            }
+        }
+        catch {
+            $exception = $null
+        }
+    }
+
+    if (-not $exception -and -not $errorRecord) {
+        $plainText = [string]$ErrorObject
+        if ([string]::IsNullOrWhiteSpace($Prefix)) {
+            return $plainText
+        }
+        return ('{0}: {1}' -f $Prefix, $plainText)
+    }
+
+    $lines = New-Object System.Collections.Generic.List[string]
+    $message = if ($exception) { [string]$exception.Message } else { [string]$ErrorObject }
+    if ([string]::IsNullOrWhiteSpace($Prefix)) {
+        [void]$lines.Add($message)
+    }
+    else {
+        [void]$lines.Add(('{0}: {1}' -f $Prefix, $message))
+    }
+
+    if ($exception) {
+        [void]$lines.Add(('Exception type: {0}' -f $exception.GetType().FullName))
+        if ($exception.HResult) {
+            [void]$lines.Add(('HResult: {0}' -f $exception.HResult))
+        }
+        if (-not [string]::IsNullOrWhiteSpace([string]$exception.Source)) {
+            [void]$lines.Add(('Source: {0}' -f $exception.Source))
+        }
+    }
+
+    if ($errorRecord) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$errorRecord.FullyQualifiedErrorId)) {
+            [void]$lines.Add(('FullyQualifiedErrorId: {0}' -f $errorRecord.FullyQualifiedErrorId))
+        }
+        if ($errorRecord.CategoryInfo) {
+            [void]$lines.Add(('CategoryInfo: {0}' -f $errorRecord.CategoryInfo.ToString()))
+        }
+        if ($errorRecord.InvocationInfo -and -not [string]::IsNullOrWhiteSpace([string]$errorRecord.InvocationInfo.PositionMessage)) {
+            [void]$lines.Add('Invocation:')
+            [void]$lines.Add($errorRecord.InvocationInfo.PositionMessage.Trim())
+        }
+        if (-not [string]::IsNullOrWhiteSpace([string]$errorRecord.ScriptStackTrace)) {
+            [void]$lines.Add('Script stack trace:')
+            [void]$lines.Add($errorRecord.ScriptStackTrace.Trim())
+        }
+        if ($null -ne $errorRecord.TargetObject) {
+            $targetType = 'unknown'
+            try { $targetType = $errorRecord.TargetObject.GetType().FullName } catch { $targetType = 'unknown' }
+            [void]$lines.Add(('Target object type: {0}' -f $targetType))
+        }
+    }
+
+    $inner = if ($exception) { $exception.InnerException } else { $null }
+    $innerIndex = 1
+    while ($inner) {
+        [void]$lines.Add(('Inner exception {0}: {1}' -f $innerIndex, $inner.Message))
+        [void]$lines.Add(('Inner exception {0} type: {1}' -f $innerIndex, $inner.GetType().FullName))
+        if (-not [string]::IsNullOrWhiteSpace([string]$inner.StackTrace)) {
+            [void]$lines.Add(('Inner exception {0} stack trace:' -f $innerIndex))
+            [void]$lines.Add($inner.StackTrace.Trim())
+        }
+        $inner = $inner.InnerException
+        $innerIndex++
+    }
+
+    if ($exception -and -not [string]::IsNullOrWhiteSpace([string]$exception.StackTrace)) {
+        [void]$lines.Add('Stack trace:')
+        [void]$lines.Add($exception.StackTrace.Trim())
+    }
+
+    return ($lines -join [Environment]::NewLine)
 }
 
 <#
@@ -635,11 +828,12 @@ Applies the Baseline behavior for write an error message to the log..
 function Write-BaselineError {
     param(
         [Parameter(Mandatory=$true)]
-        [string]$Message,
+        [object]$Message,
         [switch]$AddGap,
         [switch]$ShowConsole
     )
-    Write-LogMessage -Message $Message -Level 'ERROR' -AddGap:$AddGap -ShowConsole:$ShowConsole
+    $logMessage = Format-BaselineErrorForLog -ErrorObject $Message
+    Write-LogMessage -Message $logMessage -Level 'ERROR' -AddGap:$AddGap -ShowConsole:$ShowConsole
 }
 
 <#
@@ -870,8 +1064,8 @@ function Write-DebugSwallowedException {
     )
     if (-not $script:DebugLoggingEnabled) { return }
     try {
-        $msg = if ($ErrorRecord -and $ErrorRecord.Exception) { $ErrorRecord.Exception.Message } else { [string]$ErrorRecord }
-        Write-LogMessage -Message ("[swallow] {0}: {1}" -f $Source, $msg) -Level 'DEBUG'
+        $msg = Format-BaselineErrorForLog -ErrorObject $ErrorRecord -Prefix ("[swallow] {0}" -f $Source)
+        Write-LogMessage -Message $msg -Level 'DEBUG'
     } catch { $null = $_ }
 }
 
@@ -1226,4 +1420,4 @@ Set-Alias -Name LogError -Value Write-BaselineError -Scope Local
 Set-Alias -Name LogDebug -Value Write-BaselineDebug -Scope Local
 
 # Export the logging functions used by the loader and region modules.
-Export-ModuleMember -Function Get-BaselineLogDirectory, New-BaselineSessionLogPath, Set-LogFile, Reset-LogStatistics, Get-LogStatistics, Set-LogMode, Clear-LogMode, Set-UILogHandler, Clear-UILogHandler, Write-BaselineInfo, Write-BaselineWarning, Write-BaselineError, Write-BaselineDebug, Write-DebugSwallowedException, Set-BaselineDebugLogging, Get-BaselineDebugLogging, Set-BaselineRunId, Get-BaselineRunId, Get-BaselineRunIdShort, Add-BaselineActionTrail, Get-BaselineActionTrail, Reset-BaselineActionTrail, Write-LogMessage, Write-ConsoleStatus, Initialize-SessionStatistics, Update-SessionStatistics, Add-SessionStatistic, Get-SessionStatistics, Write-SessionSummaryToLog -Alias LogInfo, LogWarning, LogError, LogDebug
+Export-ModuleMember -Function Get-BaselineLogDirectory, Resolve-BaselineLogDirectory, Get-BaselineConfiguredLogDirectory, New-BaselineSessionLogPath, Set-LogFile, Reset-LogStatistics, Get-LogStatistics, Set-LogMode, Clear-LogMode, Set-UILogHandler, Clear-UILogHandler, Write-BaselineInfo, Write-BaselineWarning, Write-BaselineError, Write-BaselineDebug, Write-DebugSwallowedException, Format-BaselineErrorForLog, Set-BaselineDebugLogging, Get-BaselineDebugLogging, Set-BaselineRunId, Get-BaselineRunId, Get-BaselineRunIdShort, Add-BaselineActionTrail, Get-BaselineActionTrail, Reset-BaselineActionTrail, Write-LogMessage, Write-ConsoleStatus, Initialize-SessionStatistics, Update-SessionStatistics, Add-SessionStatistic, Get-SessionStatistics, Write-SessionSummaryToLog -Alias LogInfo, LogWarning, LogError, LogDebug

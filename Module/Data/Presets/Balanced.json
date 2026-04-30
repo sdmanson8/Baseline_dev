@@ -24,6 +24,7 @@
     "FeedbackFrequency -Never",
     "LanguageListAccess -Disable",
     "LockWidgets -Disable",
+    "Powershell7Telemetry -Disable",
     "SharedExperiences -Disable",
     "SigninInfo -Disable",
     "SleepButton -Disable",

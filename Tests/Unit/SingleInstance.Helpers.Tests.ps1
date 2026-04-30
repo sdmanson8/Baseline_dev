@@ -179,11 +179,35 @@ Describe 'Resolve-BaselineSingleInstanceDecision' {
         $r.Reason          | Should -Match '4242'
     }
 
-    It 'returns WarnAndContinue when the lock is unavailable but no running instance was found (ghost lock recovery)' {
+    It 'returns HandoffAndExit when the lock is unavailable but no running instance was found' {
         $lock = [pscustomobject]@{ Acquired = $false }
         $r = Resolve-BaselineSingleInstanceDecision -LockResult $lock -RunningInstance $null
-        $r.Action          | Should -Be 'WarnAndContinue'
+        $r.Action          | Should -Be 'HandoffAndExit'
         $r.TargetProcessId | Should -BeNullOrEmpty
+    }
+
+    It 'does not attempt foregrounding when the lock holder has no discoverable window yet' {
+        $name = NewMutexName
+        $first = Test-BaselineSingleInstanceLockAvailable -MutexName $name
+        try {
+            $helperPath = (Resolve-Path (Join-Path $PSScriptRoot '../../Module/SharedHelpers/SingleInstance.Helpers.ps1')).Path
+            $ps = [PowerShell]::Create()
+            try {
+                $null = $ps.AddScript({
+                    param($helper, $mutexName)
+                    . $helper
+                    Acquire-BaselineSingleInstance -MutexName $mutexName -ProcessLister { @() }
+                }).AddArgument($helperPath).AddArgument($name)
+                $second = $ps.Invoke()[0]
+            } finally {
+                $ps.Dispose()
+            }
+            $second.Decision.Action | Should -Be 'HandoffAndExit'
+            $second.Decision.TargetHandle | Should -BeNullOrEmpty
+            $second.ForegroundResult | Should -BeNullOrEmpty
+        } finally {
+            if ($first.Mutex) { try { $first.Mutex.ReleaseMutex() } catch { $null = $_ }; try { $first.Mutex.Dispose() } catch { $null = $_ } }
+        }
     }
 }
 

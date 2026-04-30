@@ -12,18 +12,32 @@
 
 	function Add-TabSectionsToPanel
 	{
-		param ([object]$BuildContext)
+		param (
+			[object]$BuildContext,
+			[switch]$CooperativeYield,
+			[int]$YieldEveryNRows = 5
+		)
 
-		foreach ($subKey in $BuildContext.CategoryTweaks.Keys)
+		$__perf = Start-GuiPerfScope -Name 'BuildTabContent.AddTabSectionsToPanel' -Note $BuildContext.PrimaryTab
+		$dispatcher = $null
+		if ($CooperativeYield)
 		{
-			try
+			try { $dispatcher = $BuildContext.MainPanel.Dispatcher } catch { $dispatcher = $null }
+		}
+		$rowCounter = 0
+
+		try
+		{
+			foreach ($subKey in $BuildContext.CategoryTweaks.Keys)
 			{
-				$indexes = $BuildContext.CategoryTweaks[$subKey]
-			}
-			catch
-			{
-				throw "Build-TabContent/ResolveSection for tab '$($BuildContext.PrimaryTab)' section '$([string]$subKey)' failed: $($_.Exception.Message)"
-			}
+				try
+				{
+					$indexes = $BuildContext.CategoryTweaks[$subKey]
+				}
+				catch
+				{
+					throw "Build-TabContent/ResolveSection for tab '$($BuildContext.PrimaryTab)' section '$([string]$subKey)' failed: $($_.Exception.Message)"
+				}
 
 			$showSectionHeader = $BuildContext.IsSearchResultsTab -or ($BuildContext.CategoryTweaks.Count -gt 1) -or ([string]$subKey -ne 'General')
 			if ($showSectionHeader)
@@ -85,6 +99,17 @@
 					{
 						throw "Build-TabContent/AddRow for tab '$($BuildContext.PrimaryTab)' failed at index $index ($([string]$tweak.Type) / $([string]$tweak.Function) / $([string]$tweak.Name)): $($_.Exception.Message)"
 					}
+
+					if ($dispatcher)
+					{
+						$rowCounter++
+						if ($rowCounter -ge $YieldEveryNRows)
+						{
+							$rowCounter = 0
+							try { $dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, [System.Action]{}) }
+							catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.AddRow.DispatcherYield' }
+						}
+					}
 				}
 			}
 
@@ -108,6 +133,11 @@
 					throw "Build-TabContent/AddCautionSection for tab '$($BuildContext.PrimaryTab)' section '$([string]$subKey)' failed: $($_.Exception.Message)"
 				}
 			}
+			}
+		}
+		finally
+		{
+			Stop-GuiPerfScope -Scope $__perf
 		}
 	}
 
@@ -349,7 +379,7 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 		}
 		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.MainPanel.BeginInit' }
 
-		Add-TabSectionsToPanel -BuildContext $buildContext
+		Add-TabSectionsToPanel -BuildContext $buildContext -CooperativeYield:$BackgroundBuild
 
 		if ($panelSuspended)
 		{
@@ -392,6 +422,11 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 			{
 				if ($Global:LoadingSplash -and $Global:LoadingSplash -is [hashtable])
 				{
+					$completeStartupSplashStepCommand = Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
+					if ($completeStartupSplashStepCommand)
+					{
+						& $completeStartupSplashStepCommand -Splash $Global:LoadingSplash -StepId 'finalize' -Status 'completed' -SubAction '' | Out-Null
+					}
 					$Global:LoadingSplash.GuiReady = $true
 				}
 				if ($Script:MainForm)
@@ -438,6 +473,7 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 				# to keep user input responsive during the work.
 				if ($Script:TweakManifest -and -not $Script:StartupOrchestratorRan)
 				{
+					$invokeBaselineStartupOrchestratorScript = Get-GuiFunctionCapture -Name 'Invoke-BaselineStartupOrchestrator'
 					# Stash the dispatcher in a script-scoped slot — the
 					# orchestrator scriptblock is invoked later from the
 					# dispatcher's stripped session state, where local
@@ -448,7 +484,10 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 						{
 							$mr = $null
 							if ($Script:GuiExtractedRoot) { $mr = Split-Path -Path $Script:GuiExtractedRoot -Parent }
-							Invoke-BaselineStartupOrchestrator -TweakManifest $Script:TweakManifest -ModuleRoot $mr -BaselineVersion ([string]$Script:CurrentBaselineVersion) -Dispatcher $Script:StartupOrchestratorDispatcher
+							if ($invokeBaselineStartupOrchestratorScript)
+							{
+								& $invokeBaselineStartupOrchestratorScript -TweakManifest $Script:TweakManifest -ModuleRoot $mr -BaselineVersion ([string]$Script:CurrentBaselineVersion) -Dispatcher $Script:StartupOrchestratorDispatcher
+							}
 						}
 						catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.UpdateView.StartupOrchestrator' }
 					}

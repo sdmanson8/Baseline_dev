@@ -34,3 +34,4 @@ AGENTS.md
 todo.md
 .DS_Store
 *.zip.sha256.json
+/.dotnet-home 

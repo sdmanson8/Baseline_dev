@@ -11,11 +11,15 @@ Describe 'GUI bootstrap PlatformSupport stamp (P2 #18)' {
     # call after manifest load, the block never gets populated and both gates
     # silently no-op. This test pins the wiring so a refactor cannot drop it.
 
-    It 'calls Update-BaselineManifestAvailability after Test-TweakManifestIntegrity' {
-        $integrityIndex = $script:GuiRegionContent.IndexOf('Test-TweakManifestIntegrity -Manifest $Script:TweakManifest')
+    It 'stamps availability after importing the manifest' {
+        $importIndex = $script:GuiRegionContent.IndexOf('$Script:TweakManifest = Import-TweakManifestFromData `')
         $stampIndex = $script:GuiRegionContent.IndexOf('Update-BaselineManifestAvailability `')
-        $integrityIndex | Should -BeGreaterThan 0
-        $stampIndex | Should -BeGreaterThan $integrityIndex
+        $importIndex | Should -BeGreaterThan 0
+        $stampIndex | Should -BeGreaterThan $importIndex
+    }
+
+    It 'keeps structural integrity validation out of the GUI startup path' {
+        $script:GuiRegionContent | Should -Not -Match 'Test-TweakManifestIntegrity\s+-Manifest\s+\$Script:TweakManifest'
     }
 
     It 'feeds Get-BaselineSystemPlatformInfo with no override (real host) into the stamp' {

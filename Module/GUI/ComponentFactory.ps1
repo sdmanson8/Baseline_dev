@@ -216,7 +216,7 @@
 				$tb.Text = (Get-UxLocalizedString -Key 'GuiDetailWhyNeedsCare' -Fallback 'Why this needs care: {0}' -FormatArgs @($Tweak.CautionReason))
 				$tb.TextWrapping = [System.Windows.TextWrapping]::Wrap
 				$tb.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
-				$tb.Foreground = $bc.ConvertFromString($theme.CautionText)
+				$tb.Foreground = $bc.ConvertFromString($theme.TextSecondary)
 				$tb.Margin = [System.Windows.Thickness]::new(0, 4, 0, 0)
 				[void]($stackPanel.Children.Add($tb))
 			}
@@ -440,6 +440,8 @@
 		param ()
 		$border = New-Object System.Windows.Controls.Border
 		$border.Background = ConvertTo-GuiBrush -Color $Script:CurrentTheme.ImpactBadgeBg -Context 'New-ImpactBadge/Background'
+		$border.BorderBrush = ConvertTo-GuiBrush -Color $Script:CurrentTheme.ImpactBadgeBg -Context 'New-ImpactBadge/BorderBrush'
+		$border.BorderThickness = [System.Windows.Thickness]::new(1)
 		$border.CornerRadius = [System.Windows.CornerRadius]::new(3)
 		$border.Padding = [System.Windows.Thickness]::new(6, 1, 6, 1)
 		$border.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
@@ -480,21 +482,21 @@
 		if ($riskLevel -eq 'High')
 		{
 			$border.Background = $bc.ConvertFromString($Script:CurrentTheme.RiskHighBadgeBg)
-			$border.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.RiskHighBadge)
+			$border.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.RiskHighBadgeBg)
 			$txt.Foreground = $bc.ConvertFromString($Script:CurrentTheme.RiskHighBadge)
 			$txt.Text = (Get-UxLocalizedString -Key 'GuiRiskHigh' -Fallback 'High Risk')
 		}
 		elseif ($riskLevel -eq 'Medium')
 		{
 			$border.Background = $bc.ConvertFromString($Script:CurrentTheme.RiskMediumBadgeBg)
-			$border.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.RiskMediumBadge)
+			$border.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.RiskMediumBadgeBg)
 			$txt.Foreground = $bc.ConvertFromString($Script:CurrentTheme.RiskMediumBadge)
 			$txt.Text = (Get-UxLocalizedString -Key 'GuiRiskMedium' -Fallback 'Medium Risk')
 		}
 		else
 		{
 			$border.Background = $bc.ConvertFromString($Script:CurrentTheme.LowRiskBadgeBg)
-			$border.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.LowRiskBadge)
+			$border.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.LowRiskBadgeBg)
 			$txt.Foreground = $bc.ConvertFromString($Script:CurrentTheme.LowRiskBadge)
 			$txt.Text = (Get-UxLocalizedString -Key 'GuiRiskLow' -Fallback 'Low Risk')
 		}

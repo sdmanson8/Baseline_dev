@@ -11,6 +11,8 @@ BeforeAll {
     $initialActionsPath = Join-Path $PSScriptRoot '../../Module/Regions/InitialActions.psm1'
     $initialSetupPath = Join-Path $PSScriptRoot '../../Module/Regions/InitialSetup.psm1'
     $initialSetupManifestPath = Join-Path $PSScriptRoot '../../Module/Data/InitialSetup.json'
+    $buildPrimaryTabsPath = Join-Path $PSScriptRoot '../../Module/GUI/BuildPrimaryTabs.ps1'
+    $tabManagementPath = Join-Path $PSScriptRoot '../../Module/GUI/TabManagement.ps1'
     $detectScriptblocksPath = Join-Path $PSScriptRoot '../../Module/GUI/DetectScriptblocks.ps1'
 
     $guiContent = Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
@@ -25,6 +27,8 @@ BeforeAll {
     $environmentHelpersContent = Get-Content -LiteralPath $environmentHelpersPath -Raw -Encoding UTF8
     $initialActionsContent = Get-Content -LiteralPath $initialActionsPath -Raw -Encoding UTF8
     $initialSetupContent = Get-Content -LiteralPath $initialSetupPath -Raw -Encoding UTF8
+    $buildPrimaryTabsContent = Get-Content -LiteralPath $buildPrimaryTabsPath -Raw -Encoding UTF8
+    $tabManagementContent = Get-Content -LiteralPath $tabManagementPath -Raw -Encoding UTF8
     $detectScriptblocksContent = Get-Content -LiteralPath $detectScriptblocksPath -Raw -Encoding UTF8
     $initialSetupManifest = Get-Content -LiteralPath $initialSetupManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
     $initialSetupAst = [System.Management.Automation.Language.Parser]::ParseFile($initialSetupPath, [ref]$null, [ref]$null)
@@ -82,6 +86,22 @@ Describe 'First-run startup command wiring' {
         $environmentHelpersContent | Should -Not -Match "GuiSplashLoading' -Fallback 'Please wait - opening GUI\.\.\.'"
     }
 
+    It 'starts splash progress at zero with calmer live motion' {
+        $environmentHelpersContent | Should -Not -Match 'LogoHeartbeat'
+        $environmentHelpersContent | Should -Not -Match 'Storyboard\.TargetName="SplashCenterIcon"\s+Storyboard\.TargetProperty="Opacity"'
+        $environmentHelpersContent | Should -Match '(?s)Storyboard\.TargetName="SubActionSpinnerRotate".*?Duration="0:0:1\.2"'
+        $environmentHelpersContent | Should -Match '(?s)Storyboard\.TargetName="SplashSheenT".*?Duration="0:0:1\.4"'
+        $environmentHelpersContent | Should -Match 'Set-BootstrapLoadingSplashState'' \$bootstrapLoadingSplashStateDefinition'
+        $environmentHelpersContent | Should -Match '\$bootstrapLoadingSplashStateCommand -Splash \$syncHash -StatusText \$splashLocCheckingForUpdates -Completed 0 -Total 5'
+        $environmentHelpersContent | Should -Not -Match '\$bootstrapLoadingSplashStateCommand -Splash \$syncHash -StatusText \$splashLocCheckingForUpdates -Indeterminate'
+        $environmentHelpersContent | Should -Match '\$sxa\.From = 1\.0; \$sxa\.To = 1\.4'
+        $environmentHelpersContent | Should -Match '\$sxa\.Duration = New-Object System\.Windows\.Duration \(\[TimeSpan\]::FromMilliseconds\(360\)\)'
+        $environmentHelpersContent | Should -Match '\$fillTo = \(\(\[double\]\$activeIdx \+ 0\.35\) / \$stepCount\) \* \$barWidth'
+        $environmentHelpersContent | Should -Match '\$fillDurationMs = 2200'
+        $environmentHelpersContent | Should -Match '\$fillDurationMs = 24000'
+        $environmentHelpersContent | Should -Match '\$handoffCeiling = \$barWidth \* 0\.97'
+    }
+
     It 'keeps the advisory tweaker probes non-fatal during startup' {
         $initialActionsContent | Should -Match '\$InvokeOptionalProbe\s*=\s*\{\s*param\(\[scriptblock\]\$ScriptBlock\)'
         $initialActionsContent | Should -Match '\$AutoSettingsPS\s*=\s*&\s*\$InvokeOptionalProbe'
@@ -121,6 +141,9 @@ Describe 'First-run startup command wiring' {
     It 'keeps CheckWinGet hidden while preserving the preset and headless hook' {
         $initialSetupCheckWinGetFunction | Should -Not -BeNullOrEmpty
         $detectScriptblocksContent | Should -Match '''CheckWinGet''\s*=\s*\{\s*\$false\s*\}'
+        $tabManagementContent | Should -Match 'function Get-PrimaryTabVisibleTweakCount'
+        $tabManagementContent | Should -Match 'Test-TweakMatchesCurrentFilters'
+        $buildPrimaryTabsContent | Should -Match 'Get-PrimaryTabVisibleTweakCount\s+-PrimaryTab\s+\$pKey'
 
         $checkWinGetEntry = @($initialSetupManifest.Entries | Where-Object { [string]$_.Function -eq 'CheckWinGet' })
         $checkWinGetEntry | Should -Not -BeNullOrEmpty

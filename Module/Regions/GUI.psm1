@@ -125,7 +125,11 @@ function New-WpfSetter
 	$resolvedValue = $Value
 	if ($null -ne $resolvedValue -and $resolvedValue -is [psobject])
 	{
-		$resolvedValue = $resolvedValue.BaseObject
+		$unwrappedValue = $resolvedValue.psobject.BaseObject
+		if ($null -ne $unwrappedValue)
+		{
+			$resolvedValue = $unwrappedValue
+		}
 	}
 
 	if (
@@ -565,6 +569,20 @@ function Show-TweakGUI
 
 	# --- Extracted function groups (dot-sourced to reduce file size) ---
 	$Script:GuiExtractedRoot = Join-Path (Split-Path $PSScriptRoot -Parent) 'GUI'
+	$traceGuiStartup = {
+		param([string]$Message)
+		if (-not $env:BASELINE_PERF_LOG) { return }
+		try
+		{
+			$tracePath = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline-launch-trace.txt'
+			[System.IO.File]::AppendAllText($tracePath, ("{0:o} [GUI] {1}`r`n" -f [DateTime]::UtcNow, $Message), [System.Text.Encoding]::UTF8)
+		}
+		catch
+		{
+			$null = $_
+		}
+	}.GetNewClosure()
+	& $traceGuiStartup 'Show-TweakGUI start'
 
 	# Context Object and Observable State must load first - other GUI files reference $Script:Ctx
 	. (Join-Path $Script:GuiExtractedRoot 'GuiContext.ps1')
@@ -576,6 +594,7 @@ function Show-TweakGUI
 	$Script:DesignMode = [bool]$Global:DesignMode
 	$Script:Ctx.UI.DesignMode = [bool]$Script:DesignMode
 	if ($Script:Ctx.ContainsKey('Mode')) { $Script:Ctx.Mode.Design = [bool]$Script:DesignMode }
+	& $traceGuiStartup 'Core context loaded'
 
 	. (Join-Path $Script:GuiExtractedRoot 'UxPolicy.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'SessionState.ps1')
@@ -587,6 +606,7 @@ function Show-TweakGUI
 	. (Join-Path $Script:GuiExtractedRoot 'PreflightChecks.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'PlanSummaryPanel.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'ExecutionOrchestration.ps1')
+	& $traceGuiStartup 'Core GUI scripts loaded'
 
 
 	if (-not $Script:ManifestLoadedFromData)
@@ -596,7 +616,10 @@ function Show-TweakGUI
 			$Script:TweakManifest = Import-TweakManifestFromData `
 				-DetectScriptblocks $Script:DetectScriptblocks `
 				-VisibleIfScriptblocks $Script:VisibleIfScriptblocks
-			Test-TweakManifestIntegrity -Manifest $Script:TweakManifest
+			& $traceGuiStartup 'Manifest import complete'
+			# Keep startup limited to runtime-required manifest work. Structural
+			# integrity validation is a maintainer/test concern; it only emits
+			# warnings and does not change rendered tweak behavior.
 			# Stamp Availability onto every entry so the row-factory hide-unavailable
 			# gate (TweakRowFactory.ps1) and the apply-path partition
 			# (ExecutionOrchestration.ps1) both see a populated block instead of
@@ -607,6 +630,7 @@ function Show-TweakGUI
 				$null = Update-BaselineManifestAvailability `
 					-Manifest $Script:TweakManifest `
 					-SystemInfo $Script:BaselineSystemPlatformInfo
+				& $traceGuiStartup 'Manifest availability stamped'
 			}
 			catch
 			{
@@ -618,15 +642,17 @@ function Show-TweakGUI
 		}
 		catch
 		{
-			Write-Warning ("Failed to load tweak metadata from Module/Data: {0}" -f $_.Exception.Message)
+			Write-Warning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to load tweak metadata from Module/Data')
 			return
 		}
 	}
+	& $traceGuiStartup 'Manifest ready'
 
 	Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 	Add-Type -AssemblyName System.Windows.Forms, System.Drawing, WindowsFormsIntegration
 
 	Ensure-SheenProgressBarType
+	& $traceGuiStartup 'WPF assemblies ready'
 
 	if (-not $Script:ExplicitPresetSelections) {
 		$Script:ExplicitPresetSelections = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -678,7 +704,6 @@ function Show-TweakGUI
 		"Security"             = @("Security", "OS Hardening")
 		"System"               = @("System", "System Tweaks", "Start Menu", "Start Menu Apps")
 		"Customizations"       = @()
-		"Updates"              = @()
 		"UI & Personalization" = @("UI & Personalization", "Taskbar", "Taskbar Clock", "Cursors")
 		"UWP Apps"             = @("UWP Apps", "OneDrive")
 		"Gaming"               = @()
@@ -715,6 +740,7 @@ function Show-TweakGUI
 			'StoreAppAutoDownload'
 			'MapUpdates'
 			'UpdateMSRT'
+			'WindowsUpdateDisableAll'
 			'WindowsUpdatePause'
 			'WindowsUpdateSecurityOnlyMode'
 			'UpdateNotificationLevel'
@@ -795,13 +821,24 @@ Supports GUI primary tab for tweak handling inside Baseline.
 	}
 
 	# Pre-compute search haystacks once so Test-TweakMatchesCurrentFilters never
-	# rebuilds them on every keystroke.  All fields are static tweak metadata.
+	# rebuilds them on every keystroke. All fields are static tweak metadata.
+	# Also index tweak rows by primary tab so filter population can avoid
+	# scanning the full manifest for normal tab-scoped filter updates.
 	$Script:TweakSearchHaystacks = @{}
+	$Script:TweakIndicesByPrimaryTab = @{}
 	for ($__hi = 0; $__hi -lt $Script:TweakManifest.Count; $__hi++)
 	{
 		$__t = $Script:TweakManifest[$__hi]
 		if (-not $__t) { continue }
 		$__owning = Resolve-GuiPrimaryTabForTweak -Tweak $__t
+		if (-not [string]::IsNullOrWhiteSpace([string]$__owning))
+		{
+			if (-not $Script:TweakIndicesByPrimaryTab.ContainsKey($__owning))
+			{
+				$Script:TweakIndicesByPrimaryTab[$__owning] = [System.Collections.Generic.List[int]]::new()
+			}
+			[void]$Script:TweakIndicesByPrimaryTab[$__owning].Add($__hi)
+		}
 		$__sb = [System.Text.StringBuilder]::new(256)
 		foreach ($__p in @([string]$__t.Name, [string]$__t.Description, [string]$__t.Detail, [string]$__t.WhyThisMatters,
 		                    [string]$__t.Category, [string]$__t.SubCategory, [string]$__t.Function, $__owning,
@@ -818,6 +855,7 @@ Supports GUI primary tab for tweak handling inside Baseline.
 		$Script:TweakSearchHaystacks[$__hi] = $__sb.ToString()
 	}
 	Remove-Variable -Name __hi, __t, __owning, __sb, __p, __tags -ErrorAction SilentlyContinue
+	& $traceGuiStartup 'Search indexes ready'
 
 	# --- Phase 2 extractions (after WPF assemblies are loaded) ---
 	. (Join-Path $Script:GuiExtractedRoot 'ThemeManagement.ps1')
@@ -828,6 +866,7 @@ Supports GUI primary tab for tweak handling inside Baseline.
 	. (Join-Path $Script:GuiExtractedRoot 'FilteringLogic.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'ApplicationsView.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'SystemScan.ps1')
+	& $traceGuiStartup 'Phase 2 GUI scripts loaded'
 
 	# Write-GuiRuntimeWarning is defined at module scope (before Show-TweakGUI) so it is visible from Dispatcher.BeginInvoke closures and .GetNewClosure() scriptblocks.
 
@@ -863,6 +902,7 @@ Supports GUI primary tab for tweak handling inside Baseline.
 	Initialize-GuiIconSystem -ModuleRoot $Script:GuiModuleBasePath
 
 	. (Join-Path $Script:GuiExtractedRoot 'StyleManagement.ps1')
+	& $traceGuiStartup 'Theme and icon systems ready'
 
 
 	#region Themed Dialog
@@ -899,6 +939,7 @@ Supports GUI primary tab for tweak handling inside Baseline.
 	#region Window setup and control wiring
 	. (Join-Path $Script:GuiExtractedRoot 'WindowSetup.ps1')
 	#endregion
+	& $traceGuiStartup 'Window setup complete'
 
 	#region Helper: Apply theme
 	. (Join-Path $Script:GuiExtractedRoot 'ApplyTheme.ps1')
@@ -997,7 +1038,7 @@ Supports GUI primary tab for tweak handling inside Baseline.
 		}
 	}) | Out-Null
 
-		Register-GuiEventHandler -Source $Form -EventName 'Closed' -Handler ({
+	Register-GuiEventHandler -Source $Form -EventName 'Closed' -Handler ({
 			param($closedSender, $e)
 
 			$dispatcher = if ($closedSender -and $closedSender.Dispatcher)
@@ -1030,6 +1071,11 @@ Supports GUI primary tab for tweak handling inside Baseline.
 				try { $Script:SearchRefreshTimer.Stop() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SearchRefreshTimer.Stop' }
 				$Script:SearchRefreshTimer = $null
 			}
+			if ($Script:FilterRefreshTimer)
+			{
+				try { $Script:FilterRefreshTimer.Stop() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.FilterRefreshTimer.Stop' }
+				$Script:FilterRefreshTimer = $null
+			}
 
 			Clear-GuiWindowRuntimeState
 
@@ -1041,9 +1087,56 @@ Supports GUI primary tab for tweak handling inside Baseline.
 			}
 		}) | Out-Null
 
+	$Script:StartupSessionSnapshot = $null
+	$Script:StartupHydratePrimaryTab = 'Initial Setup'
+	$Script:StartupRestoreSessionPending = $false
+	$Script:StartupIsFirstRun = $true
+	try
+	{
+		$Script:StartupIsFirstRun = [bool](Test-GuiFirstRunWelcomePending)
+	}
+	catch
+	{
+		Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.ResolveStartupSession.FirstRunState'
+		$Script:StartupIsFirstRun = $true
+	}
+
+	$startupRestoreLastSession = if ($null -ne $Script:RestoreLastSession) { [bool]$Script:RestoreLastSession } else { $true }
+	if ($startupRestoreLastSession -and -not $Script:StartupIsFirstRun)
+	{
+		try
+		{
+			$startupSessionSnapshot = GUICommon\Read-GuiSessionStateDocument -AppName 'Baseline' -ExpectedSchema 'Baseline.GuiSettings'
+			if ($startupSessionSnapshot)
+			{
+				$Script:StartupSessionSnapshot = $startupSessionSnapshot
+				$Script:StartupRestoreSessionPending = $true
+				$desiredTab = if (Test-GuiObjectField -Object $startupSessionSnapshot -FieldName 'CurrentPrimaryTab') { [string]$startupSessionSnapshot.CurrentPrimaryTab } else { $null }
+				$desiredLast = if (Test-GuiObjectField -Object $startupSessionSnapshot -FieldName 'LastStandardPrimaryTab') { [string]$startupSessionSnapshot.LastStandardPrimaryTab } else { $null }
+				if (-not [string]::IsNullOrWhiteSpace($desiredTab) -and $desiredTab -ne $Script:SearchResultsTabTag)
+				{
+					$Script:StartupHydratePrimaryTab = $desiredTab
+				}
+				elseif (-not [string]::IsNullOrWhiteSpace($desiredLast))
+				{
+					$Script:StartupHydratePrimaryTab = $desiredLast
+				}
+			}
+		}
+		catch
+		{
+			Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.ResolveStartupSession.ReadAppDataSession'
+			$Script:StartupSessionSnapshot = $null
+			$Script:StartupRestoreSessionPending = $false
+			$Script:StartupHydratePrimaryTab = 'Initial Setup'
+		}
+	}
+	& $traceGuiStartup ("Startup session resolved: firstRun={0}; restorePending={1}; tab={2}" -f $Script:StartupIsFirstRun, $Script:StartupRestoreSessionPending, $Script:StartupHydratePrimaryTab)
+
 	#region Build primary tabs
 	. (Join-Path $Script:GuiExtractedRoot 'BuildPrimaryTabs.ps1')
 	#endregion
+	& $traceGuiStartup 'Primary tabs built'
 
 	# Linked-toggle wiring is handled inline in Build-TweakRow (supports lazy tab building).
 
@@ -1106,6 +1199,7 @@ Supports GUI primary tab for tweak handling inside Baseline.
 		{
 			$Script:LastCategoryFilterPopulateKey = $null
 		}
+		$Script:LastCategoryFilterSignature = $null
 		if ($Script:TabContentCache -and $Script:SearchResultsTabTag -and $Script:TabContentCache.ContainsKey($Script:SearchResultsTabTag))
 		{
 			[void]$Script:TabContentCache.Remove($Script:SearchResultsTabTag)
@@ -1186,8 +1280,9 @@ Supports GUI primary tab for tweak handling inside Baseline.
 	{
 		$null = $_
 	}
-	Set-GUITheme -Theme $(if ($initialThemeName -eq 'Light') { $Script:LightTheme } else { $Script:DarkTheme })
+	Set-GUITheme -Theme $(if ($initialThemeName -eq 'Light') { $Script:LightTheme } else { $Script:DarkTheme }) -SkipContentRebuild
 	Set-StaticButtonStyle
+	& $traceGuiStartup 'Initial theme applied'
 
 	# Wire icon content for primary action buttons
 	if ($Script:BtnPreviewRun) { Set-GuiButtonIconContent -Button $Script:BtnPreviewRun -IconName 'PreviewRun'      -Text (Get-UxPreviewButtonLabel) -ToolTip (Get-UxPreviewButtonToolTip) }
@@ -1201,27 +1296,38 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 	if ($Script:BtnApplyQueuedActions) { Set-GuiButtonIconContent -Button $Script:BtnApplyQueuedActions -IconName 'RunTweaks' -Text (Get-UxLocalizedString -Key 'GuiAppsApplyQueued' -Fallback 'Apply Changes') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsApplyQueuedTip' -Fallback 'Apply queued install and uninstall changes.') -IconSize 14 -Gap 6 -TextFontSize 11 }
 	if ($Script:BtnClearQueuedActions) { Set-GuiButtonIconContent -Button $Script:BtnClearQueuedActions -IconName 'Clear' -Text (Get-UxLocalizedString -Key 'GuiAppsReset' -Fallback 'Reset') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsResetTip' -Fallback 'Clear all queued changes and checked applications.') -IconSize 14 -Gap 6 -TextFontSize 11 }
 	if ($Script:BtnScanInstalledApps) { Set-GuiButtonIconContent -Button $Script:BtnScanInstalledApps -IconName 'Search' -Text (Get-UxLocalizedString -Key 'GuiAppsScanInstalledApps' -Fallback 'Scan Installed Apps') -ToolTip (Get-UxLocalizedString -Key 'GuiAppsScanInstalledAppsTip' -Fallback 'Scan installed apps to update install status.') -IconSize 14 -Gap 6 -TextFontSize 11 }
+	& $traceGuiStartup 'Primary action icons wired'
 
 	Set-StaticControlTabOrder
 	Set-GuiActionButtonsEnabled -Enabled $true
+	& $traceGuiStartup 'Static controls initialized'
 
 	$shouldRestoreLastSession = if ($null -ne $Script:RestoreLastSession) { [bool]$Script:RestoreLastSession } else { $true }
-	$restoredGuiSession = $false
-	if ($shouldRestoreLastSession)
+	$restoredSessionStatusText = Get-UxLocalizedString -Key 'GuiLogSessionRestoredPreviousState' -Fallback ''
+	if ($shouldRestoreLastSession -and $Script:StartupSessionSnapshot)
 	{
-		$restoredGuiSession = Restore-GuiSessionState
+		$restoreGuiSessionStateScript = Get-GuiFunctionCapture -Name 'Restore-GuiSessionState'
+		$setGuiStatusTextScript = Get-GuiFunctionCapture -Name 'Set-GuiStatusText'
+		$restoredSessionAction = {
+			try
+			{
+				$restoredGuiSession = & $restoreGuiSessionStateScript -Snapshot $Script:StartupSessionSnapshot
+				if ($restoredGuiSession)
+				{
+					if ($setGuiStatusTextScript) { & $setGuiStatusTextScript -Text $restoredSessionStatusText -Tone 'accent' }
+				}
+			}
+			catch
+			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.RestoreStartupSession'
+			}
+		}.GetNewClosure()
+		& $restoredSessionAction
 	}
 	Update-GuiLocalizationStrings
 	Update-PrimaryTabHeaders
-	if ($TxtLanguageState -and -not [string]::IsNullOrWhiteSpace([string]$Script:SelectedLanguage))
-	{
-		$TxtLanguageState.Text = ([string]$Script:SelectedLanguage).ToUpperInvariant()
-	}
 	Sync-UxActionButtonText
-	if ($restoredGuiSession)
-	{
-		Set-GuiStatusText -Text (Get-UxLocalizedString -Key 'GuiLogSessionRestoredPreviousState' -Fallback '') -Tone 'accent'
-	}
+	& $traceGuiStartup 'Initial localization and headers synced'
 
 	$Script:DownloadStartEvent = {
 		$uri = 'https://github.com/sdmanson8/Baseline/archive/refs/heads/main.zip'
@@ -1293,6 +1399,7 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 	if (-not $firstRunSetGuiStatusTextCommand)        { throw "Set-GuiStatusText not found." }
 	if (-not $getRecommendedPresetNameCommand){ throw "Get-UxRecommendedPresetName not found." }
 	if (-not $getFirstRunMarkerPathCommand)   { throw "Get-GuiFirstRunWelcomeMarkerPath not found." }
+	& $traceGuiStartup 'First-run command dependencies resolved'
 
 	$firstRunMarkerPath = & $getFirstRunMarkerPathCommand
 	if ([string]::IsNullOrWhiteSpace($firstRunMarkerPath))
@@ -1317,26 +1424,20 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 	$firstRunWelcomeMessage = Get-UxFirstRunWelcomeMessage
 	$firstRunDialogTitle = Get-UxFirstRunDialogTitle
 	$firstRunPresetLoadedStatusText = Get-UxPresetLoadedStatusText -PresetName $firstRunRecommendedPreset
+	& $traceGuiStartup 'First-run welcome state resolved'
 
 	$startupSplashHandle = $Global:LoadingSplash
 	$hasLiveStartupSplash = & $testGuiStartupSplashLiveBlock -Splash $startupSplashHandle
 	try
 	{
-		if ($hasLiveStartupSplash)
-		{
-			$Form.ShowInTaskbar = $false
-			$Form.Opacity = 0
-		}
-		else
-		{
-			$Form.ShowInTaskbar = $true
-			$Form.Opacity = 1
-		}
+		$Form.ShowInTaskbar = $true
+		$Form.Opacity = 1
 	}
 	catch
 	{
 		Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.StartupVisibility.Apply'
 	}
+	& $traceGuiStartup 'Startup visibility applied'
 
 	$startupPresentationCompleted = $false
 	Register-GuiEventHandler -Source $Form -EventName 'ContentRendered' -Handler ({
@@ -1394,6 +1495,18 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 
 						& $trace 'SplashClose runspace: GuiReady signaled, revealing GUI before splash close'
 
+						try
+						{
+							if ($splash -is [hashtable] -and $splash.ContainsKey('CompletionAnimationDeadlineUtc') -and $splash.CompletionAnimationDeadlineUtc -is [datetime])
+							{
+								while ($splash.IsAlive -and [datetime]::UtcNow -lt $splash.CompletionAnimationDeadlineUtc)
+								{
+									Start-Sleep -Milliseconds 50
+								}
+							}
+						}
+						catch { try { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'splash close: completion animation wait failed') } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.CompletionAnimationWait' }; $null = $_ }
+
 						# Reveal the GUI BEFORE closing the splash so the
 						# transition is instant: the GUI is already painted
 						# before the splash disappears, so the main window is
@@ -1410,7 +1523,7 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 								})
 							}
 						}
-						catch { try { LogWarning ("splash close: mainWindow taskbar/opacity transition failed: " + $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.MainWindowTaskbarOpacity' }; $null = $_ }
+						catch { try { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'splash close: mainWindow taskbar/opacity transition failed') } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.MainWindowTaskbarOpacity' }; $null = $_ }
 
 						if ($splash -and $splash.Dispatcher -and -not $splash.Dispatcher.HasShutdownStarted)
 						{
@@ -1439,7 +1552,7 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 								})
 							}
 						}
-						catch { try { LogWarning ("splash close: mainWindow.Activate failed: " + $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.MainWindowActivate' }; $null = $_ }
+						catch { try { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'splash close: mainWindow.Activate failed') } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.MainWindowActivate' }; $null = $_ }
 
 						# Brief wait for window close to propagate, then shut
 						# down the splash's runspace so it doesn't leak.
@@ -1451,7 +1564,7 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 								$splash.Dispatcher.InvokeShutdown()
 							}
 						}
-						catch { try { LogWarning ("splash close: dispatcher InvokeShutdown failed: " + $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.DispatcherInvokeShutdown' }; $null = $_ }
+						catch { try { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'splash close: dispatcher InvokeShutdown failed') } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.DispatcherInvokeShutdown' }; $null = $_ }
 						try
 						{
 							if ($splash._PowerShell -and $splash._AsyncResult)
@@ -1459,13 +1572,13 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 								$splash._PowerShell.EndInvoke($splash._AsyncResult)
 							}
 						}
-						catch { try { LogWarning ("splash close: PowerShell.EndInvoke failed: " + $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.PowerShellEndInvoke' }; $null = $_ }
+						catch { try { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'splash close: PowerShell.EndInvoke failed') } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.PowerShellEndInvoke' }; $null = $_ }
 						try { if ($splash._PowerShell) { $splash._PowerShell.Dispose() } } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.PowerShell.Dispose' }
 						try { if ($splash._Runspace) { $splash._Runspace.Close(); $splash._Runspace.Dispose() } } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.Runspace.Dispose' }
 					}
 					catch
 					{
-						try { LogWarning ("splash close runspace failed: " + $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.RunspaceDispose' }
+						try { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'splash close runspace failed') } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.RunspaceDispose' }
 						$null = $_
 					}
 				})
@@ -1474,7 +1587,7 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 		}
 		catch
 		{
-			try { LogWarning ("splash close orchestration failed: " + $_.Exception.Message) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.Orchestration' }
+			try { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'splash close orchestration failed') } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.LogWarning.Orchestration' }
 			$null = $_
 		}
 
@@ -1579,13 +1692,16 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 			throw "First-run welcome failed: $($_.Exception.Message)"
 		}
 	}.GetNewClosure()) | Out-Null
+	& $traceGuiStartup 'ContentRendered startup handler registered'
 
 	# Activate immediately only when the GUI is visible at ShowDialog time.
 	$Form.ShowActivated = -not $hasLiveStartupSplash
 	Initialize-WpfWindowForeground -Window $Form
+	& $traceGuiStartup 'Foreground initialization complete'
 
 	# Set Preview Run as the default-focused action so it feels like the natural next step.
 	if ($BtnPreviewRun) { $BtnPreviewRun.Focusable = $true }
+	& $traceGuiStartup 'Pre-show initialization complete'
 
 	# Show the GUI
 	try

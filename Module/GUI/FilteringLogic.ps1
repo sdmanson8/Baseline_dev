@@ -2,6 +2,44 @@
 
 	<#
 	    .SYNOPSIS
+	    Internal function Test-TweakVisibleByManifestGate.
+	#>
+
+	function Test-TweakVisibleByManifestGate
+	{
+		param (
+			[object]$Tweak
+		)
+
+		if (-not $Tweak) { return $false }
+
+		$visibleIf = $null
+		if ($Tweak -is [System.Collections.IDictionary])
+		{
+			if ($Tweak.Contains('VisibleIf')) { $visibleIf = $Tweak['VisibleIf'] }
+		}
+		elseif ($Tweak.PSObject -and $Tweak.PSObject.Properties['VisibleIf'])
+		{
+			$visibleIf = $Tweak.VisibleIf
+		}
+
+		if ($visibleIf)
+		{
+			try
+			{
+				if (-not [bool](& $visibleIf)) { return $false }
+			}
+			catch
+			{
+				return $false
+			}
+		}
+
+		return $true
+	}
+
+	<#
+	    .SYNOPSIS
 	    Internal function Test-TweakVisibleInSafeMode.
 	#>
 
@@ -53,6 +91,7 @@
 			[int]$LeftIndent = 28
 		)
 		if (-not $Tweak) { return $false }
+		if (-not (Test-TweakVisibleByManifestGate -Tweak $Tweak)) { return $false }
 
 		# Game Mode allowlist entries are always visible regardless of Safe Mode or standard filtering
 		if ($Script:GameMode -and $Script:GameModeAllowlist)
@@ -100,17 +139,45 @@
 
 		$categorySet = New-Object 'System.Collections.Generic.SortedSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
 		$isSearchContext = ($PrimaryTab -eq $Script:SearchResultsTabTag)
-		for ($i = 0; $i -lt $Script:TweakManifest.Count; $i++)
+
+		$candidateIndices = $null
+		$tweakIndexMap = Get-Variable -Name TweakIndicesByPrimaryTab -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+		if (
+			-not $isSearchContext -and
+			$tweakIndexMap -and
+			$tweakIndexMap.ContainsKey($PrimaryTab)
+		)
 		{
-			$tweak = $Script:TweakManifest[$i]
-			if (-not (Test-TweakVisibleInCurrentMode -Tweak $tweak)) { continue }
-			$stateSource = if ($Script:Controls -and $Script:Controls.Count -gt $i) { $Script:Controls[$i] } else { $null }
-			if (-not (Test-TweakMatchesCurrentFilters -Tweak $tweak -PrimaryTab $PrimaryTab -SearchQuery $effectiveSearchQuery -StateSource $stateSource -IsSearchResultsTab:$isSearchContext -IgnoreCategoryFilter:$true -TweakIndex $i))
+			$candidateIndices = $tweakIndexMap[$PrimaryTab]
+		}
+
+		if ($null -ne $candidateIndices)
+		{
+			foreach ($i in $candidateIndices)
 			{
-				continue
+				$tweak = $Script:TweakManifest[$i]
+				if ([string]::IsNullOrWhiteSpace([string]$tweak.Category)) { continue }
+				$stateSource = if ($Script:Controls -and $Script:Controls.Count -gt $i) { $Script:Controls[$i] } else { $null }
+				if (-not (Test-TweakMatchesCurrentFilters -Tweak $tweak -PrimaryTab $PrimaryTab -SearchQuery $effectiveSearchQuery -StateSource $stateSource -IsSearchResultsTab:$isSearchContext -IgnoreCategoryFilter:$true -TweakIndex $i))
+				{
+					continue
+				}
+				[void]$categorySet.Add([string]$tweak.Category)
 			}
-			if ([string]::IsNullOrWhiteSpace([string]$tweak.Category)) { continue }
-			[void]$categorySet.Add([string]$tweak.Category)
+		}
+		else
+		{
+			for ($i = 0; $i -lt $Script:TweakManifest.Count; $i++)
+			{
+				$tweak = $Script:TweakManifest[$i]
+				if ([string]::IsNullOrWhiteSpace([string]$tweak.Category)) { continue }
+				$stateSource = if ($Script:Controls -and $Script:Controls.Count -gt $i) { $Script:Controls[$i] } else { $null }
+				if (-not (Test-TweakMatchesCurrentFilters -Tweak $tweak -PrimaryTab $PrimaryTab -SearchQuery $effectiveSearchQuery -StateSource $stateSource -IsSearchResultsTab:$isSearchContext -IgnoreCategoryFilter:$true -TweakIndex $i))
+				{
+					continue
+				}
+				[void]$categorySet.Add([string]$tweak.Category)
+			}
 		}
 
 		$result = @($categorySet)
@@ -148,11 +215,28 @@
 		$currentValue = if ($Script:CategoryFilterInternalValues -and $CmbCategoryFilter.SelectedIndex -ge 0 -and $CmbCategoryFilter.SelectedIndex -lt $Script:CategoryFilterInternalValues.Count) { $Script:CategoryFilterInternalValues[$CmbCategoryFilter.SelectedIndex] } elseif ($Script:CategoryFilter) { [string]$Script:CategoryFilter } else { 'All' }
 		$searchQuery = if ($null -eq $Script:SearchText) { '' } else { [string]$Script:SearchText.Trim() }
 
-		# Skip the ComboBox clear+repopulate when the same tab/filter state was already rendered.
-		# This avoids per-tab-switch WPF layout invalidations when nothing has changed.
-		$populateKey = "$targetTab|$searchQuery|$Script:RiskFilter|$([int][bool]$Script:SafeMode)|$([int][bool]$Script:AdvancedMode)|$([int][bool]$Script:GamingOnlyFilter)|$([int][bool]$Script:SelectedOnlyFilter)|$([int][bool]$Script:HighRiskOnlyFilter)|$([int][bool]$Script:RestorableOnlyFilter)|$currentValue"
-		if ($Script:LastCategoryFilterPopulateKey -eq $populateKey) { return }
+		# Skip the ComboBox clear+repopulate when the rendered item set is unchanged.
+		# The signature deliberately omits the current selection: user selection movement
+		# should not force a full ComboBox rebuild.
+		$manifestCount = 0
+		try { $manifestCount = [int]$Script:TweakManifest.Count } catch { $manifestCount = 0 }
+		$signature = "{0}|{1}|{2}|{3}|{4}" -f `
+			[int]$Script:FilterGeneration, `
+			[string]$Script:SelectedLanguage, `
+			[string]$targetTab, `
+			$searchQuery, `
+			$manifestCount
+		if ($Script:LastCategoryFilterSignature -eq $signature) { return }
+
+		# Secondary guard for callers that invalidate the older populate key directly.
+		$populateKey = "$targetTab|$searchQuery|$Script:RiskFilter|$Script:PlatformFilter|$([int][bool]$Script:HideUnavailableItems)|$([int][bool]$Script:SafeMode)|$([int][bool]$Script:AdvancedMode)|$([int][bool]$Script:GamingOnlyFilter)|$([int][bool]$Script:SelectedOnlyFilter)|$([int][bool]$Script:HighRiskOnlyFilter)|$([int][bool]$Script:RestorableOnlyFilter)|$Script:SelectedLanguage|$Script:FilterGeneration"
+		if ($Script:LastCategoryFilterPopulateKey -eq $populateKey)
+		{
+			$Script:LastCategoryFilterSignature = $signature
+			return
+		}
 		$Script:LastCategoryFilterPopulateKey = $populateKey
+		$Script:LastCategoryFilterSignature = $signature
 
 		$values = if ($targetTab) { @(Get-AvailableCategoryFilters -PrimaryTab $targetTab -SearchQuery $searchQuery) } else { @() }
 

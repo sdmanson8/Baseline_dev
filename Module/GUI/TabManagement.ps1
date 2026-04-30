@@ -29,6 +29,48 @@
 
 	<#
 	    .SYNOPSIS
+	    Internal function Get-PrimaryTabVisibleTweakCount.
+	#>
+
+	function Get-PrimaryTabVisibleTweakCount
+	{
+		param (
+			[string]$PrimaryTab,
+			[string]$SearchQuery = ''
+		)
+
+		$tweakCount = 0
+		$candidateIndices = $null
+		$isSearchContext = ($PrimaryTab -eq $Script:SearchResultsTabTag)
+		$indexVariable = Get-Variable -Scope Script -Name TweakIndicesByPrimaryTab -ErrorAction SilentlyContinue
+		$indicesByPrimaryTab = if ($indexVariable) { $indexVariable.Value } else { $null }
+		if (-not $isSearchContext -and $indicesByPrimaryTab -and $indicesByPrimaryTab.ContainsKey($PrimaryTab))
+		{
+			$candidateIndices = $indicesByPrimaryTab[$PrimaryTab]
+		}
+		else
+		{
+			$candidateIndices = 0..([Math]::Max(0, [int]$Script:TweakManifest.Count - 1))
+		}
+
+		foreach ($i in $candidateIndices)
+		{
+			if ($i -lt 0 -or $i -ge $Script:TweakManifest.Count) { continue }
+			$tweak = $Script:TweakManifest[$i]
+			if (-not $tweak) { continue }
+			$stateSource = if ($Script:Controls -and $Script:Controls.ContainsKey($i)) { $Script:Controls[$i] } else { $null }
+			if (-not (Test-TweakMatchesCurrentFilters -Tweak $tweak -PrimaryTab $PrimaryTab -SearchQuery $SearchQuery -StateSource $stateSource -TweakIndex $i))
+			{
+				continue
+			}
+			$tweakCount++
+		}
+
+		return $tweakCount
+	}
+
+	<#
+	    .SYNOPSIS
 	    Internal function Update-PrimaryTabHeaders.
 	#>
 
@@ -57,17 +99,7 @@
 			}
 			else
 			{
-				for ($i = 0; $i -lt $Script:TweakManifest.Count; $i++)
-				{
-					$tweak = $Script:TweakManifest[$i]
-					if (-not $tweak) { continue }
-					$stateSource = if ($Script:Controls -and $Script:Controls.ContainsKey($i)) { $Script:Controls[$i] } else { $null }
-					if (-not (Test-TweakMatchesCurrentFilters -Tweak $tweak -PrimaryTab $pKey -SearchQuery $searchQuery -StateSource $stateSource -TweakIndex $i))
-					{
-						continue
-					}
-					$tweakCount++
-				}
+				$tweakCount = Get-PrimaryTabVisibleTweakCount -PrimaryTab $pKey -SearchQuery $searchQuery
 			}
 
 			$displayName = Get-LocalizedTabHeader -PrimaryTab $pKey
@@ -97,22 +129,23 @@
 		foreach ($tab in $PrimaryTabs.Items)
 		{
 			if (-not ($tab -is [System.Windows.Controls.TabItem])) { continue }
-			$tab.BorderThickness = [System.Windows.Thickness]::new(0, 0, 0, 1)
 			$tab.Padding = [System.Windows.Thickness]::new(14, 7, 14, 7)
 			if ($tab -eq $PrimaryTabs.SelectedItem)
 			{
 				$tab.Background = $bc.ConvertFromString($Script:CurrentTheme.TabActiveBg)
 				$tab.Foreground = $bc.ConvertFromString('#FFFFFF')
 				$tab.FontWeight = [System.Windows.FontWeights]::SemiBold
-				$tab.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.ActiveTabIndicator)
-				$tab.BorderThickness = [System.Windows.Thickness]::new(0, 3, 0, 3)
+				$stateAccent = if ([bool]$Script:SafeMode -and $Script:CurrentTheme.ContainsKey('StateAccent')) { [string]$Script:CurrentTheme.StateAccent } else { [string]$Script:CurrentTheme.ActiveTabIndicator }
+				$tab.BorderBrush = $bc.ConvertFromString($stateAccent)
+				$tab.BorderThickness = [System.Windows.Thickness]::new(0, 0, 0, 2)
 			}
 			else
 			{
 				$tab.Background = $bc.ConvertFromString($Script:CurrentTheme.TabBg)
 				$tab.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextMuted)
 				$tab.FontWeight = [System.Windows.FontWeights]::Normal
-				$tab.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.BorderColor)
+				$tab.BorderBrush = [System.Windows.Media.Brushes]::Transparent
+				$tab.BorderThickness = [System.Windows.Thickness]::new(0, 0, 0, 2)
 			}
 		}
 	}
@@ -138,12 +171,12 @@
 			$bc = & $newSafeBrushConverterScript -Context 'Add-PrimaryTabHoverEffects/MouseEnter'
 
 			$hoverBgColor = if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.TabHoverBg)) { [string]$Script:CurrentTheme.TabHoverBg } else { '#3670B8' }
-			$textPrimaryColor = '#FFFFFF'
-			$focusRingColor = if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.FocusRing)) { [string]$Script:CurrentTheme.FocusRing } else { '#C9DEFF' }
+			$textPrimaryColor = if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.TextPrimary)) { [string]$Script:CurrentTheme.TextPrimary } else { '#F4F7FF' }
+			$hoverBorderColor = if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.BorderColor)) { [string]$Script:CurrentTheme.BorderColor } else { '#293044' }
 
 			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'Background' -Value ($bc.ConvertFromString($hoverBgColor)) -Context 'Add-PrimaryTabHoverEffects/MouseEnter/Background')
 			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'Foreground' -Value ($bc.ConvertFromString($textPrimaryColor)) -Context 'Add-PrimaryTabHoverEffects/MouseEnter/Foreground')
-			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'BorderBrush' -Value ($bc.ConvertFromString($focusRingColor)) -Context 'Add-PrimaryTabHoverEffects/MouseEnter/BorderBrush')
+			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'BorderBrush' -Value ($bc.ConvertFromString($hoverBorderColor)) -Context 'Add-PrimaryTabHoverEffects/MouseEnter/BorderBrush')
 		}.GetNewClosure()
 		Register-GuiEventHandler -Source $Tab -EventName 'MouseEnter' -Handler ({
 			& $invokeGuiSafeActionScript -Context 'Add-PrimaryTabHoverEffects/MouseEnter' -Action $mouseEnterHandler
@@ -159,9 +192,9 @@
 		$gotFocusHandler = {
 			if ($Tab -eq $PrimaryTabs.SelectedItem) { return }
 			$bc = & $newSafeBrushConverterScript -Context 'Add-PrimaryTabHoverEffects/GotFocus'
-			$focusRingColor = if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.FocusRing)) { [string]$Script:CurrentTheme.FocusRing } else { '#C9DEFF' }
+			$focusRingColor = if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.FocusRing)) { [string]$Script:CurrentTheme.FocusRing } else { '#9ACAFF' }
 			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'BorderBrush' -Value ($bc.ConvertFromString($focusRingColor)) -Context 'Add-PrimaryTabHoverEffects/GotFocus/BorderBrush')
-			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'BorderThickness' -Value (& $newSafeThicknessScript -Bottom 3) -Context 'Add-PrimaryTabHoverEffects/GotFocus/BorderThickness')
+			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'BorderThickness' -Value (& $newSafeThicknessScript -Uniform 1) -Context 'Add-PrimaryTabHoverEffects/GotFocus/BorderThickness')
 		}.GetNewClosure()
 		Register-GuiEventHandler -Source $Tab -EventName 'GotKeyboardFocus' -Handler ({
 			& $invokeGuiSafeActionScript -Context 'Add-PrimaryTabHoverEffects/GotFocus' -Action $gotFocusHandler

@@ -6,7 +6,10 @@
 		function Set-GUITheme
 		{
 			[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
-			param ([hashtable]$Theme)
+			param (
+				[hashtable]$Theme,
+				[switch]$SkipContentRebuild
+			)
 			$themeRepairName = 'Dark'
 			if ($Theme -eq $Script:LightTheme)
 			{
@@ -35,6 +38,12 @@
 		$Script:CardHoverResources = $null
 		$bc = New-SafeBrushConverter -Context 'Set-GUITheme'
 
+		if ([System.Windows.Application]::Current)
+		{
+			[void](Set-GuiThemeResources -Target ([System.Windows.Application]::Current) -ThemeName $(if ($Script:CurrentThemeName -eq 'Light') { 'Light' } else { 'Dark' }))
+		}
+		[void](Set-GuiThemeResources -Target $Form -ThemeName $(if ($Script:CurrentThemeName -eq 'Light') { 'Light' } else { 'Dark' }))
+		$Form.Background = [System.Windows.Media.Brushes]::Transparent
 		$Form.Foreground  = $bc.ConvertFromString($Theme.TextPrimary)
 		[void](GUICommon\Set-GuiWindowChromeTheme -Window $Form -UseDarkMode ($Script:CurrentThemeName -eq 'Dark'))
 		[void](GUICommon\Update-GuiPopupWindowThemes -Theme $Theme -UseDarkMode ($Script:CurrentThemeName -eq 'Dark'))
@@ -56,12 +65,15 @@
 		$ContentBorder.Background = $bc.ConvertFromString($Theme.PanelBg)
 		if ($Script:ExpertModeBanner)
 		{
-			$Script:ExpertModeBanner.Background = $bc.ConvertFromString($Theme.CautionBg)
+			$Script:ExpertModeBanner.Background = [System.Windows.Media.Brushes]::Transparent
+			$Script:ExpertModeBanner.BorderBrush = [System.Windows.Media.Brushes]::Transparent
+			$Script:ExpertModeBanner.BorderThickness = [System.Windows.Thickness]::new(0)
 			$bannerText = $Script:ExpertModeBanner.Child
 			if ($bannerText) { $bannerText.Foreground = $bc.ConvertFromString($Theme.CautionText) }
 		}
 		$BottomBorder.Background = $bc.ConvertFromString($Theme.PanelBg)
-		$BottomBorder.BorderBrush = $bc.ConvertFromString($Theme.BorderColor)
+		$BottomBorder.BorderBrush = $bc.ConvertFromString($Theme.CardBorder)
+		$BottomBorder.CornerRadius = [System.Windows.CornerRadius]::new(0, 0, 8, 8)
 		$TitleText.Foreground = $bc.ConvertFromString($Theme.TextPrimary)
 		$ScanLabel.Foreground = $bc.ConvertFromString($Theme.TextSecondary)
 		$currentStatusText = if ($StatusText) { [string]$StatusText.Text } else { '' }
@@ -121,20 +133,23 @@
 			Update-GuiScrollBarTheme
 		}
 
-		# Rebuild content for current tab to pick up new theme colors.
-		$Script:FilterGeneration++
-		Clear-TabContentCache
-		$Script:AppsViewBuildSignature = $null
-		if ($Script:AppsModeActive)
+		if (-not $SkipContentRebuild)
 		{
-			if (Get-Command -Name 'Build-AppsViewCards' -CommandType Function -ErrorAction SilentlyContinue)
+			# Rebuild content for current tab to pick up new theme colors.
+			$Script:FilterGeneration++
+			Clear-TabContentCache
+			$Script:AppsViewBuildSignature = $null
+			if ($Script:AppsModeActive)
 			{
-				Build-AppsViewCards
+				if (Get-Command -Name 'Build-AppsViewCards' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Build-AppsViewCards
+				}
 			}
-		}
-		elseif ($null -ne $Script:CurrentPrimaryTab)
-		{
-			Build-TabContent -PrimaryTab $Script:CurrentPrimaryTab -SkipIdlePrebuild
+			elseif ($null -ne $Script:CurrentPrimaryTab)
+			{
+				Build-TabContent -PrimaryTab $Script:CurrentPrimaryTab -SkipIdlePrebuild
+			}
 		}
 		Update-HeaderModeStateText
 		if (Get-Command -Name 'Update-RunPathContextLabel' -CommandType Function -ErrorAction SilentlyContinue)

@@ -144,6 +144,9 @@
 			[string]$PrimaryTab
 		)
 
+		$__perf = Start-GuiPerfScope -Name 'RestoreCachedTabContent' -Note $PrimaryTab
+		try
+		{
 		if (-not $ContentScroll -or -not $Script:TabContentCache.ContainsKey($PrimaryTab))
 		{
 			return $false
@@ -191,6 +194,11 @@
 		Update-MainContentPanelWidth -Panel $cacheEntry.Panel
 		Restore-CurrentTabScrollOffset -TabKey $PrimaryTab
 		return $true
+		}
+		finally
+		{
+			Stop-GuiPerfScope -Scope $__perf
+		}
 	}
 
 	<#
@@ -222,53 +230,61 @@
 			[bool]$IsSearchResultsTab
 		)
 
-		$categoryTweaks = [ordered]@{}
-		$matchCount = 0
-		for ($index = 0; $index -lt $Script:TweakManifest.Count; $index++)
+		$__perf = Start-GuiPerfScope -Name 'BuildTabContent.GetTabContentGroupedTweaks' -Note $PrimaryTab
+		try
 		{
-			$tweak = $Script:TweakManifest[$index]
-			if (-not $tweak) { continue }
+			$categoryTweaks = [ordered]@{}
+			$matchCount = 0
+			for ($index = 0; $index -lt $Script:TweakManifest.Count; $index++)
+			{
+				$tweak = $Script:TweakManifest[$index]
+				if (-not $tweak) { continue }
 
-			$stateSource = if ($Script:Controls -and $Script:Controls.ContainsKey($index)) { $Script:Controls[$index] } else { $null }
-			if (-not (Test-TweakMatchesCurrentFilters -Tweak $tweak -PrimaryTab $PrimaryTab -SearchQuery $SearchQuery -StateSource $stateSource -IsSearchResultsTab:$IsSearchResultsTab -TweakIndex $index))
-			{
-				continue
+				$stateSource = if ($Script:Controls -and $Script:Controls.ContainsKey($index)) { $Script:Controls[$index] } else { $null }
+				if (-not (Test-TweakMatchesCurrentFilters -Tweak $tweak -PrimaryTab $PrimaryTab -SearchQuery $SearchQuery -StateSource $stateSource -IsSearchResultsTab:$IsSearchResultsTab -TweakIndex $index))
+				{
+					continue
+				}
+
+				$primaryCategory = Resolve-GuiPrimaryTabForTweak -Tweak $tweak
+
+				$focusGroup = 'General'
+				$focusGroupCandidate = Get-TweakFocusGroup -Tweak $tweak
+				if (-not [string]::IsNullOrWhiteSpace([string]$focusGroupCandidate))
+				{
+					$focusGroup = [string]$focusGroupCandidate
+				}
+
+				$groupKey = if ($IsSearchResultsTab)
+				{
+					'{0} | {1}' -f $primaryCategory, $focusGroup
+				}
+				else
+				{
+					$focusGroup
+				}
+				if ([string]::IsNullOrWhiteSpace([string]$groupKey))
+				{
+					$groupKey = 'General'
+				}
+
+				$normalizedGroupKey = [string]$groupKey
+				if (-not $categoryTweaks.Contains($normalizedGroupKey))
+				{
+					$categoryTweaks[$normalizedGroupKey] = [System.Collections.Generic.List[int]]::new()
+				}
+				$categoryTweaks[$normalizedGroupKey].Add($index)
+				$matchCount++
 			}
 
-			$primaryCategory = Resolve-GuiPrimaryTabForTweak -Tweak $tweak
-
-			$focusGroup = 'General'
-			$focusGroupCandidate = Get-TweakFocusGroup -Tweak $tweak
-			if (-not [string]::IsNullOrWhiteSpace([string]$focusGroupCandidate))
-			{
-				$focusGroup = [string]$focusGroupCandidate
+			return [pscustomobject]@{
+				CategoryTweaks = $categoryTweaks
+				MatchCount     = $matchCount
 			}
-
-			$groupKey = if ($IsSearchResultsTab)
-			{
-				'{0} | {1}' -f $primaryCategory, $focusGroup
-			}
-			else
-			{
-				$focusGroup
-			}
-			if ([string]::IsNullOrWhiteSpace([string]$groupKey))
-			{
-				$groupKey = 'General'
-			}
-
-			$normalizedGroupKey = [string]$groupKey
-			if (-not $categoryTweaks.Contains($normalizedGroupKey))
-			{
-				$categoryTweaks[$normalizedGroupKey] = [System.Collections.Generic.List[int]]::new()
-			}
-			$categoryTweaks[$normalizedGroupKey].Add($index)
-			$matchCount++
 		}
-
-		return [pscustomobject]@{
-			CategoryTweaks = $categoryTweaks
-			MatchCount     = $matchCount
+		finally
+		{
+			Stop-GuiPerfScope -Scope $__perf
 		}
 	}
 
@@ -281,31 +297,39 @@
 	{
 		param ([string]$PrimaryTab)
 
-		$brushConverter = New-SafeBrushConverter -Context 'Build-TabContent'
-		$isSearchResultsTab = ($PrimaryTab -eq $Script:SearchResultsTabTag)
-		$setGuiPresetSelectionCommand = Get-GuiRuntimeCommand -Name 'Set-GuiPresetSelection' -CommandType 'Function'
-		$setGuiScenarioProfileSelectionCommand = Get-GuiRuntimeCommand -Name 'Set-GuiScenarioProfileSelection' -CommandType 'Function'
-		$writeGuiPresetDebugCommand = Get-GuiRuntimeCommand -Name 'Write-GuiPresetDebug' -CommandType 'Function'
-		if (-not $setGuiPresetSelectionCommand)
+		$__perf = Start-GuiPerfScope -Name 'BuildTabContent.NewTabContentBuildContext' -Note $PrimaryTab
+		try
 		{
-			throw "Build-TabContent could not resolve function 'Set-GuiPresetSelection'."
+			$brushConverter = New-SafeBrushConverter -Context 'Build-TabContent'
+			$isSearchResultsTab = ($PrimaryTab -eq $Script:SearchResultsTabTag)
+			$setGuiPresetSelectionCommand = Get-GuiRuntimeCommand -Name 'Set-GuiPresetSelection' -CommandType 'Function'
+			$setGuiScenarioProfileSelectionCommand = Get-GuiRuntimeCommand -Name 'Set-GuiScenarioProfileSelection' -CommandType 'Function'
+			$writeGuiPresetDebugCommand = Get-GuiRuntimeCommand -Name 'Write-GuiPresetDebug' -CommandType 'Function'
+			if (-not $setGuiPresetSelectionCommand)
+			{
+				throw "Build-TabContent could not resolve function 'Set-GuiPresetSelection'."
+			}
+
+			$searchQuery = [string]$Script:SearchText
+			if ($null -eq $searchQuery) { $searchQuery = '' }
+			$searchQuery = $searchQuery.Trim()
+
+			$groupedTweaks = Get-TabContentGroupedTweaks -PrimaryTab $PrimaryTab -SearchQuery $searchQuery -IsSearchResultsTab:$isSearchResultsTab
+			return [pscustomobject]@{
+				PrimaryTab                         = $PrimaryTab
+				BrushConverter                     = $brushConverter
+				IsSearchResultsTab                 = $isSearchResultsTab
+				SearchQuery                        = $searchQuery
+				CategoryTweaks                     = $groupedTweaks.CategoryTweaks
+				MatchCount                         = $groupedTweaks.MatchCount
+				MainPanel                          = New-TabContentMainPanel -BrushConverter $brushConverter
+				SetGuiPresetSelectionCommand       = $setGuiPresetSelectionCommand
+				SetGuiScenarioProfileSelectionCommand = $setGuiScenarioProfileSelectionCommand
+				WriteGuiPresetDebugCommand         = $writeGuiPresetDebugCommand
+			}
 		}
-
-		$searchQuery = [string]$Script:SearchText
-		if ($null -eq $searchQuery) { $searchQuery = '' }
-		$searchQuery = $searchQuery.Trim()
-
-		$groupedTweaks = Get-TabContentGroupedTweaks -PrimaryTab $PrimaryTab -SearchQuery $searchQuery -IsSearchResultsTab:$isSearchResultsTab
-		return [pscustomobject]@{
-			PrimaryTab                         = $PrimaryTab
-			BrushConverter                     = $brushConverter
-			IsSearchResultsTab                 = $isSearchResultsTab
-			SearchQuery                        = $searchQuery
-			CategoryTweaks                     = $groupedTweaks.CategoryTweaks
-			MatchCount                         = $groupedTweaks.MatchCount
-			MainPanel                          = New-TabContentMainPanel -BrushConverter $brushConverter
-			SetGuiPresetSelectionCommand       = $setGuiPresetSelectionCommand
-			SetGuiScenarioProfileSelectionCommand = $setGuiScenarioProfileSelectionCommand
-			WriteGuiPresetDebugCommand         = $writeGuiPresetDebugCommand
+		finally
+		{
+			Stop-GuiPerfScope -Scope $__perf
 		}
 	}

@@ -80,19 +80,19 @@
       }
     },
     {
-      "Name": "Hide About this Picture on Desktop",
-      "Function": "DesktopRegistry",
+      "Name": "Install/Update PowerShell 7",
+      "Function": "UpdatePowershell",
       "Type": "Action",
       "Options": null,
       "DisplayOptions": null,
       "Default": true,
       "WinDefault": false,
-      "Description": "Remove the Spotlight 'About this picture' icon from the desktop",
-      "Detail": "Removes the small info icon that appears on the desktop when Windows Spotlight wallpapers are active.",
+      "Description": "Install the latest PowerShell 7 release",
+      "Detail": "PowerShell 7 is a modern cross-platform shell with improved performance and features over the built-in Windows PowerShell 5.1. Linked to the PS7 Telemetry toggle.",
       "Caution": false,
       "CautionReason": null,
-      "LinkedWith": null,
-      "Scannable": null,
+      "LinkedWith": "Powershell7Telemetry",
+      "Scannable": false,
       "Restorable": false,
       "OnParam": null,
       "OffParam": null,
@@ -102,20 +102,20 @@
       "Risk": "Low",
       "Tags": [
         "setup",
-        "appearance"
+        "powershell"
       ],
       "Impact": "Low",
       "Safe": true,
       "RequiresRestart": false,
-      "WhyThisMatters": "Removes the small info icon that appears on the desktop when Windows Spotlight wallpapers are active.",
+      "WhyThisMatters": "PowerShell 7 is a modern cross-platform shell with improved performance and features over the built-in Windows PowerShell 5.1. Linked to the PS7 Telemetry toggle.",
       "PresetTier": "Safe",
       "RecoveryLevel": "Manual",
-      "CompatibilitySensitivity": "Low",
+      "CompatibilitySensitivity": "Medium",
       "PlatformSupport": {
         "Windows10": true,
         "Windows11": true,
-        "Server": false,
-        "UnavailableReason": "Initial setup actions are not available on Windows Server."
+        "Server": true,
+        "UnavailableReason": "Installs the official PowerShell 7 MSI via winget (with an MSI fallback); supported on Windows 10/11 and Windows Server."
       }
     }
   ]

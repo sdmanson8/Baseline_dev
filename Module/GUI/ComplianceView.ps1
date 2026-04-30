@@ -338,7 +338,7 @@ function Show-ComplianceDialog
 
 			$statusColor = switch ([string]$entry.Status)
 			{
-				'Compliant' { '#22C55E' }
+				'Compliant' { '#35D07F' }
 				'Drifted'   { '#EF4444' }
 				default     { '#9CA3AF' }
 			}
@@ -503,7 +503,7 @@ function Show-ComplianceDialog
 		}
 		catch
 		{
-			LogError (Get-UxBilingualLocalizedString -Key 'GuiLogComplianceFixDriftFailed' -Fallback 'Compliance fix drift failed: {0}' -FormatArgs @($_.Exception.Message))
+			LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogComplianceFixDriftFailed' -Fallback 'Compliance fix drift failed'))
 			Show-ThemedDialog -Title $fixDriftLabel -Message ((& $getLocalizedString -Key 'GuiComplianceFixBuildFailed' -Fallback "Failed to build fix list.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK'
 		}
 	}.GetNewClosure())

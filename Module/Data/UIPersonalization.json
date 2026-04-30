@@ -1048,6 +1048,45 @@
       "CompatibilitySensitivity": "Low"
     },
     {
+      "Name": "Hide About this Picture on Desktop",
+      "Function": "DesktopRegistry",
+      "Type": "Action",
+      "Options": null,
+      "DisplayOptions": null,
+      "Default": true,
+      "WinDefault": false,
+      "Description": "Remove the Spotlight 'About this picture' icon from the desktop",
+      "Detail": "Removes the small info icon that appears on the desktop when Windows Spotlight wallpapers are active.",
+      "Caution": false,
+      "CautionReason": null,
+      "LinkedWith": null,
+      "Scannable": null,
+      "Restorable": false,
+      "OnParam": null,
+      "OffParam": null,
+      "ExtraArgs": null,
+      "SubCategory": null,
+      "SourceRegion": "UIPersonalization",
+      "Risk": "Low",
+      "Tags": [
+        "appearance",
+        "desktop"
+      ],
+      "Impact": "Low",
+      "Safe": true,
+      "RequiresRestart": false,
+      "WhyThisMatters": "Removes the small info icon that appears on the desktop when Windows Spotlight wallpapers are active.",
+      "PresetTier": "Safe",
+      "RecoveryLevel": "Manual",
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": false,
+        "UnavailableReason": "Desktop UI personalization not applicable on Windows Server."
+      }
+    },
+    {
       "Name": "Build Number on Desktop",
       "Function": "BuildNumberOnDesktop",
       "Type": "Toggle",

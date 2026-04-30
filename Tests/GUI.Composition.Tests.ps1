@@ -577,7 +577,7 @@ Describe 'Safe Mode visibility (W-1h)' {
         $script:MenuFileExportSystemState.Visibility | Should -Be 'Visible'
         $script:MenuFileExportConfigProfile.Visibility | Should -Be 'Visible'
         $script:ChkSafeMode.IsChecked | Should -BeFalse
-        [string]$script:ChkSafeMode.Content | Should -Be 'Safe Mode'
+        [string]$script:ChkSafeMode.Content | Should -Be 'Expert Mode'
     }
 }
 

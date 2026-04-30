@@ -264,8 +264,10 @@ function Set-SheenProgressBarTheme
 
 	try
 	{
-		$ProgressBar.BarColor = [System.Drawing.ColorTranslator]::FromHtml([string]$Theme.AccentBlue)
-		$ProgressBar.BackgroundColor = [System.Drawing.ColorTranslator]::FromHtml([string]$Theme.CardBorder)
+		$progressColor = if ($Theme.ContainsKey('ProgressGreen') -and -not [string]::IsNullOrWhiteSpace([string]$Theme.ProgressGreen)) { [string]$Theme.ProgressGreen } else { [string]$Theme.AccentBlue }
+		$progressTrack = if ($Theme.ContainsKey('ProgressGreenTrack') -and -not [string]::IsNullOrWhiteSpace([string]$Theme.ProgressGreenTrack)) { [string]$Theme.ProgressGreenTrack } else { [string]$Theme.CardBorder }
+		$ProgressBar.BarColor = [System.Drawing.ColorTranslator]::FromHtml($progressColor)
+		$ProgressBar.BackgroundColor = [System.Drawing.ColorTranslator]::FromHtml($progressTrack)
 	}
 	catch
 	{
@@ -447,7 +449,7 @@ function Set-GuiNavButtonChrome
 	{
 		$bgColor     = if ($theme -and $theme.ContainsKey('AccentBlue'))         { [string]$theme.AccentBlue }         else { '#3B82F6' }
 		$hoverColor  = if ($theme -and $theme.ContainsKey('AccentHover'))        { [string]$theme.AccentHover }        else { '#60A5FA' }
-		$borderColor = if ($theme -and $theme.ContainsKey('ActiveTabIndicator')) { [string]$theme.ActiveTabIndicator } else { '#4ADE80' }
+		$borderColor = if ($theme -and $theme.ContainsKey('ActiveTabIndicator')) { [string]$theme.ActiveTabIndicator } else { '#7CB7FF' }
 		$fgColor     = '#FFFFFF'
 		$thickness   = 2
 		$fontWeight  = [System.Windows.FontWeights]::SemiBold
@@ -456,7 +458,7 @@ function Set-GuiNavButtonChrome
 	{
 		$bgColor     = 'Transparent'
 		$hoverColor  = if ($theme -and $theme.ContainsKey('TabHoverBg'))      { [string]$theme.TabHoverBg }      else { '#3670B8' }
-		$borderColor = if ($theme -and $theme.ContainsKey('BorderColor'))     { [string]$theme.BorderColor }     else { '#4C556D' }
+		$borderColor = if ($theme -and $theme.ContainsKey('BorderColor'))     { [string]$theme.BorderColor }     else { '#293044' }
 		$fgColor     = if ($theme -and $theme.ContainsKey('TextSecondary'))   { [string]$theme.TextSecondary }   else { '#9CA3AF' }
 		$thickness   = 1
 		$fontWeight  = [System.Windows.FontWeights]::Normal
@@ -505,8 +507,113 @@ function Update-GuiNavModeChrome
 	param ()
 
 	$appsActive = [bool]$Script:AppsModeActive
-	if ($Script:NavModeTweaks) { Set-GuiNavButtonChrome -Button $Script:NavModeTweaks -IsActive (-not $appsActive) }
+	$updatesActive = [bool]$Script:UpdatesModeActive
+	if ($Script:NavModeTweaks) { Set-GuiNavButtonChrome -Button $Script:NavModeTweaks -IsActive (-not $appsActive -and -not $updatesActive) }
 	if ($Script:NavModeApps) { Set-GuiNavButtonChrome -Button $Script:NavModeApps -IsActive $appsActive }
+	if ($Script:NavModeUpdates) { Set-GuiNavButtonChrome -Button $Script:NavModeUpdates -IsActive $updatesActive }
+}
+
+<#
+    .SYNOPSIS
+    Internal function Set-GuiUpdatesMode.
+#>
+
+function Set-GuiUpdatesMode
+{
+	[CmdletBinding()]
+	param (
+		[bool]$Enable = $false
+	)
+
+	if ($Script:UpdatesModeActive -eq $Enable)
+	{
+		return
+	}
+
+	$collapsed = [System.Windows.Visibility]::Collapsed
+	$visible = [System.Windows.Visibility]::Visible
+
+	if ($Enable)
+	{
+		$selectedPrimaryTab = if ($Script:PrimaryTabs -and $Script:PrimaryTabs.SelectedItem -and $Script:PrimaryTabs.SelectedItem.Tag) { [string]$Script:PrimaryTabs.SelectedItem.Tag } else { $null }
+		$Script:UpdatesReturnPrimaryTab = if (-not [string]::IsNullOrWhiteSpace($selectedPrimaryTab) -and $selectedPrimaryTab -ne $Script:SearchResultsTabTag) { $selectedPrimaryTab } elseif (-not [string]::IsNullOrWhiteSpace([string]$Script:LastStandardPrimaryTab)) { [string]$Script:LastStandardPrimaryTab } else { 'Initial Setup' }
+		if ([bool]$Script:AppsModeActive)
+		{
+			Set-GuiAppsMode -Enable:$false
+		}
+	}
+
+	$Script:UpdatesModeActive = $Enable
+	if ($Enable) { $Script:AppsModeActive = $false }
+
+	if ($Script:NavModeTweaks) { $Script:NavModeTweaks.IsChecked = (-not $Enable -and -not [bool]$Script:AppsModeActive) }
+	if ($Script:NavModeApps) { $Script:NavModeApps.IsChecked = [bool]$Script:AppsModeActive }
+	if ($Script:NavModeUpdates) { $Script:NavModeUpdates.IsChecked = $Enable }
+	try { Update-GuiNavModeChrome } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiUpdatesMode.UpdateGuiNavModeChrome' }
+
+	if ($Script:ModeSubtitle)
+	{
+		$subtitleKey = if ($Enable) { 'Nav_WindowsUpdatesSubtitle' } else { 'Nav_OptimizeSubtitle' }
+		$subtitleFallback = if ($Enable) { 'Manage Windows Update' } else { 'Configure system behavior' }
+		$Script:ModeSubtitle.Text = (Get-UxLocalizedString -Key $subtitleKey -Fallback $subtitleFallback)
+		$Script:ModeSubtitle.HorizontalAlignment = if ($Enable) { [System.Windows.HorizontalAlignment]::Center } else { [System.Windows.HorizontalAlignment]::Left }
+	}
+
+	if ($Script:TweaksView) { $Script:TweaksView.Visibility = $visible }
+	if ($Script:AppsView) { $Script:AppsView.Visibility = $collapsed }
+	if ($Script:PrimaryTabHost) { $Script:PrimaryTabHost.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:ExpertModeBanner)
+	{
+		$Script:ExpertModeBanner.Visibility = $collapsed
+	}
+	if ($Script:SafeModeGroup) { $Script:SafeModeGroup.Visibility = $visible }
+	foreach ($control in @($Script:BtnFilterToggle, $Script:FilterOptionsPanel))
+	{
+		if ($control) { $control.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	}
+	if ($Script:BtnPreviewRun) { $Script:BtnPreviewRun.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:BtnDefaults) { $Script:BtnDefaults.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:BtnRun) { $Script:BtnRun.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:BtnApplyQueuedActions) { $Script:BtnApplyQueuedActions.Visibility = $collapsed }
+
+	if ($Enable)
+	{
+		if (Get-Command -Name 'Build-TabContent' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Build-TabContent -PrimaryTab 'Updates' -SkipIdlePrebuild
+		}
+	}
+	else
+	{
+		$restoreTab = if (-not [string]::IsNullOrWhiteSpace([string]$Script:UpdatesReturnPrimaryTab)) { [string]$Script:UpdatesReturnPrimaryTab } else { 'Initial Setup' }
+		if ($Script:PrimaryTabs)
+		{
+			foreach ($tab in $Script:PrimaryTabs.Items)
+			{
+				if (($tab -is [System.Windows.Controls.TabItem]) -and $tab.Tag -and ([string]$tab.Tag -eq $restoreTab))
+				{
+					$Script:PrimaryTabs.SelectedItem = $tab
+					break
+				}
+			}
+		}
+		if (Get-Command -Name 'Build-TabContent' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Build-TabContent -PrimaryTab $restoreTab -SkipIdlePrebuild
+		}
+	}
+
+	if (Get-Command -Name 'Sync-UxActionButtonText' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		if ($Script:SyncUxActionButtonTextScript)
+		{
+			& $Script:SyncUxActionButtonTextScript
+		}
+		else
+		{
+			Sync-UxActionButtonText
+		}
+	}
 }
 
 <#
@@ -527,8 +634,10 @@ function Set-GuiAppsMode
 	}
 
 	$Script:AppsModeActive = $Enable
+	if ($Enable) { $Script:UpdatesModeActive = $false }
 	if ($Script:NavModeTweaks) { $Script:NavModeTweaks.IsChecked = -not $Enable }
 	if ($Script:NavModeApps) { $Script:NavModeApps.IsChecked = $Enable }
+	if ($Script:NavModeUpdates) { $Script:NavModeUpdates.IsChecked = $false }
 	try { Update-GuiNavModeChrome } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiAppsMode.UpdateGuiNavModeChrome' }
 	if ($Script:ModeSubtitle)
 	{

@@ -19,6 +19,7 @@
     "DiagnosticDataLevel -Minimal",
     "FeedbackFrequency -Never",
     "LanguageListAccess -Disable",
+    "Powershell7Telemetry -Disable",
     "LockWidgets -Disable",
     "SharedExperiences -Disable",
     "SigninInfo -Disable",

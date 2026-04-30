@@ -126,8 +126,7 @@
 			[object]$Tweak,
 			[object]$Metadata,
 			[object]$BrushConverter,
-			[System.Windows.Thickness]$BadgeSpacing,
-			[object]$ActionButton = $null
+			[System.Windows.Thickness]$BadgeSpacing
 		)
 
 		$badgesPanel = New-Object System.Windows.Controls.StackPanel
@@ -199,22 +198,14 @@
 				[void]($badgesPanel.Children.Add($defaultBadge))
 			}
 		}
-		if ($ActionButton)
-		{
-			$ActionButton.Margin = $BadgeSpacing
-			[void]($badgesPanel.Children.Add($ActionButton))
-		}
 		if ([bool]$Tweak.RequiresRestart)
 		{
-			$restartBadge = New-Object System.Windows.Controls.TextBlock
-			$restartBadge.Text = [char]0x21BB + ' Restart'
-			$restartBadge.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
-			$restartBadge.Foreground = $BrushConverter.ConvertFromString($Script:CurrentTheme.RiskMediumBadge)
-			$restartBadge.Background = $BrushConverter.ConvertFromString($Script:CurrentTheme.TabActiveBg)
-			$restartBadge.Padding = $Script:T.BadgePad
-			$restartBadge.Margin = $BadgeSpacing
-			$restartBadge.VerticalAlignment = 'Center'
-			[void]($badgesPanel.Children.Add($restartBadge))
+			$restartBadge = GUICommon\New-DialogMetadataPill -Theme $Script:CurrentTheme -Label ([char]0x21BB + ' Restart') -Tone 'Caution' -ToolTip (Get-UxString -Key 'GuiTweakChipTooltipRestart' -Fallback 'This change requires a restart to take effect.')
+			if ($restartBadge)
+			{
+				$restartBadge.Margin = $BadgeSpacing
+				[void]($badgesPanel.Children.Add($restartBadge))
+			}
 		}
 		$riskBadge = New-RiskBadge -Level $Tweak.Risk
 		if ($riskBadge)
@@ -650,8 +641,7 @@
 			Card = $card
 			IsRestoring = $false
 		}
-		$resetButton = New-TweakResetButton -Tweak $Tweak -RowContext $RowContext -StateControl $stateControl
-		[void]($leftStack.Children.Add((New-ToggleLikeHeaderGrid -CheckBox $checkBox -Tweak $Tweak -RowContext $RowContext -ResetButton $resetButton)))
+		[void]($leftStack.Children.Add((New-ToggleLikeHeaderGrid -CheckBox $checkBox -Tweak $Tweak -RowContext $RowContext)))
 
 		$datePicker = New-Object System.Windows.Controls.DatePicker
 		$datePicker.MinWidth = $Script:GuiLayout.ComboBoxMinWidth
@@ -734,8 +724,7 @@
 		param (
 			[System.Windows.Controls.CheckBox]$CheckBox,
 			[object]$Tweak,
-			[object]$RowContext,
-			[object]$ResetButton = $null
+			[object]$RowContext
 		)
 
 		$headerGrid = New-Object System.Windows.Controls.Grid
@@ -765,7 +754,7 @@
 
 		try
 		{
-			$badgesPanel = New-TweakHeaderBadgesPanel -Tweak $Tweak -Metadata $RowContext.Metadata -BrushConverter $RowContext.BrushConverter -BadgeSpacing $RowContext.BadgeSpacing -ActionButton $ResetButton
+			$badgesPanel = New-TweakHeaderBadgesPanel -Tweak $Tweak -Metadata $RowContext.Metadata -BrushConverter $RowContext.BrushConverter -BadgeSpacing $RowContext.BadgeSpacing
 		}
 		catch
 		{
@@ -786,8 +775,7 @@
 	{
 		param (
 			[object]$Tweak,
-			[object]$RowContext,
-			[object]$ResetButton = $null
+			[object]$RowContext
 		)
 
 		$nameRow = New-Object System.Windows.Controls.Grid
@@ -798,7 +786,7 @@
 		[System.Windows.Controls.Grid]::SetColumn($nameInner, 0)
 		[void]($nameRow.Children.Add($nameInner))
 
-		$choiceBadgesPanel = New-TweakHeaderBadgesPanel -Tweak $Tweak -Metadata $RowContext.Metadata -BrushConverter $RowContext.BrushConverter -BadgeSpacing $RowContext.BadgeSpacing -ActionButton $ResetButton
+		$choiceBadgesPanel = New-TweakHeaderBadgesPanel -Tweak $Tweak -Metadata $RowContext.Metadata -BrushConverter $RowContext.BrushConverter -BadgeSpacing $RowContext.BadgeSpacing
 		[System.Windows.Controls.Grid]::SetColumn($choiceBadgesPanel, 1)
 		[void]($nameRow.Children.Add($choiceBadgesPanel))
 
@@ -1747,8 +1735,7 @@
 			Card = $card
 			IsRestoring = $false
 		}
-		$resetButton = New-TweakResetButton -Tweak $Tweak -RowContext $RowContext -StateControl $stateControl
-		[void]($leftStack.Children.Add((New-ToggleLikeHeaderGrid -CheckBox $checkBox -Tweak $Tweak -RowContext $RowContext -ResetButton $resetButton)))
+		[void]($leftStack.Children.Add((New-ToggleLikeHeaderGrid -CheckBox $checkBox -Tweak $Tweak -RowContext $RowContext)))
 		[void]($leftStack.Children.Add($statusContext.Row))
 		Add-TweakMetadataDetails -Container $leftStack -Tweak $Tweak -RowContext $RowContext -DescriptionText $(if ($Tweak.Description) { if ($Tweak.DescriptionKey) { Get-UxString -Key $Tweak.DescriptionKey -Fallback $Tweak.Description } else { $Tweak.Description } } else { Get-UxString -Key 'GuiToggleDefaultDescription' -Fallback 'Turns this feature on when checked and off when unchecked.' }) -DescriptionColor $Script:CurrentTheme.TextSecondary -DescriptionMargin $Script:T.DescIndent -MetadataMargin $Script:T.MetaIndent -BlastMargin $Script:T.BlastIndent
 		if ($statusContext.WhyBlock -and $statusContext.WhyBlock.Tag)
@@ -1815,8 +1802,7 @@
 			Value = if ($combo.SelectedIndex -ge 0 -and $combo.SelectedIndex -lt $choiceOptions.Count) { [string]$choiceOptions[$combo.SelectedIndex] } else { $null }
 			IsRestoring = $false
 		}
-		$resetButton = New-TweakResetButton -Tweak $Tweak -RowContext $RowContext -StateControl $stateControl
-		[void]($leftStack.Children.Add((New-ChoiceHeaderGrid -Tweak $Tweak -RowContext $RowContext -ResetButton $resetButton)))
+		[void]($leftStack.Children.Add((New-ChoiceHeaderGrid -Tweak $Tweak -RowContext $RowContext)))
 		Add-TweakMetadataDetails -Container $leftStack -Tweak $Tweak -RowContext $RowContext -DescriptionText $(if ($Tweak.DescriptionKey) { Get-UxString -Key $Tweak.DescriptionKey -Fallback ([string]$Tweak.Description) } else { [string]$Tweak.Description }) -DescriptionColor $Script:CurrentTheme.TextMuted -DescriptionMargin $Script:T.DescFlush -MetadataMargin $Script:T.MetaFlush -BlastMargin $Script:T.BlastFlush
 		[void](Add-TweakWhyBlockDetails -Container $leftStack -Tweak $Tweak -LeftIndent 0 -RowMargin $Script:T.WhyFlush)
 		[void]($grid.Children.Add($leftStack))
@@ -1954,8 +1940,7 @@
 			Card = $card
 			IsRestoring = $false
 		}
-		$resetButton = New-TweakResetButton -Tweak $Tweak -RowContext $RowContext -StateControl $stateControl
-		[void]($leftStack.Children.Add((New-ToggleLikeHeaderGrid -CheckBox $checkBox -Tweak $Tweak -RowContext $RowContext -ResetButton $resetButton)))
+		[void]($leftStack.Children.Add((New-ToggleLikeHeaderGrid -CheckBox $checkBox -Tweak $Tweak -RowContext $RowContext)))
 		[void]($leftStack.Children.Add($channelGrid))
 		Add-TweakMetadataDetails -Container $leftStack -Tweak $Tweak -RowContext $RowContext -DescriptionText $(if ($Tweak.Description) { if ($Tweak.DescriptionKey) { Get-UxString -Key $Tweak.DescriptionKey -Fallback $Tweak.Description } else { $Tweak.Description } } else { Get-UxString -Key 'GuiNumericRangeDefaultDescription' -Fallback 'Adjusts a numeric power value for the selected power scheme.' }) -DescriptionColor $Script:CurrentTheme.TextSecondary -DescriptionMargin $Script:T.DescIndent -MetadataMargin $Script:T.MetaIndent -BlastMargin $Script:T.BlastIndent
 		[void](Add-TweakWhyBlockDetails -Container $leftStack -Tweak $Tweak -LeftIndent 28 -RowMargin $Script:T.WhyIndent)
@@ -2018,10 +2003,9 @@
 			PickerSelectionText = $null
 			IsRestoring = $false
 		}
-		$resetButton = New-TweakResetButton -Tweak $Tweak -RowContext $RowContext -StateControl $stateControl
 		try
 		{
-			[void]($nameRowWithDescription.Children.Add((New-ToggleLikeHeaderGrid -CheckBox $checkBox -Tweak $Tweak -RowContext $RowContext -ResetButton $resetButton)))
+			[void]($nameRowWithDescription.Children.Add((New-ToggleLikeHeaderGrid -CheckBox $checkBox -Tweak $Tweak -RowContext $RowContext)))
 		}
 		catch
 		{

@@ -182,7 +182,7 @@
 		}
 		catch
 		{
-			LogError (Get-UxBilingualLocalizedString -Key 'GuiLogRestoreSnapshotFailed' -Fallback 'Failed to restore GUI snapshot: {0}' -FormatArgs @($_.Exception.Message))
+			LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to restore GUI snapshot')
 			[void](Show-ThemedDialog -Title (& $getUxUndoSelectionActionLabelCommand) -Message $(if (& $testIsSafeModeUxCommand) { (& $getUxLocalizedStringCapture -Key 'GuiActionUndoFailedSafe' -Fallback "Failed to undo the previous selection change.`n`n{0}") -f $_.Exception.Message } else { (& $getUxLocalizedStringCapture -Key 'GuiActionUndoFailed' -Fallback "Failed to restore the previous snapshot.`n`n{0}") -f $_.Exception.Message }) -Buttons @('OK') -AccentButton 'OK')
 			return
 		}
@@ -224,7 +224,7 @@
 		}
 		catch
 		{
-			LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExportSystemStateFailed' -Fallback 'Failed to export system state: {0}' -FormatArgs @($_.Exception.Message))
+			LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to export system state')
 			[void](Show-ThemedDialog -Title (& $getUxLocalizedStringCapture -Key 'GuiActionExportStateTitle' -Fallback 'Export System State') -Message ((& $getUxLocalizedStringCapture -Key 'GuiActionExportStateFailed' -Fallback "Failed to export system state.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 		}
 	}) | Out-Null
@@ -330,7 +330,7 @@
 		}
 		catch
 		{
-			LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExportConfigProfileFailed' -Fallback 'Failed to export configuration profile: {0}' -FormatArgs @($_.Exception.Message))
+			LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to export configuration profile')
 			[void](Show-ThemedDialog -Title (& $getUxLocalizedStringCapture -Key 'GuiActionExportProfileTitle' -Fallback 'Export Configuration Profile') -Message ((& $getUxLocalizedStringCapture -Key 'GuiActionExportProfileFailed' -Fallback "Failed to export configuration profile.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 		}
 	}.GetNewClosure()) | Out-Null
@@ -381,7 +381,7 @@
 		}
 		catch
 		{
-			LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExportFirstLogonCommandFailed' -Fallback 'Failed to export first-logon command: {0}' -FormatArgs @($_.Exception.Message))
+			LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to export first-logon command')
 			[void](Show-ThemedDialog -Title 'Export First-Logon Command' -Message ("Failed to export first-logon command.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 		}
 	}.GetNewClosure()) | Out-Null
@@ -485,7 +485,7 @@
 					}
 					catch
 					{
-						LogError (Get-UxBilingualLocalizedString -Key 'GuiLogImportProfileUserAppsFailed' -Fallback 'Failed to restore user apps from imported profile: {0}' -FormatArgs @($_.Exception.Message))
+						LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to restore user apps from imported profile')
 					}
 				}
 			}
@@ -544,7 +544,7 @@
 		}
 		catch
 		{
-			LogError (Get-UxBilingualLocalizedString -Key 'GuiLogImportConfigProfileFailed' -Fallback 'Failed to import configuration profile: {0}' -FormatArgs @($_.Exception.Message))
+			LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to import configuration profile')
 			[void](Show-ThemedDialog -Title $importTitle -Message ((& $getUxLocalizedStringCapture -Key 'GuiActionImportProfileFailed' -Fallback "Failed to import configuration profile.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 		}
 	}.GetNewClosure()) | Out-Null
@@ -637,7 +637,7 @@
 			}
 			catch
 			{
-				LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExportSupportBundleFailed' -Fallback 'Failed to export support bundle: {0}' -FormatArgs @($_.Exception.Message))
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to export support bundle')
 				[void](Show-ThemedDialog -Title 'Export Support Bundle' -Message ("Failed to export support bundle.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}.GetNewClosure()) | Out-Null
@@ -677,7 +677,7 @@
 			}
 			catch
 			{
-				LogError (Get-UxBilingualLocalizedString -Key 'GuiLogRemoteTargetApprovalFailed' -Fallback 'Failed to approve remote target list: {0}' -FormatArgs @($_.Exception.Message))
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to approve remote target list')
 				[void](Show-ThemedDialog -Title 'Approve Target List' -Message ((& $getUxLocalizedStringCapture -Key 'GuiRemoteTargetApprovalFailed' -Fallback "Failed to approve remote target list.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}.GetNewClosure()) | Out-Null
@@ -700,7 +700,7 @@
 			}
 			catch
 			{
-				LogError (Get-UxBilingualLocalizedString -Key 'GuiLogRemoteTargetApprovalPolicySaveFailed' -Fallback 'Failed to save remote approval policy: {0}' -FormatArgs @($_.Exception.Message))
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to save remote approval policy')
 				[void](Show-ThemedDialog -Title 'Save Remote Approval Policy' -Message ("Failed to save remote approval policy.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}.GetNewClosure()) | Out-Null
@@ -721,7 +721,7 @@
 			}
 			catch
 			{
-				LogError (Get-UxBilingualLocalizedString -Key 'GuiLogRemoteTargetApprovalPolicyLoadFailed' -Fallback 'Failed to load remote approval policy: {0}' -FormatArgs @($_.Exception.Message))
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to load remote approval policy')
 				[void](Show-ThemedDialog -Title 'Load Remote Approval Policy' -Message ("Failed to load remote approval policy.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}.GetNewClosure()) | Out-Null
@@ -737,7 +737,7 @@
 			}
 			catch
 			{
-				LogError (Get-UxBilingualLocalizedString -Key 'GuiLogRemoteConsoleFailed' -Fallback 'Failed to open remote console: {0}' -FormatArgs @($_.Exception.Message))
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to open remote console')
 				[void](Show-ThemedDialog -Title 'Remote Console' -Message ("Failed to open remote console.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}.GetNewClosure()) | Out-Null
@@ -753,7 +753,7 @@
 			}
 			catch
 			{
-				LogError (Get-UxBilingualLocalizedString -Key 'GuiLogOperatorConsoleFailed' -Fallback 'Failed to open operator console: {0}' -FormatArgs @($_.Exception.Message))
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to open operator console')
 				[void](Show-ThemedDialog -Title 'Operator Console' -Message ("Failed to open operator console.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}.GetNewClosure()) | Out-Null
@@ -773,7 +773,7 @@
 			}
 			catch
 			{
-				LogError (Get-UxBilingualLocalizedString -Key 'GuiLogStartupManagerFailed' -Fallback 'Failed to open startup manager: {0}' -FormatArgs @($_.Exception.Message))
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to open startup manager')
 				[void](Show-ThemedDialog -Title 'Startup Manager' -Message ("Failed to open startup manager.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}.GetNewClosure()) | Out-Null
@@ -793,7 +793,7 @@
 			}
 			catch
 			{
-				LogError (Get-UxBilingualLocalizedString -Key 'GuiLogUserFoldersFailed' -Fallback 'Failed to open user folders: {0}' -FormatArgs @($_.Exception.Message))
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to open user folders')
 				[void](Show-ThemedDialog -Title 'User Folders' -Message ("Failed to open user folders.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}.GetNewClosure()) | Out-Null
@@ -813,7 +813,7 @@
 			}
 			catch
 			{
-				LogError (Get-UxBilingualLocalizedString -Key 'GuiLogRemovalPersistenceFailed' -Fallback 'Failed to open removal persistence: {0}' -FormatArgs @($_.Exception.Message))
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to open removal persistence')
 				[void](Show-ThemedDialog -Title 'Removal Persistence' -Message ("Failed to open removal persistence.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}.GetNewClosure()) | Out-Null
@@ -878,7 +878,7 @@
 			}
 			catch
 			{
-				LogError (Get-UxBilingualLocalizedString -Key 'GuiLogRemoteSessionStatusFailed' -Fallback 'Failed to view remote session status: {0}' -FormatArgs @($_.Exception.Message))
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to view remote session status')
 				[void](Show-ThemedDialog -Title (& $getUxLocalizedStringCapture -Key 'GuiRemoteSessionStatusTitle' -Fallback 'Remote Session Status') -Message ((& $getUxLocalizedStringCapture -Key 'GuiRemoteSessionStatusFailed' -Fallback "Failed to view remote session status.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}.GetNewClosure()) | Out-Null
@@ -915,7 +915,7 @@
 			}
 			catch
 			{
-				LogError ("WSL install launcher failed: {0}" -f $_.Exception.Message)
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'WSL install launcher failed')
 				[void](Show-ThemedDialog -Title (& $getUxLocalizedStringCapture -Key 'GuiWslInstallTitle' -Fallback 'Install WSL') -Message ("Failed to launch the WSL installer.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}.GetNewClosure()) | Out-Null

@@ -4,13 +4,7 @@ BeforeAll {
     $script:ModuleManifestPath = Join-Path $PSScriptRoot '../../Module/Baseline.psd1'
     $script:ShortcutLauncherPath = Join-Path $PSScriptRoot '../../ShortcutLauncher/Program.cs'
 
-    $script:ProductContractFiles = @(
-        (Join-Path $PSScriptRoot '../../Module/Data/InitialSetup.json')
-        (Join-Path $PSScriptRoot '../../Module/Data/PrivacyTelemetry.json')
-        (Join-Path $PSScriptRoot '../../Module/Data/Presets/Minimal.json')
-        (Join-Path $PSScriptRoot '../../Module/Data/Presets/Basic.json')
-        (Join-Path $PSScriptRoot '../../Module/Data/Presets/Balanced.json')
-        (Join-Path $PSScriptRoot '../../Module/Data/Presets/Advanced.json')
+    $script:RuntimeContractFiles = @(
         (Join-Path $PSScriptRoot '../../Module/SharedHelpers/ScenarioMode.Helpers.ps1')
         (Join-Path $PSScriptRoot '../../Module/GUI/SystemScan.ps1')
         (Join-Path $PSScriptRoot '../../Module/GUI/PresetManagement.ps1')
@@ -62,12 +56,11 @@ Describe 'PowerShell 5.1 support contract' {
         $content | Should -Match 'Windows PowerShell 5\.1 \(powershell\.exe\) was not found\.'
     }
 
-    It 'removes PowerShell 7 product surfaces from manifests, presets, and curation helpers' {
-        foreach ($path in $script:ProductContractFiles) {
+    It 'keeps runtime curation helpers from selecting PowerShell 7 as the Baseline host' {
+        foreach ($path in $script:RuntimeContractFiles) {
             $content = Get-Content -LiteralPath $path -Raw -Encoding UTF8
 
-            $content | Should -Not -Match '\bPowershell7Telemetry\b'
-            $content | Should -Not -Match 'PowerShell 7'
+            $content | Should -Not -Match '\bpwsh(?:\.exe)?\b'
         }
     }
 

@@ -13,7 +13,7 @@
 			[hashtable]$Theme
 		)
 
-		$track  = if ($Theme.ScrollBg)          { $Theme.ScrollBg }          else { '#1E1E2E' }
+		$track  = if ($Theme.ScrollBg)          { $Theme.ScrollBg }          else { '#151824' }
 		$thumb  = if ($Theme.ScrollThumb)       { $Theme.ScrollThumb }       else { '#4A4D5E' }
 		$hover  = if ($Theme.ScrollThumbHover)  { $Theme.ScrollThumbHover }  else { $thumb }
 		$active = if ($Theme.ScrollThumbActive) { $Theme.ScrollThumbActive } else { $thumb }

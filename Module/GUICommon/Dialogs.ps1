@@ -54,6 +54,7 @@ function Show-ThemedDialog
 	$dlgRoundedBorder.Background = $bc.ConvertFromString($Theme.WindowBg)
 	$dlgRoundedBorder.BorderBrush = $bc.ConvertFromString($Theme.BorderColor)
 	$dlgRoundedBorder.BorderThickness = [System.Windows.Thickness]::new(1)
+	$dlgRoundedBorder.ClipToBounds = $true
 
 	# Title bar with drag and close
 	$dlgTitleBar = New-Object System.Windows.Controls.Border
@@ -80,6 +81,10 @@ function Show-ThemedDialog
 	$dlgCloseBtn.HorizontalAlignment = 'Right'
 	$dlgCloseBtn.VerticalContentAlignment = 'Center'
 	$dlgCloseBtn.HorizontalContentAlignment = 'Center'
+	if (Get-Command -Name 'Set-WindowCaptionButtonStyle' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		try { Set-WindowCaptionButtonStyle -Button $dlgCloseBtn -Variant 'Close' } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Dialogs.ShowThemedDialog.SetCloseButtonStyle' }
+	}
 	$dlgCloseBtn.Add_Click({ $dlg.DialogResult = $false; $dlg.Close() }.GetNewClosure())
 	[void]($dlgTitleBarGrid.Children.Add($dlgCloseBtn))
 	$dlgTitleBar.Child = $dlgTitleBarGrid
@@ -114,6 +119,7 @@ function Show-ThemedDialog
 	$btnBorder.Background = $bc.ConvertFromString($Theme.PanelBg)
 	$btnBorder.BorderBrush = $bc.ConvertFromString($Theme.BorderColor)
 	$btnBorder.BorderThickness = [System.Windows.Thickness]::new(0, 1, 0, 0)
+	$btnBorder.CornerRadius = [System.Windows.CornerRadius]::new(0, 0, 8, 8)
 	$btnBorder.Padding = [System.Windows.Thickness]::new(16, 12, 16, 12)
 	$btnPanel = New-Object System.Windows.Controls.StackPanel
 	$btnPanel.Orientation = 'Horizontal'
@@ -409,26 +415,26 @@ function New-DialogMetadataPill
 		'Danger'
 		{
 			$background = $(if ($Theme.RiskHighBadgeBg) { $Theme.RiskHighBadgeBg } else { $Theme.StatusPillBg })
-			$borderBrush = $(if ($Theme.RiskHighBadge) { $Theme.RiskHighBadge } else { $Theme.CautionBorder })
+			$borderBrush = $(if ($Theme.RiskHighBadgeBg) { $Theme.RiskHighBadgeBg } else { $Theme.StatusPillBorder })
 			$foreground = $(if ($Theme.RiskHighBadge) { $Theme.RiskHighBadge } else { $Theme.CautionText })
 		}
 		'Caution'
 		{
 			$background = $(if ($Theme.RiskMediumBadgeBg) { $Theme.RiskMediumBadgeBg } else { $Theme.StatusPillBg })
-			$borderBrush = $(if ($Theme.RiskMediumBadge) { $Theme.RiskMediumBadge } else { $Theme.CautionBorder })
+			$borderBrush = $(if ($Theme.RiskMediumBadgeBg) { $Theme.RiskMediumBadgeBg } else { $Theme.StatusPillBorder })
 			$foreground = $(if ($Theme.RiskMediumBadge) { $Theme.RiskMediumBadge } else { $Theme.CautionText })
 		}
 		'Success'
 		{
 			$background = $(if ($Theme.LowRiskBadgeBg) { $Theme.LowRiskBadgeBg } else { $Theme.StatusPillBg })
-			$borderBrush = $(if ($Theme.LowRiskBadge) { $Theme.LowRiskBadge } else { $Theme.StatusPillBorder })
+			$borderBrush = $(if ($Theme.LowRiskBadgeBg) { $Theme.LowRiskBadgeBg } else { $Theme.StatusPillBorder })
 			$foreground = $(if ($Theme.LowRiskBadge) { $Theme.LowRiskBadge } else { $Theme.StatusPillText })
 		}
 		'Primary'
 		{
-			$background = $(if ($Theme.TabActiveBg) { $Theme.TabActiveBg } else { $Theme.StatusPillBg })
-			$borderBrush = $(if ($Theme.AccentBlue) { $Theme.AccentBlue } else { $Theme.StatusPillBorder })
-			$foreground = $(if ($Theme.AccentBlue) { $Theme.AccentBlue } else { $Theme.StatusPillText })
+			$background = $Theme.StatusPillBg
+			$borderBrush = $Theme.StatusPillBorder
+			$foreground = $Theme.StatusPillText
 		}
 		'Muted'
 		{

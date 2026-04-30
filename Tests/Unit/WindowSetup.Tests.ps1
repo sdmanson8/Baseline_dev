@@ -18,4 +18,10 @@ Describe 'WindowSetup swallowed-exception routing' {
     It 'loads the restore-last-session user preference during GUI startup' {
         $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''RestoreLastSession'' -Default \$true'
     }
+
+    It 'forces debug logging on while a restored session is rehydrated' {
+        $script:WindowSetupContent | Should -Match 'if \(\$Script:RestoreLastSession\)\s*\{\s*# Keep verbose logging on while the restored session rehydrates so perf'
+        $script:WindowSetupContent | Should -Match '\$Script:DebugLoggingEnabled = \$true'
+        $script:WindowSetupContent | Should -Match 'Set-BaselineDebugLogging -Enabled \(\[bool\]\$Script:DebugLoggingEnabled\)'
+    }
 }

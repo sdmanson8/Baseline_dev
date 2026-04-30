@@ -5,6 +5,10 @@ BeforeAll {
 }
 
 Describe 'Updates tab routing' {
+    It 'keeps Updates out of the primary tab strip because it is a navigation mode' {
+        $script:GuiContent | Should -Not -Match '"Updates"\s+=\s+@\(\)'
+    }
+
     It 'includes the Windows Update policy functions in the routing set' {
         $match = [regex]::Match(
             $script:GuiContent,
@@ -22,6 +26,7 @@ Describe 'Updates tab routing' {
             'UpdateMSRT'
             'UpdateNotificationLevel'
             'WindowsUpdate'
+            'WindowsUpdateDisableAll'
         ))
         {
             $functionNames | Should -Contain $name

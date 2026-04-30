@@ -13,14 +13,13 @@
 		}
 		else
 		{
-			for ($i = 0; $i -lt $Script:TweakManifest.Count; $i++)
+			$indexVariable = Get-Variable -Scope Script -Name TweakIndicesByPrimaryTab -ErrorAction SilentlyContinue
+			$indicesByPrimaryTab = if ($indexVariable) { $indexVariable.Value } else { $null }
+			if ($indicesByPrimaryTab -and $indicesByPrimaryTab.ContainsKey($pKey))
 			{
-				if ((Resolve-GuiPrimaryTabForTweak -Tweak $Script:TweakManifest[$i]) -eq $pKey)
-				{
-					$hasTweaks = $true
-					$tweakCount++
-				}
+				$hasTweaks = ($indicesByPrimaryTab[$pKey].Count -gt 0)
 			}
+			$tweakCount = Get-PrimaryTabVisibleTweakCount -PrimaryTab $pKey -SearchQuery ''
 		}
 		if (-not $hasTweaks) { continue }
 
@@ -417,12 +416,14 @@
 					if ($setLanguageSearchInputStyle) { & $setLanguageSearchInputStyle }
 				}.GetNewClosure())
 				$null = Register-GuiEventHandler -Source $TxtLanguageSearch -EventName 'TextChanged' -Handler ({
-					& $renderLanguageList -FilterText $TxtLanguageSearch.Text
+					if ($LanguagePopup -and $LanguagePopup.IsOpen)
+					{
+						& $renderLanguageList -FilterText $TxtLanguageSearch.Text
+					}
 					if ($setLanguageSearchInputStyle) { & $setLanguageSearchInputStyle }
 				}.GetNewClosure())
 			}
 
-			& $renderLanguageList -FilterText $(if ($TxtLanguageSearch) { $TxtLanguageSearch.Text } else { '' })
 			if ($TxtLanguageState)
 			{
 				$currentLanguageCode = if ($Script:SelectedLanguage) { [string]$Script:SelectedLanguage } else { 'en' }
@@ -480,7 +481,7 @@
 						catch {
 							$showFn = $Script:ShowGuiRuntimeFailureScript
 							if ($showFn) { $null = & $showFn -Context 'PrimaryTabs/SelectionChanged' -Exception $_.Exception -ShowDialog }
-							else { Write-Warning ("GUI event failed [PrimaryTabs/SelectionChanged]: {0}" -f $_.Exception.Message) }
+							else { Write-Warning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'GUI event failed [PrimaryTabs/SelectionChanged]') }
 						}
 				}
 		}
@@ -546,30 +547,64 @@
 		& $Script:AdaptiveTabLayoutScript
 	}) | Out-Null
 
-	# Build the initial tab while the startup splash is still visible so the main
-	# window only appears once real content is ready.
+	# Select the startup tab now, then hydrate only that tab. Build-TabContent
+	# owns GuiReady so the splash closes after foreground content is interactive.
 	if (-not ($PrimaryTabs -is [System.Windows.Controls.TabControl]))
 	{
 		throw "PrimaryTabs is not a TabControl. Actual type: $($PrimaryTabs.GetType().FullName)"
 	}
 
-	if ($PrimaryTabs.Items.Count -gt 0)
-	{
-		$showGuiRuntimeFailureCapture = $Script:ShowGuiRuntimeFailureScript
+	$showGuiRuntimeFailureCapture = $Script:ShowGuiRuntimeFailureScript
+	$updateCurrentTabContentScript = ${function:Update-CurrentTabContent}
+	$startGuiPerfScopeScript = Get-GuiFunctionCapture -Name 'Start-GuiPerfScope'
+	$stopGuiPerfScopeScript = Get-GuiFunctionCapture -Name 'Stop-GuiPerfScope'
+	$startupHydratePrimaryTab = if (-not [string]::IsNullOrWhiteSpace([string]$Script:StartupHydratePrimaryTab)) { [string]$Script:StartupHydratePrimaryTab } else { 'Initial Setup' }
+	$startupRestoreSessionPending = [bool]$Script:StartupRestoreSessionPending
+	$initialTabBuildAction = {
+		$__perf = if ($startGuiPerfScopeScript) { & $startGuiPerfScopeScript -Name 'BuildPrimaryTabs.InitialTabHydrate' } else { $null }
 		try
 		{
-			$null = Invoke-GuiDispatcherAction -Dispatcher $PrimaryTabs.Dispatcher -PriorityUsage 'IdleFinalize' -Action {
+			& $updateCurrentTabContentScript -SkipIdlePrebuild
+		}
+		catch
+		{
+			if ($showGuiRuntimeFailureCapture) { $null = & $showGuiRuntimeFailureCapture -Context 'InitialTabBuild' -Exception $_.Exception -ShowDialog }
+			else { Write-Warning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'GUI event failed [InitialTabBuild]') }
+		}
+		finally
+		{
+			if ($stopGuiPerfScopeScript) { & $stopGuiPerfScopeScript -Scope $__perf }
+		}
+	}.GetNewClosure()
+
+	if ($PrimaryTabs.Items.Count -gt 0)
+	{
+		try
+		{
+			$null = Invoke-GuiDispatcherAction -Dispatcher $PrimaryTabs.Dispatcher -PriorityUsage 'Immediate' -Action {
 					try
 					{
 						$firstTab = if ($PrimaryTabs.Items.Count -gt 0) { $PrimaryTabs.Items[0] } else { $null }
 						$selectedTab = if ($PrimaryTabs.SelectedItem) { $PrimaryTabs.SelectedItem } else { $null }
-						$targetTab = if ($selectedTab) { $selectedTab } else { $firstTab }
+						$startupTargetTab = $null
+						if (-not [string]::IsNullOrWhiteSpace($startupHydratePrimaryTab))
+						{
+							foreach ($tabItem in $PrimaryTabs.Items)
+							{
+								if (($tabItem -is [System.Windows.Controls.TabItem]) -and $tabItem.Tag -and ([string]$tabItem.Tag -eq $startupHydratePrimaryTab))
+								{
+									$startupTargetTab = $tabItem
+									break
+								}
+							}
+						}
+						$targetTab = if ($startupTargetTab) { $startupTargetTab } elseif ($selectedTab) { $selectedTab } else { $firstTab }
 						if ($null -eq $targetTab)
 						{
 							return
 						}
 
-						if ($null -eq $selectedTab -and $PrimaryTabs.SelectedItem -ne $targetTab)
+						if ($PrimaryTabs.SelectedItem -ne $targetTab)
 						{
 							$PrimaryTabs.SelectedItem = $targetTab
 						}
@@ -579,12 +614,18 @@
 							$Script:LastStandardPrimaryTab = [string]$targetTab.Tag
 						}
 
-						Update-CurrentTabContent
+						if (-not $startupRestoreSessionPending)
+						{
+							$null = $PrimaryTabs.Dispatcher.BeginInvoke(
+								[System.Action]$initialTabBuildAction,
+								[System.Windows.Threading.DispatcherPriority]::Background
+							)
+						}
 					}
 					catch
 					{
 						if ($showGuiRuntimeFailureCapture) { $null = & $showGuiRuntimeFailureCapture -Context 'InitialTabBuild' -Exception $_.Exception -ShowDialog }
-						else { Write-Warning ("GUI event failed [InitialTabBuild]: {0}" -f $_.Exception.Message) }
+						else { Write-Warning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'GUI event failed [InitialTabBuild]') }
 					}
 					finally
 					{

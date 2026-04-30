@@ -166,7 +166,7 @@
 			}
 			catch
 			{
-				LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionAppQueueStateFailed' -Fallback 'Failed to queue app state for execution: {0}' -FormatArgs @($_.Exception.Message))
+				LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionAppQueueStateFailed' -Fallback 'Failed to queue app state for execution'))
 			}
 		}
 		$targetName = if (-not [string]::IsNullOrWhiteSpace([string]$resolvedDisplayName))
@@ -426,7 +426,7 @@
 					}
 					catch
 					{
-						LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionAppTimerQueueEntryFailed' -Fallback '[AppTimer] Queue entry failed [{0}]: {1}' -FormatArgs @($(if ($qEntry -and (Test-GuiObjectField -Object $qEntry -FieldName 'Kind')) { [string]$qEntry.Kind } else { '<unknown>' }), $_.Exception.Message))
+						LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionAppTimerQueueEntryFailed' -Fallback '[AppTimer] Queue entry failed [{0}]' -FormatArgs @($(if ($qEntry -and (Test-GuiObjectField -Object $qEntry -FieldName 'Kind')) { [string]$qEntry.Kind } else { '<unknown>' }))))
 					}
 					finally
 					{
@@ -505,7 +505,7 @@
 						}
 						catch
 						{
-							LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionAppStateSyncFailed' -Fallback 'Failed to sync app action state after execution: {0}' -FormatArgs @($_.Exception.Message))
+							LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionAppStateSyncFailed' -Fallback 'Failed to sync app action state after execution'))
 						}
 					}
 
@@ -527,7 +527,7 @@
 				}
 				catch
 				{
-					LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionAppTimerUpdateFailed' -Fallback '[AppTimer] Execution UI update failed: {0}' -FormatArgs @($_.Exception.Message))
+					LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionAppTimerUpdateFailed' -Fallback '[AppTimer] Execution UI update failed'))
 					try { Clear-UILogHandler } catch { $null = $_ }
 					try { Remove-Variable -Name 'GUIRunState' -Scope Global -ErrorAction SilentlyContinue } catch { $null = $_ }
 					try { Exit-ExecutionView } catch { $null = $_ }
@@ -1330,7 +1330,7 @@
 				}
 				catch
 				{
-					LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionPostRunSnapshotFailed' -Fallback 'Failed to capture post-run snapshot: {0}' -FormatArgs @($_.Exception.Message))
+					LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionPostRunSnapshotFailed' -Fallback 'Failed to capture post-run snapshot'))
 				}
 			}
 
@@ -1359,13 +1359,13 @@
 				}
 				catch
 				{
-					LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionAutoSaveLastRunProfileFailed' -Fallback 'Failed to auto-save last run profile: {0}' -FormatArgs @($_.Exception.Message))
+					LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionAutoSaveLastRunProfileFailed' -Fallback 'Failed to auto-save last run profile'))
 				}
 			}
 		}
 		catch
 		{
-			LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionSummaryFailed' -Fallback 'Failed to build execution summary details: {0}' -FormatArgs @($_.Exception.Message))
+			LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionSummaryFailed' -Fallback 'Failed to build execution summary details'))
 			# Fall through to show the summary dialog with whatever we have
 		}
 
@@ -1458,7 +1458,7 @@
 				}
 				catch
 				{
-					LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionRollbackProfileExportFailed' -Fallback 'Failed to export rollback profile: {0}' -FormatArgs @($_.Exception.Message))
+					LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionRollbackProfileExportFailed' -Fallback 'Failed to export rollback profile'))
 					[void](Show-ThemedDialog -Title $undoProfileActionLabel -Message (Get-UxLocalizedString -Key 'GuiLogExecutionRollbackProfileExportFailed' -Fallback '' -FormatArgs @($_.Exception.Message)) -Buttons @('OK') -AccentButton 'OK')
 				}
 
@@ -1665,7 +1665,7 @@
 			}
 			catch
 			{
-				LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionCompleteFailed' -Fallback 'Remote GUI run failed: {0}' -FormatArgs @($_.Exception.Message))
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionCompleteFailed' -Fallback 'Remote GUI run failed'))
 				[void](Show-ThemedDialog -Title (Get-UxLocalizedString -Key 'GuiRemoteConnectTitle' -Fallback 'Connect to Computer') -Message ((Get-UxLocalizedString -Key 'GuiRemoteConnectFailed' -Fallback "Remote execution failed.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 				return
 			}
@@ -1750,7 +1750,7 @@
 		}
 		catch
 		{
-			LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionPreRunSnapshotFailed' -Fallback 'Failed to capture pre-run snapshot: {0}' -FormatArgs @($_.Exception.Message))
+			LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionPreRunSnapshotFailed' -Fallback 'Failed to capture pre-run snapshot'))
 		}
 
 		# Track this apply run in session statistics
@@ -2214,7 +2214,7 @@
 							}
 						}
 
-						LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionQueueEntryFailed' -Fallback '[Timer] Queue entry failed [{0}]: {1}' -FormatArgs @($entryLabel, $_.Exception.Message))
+						LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionQueueEntryFailed' -Fallback '[Timer] Queue entry failed [{0}]' -FormatArgs @($entryLabel)))
 					}
 					finally
 					{
@@ -2370,7 +2370,7 @@
 					}
 					catch
 					{
-						LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionWriteAuditRecordFailed' -Fallback '[Timer] Write-AuditRecord failed: {0}' -FormatArgs @($_.Exception.Message))
+						LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionWriteAuditRecordFailed' -Fallback '[Timer] Write-AuditRecord failed'))
 					}
 
 					# Match the headless contract: pin
@@ -2416,8 +2416,8 @@
 				}
 				catch
 				{
-					LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionCompleteFailed' -Fallback '[Timer] Complete-GuiExecutionRun FAILED: {0}' -FormatArgs @($_.Exception.Message))
-					LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionCompleteFailedDetail' -Fallback 'Complete-GuiExecutionRun failed: {0}' -FormatArgs @($_.Exception.Message))
+					LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionCompleteFailed' -Fallback '[Timer] Complete-GuiExecutionRun FAILED'))
+					LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionCompleteFailedDetail' -Fallback 'Complete-GuiExecutionRun failed'))
 					# Ensure the GUI is restored even if the completion handler fails
 					try { Exit-ExecutionView } catch { $null = $_ }
 				}
@@ -2431,8 +2431,8 @@
 				if (-not $Script:ExecutionTimerErrorShown)
 				{
 					$Script:ExecutionTimerErrorShown = $true
-					LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionOuterCatch' -Fallback '[Timer] OUTER CATCH: {0}' -FormatArgs @($_.Exception.Message))
-					LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionUpdateFailedDetail' -Fallback 'Execution UI update failed: {0}' -FormatArgs @($_.Exception.Message))
+					LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionOuterCatch' -Fallback '[Timer] OUTER CATCH'))
+					LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionUpdateFailedDetail' -Fallback 'Execution UI update failed'))
 				}
 				if ($Script:ExecutionRunTimer)
 				{
@@ -2478,7 +2478,7 @@
 		}
 		catch
 		{
-			LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionTimerStartFailed' -Fallback '[Timer] Failed to start execution pump: {0}' -FormatArgs @($_.Exception.Message))
+			LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionTimerStartFailed' -Fallback '[Timer] Failed to start execution pump'))
 			if ($Script:ExecutionRunTimer)
 			{
 				try { $Script:ExecutionRunTimer.Stop() } catch { $null = $_ }

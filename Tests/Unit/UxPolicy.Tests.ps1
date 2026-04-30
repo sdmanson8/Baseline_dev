@@ -24,6 +24,7 @@ BeforeAll {
     }
 
     $script:Localization = $null
+    $Global:Localization = $null
 }
 
 Describe 'UxPolicy' {
@@ -34,6 +35,7 @@ Describe 'UxPolicy' {
         $script:GameModeProfile = $null
         $script:DesignMode = $false
         $script:GuiDisplayVersion = $null
+        $Global:Localization = $null
     }
 
     It 'routes OS-info and validation-matrix lookup failures through Write-DebugSwallowedException' {
@@ -155,6 +157,18 @@ Describe 'UxPolicy' {
 
             Get-UxPresetEmphasisText | Should -Match 'Quick Start is recommended'
             Get-UxPresetEmphasisText | Should -Match 'your first run'
+            Get-UxPresetEmphasisText | Should -Not -Match '\{0\}'
+            Get-UxPresetEmphasisText | Should -Not -Match '^Start here'
+        }
+
+        It 'formats the localized Safe Mode preset emphasis instead of exposing placeholders' {
+            $script:SafeMode = $true
+            $Global:Localization = @{
+                GuiPresetQuickStart = 'Quick Start'
+                GuiPresetStartHereEmphasis = '{0} is recommended for your first run.'
+            }
+
+            Get-UxPresetEmphasisText | Should -Be 'Quick Start is recommended for your first run.'
         }
 
         It 'keeps the original non-Safe preset emphasis' {

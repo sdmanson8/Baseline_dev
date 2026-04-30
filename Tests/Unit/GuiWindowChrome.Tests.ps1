@@ -16,6 +16,8 @@ BeforeAll {
     $executionSummaryDialogPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionSummaryDialog.ps1'
     $guiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
     $applyThemePath = Join-Path $PSScriptRoot '../../Module/GUI/ApplyTheme.ps1'
+    $mainWindowPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
+    $environmentHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Environment.Helpers.ps1'
 
     $guiCommonContent = @(
         Get-Content -LiteralPath $guiCommonPath -Raw -Encoding UTF8
@@ -38,6 +40,8 @@ BeforeAll {
     $executionSummaryDialogCommonContent = Get-Content -LiteralPath $executionSummaryDialogCommonPath -Raw -Encoding UTF8
     $dpiAwarenessContent = Get-Content -LiteralPath $dpiAwarenessPath -Raw -Encoding UTF8
     $guiContent = (Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8) + "`n" + (Get-Content -LiteralPath $applyThemePath -Raw -Encoding UTF8)
+    $mainWindowContent = Get-Content -LiteralPath $mainWindowPath -Raw -Encoding UTF8
+    $environmentHelpersContent = Get-Content -LiteralPath $environmentHelpersPath -Raw -Encoding UTF8
 }
 
 Describe 'GUI window chrome theming' {
@@ -89,6 +93,25 @@ Describe 'GUI window chrome theming' {
         $guiContent | Should -Match 'GUICommon\\Set-GuiWindowChromeTheme -Window \$Form -UseDarkMode \(\$Script:CurrentThemeName -eq ''Dark''\)'
     }
 
+    It 'keeps custom windows visually rounded by not painting square host backgrounds' {
+        $mainWindowContent | Should -Match 'Background="Transparent"'
+        $mainWindowContent | Should -Match 'BorderBrush="Transparent"'
+        $mainWindowContent | Should -Match '<Border Name="RootBorder"[^>]*CornerRadius="8"[^>]*ClipToBounds="True"'
+        $mainWindowContent | Should -Match '<Grid Background="Transparent" Margin="0">'
+        $mainWindowContent | Should -Match '<Grid Grid\.Row="1" Background="Transparent" Margin="0">'
+        $mainWindowContent | Should -Match '<Border Name="BottomBorder"[^>]*CornerRadius="0,0,8,8"'
+        $mainWindowContent | Should -Match 'Name="SubmenuBorder"[^>]*CornerRadius="8"'
+        $environmentHelpersContent | Should -Match 'Background="Transparent"'
+        $environmentHelpersContent | Should -Match 'BorderBrush="Transparent"'
+        $environmentHelpersContent | Should -Match '<Border Name="RootBorder"[^>]*CornerRadius="8"[^>]*ClipToBounds="True"'
+        $environmentHelpersContent | Should -Match '<Grid Background="Transparent" Margin="0"'
+        $guiCommonContent | Should -Match '\$Window\.Background = \[System\.Windows\.Media\.Brushes\]::Transparent'
+        $guiCommonContent | Should -Match '\$RootBorder\.CornerRadius = \[System\.Windows\.CornerRadius\]::new\(8\)'
+        $guiCommonContent | Should -Match '\$RootBorder\.ClipToBounds = \$true'
+        $guiCommonContent | Should -Match '\$dlgRoundedBorder\.ClipToBounds = \$true'
+        $guiCommonContent | Should -Match '\$btnBorder\.CornerRadius = \[System\.Windows\.CornerRadius\]::new\(0, 0, 8, 8\)'
+    }
+
     It 'dot-sources the language catalog and removes the close-time save prompt' {
         $guiContent | Should -Match 'LanguageCatalog\.ps1'
         $guiContent | Should -Not -Match 'GuiSaveSessionTitle'
@@ -102,6 +125,8 @@ Describe 'GUI window chrome theming' {
         $guiContent | Should -Match 'Set-WindowCaptionButtonStyle -Button \$BtnMinimize'
         $guiContent | Should -Match 'Set-WindowCaptionButtonStyle -Button \$BtnMaximize'
         $guiContent | Should -Match 'Set-WindowCaptionButtonStyle -Button \$BtnClose -Variant ''Close'''
+        $guiCommonContent | Should -Match 'Set-WindowCaptionButtonStyle -Button \$dlgCloseBtn -Variant ''Close'''
+        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Dialogs\.ShowThemedDialog\.SetCloseButtonStyle'''
     }
 
     It 'routes header toggle and menu sync fallback failures through Write-DebugSwallowedException' {

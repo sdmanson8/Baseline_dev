@@ -22,17 +22,20 @@ Describe 'MainWindow.xaml accessibility coverage' {
         }
     }
 
-    It 'starts hidden while the startup splash owns presentation handoff' {
-        $script:xamlText | Should -Match 'Opacity="0"'
-        $script:xamlText | Should -Match 'ShowInTaskbar="False"'
+    It 'starts as a real taskbar window while the startup splash stays topmost' {
+        $script:xamlText | Should -Match 'Opacity="1"'
+        $script:xamlText | Should -Match 'ShowInTaskbar="True"'
         $script:xamlText | Should -Match 'MenuFileSettings'
         $script:xamlText | Should -Not -Match 'MenuViewTheme'
     }
 
     It 'uses one dynamic Safe or Expert label on the header mode toggle' {
         $script:xamlText | Should -Not -Match 'TxtSafeModeLabel|TxtExpertModeLabel'
+        $script:xamlText | Should -Match 'Name="SafeModeGroup"[^>]+Orientation="Horizontal"[^>]+Margin="0,0,12,0"[^>]+VerticalAlignment="Center"'
         $script:xamlText | Should -Match 'Name="ChkSafeMode"[^>]+Content="Safe Mode"'
+        $script:xamlText | Should -Match 'Name="ChkSafeMode"[^>]+VerticalContentAlignment="Center"'
         $script:xamlText | Should -Match 'AutomationProperties.Name="Safe / Expert mode"'
+        $script:xamlText | Should -Match 'Name="TxtAdvancedModeState"[^>]+Visibility="Collapsed"'
     }
 }
 

@@ -55,8 +55,17 @@
 				[switch]$SkipIdlePrebuild
 			)
 
+			$__perf = Start-GuiPerfScope -Name 'UpdateCurrentTabContent' -Note ([string]$Script:CurrentPrimaryTab)
+			try
+			{
 			if ($Script:AppsModeActive) { return }
 
+			if ($Script:UpdatesModeActive)
+			{
+				$targetTab = 'Updates'
+			}
+			else
+			{
 			if ($PrimaryTabs -and ($null -eq $PrimaryTabs.SelectedItem -or -not $PrimaryTabs.SelectedItem.Tag))
 			{
 				$resolvedSelection = $null
@@ -104,16 +113,17 @@
 			}
 
 			$targetTab = if ($PrimaryTabs -and $PrimaryTabs.SelectedItem -and $PrimaryTabs.SelectedItem.Tag)
-		{
-			[string]$PrimaryTabs.SelectedItem.Tag
-		}
-		elseif ($Script:CurrentPrimaryTab)
-		{
-			[string]$Script:CurrentPrimaryTab
-		}
-		else
-		{
-			$null
+			{
+				[string]$PrimaryTabs.SelectedItem.Tag
+			}
+			elseif ($Script:CurrentPrimaryTab)
+			{
+				[string]$Script:CurrentPrimaryTab
+			}
+			else
+			{
+				$null
+			}
 			}
 
 			if ([string]::IsNullOrWhiteSpace($targetTab)) { return }
@@ -180,6 +190,11 @@
 			{
 				throw "Update-CurrentTabContent/BuildTabContent for tab '$targetTab' failed: $($_.Exception.Message)"
 			}
+			}
+			finally
+			{
+				Stop-GuiPerfScope -Scope $__perf
+			}
 		}
 
 	. (Join-Path $Script:GuiExtractedRoot 'ModeState.ps1')
@@ -200,8 +215,8 @@
 		if (-not $Script:SecondaryActionGroupBorder) { return }
 		$bc = New-SafeBrushConverter -Context 'Set-SecondaryActionGroupStyle'
 		$Script:SecondaryActionGroupBorder.Background = $bc.ConvertFromString($Script:CurrentTheme.CardBg)
-		$Script:SecondaryActionGroupBorder.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.BorderColor)
-		$Script:SecondaryActionGroupBorder.Opacity = 0.7
+		$Script:SecondaryActionGroupBorder.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.CardBorder)
+		$Script:SecondaryActionGroupBorder.Opacity = 0.85
 	}
 
 	<#

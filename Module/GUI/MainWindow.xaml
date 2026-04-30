@@ -6,27 +6,31 @@
 	MinWidth="__GuiWindowMinWidth__" MinHeight="__GuiWindowMinHeight__"
 	WindowStartupLocation="CenterScreen"
 	FontFamily="FluentSystemIcons" FontSize="13"
-	ShowInTaskbar="False"
+	ShowInTaskbar="True"
 	WindowStyle="None"
 	AllowsTransparency="True"
 	Background="Transparent"
-	Opacity="0"
-	ResizeMode="CanResizeWithGrip">
-	<Border Name="RootBorder" CornerRadius="8" Background="#1E1E2E" BorderBrush="#333346" BorderThickness="1" Margin="0">
+	BorderBrush="Transparent"
+	BorderThickness="0"
+	Opacity="1"
+	ResizeMode="CanResizeWithGrip"
+	SnapsToDevicePixels="True"
+	UseLayoutRounding="True">
+	<Border Name="RootBorder" CornerRadius="8" Background="{DynamicResource Brush.WindowBg}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" Margin="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SnapsToDevicePixels="True" ClipToBounds="True">
 	<Border.Resources>
 		<!-- Themed scrollbar brushes; replaced at runtime by Set-GUITheme -->
-		<SolidColorBrush x:Key="ScrollBarTrackBrush"       Color="#1E1E2E"/>
-		<SolidColorBrush x:Key="ScrollBarThumbBrush"       Color="#4A4D5E"/>
-		<SolidColorBrush x:Key="ScrollBarThumbHoverBrush"  Color="#6C7086"/>
-		<SolidColorBrush x:Key="ScrollBarThumbActiveBrush" Color="#7F849C"/>
+		<SolidColorBrush x:Key="ScrollBarTrackBrush"       Color="#151824"/>
+		<SolidColorBrush x:Key="ScrollBarThumbBrush"       Color="#3A4561"/>
+		<SolidColorBrush x:Key="ScrollBarThumbHoverBrush"  Color="#4D5875"/>
+		<SolidColorBrush x:Key="ScrollBarThumbActiveBrush" Color="#5E6C8E"/>
 		<!-- Apps filter radio dial brushes; replaced at runtime by Update-GuiScrollBarTheme.
 		     Must be pre-seeded here so setBrush updates the existing brush in place
 		     (otherwise PowerShell wraps the new value as PSObject and WPF throws). -->
-		<SolidColorBrush x:Key="RadioForeground"  Color="#CDD6F4"/>
-		<SolidColorBrush x:Key="RadioRingNormal"  Color="#4C556D"/>
-		<SolidColorBrush x:Key="RadioRingHover"   Color="#60A5FA"/>
-		<SolidColorBrush x:Key="RadioRingChecked" Color="#89B4FA"/>
-		<SolidColorBrush x:Key="RadioDotFill"     Color="#89B4FA"/>
+		<SolidColorBrush x:Key="RadioForeground"  Color="#F4F7FF"/>
+		<SolidColorBrush x:Key="RadioRingNormal"  Color="#3A4561"/>
+		<SolidColorBrush x:Key="RadioRingHover"   Color="#9ACAFF"/>
+		<SolidColorBrush x:Key="RadioRingChecked" Color="#7CB7FF"/>
+		<SolidColorBrush x:Key="RadioDotFill"     Color="#7CB7FF"/>
 
 		<Style x:Key="BaselineScrollBarThumbStyle" TargetType="Thumb">
 			<Setter Property="OverridesDefaultStyle" Value="True"/>
@@ -192,29 +196,29 @@
 			</Setter>
 		</Style>
 	</Border.Resources>
-	<Grid>
+	<Grid Background="Transparent" Margin="0">
 		<!-- Custom title bar -->
 		<Grid.RowDefinitions>
 			<RowDefinition Height="Auto"/>
 			<RowDefinition Height="*"/>
 		</Grid.RowDefinitions>
-		<Border Name="TitleBar" Grid.Row="0" Background="#181825" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
+		<Border Name="TitleBar" Grid.Row="0" Background="{DynamicResource Brush.HeaderBg}" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
 			<Grid>
 				<Grid.ColumnDefinitions>
 					<ColumnDefinition Width="Auto"/>
 					<ColumnDefinition Width="*"/>
 					<ColumnDefinition Width="Auto"/>
 				</Grid.ColumnDefinitions>
-				<Image Name="TitleBarLogo" Grid.Column="0" Width="18" Height="18" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"/>
-				<TextBlock Name="TitleBarText" Grid.Column="1" Text="" VerticalAlignment="Center" FontSize="12" Foreground="#CDD6F4"/>
+				<Image Name="TitleBarLogo" Grid.Column="0" Width="18" Height="18" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0" SnapsToDevicePixels="True" UseLayoutRounding="True" RenderOptions.BitmapScalingMode="HighQuality"/>
+				<TextBlock Name="TitleBarText" Grid.Column="1" Text="" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource Brush.TextPrimary}"/>
 				<StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-					<Button Name="BtnMinimize" Content="&#x2212;" FontFamily="Arial" FontSize="12" Width="36" Height="28" Background="Transparent" Foreground="#CDD6F4" BorderThickness="0" Cursor="Hand" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-					<Button Name="BtnMaximize" Content="&#x25A1;" FontFamily="Arial" FontSize="10" Width="36" Height="28" Background="Transparent" Foreground="#CDD6F4" BorderThickness="0" Cursor="Hand" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-					<Button Name="BtnClose" Content="×" FontFamily="Arial" FontSize="12" Width="36" Height="28" Background="Transparent" Foreground="#CDD6F4" BorderThickness="0" Cursor="Hand" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+					<Button Name="BtnMinimize" Content="&#x2212;" FontFamily="Arial" FontSize="12" Width="36" Height="28" Background="Transparent" Foreground="{DynamicResource Brush.TextPrimary}" BorderThickness="0" Cursor="Hand" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+					<Button Name="BtnMaximize" Content="&#x25A1;" FontFamily="Arial" FontSize="10" Width="36" Height="28" Background="Transparent" Foreground="{DynamicResource Brush.TextPrimary}" BorderThickness="0" Cursor="Hand" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+					<Button Name="BtnClose" Content="×" FontFamily="Arial" FontSize="12" Width="36" Height="28" Background="Transparent" Foreground="{DynamicResource Brush.TextPrimary}" BorderThickness="0" Cursor="Hand" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
 				</StackPanel>
 			</Grid>
 		</Border>
-	<Grid Grid.Row="1">
+	<Grid Grid.Row="1" Background="Transparent" Margin="0">
 		<Grid.RowDefinitions>
 			<RowDefinition Height="Auto"/>
 			<RowDefinition Height="Auto"/>
@@ -229,18 +233,18 @@
 			<Menu Name="MainMenuBar" Background="Transparent" Foreground="{DynamicResource MenuBarForeground}" FontFamily="Segoe UI" FontSize="12" Padding="0">
 				<Menu.Resources>
 					<!-- Themed fallback brushes; replaced at runtime by Set-GUITheme -->
-					<SolidColorBrush x:Key="MenuBarBackground" Color="#181825"/>
-					<SolidColorBrush x:Key="MenuBarBorder" Color="#4C556D"/>
-					<SolidColorBrush x:Key="MenuBarForeground" Color="#CDD6F4"/>
+					<SolidColorBrush x:Key="MenuBarBackground" Color="#151824"/>
+					<SolidColorBrush x:Key="MenuBarBorder" Color="#293044"/>
+					<SolidColorBrush x:Key="MenuBarForeground" Color="#F4F7FF"/>
 					<SolidColorBrush x:Key="MenuBarHoverBg" Color="#3670B8"/>
 					<SolidColorBrush x:Key="MenuBarHoverFg" Color="#FFFFFF"/>
-					<SolidColorBrush x:Key="MenuSubmenuBg" Color="#272B3A"/>
-					<SolidColorBrush x:Key="MenuSubmenuBorder" Color="#4C556D"/>
-					<SolidColorBrush x:Key="MenuSeparatorBrush" Color="#4C556D"/>
+					<SolidColorBrush x:Key="MenuSubmenuBg" Color="#202638"/>
+					<SolidColorBrush x:Key="MenuSubmenuBorder" Color="#293044"/>
+					<SolidColorBrush x:Key="MenuSeparatorBrush" Color="#293044"/>
 
 					<!-- Top-level MenuItem (header in the menu bar) -->
 					<ControlTemplate x:Key="BaselineTopMenuItemTemplate" TargetType="MenuItem">
-						<Border Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+						<Border Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4" SnapsToDevicePixels="True">
 							<ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
 						</Border>
 						<ControlTemplate.Triggers>
@@ -257,7 +261,7 @@
 
 					<!-- Submenu MenuItem (items inside a dropdown) -->
 					<ControlTemplate x:Key="BaselineSubMenuItemTemplate" TargetType="MenuItem">
-						<Border Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+						<Border Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4" SnapsToDevicePixels="True">
 							<Grid>
 								<Grid.ColumnDefinitions>
 									<ColumnDefinition Width="18"/>
@@ -286,11 +290,11 @@
 					<!-- TopLevelHeader with themed submenu popup chrome -->
 					<ControlTemplate x:Key="BaselineTopMenuHeaderTemplate" TargetType="MenuItem">
 						<Grid>
-							<Border Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+							<Border Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4" SnapsToDevicePixels="True">
 								<ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
 							</Border>
 							<Popup Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsSubmenuOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
-								<Border Name="SubmenuBorder" Background="{DynamicResource MenuSubmenuBg}" BorderBrush="{DynamicResource MenuSubmenuBorder}" BorderThickness="1" Padding="2" SnapsToDevicePixels="True">
+								<Border Name="SubmenuBorder" Background="{DynamicResource MenuSubmenuBg}" BorderBrush="{DynamicResource MenuSubmenuBorder}" BorderThickness="1" CornerRadius="8" Padding="4" SnapsToDevicePixels="True">
 									<StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
 								</Border>
 							</Popup>
@@ -396,7 +400,7 @@
 			</Menu>
 		</Border>
 		<!-- Remote Mode banner (visible only when a remote session is active) -->
-		<Border Name="RemoteModeBanner" Grid.Row="1" Visibility="Collapsed" Background="#3670B8" Padding="12,6">
+		<Border Name="RemoteModeBanner" Grid.Row="1" Visibility="Collapsed" Background="{DynamicResource Brush.Accent}" Padding="12,6">
 			<Grid>
 				<Grid.ColumnDefinitions>
 					<ColumnDefinition Width="*"/>
@@ -404,11 +408,11 @@
 				</Grid.ColumnDefinitions>
 				<TextBlock Name="RemoteModeBannerText" Grid.Column="0"
 					Text="Remote Mode" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold"
-					Foreground="#FFFFFF" VerticalAlignment="Center"
+					Foreground="{DynamicResource Brush.TextPrimary}" VerticalAlignment="Center"
 					TextTrimming="CharacterEllipsis"/>
 				<Button Name="BtnRemoteModeBannerDisconnect" Grid.Column="1"
 					Content="Disconnect" FontFamily="Segoe UI" FontSize="11"
-					Foreground="#FFFFFF" Background="#274F84" BorderBrush="#FFFFFF" BorderThickness="1"
+					Foreground="{DynamicResource Brush.TextPrimary}" Background="{DynamicResource Brush.AccentPress}" BorderBrush="{DynamicResource Brush.TextPrimary}" BorderThickness="1"
 					Padding="10,2" Cursor="Hand" VerticalAlignment="Center"/>
 			</Grid>
 		</Border>
@@ -460,13 +464,11 @@
 					<!-- Separator between actions and state toggles -->
 					<Border Name="HeaderSeparator" Grid.Column="6" Width="1" Height="28"
 						Margin="6,0,12,0" VerticalAlignment="Center" Opacity="0.65"/>
-					<StackPanel Name="SafeModeGroup" Grid.Column="7" Orientation="Vertical" Margin="0,0,12,0" VerticalAlignment="Center">
-						<StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-							<CheckBox Name="ChkSafeMode" VerticalAlignment="Center" Content="Safe Mode" Margin="0,0,10,0" AutomationProperties.Name="Safe / Expert mode"/>
-							<CheckBox Name="ChkDesignMode" VerticalAlignment="Center" Content="Design Mode" Margin="0,0,10,0" ToolTip="Build a config using default values instead of reading live system state." Visibility="Collapsed"/>
-							<CheckBox Name="ChkGameMode" Visibility="Collapsed" AutomationProperties.Name="Game mode"/>
-						</StackPanel>
-						<TextBlock Name="TxtAdvancedModeState" Margin="2,4,0,0" FontSize="10" Text="" ToolTip=""/>
+					<StackPanel Name="SafeModeGroup" Grid.Column="7" Orientation="Horizontal" Margin="0,0,12,0" VerticalAlignment="Center">
+						<CheckBox Name="ChkSafeMode" VerticalAlignment="Center" VerticalContentAlignment="Center" Content="Safe Mode" Margin="0,0,10,0" AutomationProperties.Name="Safe / Expert mode"/>
+						<CheckBox Name="ChkDesignMode" VerticalAlignment="Center" Content="Design Mode" Margin="0,0,10,0" ToolTip="Build a config using default values instead of reading live system state." Visibility="Collapsed"/>
+						<CheckBox Name="ChkGameMode" Visibility="Collapsed" AutomationProperties.Name="Game mode"/>
+						<TextBlock Name="TxtAdvancedModeState" Visibility="Collapsed" Margin="0" FontSize="10" Text="" ToolTip=""/>
 					</StackPanel>
 					<StackPanel Name="ThemeToggleGroup" Grid.Column="8" Orientation="Vertical" VerticalAlignment="Center" Margin="0,0,12,0" Visibility="Collapsed">
 						<CheckBox Name="ChkTheme" VerticalAlignment="Center" Content="" AutomationProperties.Name="Toggle light or dark theme"/>
@@ -495,6 +497,7 @@
 					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Margin="0,0,0,8">
 						<StackPanel Orientation="Horizontal" Margin="0,0,0,2">
 							<RadioButton Name="NavModeTweaks" Content="" IsChecked="True" FontSize="11" Margin="0,0,10,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
+							<RadioButton Name="NavModeUpdates" Content="" FontSize="11" Margin="0,0,10,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
 							<RadioButton Name="NavModeApps" Content="" FontSize="11" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
 						</StackPanel>
 						<TextBlock Name="ModeSubtitle" Text="" HorizontalAlignment="Left" FontSize="10" Opacity="0.6" Margin="2,0,0,0"/>
@@ -540,11 +543,12 @@
 						<Setter Property="Template">
 							<Setter.Value>
 								<ControlTemplate TargetType="TabItem">
-									<Border Background="{TemplateBinding Background}"
+										<Border Background="{TemplateBinding Background}"
 											BorderBrush="{TemplateBinding BorderBrush}"
 											BorderThickness="{TemplateBinding BorderThickness}"
+											CornerRadius="6"
 											Padding="{TemplateBinding Padding}"
-											Margin="1,0"
+											Margin="2,0"
 											SnapsToDevicePixels="True"
 											Cursor="Hand">
 										<ContentPresenter
@@ -566,10 +570,10 @@
 					VerticalContentAlignment="Center" FontSize="13"/>
 			</Grid>
 		<!-- Expert Mode banner (visible only in Expert Mode) -->
-		<Border Name="ExpertModeBanner" Grid.Row="4" Visibility="Collapsed" Padding="6,4" Margin="8,0,8,0">
+		<Border Name="ExpertModeBanner" Grid.Row="4" Visibility="Collapsed" Padding="0" Margin="12,0,8,4" HorizontalAlignment="Left" BorderThickness="0" Background="Transparent">
 			<TextBlock Text=""
-				FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center"
-				Padding="12,2"/>
+				FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Left"
+				Padding="0"/>
 		</Border>
 		<!-- Content area (filled by tab selection) -->
 		<Border Name="ContentBorder" Grid.Row="5" Margin="8,0,8,4">
@@ -628,8 +632,9 @@
 											<Border Background="{TemplateBinding Background}"
 													BorderBrush="{TemplateBinding BorderBrush}"
 													BorderThickness="{TemplateBinding BorderThickness}"
+													CornerRadius="6"
 													Padding="{TemplateBinding Padding}"
-													Margin="1,0"
+													Margin="2,0"
 													SnapsToDevicePixels="True"
 													Cursor="Hand">
 												<ContentPresenter
@@ -676,7 +681,7 @@
 			</Grid>
 		</Border>
 		<!-- Bottom bar -->
-		<Border Name="BottomBorder" Grid.Row="6" Padding="10,14,10,8" BorderThickness="0,1,0,0">
+		<Border Name="BottomBorder" Grid.Row="6" Padding="10,14,10,8" BorderThickness="0,1,0,0" CornerRadius="0,0,8,8">
 			<Grid>
 				<Grid.RowDefinitions>
 					<RowDefinition Height="Auto"/>
@@ -717,8 +722,8 @@
 				</Grid>
 			</Grid>
 		</Border>
-		<Grid Name="UpdateDialogOverlay" Grid.RowSpan="6" Visibility="Collapsed" Background="#D8000000" Panel.ZIndex="1000">
-			<Border Name="UpdateDialogCard" Background="#1E1E2E" BorderBrush="#44888888" BorderThickness="1" CornerRadius="8" Padding="24" Width="450" HorizontalAlignment="Center" VerticalAlignment="Center">
+		<Grid Name="UpdateDialogOverlay" Grid.RowSpan="6" Visibility="Collapsed" Background="{DynamicResource Brush.Overlay}" Panel.ZIndex="1000">
+			<Border Name="UpdateDialogCard" Background="{DynamicResource Brush.SurfaceElevated}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="8" Padding="24" Width="450" HorizontalAlignment="Center" VerticalAlignment="Center">
 				<StackPanel>
 					<TextBlock Name="TxtOverlayTitle" Text="" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10"/>
 					<TextBlock Name="TxtUpdateDescription" Text="" TextWrapping="Wrap" Opacity="0.8" Margin="0,0,0,20"/>

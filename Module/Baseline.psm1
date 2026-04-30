@@ -58,8 +58,9 @@ if (-not [string]::IsNullOrWhiteSpace([string]$stateRoot))
 }
 else
 {
-    $logDirectory = $env:TEMP
+    $logDirectory = Get-BaselineLogDirectory -FallbackRoot $env:TEMP
 }
+$logDirectory = Get-BaselineConfiguredLogDirectory -DefaultDirectory $logDirectory -FallbackRoot $env:TEMP
 
 $resolvedLogPath = [string]$global:LogFilePath
 if ([string]::IsNullOrWhiteSpace($resolvedLogPath))

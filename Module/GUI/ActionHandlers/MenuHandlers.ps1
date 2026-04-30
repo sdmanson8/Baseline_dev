@@ -15,7 +15,7 @@
 		{
 			try
 			{
-				LogWarning ("Menu click routing failed: {0}" -f $_.Exception.Message)
+				LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Menu click routing failed')
 			}
 			catch
 			{
@@ -46,6 +46,38 @@
 			if (& $testGuiRunInProgressCapture) { return }
 			try
 			{
+				$defaultLogFileDirectory = if (Get-Command -Name 'Get-BaselineLogDirectory' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					[string](Get-BaselineLogDirectory)
+				}
+				else
+				{
+					[System.IO.Path]::Combine([System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData), 'Baseline', 'UserState', 'Logs')
+				}
+				$customLogFileDirectory = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					[string](Get-BaselineUserPreference -Key 'LogFileDirectory' -Default '')
+				}
+				else
+				{
+					if ($Script:LogFileDirectory) { [string]$Script:LogFileDirectory } else { '' }
+				}
+				$runtimeDebugLoggingEnabled = if (Get-Command -Name 'Get-BaselineDebugLogging' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					[bool](Get-BaselineDebugLogging)
+				}
+				else
+				{
+					if ($null -ne $Script:DebugLoggingEnabled) { [bool]$Script:DebugLoggingEnabled } else { $false }
+				}
+				$debugLoggingEnabled = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					[bool](Get-BaselineUserPreference -Key 'DebugLoggingEnabled' -Default $runtimeDebugLoggingEnabled)
+				}
+				else
+				{
+					$runtimeDebugLoggingEnabled
+				}
 				$currentPrefs = @{
 					Language = if ($Script:SelectedLanguage) { [string]$Script:SelectedLanguage } else { 'en' }
 					DefaultStartupMode = if ($Script:DefaultStartupMode) { [string]$Script:DefaultStartupMode } else { 'Safe' }
@@ -68,9 +100,11 @@
 					AppsSilentInstall = if ($null -ne $Script:AppsSilentInstall) { [bool]$Script:AppsSilentInstall } else { $true }
 					AppsAutoUpdate = [bool]$Script:AppsAutoUpdate
 					LoggingEnabled = if ($null -ne $Script:LoggingEnabled) { [bool]$Script:LoggingEnabled } else { $true }
-					DebugLoggingEnabled = if (Get-Command -Name 'Get-BaselineDebugLogging' -ErrorAction SilentlyContinue) { [bool](Get-BaselineDebugLogging) } else { $false }
+					DebugLoggingEnabled = $debugLoggingEnabled
 					LogLevel = if ($Script:LogLevel) { [string]$Script:LogLevel } else { 'Info' }
 					LogFilePath = if ($Script:LogFilePath) { [string]$Script:LogFilePath } else { '' }
+					DefaultLogFileDirectory = $defaultLogFileDirectory
+					LogFileDirectory = $customLogFileDirectory
 					AdvancedMode = [bool]$Script:AdvancedMode
 					ExperimentalFeatures = [bool]$Script:ExperimentalFeatures
 					DesignMode = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'DesignMode' -Default $false) } else { [bool]$Script:DesignMode }
@@ -85,7 +119,7 @@
 					if (Get-Command -Name 'Apply-BaselineThemePreference' -CommandType Function -ErrorAction SilentlyContinue)
 					{
 						try { Apply-BaselineThemePreference -Preference ([string]$result.Theme) }
-						catch { LogWarning ("Apply-BaselineThemePreference failed: {0}" -f $_.Exception.Message) }
+						catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Apply-BaselineThemePreference failed') }
 					}
 					elseif ($ChkTheme)
 					{
@@ -109,17 +143,17 @@
 				$Script:AdvancedMode = $wantAdvanced
 				if ($wantAdvanced -and (Get-Command -Name 'Set-AdvancedModeState' -CommandType Function -ErrorAction SilentlyContinue))
 				{
-					try { Set-AdvancedModeState -Enabled $true } catch { LogWarning ("Set-AdvancedModeState failed: {0}" -f $_.Exception.Message) }
+					try { Set-AdvancedModeState -Enabled $true } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Set-AdvancedModeState failed') }
 				}
 				elseif ($wantSafe -and (Get-Command -Name 'Set-SafeModeState' -CommandType Function -ErrorAction SilentlyContinue))
 				{
-					try { Set-SafeModeState -Enabled $true } catch { LogWarning ("Set-SafeModeState failed: {0}" -f $_.Exception.Message) }
+					try { Set-SafeModeState -Enabled $true } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Set-SafeModeState failed') }
 				}
 				elseif ((-not $wantSafe) -and (-not $wantAdvanced))
 				{
 					if (Get-Command -Name 'Set-SafeModeState' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						try { Set-SafeModeState -Enabled $false } catch { LogWarning ("Set-SafeModeState off failed: {0}" -f $_.Exception.Message) }
+						try { Set-SafeModeState -Enabled $false } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Set-SafeModeState off failed') }
 					}
 				}
 				if ($result.ContainsKey('AuditRetentionDays'))
@@ -133,7 +167,7 @@
 				if ($result.ContainsKey('AppsPackageSourcePreference') -and $setAppPackageSourcePreferenceStateCommand)
 				{
 					try { & $setAppPackageSourcePreferenceStateCommand -Source ([string]$result.AppsPackageSourcePreference) }
-					catch { LogWarning ("Set-AppPackageSourcePreferenceState failed: {0}" -f $_.Exception.Message) }
+					catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Set-AppPackageSourcePreferenceState failed') }
 				}
 
 				# Stub preferences (persisted only):
@@ -159,7 +193,7 @@
 					$restoreLastSessionWanted = [bool]$result.RestoreLastSession
 					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
 					{
-						try { Set-BaselineUserPreference -Key 'RestoreLastSession' -Value $restoreLastSessionWanted } catch { LogWarning ("Persist RestoreLastSession failed: {0}" -f $_.Exception.Message) }
+						try { Set-BaselineUserPreference -Key 'RestoreLastSession' -Value $restoreLastSessionWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist RestoreLastSession failed') }
 					}
 					$Script:RestoreLastSession = $restoreLastSessionWanted
 				}
@@ -169,14 +203,14 @@
 					$hideUnavailWanted = [bool]$result.HideUnavailableItems
 					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
 					{
-						try { Set-BaselineUserPreference -Key 'HideUnavailableItems' -Value $hideUnavailWanted } catch { LogWarning ("Persist HideUnavailableItems failed: {0}" -f $_.Exception.Message) }
+						try { Set-BaselineUserPreference -Key 'HideUnavailableItems' -Value $hideUnavailWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist HideUnavailableItems failed') }
 					}
 				}
 				if ($result.ContainsKey('UIDensity'))
 				{
 					if (Get-Command -Name 'Set-BaselineUiDensity' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						try { Set-BaselineUiDensity -Density ([string]$result.UIDensity) } catch { LogWarning ("Set-BaselineUiDensity failed: {0}" -f $_.Exception.Message) }
+						try { Set-BaselineUiDensity -Density ([string]$result.UIDensity) } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Set-BaselineUiDensity failed') }
 					}
 					else
 					{
@@ -191,13 +225,14 @@
 				if ($result.ContainsKey('DebugLoggingEnabled'))
 				{
 					$debugWanted = [bool]$result.DebugLoggingEnabled
+					$Script:DebugLoggingEnabled = $debugWanted
 					if (Get-Command -Name 'Set-BaselineDebugLogging' -ErrorAction SilentlyContinue)
 					{
-						try { Set-BaselineDebugLogging -Enabled $debugWanted } catch { LogWarning ("Set-BaselineDebugLogging failed: {0}" -f $_.Exception.Message) }
+						try { Set-BaselineDebugLogging -Enabled $debugWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Set-BaselineDebugLogging failed') }
 					}
 					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
 					{
-						try { Set-BaselineUserPreference -Key 'DebugLoggingEnabled' -Value $debugWanted } catch { LogWarning ("Persist DebugLoggingEnabled failed: {0}" -f $_.Exception.Message) }
+						try { Set-BaselineUserPreference -Key 'DebugLoggingEnabled' -Value $debugWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist DebugLoggingEnabled failed') }
 					}
 					if ($debugWanted -and -not $env:BASELINE_PERF_LOG)
 					{
@@ -205,21 +240,90 @@
 					}
 				}
 				if ($result.ContainsKey('LogLevel')) { $Script:LogLevel = [string]$result.LogLevel }
-				if ($result.ContainsKey('LogFilePath')) { $Script:LogFilePath = [string]$result.LogFilePath }
+				if ($result.ContainsKey('LogFileDirectory'))
+				{
+					$requestedLogDirectory = [string]$result.LogFileDirectory
+					$defaultDirectory = if (Get-Command -Name 'Get-BaselineLogDirectory' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						[string](Get-BaselineLogDirectory)
+					}
+					else
+					{
+						[System.IO.Path]::Combine([System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData), 'Baseline', 'UserState', 'Logs')
+					}
+					$targetLogDirectory = if (Get-Command -Name 'Resolve-BaselineLogDirectory' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						[string](Resolve-BaselineLogDirectory -RequestedDirectory $requestedLogDirectory -DefaultDirectory $defaultDirectory)
+					}
+					elseif ([string]::IsNullOrWhiteSpace($requestedLogDirectory))
+					{
+						$defaultDirectory
+					}
+					else
+					{
+						[string]$requestedLogDirectory
+					}
+
+					$persistedLogDirectory = if ([string]::IsNullOrWhiteSpace($requestedLogDirectory)) { '' } else { $targetLogDirectory }
+					$Script:LogFileDirectory = $persistedLogDirectory
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'LogFileDirectory' -Value $persistedLogDirectory } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist LogFileDirectory failed') }
+					}
+
+					if (Get-Command -Name 'Set-LogFile' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						try
+						{
+							$currentLogPath = if ($global:LogFilePath) { [string]$global:LogFilePath } elseif ($Script:LogFilePath) { [string]$Script:LogFilePath } else { '' }
+							$nextLogPath = $null
+							if (-not [string]::IsNullOrWhiteSpace($currentLogPath))
+							{
+								$currentFileName = [System.IO.Path]::GetFileName($currentLogPath)
+								$currentParent = [System.IO.Path]::GetDirectoryName($currentLogPath)
+								$currentDateFolder = if (-not [string]::IsNullOrWhiteSpace($currentParent)) { [System.IO.Path]::GetFileName($currentParent) } else { (Get-Date).ToString('yyyy-MM-dd') }
+								$nextLogPath = [System.IO.Path]::Combine($targetLogDirectory, $currentDateFolder, $currentFileName)
+							}
+							elseif (Get-Command -Name 'New-BaselineSessionLogPath' -CommandType Function -ErrorAction SilentlyContinue)
+							{
+								$osNameForLog = if (Get-Command -Name 'Get-OSInfo' -CommandType Function -ErrorAction SilentlyContinue) { (Get-OSInfo).OSName } else { 'Windows' }
+								$nextLogPath = New-BaselineSessionLogPath -LogDirectory $targetLogDirectory -OsName $osNameForLog
+							}
+
+							if (-not [string]::IsNullOrWhiteSpace($nextLogPath) -and -not [string]::Equals($currentLogPath, $nextLogPath, [System.StringComparison]::OrdinalIgnoreCase))
+							{
+								$nextLogParent = [System.IO.Path]::GetDirectoryName($nextLogPath)
+								if (-not [System.IO.Directory]::Exists($nextLogParent)) { [void][System.IO.Directory]::CreateDirectory($nextLogParent) }
+								if (-not [string]::IsNullOrWhiteSpace($currentLogPath) -and [System.IO.File]::Exists($currentLogPath) -and -not [System.IO.File]::Exists($nextLogPath))
+								{
+									[System.IO.File]::Copy($currentLogPath, $nextLogPath, $false)
+								}
+								$global:LogFilePath = $nextLogPath
+								$Script:LogFilePath = $nextLogPath
+								Set-LogFile -Path $global:LogFilePath
+								LogInfo ("Settings dialog: active log folder set to '{0}'." -f $targetLogDirectory)
+							}
+						}
+						catch
+						{
+							LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Apply LogFileDirectory failed')
+						}
+					}
+				}
 				if ($result.ContainsKey('ExperimentalFeatures')) { $Script:ExperimentalFeatures = [bool]$result.ExperimentalFeatures }
 				if ($result.ContainsKey('DesignMode'))
 				{
 					$desiredDesignMode = [bool]$result.DesignMode
 					if (Get-Command -Name 'Set-DesignModeState' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						try { Set-DesignModeState -Enabled $desiredDesignMode } catch { LogWarning ("Set-DesignModeState failed: {0}" -f $_.Exception.Message) }
+						try { Set-DesignModeState -Enabled $desiredDesignMode } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Set-DesignModeState failed') }
 					}
 					else
 					{
 						$Script:DesignMode = $desiredDesignMode
 						if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
 						{
-							try { Set-BaselineUserPreference -Key 'DesignMode' -Value $desiredDesignMode } catch { LogWarning ("Persist DesignMode failed: {0}" -f $_.Exception.Message) }
+							try { Set-BaselineUserPreference -Key 'DesignMode' -Value $desiredDesignMode } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist DesignMode failed') }
 						}
 					}
 				}
@@ -264,7 +368,7 @@
 			}
 			catch
 			{
-				LogError (Get-UxBilingualLocalizedString -Key 'GuiLogAuditSettingsFailed' -Fallback 'Failed to update audit settings: {0}' -FormatArgs @($_.Exception.Message))
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogAuditSettingsFailed' -Fallback 'Failed to update audit settings'))
 				[void](Show-ThemedDialog -Title 'Audit Settings' -Message ("Failed to update audit settings.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}) | Out-Null
@@ -315,7 +419,7 @@
 			}
 			catch
 			{
-				LogError (Get-UxBilingualLocalizedString -Key 'GuiLogRemoteConnectFailed' -Fallback 'Failed to connect to remote target: {0}' -FormatArgs @($_.Exception.Message))
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogRemoteConnectFailed' -Fallback 'Failed to connect to remote target'))
 				[void](Show-ThemedDialog -Title (& $getUxLocalizedStringCapture -Key 'GuiRemoteConnectTitle' -Fallback 'Connect to Computer') -Message ((& $getUxLocalizedStringCapture -Key 'GuiRemoteConnectFailed' -Fallback "Failed to connect to remote target.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}) | Out-Null
@@ -344,7 +448,7 @@
 			}
 			catch
 			{
-				LogError (Get-UxBilingualLocalizedString -Key 'GuiLogRemoteDisconnectFailed' -Fallback 'Failed to disconnect remote target: {0}' -FormatArgs @($_.Exception.Message))
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogRemoteDisconnectFailed' -Fallback 'Failed to disconnect remote target'))
 				[void](Show-ThemedDialog -Title (& $getUxLocalizedStringCapture -Key 'GuiRemoteDisconnectTitle' -Fallback 'Disconnect') -Message ((& $getUxLocalizedStringCapture -Key 'GuiRemoteDisconnectFailed' -Fallback "Failed to disconnect remote target.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}) | Out-Null
@@ -510,7 +614,7 @@
 			{
 				try
 				{
-					LogWarning ("Getting Started menu open failed: {0}" -f $_.Exception.Message)
+					LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Getting Started menu open failed')
 				}
 				catch
 				{
@@ -541,7 +645,7 @@
 			{
 				try
 				{
-					LogWarning ("Readme open failed: {0}" -f $_.Exception.Message)
+					LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Readme open failed')
 				}
 				catch
 				{
@@ -588,7 +692,7 @@
 			{
 				try
 				{
-					LogWarning ("FAQ open failed: {0}" -f $_.Exception.Message)
+					LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'FAQ open failed')
 				}
 				catch
 				{
@@ -618,7 +722,7 @@
 			{
 				try
 				{
-					LogWarning ("Changelog open failed: {0}" -f $_.Exception.Message)
+					LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Changelog open failed')
 				}
 				catch
 				{
@@ -644,7 +748,7 @@
 			{
 				try
 				{
-					LogWarning ("Update check open failed: {0}" -f $_.Exception.Message)
+					LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Update check open failed')
 				}
 				catch
 				{
@@ -670,7 +774,7 @@
 			{
 				try
 				{
-					LogWarning ("Release status open failed: {0}" -f $_.Exception.Message)
+					LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Release status open failed')
 				}
 				catch
 				{
@@ -696,7 +800,7 @@
 			{
 				try
 				{
-					LogWarning ("Troubleshooting guide open failed: {0}" -f $_.Exception.Message)
+					LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Troubleshooting guide open failed')
 				}
 				catch
 				{

@@ -734,6 +734,148 @@ function Set-BaselineManifestAllAvailable
 	return $Manifest
 }
 
+function ConvertTo-BaselinePlatformLabelFromDictionary
+{
+	param (
+		[Parameter()]
+		[AllowNull()]
+		[System.Collections.IDictionary]$PlatformSupport
+	)
+
+	if (-not $PlatformSupport) { return 'Unknown' }
+
+	$win10 = $true
+	$win11 = $true
+	$server = $true
+	if ($PlatformSupport.Contains('Windows10')) { $win10 = [bool]$PlatformSupport['Windows10'] }
+	if ($PlatformSupport.Contains('Windows11')) { $win11 = [bool]$PlatformSupport['Windows11'] }
+	if ($PlatformSupport.Contains('Server'))
+	{
+		$serverRaw = $PlatformSupport['Server']
+		if ($serverRaw -is [System.Collections.IEnumerable] -and -not ($serverRaw -is [string]))
+		{
+			$server = (@($serverRaw).Count -gt 0)
+		}
+		else
+		{
+			$server = [bool]$serverRaw
+		}
+	}
+
+	if (-not $win10 -and -not $win11 -and -not $server) { return 'Unsupported' }
+	if ($win10 -and $win11 -and $server) { return 'Shared' }
+	if ($win10 -and $win11 -and -not $server) { return 'ClientOnly' }
+	if (-not $win10 -and -not $win11 -and $server) { return 'ServerOnly' }
+	if ($win10 -and -not $win11 -and -not $server) { return 'Windows10Only' }
+	if (-not $win10 -and $win11 -and -not $server) { return 'Windows11Only' }
+	return 'Mixed'
+}
+
+function Test-BaselineDictionaryPlatformSupportAvailable
+{
+	param (
+		[Parameter()]
+		[AllowNull()]
+		[System.Collections.IDictionary]$PlatformSupport,
+
+		[Parameter(Mandatory)]
+		[object]$SystemInfo
+	)
+
+	if (-not $PlatformSupport)
+	{
+		return [pscustomobject]@{ Available = $true; Reason = ''; Source = 'NoPlatformMetadata' }
+	}
+
+	$isServer = [bool]$SystemInfo.IsServer
+	$isWin10 = [bool]$SystemInfo.IsWindows10
+	$isWin11 = [bool]$SystemInfo.IsWindows11
+	[int]$build = [int]$SystemInfo.BuildNumber
+
+	$customReasonRaw = if ($PlatformSupport.Contains('UnavailableReason')) { $PlatformSupport['UnavailableReason'] } else { $null }
+	$customReason = if ($null -ne $customReasonRaw) { [string]$customReasonRaw } else { $null }
+
+	$serverHas = $PlatformSupport.Contains('Server')
+	$serverRaw = if ($serverHas) { $PlatformSupport['Server'] } else { $true }
+	$serverIsArray = $false
+	$serverAllowedReleases = @()
+	$serverVal = $true
+	if ($serverHas)
+	{
+		if ($serverRaw -is [System.Collections.IEnumerable] -and -not ($serverRaw -is [string]))
+		{
+			$serverIsArray = $true
+			$serverAllowedReleases = @($serverRaw | ForEach-Object { [string]$_ })
+			$serverVal = ($serverAllowedReleases.Count -gt 0)
+		}
+		else
+		{
+			$serverVal = [bool]$serverRaw
+		}
+	}
+	$win10Has = $PlatformSupport.Contains('Windows10')
+	$win10Val = if ($win10Has) { [bool]$PlatformSupport['Windows10'] } else { $true }
+	$win11Has = $PlatformSupport.Contains('Windows11')
+	$win11Val = if ($win11Has) { [bool]$PlatformSupport['Windows11'] } else { $true }
+
+	if ($isServer -and $serverHas -and -not $serverVal)
+	{
+		$reason = if ([string]::IsNullOrWhiteSpace($customReason)) { 'Not available on Windows Server.' } else { $customReason }
+		return [pscustomobject]@{ Available = $false; Reason = $reason; Source = 'PlatformSupport' }
+	}
+	elseif ($isServer -and $serverIsArray)
+	{
+		$currentRelease = if ($SystemInfo.PSObject.Properties['ServerRelease']) { [string]$SystemInfo.ServerRelease } else { '' }
+		if ([string]::IsNullOrWhiteSpace($currentRelease) -or ($serverAllowedReleases -notcontains $currentRelease))
+		{
+			$reason = if ([string]::IsNullOrWhiteSpace($customReason)) { 'Only available on Windows Server releases: {0}.' -f ($serverAllowedReleases -join ', ') } else { $customReason }
+			return [pscustomobject]@{ Available = $false; Reason = $reason; Source = 'PlatformSupport' }
+		}
+	}
+	elseif ($isWin10 -and $win10Has -and -not $win10Val)
+	{
+		$reason = if ([string]::IsNullOrWhiteSpace($customReason)) { 'Not available on Windows 10.' } else { $customReason }
+		return [pscustomobject]@{ Available = $false; Reason = $reason; Source = 'PlatformSupport' }
+	}
+	elseif ($isWin11 -and $win11Has -and -not $win11Val)
+	{
+		$reason = if ([string]::IsNullOrWhiteSpace($customReason)) { 'Not available on Windows 11.' } else { $customReason }
+		return [pscustomobject]@{ Available = $false; Reason = $reason; Source = 'PlatformSupport' }
+	}
+
+	$minBuildRaw = if ($PlatformSupport.Contains('MinBuild')) { $PlatformSupport['MinBuild'] } else { $null }
+	if ($minBuildRaw)
+	{
+		[int]$minBuild = [int]$minBuildRaw
+		if ($build -lt $minBuild)
+		{
+			return [pscustomobject]@{ Available = $false; Reason = ('Requires Windows build {0} or newer.' -f $minBuild); Source = 'MinBuild' }
+		}
+	}
+
+	$maxBuildRaw = if ($PlatformSupport.Contains('MaxBuild')) { $PlatformSupport['MaxBuild'] } else { $null }
+	if ($maxBuildRaw)
+	{
+		[int]$maxBuild = [int]$maxBuildRaw
+		if ($build -gt $maxBuild)
+		{
+			return [pscustomobject]@{ Available = $false; Reason = ('Only available up to Windows build {0}.' -f $maxBuild); Source = 'MaxBuild' }
+		}
+	}
+
+	$archesRaw = if ($PlatformSupport.Contains('Architectures')) { $PlatformSupport['Architectures'] } else { $null }
+	if ($archesRaw)
+	{
+		$allowed = @($archesRaw | ForEach-Object { [string]$_ })
+		if ($allowed.Count -gt 0 -and ($allowed -notcontains [string]$SystemInfo.Architecture))
+		{
+			return [pscustomobject]@{ Available = $false; Reason = ('Only available on architectures: {0}.' -f ($allowed -join ', ')); Source = 'Architecture' }
+		}
+	}
+
+	return [pscustomobject]@{ Available = $true; Reason = ''; Source = 'PlatformSupport' }
+}
+
 <#
     .SYNOPSIS
     Internal function Update-BaselineManifestAvailability.
@@ -809,9 +951,25 @@ function Update-BaselineManifestAvailability
 	{
 		if ($null -eq $entry) { continue }
 
-		$result = Test-BaselineEntryAvailable -Entry $entry -SystemInfo $SystemInfo
-		$support = Get-BaselineEntryFieldValue -Entry $entry -Name 'PlatformSupport'
-		$label = ConvertTo-BaselinePlatformLabel -PlatformSupport $support
+		$support = $null
+		$result = $null
+		$label = $null
+		if ($entry -is [System.Collections.IDictionary])
+		{
+			$support = if ($entry.Contains('PlatformSupport')) { $entry['PlatformSupport'] } else { $null }
+			if ($support -is [System.Collections.IDictionary])
+			{
+				$result = Test-BaselineDictionaryPlatformSupportAvailable -PlatformSupport $support -SystemInfo $SystemInfo
+				$label = ConvertTo-BaselinePlatformLabelFromDictionary -PlatformSupport $support
+			}
+		}
+
+		if (-not $result)
+		{
+			$result = Test-BaselineEntryAvailable -Entry $entry -SystemInfo $SystemInfo
+			$support = Get-BaselineEntryFieldValue -Entry $entry -Name 'PlatformSupport'
+			$label = ConvertTo-BaselinePlatformLabel -PlatformSupport $support
+		}
 
 		$availability = [pscustomobject]@{
 			Available = [bool]$result.Available

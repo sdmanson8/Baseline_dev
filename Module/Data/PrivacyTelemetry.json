@@ -1265,6 +1265,46 @@
       }
     },
     {
+      "Name": "PowerShell 7 Telemetry",
+      "Function": "Powershell7Telemetry",
+      "Type": "Toggle",
+      "Options": null,
+      "DisplayOptions": null,
+      "Default": false,
+      "WinDefault": true,
+      "Description": "PowerShell 7 telemetry collection",
+      "Detail": "PowerShell 7 sends anonymous usage data to Microsoft by default. Disabling opts out of this telemetry. Linked to the Install/Update PowerShell 7 option.",
+      "Caution": false,
+      "CautionReason": null,
+      "LinkedWith": "UpdatePowershell",
+      "Scannable": null,
+      "Restorable": true,
+      "OnParam": "Enable",
+      "OffParam": "Disable",
+      "ExtraArgs": null,
+      "SubCategory": null,
+      "SourceRegion": "PrivacyTelemetry",
+      "WinDefaultDesc": "PowerShell 7 telemetry is enabled",
+      "Risk": "Low",
+      "Tags": [
+        "privacy",
+        "telemetry",
+        "powershell"
+      ],
+      "Impact": "Low",
+      "Safe": true,
+      "RequiresRestart": false,
+      "WhyThisMatters": "PowerShell 7 sends anonymous usage data to Microsoft by default. Disabling opts out of this telemetry. Linked to the Install/Update PowerShell 7 option.",
+      "PresetTier": "Minimal",
+      "RecoveryLevel": "Direct",
+      "CompatibilitySensitivity": "Low",
+      "PlatformSupport": {
+        "Windows10": true,
+        "Windows11": true,
+        "Server": true
+      }
+    },
+    {
       "Name": "Shared Experiences",
       "Function": "SharedExperiences",
       "Type": "Toggle",

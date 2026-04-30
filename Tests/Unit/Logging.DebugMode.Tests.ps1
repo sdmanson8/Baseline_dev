@@ -115,10 +115,92 @@ Describe 'Write-DebugSwallowedException' {
         (Get-LogStatistics).DebugCount | Should -Be 1
     }
 
+    It 'records full ErrorRecord details when Debug Mode is on' {
+        Set-BaselineDebugLogging -Enabled $true
+        Set-LogFile -Path $script:tempLog -Clear
+        try {
+            Get-Item -LiteralPath (Join-Path $TestDrive 'missing-file.txt') -ErrorAction Stop
+        } catch {
+            Write-DebugSwallowedException -ErrorRecord $_ -Source 'Test.FullRecord'
+        }
+        Start-Sleep -Milliseconds 200
+        $content = [System.IO.File]::ReadAllText($script:tempLog)
+        $content | Should -Match '\[swallow\] Test.FullRecord'
+        $content | Should -Match 'Exception type:'
+        $content | Should -Match 'FullyQualifiedErrorId:'
+        $content | Should -Match 'CategoryInfo:'
+        $content | Should -Match 'Invocation:'
+        $content | Should -Match 'Script stack trace:'
+    }
+
     It 'never throws even on weird inputs' {
         Set-BaselineDebugLogging -Enabled $true
         Set-LogFile -Path $script:tempLog -Clear
         { Write-DebugSwallowedException -ErrorRecord 'plain string not an ErrorRecord' -Source 'Test.SiteY' } | Should -Not -Throw
+    }
+}
+
+Describe 'Write-BaselineError full error logging' {
+    BeforeEach {
+        $tempLog = Join-Path ([System.IO.Path]::GetTempPath()) ("baseline-error-record-{0}.log" -f ([guid]::NewGuid().ToString('N')))
+        $script:tempLog = $tempLog
+        $global:LogFilePath = $tempLog
+        Reset-LogStatistics
+    }
+    AfterEach {
+        if ($script:tempLog -and (Test-Path -LiteralPath $script:tempLog)) {
+            Remove-Item -LiteralPath $script:tempLog -Force -ErrorAction SilentlyContinue
+        }
+        $global:LogFilePath = $null
+    }
+
+    It 'preserves ErrorRecord metadata when LogError receives catch output' {
+        Set-LogFile -Path $script:tempLog -Clear
+        try {
+            Get-Item -LiteralPath (Join-Path $TestDrive 'missing-log-error.txt') -ErrorAction Stop
+        } catch {
+            LogError $_
+        }
+        Start-Sleep -Milliseconds 200
+        $content = [System.IO.File]::ReadAllText($script:tempLog)
+        $content | Should -Match 'ERROR:'
+        $content | Should -Match 'Exception type:'
+        $content | Should -Match 'FullyQualifiedErrorId:'
+        $content | Should -Match 'CategoryInfo:'
+        $content | Should -Match 'Invocation:'
+        $content | Should -Match 'Script stack trace:'
+    }
+}
+
+Describe 'Write-BaselineWarning full error logging' {
+    BeforeEach {
+        $tempLog = Join-Path ([System.IO.Path]::GetTempPath()) ("baseline-warning-record-{0}.log" -f ([guid]::NewGuid().ToString('N')))
+        $script:tempLog = $tempLog
+        $global:LogFilePath = $tempLog
+        Reset-LogStatistics
+    }
+    AfterEach {
+        if ($script:tempLog -and (Test-Path -LiteralPath $script:tempLog)) {
+            Remove-Item -LiteralPath $script:tempLog -Force -ErrorAction SilentlyContinue
+        }
+        $global:LogFilePath = $null
+    }
+
+    It 'preserves ErrorRecord metadata when LogWarning receives catch output' {
+        Set-LogFile -Path $script:tempLog -Clear
+        try {
+            Get-Item -LiteralPath (Join-Path $TestDrive 'missing-log-warning.txt') -ErrorAction Stop
+        } catch {
+            LogWarning $_
+        }
+        Start-Sleep -Milliseconds 200
+        $content = [System.IO.File]::ReadAllText($script:tempLog)
+        $content | Should -Match 'WARNING:'
+        $content | Should -Match 'Exception type:'
+        $content | Should -Match 'FullyQualifiedErrorId:'
+        $content | Should -Match 'CategoryInfo:'
+        $content | Should -Match 'Invocation:'
+        $content | Should -Match 'Script stack trace:'
     }
 }
 

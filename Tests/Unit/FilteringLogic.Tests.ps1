@@ -182,6 +182,12 @@ Describe 'Test-TweakVisibleInCurrentMode' {
         Test-TweakVisibleInCurrentMode -Tweak $tweak | Should -Be $true
     }
 
+    It 'honors VisibleIf before expert-mode visibility' {
+        $Script:AdvancedMode = $true
+        $tweak = [pscustomobject]@{ Risk = 'Low'; PresetTier = 'Basic'; Safe = $true; Type = 'Action'; Restorable = $false; Tags = @(); Function = 'CheckWinGet'; VisibleIf = { $false } }
+        Test-TweakVisibleInCurrentMode -Tweak $tweak | Should -Be $false
+    }
+
     It 'delegates to safe mode filter when safe mode is on' {
         $Script:SafeMode = $true
         $safetweak = [pscustomobject]@{ Risk = 'Low'; PresetTier = 'Basic'; Safe = $true; Type = 'Toggle'; Restorable = $true; Tags = @(); Function = 'SafeFunc' }
@@ -277,6 +283,13 @@ Describe 'Test-TweakMatchesCurrentFilters' {
     It 'matches tweak in correct tab with no filters' {
         $tweak = [pscustomobject]@{ Risk = 'Low'; PresetTier = 'Basic'; Category = 'System'; Tags = @(); Function = 'Test'; Name = 'Test'; Description = ''; Detail = ''; WhyThisMatters = ''; SubCategory = ''; Safe = $true; Impact = ''; RequiresRestart = $false; Type = 'Toggle'; Restorable = $true }
         Test-TweakMatchesCurrentFilters -Tweak $tweak -PrimaryTab 'System' -SearchQuery '' | Should -Be $true
+    }
+
+    It 'does not match hidden VisibleIf entries used by startup hooks' {
+        $Script:CategoryToPrimary = @{ 'Initial Setup' = 'Initial Setup' }
+        $Script:AdvancedMode = $true
+        $tweak = [pscustomobject]@{ Risk = 'Low'; PresetTier = 'Basic'; Category = 'Initial Setup'; Tags = @(); Function = 'CheckWinGet'; Name = 'Check WinGet'; Description = ''; Detail = ''; WhyThisMatters = ''; SubCategory = ''; Safe = $true; Impact = ''; RequiresRestart = $false; Type = 'Action'; Restorable = $false; VisibleIf = { $false } }
+        Test-TweakMatchesCurrentFilters -Tweak $tweak -PrimaryTab 'Initial Setup' -SearchQuery '' | Should -Be $false
     }
 
     It 'rejects tweak in wrong tab' {

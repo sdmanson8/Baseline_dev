@@ -28,6 +28,7 @@
     "DiagnosticDataLevel -Minimal",
     "ErrorReporting -Disable",
     "FeedbackFrequency -Never",
+    "Powershell7Telemetry -Disable",
     "ScheduledTasks -Disable",
     "UpdateMSRT -Disable",
     "UpdateDriver -Disable",

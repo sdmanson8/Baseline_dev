@@ -676,7 +676,7 @@
 			$bold = New-Object System.Windows.Documents.Run
 			$bold.Text = "$($ct.Name): "
 			$bold.FontWeight = [System.Windows.FontWeights]::SemiBold
-			$bold.Foreground = $bc.ConvertFromString($Script:CurrentTheme.CautionText)
+			$bold.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextPrimary)
 			[void]($item.Inlines.Add($bold))
 			$desc = New-Object System.Windows.Documents.Run
 			$desc.Text = $reason

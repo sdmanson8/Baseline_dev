@@ -1,3 +1,9 @@
+	if (-not [System.Windows.Application]::Current)
+	{
+		$Script:GuiApplication = [System.Windows.Application]::new()
+	}
+	[void](Set-GuiThemeResources -Target ([System.Windows.Application]::Current) -ThemeName 'Dark')
+
 	$loadedForm = [System.Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $XAML))
 
 	if (-not ($loadedForm -is [System.Windows.Window]))
@@ -7,20 +13,59 @@
 
 	[System.Windows.Window]$Form = $loadedForm
 	$Script:MainForm = $Form
+	[void](Set-GuiThemeResources -Target $Form -ThemeName 'Dark')
 
 	try
 	{
+		$selectWindowIconFrame = {
+			param(
+				[Parameter(Mandatory = $true)]
+				[System.Collections.IEnumerable]
+				$Frames,
+				[Parameter(Mandatory = $true)]
+				[int]$TargetPixelWidth
+			)
+
+			$closest = $Frames |
+				Sort-Object -Property @{ Expression = { [Math]::Abs($_.PixelWidth - $TargetPixelWidth) } } |
+				Select-Object -First 1
+			return $closest
+		}
+
 		$repoBasePath = Split-Path -Path $Script:GuiModuleBasePath -Parent
 		$windowIconPath = Join-Path -Path $repoBasePath -ChildPath 'Assets\baseline.ico'
 		if (-not [string]::IsNullOrWhiteSpace([string]$windowIconPath) -and (Test-Path -LiteralPath $windowIconPath -PathType Leaf))
 		{
 			$windowIconUri = [System.Uri]::new([System.IO.Path]::GetFullPath($windowIconPath), [System.UriKind]::Absolute)
-			$windowIconSource = [System.Windows.Media.Imaging.BitmapFrame]::Create($windowIconUri)
+			$iconDecoder = [System.Windows.Media.Imaging.IconBitmapDecoder]::new(
+				$windowIconUri,
+				[System.Windows.Media.Imaging.BitmapCreateOptions]::None,
+				[System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+			)
+			$windowIconSource = if ($iconDecoder.Frames -and $iconDecoder.Frames.Count -gt 0)
+			{
+				& $selectWindowIconFrame -Frames $iconDecoder.Frames -TargetPixelWidth 32
+			}
+			else
+			{
+				$null
+			}
+			if (-not $windowIconSource)
+			{
+				$windowIconSource = [System.Windows.Media.Imaging.BitmapFrame]::Create($windowIconUri)
+			}
+			if ($windowIconSource -and $windowIconSource.CanFreeze)
+			{
+				$windowIconSource.Freeze()
+			}
 			$Form.Icon = $windowIconSource
 			$titleBarLogo = $Form.FindName('TitleBarLogo')
 			if ($titleBarLogo)
 			{
 				$titleBarLogo.Source = $windowIconSource
+				[System.Windows.Media.RenderOptions]::SetBitmapScalingMode($titleBarLogo, [System.Windows.Media.BitmapScalingMode]::HighQuality)
+				$titleBarLogo.SnapsToDevicePixels = $true
+				$titleBarLogo.UseLayoutRounding = $true
 			}
 		}
 	}
@@ -251,12 +296,14 @@
 			$WindowBorder.CornerRadius = [System.Windows.CornerRadius]::new(0)
 			$WindowBorder.Margin = [System.Windows.Thickness]::new(7)
 			if ($TitleBar) { $TitleBar.CornerRadius = [System.Windows.CornerRadius]::new(0) }
+			if ($BottomBorder) { $BottomBorder.CornerRadius = [System.Windows.CornerRadius]::new(0) }
 		}
 		else
 		{
 			$WindowBorder.CornerRadius = [System.Windows.CornerRadius]::new(8)
 			$WindowBorder.Margin = [System.Windows.Thickness]::new(0)
 			if ($TitleBar) { $TitleBar.CornerRadius = [System.Windows.CornerRadius]::new(8, 8, 0, 0) }
+			if ($BottomBorder) { $BottomBorder.CornerRadius = [System.Windows.CornerRadius]::new(0, 0, 8, 8) }
 		}
 	})
 	$PrimaryTabs   = $Form.FindName("PrimaryTabs")
@@ -266,6 +313,7 @@
 	$ContentScroll = $Form.FindName("ContentScroll")
 	$ExpertModeBanner = $Form.FindName("ExpertModeBanner")
 	$BottomBorder  = $Form.FindName("BottomBorder")
+	if ($BottomBorder) { $BottomBorder.CornerRadius = [System.Windows.CornerRadius]::new(0, 0, 8, 8) }
 	$StatusText    = $Form.FindName("StatusText")
 	$Script:StatusTextControl = $StatusText
 	$ActionButtonBar = $Form.FindName("ActionButtonBar")
@@ -316,6 +364,7 @@
 	$FilterOptionsPanel = $Form.FindName("FilterOptionsPanel")
 	$NavModeTweaks = $Form.FindName("NavModeTweaks")
 	$NavModeApps = $Form.FindName("NavModeApps")
+	$NavModeUpdates = $Form.FindName("NavModeUpdates")
 	$ModeSubtitle = $Form.FindName("ModeSubtitle")
 	$TweaksView = $Form.FindName("TweaksView")
 	$AppsView = $Form.FindName("AppsView")
@@ -496,6 +545,7 @@
 	$Script:BtnHelp = $BtnHelp
 	$Script:NavModeTweaks = $NavModeTweaks
 	$Script:NavModeApps = $NavModeApps
+	$Script:NavModeUpdates = $NavModeUpdates
 	$Script:ModeSubtitle = $ModeSubtitle
 	$Script:TweaksView = $TweaksView
 	$Script:AppsView = $AppsView
@@ -568,6 +618,8 @@
 		ChocolateyUpdates = @{}
 	}
 	$Script:AppsModeActive = $false
+	$Script:UpdatesModeActive = $false
+	$Script:UpdatesReturnPrimaryTab = $null
 	$Script:AppsViewLoaded = $false
 	$Script:AppsViewDirty = $false
 	$Script:AppsViewBuildSignature = $null
@@ -611,8 +663,11 @@
 	$Script:TabContentCache = @{}
 	$Script:CategoryFilterListCache = @{}
 	$Script:LastCategoryFilterPopulateKey = $null
+	$Script:LastCategoryFilterSignature = $null
 	$Script:FilterGeneration = 0
 	$Script:SearchRefreshTimer = $null
+	$Script:FilterRefreshTimer = $null
+	$Script:PendingFilterValues = @{}
 	$Script:SearchUiUpdating = $false
 	$Script:AppsSourceUiUpdating = $false
 	$Script:SearchRefreshDelayMs = $Script:GuiLayout.SearchRefreshDelayMs
@@ -680,7 +735,7 @@
 				}
 				else
 				{
-					Write-Warning ("GUI event failed [WPF Dispatcher]: {0}" -f $e.Exception.Message)
+					Write-Warning (Format-BaselineErrorForLog -ErrorObject $e -Prefix 'GUI event failed [WPF Dispatcher]')
 				}
 
 				# Treat critical .NET exceptions as fatal - do not suppress them
@@ -725,6 +780,8 @@
 	$Script:HideUnavailableItems = $true
 	$Script:DesignMode = $false
 	$Script:RestoreLastSession = $true
+	$Script:DebugLoggingEnabled = $false
+	$Script:LogFileDirectory = ''
 	try
 	{
 		if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
@@ -732,6 +789,8 @@
 			$Script:HideUnavailableItems = [bool](Get-BaselineUserPreference -Key 'HideUnavailableItems' -Default $true)
 			$Script:DesignMode = [bool](Get-BaselineUserPreference -Key 'DesignMode' -Default $false)
 			$Script:RestoreLastSession = [bool](Get-BaselineUserPreference -Key 'RestoreLastSession' -Default $true)
+			$Script:DebugLoggingEnabled = [bool](Get-BaselineUserPreference -Key 'DebugLoggingEnabled' -Default $false)
+			$Script:LogFileDirectory = [string](Get-BaselineUserPreference -Key 'LogFileDirectory' -Default '')
 		}
 	}
 	catch
@@ -740,6 +799,23 @@
 		$Script:HideUnavailableItems = $true
 		$Script:DesignMode = $false
 		$Script:RestoreLastSession = $true
+		$Script:DebugLoggingEnabled = $false
+		$Script:LogFileDirectory = ''
+	}
+	if ($Script:RestoreLastSession)
+	{
+		# Keep verbose logging on while the restored session rehydrates so perf
+		# traces and startup diagnostics stay available for the whole launch.
+		$Script:DebugLoggingEnabled = $true
+	}
+	if (Get-Command -Name 'Set-BaselineDebugLogging' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		try { Set-BaselineDebugLogging -Enabled ([bool]$Script:DebugLoggingEnabled) }
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowSetup.ApplyDebugLoggingPreference' }
+	}
+	if ($Script:DebugLoggingEnabled -and -not $env:BASELINE_PERF_LOG)
+	{
+		$env:BASELINE_PERF_LOG = '1'
 	}
 	$Script:SafeMode = $true
 	$Script:AdvancedMode = $false
@@ -767,6 +843,25 @@
 	}
 	if (-not $Script:SelectedLanguage) { $Script:SelectedLanguage = 'en' }
 	Initialize-GameModeState
+	if ($Script:TweakIndicesByPrimaryTab -and $Script:GamingCrossTabFunctions -and $Script:GamingCrossTabFunctions.Count -gt 0)
+	{
+		if (-not $Script:TweakIndicesByPrimaryTab.ContainsKey('Gaming'))
+		{
+			$Script:TweakIndicesByPrimaryTab['Gaming'] = [System.Collections.Generic.List[int]]::new()
+		}
+		$gamingIndexBucket = $Script:TweakIndicesByPrimaryTab['Gaming']
+		for ($gamingIndex = 0; $gamingIndex -lt $Script:TweakManifest.Count; $gamingIndex++)
+		{
+			$gamingTweak = $Script:TweakManifest[$gamingIndex]
+			if (-not $gamingTweak) { continue }
+			$gamingFunction = [string]$gamingTweak.Function
+			if ([string]::IsNullOrWhiteSpace($gamingFunction)) { continue }
+			if ($Script:GamingCrossTabFunctions.Contains($gamingFunction) -and -not $gamingIndexBucket.Contains($gamingIndex))
+			{
+				[void]$gamingIndexBucket.Add($gamingIndex)
+			}
+		}
+	}
 	$Script:FilterUiUpdating = $false
 	$Script:ExecutionSummaryRecords = @()
 	$Script:ExecutionSummaryLookup = @{}

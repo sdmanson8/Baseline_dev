@@ -987,22 +987,21 @@
 		foreach ($tab in $Script:AppsCategoryTabs.Items)
 		{
 			if (-not ($tab -is [System.Windows.Controls.TabItem])) { continue }
-			$tab.BorderThickness = [System.Windows.Thickness]::new(0, 0, 0, 1)
+			$tab.BorderThickness = [System.Windows.Thickness]::new(1)
 			$tab.Padding = [System.Windows.Thickness]::new(14, 7, 14, 7)
 			if ($tab -eq $Script:AppsCategoryTabs.SelectedItem)
 			{
 				$tab.Background = $bc.ConvertFromString($Script:CurrentTheme.TabActiveBg)
-				$tab.Foreground = $bc.ConvertFromString('#FFFFFF')
+				$tab.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextPrimary)
 				$tab.FontWeight = [System.Windows.FontWeights]::SemiBold
-				$tab.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.ActiveTabIndicator)
-				$tab.BorderThickness = [System.Windows.Thickness]::new(0, 3, 0, 3)
+				$tab.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.ActiveTabBorder)
 			}
 			else
 			{
 				$tab.Background = $bc.ConvertFromString($Script:CurrentTheme.TabBg)
 				$tab.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextMuted)
 				$tab.FontWeight = [System.Windows.FontWeights]::Normal
-				$tab.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.BorderColor)
+				$tab.BorderBrush = [System.Windows.Media.Brushes]::Transparent
 			}
 		}
 	}
@@ -1069,12 +1068,12 @@
 			$bc = & $newSafeBrushConverterScript -Context 'Add-AppsCategoryTabHoverEffects/MouseEnter'
 
 			$hoverBgColor = if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.TabHoverBg)) { [string]$Script:CurrentTheme.TabHoverBg } else { '#3670B8' }
-			$textPrimaryColor = '#FFFFFF'
-			$focusRingColor = if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.FocusRing)) { [string]$Script:CurrentTheme.FocusRing } else { '#C9DEFF' }
+			$textPrimaryColor = if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.TextPrimary)) { [string]$Script:CurrentTheme.TextPrimary } else { '#F4F7FF' }
+			$hoverBorderColor = if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.BorderColor)) { [string]$Script:CurrentTheme.BorderColor } else { '#293044' }
 
 			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'Background' -Value ($bc.ConvertFromString($hoverBgColor)) -Context 'Add-AppsCategoryTabHoverEffects/MouseEnter/Background')
 			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'Foreground' -Value ($bc.ConvertFromString($textPrimaryColor)) -Context 'Add-AppsCategoryTabHoverEffects/MouseEnter/Foreground')
-			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'BorderBrush' -Value ($bc.ConvertFromString($focusRingColor)) -Context 'Add-AppsCategoryTabHoverEffects/MouseEnter/BorderBrush')
+			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'BorderBrush' -Value ($bc.ConvertFromString($hoverBorderColor)) -Context 'Add-AppsCategoryTabHoverEffects/MouseEnter/BorderBrush')
 		}.GetNewClosure()
 		Register-GuiEventHandler -Source $Tab -EventName 'MouseEnter' -Handler ({
 			& $invokeGuiSafeActionScript -Context 'Add-AppsCategoryTabHoverEffects/MouseEnter' -Action $mouseEnterHandler
@@ -1090,9 +1089,9 @@
 		$gotFocusHandler = {
 			if ($Tab -eq $Script:AppsCategoryTabs.SelectedItem) { return }
 			$bc = & $newSafeBrushConverterScript -Context 'Add-AppsCategoryTabHoverEffects/GotFocus'
-			$focusRingColor = if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.FocusRing)) { [string]$Script:CurrentTheme.FocusRing } else { '#C9DEFF' }
+			$focusRingColor = if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.FocusRing)) { [string]$Script:CurrentTheme.FocusRing } else { '#9ACAFF' }
 			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'BorderBrush' -Value ($bc.ConvertFromString($focusRingColor)) -Context 'Add-AppsCategoryTabHoverEffects/GotFocus/BorderBrush')
-			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'BorderThickness' -Value (& $newSafeThicknessScript -Bottom 3) -Context 'Add-AppsCategoryTabHoverEffects/GotFocus/BorderThickness')
+			[void](& $setGuiControlPropertyScript -Control $Tab -PropertyName 'BorderThickness' -Value (& $newSafeThicknessScript -Uniform 1) -Context 'Add-AppsCategoryTabHoverEffects/GotFocus/BorderThickness')
 		}.GetNewClosure()
 		Register-GuiEventHandler -Source $Tab -EventName 'GotKeyboardFocus' -Handler ({
 			& $invokeGuiSafeActionScript -Context 'Add-AppsCategoryTabHoverEffects/GotFocus' -Action $gotFocusHandler
@@ -1196,7 +1195,7 @@
 			}
 			if (-not $statusForeground)
 			{
-				try { $statusForeground = $statusBrushConverter.ConvertFromString('#CDD6F4') } catch { $statusForeground = $null }
+				try { $statusForeground = $statusBrushConverter.ConvertFromString('#F4F7FF') } catch { $statusForeground = $null }
 			}
 			foreach ($value in $values)
 			{

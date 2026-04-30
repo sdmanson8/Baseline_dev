@@ -127,7 +127,7 @@ Describe 'Bootstrap CLI intent wiring' {
         $script:BootstrapContent | Should -Match '\$ComplianceCheck -or \$ScheduledRun -or \$TargetComputer -or \$NoGui'
         $script:BootstrapContent | Should -Match '\$shouldShowBootstrapSplash = -not \$hasHeadlessIntent'
         $script:BootstrapContent | Should -Match 'if \(\$shouldShowBootstrapSplash\)\s*\{[\s\S]*Get-Command -Name ''Show-BootstrapLoadingSplash'''
-        $script:BootstrapContent | Should -Match '\$env:BASELINE_INSTALLER_MODE -eq ''1'' -or \$env:BASELINE_SKIP_UPDATE -eq ''1'''
+        $script:BootstrapContent | Should -Match '\$env:BASELINE_INSTALLER_MODE -ne ''1'' -and \$env:BASELINE_SKIP_UPDATE -ne ''1'' -and \$env:BASELINE_EMBEDDED_HOST -eq ''1'''
         $script:BootstrapContent | Should -Match '\$Script:BootstrapSplash = & \$showBootstrapSplashCommand -StartUpdatesPulse'
     }
 
@@ -154,7 +154,11 @@ Describe 'Bootstrap CLI intent wiring' {
     }
 
     It 'only primes the updates pulse when auto-update is eligible' {
-        $script:BootstrapContent | Should -Match '\$env:BASELINE_INSTALLER_MODE -eq ''1'' -or \$env:BASELINE_SKIP_UPDATE -eq ''1'''
+        $script:BootstrapContent | Should -Match '\$shouldPrimeUpdatesPulse = \$false'
+        $script:BootstrapContent | Should -Match '\$env:BASELINE_INSTALLER_MODE -ne ''1'' -and \$env:BASELINE_SKIP_UPDATE -ne ''1'' -and \$env:BASELINE_EMBEDDED_HOST -eq ''1'''
+        $script:BootstrapContent | Should -Match "Get-Command -Name 'Get-BaselineAutoUpdateThrottleDecision'"
+        $script:BootstrapContent | Should -Match '\$shouldPrimeUpdatesPulse = \[bool\]\$autoUpdateThrottleDecision\.ShouldCheck'
+        $script:BootstrapContent | Should -Match 'if \(-not \$shouldPrimeUpdatesPulse\)'
         $script:BootstrapContent | Should -Match '\$Script:BootstrapSplash = & \$showBootstrapSplashCommand\s*\r?\n'
         $script:BootstrapContent | Should -Match '\$Script:BootstrapSplash = & \$showBootstrapSplashCommand -StartUpdatesPulse'
     }
@@ -163,6 +167,8 @@ Describe 'Bootstrap CLI intent wiring' {
         $script:BootstrapContent | Should -Not -Match 'SingleInstance gate threw, allowing run'
         $script:BootstrapContent | Should -Match 'SingleInstance gate failed'
         $script:BootstrapContent | Should -Match 'Single-instance helper is missing'
+        $script:BootstrapContent | Should -Match "Get-Command -Name 'Acquire-BaselineSingleInstance'"
+        $script:BootstrapContent | Should -Match '\$Script:SingleInstanceState = & \$singleInstanceAcquireCmd'
         $script:BootstrapContent | Should -Match '\$Global:LASTEXITCODE = 2'
     }
 

@@ -280,6 +280,9 @@ function Show-GuiSettingsDialog
 	$windowSubtitle = Get-UxLocalizedString -Key 'GuiSettingsSubtitle' -Fallback 'Configure how Baseline looks and behaves. These are user preferences only.'
 	$cancelLabel = Get-UxLocalizedString -Key 'GuiCancelButton' -Fallback 'Cancel'
 	$saveLabel = Get-UxLocalizedString -Key 'GuiSaveButton' -Fallback 'Save'
+	$exportSupportBundleLabel = Get-UxLocalizedString -Key 'GuiMenuToolsExportSupportBundle' -Fallback 'Export Support Bundle...'
+	$openExportBundleButtonLabel = Get-UxLocalizedString -Key 'GuiSettingsOpenExportBundleTool' -Fallback 'Open Export Support Bundle tool'
+	$debugExportHint = "Need to send diagnostics? Enable debug mode, reproduce the issue, then use Tools -> $exportSupportBundleLabel."
 
 	$generalHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupGeneral' -Fallback 'General'
 	$appearanceHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupAppearance' -Fallback 'Appearance'
@@ -291,10 +294,15 @@ function Show-GuiSettingsDialog
 	$cardBg = if ($theme.CardBg) { [string]$theme.CardBg } else { [string]$theme.PanelBg }
 	$cardBorder = if ($theme.CardBorder) { [string]$theme.CardBorder } else { [string]$theme.BorderColor }
 	$tabHoverBg = if ($theme.InputHoverBg) { [string]$theme.InputHoverBg } else { [string]$theme.CardBg }
-	$textPrimary = if ($theme.TextPrimary) { [string]$theme.TextPrimary } else { '#CDD6F4' }
+	$textPrimary = if ($theme.TextPrimary) { [string]$theme.TextPrimary } else { '#F4F7FF' }
+	$textSecondary = if ($theme.TextSecondary) { [string]$theme.TextSecondary } else { '#B8C1D9' }
 	$textMuted = if ($theme.TextMuted) { [string]$theme.TextMuted } else { '#828AA2' }
-	$accentBlue = if ($theme.AccentBlue) { [string]$theme.AccentBlue } else { '#89B4FA' }
+	$accentBlue = if ($theme.AccentBlue) { [string]$theme.AccentBlue } else { '#7CB7FF' }
 	$activeBorder = if ($theme.ActiveTabBorder) { [string]$theme.ActiveTabBorder } else { $accentBlue }
+	$surfaceControl = if ($theme.InputBg) { [string]$theme.InputBg } elseif ($theme.SearchBg) { [string]$theme.SearchBg } else { '#262D40' }
+	$surfaceHover = if ($theme.InputHoverBg) { [string]$theme.InputHoverBg } elseif ($theme.CardHoverBg) { [string]$theme.CardHoverBg } else { '#30384E' }
+	$controlBorder = if ($theme.SearchBorder) { [string]$theme.SearchBorder } elseif ($theme.BorderColor) { [string]$theme.BorderColor } else { '#293044' }
+	$selectionSurface = if ($theme.StatusPillBg) { [string]$theme.StatusPillBg } elseif ($theme.TabActiveBg) { [string]$theme.TabActiveBg } else { $surfaceHover }
 
 	[xml]$xaml = @"
 <Window
@@ -311,6 +319,14 @@ function Show-GuiSettingsDialog
 	WindowStyle="None"
 	AllowsTransparency="True">
 	<Window.Resources>
+		<SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="$surfaceControl"/>
+		<SolidColorBrush x:Key="{x:Static SystemColors.WindowTextBrushKey}" Color="$textPrimary"/>
+		<SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="$surfaceControl"/>
+		<SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="$textPrimary"/>
+		<SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="$selectionSurface"/>
+		<SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="$textPrimary"/>
+		<SolidColorBrush x:Key="{x:Static SystemColors.MenuBrushKey}" Color="$surfaceControl"/>
+		<SolidColorBrush x:Key="{x:Static SystemColors.MenuTextBrushKey}" Color="$textPrimary"/>
 		<Style TargetType="TextBlock" x:Key="SectionHeading">
 			<Setter Property="FontSize" Value="14"/>
 			<Setter Property="FontWeight" Value="SemiBold"/>
@@ -340,6 +356,52 @@ function Show-GuiSettingsDialog
 			<Setter Property="FontSize" Value="12"/>
 			<Setter Property="FontWeight" Value="Medium"/>
 			<Setter Property="Margin" Value="0,0,0,10"/>
+			<Style.Triggers>
+				<Trigger Property="IsEnabled" Value="False">
+					<Setter Property="Foreground" Value="$textSecondary"/>
+					<Setter Property="Opacity" Value="1"/>
+				</Trigger>
+			</Style.Triggers>
+		</Style>
+		<Style TargetType="{x:Type ComboBoxItem}" x:Key="SettingsComboItem">
+			<Setter Property="Background" Value="$surfaceControl"/>
+			<Setter Property="Foreground" Value="$textPrimary"/>
+			<Setter Property="Padding" Value="10,4"/>
+			<Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+			<Setter Property="MinHeight" Value="28"/>
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="{x:Type ComboBoxItem}">
+						<Border x:Name="ItemRoot"
+								Background="{TemplateBinding Background}"
+								BorderBrush="{TemplateBinding BorderBrush}"
+								BorderThickness="{TemplateBinding BorderThickness}"
+								Padding="{TemplateBinding Padding}"
+								SnapsToDevicePixels="True">
+							<ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+											  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+						</Border>
+						<ControlTemplate.Triggers>
+							<Trigger Property="IsMouseOver" Value="True">
+								<Setter TargetName="ItemRoot" Property="Background" Value="$surfaceHover"/>
+							</Trigger>
+							<Trigger Property="IsSelected" Value="True">
+								<Setter TargetName="ItemRoot" Property="Background" Value="$selectionSurface"/>
+							</Trigger>
+						</ControlTemplate.Triggers>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+			<Style.Triggers>
+				<Trigger Property="IsMouseOver" Value="True">
+					<Setter Property="Background" Value="$surfaceHover"/>
+					<Setter Property="Foreground" Value="$textPrimary"/>
+				</Trigger>
+				<Trigger Property="IsSelected" Value="True">
+					<Setter Property="Background" Value="$selectionSurface"/>
+					<Setter Property="Foreground" Value="$textPrimary"/>
+				</Trigger>
+			</Style.Triggers>
 		</Style>
 		<Style TargetType="ComboBox" x:Key="SettingsCombo">
 			<Setter Property="Width" Value="320"/>
@@ -347,12 +409,145 @@ function Show-GuiSettingsDialog
 			<Setter Property="Margin" Value="0,0,0,18"/>
 			<Setter Property="Padding" Value="10,4"/>
 			<Setter Property="MinHeight" Value="30"/>
+			<Setter Property="Background" Value="$surfaceControl"/>
+			<Setter Property="Foreground" Value="$textPrimary"/>
+			<Setter Property="BorderBrush" Value="$controlBorder"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="Opacity" Value="1"/>
+			<Setter Property="OverridesDefaultStyle" Value="True"/>
+			<Setter Property="ItemContainerStyle" Value="{StaticResource SettingsComboItem}"/>
+			<Setter Property="TextElement.Foreground" Value="$textPrimary"/>
+			<Setter Property="HorizontalContentAlignment" Value="Left"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="{x:Type ComboBox}">
+						<Grid SnapsToDevicePixels="True" TextElement.Foreground="{TemplateBinding Foreground}">
+							<Border x:Name="ComboRoot"
+									Background="{TemplateBinding Background}"
+									BorderBrush="{TemplateBinding BorderBrush}"
+									BorderThickness="{TemplateBinding BorderThickness}"
+									CornerRadius="4"
+									SnapsToDevicePixels="True"/>
+							<ToggleButton x:Name="DropDownToggle"
+										  Focusable="False"
+										  ClickMode="Press"
+										  Background="Transparent"
+										  BorderBrush="Transparent"
+										  BorderThickness="0"
+										  HorizontalAlignment="Stretch"
+										  VerticalAlignment="Stretch"
+										  IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+								<ToggleButton.Template>
+									<ControlTemplate TargetType="{x:Type ToggleButton}">
+										<Border Background="Transparent"/>
+									</ControlTemplate>
+								</ToggleButton.Template>
+							</ToggleButton>
+							<ContentPresenter x:Name="ContentSite"
+											  Margin="{TemplateBinding Padding}"
+											  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+											  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+											  Content="{TemplateBinding SelectionBoxItem}"
+											  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+											  ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+											  ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+											  IsHitTestVisible="False"
+											  RecognizesAccessKey="True"/>
+							<Path x:Name="Arrow"
+								  HorizontalAlignment="Right"
+								  VerticalAlignment="Center"
+								  Margin="0,0,10,0"
+								  Data="M 0 0 L 4 4 L 8 0"
+								  Stroke="{TemplateBinding Foreground}"
+								  StrokeThickness="1.6"
+								  StrokeStartLineCap="Round"
+								  StrokeEndLineCap="Round"
+								  Stretch="Fill"
+								  Width="8"
+								  Height="4"
+								  IsHitTestVisible="False"/>
+							<Popup x:Name="Popup"
+								   Placement="Bottom"
+								   PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}"
+								   AllowsTransparency="True"
+								   Focusable="False"
+								   IsOpen="{TemplateBinding IsDropDownOpen}"
+								   PopupAnimation="Slide">
+								<Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+										Background="$surfaceControl"
+										BorderBrush="$controlBorder"
+										BorderThickness="1"
+										CornerRadius="6"
+										SnapsToDevicePixels="True">
+									<ScrollViewer Margin="4,6,4,6" MaxHeight="260" SnapsToDevicePixels="True">
+										<ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+									</ScrollViewer>
+								</Border>
+							</Popup>
+						</Grid>
+						<ControlTemplate.Triggers>
+							<Trigger Property="IsMouseOver" Value="True">
+								<Setter TargetName="ComboRoot" Property="Background" Value="$surfaceHover"/>
+								<Setter TargetName="ComboRoot" Property="BorderBrush" Value="$activeBorder"/>
+							</Trigger>
+							<Trigger Property="IsKeyboardFocusWithin" Value="True">
+								<Setter TargetName="ComboRoot" Property="Background" Value="$surfaceHover"/>
+								<Setter TargetName="ComboRoot" Property="BorderBrush" Value="$activeBorder"/>
+							</Trigger>
+							<Trigger Property="IsDropDownOpen" Value="True">
+								<Setter TargetName="ComboRoot" Property="Background" Value="$surfaceHover"/>
+								<Setter TargetName="ComboRoot" Property="BorderBrush" Value="$activeBorder"/>
+							</Trigger>
+							<Trigger Property="IsEnabled" Value="False">
+								<Setter Property="Foreground" Value="$textSecondary"/>
+								<Setter TargetName="ComboRoot" Property="Background" Value="$surfaceControl"/>
+								<Setter TargetName="ComboRoot" Property="BorderBrush" Value="$controlBorder"/>
+								<Setter TargetName="Arrow" Property="Stroke" Value="$textSecondary"/>
+							</Trigger>
+						</ControlTemplate.Triggers>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+			<Style.Triggers>
+				<Trigger Property="IsKeyboardFocusWithin" Value="True">
+					<Setter Property="Background" Value="$surfaceHover"/>
+					<Setter Property="BorderBrush" Value="$activeBorder"/>
+				</Trigger>
+				<Trigger Property="IsDropDownOpen" Value="True">
+					<Setter Property="Background" Value="$surfaceHover"/>
+					<Setter Property="BorderBrush" Value="$activeBorder"/>
+				</Trigger>
+				<Trigger Property="IsEnabled" Value="False">
+					<Setter Property="Background" Value="$surfaceControl"/>
+					<Setter Property="Foreground" Value="$textSecondary"/>
+					<Setter Property="Opacity" Value="1"/>
+				</Trigger>
+			</Style.Triggers>
 		</Style>
 		<Style TargetType="TextBox" x:Key="SettingsTextBox">
 			<Setter Property="HorizontalAlignment" Value="Left"/>
 			<Setter Property="Margin" Value="0,0,0,18"/>
 			<Setter Property="Padding" Value="8,6"/>
 			<Setter Property="MinHeight" Value="30"/>
+			<Setter Property="Background" Value="$surfaceControl"/>
+			<Setter Property="Foreground" Value="$textPrimary"/>
+			<Setter Property="BorderBrush" Value="$controlBorder"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="CaretBrush" Value="$textPrimary"/>
+			<Setter Property="SelectionBrush" Value="$selectionSurface"/>
+			<Setter Property="Opacity" Value="1"/>
+			<Style.Triggers>
+				<Trigger Property="IsKeyboardFocusWithin" Value="True">
+					<Setter Property="Background" Value="$surfaceHover"/>
+					<Setter Property="BorderBrush" Value="$activeBorder"/>
+				</Trigger>
+				<Trigger Property="IsEnabled" Value="False">
+					<Setter Property="Background" Value="$surfaceControl"/>
+					<Setter Property="Foreground" Value="$textSecondary"/>
+					<Setter Property="Opacity" Value="1"/>
+				</Trigger>
+			</Style.Triggers>
 		</Style>
 		<Style TargetType="TabItem">
 			<Setter Property="Padding" Value="18,10"/>
@@ -435,8 +630,8 @@ function Show-GuiSettingsDialog
 								<Grid Width="360" HorizontalAlignment="Left" Margin="0,0,0,18">
 									<ToggleButton Name="BtnSettingsLanguage" Height="30" Padding="10,4" Cursor="Hand"
 											HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center"
-											Background="#FFFFFF" Foreground="#1A1C2E"
-											BorderBrush="#A7B0C0" BorderThickness="1">
+											Background="$surfaceControl" Foreground="$textPrimary"
+											BorderBrush="$controlBorder" BorderThickness="1">
 										<ToggleButton.Template>
 											<ControlTemplate TargetType="{x:Type ToggleButton}">
 												<Border x:Name="LangBtnBorder" CornerRadius="4"
@@ -449,10 +644,12 @@ function Show-GuiSettingsDialog
 												</Border>
 												<ControlTemplate.Triggers>
 													<Trigger Property="IsMouseOver" Value="True">
-														<Setter TargetName="LangBtnBorder" Property="BorderBrush" Value="#6E7A94"/>
+														<Setter TargetName="LangBtnBorder" Property="Background" Value="$surfaceHover"/>
+														<Setter TargetName="LangBtnBorder" Property="BorderBrush" Value="$activeBorder"/>
 													</Trigger>
 													<Trigger Property="IsChecked" Value="True">
-														<Setter TargetName="LangBtnBorder" Property="BorderBrush" Value="#1550AA"/>
+														<Setter TargetName="LangBtnBorder" Property="Background" Value="$surfaceHover"/>
+														<Setter TargetName="LangBtnBorder" Property="BorderBrush" Value="$activeBorder"/>
 													</Trigger>
 												</ControlTemplate.Triggers>
 											</ControlTemplate>
@@ -462,16 +659,16 @@ function Show-GuiSettingsDialog
 												<ColumnDefinition Width="*"/>
 												<ColumnDefinition Width="Auto"/>
 											</Grid.ColumnDefinitions>
-											<TextBlock Name="TxtSettingsLanguageDisplay" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis" Foreground="#1A1C2E" Text=""/>
-											<Path Grid.Column="1" Margin="8,0,2,0" VerticalAlignment="Center" Data="M 0 0 L 4 4 L 8 0" Stroke="#1A1C2E" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="Fill" Width="8" Height="4" IsHitTestVisible="False"/>
+											<TextBlock Name="TxtSettingsLanguageDisplay" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis" Foreground="$textPrimary" Text=""/>
+											<Path Grid.Column="1" Margin="8,0,2,0" VerticalAlignment="Center" Data="M 0 0 L 4 4 L 8 0" Stroke="$textPrimary" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="Fill" Width="8" Height="4" IsHitTestVisible="False"/>
 										</Grid>
 									</ToggleButton>
 									<Popup Name="SettingsLanguagePopup" StaysOpen="False" Placement="Bottom" PlacementTarget="{Binding ElementName=BtnSettingsLanguage}" AllowsTransparency="True" IsOpen="{Binding IsChecked, ElementName=BtnSettingsLanguage, Mode=TwoWay}">
-										<Border Background="#FFFFFF" BorderBrush="#A7B0C0" BorderThickness="1" CornerRadius="6" Padding="6">
+										<Border Background="$cardBg" BorderBrush="$controlBorder" BorderThickness="1" CornerRadius="6" Padding="6">
 											<StackPanel Width="360">
 												<TextBox Name="TxtSettingsLanguageSearch" Height="28" Padding="10,4" Margin="0,0,0,6" VerticalContentAlignment="Center"
-														Background="#FFFFFF" Foreground="#1A1C2E"
-														BorderBrush="#A7B0C0" BorderThickness="1" CaretBrush="#1A1C2E"/>
+														Background="$surfaceControl" Foreground="$textPrimary"
+														BorderBrush="$controlBorder" BorderThickness="1" CaretBrush="$textPrimary"/>
 												<ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="320">
 													<StackPanel Name="SettingsLanguageListPanel"/>
 												</ScrollViewer>
@@ -562,15 +759,41 @@ function Show-GuiSettingsDialog
 
 								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkLoggingEnabled" Content="Enable logging"/>
 								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkDebugLogging" Content="Debug Mode (verbose logging + perf trace)"/>
-								<TextBlock Style="{StaticResource HelperText}" Text="When on, DEBUG-level entries are written to the daily log and the perf tracer is force-enabled. Use before exporting a Support Bundle to maximize what maintainers can replay."/>
+								<TextBlock Style="{StaticResource HelperText}" Text="$debugExportHint"/>
+								<Button Name="BtnSettingsExportSupportBundle" Margin="0,6,0,0" HorizontalAlignment="Left" Padding="0" Background="Transparent" BorderBrush="Transparent" BorderThickness="0" Cursor="Hand">
+									<TextBlock FontSize="11" Foreground="$accentBlue" Text="$openExportBundleButtonLabel" TextDecorations="Underline"/>
+								</Button>
 
 								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,8,0,20" Opacity="0.35"/>
 
 								<TextBlock Style="{StaticResource FieldLabel}" Name="LblLogLevel" Text="Log level"/>
 								<ComboBox Style="{StaticResource SettingsCombo}" Name="CmbLogLevel"/>
-								<TextBlock Style="{StaticResource FieldLabel}" Name="LblLogFilePath" Text="Log file path"/>
-								<TextBox Style="{StaticResource SettingsTextBox}" Name="TxtLogFilePath" Width="560"/>
-								<TextBlock Style="{StaticResource HelperText}" Text="Leave blank to use the default location."/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblLogFolderPath" Text="Current log folder"/>
+								<Grid Width="600" HorizontalAlignment="Left" Margin="0,0,0,10">
+									<Grid.ColumnDefinitions>
+										<ColumnDefinition Width="*"/>
+										<ColumnDefinition Width="Auto"/>
+									</Grid.ColumnDefinitions>
+									<Border Grid.Column="0"
+											Background="$surfaceControl"
+											BorderBrush="$controlBorder"
+											BorderThickness="1"
+											CornerRadius="4"
+											MinHeight="30"
+											Padding="8,6">
+										<TextBlock Name="TxtLogFolderPath"
+												   Foreground="$textPrimary"
+												   TextTrimming="CharacterEllipsis"
+												   VerticalAlignment="Center"/>
+									</Border>
+									<Button Grid.Column="1" Name="BtnLogFolderBrowse" Content="..." Width="36" Height="30" Margin="8,0,0,0" Visibility="Collapsed"/>
+								</Grid>
+								<StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+									<Button Name="BtnOpenLogFolder" Content="Open Log Folder" Padding="12,6" Margin="0,0,8,0"/>
+									<Button Name="BtnCopyLogFolderPath" Content="Copy Log Folder Path" Padding="12,6" Margin="0,0,8,0"/>
+									<Button Name="BtnClearOldLogs" Content="Clear Old Logs" Padding="12,6"/>
+								</StackPanel>
+								<TextBlock Style="{StaticResource HelperText}" Name="TxtLogFolderHelper" Text="Logs stay in the default per-user folder. Expert mode allows choosing another folder."/>
 							</StackPanel>
 						</ScrollViewer>
 					</Border>
@@ -615,8 +838,8 @@ function Show-GuiSettingsDialog
 		$rootBorder = $dlg.FindName('RootBorder')
 		if ($rootBorder)
 		{
-			$rootBorder.Background = $bc.ConvertFromString($theme.WindowBg)
-			$rootBorder.BorderBrush = $bc.ConvertFromString($theme.BorderColor)
+			$rootBorder.Background = ConvertTo-GuiBrush -Color $theme.WindowBg -Context 'DialogHelpers.ShowGuiSettingsDialog.WindowBg' -FallbackColor '#10131C'
+			$rootBorder.BorderBrush = ConvertTo-GuiBrush -Color $theme.BorderColor -Context 'DialogHelpers.ShowGuiSettingsDialog.Border' -FallbackColor '#293044'
 			$rootBorder.BorderThickness = [System.Windows.Thickness]::new(1)
 		}
 
@@ -647,11 +870,127 @@ function Show-GuiSettingsDialog
 		$chkLoggingEnabled = $dlg.FindName('ChkLoggingEnabled')
 		$chkDebugLogging = $dlg.FindName('ChkDebugLogging')
 		$cmbLogLevel = $dlg.FindName('CmbLogLevel')
-		$txtLogFilePath = $dlg.FindName('TxtLogFilePath')
+		$txtLogFolderPath = $dlg.FindName('TxtLogFolderPath')
+		$txtLogFolderHelper = $dlg.FindName('TxtLogFolderHelper')
+		$btnLogFolderBrowse = $dlg.FindName('BtnLogFolderBrowse')
+		$btnOpenLogFolder = $dlg.FindName('BtnOpenLogFolder')
+		$btnCopyLogFolderPath = $dlg.FindName('BtnCopyLogFolderPath')
+		$btnClearOldLogs = $dlg.FindName('BtnClearOldLogs')
+		$btnSettingsExportSupportBundle = $dlg.FindName('BtnSettingsExportSupportBundle')
 		$chkAdvancedMode = $dlg.FindName('ChkAdvancedMode')
 		$chkExperimentalFeatures = $dlg.FindName('ChkExperimentalFeatures')
 		$chkDesignMode = $dlg.FindName('ChkDesignMode')
 		$resultRef = @{ Value = $null }
+
+		$settingsInputBgBrush = ConvertTo-GuiBrush -Color $surfaceControl -Context 'DialogHelpers.ShowGuiSettingsDialog.InputBg' -FallbackColor '#262D40'
+		$settingsInputBorderBrush = ConvertTo-GuiBrush -Color $controlBorder -Context 'DialogHelpers.ShowGuiSettingsDialog.InputBorder' -FallbackColor '#293044'
+		$settingsTextPrimaryBrush = ConvertTo-GuiBrush -Color $textPrimary -Context 'DialogHelpers.ShowGuiSettingsDialog.TextPrimary' -FallbackColor '#F4F7FF'
+		$settingsTextSecondaryBrush = ConvertTo-GuiBrush -Color $textSecondary -Context 'DialogHelpers.ShowGuiSettingsDialog.TextSecondary' -FallbackColor '#B8C1D9'
+		$settingsTextMutedBrush = ConvertTo-GuiBrush -Color $textMuted -Context 'DialogHelpers.ShowGuiSettingsDialog.TextMuted' -FallbackColor '#828AA2'
+		$settingsAccentBrush = ConvertTo-GuiBrush -Color $accentBlue -Context 'DialogHelpers.ShowGuiSettingsDialog.Accent' -FallbackColor '#7CB7FF'
+		$settingsSelectionBrush = ConvertTo-GuiBrush -Color $selectionSurface -Context 'DialogHelpers.ShowGuiSettingsDialog.Selection' -FallbackColor '#202638'
+
+		$applySettingsSystemBrushes = {
+			param ($control)
+			if (-not $control) { return }
+			$control.Resources[[System.Windows.SystemColors]::WindowBrushKey] = $settingsInputBgBrush
+			$control.Resources[[System.Windows.SystemColors]::WindowTextBrushKey] = $settingsTextPrimaryBrush
+			$control.Resources[[System.Windows.SystemColors]::ControlBrushKey] = $settingsInputBgBrush
+			$control.Resources[[System.Windows.SystemColors]::ControlTextBrushKey] = $settingsTextPrimaryBrush
+			$control.Resources[[System.Windows.SystemColors]::HighlightBrushKey] = $settingsSelectionBrush
+			$control.Resources[[System.Windows.SystemColors]::HighlightTextBrushKey] = $settingsTextPrimaryBrush
+			$control.Resources[[System.Windows.SystemColors]::MenuBrushKey] = $settingsInputBgBrush
+			$control.Resources[[System.Windows.SystemColors]::MenuTextBrushKey] = $settingsTextPrimaryBrush
+		}.GetNewClosure()
+
+		$applySettingsComboItemTheme = {
+			param ($item)
+			if (-not $item -or -not ($item -is [System.Windows.Controls.ComboBoxItem])) { return }
+			$item.Background = $settingsInputBgBrush
+			$item.Foreground = $settingsTextPrimaryBrush
+			$item.BorderBrush = $settingsInputBorderBrush
+			$item.BorderThickness = [System.Windows.Thickness]::new(0)
+			$item.Padding = [System.Windows.Thickness]::new(10, 4, 10, 4)
+			$item.Opacity = 1
+			& $applySettingsSystemBrushes $item
+		}.GetNewClosure()
+
+		$applySettingsInputTheme = {
+			param ($control)
+			if (-not $control) { return }
+			try
+			{
+				& $applySettingsSystemBrushes $control
+				$control.Background = $settingsInputBgBrush
+				$control.Foreground = $settingsTextPrimaryBrush
+				$control.BorderBrush = $settingsInputBorderBrush
+				$control.Opacity = 1
+
+				if ($control -is [System.Windows.Controls.TextBox])
+				{
+					$control.CaretBrush = $settingsTextPrimaryBrush
+					$control.SelectionBrush = $settingsSelectionBrush
+				}
+				elseif ($control -is [System.Windows.Controls.ComboBox])
+				{
+					$control.OverridesDefaultStyle = $true
+					$control.Opacity = 1
+					$control.SetValue([System.Windows.Documents.TextElement]::ForegroundProperty, $settingsTextPrimaryBrush)
+					foreach ($item in @($control.Items)) { & $applySettingsComboItemTheme $item }
+				}
+			}
+			catch
+			{
+				Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiSettingsDialog.ApplyInputTheme'
+			}
+		}.GetNewClosure()
+
+		if ($btnSettingsLanguage)
+		{
+			& $applySettingsSystemBrushes $btnSettingsLanguage
+			$btnSettingsLanguage.Background = $settingsInputBgBrush
+			$btnSettingsLanguage.Foreground = $settingsTextPrimaryBrush
+			$btnSettingsLanguage.BorderBrush = $settingsInputBorderBrush
+			$btnSettingsLanguage.Opacity = 1
+		}
+		if ($txtSettingsLanguageDisplay) { $txtSettingsLanguageDisplay.Foreground = $settingsTextPrimaryBrush }
+		& $applySettingsInputTheme $txtSettingsLanguageSearch
+		foreach ($logFolderButton in @($btnLogFolderBrowse, $btnOpenLogFolder, $btnCopyLogFolderPath))
+		{
+			if ($logFolderButton) { Set-ButtonChrome -Button $logFolderButton -Variant 'Subtle' -Compact -Muted }
+		}
+		if ($btnClearOldLogs) { Set-ButtonChrome -Button $btnClearOldLogs -Variant 'DangerSubtle' -Compact }
+		if ($btnSettingsExportSupportBundle)
+		{
+			if ($btnSettingsExportSupportBundle.Content -is [System.Windows.Controls.TextBlock])
+			{
+				$btnSettingsExportSupportBundle.Content.Text = $openExportBundleButtonLabel
+			}
+			else
+			{
+				$btnSettingsExportSupportBundle.Content = $openExportBundleButtonLabel
+			}
+			$btnSettingsExportSupportBundle.Cursor = [System.Windows.Input.Cursors]::Hand
+			$btnSettingsExportSupportBundle.Foreground = $settingsAccentBrush
+			$btnSettingsExportSupportBundle.Background = [System.Windows.Media.Brushes]::Transparent
+			$btnSettingsExportSupportBundle.BorderBrush = [System.Windows.Media.Brushes]::Transparent
+			$btnSettingsExportSupportBundle.BorderThickness = [System.Windows.Thickness]::new(0)
+			$btnSettingsExportSupportBundle.Padding = [System.Windows.Thickness]::new(0)
+			$exportBundleMenuItem = $Script:MenuToolsExportSupportBundle
+			$btnSettingsExportSupportBundle.IsEnabled = [bool]($exportBundleMenuItem -and $exportBundleMenuItem.IsEnabled)
+			$btnSettingsExportSupportBundle.Add_Click({
+				if (-not $exportBundleMenuItem) { return }
+				try
+				{
+					$eventArgs = [System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent)
+					$exportBundleMenuItem.RaiseEvent($eventArgs)
+				}
+				catch
+				{
+					Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiSettingsDialog.ExportSupportBundleShortcut'
+				}
+			}.GetNewClosure())
+		}
 
 		$addComboItem = {
 			param ($combo, $label, $tag)
@@ -659,6 +998,7 @@ function Show-GuiSettingsDialog
 			$ci = New-Object System.Windows.Controls.ComboBoxItem
 			$ci.Content = $label
 			$ci.Tag = $tag
+			& $applySettingsComboItemTheme $ci
 			[void]$combo.Items.Add($ci)
 		}
 
@@ -704,12 +1044,11 @@ function Show-GuiSettingsDialog
 		}
 		if ([string]::IsNullOrWhiteSpace($settingsLanguageState.Code) -or [string]$settingsLanguageState.Code -eq 'en') { $settingsLanguageState.Code = 'en-US' }
 
-		$languageBrushConverter = New-Object System.Windows.Media.BrushConverter
-		$textPrimaryBrush = $languageBrushConverter.ConvertFromString('#1A1C2E')
-		$textMutedBrush = $languageBrushConverter.ConvertFromString('#646C7F')
-		$activeBrush = $languageBrushConverter.ConvertFromString('#CCE4F7')
-		$accentBrush = $languageBrushConverter.ConvertFromString('#1550AA')
-		$hoverColor = '#EDF2FA'
+		$textPrimaryBrush = $settingsTextPrimaryBrush
+		$textMutedBrush = $settingsTextMutedBrush
+		$activeBrush = $settingsSelectionBrush
+		$accentBrush = $settingsAccentBrush
+		$hoverColor = $surfaceHover
 
 		$languageUiState = @{ Render = $null }
 
@@ -905,6 +1244,11 @@ function Show-GuiSettingsDialog
 			& $selectComboByTag $cmbLogLevel ($(if ($Current.ContainsKey('LogLevel') -and -not [string]::IsNullOrWhiteSpace([string]$Current.LogLevel)) { [string]$Current.LogLevel } else { 'Info' }))
 		}
 
+		foreach ($settingsCombo in @($cmbDefaultStartupMode, $cmbTheme, $cmbUIDensity, $cmbAuditRetention, $cmbPackageSource, $cmbLogLevel))
+		{
+			& $applySettingsInputTheme $settingsCombo
+		}
+
 		if ($chkRestoreLastSession) { $chkRestoreLastSession.IsChecked = if ($Current.ContainsKey('RestoreLastSession')) { [bool]$Current.RestoreLastSession } else { $true } }
 		if ($chkAutoScanOnLaunch) { $chkAutoScanOnLaunch.IsChecked = if ($Current.ContainsKey('AutoScanOnLaunch')) { [bool]$Current.AutoScanOnLaunch } else { $false } }
 		if ($chkHideUnavailableItems) { $chkHideUnavailableItems.IsChecked = if ($Current.ContainsKey('HideUnavailableItems')) { [bool]$Current.HideUnavailableItems } else { $true } }
@@ -915,10 +1259,155 @@ function Show-GuiSettingsDialog
 		if ($chkAppsAutoUpdate) { $chkAppsAutoUpdate.IsChecked = if ($Current.ContainsKey('AppsAutoUpdate')) { [bool]$Current.AppsAutoUpdate } else { $false } }
 		if ($chkLoggingEnabled) { $chkLoggingEnabled.IsChecked = if ($Current.ContainsKey('LoggingEnabled')) { [bool]$Current.LoggingEnabled } else { $true } }
 		if ($chkDebugLogging) { $chkDebugLogging.IsChecked = if ($Current.ContainsKey('DebugLoggingEnabled')) { [bool]$Current.DebugLoggingEnabled } else { $false } }
-		if ($txtLogFilePath) { $txtLogFilePath.Text = if ($Current.ContainsKey('LogFilePath') -and $null -ne $Current.LogFilePath) { [string]$Current.LogFilePath } else { '' } }
 		if ($chkAdvancedMode) { $chkAdvancedMode.IsChecked = if ($Current.ContainsKey('AdvancedMode')) { [bool]$Current.AdvancedMode } else { $false } }
 		if ($chkExperimentalFeatures) { $chkExperimentalFeatures.IsChecked = if ($Current.ContainsKey('ExperimentalFeatures')) { [bool]$Current.ExperimentalFeatures } else { $false } }
 		if ($chkDesignMode) { $chkDesignMode.IsChecked = if ($Current.ContainsKey('DesignMode')) { [bool]$Current.DesignMode } else { [bool]$Script:DesignMode } }
+
+		$defaultLogDirectory = if ($Current.ContainsKey('DefaultLogFileDirectory') -and -not [string]::IsNullOrWhiteSpace([string]$Current.DefaultLogFileDirectory))
+		{
+			[string]$Current.DefaultLogFileDirectory
+		}
+		elseif (Get-Command -Name 'Get-BaselineLogDirectory' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			[string](Get-BaselineLogDirectory)
+		}
+		else
+		{
+			[System.IO.Path]::Combine([System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData), 'Baseline', 'UserState', 'Logs')
+		}
+		$settingsLogState = @{
+			DefaultDirectory = $defaultLogDirectory
+			CustomDirectory  = if ($Current.ContainsKey('LogFileDirectory') -and -not [string]::IsNullOrWhiteSpace([string]$Current.LogFileDirectory)) { [string]$Current.LogFileDirectory } else { '' }
+		}
+		$getEffectiveLogDirectory = {
+			$expertEnabled = $chkAdvancedMode -and [bool]$chkAdvancedMode.IsChecked
+			if ($expertEnabled -and -not [string]::IsNullOrWhiteSpace([string]$settingsLogState.CustomDirectory))
+			{
+				return [string]$settingsLogState.CustomDirectory
+			}
+			return [string]$settingsLogState.DefaultDirectory
+		}.GetNewClosure()
+		$refreshLogFolderDisplay = {
+			$expertEnabled = $chkAdvancedMode -and [bool]$chkAdvancedMode.IsChecked
+			$effectiveDirectory = & $getEffectiveLogDirectory
+			if ($txtLogFolderPath) { $txtLogFolderPath.Text = $effectiveDirectory }
+			if ($btnLogFolderBrowse)
+			{
+				$btnLogFolderBrowse.Visibility = if ($expertEnabled) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+			}
+			if ($txtLogFolderHelper)
+			{
+				$txtLogFolderHelper.Text = if ($expertEnabled)
+				{
+					'Expert mode can choose another log folder. Leave it unchanged to use the default per-user location.'
+				}
+				else
+				{
+					'Logs stay in the default per-user folder. Enable Expert mode to choose another folder.'
+				}
+			}
+		}.GetNewClosure()
+		& $refreshLogFolderDisplay
+
+		if ($chkAdvancedMode)
+		{
+			$chkAdvancedMode.Add_Checked({ & $refreshLogFolderDisplay }.GetNewClosure())
+			$chkAdvancedMode.Add_Unchecked({ & $refreshLogFolderDisplay }.GetNewClosure())
+		}
+
+		if ($btnLogFolderBrowse)
+		{
+			$btnLogFolderBrowse.Add_Click({
+				try
+				{
+					Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+					$folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
+					$folderDialog.Description = 'Select Baseline log folder'
+					$folderDialog.ShowNewFolderButton = $true
+					$selectedPath = & $getEffectiveLogDirectory
+					if (-not [string]::IsNullOrWhiteSpace($selectedPath) -and [System.IO.Directory]::Exists($selectedPath))
+					{
+						$folderDialog.SelectedPath = $selectedPath
+					}
+					if ($folderDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK)
+					{
+						$settingsLogState.CustomDirectory = [string]$folderDialog.SelectedPath
+						& $refreshLogFolderDisplay
+					}
+				}
+				catch
+				{
+					Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiSettingsDialog.LogFolderBrowse'
+					[void](Show-ThemedDialog -Title 'Logging' -Message ("Failed to choose a log folder.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+				}
+			}.GetNewClosure())
+		}
+
+		if ($btnOpenLogFolder)
+		{
+			$btnOpenLogFolder.Add_Click({
+				try
+				{
+					$folderPath = & $getEffectiveLogDirectory
+					if ([string]::IsNullOrWhiteSpace($folderPath)) { return }
+					if (-not [System.IO.Directory]::Exists($folderPath)) { [void][System.IO.Directory]::CreateDirectory($folderPath) }
+					Start-Process -FilePath 'explorer.exe' -ArgumentList @($folderPath) | Out-Null
+				}
+				catch
+				{
+					Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiSettingsDialog.OpenLogFolder'
+					[void](Show-ThemedDialog -Title 'Logging' -Message ("Failed to open the log folder.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+				}
+			}.GetNewClosure())
+		}
+
+		if ($btnCopyLogFolderPath)
+		{
+			$btnCopyLogFolderPath.Add_Click({
+				try
+				{
+					$folderPath = & $getEffectiveLogDirectory
+					if (-not [string]::IsNullOrWhiteSpace($folderPath))
+					{
+						[System.Windows.Clipboard]::SetText($folderPath)
+					}
+				}
+				catch
+				{
+					Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiSettingsDialog.CopyLogFolderPath'
+					[void](Show-ThemedDialog -Title 'Logging' -Message ("Failed to copy the log folder path.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+				}
+			}.GetNewClosure())
+		}
+
+		if ($btnClearOldLogs)
+		{
+			$btnClearOldLogs.Add_Click({
+				try
+				{
+					$folderPath = & $getEffectiveLogDirectory
+					if ([string]::IsNullOrWhiteSpace($folderPath) -or -not [System.IO.Directory]::Exists($folderPath)) { return }
+					$confirm = Show-ThemedDialog -Title 'Clear Old Logs' -Message ("Delete old Baseline .log files from:`n{0}`n`nThe current session log is kept." -f $folderPath) -Buttons @('Clear', 'Cancel') -DestructiveButton 'Clear'
+					if ($confirm -ne 'Clear') { return }
+
+					$currentLogPath = if ($global:LogFilePath) { [System.IO.Path]::GetFullPath([string]$global:LogFilePath) } else { '' }
+					$removedCount = 0
+					foreach ($logFile in @(Get-ChildItem -LiteralPath $folderPath -Recurse -File -Filter '*.log' -ErrorAction SilentlyContinue))
+					{
+						$logPath = [System.IO.Path]::GetFullPath([string]$logFile.FullName)
+						if (-not [string]::IsNullOrWhiteSpace($currentLogPath) -and [string]::Equals($logPath, $currentLogPath, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+						Remove-Item -LiteralPath $logFile.FullName -Force -ErrorAction Stop
+						$removedCount++
+					}
+					[void](Show-ThemedDialog -Title 'Clear Old Logs' -Message ("Removed {0} old log file(s)." -f $removedCount) -Buttons @('OK') -AccentButton 'OK')
+				}
+				catch
+				{
+					Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiSettingsDialog.ClearOldLogs'
+					[void](Show-ThemedDialog -Title 'Clear Old Logs' -Message ("Failed to clear old logs.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+				}
+			}.GetNewClosure())
+		}
 
 		$syncStartupMode = {
 			param ([switch]$InitialLoad)
@@ -998,7 +1487,7 @@ function Show-GuiSettingsDialog
 					LoggingEnabled = [bool]$chkLoggingEnabled.IsChecked
 					DebugLoggingEnabled = [bool]$chkDebugLogging.IsChecked
 					LogLevel = [string](& $getTag $cmbLogLevel 'Info')
-					LogFilePath = [string]$txtLogFilePath.Text
+					LogFileDirectory = if ($chkAdvancedMode -and [bool]$chkAdvancedMode.IsChecked -and -not [string]::IsNullOrWhiteSpace([string]$settingsLogState.CustomDirectory)) { [string]$settingsLogState.CustomDirectory } else { '' }
 					AdvancedMode = [bool]$chkAdvancedMode.IsChecked
 					ExperimentalFeatures = [bool]$chkExperimentalFeatures.IsChecked
 					DesignMode = [bool]$chkDesignMode.IsChecked

@@ -1105,6 +1105,55 @@ function AppColorMode
 }
 
 <#
+	.SYNOPSIS
+	Hide the Spotlight "About this picture" desktop icon.
+
+	.DESCRIPTION
+	Removes the Spotlight namespace entry from the desktop and sets the matching
+	HideDesktopIcons value so the icon stays hidden for the current user.
+
+	.EXAMPLE
+	DesktopRegistry
+
+	.NOTES
+	Current user
+#>
+function DesktopRegistry
+{
+	# Write-Host: intentional - user-visible progress indicator
+	Write-Host 'Removing "About this Picture" from Desktop - ' -NoNewline
+	LogInfo 'Removing "About this Picture" from Desktop'
+	$namespaceKeyPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\{2cc5ca98-6485-489a-920e-b3e88a6ccce3}"
+	$hideIconsPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel"
+	$valueName = "{2cc5ca98-6485-489a-920e-b3e88a6ccce3}"
+	$valueData = 1
+
+	try
+	{
+		Remove-Item -Path $namespaceKeyPath -Force -ErrorAction SilentlyContinue | Out-Null
+	}
+	catch
+	{
+		LogError "Registry key not found or could not be removed: $namespaceKeyPath"
+	}
+
+	try
+	{
+		if (-not (Test-Path -Path $hideIconsPath))
+		{
+			New-Item -Path $hideIconsPath -Force -ErrorAction Stop | Out-Null
+		}
+		Set-RegistryValueSafe -Path $hideIconsPath -Name $valueName -Value $valueData -Type DWord | Out-Null
+		Write-ConsoleStatus -Status success
+	}
+	catch
+	{
+		Write-ConsoleStatus -Status failed
+		LogError "Failed to set registry value: $valueName"
+	}
+}
+
+<#
     .SYNOPSIS
     Windows build number and edition display on desktop
 

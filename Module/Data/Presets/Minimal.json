@@ -6,6 +6,7 @@
     "DiagnosticDataLevel -Minimal",
     "FeedbackFrequency -Never",
     "LockWidgets -Disable",
+    "Powershell7Telemetry -Disable",
     "TailoredExperiences -Disable",
     "SettingsSuggestedContent -Hide",
     "OneDriveFileExplorerAd -Hide",

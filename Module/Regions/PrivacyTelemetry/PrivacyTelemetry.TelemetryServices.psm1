@@ -873,6 +873,79 @@ Supports task control handling inside Baseline.
 }
 
 <#
+.SYNOPSIS
+Enable or disable PowerShell 7 Telemetry
+
+.PARAMETER Enable
+Enable PowerShell 7 Telemetry (default value)
+
+.PARAMETER Disable
+Disable PowerShell 7 Telemetry
+
+.EXAMPLE
+Powershell7Telemetry -Enable
+
+.EXAMPLE
+Powershell7Telemetry -Disable
+
+.NOTES
+Current user
+#>
+function Powershell7Telemetry
+{
+	param
+	(
+		[Parameter(
+			Mandatory = $true,
+			ParameterSetName = "Enable"
+		)]
+		[switch]
+		$Enable,
+
+		[Parameter(
+			Mandatory = $true,
+			ParameterSetName = "Disable"
+		)]
+		[switch]
+		$Disable
+	)
+
+	switch ($PSCmdlet.ParameterSetName)
+	{
+		"Enable"
+		{
+			Write-ConsoleStatus -Action "Enabling PowerShell 7 Telemetry"
+			LogInfo "Enabling PowerShell 7 Telemetry"
+			try
+			{
+				[Environment]::SetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT', '', 'Machine')
+				Write-ConsoleStatus -Status success
+			}
+			catch
+			{
+				Write-ConsoleStatus -Status failed
+				LogError "Failed to enable PowerShell 7 Telemetry: $($_.Exception.Message)"
+			}
+		}
+		"Disable"
+		{
+			Write-ConsoleStatus -Action "Disabling PowerShell 7 Telemetry"
+			LogInfo "Disabling PowerShell 7 Telemetry"
+			try
+			{
+				[Environment]::SetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT', '1', 'Machine')
+				Write-ConsoleStatus -Status success
+			}
+			catch
+			{
+				Write-ConsoleStatus -Status failed
+				LogError "Failed to disable PowerShell 7 Telemetry: $($_.Exception.Message)"
+			}
+		}
+	}
+}
+
+<#
 	.SYNOPSIS
 	Windows Error Reporting
 

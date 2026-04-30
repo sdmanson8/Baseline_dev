@@ -295,7 +295,7 @@
             }
             catch
             {
-                LogError (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionViewBuildTabContentFailed' -Fallback '[Exit-ExecutionView] Build-TabContent failed: {0}' -FormatArgs @($_.Exception.Message))
+                LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionViewBuildTabContentFailed' -Fallback '[Exit-ExecutionView] Build-TabContent failed'))
                 if ($savedPreviousContent)
                 {
                     $ContentScroll.Content = $savedPreviousContent
