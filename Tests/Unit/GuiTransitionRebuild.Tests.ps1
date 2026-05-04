@@ -93,6 +93,21 @@ Describe 'Focused GUI rebuilds' {
         $script:GuiContent | Should -Match '& \$updateCurrentTabContentScript -SkipIdlePrebuild:\$skipIdlePrebuild'
     }
 
+    It 'invokes page reset through a captured script-scope handler for WPF events' {
+        $script:ActionHandlersContent | Should -Match '\$Script:InvokePageResetToDefaultsScript = \{'
+        $script:ActionHandlersContent | Should -Match '& \$Script:InvokePageResetToDefaultsScript -Category \$Category'
+        $script:PresetUiContent | Should -Match '\$invokePageResetToDefaultsCapture = if \(\$Script:InvokePageResetToDefaultsScript\)'
+        $script:PresetUiContent | Should -Match '& \$invokePageResetToDefaultsCapture -Category \$pageCategory'
+        $script:PresetUiContent | Should -Not -Match 'Invoke-PageResetToDefaults -Category \$pageCategory'
+    }
+
+    It 'keeps the Safe UX Quick Start preset scoped to Initial Setup' {
+        $script:PresetUiContent | Should -Match 'function Test-ShouldShowQuickStartPresetButton'
+        $script:PresetUiContent | Should -Match 'return \[string\]::Equals\(\$normalizedPrimaryTab, ''Initial Setup'''
+        $script:PresetUiContent | Should -Match 'Get-TabPresetButtonDefinitions -IsSafeUx:\(Test-IsSafeModeUX\) -PrimaryTab \(\[string\]\$BuildContext\.PrimaryTab\)'
+        $script:PresetUiContent | Should -Match 'if \(Test-ShouldShowQuickStartPresetButton -PrimaryTab \$PrimaryTab\)'
+    }
+
     It 'uses focused rebuilds for theme and shared mode transitions' {
         $script:GuiContent | Should -Match 'Build-TabContent -PrimaryTab \$Script:CurrentPrimaryTab -SkipIdlePrebuild'
         $script:StateTransitionContent | Should -Match '& \$Script:UpdateCurrentTabContentScript -SkipIdlePrebuild'
@@ -104,14 +119,14 @@ Describe 'Focused GUI rebuilds' {
         $script:GuiContent | Should -Match 'if \(-not \$SkipContentRebuild\)\s*\{\s*# Rebuild content for current tab to pick up new theme colors\.'
     }
 
-    It 'defers startup session-tab hydration onto the dispatcher' {
+    It 'hydrates the restored startup tab before the GUI is revealed' {
         $script:SessionStateContent | Should -Match '\$refreshCurrentTabContentScript = \$\{function:Update-CurrentTabContent\}'
         $script:SessionStateContent | Should -Match '\$startGuiPerfScopeScript = Get-GuiFunctionCapture -Name ''Start-GuiPerfScope'''
         $script:SessionStateContent | Should -Match '\$stopGuiPerfScopeScript = Get-GuiFunctionCapture -Name ''Stop-GuiPerfScope'''
         $script:SessionStateContent | Should -Match '\$__perf = if \(\$startGuiPerfScopeScript\) \{ & \$startGuiPerfScopeScript -Name ''RestoreGuiSessionState\.TabHydrate'' \} else \{ \$null \}'
-        $script:SessionStateContent | Should -Match '\$Script:MainForm\.Dispatcher\.BeginInvoke\('
-        $script:SessionStateContent | Should -Match '\[System\.Windows\.Threading\.DispatcherPriority\]::Background'
         $script:SessionStateContent | Should -Match '& \$refreshCurrentTabContentScript -SkipIdlePrebuild'
+        $script:SessionStateContent | Should -Match '\$Script:StartupRestoreSessionPending = \$false'
+        $script:SessionStateContent | Should -Not -Match '\$Script:MainForm\.Dispatcher\.BeginInvoke\(\s*\[System\.Action\]\$refreshCurrentTabContentAction'
     }
 
     It 'loads the AppData startup session snapshot before primary tab hydration' {

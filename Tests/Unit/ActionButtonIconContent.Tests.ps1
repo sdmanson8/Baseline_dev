@@ -46,6 +46,16 @@ Describe 'Action button icon content' {
         $script:ActionContent | Should -Not -Match 'Tooltip_RefreshInstallationStatus'
     }
 
+    It 'routes Design Mode Save Config to configuration profile export' {
+        $script:ActionContent | Should -Match 'Register-GuiEventHandler -Source \$BtnRun -EventName ''Click'''
+        $script:ActionContent | Should -Match '\$testIsDesignModeUxCommand -and \(& \$testIsDesignModeUxCommand\)'
+        $script:ActionContent | Should -Match '\$exportGuiConfigurationProfileCommand -Context ''DesignModeSaveConfig'''
+        $script:ActionContent | Should -Match 'function Invoke-GuiConfigurationProfileExport'
+        $script:ActionContent | Should -Match 'New-ConfigurationProfile'
+        $script:ActionContent | Should -Match 'Export-ConfigurationProfile'
+        $script:ActionContent | Should -Not -Match 'Test-IsDesignModeUX[\s\S]{0,250}Export-GuiSettingsProfile'
+    }
+
     It 'routes ActionHandlers UI cleanup swallows through Write-DebugSwallowedException' {
         $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.UpdateRunPathContextLabel\.Foreground'''
         $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.ExportSupportBundle\.RemoveSessionStatePath'''
@@ -54,6 +64,9 @@ Describe 'Action button icon content' {
 
     It 'routes ActionHandlers help menu logger failures through Write-DebugSwallowedException' {
         $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuClickRouting\.LogWarning'''
+        $script:ActionContent | Should -Match '\$MenuHelpHelp\.Add_Click\(\$openHelpDialogFromMenu\)'
+        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpHelp\.LogWarning'''
+        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpHelp\.ShowFailureDialog'''
         $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpGettingStarted\.LogWarning'''
         $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpReadme\.LogWarning'''
         $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpReadme\.ShowThemedDialog'''
@@ -68,9 +81,10 @@ Describe 'Action button icon content' {
     It 'routes ActionHandlers help/about text fallbacks through Write-DebugSwallowedException' {
         $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.ExportConfigProfile\.GetDisplayVersion'''
         $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.ImportConfigProfile\.GetDisplayVersion'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpStartGuide\.GetQuickStartSteps'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpStartGuide\.GetOnboardingMode'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpStartGuide\.GetHelpLines'''
+        $script:ActionContent | Should -Match '& \$raiseButtonClick \$Script:BtnStartHere'
+        $script:ActionContent | Should -Not -Match 'MenuHelpStartGuide\.GetQuickStartSteps'
+        $script:ActionContent | Should -Not -Match 'MenuHelpStartGuide\.GetOnboardingMode'
+        $script:ActionContent | Should -Not -Match 'MenuHelpStartGuide\.GetHelpLines'
         $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpAbout\.GetDisplayVersion'''
     }
 

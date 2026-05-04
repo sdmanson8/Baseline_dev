@@ -722,8 +722,7 @@ function Set-GuiAppsMode
 		$Script:MenuToolsLoadRemoteApprovalPolicy,
 		$Script:MenuToolsRemoteConsole,
 		$Script:MenuToolsOperatorConsole,
-		$Script:MenuToolsRemoteSessionStatus,
-		$Script:MenuToolsInstallWsl
+		$Script:MenuToolsRemoteSessionStatus
 	)
 	foreach ($item in $tweaksOnlyMenu)
 	{
@@ -755,6 +754,10 @@ function Set-GuiAppsMode
 			{
 				$Script:SearchUiUpdating = $false
 			}
+		}
+		if (Get-Command -Name 'Sync-GuiSearchInputChrome' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Sync-GuiSearchInputChrome
 		}
 	}
 

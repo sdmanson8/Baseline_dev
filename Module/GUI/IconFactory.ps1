@@ -419,6 +419,7 @@ function Get-GuiPrimaryTabIconName
         'Privacy & Telemetry'  { return 'PrivacyTab' }
         'Security'             { return 'SecurityTab' }
         'System'               { return 'SystemTab' }
+        'Customizations'       { return 'WindowSettings' }
         'Updates'              { return 'ArrowSync' }
         'UI & Personalization' { return 'UIPersonalizationTab' }
         'UWP Apps'             { return 'AppsTab' }

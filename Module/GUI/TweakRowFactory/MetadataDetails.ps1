@@ -2,6 +2,110 @@
 
 	<#
 	    .SYNOPSIS
+	    Internal function Set-TweakSearchHighlightedTextBlock.
+	#>
+	function Set-TweakSearchHighlightedTextBlock
+	{
+		param (
+			[System.Windows.Controls.TextBlock]$TextBlock,
+			[string]$Text,
+			[object]$BrushConverter
+		)
+
+		if (-not $TextBlock) { return }
+		$query = if ($null -ne $Script:SearchText) { [string]$Script:SearchText.Trim() } else { '' }
+		if ([string]::IsNullOrWhiteSpace($query) -or [string]::IsNullOrWhiteSpace($Text))
+		{
+			$TextBlock.Text = [string]$Text
+			return
+		}
+
+		$comparison = [System.StringComparison]::OrdinalIgnoreCase
+		$startIndex = 0
+		$matchIndex = ([string]$Text).IndexOf($query, $startIndex, $comparison)
+		if ($matchIndex -lt 0)
+		{
+			$TextBlock.Text = [string]$Text
+			return
+		}
+
+		$TextBlock.Inlines.Clear()
+		$highlightBg = if ($Script:CurrentTheme -and $Script:CurrentTheme.SearchHighlightBg) { [string]$Script:CurrentTheme.SearchHighlightBg } else { '#FDE68A' }
+		$highlightFg = if ($Script:CurrentTheme -and $Script:CurrentTheme.SearchHighlightText) { [string]$Script:CurrentTheme.SearchHighlightText } else { '#111827' }
+		$highlightBgBrush = $BrushConverter.ConvertFromString($highlightBg)
+		$highlightFgBrush = $BrushConverter.ConvertFromString($highlightFg)
+		while ($matchIndex -ge 0)
+		{
+			if ($matchIndex -gt $startIndex)
+			{
+				$prefix = New-Object System.Windows.Documents.Run
+				$prefix.Text = ([string]$Text).Substring($startIndex, $matchIndex - $startIndex)
+				[void]($TextBlock.Inlines.Add($prefix))
+			}
+
+			$matchRun = New-Object System.Windows.Documents.Run
+			$matchRun.Text = ([string]$Text).Substring($matchIndex, $query.Length)
+			$matchRun.Background = $highlightBgBrush
+			$matchRun.Foreground = $highlightFgBrush
+			$matchRun.FontWeight = [System.Windows.FontWeights]::SemiBold
+			[void]($TextBlock.Inlines.Add($matchRun))
+
+			$startIndex = $matchIndex + $query.Length
+			if ($startIndex -ge ([string]$Text).Length) { break }
+			$matchIndex = ([string]$Text).IndexOf($query, $startIndex, $comparison)
+		}
+
+		if ($startIndex -lt ([string]$Text).Length)
+		{
+			$suffix = New-Object System.Windows.Documents.Run
+			$suffix.Text = ([string]$Text).Substring($startIndex)
+			[void]($TextBlock.Inlines.Add($suffix))
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Add-TweakDetailLine.
+	#>
+	function Add-TweakDetailLine
+	{
+		param (
+			[System.Windows.Controls.Panel]$Container,
+			[object]$RowContext,
+			[string]$Label,
+			[string]$Text,
+			[System.Windows.Thickness]$Margin
+		)
+
+		if (-not $Container -or [string]::IsNullOrWhiteSpace($Text)) { return }
+
+		$line = New-Object System.Windows.Controls.TextBlock
+		$line.TextWrapping = 'Wrap'
+		$line.Margin = $Margin
+		$line.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
+		$line.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextSecondary)
+
+		if (-not [string]::IsNullOrWhiteSpace($Label))
+		{
+			$labelRun = New-Object System.Windows.Documents.Run
+			$labelRun.Text = ('{0}: ' -f $Label)
+			$labelRun.FontWeight = [System.Windows.FontWeights]::SemiBold
+			$labelRun.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextPrimary)
+			[void]($line.Inlines.Add($labelRun))
+		}
+
+		$textRun = New-Object System.Windows.Documents.Run
+		$textRun.Text = [string]$Text
+		[void]($line.Inlines.Add($textRun))
+		if ($Label -eq (Get-UxString -Key 'GuiSectionTags' -Fallback 'Tags'))
+		{
+			Set-TweakSearchHighlightedTextBlock -TextBlock $line -Text ('{0}: {1}' -f $Label, $Text) -BrushConverter $RowContext.BrushConverter
+		}
+		[void]($Container.Children.Add($line))
+	}
+
+	<#
+	    .SYNOPSIS
 	    Internal function Get-CardHoverResources.
 	#>
 
@@ -198,20 +302,38 @@
 			[System.Windows.Thickness]$BlastMargin
 		)
 
+		$toggleButton = New-Object System.Windows.Controls.Button
+		$toggleButton.Content = Get-UxString -Key 'GuiShowDetails' -Fallback 'Show details'
+		$toggleButton.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
+		$toggleButton.FontWeight = [System.Windows.FontWeights]::SemiBold
+		$toggleButton.Padding = [System.Windows.Thickness]::new(8, 3, 8, 3)
+		$toggleButton.Margin = $DescriptionMargin
+		$toggleButton.HorizontalAlignment = 'Left'
+		$toggleButton.Cursor = [System.Windows.Input.Cursors]::Hand
+		if (Get-Command -Name 'Set-ButtonChrome' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Set-ButtonChrome -Button $toggleButton -Variant 'Subtle' -Compact -Muted
+		}
+		[void]($Container.Children.Add($toggleButton))
+
+		$detailsPanel = New-Object System.Windows.Controls.StackPanel
+		$detailsPanel.Orientation = 'Vertical'
+		$detailsPanel.Visibility = [System.Windows.Visibility]::Collapsed
+		try { $Tweak | Add-Member -MemberType NoteProperty -Name '_RowDetailsPanel' -Value $detailsPanel -Force } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.AddMetadataDetails.AttachDetailsPanel' }
+
 		$descriptionTextBlock = New-Object System.Windows.Controls.TextBlock
-		$descriptionTextBlock.Text = $DescriptionText
+		Set-TweakSearchHighlightedTextBlock -TextBlock $descriptionTextBlock -Text $DescriptionText -BrushConverter $RowContext.BrushConverter
 		$descriptionTextBlock.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
 		$descriptionTextBlock.Foreground = $RowContext.BrushConverter.ConvertFromString($DescriptionColor)
 		$descriptionTextBlock.Margin = $DescriptionMargin
 		$descriptionTextBlock.TextWrapping = 'Wrap'
-		[void]($Container.Children.Add($descriptionTextBlock))
+		[void]($detailsPanel.Children.Add($descriptionTextBlock))
 
-		# Show CautionReason inline on the tweak row for High-risk items so the
-		# consequence text is visible by default without expanding the caution section.
+		# Keep high-risk consequence text with the rest of the expanded details.
 		if ([string]$Tweak.Risk -eq 'High' -and [bool]$Tweak.Caution -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.CautionReason))
 		{
 			$cautionColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.CautionText) { $Script:CurrentTheme.CautionText } else { '#D6A84A' }
-			$neutralTextColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.TextSecondary) { $Script:CurrentTheme.TextSecondary } else { '#B8C1D9' }
+			$neutralTextColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.TextSecondary) { $Script:CurrentTheme.TextSecondary } else { '#CDD6EA' }
 			$cautionInline = New-Object System.Windows.Controls.TextBlock
 			$cautionInline.TextWrapping = 'Wrap'
 			$cautionInline.Margin = $DescriptionMargin
@@ -228,12 +350,28 @@
 			$cautionText.Text = [string]$Tweak.CautionReason
 			[void]($cautionInline.Inlines.Add($cautionText))
 
-			[void]($Container.Children.Add($cautionInline))
+			[void]($detailsPanel.Children.Add($cautionInline))
+		}
+
+		$impactText = if ((Test-GuiObjectField -Object $Tweak -FieldName 'Impact') -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.Impact)) { [string]$Tweak.Impact } else { $null }
+		Add-TweakDetailLine -Container $detailsPanel -RowContext $RowContext -Label (Get-UxString -Key 'GuiSectionImpact' -Fallback 'Impact') -Text $impactText -Margin $DescriptionMargin
+		$behaviorText = if ((Test-GuiObjectField -Object $Tweak -FieldName 'Detail') -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.Detail)) { [string]$Tweak.Detail } else { $null }
+		Add-TweakDetailLine -Container $detailsPanel -RowContext $RowContext -Label (Get-UxString -Key 'GuiSectionBehavior' -Fallback 'Behavior') -Text $behaviorText -Margin $DescriptionMargin
+		$whyText = if ((Test-GuiObjectField -Object $Tweak -FieldName 'WhyThisMatters') -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.WhyThisMatters)) { [string]$Tweak.WhyThisMatters } else { $null }
+		Add-TweakDetailLine -Container $detailsPanel -RowContext $RowContext -Label (Get-UxString -Key 'GuiSectionWhyThisMatters' -Fallback 'Why This Matters') -Text $whyText -Margin $DescriptionMargin
+		$recoveryText = if ((Test-GuiObjectField -Object $Tweak -FieldName 'RecoveryLevel') -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.RecoveryLevel)) { [string]$Tweak.RecoveryLevel } else { $null }
+		Add-TweakDetailLine -Container $detailsPanel -RowContext $RowContext -Label (Get-UxString -Key 'GuiSectionRecovery' -Fallback 'Recovery') -Text $recoveryText -Margin $DescriptionMargin
+		$restartText = if ([bool]$Tweak.RequiresRestart) { Get-UxString -Key 'GuiTweakChipRestartRequired' -Fallback 'Restart required' } else { Get-UxString -Key 'GuiTweakChipRestartNotRequired' -Fallback 'No restart required' }
+		Add-TweakDetailLine -Container $detailsPanel -RowContext $RowContext -Label (Get-UxString -Key 'GuiSectionRestart' -Fallback 'Restart') -Text $restartText -Margin $DescriptionMargin
+		if ($RowContext.Metadata -and (Test-GuiObjectField -Object $RowContext.Metadata -FieldName 'ScenarioTags') -and $RowContext.Metadata.ScenarioTags)
+		{
+			$tagsText = (@($RowContext.Metadata.ScenarioTags) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }) -join ', '
+			Add-TweakDetailLine -Container $detailsPanel -RowContext $RowContext -Label (Get-UxString -Key 'GuiSectionTags' -Fallback 'Tags') -Text $tagsText -Margin $DescriptionMargin
 		}
 
 		try
 		{
-			$detailMetaPanel = New-TweakMetadataChipPanel -Metadata $RowContext.Metadata -IncludeType:$false -IncludeState:$true -IncludeRestart:$false -IncludeRestorable:$false -IncludeRecoveryLevel:$true -UseCompactRecoveryLevelLabel:$RowContext.UseCompactRecoveryLevelLabel -IncludeScenarioTags:$true
+			$detailMetaPanel = New-TweakMetadataChipPanel -Metadata $RowContext.Metadata -IncludeType:$true -IncludeState:$true -IncludeRestart:$true -IncludeRestorable:$true -IncludeRecoveryLevel:$true -UseCompactRecoveryLevelLabel:$RowContext.UseCompactRecoveryLevelLabel -IncludeScenarioTags:$true
 		}
 		catch
 		{
@@ -242,7 +380,7 @@
 		if ($detailMetaPanel)
 		{
 			$detailMetaPanel.Margin = $MetadataMargin
-			[void]($Container.Children.Add($detailMetaPanel))
+			[void]($detailsPanel.Children.Add($detailMetaPanel))
 		}
 
 		if (-not [string]::IsNullOrWhiteSpace([string]$RowContext.Metadata.BlastRadius))
@@ -253,8 +391,22 @@
 			$blastText.Margin = $BlastMargin
 			$blastText.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
 			$blastText.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextSecondary)
-			[void]($Container.Children.Add($blastText))
+			[void]($detailsPanel.Children.Add($blastText))
 		}
+
+		$showDetailsLabel = Get-UxString -Key 'GuiShowDetails' -Fallback 'Show details'
+		$hideDetailsLabel = Get-UxString -Key 'GuiHideDetails' -Fallback 'Hide details'
+		Register-GuiEventHandler -Source $toggleButton -EventName 'Click' -Handler ({
+			$showDetails = ($detailsPanel.Visibility -ne [System.Windows.Visibility]::Visible)
+			$detailsPanel.Visibility = if ($showDetails) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+			$toggleButton.Content = if ($showDetails) {
+				$hideDetailsLabel
+			}
+			else {
+				$showDetailsLabel
+			}
+		}.GetNewClosure()) | Out-Null
+		[void]($Container.Children.Add($detailsPanel))
 	}
 
 	<#
@@ -270,6 +422,11 @@
 			[int]$LeftIndent = 0,
 			[System.Windows.Thickness]$RowMargin = [System.Windows.Thickness]::new(0, 2, 0, 0)
 		)
+
+		if ((Test-GuiObjectField -Object $Tweak -FieldName '_RowDetailsPanel') -and $Tweak._RowDetailsPanel)
+		{
+			return $null
+		}
 
 		$whyBlock = New-WhyThisMattersButton -Tweak $Tweak -LeftIndent $LeftIndent
 		if (-not $whyBlock)

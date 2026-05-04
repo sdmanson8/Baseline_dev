@@ -187,7 +187,7 @@ Describe 'UxPolicy' {
         It 'keeps the original non-Safe help content outside Safe Mode' {
             $sections = Get-UxHelpSections
 
-            $sections.Keys | Should -Contain 'Getting Started'
+            $sections.Keys | Should -Contain 'Quick Start'
             $sections.Keys | Should -Contain 'Import / Export / Session Restore'
             $sections.Keys | Should -Contain 'Remote Management'
             ($sections['Presets'] -join ' ') | Should -Match 'Basic is the recommended default for normal users'
@@ -232,7 +232,7 @@ Describe 'UxPolicy' {
             $sections.Keys | Should -Contain 'Game Mode Workflow'
             $sections.Keys | Should -Contain 'Profiles and Plan Building'
             $sections.Keys | Should -Contain 'Advanced Options'
-            $sections.Keys | Should -Not -Contain 'Getting Started'
+            $sections.Keys | Should -Not -Contain 'Quick Start'
             $sections.Keys | Should -Not -Contain 'Presets'
             ($sections['Game Mode Workflow'] -join ' ') | Should -Match 'Competitive'
             ($sections['Game Mode Workflow'] -join ' ') | Should -Match 'only the Gaming tab plan can be edited or run'

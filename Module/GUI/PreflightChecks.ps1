@@ -999,7 +999,7 @@ function Show-PreflightResultsDialog
         Displays pre-flight check results and returns the user's choice.
     .DESCRIPTION
         If all passed, returns 'Continue'. If critical failures exist, shows dialog
-        with only 'Cancel'. If warnings only, shows 'Cancel' and 'Continue Anyway'.
+        with only 'Cancel'. If warnings only, shows 'Cancel' and 'Run Anyway'.
     #>
     [CmdletBinding()]
     param (
@@ -1121,7 +1121,7 @@ function Show-PreflightResultsDialog
     $message = $lines -join "`n"
     $dialogTitle = Get-UxLocalizedString -Key 'GuiPreflightDialogTitle' -Fallback 'Pre-flight Checks'
     $cancelLabel = Get-UxLocalizedString -Key 'GuiBtnCancel' -Fallback 'Cancel'
-    $continueAnywayLabel = Get-UxLocalizedString -Key 'GuiPreflightContinueAnyway' -Fallback 'Continue Anyway'
+    $continueAnywayLabel = Get-UxLocalizedString -Key 'GuiPreflightContinueAnyway' -Fallback 'Run Anyway'
 
     if ($Results.CriticalFailures.Count -gt 0)
     {
@@ -1130,6 +1130,6 @@ function Show-PreflightResultsDialog
     }
 
     # Warnings only - allow the user to continue
-    $choice = Show-ThemedDialog -Title $dialogTitle -Message $message -Buttons @($cancelLabel, $continueAnywayLabel) -AccentButton $continueAnywayLabel
+    $choice = Show-ThemedDialog -Title $dialogTitle -Message $message -Buttons @($cancelLabel, $continueAnywayLabel) -DestructiveButton $continueAnywayLabel
     return $choice
 }

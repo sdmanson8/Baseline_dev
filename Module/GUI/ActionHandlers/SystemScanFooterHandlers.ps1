@@ -141,6 +141,18 @@
 	$secondaryActionBar.Orientation = 'Horizontal'
 	$secondaryActionGroup.Child = $secondaryActionBar
 	$Script:SecondaryActionGroupBorder = $secondaryActionGroup
+	$setSecondaryActionGroupMaxWidth = {
+		if (-not $ActionButtonBar -or -not $secondaryActionGroup) { return }
+		$availableWidth = [double]$ActionButtonBar.ActualWidth
+		if ($availableWidth -gt 0)
+		{
+			$secondaryActionGroup.MaxWidth = [Math]::Max(0, $availableWidth - 12)
+		}
+	}.GetNewClosure()
+	& $setSecondaryActionGroupMaxWidth
+	Register-GuiEventHandler -Source $ActionButtonBar -EventName 'SizeChanged' -Handler ({
+		& $setSecondaryActionGroupMaxWidth
+	}.GetNewClosure()) | Out-Null
 	[void]($ActionButtonBar.Children.Add($secondaryActionGroup))
 	$BtnExportSettings = New-PresetButton -Label (Get-UxLocalizedString -Key 'GuiFooterExportSettings' -Fallback 'Export Settings') -Variant 'Subtle' -Compact -Muted
 	$BtnExportSettings.FontSize = $Script:GuiLayout.FontSizeSmall
@@ -759,57 +771,22 @@
 		}.GetNewClosure()) | Out-Null
 	}
 
-	if ($MenuToolsStartupManager)
-	{
-		Register-GuiEventHandler -Source $MenuToolsStartupManager -EventName 'Click' -Handler ({
-			if (& $testGuiRunInProgressCapture) { return }
-			if (-not (Get-Command -Name 'Show-GuiStartupManagerDialog' -CommandType Function -ErrorAction SilentlyContinue))
-			{
-				return
-			}
-			try
-			{
-				$null = Show-GuiStartupManagerDialog
-			}
-			catch
-			{
-				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to open startup manager')
-				[void](Show-ThemedDialog -Title 'Startup Manager' -Message ("Failed to open startup manager.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
-			}
-		}.GetNewClosure()) | Out-Null
-	}
-
-	if ($MenuToolsUserFolders)
-	{
-		Register-GuiEventHandler -Source $MenuToolsUserFolders -EventName 'Click' -Handler ({
-			if (& $testGuiRunInProgressCapture) { return }
-			if (-not (Get-Command -Name 'Show-GuiUserFoldersDialog' -CommandType Function -ErrorAction SilentlyContinue))
-			{
-				return
-			}
-			try
-			{
-				$null = Show-GuiUserFoldersDialog
-			}
-			catch
-			{
-				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to open user folders')
-				[void](Show-ThemedDialog -Title 'User Folders' -Message ("Failed to open user folders.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
-			}
-		}.GetNewClosure()) | Out-Null
-	}
-
 	if ($MenuToolsRemovalPersistence)
 	{
 		Register-GuiEventHandler -Source $MenuToolsRemovalPersistence -EventName 'Click' -Handler ({
 			if (& $testGuiRunInProgressCapture) { return }
-			if (-not (Get-Command -Name 'Show-GuiRemovalPersistenceDialog' -CommandType Function -ErrorAction SilentlyContinue))
-			{
-				return
-			}
 			try
 			{
-				$null = Show-GuiRemovalPersistenceDialog
+				$removalPersistenceDialogCommand = $showGuiRemovalPersistenceDialogCommand
+				if (-not $removalPersistenceDialogCommand)
+				{
+					$removalPersistenceDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiRemovalPersistenceDialog' -CommandType 'Function'
+				}
+				if (-not $removalPersistenceDialogCommand)
+				{
+					throw 'Removal Persistence dialog command is not available.'
+				}
+				$null = & $removalPersistenceDialogCommand
 			}
 			catch
 			{
@@ -880,43 +857,6 @@
 			{
 				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to view remote session status')
 				[void](Show-ThemedDialog -Title (& $getUxLocalizedStringCapture -Key 'GuiRemoteSessionStatusTitle' -Fallback 'Remote Session Status') -Message ((& $getUxLocalizedStringCapture -Key 'GuiRemoteSessionStatusFailed' -Fallback "Failed to view remote session status.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
-			}
-		}.GetNewClosure()) | Out-Null
-	}
-
-	if ($MenuToolsInstallWsl)
-	{
-		Register-GuiEventHandler -Source $MenuToolsInstallWsl -EventName 'Click' -Handler ({
-			if (& $testGuiRunInProgressCapture) { return }
-			try
-			{
-				if (-not $showWslInstallDialogCommand -or -not $invokeWslInstallFlowCommand)
-				{
-					throw 'WSL install helpers are not available.'
-				}
-
-				$selectedDistro = & $showWslInstallDialogCommand
-				if (-not $selectedDistro) { return }
-				$alias = if ($selectedDistro.PSObject.Properties.Name -contains 'Alias') { [string]$selectedDistro.Alias } else { [string]$selectedDistro }
-				$label = if ($selectedDistro.PSObject.Properties.Name -contains 'Distribution') { [string]$selectedDistro.Distribution } else { $alias }
-				$result = & $invokeWslInstallFlowCommand -Alias $alias
-
-				if ($result -and $result.Succeeded)
-				{
-					LogInfo ("WSL install flow completed for {0}." -f $label)
-					[void](Show-ThemedDialog -Title (& $getUxLocalizedStringCapture -Key 'GuiWslInstallTitle' -Fallback 'Install WSL') -Message ("Installed {0} and completed the post-install WSL update steps." -f $label) -Buttons @('OK') -AccentButton 'OK')
-				}
-				else
-				{
-					$failureReason = if ($result -and $result.Reason) { [string]$result.Reason } else { 'Unknown failure.' }
-					LogError ("WSL install flow failed for {0}: {1}" -f $label, $failureReason)
-					[void](Show-ThemedDialog -Title (& $getUxLocalizedStringCapture -Key 'GuiWslInstallTitle' -Fallback 'Install WSL') -Message ("WSL install for {0} did not complete.`n`n{1}" -f $label, $failureReason) -Buttons @('OK') -AccentButton 'OK')
-				}
-			}
-			catch
-			{
-				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'WSL install launcher failed')
-				[void](Show-ThemedDialog -Title (& $getUxLocalizedStringCapture -Key 'GuiWslInstallTitle' -Fallback 'Install WSL') -Message ("Failed to launch the WSL installer.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}.GetNewClosure()) | Out-Null
 	}

@@ -1777,7 +1777,7 @@ function Get-UxQuickStartSteps
 			}
 
 			$sections = [ordered]@{
-				(Get-UxLocalizedString -Key 'GuiHelpExpertSectionGettingStarted' -Fallback 'Getting Started') = @(Get-UxHelpGettingStartedLines -Mode 'Expert')
+				(Get-UxLocalizedString -Key 'GuiHelpExpertSectionGettingStarted' -Fallback 'Quick Start') = @(Get-UxHelpGettingStartedLines -Mode 'Expert')
 				(Get-UxLocalizedString -Key 'GuiHelpSectionPresets' -Fallback 'Presets') = @(
 					(Get-UxLocalizedString -Key 'GuiHelpExpertPresetList' -Fallback 'Minimal, Basic, Balanced, Advanced load from preset files.')
 					(Get-UxLocalizedString -Key 'GuiHelpExpertAdvancedReview' -Fallback 'Advanced is the expert preset and should be reviewed with risk, restart, and recovery guidance in mind.')
@@ -1822,7 +1822,7 @@ function Get-UxQuickStartSteps
 		}
 
 		return [ordered]@{
-			(Get-UxLocalizedString -Key 'GuiHelpStdSectionGettingStarted' -Fallback 'Getting Started') = @(Get-UxHelpGettingStartedLines -Mode 'Standard')
+			(Get-UxLocalizedString -Key 'GuiHelpStdSectionGettingStarted' -Fallback 'Quick Start') = @(Get-UxHelpGettingStartedLines -Mode 'Standard')
 			(Get-UxLocalizedString -Key 'GuiHelpSectionPresets' -Fallback 'Presets') = @(
 				(Get-UxLocalizedString -Key 'GuiHelpStdPresetList' -Fallback 'Minimal, Basic, Balanced, and Advanced load selections from their matching preset files.')
 				(Get-UxLocalizedString -Key 'GuiHelpStdPresetBasicRec' -Fallback 'Basic is the recommended default for normal users.')

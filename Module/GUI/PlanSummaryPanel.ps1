@@ -478,8 +478,9 @@ function Show-PlanSummaryDialog
 	[void]($buttonPanel.Children.Add($btnBack))
 
 	# Continue button
+	$continueLabel = Get-UxRunActionLabel
 	$btnContinue = New-Object System.Windows.Controls.Button
-	$btnContinue.Content = (Get-UxRunActionLabel)
+	$btnContinue.Content = $continueLabel
 	$btnContinue.MinWidth = $Script:GuiLayout.ButtonMinWidth
 	$btnContinue.Height = $Script:GuiLayout.ButtonHeight
 	$btnContinue.Margin = [System.Windows.Thickness]::new(0, 4, 0, 4)
@@ -490,8 +491,9 @@ function Show-PlanSummaryDialog
 
 	$dlgRefContinue = $dlg
 	$resRefContinue = $resultRef
+	$continueLabelRef = $continueLabel
 	$btnContinue.Add_Click({
-		$resRefContinue.Value = (Get-UxRunActionLabel)
+		$resRefContinue.Value = $continueLabelRef
 		$dlgRefContinue.Close()
 	}.GetNewClosure())
 	[void]($buttonPanel.Children.Add($btnContinue))

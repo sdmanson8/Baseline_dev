@@ -142,7 +142,7 @@ function Show-ThemedDialog
 			'Apply' { return 'Passed' }
 			'Save' { return 'Export' }
 			'Continue' { return 'Passed' }
-			'Continue Anyway' { return 'Warning' }
+			'Run Anyway' { return 'Warning' }
 		}
 
 		if ($Label -eq $Accent -or (($null -eq $Accent -or [string]::IsNullOrWhiteSpace($Accent)) -and $ButtonCount -eq 1))

@@ -565,7 +565,7 @@ Describe 'Safe Mode visibility (W-1h)' {
         $script:LastViewMode | Should -Be 'Standard'
         $script:TransitionCall.Context | Should -Be 'SafeMode'
         $script:TransitionCall.StatusTone | Should -Be 'muted'
-        $script:BtnLog.Visibility | Should -Be 'Visible'
+        $script:BtnLog.Visibility | Should -Be 'Collapsed'
         $script:BtnFilterToggle.Visibility | Should -Be 'Visible'
         $script:ChkScan.Visibility | Should -Be 'Visible'
         $script:ExpertModeBanner.Visibility | Should -Be 'Collapsed'
@@ -576,6 +576,25 @@ Describe 'Safe Mode visibility (W-1h)' {
         $script:MenuViewFilters.Visibility | Should -Be 'Visible'
         $script:MenuFileExportSystemState.Visibility | Should -Be 'Visible'
         $script:MenuFileExportConfigProfile.Visibility | Should -Be 'Visible'
+        $script:ChkSafeMode.IsChecked | Should -BeFalse
+        [string]$script:ChkSafeMode.Content | Should -Be 'Expert Mode'
+    }
+
+    It 'keeps the header log button hidden when Expert Mode is enabled' {
+        $script:SafeModeActive = $false
+        $script:ExpertModeActive = $false
+        $script:BtnLog.Visibility = 'Collapsed'
+        $script:BtnFilterToggle.Visibility = 'Collapsed'
+        $script:ChkScan.Visibility = 'Collapsed'
+
+        Set-AdvancedModeState -Enabled:$true
+
+        $script:LastViewMode | Should -Be 'Expert'
+        $script:TransitionCall.Context | Should -Be 'ExpertMode'
+        $script:BtnLog.Visibility | Should -Be 'Collapsed'
+        $script:BtnFilterToggle.Visibility | Should -Be 'Visible'
+        $script:ChkScan.Visibility | Should -Be 'Visible'
+        $script:ExpertModeBanner.Visibility | Should -Be 'Visible'
         $script:ChkSafeMode.IsChecked | Should -BeFalse
         [string]$script:ChkSafeMode.Content | Should -Be 'Expert Mode'
     }

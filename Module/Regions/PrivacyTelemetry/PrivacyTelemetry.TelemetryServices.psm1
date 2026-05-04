@@ -630,10 +630,25 @@ Supports task control handling inside Baseline.
 			$TextBlock.VerticalAlignment = 'Center'
 			[void]$LabelPanel.Children.Add($TextBlock)
 
-			$StackPanel = New-Object -TypeName System.Windows.Controls.StackPanel
-			[void]$StackPanel.Children.Add($CheckBox)
-			[void]$StackPanel.Children.Add($LabelPanel)
-			[void]$PanelContainer.Children.Add($StackPanel)
+			$tooltipText = if ([string]::IsNullOrWhiteSpace([string]$Task.TaskPath)) { [string]$Task.TaskName } else { "$($Task.TaskPath)$($Task.TaskName)" }
+			$infoIcon = GUICommon\New-GuiPopupInfoIcon -TooltipText $tooltipText -Theme $Theme -UseDarkMode $UseDarkMode
+			$infoPanel = New-Object -TypeName System.Windows.Controls.StackPanel
+			$infoPanel.Orientation = 'Horizontal'
+			$infoPanel.VerticalAlignment = 'Center'
+			$infoPanel.HorizontalAlignment = 'Right'
+			$infoPanel.Margin = [System.Windows.Thickness]::new(8, 0, 10, 0)
+			[void]$infoPanel.Children.Add($infoIcon)
+
+			$rowPanel = New-Object -TypeName System.Windows.Controls.DockPanel
+			$rowPanel.LastChildFill = $true
+			$rowPanel.HorizontalAlignment = 'Stretch'
+			$rowPanel.Margin = [System.Windows.Thickness]::new(0, 2, 0, 2)
+			[System.Windows.Controls.DockPanel]::SetDock($CheckBox, [System.Windows.Controls.Dock]::Left)
+			[void]$rowPanel.Children.Add($CheckBox)
+			[System.Windows.Controls.DockPanel]::SetDock($infoPanel, [System.Windows.Controls.Dock]::Right)
+			[void]$rowPanel.Children.Add($infoPanel)
+			[void]$rowPanel.Children.Add($LabelPanel)
+			[void]$PanelContainer.Children.Add($rowPanel)
 
 			# If task checked add to the array list
 			if (Test-ScheduledTaskSeedSelected -Task $Task)

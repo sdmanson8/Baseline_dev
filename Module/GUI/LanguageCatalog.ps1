@@ -155,8 +155,8 @@ function Get-GuiLanguageEntries
 	$langDisplayData = Get-GuiLanguageDisplayData
 	$entries = New-Object System.Collections.ArrayList
 
-	if ([string]::IsNullOrWhiteSpace([string]$LocalizationDirectory)) { return ,$entries }
-	if (-not (Test-Path -LiteralPath $LocalizationDirectory)) { return ,$entries }
+	if ([string]::IsNullOrWhiteSpace([string]$LocalizationDirectory)) { return }
+	if (-not (Test-Path -LiteralPath $LocalizationDirectory)) { return }
 
 	# Locale JSON files live in per-language folders; the root JSON files are
 	# metadata (locale-map, schema, exempt-keys) and must not appear in the picker.
@@ -180,5 +180,5 @@ function Get-GuiLanguageEntries
 		})
 	}
 
-	return ,$entries
+	return $entries
 }

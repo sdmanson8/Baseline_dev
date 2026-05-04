@@ -11,7 +11,7 @@
 			[string]$Title = 'Warning',
 			[string]$Message,
 			[object[]]$SummaryCards = @(),
-			[string[]]$Buttons = @('Cancel', 'Continue Anyway'),
+			[string[]]$Buttons = @('Cancel', 'Preview Run', 'Run Anyway'),
 			[string]$AccentButton = $null,
 			[string]$DestructiveButton = $null
 		)
@@ -282,6 +282,7 @@ function Show-GuiSettingsDialog
 	$saveLabel = Get-UxLocalizedString -Key 'GuiSaveButton' -Fallback 'Save'
 	$exportSupportBundleLabel = Get-UxLocalizedString -Key 'GuiMenuToolsExportSupportBundle' -Fallback 'Export Support Bundle...'
 	$openExportBundleButtonLabel = Get-UxLocalizedString -Key 'GuiSettingsOpenExportBundleTool' -Fallback 'Open Export Support Bundle tool'
+	$getUxLocalizedStringCapture = ${function:Get-UxLocalizedString}
 	$debugExportHint = "Need to send diagnostics? Enable debug mode, reproduce the issue, then use Tools -> $exportSupportBundleLabel."
 
 	$generalHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupGeneral' -Fallback 'General'
@@ -663,7 +664,7 @@ function Show-GuiSettingsDialog
 											<Path Grid.Column="1" Margin="8,0,2,0" VerticalAlignment="Center" Data="M 0 0 L 4 4 L 8 0" Stroke="$textPrimary" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="Fill" Width="8" Height="4" IsHitTestVisible="False"/>
 										</Grid>
 									</ToggleButton>
-									<Popup Name="SettingsLanguagePopup" StaysOpen="False" Placement="Bottom" PlacementTarget="{Binding ElementName=BtnSettingsLanguage}" AllowsTransparency="True" IsOpen="{Binding IsChecked, ElementName=BtnSettingsLanguage, Mode=TwoWay}">
+									<Popup Name="SettingsLanguagePopup" StaysOpen="True" Placement="Bottom" PlacementTarget="{Binding ElementName=BtnSettingsLanguage}" AllowsTransparency="True" IsOpen="{Binding IsChecked, ElementName=BtnSettingsLanguage, Mode=TwoWay}">
 										<Border Background="$cardBg" BorderBrush="$controlBorder" BorderThickness="1" CornerRadius="6" Padding="6">
 											<StackPanel Width="360">
 												<TextBox Name="TxtSettingsLanguageSearch" Height="28" Padding="10,4" Margin="0,0,0,6" VerticalContentAlignment="Center"
@@ -880,6 +881,7 @@ function Show-GuiSettingsDialog
 		$chkAdvancedMode = $dlg.FindName('ChkAdvancedMode')
 		$chkExperimentalFeatures = $dlg.FindName('ChkExperimentalFeatures')
 		$chkDesignMode = $dlg.FindName('ChkDesignMode')
+		if ($chkDesignMode) { $chkDesignMode.IsEnabled = $true }
 		$resultRef = @{ Value = $null }
 
 		$settingsInputBgBrush = ConvertTo-GuiBrush -Color $surfaceControl -Context 'DialogHelpers.ShowGuiSettingsDialog.InputBg' -FallbackColor '#262D40'
@@ -1092,13 +1094,16 @@ function Show-GuiSettingsDialog
 			}
 			else
 			{
-				@($languageEntries | Where-Object { [string]$_.SearchIndex -like "*$normalizedFilter*" })
+				@($languageEntries | Where-Object {
+					$searchIndex = [string]$_.SearchIndex
+					$searchIndex.IndexOf($normalizedFilter, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+				})
 			}
 
 			if ($filtered.Count -eq 0)
 			{
 				$emptyState = [System.Windows.Controls.TextBlock]::new()
-				$emptyState.Text = (Get-UxLocalizedString -Key 'GuiLanguageSearchNoResults' -Fallback 'No languages found.')
+				$emptyState.Text = (& $getUxLocalizedStringCapture -Key 'GuiLanguageSearchNoResults' -Fallback 'No languages found.')
 				$emptyState.Margin = [System.Windows.Thickness]::new(10, 8, 10, 6)
 				$emptyState.FontSize = 12
 				$emptyState.Foreground = $textMutedBrush
@@ -1170,11 +1175,9 @@ function Show-GuiSettingsDialog
 		if ($txtSettingsLanguageSearch)
 		{
 			$txtSettingsLanguageSearch.Add_TextChanged({
-				param ($textSender, $textArgs)
-				$null = $textArgs
 				if ($languageUiState.Render)
 				{
-					& $languageUiState.Render ([string]$textSender.Text)
+					& $languageUiState.Render ([string]$txtSettingsLanguageSearch.Text)
 				}
 			}.GetNewClosure())
 		}

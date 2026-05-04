@@ -2,13 +2,22 @@ Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/GUI/ThemeManagement.ps1'
+    $applyThemePath = Join-Path $PSScriptRoot '../../Module/GUI/ApplyTheme.ps1'
     $script:RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
     $script:DarkThemeResourcePath = Join-Path $script:RepoRoot 'Module/GUI/Themes/Dark.xaml'
     $script:LightThemeResourcePath = Join-Path $script:RepoRoot 'Module/GUI/Themes/Light.xaml'
+    $script:ApplyThemeContent = Get-Content -LiteralPath $applyThemePath -Raw -Encoding UTF8
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
         Invoke-Expression $fn.Extent.Text
+    }
+}
+
+Describe 'GUI theme preference persistence' {
+    It 'persists the normalized theme preference when applying a theme preference' {
+        $script:ApplyThemeContent | Should -Match 'Set-BaselineUserPreference -Key ''Theme'' -Value \$normalized'
+        $script:ApplyThemeContent | Should -Match "ApplyTheme\.ApplyBaselineThemePreference\.SavePreference"
     }
 }
 
@@ -58,17 +67,17 @@ Describe 'GUI theme resource dictionaries' {
         $content | Should -Match '<Color x:Key="Color\.SurfaceElevated">#1E2433</Color>'
         $content | Should -Match '<Color x:Key="Color\.SurfaceControl">#262D40</Color>'
         $content | Should -Match '<Color x:Key="Color\.TextPrimary">#F4F7FF</Color>'
-        $content | Should -Match '<Color x:Key="Color\.TextSecondary">#B8C1D9</Color>'
-        $content | Should -Match '<Color x:Key="Color\.TextMuted">#8F99B2</Color>'
-        $content | Should -Match '<Color x:Key="Color\.TextDisabled">#586178</Color>'
+        $content | Should -Match '<Color x:Key="Color\.TextSecondary">#CDD6EA</Color>'
+        $content | Should -Match '<Color x:Key="Color\.TextMuted">#A3ADC6</Color>'
+        $content | Should -Match '<Color x:Key="Color\.TextDisabled">#7E89A8</Color>'
         $content | Should -Match '<Color x:Key="Color\.Border">#2430445A</Color>'
-        $content | Should -Match '<Color x:Key="Color\.BorderStrong">#344059</Color>'
+        $content | Should -Match '<Color x:Key="Color\.BorderStrong">#3C4A66</Color>'
         $content | Should -Match '<Color x:Key="Color\.Accent">#7CB7FF</Color>'
         $content | Should -Match '<Color x:Key="Color\.Success">#35D07F</Color>'
         $content | Should -Match '<Color x:Key="Color\.Progress">#35D07F</Color>'
         $content | Should -Match '<Color x:Key="Color\.SplashCard">#0FFFFFFF</Color>'
         $content | Should -Match '<Color x:Key="Color\.SplashCardBorder">#00FFFFFF</Color>'
-        $content | Should -Match '<Color x:Key="Color\.SplashSubtitle">#AEB7D1</Color>'
+        $content | Should -Match '<Color x:Key="Color\.SplashSubtitle">#CDD6EA</Color>'
         $content | Should -Match '<Color x:Key="Color\.SplashStepActive">#E6EBFF</Color>'
         $content | Should -Match '<Color x:Key="Color\.Warning">#D6A84A</Color>'
         $content | Should -Match '<Color x:Key="Color\.Danger">#FF6B8A</Color>'
@@ -82,8 +91,8 @@ Describe 'GUI theme resource dictionaries' {
         $content | Should -Match '<Color x:Key="Color\.SurfaceElevated">#FBFCFE</Color>'
         $content | Should -Match '<Color x:Key="Color\.SurfaceControl">#F9FAFC</Color>'
         $content | Should -Match '<Color x:Key="Color\.TextPrimary">#1F2937</Color>'
-        $content | Should -Match '<Color x:Key="Color\.TextSecondary">#6B7280</Color>'
-        $content | Should -Match '<Color x:Key="Color\.Border">#E6EAF0</Color>'
+        $content | Should -Match '<Color x:Key="Color\.TextSecondary">#4B5563</Color>'
+        $content | Should -Match '<Color x:Key="Color\.Border">#D4DBE7</Color>'
         $content | Should -Match '<Color x:Key="Color\.Success">#6BBFA4</Color>'
         $content | Should -Match '<Color x:Key="Color\.Progress">#6BBFA4</Color>'
         $content | Should -Match '<Color x:Key="Color\.SplashCardTop">#FBFCFE</Color>'
@@ -93,7 +102,7 @@ Describe 'GUI theme resource dictionaries' {
 
         $themeContent | Should -Match 'WindowBg\s+= "#F0F2F6"'
         $themeContent | Should -Match 'CardBg\s+= "#FBFCFE"'
-        $themeContent | Should -Match 'CardBorder\s+= "#E6EAF0"'
+        $themeContent | Should -Match 'CardBorder\s+= "#D4DBE7"'
         $themeContent | Should -Match 'StateAccent\s+= "#B34FD1A5"'
         $themeContent | Should -Match 'StateAccentStrong\s+= "#4FD1A5"'
         $themeContent | Should -Match 'ProgressGreen\s+= "#6BBFA4"'
@@ -158,8 +167,8 @@ Describe 'Repair-GuiThemePalette' {
         $Script:DarkTheme = @{
             AccentBlue = '#7CB7FF'
             TextPrimary = '#F4F7FF'
-            TextSecondary = '#B8C1D9'
-            CardBg = '#202638'
+            TextSecondary = '#CDD6EA'
+            CardBg = '#252D40'
             HeaderBg = '#151824'
             FocusRing = '#9ACAFF'
             TabHoverBg = '#343C55'
@@ -169,7 +178,7 @@ Describe 'Repair-GuiThemePalette' {
         $Script:LightTheme = @{
             AccentBlue = '#1550AA'
             TextPrimary = '#1F2937'
-            TextSecondary = '#6B7280'
+            TextSecondary = '#4B5563'
             CardBg = '#FFFFFF'
             HeaderBg = '#D6DBE5'
             FocusRing = '#0D63E0'
@@ -183,8 +192,8 @@ Describe 'Repair-GuiThemePalette' {
         $theme = @{
             AccentBlue = '#7CB7FF'
             TextPrimary = '#F4F7FF'
-            TextSecondary = '#B8C1D9'
-            CardBg = '#202638'
+            TextSecondary = '#CDD6EA'
+            CardBg = '#252D40'
             HeaderBg = '#151824'
             FocusRing = '#9ACAFF'
             TabHoverBg = '#343C55'

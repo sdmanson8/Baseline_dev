@@ -926,6 +926,10 @@ function Import-GuiRemoteTargetApprovalPolicy
 			$null
 		}
 
+		$currentSafeMode = if ($Script:Ctx -and $Script:Ctx.ContainsKey('Mode') -and $null -ne $Script:Ctx.Mode -and $Script:Ctx.Mode.ContainsKey('Safe')) { [bool]$Script:Ctx.Mode.Safe } else { [bool]$Script:SafeMode }
+		$currentAdvancedMode = if ($Script:Ctx -and $Script:Ctx.ContainsKey('Mode') -and $null -ne $Script:Ctx.Mode -and $Script:Ctx.Mode.ContainsKey('Expert')) { [bool]$Script:Ctx.Mode.Expert } else { [bool]$Script:AdvancedMode }
+		$currentModePreference = Resolve-GuiModePreference -SafeMode $currentSafeMode -AdvancedMode $currentAdvancedMode
+
 		$snapshot = [ordered]@{
 			Schema = 'Baseline.GuiSettings'
 			SchemaVersion = 16
@@ -954,8 +958,8 @@ function Import-GuiRemoteTargetApprovalPolicy
 			ScanEnabled = $scanEnabled
 			AutoScanOnLaunch = [bool]$Script:AutoScanOnLaunch
 			RestoreLastSession = if ($null -ne $Script:RestoreLastSession) { [bool]$Script:RestoreLastSession } else { $true }
-			AdvancedMode = [bool]$Script:AdvancedMode
-			SafeMode = [bool]$Script:SafeMode
+			AdvancedMode = [bool]$currentModePreference.AdvancedMode
+			SafeMode = [bool]$currentModePreference.SafeMode
 			RequireRunConfirmation = if ($null -ne $Script:RequireRunConfirmation) { [bool]$Script:RequireRunConfirmation } else { $true }
 			PreviewBeforeRunDefault = [bool]$Script:PreviewBeforeRunDefault
 			GameMode = [bool]$Script:GameMode
@@ -1317,8 +1321,33 @@ function Import-GuiRemoteTargetApprovalPolicy
 				}
 			}
 
-			$Script:SafeMode = $desiredSafe
-			$Script:AdvancedMode = $desiredAdvanced
+			$desiredViewMode = if ($desiredSafe) { 'Safe' } elseif ($desiredAdvanced) { 'Expert' } else { 'Standard' }
+			if (Get-Command -Name 'Set-GuiMode' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Set-GuiMode -ViewMode $desiredViewMode -GameMode $desiredGameMode
+			}
+			else
+			{
+				$Script:SafeMode = $desiredSafe
+				$Script:AdvancedMode = $desiredAdvanced
+				$Script:GameMode = $desiredGameMode
+				if ($Script:Ctx)
+				{
+					if (-not $Script:Ctx.ContainsKey('Mode'))
+					{
+						$Script:Ctx['Mode'] = @{ Safe = $false; Expert = $false; Game = $false; Design = $false; Scenario = $null }
+					}
+					$Script:Ctx.Mode.Safe = $desiredSafe
+					$Script:Ctx.Mode.Expert = $desiredAdvanced
+					$Script:Ctx.Mode.Game = $desiredGameMode
+				}
+			}
+			$Script:DefaultStartupMode = if ($desiredAdvanced) { 'Expert' } else { 'Safe' }
+			if (Get-Command -Name 'Set-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				try { Set-BaselineUserPreference -Key 'Theme' -Value $desiredTheme } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveThemePreference' }
+				try { Set-BaselineUserPreference -Key 'DefaultStartupMode' -Value $Script:DefaultStartupMode } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveDefaultStartupModePreference' }
+			}
 			if ($ChkSafeMode)
 			{
 				$ChkSafeMode.IsChecked = $desiredSafe
@@ -1331,6 +1360,21 @@ function Import-GuiRemoteTargetApprovalPolicy
 					Get-UxLocalizedString -Key 'GuiHelpSectionExpertMode' -Fallback 'Expert Mode'
 				}
 			}
+			if ($ExpertModeBanner)
+			{
+				$ExpertModeBanner.Visibility = if ($desiredAdvanced) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+			}
+			$modeHidden = if ($desiredSafe) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
+			if ($BtnLog) { $BtnLog.Visibility = [System.Windows.Visibility]::Collapsed }
+			if ($BtnFilterToggle) { $BtnFilterToggle.Visibility = $modeHidden }
+			if ($ChkScan) { $ChkScan.Visibility = $modeHidden }
+			if ($Script:MenuTools) { $Script:MenuTools.Visibility = $modeHidden }
+			if ($Script:MenuActionsCheckCompliance) { $Script:MenuActionsCheckCompliance.Visibility = $modeHidden }
+			if ($Script:MenuActionsScanSystem) { $Script:MenuActionsScanSystem.Visibility = $modeHidden }
+			if ($Script:MenuActionsAuditLog) { $Script:MenuActionsAuditLog.Visibility = $modeHidden }
+			if ($Script:MenuViewFilters) { $Script:MenuViewFilters.Visibility = $modeHidden }
+			if ($Script:MenuFileExportSystemState) { $Script:MenuFileExportSystemState.Visibility = $modeHidden }
+			if ($Script:MenuFileExportConfigProfile) { $Script:MenuFileExportConfigProfile.Visibility = $modeHidden }
 
 			$Script:GameMode = $desiredGameMode
 			$Script:GameModeProfile = if ([string]::IsNullOrWhiteSpace($desiredGameModeProfile)) { $null } else { $desiredGameModeProfile }
@@ -1440,6 +1484,10 @@ function Import-GuiRemoteTargetApprovalPolicy
 				{
 					$Script:SearchUiUpdating = $false
 				}
+			}
+			if (Get-Command -Name 'Sync-GuiSearchInputChrome' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Sync-GuiSearchInputChrome
 			}
 		}
 
@@ -1577,29 +1625,16 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$refreshCurrentTabContentScript = ${function:Update-CurrentTabContent}
 		$startGuiPerfScopeScript = Get-GuiFunctionCapture -Name 'Start-GuiPerfScope'
 		$stopGuiPerfScopeScript = Get-GuiFunctionCapture -Name 'Stop-GuiPerfScope'
-		$refreshCurrentTabContentAction = {
-			$__perf = if ($startGuiPerfScopeScript) { & $startGuiPerfScopeScript -Name 'RestoreGuiSessionState.TabHydrate' } else { $null }
-			try
-			{
-				& $refreshCurrentTabContentScript -SkipIdlePrebuild
-			}
-			finally
-			{
-				if ($stopGuiPerfScopeScript) { & $stopGuiPerfScopeScript -Scope $__perf }
-			}
-		}.GetNewClosure()
-
-		if ($Script:MainForm -and $Script:MainForm.Dispatcher -and -not $Script:MainForm.Dispatcher.HasShutdownStarted)
-		{
-			$null = $Script:MainForm.Dispatcher.BeginInvoke(
-				[System.Action]$refreshCurrentTabContentAction,
-				[System.Windows.Threading.DispatcherPriority]::Background
-			)
-		}
-		else
+		$__perf = if ($startGuiPerfScopeScript) { & $startGuiPerfScopeScript -Name 'RestoreGuiSessionState.TabHydrate' } else { $null }
+		try
 		{
 			& $refreshCurrentTabContentScript -SkipIdlePrebuild
 		}
+		finally
+		{
+			if ($stopGuiPerfScopeScript) { & $stopGuiPerfScopeScript -Scope $__perf }
+		}
+		$Script:StartupRestoreSessionPending = $false
 		Update-HeaderModeStateText
 		if ($TxtLanguageState -and -not [string]::IsNullOrWhiteSpace([string]$Script:SelectedLanguage))
 		{

@@ -1329,17 +1329,18 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 	Sync-UxActionButtonText
 	& $traceGuiStartup 'Initial localization and headers synced'
 
+	$startBaselineDownloadScript = Get-GuiFunctionCapture -Name 'Start-BaselineDownload'
+	$hideBaselineUpdateOverlayScript = Get-GuiFunctionCapture -Name 'Hide-BaselineUpdateOverlay'
 	$Script:DownloadStartEvent = {
 		$uri = 'https://github.com/sdmanson8/Baseline/archive/refs/heads/main.zip'
 		$tempPath = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline_Update.zip'
-		$downloadCommand = Get-GuiFunctionCapture -Name 'Start-BaselineDownload'
-		if ($downloadCommand)
+		if ($startBaselineDownloadScript)
 		{
-			& $downloadCommand -Uri $uri -DestinationPath $tempPath
+			& $startBaselineDownloadScript -Uri $uri -DestinationPath $tempPath
 		}
 		else
 		{
-			LogWarn 'Start-BaselineDownload not available; update download action was skipped.'
+			LogWarning 'Start-BaselineDownload not available; update download action was skipped.'
 		}
 	}.GetNewClosure()
 
@@ -1365,7 +1366,10 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 	if ($BtnDownloadNo)
 	{
 		$BtnDownloadNo.Add_Click({
-			& $hideBaselineUpdateOverlayCommand
+			if ($hideBaselineUpdateOverlayScript)
+			{
+				& $hideBaselineUpdateOverlayScript
+			}
 		}.GetNewClosure())
 	}
 

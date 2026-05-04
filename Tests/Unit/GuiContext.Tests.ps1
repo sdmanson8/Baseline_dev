@@ -168,7 +168,7 @@ Describe 'Set-GuiStatusText' {
             CautionText = '#B45309'
             RiskMediumBadge = '#DC2626'
             AccentBlue = '#2563EB'
-            TextSecondary = '#6B7280'
+            TextSecondary = '#4B5563'
         }
     }
 

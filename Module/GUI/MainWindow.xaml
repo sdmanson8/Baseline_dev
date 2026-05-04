@@ -380,13 +380,12 @@
 					<MenuItem Name="MenuToolsRemoteConsole" Header="Remote Console..."/>
 					<MenuItem Name="MenuToolsOperatorConsole" Header="Operator Console..."/>
 					<MenuItem Name="MenuToolsRemoteSessionStatus" Header="Remote Session Status..."/>
-					<MenuItem Name="MenuToolsStartupManager" Header="Startup Manager..."/>
-					<MenuItem Name="MenuToolsUserFolders" Header="User Folders..."/>
 					<MenuItem Name="MenuToolsRemovalPersistence" Header="Removal Persistence..."/>
-					<MenuItem Name="MenuToolsInstallWsl" Header="Install WSL..."/>
 				</MenuItem>
 				<MenuItem Name="MenuHelp" Header="_Help">
-					<MenuItem Name="MenuHelpStartGuide" Header="Getting Started"/>
+					<MenuItem Name="MenuHelpHelp" Header="Help"/>
+					<Separator/>
+					<MenuItem Name="MenuHelpStartGuide" Header="Quick Start"/>
 					<MenuItem Name="MenuHelpReadme" Header="Readme"/>
 					<MenuItem Name="MenuHelpFAQ" Header="FAQ"/>
 					<MenuItem Name="MenuHelpChangelog" Header="Release Notes"/>
@@ -451,11 +450,11 @@
 						<TextBlock Name="SearchLabel" Visibility="Collapsed"/>
 					</Grid>
 					<Button Name="BtnStartHere" Grid.Column="2" Content=""
-						FontSize="11" Margin="0,0,8,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
+						FontSize="11" Margin="0,0,8,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center" Visibility="Collapsed" IsTabStop="False"/>
 					<Button Name="BtnHelp" Grid.Column="3" Content=""
-						FontSize="11" Margin="0,0,8,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
+						FontSize="11" Margin="0,0,8,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center" Visibility="Collapsed" IsTabStop="False"/>
 					<Button Name="BtnLog" Grid.Column="4" Content=""
-						FontSize="11" Margin="0,0,8,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
+						FontSize="11" Margin="0,0,8,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center" Visibility="Collapsed" IsTabStop="False"/>
 					<StackPanel Grid.Column="5" Orientation="Horizontal" Margin="0,0,8,0" VerticalAlignment="Center" Visibility="Collapsed">
 						<TextBlock Text="" VerticalAlignment="Center" Margin="0,0,6,0"
 							Name="ScanLabel" FontSize="11"/>
@@ -476,7 +475,7 @@
 					</StackPanel>
 					<StackPanel Name="LanguageToggleGroup" Grid.Column="9" Orientation="Vertical" VerticalAlignment="Center" Margin="0,0,4,0" Visibility="Collapsed">
 						<ToggleButton Name="BtnLanguage" Padding="8,4" Cursor="Hand" VerticalAlignment="Center" ToolTip="" Content="" AutomationProperties.Name="Choose language"/>
-						<Popup Name="LanguagePopup" StaysOpen="False" Placement="Bottom" PlacementTarget="{Binding ElementName=BtnLanguage}" AllowsTransparency="True" IsOpen="{Binding IsChecked, ElementName=BtnLanguage, Mode=TwoWay}">
+						<Popup Name="LanguagePopup" StaysOpen="True" Placement="Bottom" PlacementTarget="{Binding ElementName=BtnLanguage}" AllowsTransparency="True" IsOpen="{Binding IsChecked, ElementName=BtnLanguage, Mode=TwoWay}">
 							<Border Name="LanguagePopupBorder" BorderThickness="1" CornerRadius="6" Padding="6">
 								<StackPanel Width="208">
 									<Grid Margin="0,0,0,6">
@@ -504,20 +503,24 @@
 					</StackPanel>
 					<Button Name="BtnFilterToggle" Content="" HorizontalAlignment="Left"
 						FontSize="11" Padding="8,3" Cursor="Hand" Background="Transparent" BorderThickness="0"/>
-					<WrapPanel Name="FilterOptionsPanel" Margin="0,6,0,0" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
-						<TextBlock Name="RiskFilterLabel" Text="" Margin="0,0,10,0" VerticalAlignment="Center" FontSize="11"/>
-						<ComboBox Name="CmbRiskFilter" Width="138" Height="30" Margin="0,0,16,0" VerticalContentAlignment="Center"/>
-						<TextBlock Name="CategoryFilterLabel" Text="" Margin="0,0,10,0" VerticalAlignment="Center" FontSize="11"/>
-						<ComboBox Name="CmbCategoryFilter" Width="220" Height="30" Margin="0,0,16,0" VerticalContentAlignment="Center"/>
-						<TextBlock Name="PlatformFilterLabel" Text="" Margin="0,0,10,0" VerticalAlignment="Center" FontSize="11"/>
-						<ComboBox Name="CmbPlatformFilter" Width="170" Height="30" Margin="0,0,16,0" VerticalContentAlignment="Center" AutomationProperties.Name="Platform filter" ToolTip="Select the Windows platform used to evaluate availability."/>
-						<TextBlock Name="ViewFilterLabel" Text="" Margin="0,0,10,0" VerticalAlignment="Center" FontSize="11"/>
-						<CheckBox Name="ChkHideUnavailableItems" Content="Hide unavailable items" Margin="0,0,14,0" VerticalAlignment="Center" FontSize="11" ToolTip="Show unavailable tweaks as greyed-out rows."/>
-						<CheckBox Name="ChkSelectedOnly" Content="" Margin="0,0,14,0" VerticalAlignment="Center" FontSize="11" ToolTip=""/>
-						<CheckBox Name="ChkHighRiskOnly" Content="" Margin="0,0,14,0" VerticalAlignment="Center" FontSize="11" ToolTip=""/>
-						<CheckBox Name="ChkRestorableOnly" Content="" Margin="0,0,14,0" VerticalAlignment="Center" FontSize="11" ToolTip=""/>
-						<CheckBox Name="ChkGamingOnly" Content="" VerticalAlignment="Center" FontSize="11" ToolTip=""/>
-					</WrapPanel>
+					<StackPanel Name="FilterOptionsPanel" Margin="0,8,0,0" Orientation="Vertical" Visibility="Collapsed">
+						<WrapPanel Name="FilterDropdownRow" Orientation="Horizontal" VerticalAlignment="Center">
+							<TextBlock Name="RiskFilterLabel" Text="" Margin="0,0,10,0" VerticalAlignment="Center" FontSize="11"/>
+							<ComboBox Name="CmbRiskFilter" Width="138" Height="30" Margin="0,0,28,0" VerticalContentAlignment="Center"/>
+							<TextBlock Name="CategoryFilterLabel" Text="" Margin="0,0,10,0" VerticalAlignment="Center" FontSize="11"/>
+							<ComboBox Name="CmbCategoryFilter" Width="220" Height="30" Margin="0,0,28,0" VerticalContentAlignment="Center"/>
+							<TextBlock Name="PlatformFilterLabel" Text="" Margin="0,0,10,0" VerticalAlignment="Center" FontSize="11"/>
+							<ComboBox Name="CmbPlatformFilter" Width="190" Height="30" Margin="0,0,0,0" VerticalContentAlignment="Center" AutomationProperties.Name="Platform filter" ToolTip="Select the Windows platform used to evaluate availability."/>
+						</WrapPanel>
+						<WrapPanel Name="FilterViewRow" Margin="0,8,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+							<TextBlock Name="ViewFilterLabel" Text="" Margin="0,0,14,0" VerticalAlignment="Center" FontSize="11"/>
+							<CheckBox Name="ChkHideUnavailableItems" Content="Hide unavailable items" Margin="0,0,22,0" VerticalAlignment="Center" FontSize="11" ToolTip="Show unavailable tweaks as greyed-out rows."/>
+							<CheckBox Name="ChkSelectedOnly" Content="" Margin="0,0,22,0" VerticalAlignment="Center" FontSize="11" ToolTip=""/>
+							<CheckBox Name="ChkHighRiskOnly" Content="" Margin="0,0,22,0" VerticalAlignment="Center" FontSize="11" ToolTip=""/>
+							<CheckBox Name="ChkRestorableOnly" Content="" Margin="0,0,22,0" VerticalAlignment="Center" FontSize="11" ToolTip=""/>
+							<CheckBox Name="ChkGamingOnly" Content="" VerticalAlignment="Center" FontSize="11" ToolTip=""/>
+						</WrapPanel>
+					</StackPanel>
 				</StackPanel>
 			</Grid>
 		</Border>
@@ -693,7 +696,8 @@
 						<ColumnDefinition Width="Auto"/>
 					</Grid.ColumnDefinitions>
 					<StackPanel Name="ActionButtonBar" Grid.Column="0"
-						Orientation="Vertical" VerticalAlignment="Top" HorizontalAlignment="Left">
+						Orientation="Vertical" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+						ClipToBounds="True" Margin="0,0,12,0">
 						<Button Name="BtnDefaults" Content=""
 							FontSize="11" Margin="4,0,4,0" Padding="12,6" Cursor="Hand"/>
 					</StackPanel>

@@ -685,7 +685,8 @@
 		if ($Script:MenuToolsLoadRemoteApprovalPolicy){ $Script:MenuToolsLoadRemoteApprovalPolicy.Header = (New-GuiLabeledIconContent -IconName 'Document' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsLoadRemoteApprovalPolicy' -Fallback 'Load Remote Approval Policy...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
 		if ($Script:MenuToolsRemoteConsole) { $Script:MenuToolsRemoteConsole.Header = (New-GuiLabeledIconContent -IconName 'WindowConsole' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsRemoteConsole' -Fallback 'Remote Console...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
 		if ($Script:MenuToolsRemoteSessionStatus){ $Script:MenuToolsRemoteSessionStatus.Header = (New-GuiLabeledIconContent -IconName 'PhoneDesktop' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsRemoteSessionStatus' -Fallback 'Remote Session Status...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
-		if ($Script:MenuHelpStartGuide)          { $Script:MenuHelpStartGuide.Header          = (Get-UxLocalizedString -Key 'GuiMenuHelpStartGuide' -Fallback 'Getting Started') }
+		if ($Script:MenuHelpHelp)                { $Script:MenuHelpHelp.Header                = (Get-UxLocalizedString -Key 'GuiMenuHelpHelp' -Fallback 'Help') }
+		if ($Script:MenuHelpStartGuide)          { $Script:MenuHelpStartGuide.Header          = (Get-UxLocalizedString -Key 'GuiMenuHelpStartGuide' -Fallback 'Quick Start') }
 		if ($Script:MenuHelpReadme)               { $Script:MenuHelpReadme.Header               = (New-GuiLabeledIconContent -IconName 'Document' -Text (Get-UxLocalizedString -Key 'GuiMenuHelpReadme' -Fallback 'Readme') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
 		if ($Script:MenuHelpFAQ)                  { $Script:MenuHelpFAQ.Header                  = (New-GuiLabeledIconContent -IconName 'Help' -Text (Get-UxLocalizedString -Key 'GuiMenuHelpFAQ' -Fallback 'FAQ') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
 		if ($Script:MenuHelpChangelog)           { $Script:MenuHelpChangelog.Header           = (Get-UxLocalizedString -Key 'GuiMenuHelpChangelog' -Fallback 'Changelog') }
@@ -1182,15 +1183,35 @@
 		{
 			$SearchLabel.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary)
 		}
-		if ($TxtSearchPlaceholder)
+		Sync-GuiSearchInputChrome
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Sync-GuiSearchInputChrome.
+	#>
+
+	function Sync-GuiSearchInputChrome
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param ()
+
+		$searchBox = if ($Script:TxtSearch) { $Script:TxtSearch } elseif ($TxtSearch) { $TxtSearch } else { $null }
+		if (-not $searchBox) { return }
+
+		$isSearchEmpty = [string]::IsNullOrWhiteSpace([string]$searchBox.Text)
+		$bc = New-SafeBrushConverter -Context 'Sync-GuiSearchInputChrome'
+		$placeholder = if ($Script:TxtSearchPlaceholder) { $Script:TxtSearchPlaceholder } elseif ($TxtSearchPlaceholder) { $TxtSearchPlaceholder } else { $null }
+		if ($placeholder)
 		{
-			$TxtSearchPlaceholder.Foreground = $bc.ConvertFromString($Script:CurrentTheme.SearchPlaceholder)
-			$TxtSearchPlaceholder.Visibility = if ([string]::IsNullOrWhiteSpace($TxtSearch.Text)) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+			$placeholder.Foreground = $bc.ConvertFromString($Script:CurrentTheme.SearchPlaceholder)
+			$placeholder.Visibility = if ($isSearchEmpty) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
 		}
-		if ($BtnClearSearch)
+		$clearButton = if ($Script:BtnClearSearch) { $Script:BtnClearSearch } elseif ($BtnClearSearch) { $BtnClearSearch } else { $null }
+		if ($clearButton)
 		{
-			$BtnClearSearch.Visibility = if ([string]::IsNullOrWhiteSpace($TxtSearch.Text)) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
-			Set-ButtonChrome -Button $BtnClearSearch -Variant 'Subtle' -Compact -Muted
+			$clearButton.Visibility = if ($isSearchEmpty) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
+			Set-ButtonChrome -Button $clearButton -Variant 'Subtle' -Compact -Muted
 		}
 	}
 

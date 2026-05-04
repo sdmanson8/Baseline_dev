@@ -35,13 +35,21 @@ Describe 'Settings dialog wiring' {
         $script:DialogHelpersContent | Should -Match 'TabControl Name="SettingsTabs"'
         $script:DialogHelpersContent | Should -Match 'Name="BtnSettingsLanguage"'
         $script:DialogHelpersContent | Should -Match 'Name="SettingsLanguagePopup"'
+        $script:DialogHelpersContent | Should -Match '<Popup Name="SettingsLanguagePopup"[^>]*StaysOpen="True"'
         $script:DialogHelpersContent | Should -Match 'Name="SettingsLanguageListPanel"'
         $script:DialogHelpersContent | Should -Match 'Name="ChkDesignMode"'
         $script:DialogHelpersContent | Should -Match '\$settingsLanguageState\.Code = ''en-US'''
         $script:DialogHelpersContent | Should -Match '\$nativeBlock\.Text = \[string\]\$entry\.NativeName'
         $script:DialogHelpersContent | Should -Match '\$engBlock\.Text = \[string\]\$entry\.EnglishName'
         $script:DialogHelpersContent | Should -Match '\$langBtn\.Template = \$langTemplate'
+        $script:DialogHelpersContent | Should -Match '\$searchIndex\.IndexOf\(\$normalizedFilter, \[System\.StringComparison\]::OrdinalIgnoreCase\) -ge 0'
+        $script:DialogHelpersContent | Should -Match '\$txtSettingsLanguageSearch\.Add_TextChanged'
+        $script:DialogHelpersContent | Should -Match '& \$languageUiState\.Render \(\[string\]\$txtSettingsLanguageSearch\.Text\)'
+        $script:DialogHelpersContent | Should -Match '\$getUxLocalizedStringCapture = \$\{function:Get-UxLocalizedString\}'
+        $script:DialogHelpersContent | Should -Match '& \$getUxLocalizedStringCapture -Key ''GuiLanguageSearchNoResults'''
+        $script:DialogHelpersContent | Should -Not -Match '\[string\]\$textSender\.Text'
         $script:DialogHelpersContent | Should -Not -Match 'Name="CmbLanguage"'
+        $script:DialogHelpersContent | Should -Not -Match '\[string\]\$_\.SearchIndex -like "\*\$normalizedFilter\*"'
     }
 
     It 'themes settings input controls through the shared surface tokens' {
@@ -61,6 +69,8 @@ Describe 'Settings dialog wiring' {
     }
 
     It 'threads design mode through the settings save handler' {
+        $script:SettingsDialogContent | Should -Match '\$chkDesignMode = \$dlg\.FindName\(''ChkDesignMode''\)'
+        $script:SettingsDialogContent | Should -Match 'if \(\$chkDesignMode\) \{ \$chkDesignMode\.IsEnabled = \$true \}'
         $script:MenuHandlersContent | Should -Match "DesignMode = if \(Get-Command -Name 'Get-BaselineUserPreference'"
         $script:MenuHandlersContent | Should -Match 'if \(\$result.ContainsKey\(''DesignMode''\)\)'
         $script:MenuHandlersContent | Should -Match 'Set-DesignModeState -Enabled \$desiredDesignMode'
@@ -92,5 +102,17 @@ Describe 'Settings dialog wiring' {
         $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''DebugLoggingEnabled'' -Default \$false'
         $script:WindowSetupContent | Should -Match 'Set-BaselineDebugLogging -Enabled \(\[bool\]\$Script:DebugLoggingEnabled\)'
         $script:WindowSetupContent | Should -Match '\$env:BASELINE_PERF_LOG = ''1'''
+    }
+
+    It 'persists package source preference and reopens settings from stored state' {
+        $script:MenuHandlersContent | Should -Match 'Get-BaselineUserPreference -Key ''AppsPackageSourcePreference'' -Default \$runtimeAppsPackageSourcePreference'
+        $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''AppsPackageSourcePreference'' -Value \$appsPackageSourcePreferenceWanted'
+        $script:MenuHandlersContent | Should -Match '\$appsPackageSourcePreference = if \(Get-Command -Name ''Get-BaselineUserPreference'''
+        $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''AppsPackageSourcePreference'' -Default \$Script:AppsPackageSourcePreference'
+    }
+
+    It 'persists default startup mode from Settings save' {
+        $script:MenuHandlersContent | Should -Match '\$Script:DefaultStartupMode = \[string\]\$result\.DefaultStartupMode'
+        $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''DefaultStartupMode'' -Value \$Script:DefaultStartupMode'
     }
 }

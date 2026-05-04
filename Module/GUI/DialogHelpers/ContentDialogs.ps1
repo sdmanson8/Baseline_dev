@@ -623,7 +623,7 @@
 	MinWidth="$($Script:GuiLayout.HelpDialogMinWidth)" MinHeight="$($Script:GuiLayout.HelpDialogMinHeight)"
 	WindowStartupLocation="CenterOwner"
 	ResizeMode="CanResizeWithGrip"
-	FontFamily="FluentSystemIcons"
+	FontFamily="Segoe UI"
 	FontSize="12"
 	Background="Transparent"
 	WindowStyle="None"
@@ -957,8 +957,8 @@
 				$row.Margin = [System.Windows.Thickness]::new(0, 0, 0, 4)
 
 				$bullet = [System.Windows.Controls.TextBlock]::new()
-				$bullet.Text = [char]0xF4B4
-				$bullet.FontFamily = [System.Windows.Media.FontFamily]::new('FluentSystemIcons')
+				$bullet.Text = [char]0x2022
+				$bullet.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI')
 				$bullet.FontSize = $Script:GuiLayout.FontSizeSubheading
 				$bullet.Foreground = $bc.ConvertFromString($theme.AccentBlue)
 				$bullet.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
@@ -1071,6 +1071,12 @@
 		$failedLabel = Get-UxLocalizedString -Key 'GuiLogFailed' -Fallback 'failed'
 		$skippedWarningLabel = Get-UxLocalizedString -Key 'GuiLogSkippedWarning' -Fallback 'skipped / warning'
 		$infoLabel = Get-UxLocalizedString -Key 'GuiLogInfo' -Fallback 'info'
+		$filterAllLabel = Get-UxLocalizedString -Key 'GuiLogFilterAll' -Fallback 'All'
+		$filterErrorsLabel = Get-UxLocalizedString -Key 'GuiLogFilterErrors' -Fallback 'Errors'
+		$filterWarningsLabel = Get-UxLocalizedString -Key 'GuiLogFilterWarnings' -Fallback 'Warnings'
+		$filterInfoLabel = Get-UxLocalizedString -Key 'GuiLogFilterInfo' -Fallback 'Info'
+		$filterSuccessLabel = Get-UxLocalizedString -Key 'GuiLogFilterSuccess' -Fallback 'Success'
+		$searchLogsLabel = Get-UxLocalizedString -Key 'GuiLogSearchPlaceholder' -Fallback 'Search logs'
 		$closeLabel = Get-UxLocalizedString -Key 'GuiCloseButton' -Fallback 'Close'
 
 		[xml]$xaml = @"
@@ -1093,6 +1099,7 @@
 	</Border.Resources>
 	<Grid>
 		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto"/>
 			<RowDefinition Height="Auto"/>
 			<RowDefinition Height="Auto"/>
 			<RowDefinition Height="*"/>
@@ -1133,7 +1140,28 @@
 			</Grid>
 		</Border>
 
-		<ScrollViewer Name="LogScroll" Grid.Row="2"
+		<Border Grid.Row="2" Background="$($theme.WindowBg)"
+				BorderBrush="$($theme.BorderColor)" BorderThickness="0,0,0,1"
+				Padding="20,10,20,10">
+			<Grid>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="Auto"/>
+					<ColumnDefinition Width="16"/>
+					<ColumnDefinition Width="*"/>
+				</Grid.ColumnDefinitions>
+				<ComboBox Name="CmbLogLevelFilter" Grid.Column="0" Width="150" MinHeight="30" SelectedIndex="0">
+					<ComboBoxItem Content="$filterAllLabel"/>
+					<ComboBoxItem Content="$filterErrorsLabel"/>
+					<ComboBoxItem Content="$filterWarningsLabel"/>
+					<ComboBoxItem Content="$filterInfoLabel"/>
+					<ComboBoxItem Content="$filterSuccessLabel"/>
+				</ComboBox>
+				<TextBox Name="TxtLogSearch" Grid.Column="2" MinHeight="30" Padding="10,5"
+						 Text="" ToolTip="$searchLogsLabel"/>
+			</Grid>
+		</Border>
+
+		<ScrollViewer Name="LogScroll" Grid.Row="3"
 					  VerticalScrollBarVisibility="Auto"
 					  HorizontalScrollBarVisibility="Auto"
 					  Background="$($theme.SearchBg)"
@@ -1141,7 +1169,7 @@
 			<StackPanel Name="LogPanel" Margin="16,12,16,12"/>
 		</ScrollViewer>
 
-		<Border Grid.Row="3" Background="$($theme.HeaderBg)"
+		<Border Grid.Row="4" Background="$($theme.HeaderBg)"
 				BorderBrush="$($theme.BorderColor)" BorderThickness="0,1,0,0"
 				Padding="20,10,20,10">
 			<Grid>
@@ -1219,6 +1247,8 @@
 		$btnClose = $dlg.FindName('BtnClose')
 		$btnRefresh = $dlg.FindName('BtnRefresh')
 		$btnExternal = $dlg.FindName('BtnOpenExternal')
+		$cmbLogLevelFilter = $dlg.FindName('CmbLogLevelFilter')
+		$txtLogSearch = $dlg.FindName('TxtLogSearch')
 
 		$btnClose.Content = $closeLabel
 		Set-ButtonChrome -Button $btnClose -Variant 'Primary' -Compact
@@ -1237,6 +1267,13 @@
 			@{ Pattern = '\bWARN\b|\bWARNING\b';    Color = $theme.RiskMediumBadge }
 			@{ Pattern = '^={3}';                   Color = $theme.AccentBlue      }
 		)
+		$getLogSeverity = {
+			param([string]$Line)
+			if ($Line -match '\bERROR\b|\bFAIL\b|- failed[!]?$') { return 'Errors' }
+			if ($Line -match '\bWARN\b|\bWARNING\b|- skipped[.]?$') { return 'Warnings' }
+			if ($Line -match '- success[!]?$') { return 'Success' }
+			return 'Info'
+		}
 
 		$logFontSizeLabel = $Script:GuiLayout.FontSizeLabel
 		$logFontSizeSubheading = $Script:GuiLayout.FontSizeSubheading
@@ -1269,8 +1306,29 @@
 				return
 			}
 
+			$selectedFilter = 'All'
+			if ($cmbLogLevelFilter -and $cmbLogLevelFilter.SelectedItem)
+			{
+				$selectedFilter = [string]$cmbLogLevelFilter.SelectedItem.Content
+			}
+			$searchText = if ($txtLogSearch) { [string]$txtLogSearch.Text } else { '' }
+			$searchText = $searchText.Trim()
+
 			foreach ($line in $lines)
 			{
+				$severity = & $getLogSeverity $line
+				if ($selectedFilter -ne $filterAllLabel)
+				{
+					if ($selectedFilter -eq $filterErrorsLabel -and $severity -ne 'Errors') { continue }
+					if ($selectedFilter -eq $filterWarningsLabel -and $severity -ne 'Warnings') { continue }
+					if ($selectedFilter -eq $filterInfoLabel -and $severity -ne 'Info') { continue }
+					if ($selectedFilter -eq $filterSuccessLabel -and $severity -ne 'Success') { continue }
+				}
+				if (-not [string]::IsNullOrWhiteSpace($searchText) -and $line.IndexOf($searchText, [System.StringComparison]::OrdinalIgnoreCase) -lt 0)
+				{
+					continue
+				}
+
 				$color = $theme.TextSecondary
 				foreach ($rule in $colorRules)
 				{
@@ -1323,6 +1381,18 @@
 			& $loadLogContent
 			$txtLogPath.Text = $LogPath
 		}.GetNewClosure())
+		if ($cmbLogLevelFilter)
+		{
+			Register-GuiEventHandler -Source $cmbLogLevelFilter -EventName 'SelectionChanged' -Handler ({
+				& $loadLogContent
+			}.GetNewClosure())
+		}
+		if ($txtLogSearch)
+		{
+			Register-GuiEventHandler -Source $txtLogSearch -EventName 'TextChanged' -Handler ({
+				& $loadLogContent
+			}.GetNewClosure())
+		}
 		Register-GuiEventHandler -Source $btnExternal -EventName 'Click' -Handler ({
 			if ($LogPath -and (Test-Path -LiteralPath $LogPath -ErrorAction SilentlyContinue))
 			{

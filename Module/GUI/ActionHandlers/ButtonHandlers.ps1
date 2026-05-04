@@ -26,6 +26,7 @@
 		$showGuiOperatorConsoleDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiOperatorConsoleDialog' -CommandType 'Function'
 		$showGuiReleaseStatusDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiReleaseStatusDialog' -CommandType 'Function'
 		$showGuiTroubleshootingGuideDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiTroubleshootingGuideDialog' -CommandType 'Function'
+		$showGuiRemovalPersistenceDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiRemovalPersistenceDialog' -CommandType 'Function'
 		$showWslInstallDialogCommand = Get-GuiRuntimeCommand -Name 'Show-WslInstallDialog' -CommandType 'Function'
 		$invokeWslInstallFlowCommand = Get-GuiRuntimeCommand -Name 'Invoke-BaselineWslInstallFlow' -CommandType 'Function'
 		$exportSupportBundleCommand = Get-GuiRuntimeCommand -Name 'Export-BaselineSupportBundle' -CommandType 'Function'
@@ -44,6 +45,10 @@
 		$getUxRunActionLabelCommand = Get-GuiRuntimeCommand -Name 'Get-UxRunActionLabel' -CommandType 'Function'
 		$getUxPreviewButtonLabelCommand = Get-GuiRuntimeCommand -Name 'Get-UxPreviewButtonLabel' -CommandType 'Function'
 		$getUxRestoreDefaultsConfirmationCommand = Get-GuiRuntimeCommand -Name 'Get-UxRestoreDefaultsConfirmation' -CommandType 'Function'
+		$testIsDesignModeUxCommand = Get-GuiRuntimeCommand -Name 'Test-IsDesignModeUX' -CommandType 'Function'
+		$showGuiFileSaveDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiFileSaveDialog' -CommandType 'Function'
+		$newConfigurationProfileCommand = Get-GuiRuntimeCommand -Name 'New-ConfigurationProfile' -CommandType 'Function'
+		$exportConfigurationProfileCommand = Get-GuiRuntimeCommand -Name 'Export-ConfigurationProfile' -CommandType 'Function'
 		$getUxLocalizedStringCapture = Get-GuiFunctionCapture -Name 'Get-UxLocalizedString'
 		$getUxBilingualLocalizedStringCapture = Get-GuiFunctionCapture -Name 'Get-UxBilingualLocalizedString'
 		if ($getUxBilingualLocalizedStringCapture)
@@ -68,6 +73,9 @@
 		if (-not $clearAppSelectionStateCommand) { throw 'Clear-AppSelectionState not found.' }
 		if (-not $showGuiAuditSettingsDialogCommand) { throw 'Show-GuiAuditSettingsDialog not found.' }
 		if (-not $showGuiSettingsDialogCommand) { throw 'Show-GuiSettingsDialog not found.' }
+		if (-not $showGuiFileSaveDialogCommand) { throw 'Show-GuiFileSaveDialog not found.' }
+		if (-not $newConfigurationProfileCommand) { throw 'New-ConfigurationProfile not found.' }
+		if (-not $exportConfigurationProfileCommand) { throw 'Export-ConfigurationProfile not found.' }
 		if (-not $showGuiRemoteConsoleDialogCommand) { throw 'Show-GuiRemoteConsoleDialog not found.' }
 		if (-not $showGuiReleaseStatusDialogCommand) { throw 'Show-GuiReleaseStatusDialog not found.' }
 		if (-not $showGuiTroubleshootingGuideDialogCommand) { throw 'Show-GuiTroubleshootingGuideDialog not found.' }
@@ -82,6 +90,112 @@
 			LogWarning 'Import-GuiRemoteTargetApprovalPolicy not found; remote approval policy load actions will be disabled.'
 			if ($MenuToolsLoadRemoteApprovalPolicy) { $MenuToolsLoadRemoteApprovalPolicy.IsEnabled = $false }
 		}
+
+		function Invoke-GuiConfigurationProfileExport
+		{
+			[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+			param (
+				[string]$Context = 'ExportConfigProfile'
+			)
+
+			try
+			{
+				$tweakList = @(& $getActiveTweakRunListCommand)
+				$queuedAppActions = if ($getQueuedAppsProfileActionsCommand) { @(& $getQueuedAppsProfileActionsCommand) } else { @() }
+				$tweakCount = @($tweakList).Count
+				$appActionCount = @($queuedAppActions).Count
+				$title = (& $getUxLocalizedStringCapture -Key 'GuiActionExportProfileTitle' -Fallback 'Export Configuration Profile')
+
+				if ($tweakCount -eq 0 -and $appActionCount -eq 0)
+				{
+					Show-ThemedDialog -Title $title `
+						-Message (& $getUxLocalizedStringCapture -Key 'GuiActionExportProfileNoTweaks' -Fallback 'Select at least one tweak or queue at least one app action before exporting a configuration profile.') `
+						-Buttons @('OK') `
+						-AccentButton 'OK'
+					return $false
+				}
+
+				$baselineVersion = $null
+				try { $baselineVersion = Get-BaselineDisplayVersion } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source ('ActionHandlers.{0}.GetDisplayVersion' -f $Context) }
+				if ([string]::IsNullOrWhiteSpace($baselineVersion)) { $baselineVersion = 'unknown' }
+
+				$userAppSnapshot = @()
+				if (Get-Command -Name 'Get-BaselineUserAppEntries' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					try
+					{
+						$userAppResult = Get-BaselineUserAppEntries
+						if ($userAppResult -and $userAppResult.PSObject.Properties['Entries'])
+						{
+							$userAppSnapshot = @($userAppResult.Entries)
+						}
+					}
+					catch
+					{
+						if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+						{
+							Write-DebugSwallowedException -ErrorRecord $_ -Source ('ActionHandlers.{0}.UserApps' -f $Context)
+						}
+						$userAppSnapshot = @()
+					}
+				}
+
+				$includePaths = @()
+				$includePathCmd = Get-Command -Name 'Get-HeadlessPresetIncludedTweakLibraryPathSet' -CommandType Function -ErrorAction SilentlyContinue
+				if ($includePathCmd)
+				{
+					$includePaths = @(& $includePathCmd)
+				}
+
+				$profile = & $newConfigurationProfileCommand `
+					-Name ('Baseline-Profile-{0}' -f (Get-Date -Format 'yyyyMMdd-HHmmss')) `
+					-Selections @($tweakList) `
+					-AppActions @($queuedAppActions) `
+					-UserApps @($userAppSnapshot) `
+					-IncludePaths $includePaths `
+					-BaselineVersion $baselineVersion `
+					-AppsPackageSourcePreference $Script:AppsPackageSourcePreference
+
+				$defaultFileName = 'Baseline-ConfigProfile-{0}.json' -f (Get-Date -Format 'yyyyMMdd-HHmmss')
+				$savePath = & $showGuiFileSaveDialogCommand -Title $title `
+					-Filter 'JSON Files (*.json)|*.json|All Files (*.*)|*.*' `
+					-DefaultExtension 'json' `
+					-FileName $defaultFileName
+
+				if ([string]::IsNullOrWhiteSpace($savePath))
+				{
+					& $setGuiStatusTextCommand -Text (& $getUxLocalizedStringCapture -Key 'GuiActionExportProfileCancelled' -Fallback 'Configuration profile export cancelled.') -Tone 'accent'
+					return $false
+				}
+
+				& $exportConfigurationProfileCommand -Profile $profile -FilePath $savePath
+				if ($tweakCount -gt 0 -and $appActionCount -gt 0)
+				{
+					& $setGuiStatusTextCommand -Text ("Configuration profile exported: {0} tweak(s) and {1} app action(s) saved to {2}" -f $tweakCount, $appActionCount, $savePath) -Tone 'success'
+					LogInfo ("Exported configuration profile: {0} tweak(s) and {1} app action(s) to {2}" -f $tweakCount, $appActionCount, $savePath)
+				}
+				elseif ($tweakCount -gt 0)
+				{
+					& $setGuiStatusTextCommand -Text ("Configuration profile exported: {0} tweak(s) saved to {1}" -f $tweakCount, $savePath) -Tone 'success'
+					LogInfo ("Exported configuration profile: {0} tweak(s) to {1}" -f $tweakCount, $savePath)
+				}
+				else
+				{
+					& $setGuiStatusTextCommand -Text ("Configuration profile exported: {0} app action(s) saved to {1}" -f $appActionCount, $savePath) -Tone 'success'
+					LogInfo ("Exported configuration profile: {0} app action(s) to {1}" -f $appActionCount, $savePath)
+				}
+
+				return $true
+			}
+			catch
+			{
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to export configuration profile')
+				[void](Show-ThemedDialog -Title (& $getUxLocalizedStringCapture -Key 'GuiActionExportProfileTitle' -Fallback 'Export Configuration Profile') -Message ((& $getUxLocalizedStringCapture -Key 'GuiActionExportProfileFailed' -Fallback "Failed to export configuration profile.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+				return $false
+			}
+		}
+
+		$exportGuiConfigurationProfileCommand = ${function:Invoke-GuiConfigurationProfileExport}
 		Register-GuiEventHandler -Source $BtnPreviewRun -EventName 'Click' -Handler ({
 			if ($Script:AppsModeActive) { return }
 			if (& $testGuiRunInProgressCapture) { return }
@@ -108,11 +222,7 @@
 			{
 				$previewResult = & $showSelectedTweakPreviewCommand -SelectedTweaks $tweakList -AllowApply
 			}
-			'Continue Anyway'
-			{
-				$previewResult = & $showSelectedTweakPreviewCommand -SelectedTweaks $tweakList -AllowApply
-			}
-			'Create Restore Point'
+			'Run Anyway'
 			{
 				$previewResult = & $showSelectedTweakPreviewCommand -SelectedTweaks $tweakList -AllowApply
 			}
@@ -151,9 +261,9 @@
 				return
 			}
 
-			if (Get-Command -Name 'Test-IsDesignModeUX' -CommandType Function -ErrorAction SilentlyContinue -and (Test-IsDesignModeUX))
+			if ($testIsDesignModeUxCommand -and (& $testIsDesignModeUxCommand))
 			{
-				Export-GuiSettingsProfile | Out-Null
+				$null = & $exportGuiConfigurationProfileCommand -Context 'DesignModeSaveConfig'
 				return
 			}
 
@@ -492,6 +602,35 @@
 	    Internal function Invoke-PageResetToDefaults.
 	#>
 
+	$Script:InvokePageResetToDefaultsScript = {
+		[CmdletBinding()]
+		param (
+			[Parameter(Mandatory)]
+			[string]$Category
+		)
+
+		$categoryDefaultRunListCommand = if ($getCategoryDefaultRunListCommand) { $getCategoryDefaultRunListCommand } else { Get-GuiRuntimeCommand -Name 'Get-CategoryDefaultRunList' -CommandType 'Function' }
+		$executionRunCommand = if ($startGuiExecutionRunCommand) { $startGuiExecutionRunCommand } else { Get-GuiRuntimeCommand -Name 'Start-GuiExecutionRun' -CommandType 'Function' }
+		$dialogCommand = if ($showThemedDialogCommand) { $showThemedDialogCommand } else { Get-GuiRuntimeCommand -Name 'Show-ThemedDialog' -CommandType 'Function' }
+
+		if (-not $categoryDefaultRunListCommand) { throw 'Get-CategoryDefaultRunList not found.' }
+		if (-not $executionRunCommand) { throw 'Start-GuiExecutionRun not found.' }
+		if (-not $dialogCommand) { throw 'Show-ThemedDialog not found.' }
+
+		$tweakList = & $categoryDefaultRunListCommand -Category $Category
+		if (-not $tweakList -or $tweakList.Count -eq 0)
+		{
+			& $dialogCommand -Title 'Reset to Defaults' -Message "No restorable tweaks with Windows default values found for '$Category'." -Buttons @('OK') -AccentButton 'OK'
+			return
+		}
+		$result = & $dialogCommand -Title 'Reset page to defaults' `
+			-Message "Reset $Category ($($tweakList.Count) tweaks) to Windows defaults?" `
+			-Buttons @('Cancel', 'Reset to Defaults') `
+			-DestructiveButton 'Reset to Defaults'
+		if ($result -ne 'Reset to Defaults') { return }
+		& $executionRunCommand -TweakList $tweakList -Mode 'Defaults' -ExecutionTitle "Resetting $Category to defaults"
+	}.GetNewClosure()
+
 	function Invoke-PageResetToDefaults
 	{
 		[CmdletBinding()]
@@ -500,18 +639,7 @@
 			[string]$Category
 		)
 
-		$tweakList = if ($getCategoryDefaultRunListCommand) { & $getCategoryDefaultRunListCommand -Category $Category } else { @() }
-		if (-not $tweakList -or $tweakList.Count -eq 0)
-		{
-			Show-ThemedDialog -Title 'Reset to Defaults' -Message "No restorable tweaks with Windows default values found for '$Category'." -Buttons @('OK') -AccentButton 'OK'
-			return
-		}
-		$result = Show-ThemedDialog -Title 'Reset page to defaults' `
-			-Message "Reset $Category ($($tweakList.Count) tweaks) to Windows defaults?" `
-			-Buttons @('Cancel', 'Reset to Defaults') `
-			-DestructiveButton 'Reset to Defaults'
-		if ($result -ne 'Reset to Defaults') { return }
-		& $startGuiExecutionRunCommand -TweakList $tweakList -Mode 'Defaults' -ExecutionTitle "Resetting $Category to defaults"
+		& $Script:InvokePageResetToDefaultsScript -Category $Category
 	}
 
 	Register-GuiEventHandler -Source $BtnHelp -EventName 'Click' -Handler ({

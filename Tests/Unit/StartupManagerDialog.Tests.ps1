@@ -24,17 +24,10 @@ BeforeAll {
     $script:GuiRegionContent = Get-Content -LiteralPath $script:GuiRegionPath -Raw -Encoding UTF8
 }
 
-Describe 'Startup Manager dialog: menu wiring' {
-    It 'declares MenuToolsStartupManager in the Tools menu' {
-        $script:XamlContent | Should -Match 'Name="MenuToolsStartupManager"'
-        $idxItem = $script:XamlContent.IndexOf('Name="MenuToolsStartupManager"')
-        $idxToolsMenu = $script:XamlContent.IndexOf('Name="MenuTools"')
-        $idxItem | Should -BeGreaterThan $idxToolsMenu
-    }
-
-    It 'wires FindName + $Script: assignment in WindowSetup.ps1' {
-        $script:WindowSetupContent | Should -Match '\$MenuToolsStartupManager = \$Form\.FindName\("MenuToolsStartupManager"\)'
-        $script:WindowSetupContent | Should -Match '\$Script:MenuToolsStartupManager = \$MenuToolsStartupManager'
+Describe 'Startup Manager dialog: category placement' {
+    It 'does not expose Startup Manager from the Tools menu' {
+        $script:XamlContent | Should -Not -Match 'Name="MenuToolsStartupManager"'
+        $script:WindowSetupContent | Should -Not -Match 'MenuToolsStartupManager'
     }
 
     It 'dot-sources StartupManagerDialog.ps1 from Module/Regions/GUI.psm1' {
@@ -61,6 +54,13 @@ Describe 'Startup Manager dialog: function definitions' {
 
     It 'defines New-GuiStartupManagerTabContent for the Customizations tab' {
         $script:DialogContent | Should -Match 'function New-GuiStartupManagerTabContent'
+    }
+
+    It 'keeps Startup Manager as a Customizations action card that opens the popup dialog' {
+        $script:DialogContent | Should -Match 'Builds the Customizations-tab content surface for startup entries'
+        $script:DialogContent | Should -Match 'function Invoke-GuiCustomizationsStartupManagerAction'
+        $script:DialogContent | Should -Match "Get-GuiRuntimeCommand -Name 'Show-GuiStartupManagerDialog'"
+        $script:DialogContent | Should -Match 'Invoke-GuiCustomizationsStartupManagerAction'
     }
 
     It 'short-circuits in headless harness when $Script:CurrentTheme is unset' {
@@ -102,25 +102,8 @@ Describe 'Startup Manager dialog: function definitions' {
     }
 }
 
-Describe 'Startup Manager dialog: click handler integration' {
-    It 'registers a Click handler on MenuToolsStartupManager in ActionHandlers.ps1' {
-        $script:ActionHandlersContent | Should -Match 'if \(\$MenuToolsStartupManager\)'
-        $script:ActionHandlersContent | Should -Match 'Register-GuiEventHandler -Source \$MenuToolsStartupManager -EventName ''Click'''
-    }
-
-    It 'invokes Show-GuiStartupManagerDialog from the Click handler' {
-        $script:ActionHandlersContent | Should -Match 'Show-GuiStartupManagerDialog'
-    }
-
-    It 'guards on Get-Command so a missing helper module never breaks the menu' {
-        $idxIf = $script:ActionHandlersContent.IndexOf('if ($MenuToolsStartupManager)')
-        $tail = $script:ActionHandlersContent.Substring($idxIf)
-        $tail | Should -Match "Get-Command -Name 'Show-GuiStartupManagerDialog' -CommandType Function -ErrorAction SilentlyContinue"
-    }
-
-    It 'uses the run-in-progress gate so Startup Manager cannot be opened mid-apply' {
-        $idxIf = $script:ActionHandlersContent.IndexOf('if ($MenuToolsStartupManager)')
-        $tail = $script:ActionHandlersContent.Substring($idxIf)
-        $tail | Should -Match 'if \(& \$testGuiRunInProgressCapture\) \{ return \}'
+Describe 'Startup Manager dialog: Tools menu removal' {
+    It 'removes the legacy Tools click handler' {
+        $script:ActionHandlersContent | Should -Not -Match 'MenuToolsStartupManager'
     }
 }

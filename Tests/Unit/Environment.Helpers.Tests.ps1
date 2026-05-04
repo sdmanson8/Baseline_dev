@@ -630,6 +630,11 @@ Describe 'Invoke-BaselineAutoUpdate' {
         Test-Path -LiteralPath $script:autoUpdateThrottlePath | Should -BeTrue
     }
 
+    It 'keeps the startup update check on determinate checklist progress' {
+        $script:EnvironmentHelpersContent | Should -Match '(?s)Set-BootstrapLoadingSplashState\s+-Splash \$Splash\s+-StatusText\s+\(Get-BaselineLocalizedString\s+-Key ''Bootstrap_CheckingForUpdates''\s+-Fallback ''Checking for updates\.\.\.''\)\s+-Completed 0\s+-Total 5'
+        $script:EnvironmentHelpersContent | Should -Not -Match '(?s)Set-BootstrapLoadingSplashState\s+-Splash \$Splash\s+-StatusText\s+\(Get-BaselineLocalizedString\s+-Key ''Bootstrap_CheckingForUpdates''\s+-Fallback ''Checking for updates\.\.\.''\)\s+-Indeterminate'
+    }
+
     It 'does not query GitHub again within four hours' {
         $env:BASELINE_EMBEDDED_HOST = '1'
         $env:BASELINE_LAUNCHER_PATH = Join-Path $TestDrive 'Baseline.exe'
@@ -784,7 +789,7 @@ Describe 'Bootstrap splash defaults' {
 
     It 'uses non-empty splash text fallbacks for initialization and idle restore' {
         ([regex]::Matches($script:EnvironmentHelpersContent, "Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait\.\.\.'")).Count | Should -Be 3
-        $script:EnvironmentHelpersContent | Should -Match "GuiSplashSubtitle' -Fallback 'Windows Optimization & Hardening'"
+        $script:EnvironmentHelpersContent | Should -Match "GuiSplashSubtitle' -Fallback 'Review, preview, and apply system changes safely'"
         $script:EnvironmentHelpersContent | Should -Not -Match 'GuiSplashAutoClose|autoCloseEsc|This window will close automatically when ready'
     }
 

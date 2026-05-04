@@ -2523,10 +2523,22 @@ Supports control handling inside Baseline.
           		$TextBlock.VerticalAlignment = "Center"
           		[void]$LabelPanel.Children.Add($TextBlock)
 
-          		$StackPanel = New-Object System.Windows.Controls.StackPanel
-          		$StackPanel.Orientation = "Horizontal"
+          		$tooltipText = if ([string]::IsNullOrWhiteSpace([string]$Package.PackageFullName)) { [string]$Package.DisplayName } else { [string]$Package.PackageFullName }
+          		$infoIcon = GUICommon\New-GuiPopupInfoIcon -TooltipText $tooltipText -Theme $currentTheme -UseDarkMode $isDarkMode
+          		$infoPanel = New-Object System.Windows.Controls.StackPanel
+          		$infoPanel.Orientation = "Horizontal"
+          		$infoPanel.VerticalAlignment = "Center"
+          		$infoPanel.HorizontalAlignment = "Right"
+          		$infoPanel.Margin = [System.Windows.Thickness]::new(8, 0, 10, 0)
+          		$infoPanel.Children.Add($infoIcon) | Out-Null
+
+          		$StackPanel = New-Object System.Windows.Controls.DockPanel
+          		$StackPanel.LastChildFill = $true
           		$StackPanel.Margin = "2,2,2,2"
+          		[System.Windows.Controls.DockPanel]::SetDock($CheckBox, [System.Windows.Controls.Dock]::Left)
           		$StackPanel.Children.Add($CheckBox) | Out-Null
+          		[System.Windows.Controls.DockPanel]::SetDock($infoPanel, [System.Windows.Controls.Dock]::Right)
+          		$StackPanel.Children.Add($infoPanel) | Out-Null
           		$StackPanel.Children.Add($LabelPanel) | Out-Null
 
           		$Panel.Children.Add($StackPanel) | Out-Null
@@ -3070,19 +3082,7 @@ Supports UWP apps info icon handling inside Baseline.
 					[string]$TooltipText
 				)
 
-				$icon = New-Object -TypeName System.Windows.Controls.TextBlock
-				$icon.Text = [char]0x24D8  # info icon
-				$icon.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI Symbol')
-				$icon.FontSize = 14
-				$icon.Foreground = [System.Windows.Media.Brushes]::DodgerBlue
-				$icon.VerticalAlignment = 'Center'
-				$icon.Margin = [System.Windows.Thickness]::new(0, 0, 4, 0)
-				$icon.Cursor = [System.Windows.Input.Cursors]::Arrow
-				$icon.ToolTip = $(if ([string]::IsNullOrWhiteSpace($TooltipText)) { 'This item has extra information.' } else { $TooltipText })
-				[System.Windows.Controls.ToolTipService]::SetPlacement($icon, [System.Windows.Controls.Primitives.PlacementMode]::Right)
-				[System.Windows.Controls.ToolTipService]::SetShowDuration($icon, 20000)
-				[System.Windows.Controls.ToolTipService]::SetInitialShowDelay($icon, 150)
-				return $icon
+				return GUICommon\New-GuiPopupInfoIcon -TooltipText $(if ([string]::IsNullOrWhiteSpace($TooltipText)) { 'This item has extra information.' } else { $TooltipText }) -Theme $currentTheme -UseDarkMode $isDarkMode -Margin ([System.Windows.Thickness]::new(0, 0, 4, 0))
 			}
 
 			<#
@@ -3156,6 +3156,9 @@ Supports control handling inside Baseline.
 						[System.Windows.Controls.DockPanel]::SetDock($CheckBox, [System.Windows.Controls.Dock]::Left)
 						[void]$rowPanel.Children.Add($CheckBox)
 
+						$infoTooltip = if ([string]::IsNullOrWhiteSpace([string]$Package.PackageFullName)) { [string]$Package.Name } else { [string]$Package.PackageFullName }
+						$infoIcon = New-UwpAppsInfoIcon -TooltipText $infoTooltip
+
 						# Warn if the app cannot be reinstalled via the Install dialog
 						if ($Package.Name -notin $ReinstallablePackageNames)
 						{
@@ -3165,11 +3168,8 @@ Supports control handling inside Baseline.
 							$warningPanel.HorizontalAlignment = 'Right'
 						$warningPanel.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
 
-							$infoIcon = New-UwpAppsInfoIcon -TooltipText 'This app cannot be reinstalled from the Microsoft Store.'
-							if ($infoIcon)
-							{
-								$warningPanel.Children.Add($infoIcon) | Out-Null
-							}
+							$infoIcon.ToolTip = 'This app cannot be reinstalled from the Microsoft Store.'
+							$warningPanel.Children.Add($infoIcon) | Out-Null
 
 							$warnTb = New-Object -TypeName System.Windows.Controls.TextBlock
 							$warnTb.Text = if ($Localization.PSObject.Properties['Warning']) { $Localization.Warning } else { 'Warning' }
@@ -3182,6 +3182,17 @@ Supports control handling inside Baseline.
 
 							[System.Windows.Controls.DockPanel]::SetDock($warningPanel, [System.Windows.Controls.Dock]::Right)
 							[void]$rowPanel.Children.Add($warningPanel)
+						}
+						else
+						{
+							$infoPanel = New-Object -TypeName System.Windows.Controls.StackPanel
+							$infoPanel.Orientation = 'Horizontal'
+							$infoPanel.VerticalAlignment = 'Center'
+							$infoPanel.HorizontalAlignment = 'Right'
+							$infoPanel.Margin = [System.Windows.Thickness]::new(8, 0, 10, 0)
+							[void]$infoPanel.Children.Add($infoIcon)
+							[System.Windows.Controls.DockPanel]::SetDock($infoPanel, [System.Windows.Controls.Dock]::Right)
+							[void]$rowPanel.Children.Add($infoPanel)
 						}
 
 						[void]$rowPanel.Children.Add($LabelPanel)

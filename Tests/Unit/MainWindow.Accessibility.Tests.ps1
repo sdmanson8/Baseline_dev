@@ -37,6 +37,18 @@ Describe 'MainWindow.xaml accessibility coverage' {
         $script:xamlText | Should -Match 'AutomationProperties.Name="Safe / Expert mode"'
         $script:xamlText | Should -Match 'Name="TxtAdvancedModeState"[^>]+Visibility="Collapsed"'
     }
+
+    It 'keeps the duplicate header log button hidden by default' {
+        $script:xamlText | Should -Match 'Name="BtnLog"[^>]+Visibility="Collapsed"'
+        $script:xamlText | Should -Match 'Name="BtnLog"[^>]+IsTabStop="False"'
+    }
+
+    It 'keeps tweak filters split into dropdown and view rows' {
+        $script:xamlText | Should -Match '<StackPanel Name="FilterOptionsPanel"[^>]+Orientation="Vertical"'
+        $script:xamlText | Should -Match '<WrapPanel Name="FilterDropdownRow"'
+        $script:xamlText | Should -Match '<WrapPanel Name="FilterViewRow"[^>]+Margin="0,8,0,0"'
+        $script:xamlText.IndexOf('Name="FilterDropdownRow"') | Should -BeLessThan $script:xamlText.IndexOf('Name="FilterViewRow"')
+    }
 }
 
 Describe 'MainWindow tab order coverage' {

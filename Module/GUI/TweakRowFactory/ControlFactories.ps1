@@ -64,7 +64,8 @@
 		$namePanel.VerticalAlignment = 'Center'
 
 		$nameText = New-Object System.Windows.Controls.TextBlock
-		$nameText.Text = if ($Tweak.NameKey) { Get-UxString -Key $Tweak.NameKey -Fallback $Tweak.Name } else { $Tweak.Name }
+		$nameLabel = if ($Tweak.NameKey) { Get-UxString -Key $Tweak.NameKey -Fallback $Tweak.Name } else { $Tweak.Name }
+		Set-TweakSearchHighlightedTextBlock -TextBlock $nameText -Text $nameLabel -BrushConverter $BrushConverter
 		$nameText.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSubheading' -Default 12
 		$nameText.FontWeight = [System.Windows.FontWeights]::SemiBold
 		$nameText.Foreground = $BrushConverter.ConvertFromString($Script:CurrentTheme.TextPrimary)
@@ -159,28 +160,6 @@
 			}
 		}
 
-		$typeBadgeLabel = [string]$Metadata.TypeLabel
-		if ([string]::IsNullOrWhiteSpace($typeBadgeLabel))
-		{
-			$typeBadgeLabel = if (-not [string]::IsNullOrWhiteSpace([string]$Metadata.TypeBadgeLabel))
-			{
-				[string]$Metadata.TypeBadgeLabel
-			}
-			elseif (-not [string]::IsNullOrWhiteSpace([string]$Metadata.TypeKind))
-			{
-				[string]$Metadata.TypeKind
-			}
-			else
-			{
-				'Numeric range'
-			}
-		}
-		$typeBadge = GUICommon\New-DialogMetadataPill -Theme $Script:CurrentTheme -Label $typeBadgeLabel -Tone $Metadata.TypeTone -ToolTip 'Type of tweak'
-		if ($typeBadge)
-		{
-			$typeBadge.Margin = $BadgeSpacing
-			[void]($badgesPanel.Children.Add($typeBadge))
-		}
 		$defaultBadgeLabel = if ((Test-GuiObjectField -Object $Metadata -FieldName 'DefaultValueText') -and -not [string]::IsNullOrWhiteSpace([string]$Metadata.DefaultValueText))
 		{
 			'Default: {0}' -f [string]$Metadata.DefaultValueText
@@ -198,38 +177,11 @@
 				[void]($badgesPanel.Children.Add($defaultBadge))
 			}
 		}
-		if ([bool]$Tweak.RequiresRestart)
-		{
-			$restartBadge = GUICommon\New-DialogMetadataPill -Theme $Script:CurrentTheme -Label ([char]0x21BB + ' Restart') -Tone 'Caution' -ToolTip (Get-UxString -Key 'GuiTweakChipTooltipRestart' -Fallback 'This change requires a restart to take effect.')
-			if ($restartBadge)
-			{
-				$restartBadge.Margin = $BadgeSpacing
-				[void]($badgesPanel.Children.Add($restartBadge))
-			}
-		}
 		$riskBadge = New-RiskBadge -Level $Tweak.Risk
 		if ($riskBadge)
 		{
 			$riskBadge.Margin = $BadgeSpacing
 			[void]($badgesPanel.Children.Add($riskBadge))
-		}
-		if ($Metadata.TroubleshootingOnly)
-		{
-			$troubleshootingBadge = New-TroubleshootingOnlyBadge
-			if ($troubleshootingBadge)
-			{
-				$troubleshootingBadge.Margin = $BadgeSpacing
-				[void]($badgesPanel.Children.Add($troubleshootingBadge))
-			}
-		}
-		if ((Test-GuiObjectField -Object $Tweak -FieldName 'Restorable') -and $null -ne $Tweak.Restorable -and -not [bool]$Tweak.Restorable)
-		{
-			$restorableBadge = GUICommon\New-DialogMetadataPill -Theme $Script:CurrentTheme -Label (Get-UxString -Key 'GuiBadgeManualRecovery' -Fallback 'Manual recovery') -Tone 'Danger' -ToolTip (Get-UxString -Key 'GuiBadgeManualRecoveryTooltip' -Fallback 'This change cannot be fully rolled back automatically.')
-			if ($restorableBadge)
-			{
-				$restorableBadge.Margin = $BadgeSpacing
-				[void]($badgesPanel.Children.Add($restorableBadge))
-			}
 		}
 		if ((Test-IsSafeModeUX) -and (Test-GuiObjectField -Object $Tweak -FieldName 'PresetTier') -and [string]$Tweak.PresetTier -eq 'Minimal')
 		{
@@ -1738,10 +1690,6 @@
 		[void]($leftStack.Children.Add((New-ToggleLikeHeaderGrid -CheckBox $checkBox -Tweak $Tweak -RowContext $RowContext)))
 		[void]($leftStack.Children.Add($statusContext.Row))
 		Add-TweakMetadataDetails -Container $leftStack -Tweak $Tweak -RowContext $RowContext -DescriptionText $(if ($Tweak.Description) { if ($Tweak.DescriptionKey) { Get-UxString -Key $Tweak.DescriptionKey -Fallback $Tweak.Description } else { $Tweak.Description } } else { Get-UxString -Key 'GuiToggleDefaultDescription' -Fallback 'Turns this feature on when checked and off when unchecked.' }) -DescriptionColor $Script:CurrentTheme.TextSecondary -DescriptionMargin $Script:T.DescIndent -MetadataMargin $Script:T.MetaIndent -BlastMargin $Script:T.BlastIndent
-		if ($statusContext.WhyBlock -and $statusContext.WhyBlock.Tag)
-		{
-			[void]($leftStack.Children.Add($statusContext.WhyBlock.Tag))
-		}
 
 		Register-ToggleStatusHandlers -CheckBox $checkBox -StatusContext $statusContext -RowContext $RowContext
 		Register-GuiToggleExplicitSelectionHandlers -CheckBox $checkBox -FunctionName ([string]$Tweak.Function) -RowContext $RowContext -StateControl $stateControl

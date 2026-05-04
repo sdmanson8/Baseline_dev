@@ -11,6 +11,7 @@ BeforeAll {
     $script:ActionHandlersSplitRoot = Join-Path $script:RepoRoot 'Module/GUI/ActionHandlers'
     $script:GuiRegionPath = Join-Path $script:RepoRoot 'Module/Regions/GUI.psm1'
     $script:StyleManagementPath = Join-Path $script:RepoRoot 'Module/GUI/StyleManagement.ps1'
+    $script:StartupDialogPath = Join-Path $script:RepoRoot 'Module/GUI/StartupManagerDialog.ps1'
 
     $script:DialogContent = Get-Content -LiteralPath $script:DialogPath -Raw -Encoding UTF8
     $script:XamlContent = Get-Content -LiteralPath $script:XamlPath -Raw -Encoding UTF8
@@ -24,28 +25,23 @@ BeforeAll {
     )
     $script:GuiRegionContent = Get-Content -LiteralPath $script:GuiRegionPath -Raw -Encoding UTF8
     $script:StyleManagementContent = Get-Content -LiteralPath $script:StyleManagementPath -Raw -Encoding UTF8
+    $script:StartupDialogContent = Get-Content -LiteralPath $script:StartupDialogPath -Raw -Encoding UTF8
 }
 
-Describe 'User folders dialog: menu wiring' {
-    It 'declares MenuToolsUserFolders in the Tools menu' {
-        $script:XamlContent | Should -Match 'Name="MenuToolsUserFolders"'
-        $idxItem = $script:XamlContent.IndexOf('Name="MenuToolsUserFolders"')
-        $idxToolsMenu = $script:XamlContent.IndexOf('Name="MenuTools"')
-        $idxItem | Should -BeGreaterThan $idxToolsMenu
-    }
-
-    It 'wires FindName + $Script: assignment in WindowSetup.ps1' {
-        $script:WindowSetupContent | Should -Match '\$MenuToolsUserFolders = \$Form\.FindName\("MenuToolsUserFolders"\)'
-        $script:WindowSetupContent | Should -Match '\$Script:MenuToolsUserFolders = \$MenuToolsUserFolders'
+Describe 'User folders dialog: category placement' {
+    It 'does not expose User Folders from the Tools menu' {
+        $script:XamlContent | Should -Not -Match 'Name="MenuToolsUserFolders"'
+        $script:WindowSetupContent | Should -Not -Match 'MenuToolsUserFolders'
     }
 
     It 'dot-sources UserFoldersDialog.ps1 from Module/Regions/GUI.psm1' {
         $script:GuiRegionContent | Should -Match "Join-Path \`$Script:GuiExtractedRoot 'UserFoldersDialog\.ps1'"
     }
 
-    It 'styles the menu item header with an icon' {
-        $script:ActionHandlersContent | Should -Match '\$MenuToolsUserFolders\.Header'
-        $script:ActionHandlersContent | Should -Match "New-GuiLabeledIconContent -IconName 'Document'"
+    It 'exposes User Folders from the Customizations tab action card' {
+        $script:StartupDialogContent | Should -Match 'function Invoke-GuiCustomizationsUserFoldersAction'
+        $script:StartupDialogContent | Should -Match "Get-GuiRuntimeCommand -Name 'Show-GuiUserFoldersDialog'"
+        $script:StartupDialogContent | Should -Match "GuiUserFoldersTitle"
     }
 }
 
@@ -78,25 +74,8 @@ Describe 'User folders dialog: function definitions' {
     }
 }
 
-Describe 'User folders dialog: click handler integration' {
-    It 'registers a Click handler on MenuToolsUserFolders in ActionHandlers.ps1' {
-        $script:ActionHandlersContent | Should -Match 'if \(\$MenuToolsUserFolders\)'
-        $script:ActionHandlersContent | Should -Match 'Register-GuiEventHandler -Source \$MenuToolsUserFolders -EventName ''Click'''
-    }
-
-    It 'invokes Show-GuiUserFoldersDialog from the Click handler' {
-        $script:ActionHandlersContent | Should -Match 'Show-GuiUserFoldersDialog'
-    }
-
-    It 'guards on Get-Command so a missing helper module never breaks the menu' {
-        $idxIf = $script:ActionHandlersContent.IndexOf('if ($MenuToolsUserFolders)')
-        $tail = $script:ActionHandlersContent.Substring($idxIf)
-        $tail | Should -Match "Get-Command -Name 'Show-GuiUserFoldersDialog' -CommandType Function -ErrorAction SilentlyContinue"
-    }
-
-    It 'uses the run-in-progress gate so the dialog cannot be opened mid-apply' {
-        $idxIf = $script:ActionHandlersContent.IndexOf('if ($MenuToolsUserFolders)')
-        $tail = $script:ActionHandlersContent.Substring($idxIf)
-        $tail | Should -Match 'if \(& \$testGuiRunInProgressCapture\) \{ return \}'
+Describe 'User folders dialog: Tools menu removal' {
+    It 'removes the legacy Tools click handler' {
+        $script:ActionHandlersContent | Should -Not -Match 'MenuToolsUserFolders'
     }
 }

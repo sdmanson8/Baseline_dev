@@ -103,6 +103,26 @@ Describe 'Launcher identity host' {
         $script:LauncherProgramContent | Should -Match 'Environment\.SetEnvironmentVariable\(EmbeddedHostVar, "1", EnvironmentVariableTarget\.Process\);'
     }
 
+    It 'does not apply the default PowerShell timeout to the interactive GUI path' {
+        $script:LauncherProgramContent | Should -Match 'private static TimeSpan\? GetPowerShellInvokeTimeout\(string\[\] normalizedArgs\)'
+        $script:LauncherProgramContent | Should -Match 'if \(IsGuiPowerShellInvocation\(normalizedArgs\)\)\s*\{\s*return null;'
+        $script:LauncherProgramContent | Should -Match 'asyncResult\.AsyncWaitHandle\.WaitOne\(\)'
+        $script:LauncherProgramContent | Should -Match 'asyncResult\.AsyncWaitHandle\.WaitOne\(timeout\.Value\)'
+        $script:LauncherProgramContent | Should -Match 'BASELINE_POWERSHELL_TIMEOUT_SECONDS'
+        $script:LauncherProgramContent | Should -Match '"NoGui"'
+        $script:LauncherProgramContent | Should -Match '"Functions"'
+        $script:LauncherProgramContent | Should -Match '"Preset"'
+        $script:LauncherProgramContent | Should -Match '"TargetComputer"'
+    }
+
+    It 'checks for the interactive GUI path before honoring timeout overrides' {
+        $guiCheckIndex = $script:LauncherProgramContent.IndexOf('if (IsGuiPowerShellInvocation(normalizedArgs))')
+        $envOverrideIndex = $script:LauncherProgramContent.IndexOf('Environment.GetEnvironmentVariable(PowerShellTimeoutSecondsVar)')
+        $guiCheckIndex | Should -BeGreaterThan -1
+        $envOverrideIndex | Should -BeGreaterThan -1
+        $guiCheckIndex | Should -BeLessThan $envOverrideIndex
+    }
+
     It 'targets net48 and references the Windows PowerShell automation assembly' {
         $script:LauncherProjectContent | Should -Match '<TargetFramework>net48</TargetFramework>'
         $script:LauncherProjectContent | Should -Match '<Reference Include="System\.Management\.Automation">'

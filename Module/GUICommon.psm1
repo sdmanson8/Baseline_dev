@@ -42,6 +42,7 @@ Export-ModuleMember -Function @(
 	'Get-GuiBooleanValue'
 	'Set-GuiWindowChromeTheme'
 	'Add-GuiPopupWindowChrome'
+	'New-GuiPopupInfoIcon'
 	'Register-GuiPopupThemeWindow'
 	'Show-GuiActivatedDialog'
 	'Set-GuiPopupWindowProgress'

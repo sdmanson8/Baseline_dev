@@ -8,6 +8,7 @@ BeforeAll {
     $windowSetupPath = Join-Path $PSScriptRoot '../../Module/GUI/WindowSetup.ps1'
     $buildTweakControlsPath = Join-Path $PSScriptRoot '../../Module/GUI/BuildTweakControls.ps1'
     $themeManagementPath = Join-Path $PSScriptRoot '../../Module/GUI/ThemeManagement.ps1'
+    $systemScanFooterHandlersPath = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers/SystemScanFooterHandlers.ps1'
 
     $script:StyleContent = Get-Content -LiteralPath $stylePath -Raw -Encoding UTF8
     $script:ThemeContent = Get-Content -LiteralPath $themeManagementPath -Raw -Encoding UTF8
@@ -18,6 +19,7 @@ BeforeAll {
         Get-Content -LiteralPath $applyThemePath -Raw -Encoding UTF8
         $script:WindowSetupContent
         Get-Content -LiteralPath $buildTweakControlsPath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $systemScanFooterHandlersPath -Raw -Encoding UTF8
     ) -join "`n"
 }
 
@@ -45,18 +47,24 @@ Describe 'Footer and theme toggle layout' {
     }
 
     It 'gives the footer a two-row action and status layout' {
-        $script:GuiContent | Should -Match '<Border Name="BottomBorder" Grid.Row="6" Padding="10,14,10,8" BorderThickness="0,1,0,0">'
-        $script:GuiContent | Should -Match '<StackPanel Name="ActionButtonBar" Grid.Column="0"\s+Orientation="Vertical"'
+        $script:GuiContent | Should -Match '<Border Name="BottomBorder"[^>]+Grid.Row="6"[^>]+Padding="10,14,10,8"[^>]+BorderThickness="0,1,0,0"'
+        $script:GuiContent | Should -Match '<StackPanel Name="ActionButtonBar" Grid.Column="0"\s+Orientation="Vertical" VerticalAlignment="Top" HorizontalAlignment="Stretch"\s+ClipToBounds="True"'
         $script:GuiContent | Should -Match '<TextBlock Name="RunPathContextLabel" Grid.Column="2"'
+    }
+
+    It 'keeps secondary footer actions inside the left footer column' {
+        $script:GuiContent | Should -Match '\$setSecondaryActionGroupMaxWidth = \{'
+        $script:GuiContent | Should -Match '\$secondaryActionGroup\.MaxWidth = \[Math\]::Max\(0, \$availableWidth - 12\)'
+        $script:GuiContent | Should -Match 'Register-GuiEventHandler -Source \$ActionButtonBar -EventName ''SizeChanged'''
     }
 
     It 'styles the footer and secondary action group from opaque active theme surfaces' {
         $script:ThemeContent | Should -Match 'CardBg\s+= "#1E2433"'
-        $script:ThemeContent | Should -Match 'CardBorder\s+= "#293044"'
-        $script:ThemeContent | Should -Match 'CardHoverBg\s+= "#202638"'
+        $script:ThemeContent | Should -Match 'CardBorder\s+= "#354057"'
+        $script:ThemeContent | Should -Match 'CardHoverBg\s+= "#252D40"'
         $script:ThemeContent | Should -Match 'CardBg\s+= "#FBFCFE"'
-        $script:ThemeContent | Should -Match 'CardBorder\s+= "#E6EAF0"'
-        $script:ThemeContent | Should -Match 'CardHoverBg\s+= "#F6F8FB"'
+        $script:ThemeContent | Should -Match 'CardBorder\s+= "#D4DBE7"'
+        $script:ThemeContent | Should -Match 'CardHoverBg\s+= "#F2F5FA"'
         $script:ThemeContent | Should -Match 'PresetPanelBg\s+= "#1E2433"'
         $script:ThemeContent | Should -Match 'StatusPillBg\s+= "#202638"'
         $script:GuiContent | Should -Match '\$BottomBorder\.Background = \$bc\.ConvertFromString\(\$Theme\.PanelBg\)'
@@ -110,9 +118,9 @@ Describe 'Footer and theme toggle layout' {
         $script:GuiContent | Should -Match 'Set-GuiThemeResources -Target \$Form -ThemeName'
         $script:WindowSetupContent | Should -Match 'Set-GuiThemeResources -Target \(\[System\.Windows\.Application\]::Current\) -ThemeName'
         $script:WindowSetupContent.IndexOf('Set-GuiThemeResources -Target ([System.Windows.Application]::Current) -ThemeName') | Should -BeLessThan ($script:WindowSetupContent.IndexOf('[System.Windows.Markup.XamlReader]::Load'))
-        $script:GuiContent | Should -Match 'Background="\{DynamicResource Brush\.WindowBg\}"\s+BorderBrush="\{DynamicResource Brush\.WindowBg\}"\s+BorderThickness="0"'
+        $script:GuiContent | Should -Match 'Background="Transparent"\s+BorderBrush="Transparent"\s+BorderThickness="0"'
         $script:GuiContent | Should -Match '<Border Name="RootBorder"[^>]+Background="\{DynamicResource Brush\.WindowBg\}"[^>]+BorderBrush="\{DynamicResource Brush\.Border\}"[^>]+BorderThickness="1"[^>]+HorizontalAlignment="Stretch"[^>]+VerticalAlignment="Stretch"'
-        $script:GuiContent | Should -Match '<Grid Background="\{DynamicResource Brush\.WindowBg\}" Margin="0">'
+        $script:GuiContent | Should -Match '<Grid Background="Transparent" Margin="0">'
         $script:GuiContent | Should -Match '<Border Name="TitleBar"[^>]+Background="\{DynamicResource Brush\.HeaderBg\}"'
         $script:GuiContent | Should -Match 'Background="\{DynamicResource Brush\.WindowBg\}"'
         $script:GuiContent | Should -Match 'BorderBrush="\{DynamicResource Brush\.Border\}"'

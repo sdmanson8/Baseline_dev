@@ -17,7 +17,10 @@ BeforeAll {
     $guiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
     $applyThemePath = Join-Path $PSScriptRoot '../../Module/GUI/ApplyTheme.ps1'
     $mainWindowPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
+    $windowSetupPath = Join-Path $PSScriptRoot '../../Module/GUI/WindowSetup.ps1'
     $environmentHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Environment.Helpers.ps1'
+    $darkThemePath = Join-Path $PSScriptRoot '../../Module/GUI/Themes/Dark.xaml'
+    $lightThemePath = Join-Path $PSScriptRoot '../../Module/GUI/Themes/Light.xaml'
 
     $guiCommonContent = @(
         Get-Content -LiteralPath $guiCommonPath -Raw -Encoding UTF8
@@ -41,7 +44,10 @@ BeforeAll {
     $dpiAwarenessContent = Get-Content -LiteralPath $dpiAwarenessPath -Raw -Encoding UTF8
     $guiContent = (Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8) + "`n" + (Get-Content -LiteralPath $applyThemePath -Raw -Encoding UTF8)
     $mainWindowContent = Get-Content -LiteralPath $mainWindowPath -Raw -Encoding UTF8
+    $windowSetupContent = Get-Content -LiteralPath $windowSetupPath -Raw -Encoding UTF8
     $environmentHelpersContent = Get-Content -LiteralPath $environmentHelpersPath -Raw -Encoding UTF8
+    $darkThemeContent = Get-Content -LiteralPath $darkThemePath -Raw -Encoding UTF8
+    $lightThemeContent = Get-Content -LiteralPath $lightThemePath -Raw -Encoding UTF8
 }
 
 Describe 'GUI window chrome theming' {
@@ -110,6 +116,27 @@ Describe 'GUI window chrome theming' {
         $guiCommonContent | Should -Match '\$RootBorder\.ClipToBounds = \$true'
         $guiCommonContent | Should -Match '\$dlgRoundedBorder\.ClipToBounds = \$true'
         $guiCommonContent | Should -Match '\$btnBorder\.CornerRadius = \[System\.Windows\.CornerRadius\]::new\(0, 0, 8, 8\)'
+    }
+
+    It 'rounds tooltip hover boxes in both GUI themes' {
+        $darkThemeContent | Should -Match '<ControlTemplate TargetType="\{x:Type ToolTip\}">'
+        $darkThemeContent | Should -Match 'CornerRadius="8"'
+        $lightThemeContent | Should -Match '<ControlTemplate TargetType="\{x:Type ToolTip\}">'
+        $lightThemeContent | Should -Match 'CornerRadius="8"'
+    }
+
+    It 'keeps Help in the Help menu instead of the header action strip' {
+        $mainWindowContent | Should -Match '<MenuItem Name="MenuHelp"'
+        $mainWindowContent | Should -Match '<MenuItem Name="MenuHelpHelp" Header="Help"/>'
+        $windowSetupContent | Should -Match '\$MenuHelpHelp\s+=\s+\$Form\.FindName\("MenuHelpHelp"\)'
+        $windowSetupContent | Should -Match '\$Script:MenuHelpHelp\s+=\s+\$MenuHelpHelp'
+        $mainWindowContent | Should -Match 'Name="BtnHelp"[\s\S]*Visibility="Collapsed"[\s\S]*IsTabStop="False"'
+    }
+
+    It 'renders Help dialog bullets with a normal text font' {
+        $dialogHelpersContent | Should -Match 'Title="\$helpDialogTitle"[\s\S]*FontFamily="Segoe UI"'
+        $dialogHelpersContent | Should -Match '\$bullet\.Text = \[char\]0x2022'
+        $dialogHelpersContent | Should -Match '\$bullet\.FontFamily = \[System\.Windows\.Media\.FontFamily\]::new\(''Segoe UI''\)'
     }
 
     It 'dot-sources the language catalog and removes the close-time save prompt' {
@@ -217,6 +244,19 @@ Describe 'GUI window chrome theming' {
         ([regex]::Matches($uwpAppsContent, 'GUICommon\\Add-GuiPopupWindowChrome -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer -Theme \$currentTheme -UseDarkMode \$isDarkMode')).Count | Should -Be 2
         ([regex]::Matches($systemFeaturesContent, 'GUICommon\\Add-GuiPopupWindowChrome -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer -Theme \$Theme -UseDarkMode \$UseDarkMode')).Count | Should -Be 2
         ([regex]::Matches($telemetryContent, 'GUICommon\\Add-GuiPopupWindowChrome -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer -Theme \$Theme -UseDarkMode \$UseDarkMode')).Count | Should -Be 1
+    }
+
+    It 'uses standard per-row info glyphs in bulk picker windows' {
+        $uwpAppsContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/UWPApps.psm1') -Raw -Encoding UTF8
+        $systemFeaturesContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/System/System.WindowsFeatures.psm1') -Raw -Encoding UTF8
+        $telemetryContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/PrivacyTelemetry/PrivacyTelemetry.TelemetryServices.psm1') -Raw -Encoding UTF8
+
+        $guiCommonContent | Should -Match 'function New-GuiPopupInfoIcon'
+        $guiCommonContent | Should -Match "'New-GuiPopupInfoIcon'"
+        $guiCommonContent | Should -Match '\$icon\.Text = \[char\]0x24D8'
+        ([regex]::Matches($systemFeaturesContent, 'GUICommon\\New-GuiPopupInfoIcon')).Count | Should -Be 2
+        ([regex]::Matches($telemetryContent, 'GUICommon\\New-GuiPopupInfoIcon')).Count | Should -Be 1
+        ([regex]::Matches($uwpAppsContent, 'GUICommon\\New-GuiPopupInfoIcon')).Count | Should -Be 2
     }
 
     It 'repairs the Windows feature picker theme before applying chrome' {

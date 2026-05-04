@@ -346,7 +346,10 @@
 				}
 				else
 				{
-					@($languageEntries | Where-Object { [string]$_.SearchIndex -like "*$normalizedFilter*" })
+					@($languageEntries | Where-Object {
+						$searchIndex = [string]$_.SearchIndex
+						$searchIndex.IndexOf($normalizedFilter, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+					})
 				}
 
 				if ($matchingEntries.Count -eq 0)
@@ -416,9 +419,9 @@
 					if ($setLanguageSearchInputStyle) { & $setLanguageSearchInputStyle }
 				}.GetNewClosure())
 				$null = Register-GuiEventHandler -Source $TxtLanguageSearch -EventName 'TextChanged' -Handler ({
-					if ($LanguagePopup -and $LanguagePopup.IsOpen)
+					if ($LanguageListPanel)
 					{
-						& $renderLanguageList -FilterText $TxtLanguageSearch.Text
+						& $renderLanguageList -FilterText ([string]$TxtLanguageSearch.Text)
 					}
 					if ($setLanguageSearchInputStyle) { & $setLanguageSearchInputStyle }
 				}.GetNewClosure())

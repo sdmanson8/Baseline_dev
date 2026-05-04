@@ -943,14 +943,7 @@ if ($shouldShowBootstrapSplash)
 			$shouldPrimeUpdatesPulse = $false
 			if ($env:BASELINE_INSTALLER_MODE -ne '1' -and $env:BASELINE_SKIP_UPDATE -ne '1' -and $env:BASELINE_EMBEDDED_HOST -eq '1')
 			{
-				$autoUpdateThrottlePathCmd = Get-Command -Name 'Get-BaselineAutoUpdateThrottlePath' -CommandType Function -ErrorAction SilentlyContinue
-				$autoUpdateThrottleDecisionCmd = Get-Command -Name 'Get-BaselineAutoUpdateThrottleDecision' -CommandType Function -ErrorAction SilentlyContinue
-				if ($autoUpdateThrottlePathCmd -and $autoUpdateThrottleDecisionCmd)
-				{
-					$autoUpdateThrottlePath = & $autoUpdateThrottlePathCmd
-					$autoUpdateThrottleDecision = & $autoUpdateThrottleDecisionCmd -Path $autoUpdateThrottlePath -MinimumIntervalHours 4
-					$shouldPrimeUpdatesPulse = [bool]$autoUpdateThrottleDecision.ShouldCheck
-				}
+				$shouldPrimeUpdatesPulse = $true
 			}
 
 			if (-not $shouldPrimeUpdatesPulse)

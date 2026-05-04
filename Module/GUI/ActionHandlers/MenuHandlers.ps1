@@ -27,6 +27,9 @@
 		}
 	}
 
+	$setAppPackageSourcePreferenceStateCommand = Get-GuiRuntimeCommand -Name 'Set-AppPackageSourcePreferenceState' -CommandType 'Function'
+	$convertToAppPackageSourcePreferenceCommand = Get-GuiRuntimeCommand -Name 'ConvertTo-AppPackageSourcePreference' -CommandType 'Function'
+
 	# File menu
 	if ($MenuFileImportSettings)
 	{
@@ -78,6 +81,16 @@
 				{
 					$runtimeDebugLoggingEnabled
 				}
+				$runtimeAppsPackageSourcePreference = if ($Script:AppsPackageSourcePreference) { [string]$Script:AppsPackageSourcePreference } else { 'auto' }
+				$appsPackageSourcePreference = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					[string](Get-BaselineUserPreference -Key 'AppsPackageSourcePreference' -Default $runtimeAppsPackageSourcePreference)
+				}
+				else
+				{
+					$runtimeAppsPackageSourcePreference
+				}
+				if ([string]::IsNullOrWhiteSpace($appsPackageSourcePreference)) { $appsPackageSourcePreference = 'auto' }
 				$currentPrefs = @{
 					Language = if ($Script:SelectedLanguage) { [string]$Script:SelectedLanguage } else { 'en' }
 					DefaultStartupMode = if ($Script:DefaultStartupMode) { [string]$Script:DefaultStartupMode } else { 'Safe' }
@@ -96,7 +109,7 @@
 					RequireRunConfirmation = if ($null -ne $Script:RequireRunConfirmation) { [bool]$Script:RequireRunConfirmation } else { $true }
 					PreviewBeforeRunDefault = [bool]$Script:PreviewBeforeRunDefault
 					AuditRetentionDays = if ($Script:AuditRetentionDays) { [int]$Script:AuditRetentionDays } else { 90 }
-					AppsPackageSourcePreference = if ($Script:AppsPackageSourcePreference) { [string]$Script:AppsPackageSourcePreference } else { 'auto' }
+					AppsPackageSourcePreference = $appsPackageSourcePreference
 					AppsSilentInstall = if ($null -ne $Script:AppsSilentInstall) { [bool]$Script:AppsSilentInstall } else { $true }
 					AppsAutoUpdate = [bool]$Script:AppsAutoUpdate
 					LoggingEnabled = if ($null -ne $Script:LoggingEnabled) { [bool]$Script:LoggingEnabled } else { $true }
@@ -164,10 +177,32 @@
 						$Script:Ctx.UI.AuditRetentionDays = [int]$result.AuditRetentionDays
 					}
 				}
-				if ($result.ContainsKey('AppsPackageSourcePreference') -and $setAppPackageSourcePreferenceStateCommand)
+				if ($result.ContainsKey('AppsPackageSourcePreference'))
 				{
-					try { & $setAppPackageSourcePreferenceStateCommand -Source ([string]$result.AppsPackageSourcePreference) }
-					catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Set-AppPackageSourcePreferenceState failed') }
+					$appsPackageSourcePreferenceWanted = [string]$result.AppsPackageSourcePreference
+					if ($convertToAppPackageSourcePreferenceCommand)
+					{
+						try { $appsPackageSourcePreferenceWanted = [string](& $convertToAppPackageSourcePreferenceCommand -Source $appsPackageSourcePreferenceWanted) }
+						catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Normalize AppsPackageSourcePreference failed') }
+					}
+					if ([string]::IsNullOrWhiteSpace($appsPackageSourcePreferenceWanted)) { $appsPackageSourcePreferenceWanted = 'auto' }
+					if ($setAppPackageSourcePreferenceStateCommand)
+					{
+						try
+						{
+							& $setAppPackageSourcePreferenceStateCommand -Source $appsPackageSourcePreferenceWanted
+							if ($Script:AppsPackageSourcePreference) { $appsPackageSourcePreferenceWanted = [string]$Script:AppsPackageSourcePreference }
+						}
+						catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Set-AppPackageSourcePreferenceState failed') }
+					}
+					else
+					{
+						$Script:AppsPackageSourcePreference = $appsPackageSourcePreferenceWanted
+					}
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'AppsPackageSourcePreference' -Value $appsPackageSourcePreferenceWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist AppsPackageSourcePreference failed') }
+					}
 				}
 
 				# Stub preferences (persisted only):
@@ -187,7 +222,14 @@
 						}
 					}
 				}
-				if ($result.ContainsKey('DefaultStartupMode')) { $Script:DefaultStartupMode = [string]$result.DefaultStartupMode }
+				if ($result.ContainsKey('DefaultStartupMode'))
+				{
+					$Script:DefaultStartupMode = [string]$result.DefaultStartupMode
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'DefaultStartupMode' -Value $Script:DefaultStartupMode } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist DefaultStartupMode failed') }
+					}
+				}
 				if ($result.ContainsKey('RestoreLastSession'))
 				{
 					$restoreLastSessionWanted = [bool]$result.RestoreLastSession
@@ -559,62 +601,71 @@
 	}
 
 	# Help menu
-	if ($MenuHelpStartGuide)
+	if ($MenuHelpHelp)
 	{
-		$gettingStartedShowThemedDialogCommand = Get-GuiRuntimeCommand -Name 'Show-ThemedDialog' -CommandType 'Function'
-		$gettingStartedQuickStartStepsCommand  = Get-GuiRuntimeCommand -Name 'Get-UxQuickStartSteps' -CommandType 'Function'
-		$gettingStartedHelpLinesCommand        = Get-GuiRuntimeCommand -Name 'Get-UxHelpGettingStartedLines' -CommandType 'Function'
-		$gettingStartedOnboardingModeCommand   = Get-GuiRuntimeCommand -Name 'Get-UxOnboardingMode' -CommandType 'Function'
-		Register-GuiEventHandler -Source $MenuHelpStartGuide -EventName 'Click' -Handler ({
+		$openHelpDialogFromMenu = {
 			try
 			{
-				$title = & $getUxLocalizedStringCapture -Key 'GuiMenuHelpStartGuide' -Fallback 'Getting Started'
-				$closeLabel = & $getUxLocalizedStringCapture -Key 'GuiCloseButton' -Fallback 'Close'
-				$steps = @()
-				if ($gettingStartedQuickStartStepsCommand)
+				if ($showHelpDialogCommand)
 				{
-					try { $steps = @(& $gettingStartedQuickStartStepsCommand) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpStartGuide.GetQuickStartSteps' }
+					& $showHelpDialogCommand
+					& $setGuiStatusTextCommand -Text (& $getUxLocalizedStringCapture -Key 'GuiHelpOpened' -Fallback 'Help opened.') -Tone 'accent'
+					return
 				}
-				$gettingStartedLines = @()
-				if ($gettingStartedHelpLinesCommand)
+
+				$runtimeHelpDialogCommand = Get-GuiRuntimeCommand -Name 'Show-HelpDialog' -CommandType 'Function'
+				if ($runtimeHelpDialogCommand)
 				{
-					$modeValue = 'Standard'
-					if ($gettingStartedOnboardingModeCommand)
-					{
-						try { $modeValue = [string](& $gettingStartedOnboardingModeCommand) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpStartGuide.GetOnboardingMode' }
-					}
-					if ([string]::IsNullOrWhiteSpace($modeValue)) { $modeValue = 'Standard' }
-					try { $gettingStartedLines = @(& $gettingStartedHelpLinesCommand -Mode $modeValue) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpStartGuide.GetHelpLines' }
+					& $runtimeHelpDialogCommand
+					& $setGuiStatusTextCommand -Text (& $getUxLocalizedStringCapture -Key 'GuiHelpOpened' -Fallback 'Help opened.') -Tone 'accent'
+					return
 				}
-				$bodyLines = New-Object System.Collections.Generic.List[string]
-				$stepIndex = 1
-				foreach ($line in $steps)
-				{
-					if ([string]::IsNullOrWhiteSpace([string]$line)) { continue }
-					[void]$bodyLines.Add(("{0}. {1}" -f $stepIndex, $line))
-					$stepIndex++
-				}
-				foreach ($line in $gettingStartedLines)
-				{
-					if ([string]::IsNullOrWhiteSpace([string]$line)) { continue }
-					[void]$bodyLines.Add(("- {0}" -f $line))
-				}
-				if ($bodyLines.Count -eq 0)
-				{
-					[void]$bodyLines.Add((& $getUxLocalizedStringCapture -Key 'GuiMenuHelpStartGuideEmpty' -Fallback 'No getting-started steps are available yet.'))
-				}
-				$message = [string]::Join([Environment]::NewLine, $bodyLines.ToArray())
-				if ($gettingStartedShowThemedDialogCommand)
-				{
-					[void](& $gettingStartedShowThemedDialogCommand -Title $title -Message $message -Buttons @($closeLabel) -AccentButton $closeLabel)
-				}
-				& $setGuiStatusTextCommand -Text (& $getUxLocalizedStringCapture -Key 'GuiMenuHelpStartGuideOpened' -Fallback 'Getting Started opened.') -Tone 'accent'
+
+				throw 'Show-HelpDialog not found.'
 			}
 			catch
 			{
 				try
 				{
-					LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Getting Started menu open failed')
+					LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Help menu open failed')
+				}
+				catch
+				{
+					if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpHelp.LogWarning'
+					}
+				}
+				if ($showThemedDialogCommand)
+				{
+					try
+					{
+						[void](& $showThemedDialogCommand -Title 'Help' -Message 'The Help dialog could not be opened. Check the log for details.' -Buttons @('OK') -AccentButton 'OK')
+					}
+					catch
+					{
+						if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+						{
+							Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpHelp.ShowFailureDialog'
+						}
+					}
+				}
+			}
+		}.GetNewClosure()
+		$MenuHelpHelp.Add_Click($openHelpDialogFromMenu)
+	}
+	if ($MenuHelpStartGuide)
+	{
+		Register-GuiEventHandler -Source $MenuHelpStartGuide -EventName 'Click' -Handler ({
+			try
+			{
+				& $raiseButtonClick $Script:BtnStartHere
+			}
+			catch
+			{
+				try
+				{
+					LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Quick Start menu open failed')
 				}
 				catch
 				{
@@ -874,9 +925,8 @@
 	if ($MenuToolsRemoteConsole)       { $MenuToolsRemoteConsole.Header       = (Get-UxLocalizedString -Key 'GuiMenuToolsRemoteConsole' -Fallback 'Remote Console...') }
 	if ($MenuToolsOperatorConsole)     { $MenuToolsOperatorConsole.Header     = (Get-UxLocalizedString -Key 'GuiMenuToolsOperatorConsole' -Fallback 'Operator Console...') }
 	if ($MenuToolsRemoteSessionStatus) { $MenuToolsRemoteSessionStatus.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsRemoteSessionStatus' -Fallback 'Remote Session Status...') }
-	if ($MenuToolsUserFolders)         { $MenuToolsUserFolders.Header         = (New-GuiLabeledIconContent -IconName 'Document' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsUserFolders' -Fallback 'User Folders...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
-	if ($MenuToolsInstallWsl)          { $MenuToolsInstallWsl.Header          = (New-GuiLabeledIconContent -IconName 'WindowConsole' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsInstallWsl' -Fallback 'Install WSL...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
-	if ($MenuHelpStartGuide)           { $MenuHelpStartGuide.Header           = (Get-UxLocalizedString -Key 'GuiMenuHelpStartGuide' -Fallback 'Getting Started') }
+	if ($MenuHelpHelp)                 { $MenuHelpHelp.Header                 = (Get-UxLocalizedString -Key 'GuiMenuHelpHelp' -Fallback 'Help') }
+	if ($MenuHelpStartGuide)           { $MenuHelpStartGuide.Header           = (Get-UxLocalizedString -Key 'GuiMenuHelpStartGuide' -Fallback 'Quick Start') }
 	if ($MenuHelpReadme)               { $MenuHelpReadme.Header               = (Get-UxLocalizedString -Key 'GuiMenuHelpReadme' -Fallback 'Readme') }
 	if ($MenuHelpFAQ)                  { $MenuHelpFAQ.Header                  = (Get-UxLocalizedString -Key 'GuiMenuHelpFAQ' -Fallback 'FAQ') }
 	if ($MenuHelpChangelog)            { $MenuHelpChangelog.Header            = (Get-UxLocalizedString -Key 'GuiMenuHelpChangelog' -Fallback 'Changelog') }

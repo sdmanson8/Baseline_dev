@@ -93,10 +93,11 @@ Describe 'Removal Persistence dialog: click handler integration' {
         $script:ActionHandlersContent | Should -Match 'Show-GuiRemovalPersistenceDialog'
     }
 
-    It 'guards on Get-Command so a missing helper module never breaks the menu' {
+    It 'resolves the dialog through the GUI runtime command surface' {
         $idxIf = $script:ActionHandlersContent.IndexOf('if ($MenuToolsRemovalPersistence)')
         $tail = $script:ActionHandlersContent.Substring($idxIf)
-        $tail | Should -Match "Get-Command -Name 'Show-GuiRemovalPersistenceDialog' -CommandType Function -ErrorAction SilentlyContinue"
+        $tail | Should -Match "Get-GuiRuntimeCommand -Name 'Show-GuiRemovalPersistenceDialog' -CommandType 'Function'"
+        $tail | Should -Match 'Removal Persistence dialog command is not available\.'
     }
 
     It 'uses the run-in-progress gate so the dialog cannot be opened mid-apply' {

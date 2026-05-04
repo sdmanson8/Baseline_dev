@@ -10,9 +10,9 @@
 		TabHoverBg    = "#202638"
 		BorderColor   = "#2430445A"
 		TextPrimary   = "#F4F7FF"
-		TextSecondary = "#B8C1D9"
-		TextMuted     = "#8F99B2"
-		TextDisabled  = "#586178"
+		TextSecondary = "#CDD6EA"
+		TextMuted     = "#A3ADC6"
+		TextDisabled  = "#7E89A8"
 		AccentBlue    = "#7CB7FF"
 		AccentHover   = "#9ACAFF"
 		AccentPress   = "#4D9CFF"
@@ -47,10 +47,10 @@
 		SearchPlaceholder = "#8F99B2"
 		InputBg       = "#262D40"
 		InputHoverBg  = "#30384E"
-		CardBorder    = "#293044"
-		CardHoverBg   = "#202638"
+		CardBorder    = "#354057"
+		CardHoverBg   = "#252D40"
 		SecondaryButtonBg = "#00FFFFFF"
-		SecondaryButtonHoverBg = "#1E2433"
+		SecondaryButtonHoverBg = "#252D40"
 		SecondaryButtonPressBg = "#262D40"
 		SecondaryButtonBorder = "#1FFFFFFF"
 		SecondaryButtonFg = "#B8C1D9"
@@ -65,6 +65,8 @@
 		StateAccentStrong = "#4FD1A5"
 		ProgressGreen      = "#35D07F"
 		ProgressGreenTrack = "#2A3146"
+		SearchHighlightBg = "#FDE68A"
+		SearchHighlightText = "#111827"
 	}
 	$Script:LightTheme = @{
 		WindowBg      = "#F0F2F6"
@@ -76,8 +78,9 @@
 		TabHoverBg    = "#1A60C4"
 		BorderColor   = "#E6EAF0"
 		TextPrimary   = "#1F2937"
-		TextSecondary = "#6B7280"
-		TextMuted     = "#7A8494"
+		TextSecondary = "#4B5563"
+		TextMuted     = "#5F6B7A"
+		TextDisabled  = "#6B7788"
 		AccentBlue    = "#1550AA"
 		AccentHover   = "#1A60C4"
 		AccentPress   = "#104090"
@@ -112,10 +115,10 @@
 		SearchPlaceholder = "#7A8494"
 		InputBg       = "#FBFCFE"
 		InputHoverBg  = "#F6F8FB"
-		CardBorder    = "#E6EAF0"
-		CardHoverBg   = "#F6F8FB"
+		CardBorder    = "#D4DBE7"
+		CardHoverBg   = "#F2F5FA"
 		SecondaryButtonBg = "#FBFCFE"
-		SecondaryButtonHoverBg = "#F6F8FB"
+		SecondaryButtonHoverBg = "#F2F5FA"
 		SecondaryButtonPressBg = "#E9EEF6"
 		SecondaryButtonBorder = "#D6DDE8"
 		SecondaryButtonFg = "#263248"
@@ -130,6 +133,8 @@
 		StateAccentStrong = "#4FD1A5"
 		ProgressGreen      = "#6BBFA4"
 		ProgressGreenTrack = "#E1EEE9"
+		SearchHighlightBg = "#FDE68A"
+		SearchHighlightText = "#111827"
 	}
 
 	$Script:GuiThemeFallbackWarnings = [System.Collections.Generic.HashSet[string]]::new()
@@ -224,7 +229,7 @@
 			'AccentHover' = '#9ACAFF'
 			'AccentPress' = '#4D9CFF'
 			'HeaderBg' = '#151824'
-			'TextSecondary' = '#B8C1D9'
+			'TextSecondary' = '#CDD6EA'
 		}
 		foreach ($key in $defaultColors.Keys)
 		{

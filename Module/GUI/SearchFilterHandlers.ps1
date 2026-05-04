@@ -1,5 +1,6 @@
 	# Capture functions into $Script: variables so WPF event handler delegates can resolve them.
 	$Script:SetSearchInputStyleScript = ${function:Set-SearchInputStyle}
+	$Script:SyncSearchInputChromeScript = ${function:Sync-GuiSearchInputChrome}
 	$Script:SetSafeModeStateScript = ${function:Set-SafeModeState}
 	$Script:SetAdvancedModeStateScript = ${function:Set-AdvancedModeState}
 	$Script:SetGameModeStateScript = ${function:Set-GameModeState}
@@ -7,6 +8,17 @@
 	$Script:SaveCurrentTabScrollOffsetScript = ${function:Save-CurrentTabScrollOffset}
 	$Script:UpdateMainContentPanelWidthScript = ${function:Update-MainContentPanelWidth}
 	$testGuiRunInProgressCapture = $Script:TestGuiRunInProgressScript
+	$syncSearchInputChrome = {
+		if ($Script:SyncSearchInputChromeScript)
+		{
+			& $Script:SyncSearchInputChromeScript
+			return
+		}
+		if (Get-Command -Name 'Sync-GuiSearchInputChrome' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Sync-GuiSearchInputChrome
+		}
+	}
 
 	$searchRefreshTimer = New-Object System.Windows.Threading.DispatcherTimer
 	$searchRefreshTimer.Interval = [TimeSpan]::FromMilliseconds($Script:SearchRefreshDelayMs)
@@ -59,15 +71,7 @@
 		}
 	})
 	$TxtSearch.Text = if ($Script:AppsModeActive) { [string]$Script:AppsSearchText } else { [string]$Script:SearchText }
-	$isSearchEmpty = [string]::IsNullOrWhiteSpace([string]$TxtSearch.Text)
-	if ($Script:TxtSearchPlaceholder)
-	{
-		$Script:TxtSearchPlaceholder.Visibility = if ($isSearchEmpty) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
-	}
-	if ($Script:BtnClearSearch)
-	{
-		$Script:BtnClearSearch.Visibility = if ($isSearchEmpty) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
-	}
+	& $syncSearchInputChrome
 	$null = Register-GuiEventHandler -Source $TxtSearch -EventName 'GotKeyboardFocus' -Handler ({
 		Invoke-CapturedFunction -Name 'Set-SearchInputStyle'
 	})
@@ -85,15 +89,7 @@
 		{
 			$Script:SearchText = $currentText
 		}
-		$isEmpty = [string]::IsNullOrWhiteSpace($currentText)
-		if ($Script:TxtSearchPlaceholder)
-		{
-			$Script:TxtSearchPlaceholder.Visibility = if ($isEmpty) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
-		}
-		if ($Script:BtnClearSearch)
-		{
-			$Script:BtnClearSearch.Visibility = if ($isEmpty) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
-		}
+		& $syncSearchInputChrome
 		if ($Script:SearchRefreshTimer)
 		{
 			$Script:SearchRefreshTimer.Stop()
@@ -345,14 +341,7 @@
 		{
 			$Script:SearchUiUpdating = $false
 		}
-		if ($Script:TxtSearchPlaceholder)
-		{
-			$Script:TxtSearchPlaceholder.Visibility = [System.Windows.Visibility]::Visible
-		}
-		if ($Script:BtnClearSearch)
-		{
-			$Script:BtnClearSearch.Visibility = [System.Windows.Visibility]::Collapsed
-		}
+		& $syncSearchInputChrome
 		[void]($TxtSearch.Focus())
 		if ($Script:SearchRefreshTimer)
 		{

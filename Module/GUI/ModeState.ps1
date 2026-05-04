@@ -4,6 +4,21 @@
 # Single unified toggle: ChkSafeMode checked = Safe Mode, unchecked = Expert Mode.
 # The toggle label updates dynamically to reflect the active mode.
 
+	function Save-GuiDefaultStartupModePreference
+	{
+		[CmdletBinding()]
+		param (
+			[Parameter(Mandatory)]
+			[ValidateSet('Safe', 'Expert')]
+			[string]$Mode
+		)
+
+		if (Get-Command -Name 'Set-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			try { Set-BaselineUserPreference -Key 'DefaultStartupMode' -Value $Mode } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ModeState.SaveDefaultStartupModePreference' }
+		}
+	}
+
 	<#
 	    .SYNOPSIS
 	    Internal function Set-SafeModeState.
@@ -17,7 +32,11 @@
 		# Toggling Safe Mode on via the header is also a vote for Safe being the
 		# default mode at the next launch, so keep DefaultStartupMode in sync
 		# (Settings dialog reads it back from $Script:DefaultStartupMode).
-		if ($Enabled) { $Script:DefaultStartupMode = 'Safe' }
+		if ($Enabled)
+		{
+			$Script:DefaultStartupMode = 'Safe'
+			Save-GuiDefaultStartupModePreference -Mode 'Safe'
+		}
 
 		$previousState = Test-GuiModeActive -Mode 'Safe'
 		$advancedWasEnabled = Test-GuiModeActive -Mode 'Expert'
@@ -84,7 +103,7 @@
 
 		# Progressive disclosure: hide non-essential controls in Safe Mode
 		$safeModeHidden = if ($Enabled) { 'Collapsed' } else { 'Visible' }
-		if ($BtnLog)           { $BtnLog.Visibility           = $safeModeHidden }
+		if ($BtnLog)           { $BtnLog.Visibility           = 'Collapsed' }
 		if ($BtnFilterToggle)  { $BtnFilterToggle.Visibility  = $safeModeHidden }
 		if ($FilterOptionsPanel -and $FilterOptionsPanel.Visibility -ne 'Collapsed')
 		{
@@ -119,8 +138,9 @@
 
 		# Enabling Expert via the header makes Expert the new startup default;
 		# disabling drops back to Safe (Standard isn't a startup option).
-		if ($Enabled) { $Script:DefaultStartupMode = 'Expert' }
-		else { $Script:DefaultStartupMode = 'Safe' }
+		$nextStartupMode = if ($Enabled) { 'Expert' } else { 'Safe' }
+		$Script:DefaultStartupMode = $nextStartupMode
+		Save-GuiDefaultStartupModePreference -Mode $nextStartupMode
 
 		$previousState = Test-GuiModeActive -Mode 'Expert'
 		$safeWasEnabled = Test-GuiModeActive -Mode 'Safe'
@@ -186,7 +206,7 @@
 		}
 
 		# Restore controls hidden by Safe Mode's progressive disclosure
-		if ($BtnLog)          { $BtnLog.Visibility          = 'Visible' }
+		if ($BtnLog)          { $BtnLog.Visibility          = 'Collapsed' }
 		if ($BtnFilterToggle) { $BtnFilterToggle.Visibility = 'Visible' }
 		if ($ChkScan)         { $ChkScan.Visibility         = 'Visible' }
 

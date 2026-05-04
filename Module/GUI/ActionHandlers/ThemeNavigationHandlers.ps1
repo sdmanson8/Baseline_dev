@@ -2,10 +2,10 @@
 
 	#region Theme toggle handler
 	Register-GuiEventHandler -Source $ChkTheme -EventName 'Checked' -Handler ({
-		Invoke-CapturedFunction -Name 'Set-GUITheme' -Parameters @{ Theme = $Script:LightTheme }
+		Invoke-CapturedFunction -Name 'Apply-BaselineThemePreference' -Parameters @{ Preference = 'Light' }
 	}) | Out-Null
 	Register-GuiEventHandler -Source $ChkTheme -EventName 'Unchecked' -Handler ({
-		Invoke-CapturedFunction -Name 'Set-GUITheme' -Parameters @{ Theme = $Script:DarkTheme }
+		Invoke-CapturedFunction -Name 'Apply-BaselineThemePreference' -Parameters @{ Preference = 'Dark' }
 	}) | Out-Null
 	if ($NavModeTweaks)
 	{

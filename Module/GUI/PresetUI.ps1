@@ -104,47 +104,68 @@
 
 	<#
 	    .SYNOPSIS
+	    Internal function Test-ShouldShowQuickStartPresetButton.
+	#>
+
+	function Test-ShouldShowQuickStartPresetButton
+	{
+		param (
+			[string]$PrimaryTab
+		)
+
+		$normalizedPrimaryTab = if ([string]::IsNullOrWhiteSpace([string]$PrimaryTab)) { '' } else { [string]$PrimaryTab.Trim() }
+		return [string]::Equals($normalizedPrimaryTab, 'Initial Setup', [System.StringComparison]::OrdinalIgnoreCase)
+	}
+
+	<#
+	    .SYNOPSIS
 	    Internal function Get-TabPresetButtonDefinitions.
 	#>
 
 	function Get-TabPresetButtonDefinitions
 	{
-		param ([bool]$IsSafeUx)
+		param (
+			[bool]$IsSafeUx,
+			[string]$PrimaryTab = $null
+		)
 
 		if ($IsSafeUx)
 		{
-			return @(
-				[pscustomobject]@{
+			$definitions = [System.Collections.Generic.List[object]]::new()
+			if (Test-ShouldShowQuickStartPresetButton -PrimaryTab $PrimaryTab)
+			{
+				[void]$definitions.Add([pscustomobject]@{
 					Label = (New-PresetButtonContent -PrimaryText (Get-UxLocalizedString -Key 'GuiPresetQuickStart' -Fallback 'Quick Start') -SecondaryText (Get-UxLocalizedString -Key 'GuiPresetQuickStartDesc' -Fallback 'Privacy essentials only'))
 					Variant = 'Secondary'
 					PresetName = 'Minimal'
 					ToolTip = (Get-UxLocalizedString -Key 'GuiPresetQuickStartDesc' -Fallback 'Privacy essentials only')
 					Muted = $false
-				}
-				[pscustomobject]@{
+				})
+			}
+			[void]$definitions.Add([pscustomobject]@{
 					Label = (New-PresetButtonContent -PrimaryText (Get-UxLocalizedString -Key 'GuiPresetRecommended' -Fallback 'Recommended') -SecondaryText (Get-UxLocalizedString -Key 'GuiPresetRecommendedDesc' -Fallback 'Broader privacy + performance'))
 					Variant = 'Secondary'
 					PresetName = 'Basic'
 					ToolTip = (Get-UxLocalizedString -Key 'GuiPresetRecommendedDesc' -Fallback 'Broader privacy + performance')
 					Muted = $false
-				}
-				[pscustomobject]@{
+			})
+			[void]$definitions.Add([pscustomobject]@{
 					Label = (Get-PresetButtonLabel -PresetName 'Balanced')
 					Variant = 'Subtle'
 					PresetName = 'Balanced'
 					ToolTip = (Get-PresetButtonTooltip -PresetName 'Balanced' -IsSafeUx:$true)
 					Muted = $true
 					Collapsed = $true
-				}
-				[pscustomobject]@{
+			})
+			[void]$definitions.Add([pscustomobject]@{
 					Label = (Get-PresetButtonLabel -PresetName 'Advanced')
 					Variant = 'Subtle'
 					PresetName = 'Advanced'
 					ToolTip = (Get-PresetButtonTooltip -PresetName 'Advanced' -IsSafeUx:$true)
 					Muted = $true
 					Collapsed = $true
-				}
-			)
+			})
+			return $definitions.ToArray()
 		}
 
 		return @(
@@ -273,7 +294,7 @@
 		if (-not ($Script:PresetButtonRefsByTab -is [hashtable])) { $Script:PresetButtonRefsByTab = @{} }
 		$tabPresetRefs = [System.Collections.Generic.List[object]]::new()
 		$Script:PresetButtonRefsByTab[[string]$BuildContext.PrimaryTab] = $tabPresetRefs
-		foreach ($presetDefinition in @(Get-TabPresetButtonDefinitions -IsSafeUx:(Test-IsSafeModeUX)))
+		foreach ($presetDefinition in @(Get-TabPresetButtonDefinitions -IsSafeUx:(Test-IsSafeModeUX) -PrimaryTab ([string]$BuildContext.PrimaryTab)))
 		{
 			$button = New-PresetButton -Label $presetDefinition.Label -Variant ([string]$presetDefinition.Variant) -Muted:([bool]$presetDefinition.Muted)
 			if (-not $button)
@@ -739,8 +760,10 @@
 				$resetPageButton.FontSize = $Script:GuiLayout.FontSizeSmall
 				$resetPageButton.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
 				$resetPageButton.ToolTip = (Get-UxLocalizedString -Key 'GuiResetPageTooltip' -Fallback ('Restore all tweaks on the {0} page to Windows defaults.' -f $pageCategory))
+				$invokePageResetToDefaultsCapture = if ($Script:InvokePageResetToDefaultsScript) { $Script:InvokePageResetToDefaultsScript } else { ${function:Invoke-PageResetToDefaults} }
+				if (-not $invokePageResetToDefaultsCapture) { throw 'Invoke-PageResetToDefaults not found.' }
 				$null = Register-GuiEventHandler -Source $resetPageButton -EventName 'Click' -Handler ({
-					Invoke-PageResetToDefaults -Category $pageCategory
+					& $invokePageResetToDefaultsCapture -Category $pageCategory
 				}.GetNewClosure())
 				[void]($BuildContext.MainPanel.Children.Add($resetPageButton))
 			}

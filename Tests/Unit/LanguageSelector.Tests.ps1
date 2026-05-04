@@ -27,6 +27,7 @@ Describe 'Language selector wiring' {
     It 'renders the language button through the shared icon button pipeline' {
         $script:GuiContent | Should -Match '<ToggleButton Name="BtnLanguage"[^>]*Content=""'
         $script:GuiContent | Should -Match '<Popup Name="LanguagePopup"[^>]*IsOpen="\{Binding IsChecked, ElementName=BtnLanguage, Mode=TwoWay\}"'
+        $script:GuiContent | Should -Match '<Popup Name="LanguagePopup"[^>]*StaysOpen="True"'
         $script:GuiContent | Should -Match 'Set-ButtonChrome -Button \$BtnLanguage -Variant ''Subtle'' -Compact -Muted'
         $script:GuiContent | Should -Match 'Set-GuiButtonIconContent -Button \$BtnLanguage\s+-IconName ''Language''\s+-Text \(Get-UxLocalizedString -Key ''GuiBtnLanguage'' -Fallback ''Language''\)'
     }
@@ -34,6 +35,14 @@ Describe 'Language selector wiring' {
     It 'opens the language popup through popup state instead of manual click toggling' {
         $script:GuiContent | Should -Match 'Register-GuiEventHandler -Source \$LanguagePopup -EventName ''Opened'''
         $script:GuiContent | Should -Not -Match 'Register-GuiEventHandler -Source \$BtnLanguage -EventName ''Click'''
+    }
+
+    It 'refreshes language results directly from typed search text' {
+        $script:GuiContent | Should -Match 'Register-GuiEventHandler -Source \$TxtLanguageSearch -EventName ''TextChanged'''
+        $script:GuiContent | Should -Match '\$renderLanguageList -FilterText \(\[string\]\$TxtLanguageSearch\.Text\)'
+        $script:GuiContent | Should -Match '\$searchIndex\.IndexOf\(\$normalizedFilter, \[System\.StringComparison\]::OrdinalIgnoreCase\) -ge 0'
+        $script:GuiContent | Should -Match '<Popup Name="LanguagePopup"[^>]*StaysOpen="True"'
+        $script:GuiContent | Should -Not -Match '\[string\]\$_\.SearchIndex -like "\*\$normalizedFilter\*"'
     }
 
     It 'wires popup language options to select on press via applyLanguageChange' {

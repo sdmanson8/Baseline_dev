@@ -32,6 +32,24 @@ namespace Baseline.RunLauncher
         private static readonly byte[] Utf8Bom = new byte[] { 0xEF, 0xBB, 0xBF };
         private const int DefaultPowerShellTimeoutSeconds = 1800;
         private const string PowerShellTimeoutSecondsVar = "BASELINE_POWERSHELL_TIMEOUT_SECONDS";
+        private static readonly string[] HeadlessPowerShellArguments = new[]
+        {
+            "Functions",
+            "Preset",
+            "GameModeProfile",
+            "ScenarioProfile",
+            "ApplyProfile",
+            "Run",
+            "ScheduledRun",
+            "ProfilePath",
+            "ConfigFile",
+            "ComplianceCheck",
+            "NoGui",
+            "ListPresets",
+            "ApplyPreset",
+            "LifecycleOperation",
+            "TargetComputer"
+        };
 
         /// <summary>
         /// Displays a native message box for fatal launcher errors.
@@ -556,9 +574,12 @@ namespace Baseline.RunLauncher
                     powershell.Runspace = runspace;
                     powershell.AddScript("& $BaselineLauncherScript @BaselineLauncherArguments");
 
-                    var timeout = GetPowerShellInvokeTimeout();
+                    var timeout = GetPowerShellInvokeTimeout(normalizedArgs);
                     var asyncResult = powershell.BeginInvoke();
-                    if (!asyncResult.AsyncWaitHandle.WaitOne(timeout))
+                    var completed = timeout.HasValue
+                        ? asyncResult.AsyncWaitHandle.WaitOne(timeout.Value)
+                        : asyncResult.AsyncWaitHandle.WaitOne();
+                    if (!completed)
                     {
                         try
                         {
@@ -571,7 +592,7 @@ namespace Baseline.RunLauncher
 
                         NativeMsgBox(
                             IntPtr.Zero,
-                            $"Baseline timed out while running the PowerShell workflow after {timeout.TotalMinutes:0} minute(s).",
+                            $"Baseline timed out while running the PowerShell workflow after {timeout.Value.TotalMinutes:0} minute(s).",
                             "Baseline",
                             MB_OK | MB_ICONERROR);
                         return 1;
@@ -706,9 +727,15 @@ namespace Baseline.RunLauncher
         /// <summary>
         /// Resolves the PowerShell invocation timeout for the embedded workflow.
         /// </summary>
-        /// <returns>The timeout to apply before stopping the pipeline.</returns>
-        private static TimeSpan GetPowerShellInvokeTimeout()
+        /// <param name="normalizedArgs">The normalized command-line arguments passed to the PowerShell workflow.</param>
+        /// <returns>The timeout to apply before stopping the pipeline, or null when the GUI should run until closed.</returns>
+        private static TimeSpan? GetPowerShellInvokeTimeout(string[] normalizedArgs)
         {
+            if (IsGuiPowerShellInvocation(normalizedArgs))
+            {
+                return null;
+            }
+
             var raw = Environment.GetEnvironmentVariable(PowerShellTimeoutSecondsVar);
             if (int.TryParse(raw, out var timeoutSeconds) && timeoutSeconds > 0)
             {
@@ -716,6 +743,51 @@ namespace Baseline.RunLauncher
             }
 
             return TimeSpan.FromSeconds(DefaultPowerShellTimeoutSeconds);
+        }
+
+        /// <summary>
+        /// Determines whether the embedded workflow is the interactive GUI path.
+        /// </summary>
+        /// <param name="normalizedArgs">The normalized command-line arguments passed to the PowerShell workflow.</param>
+        /// <returns>True when no known headless entry-point argument was supplied.</returns>
+        private static bool IsGuiPowerShellInvocation(string[] normalizedArgs)
+        {
+            if (normalizedArgs == null || normalizedArgs.Length == 0)
+            {
+                return true;
+            }
+
+            return !normalizedArgs.Any(IsHeadlessPowerShellArgument);
+        }
+
+        /// <summary>
+        /// Determines whether an argument selects a headless workflow.
+        /// </summary>
+        /// <param name="argument">The normalized argument text.</param>
+        /// <returns>True when the argument is a known headless entry-point parameter.</returns>
+        private static bool IsHeadlessPowerShellArgument(string argument)
+        {
+            if (string.IsNullOrWhiteSpace(argument))
+            {
+                return false;
+            }
+
+            var text = argument.TrimStart();
+            if (!text.StartsWith("-", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            text = text.TrimStart('-');
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return false;
+            }
+
+            var separatorIndex = text.IndexOfAny(new[] { ':', '=' });
+            var parameterName = separatorIndex >= 0 ? text.Substring(0, separatorIndex) : text;
+            return HeadlessPowerShellArguments.Any(
+                name => string.Equals(name, parameterName, StringComparison.OrdinalIgnoreCase));
         }
     }
 }

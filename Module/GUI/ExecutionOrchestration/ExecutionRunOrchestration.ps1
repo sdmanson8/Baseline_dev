@@ -268,6 +268,9 @@
 			Action           = $Action
 			Application      = $Application
 			SelectedApps     = @($selectedApps)
+			AppCompletedCount = 0
+			AppProgressTotal = $(if ($selectedCount -gt 0) { $selectedCount } else { 1 })
+			AppProgressIndeterminate = ($selectedCount -le 1)
 			WasAppsModeActive = $wasAppsModeActive
 		})
 
@@ -294,7 +297,14 @@
 			$Script:ExecutionMode = 'Apps'
 			if ($Script:ExecutionProgressBar -or $Script:ExecutionProgressText)
 			{
-				Set-SharedProgressBarState -ProgressBar $Script:ExecutionProgressBar -ProgressText $Script:ExecutionProgressText -Indeterminate -CurrentAction $initialActionText
+				if ([bool]$Script:RunState['AppProgressIndeterminate'])
+				{
+					Set-SharedProgressBarState -ProgressBar $Script:ExecutionProgressBar -ProgressText $Script:ExecutionProgressText -Indeterminate -CurrentAction $initialActionText
+				}
+				else
+				{
+					Set-SharedProgressBarState -ProgressBar $Script:ExecutionProgressBar -ProgressText $Script:ExecutionProgressText -Completed 0 -Total ([int]$Script:RunState['AppProgressTotal']) -CurrentAction $initialActionText
+				}
 			}
 			if (-not [string]::IsNullOrWhiteSpace([string]$initialActionText))
 			{
@@ -352,7 +362,14 @@
 									$Script:ExecutionLastConsoleAction = $currentAction
 									if ($Script:ExecutionProgressBar -or $Script:ExecutionProgressText)
 									{
-										Set-SharedProgressBarState -ProgressBar $Script:ExecutionProgressBar -ProgressText $Script:ExecutionProgressText -Indeterminate -CurrentAction $currentAction
+										if ([bool]$Script:RunState['AppProgressIndeterminate'] -and [int]$Script:RunState['AppCompletedCount'] -eq 0)
+										{
+											Set-SharedProgressBarState -ProgressBar $Script:ExecutionProgressBar -ProgressText $Script:ExecutionProgressText -Indeterminate -CurrentAction $currentAction
+										}
+										else
+										{
+											Set-SharedProgressBarState -ProgressBar $Script:ExecutionProgressBar -ProgressText $Script:ExecutionProgressText -Completed ([int]$Script:RunState['AppCompletedCount']) -Total ([int]$Script:RunState['AppProgressTotal']) -CurrentAction $currentAction
+										}
 									}
 								}
 							}
@@ -363,6 +380,12 @@
 								{
 									$Script:RunState['AppOutcome'] = $status
 								}
+								$Script:RunState['AppCompletedCount'] = [Math]::Min(([int]$Script:RunState['AppCompletedCount'] + 1), [int]$Script:RunState['AppProgressTotal'])
+								if ($Script:ExecutionProgressBar -or $Script:ExecutionProgressText)
+								{
+									$currentAction = if (-not [string]::IsNullOrWhiteSpace([string]$Script:ExecutionLastConsoleAction)) { [string]$Script:ExecutionLastConsoleAction } else { [string]$Script:RunState['CurrentAction'] }
+									Set-SharedProgressBarState -ProgressBar $Script:ExecutionProgressBar -ProgressText $Script:ExecutionProgressText -Completed ([int]$Script:RunState['AppCompletedCount']) -Total ([int]$Script:RunState['AppProgressTotal']) -CurrentAction $currentAction
+								}
 								$Script:ExecutionLastConsoleAction = $null
 							}
 							'ConsoleComplete'
@@ -371,6 +394,12 @@
 								if (-not [string]::IsNullOrWhiteSpace($status))
 								{
 									$Script:RunState['AppOutcome'] = $status
+								}
+								$Script:RunState['AppCompletedCount'] = [Math]::Min(([int]$Script:RunState['AppCompletedCount'] + 1), [int]$Script:RunState['AppProgressTotal'])
+								if ($Script:ExecutionProgressBar -or $Script:ExecutionProgressText)
+								{
+									$currentAction = if ((Test-GuiObjectField -Object $qEntry -FieldName 'Action') -and -not [string]::IsNullOrWhiteSpace([string]$qEntry.Action)) { [string]$qEntry.Action } else { [string]$Script:RunState['CurrentAction'] }
+									Set-SharedProgressBarState -ProgressBar $Script:ExecutionProgressBar -ProgressText $Script:ExecutionProgressText -Completed ([int]$Script:RunState['AppCompletedCount']) -Total ([int]$Script:RunState['AppProgressTotal']) -CurrentAction $currentAction
 								}
 								$Script:ExecutionLastConsoleAction = $null
 							}

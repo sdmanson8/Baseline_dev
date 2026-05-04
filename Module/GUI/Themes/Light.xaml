@@ -6,13 +6,13 @@
 	<Color x:Key="Color.Surface">#F0F2F6</Color>
 	<Color x:Key="Color.SurfaceElevated">#FBFCFE</Color>
 	<Color x:Key="Color.SurfaceControl">#F9FAFC</Color>
-	<Color x:Key="Color.SurfaceHover">#F6F8FB</Color>
+	<Color x:Key="Color.SurfaceHover">#F2F5FA</Color>
 	<Color x:Key="Color.TextPrimary">#1F2937</Color>
-	<Color x:Key="Color.TextSecondary">#6B7280</Color>
-	<Color x:Key="Color.TextMuted">#7A8494</Color>
-	<Color x:Key="Color.TextDisabled">#8B95A6</Color>
-	<Color x:Key="Color.Border">#E6EAF0</Color>
-	<Color x:Key="Color.BorderStrong">#C8D0DC</Color>
+	<Color x:Key="Color.TextSecondary">#4B5563</Color>
+	<Color x:Key="Color.TextMuted">#5F6B7A</Color>
+	<Color x:Key="Color.TextDisabled">#6B7788</Color>
+	<Color x:Key="Color.Border">#D4DBE7</Color>
+	<Color x:Key="Color.BorderStrong">#B8C2D0</Color>
 	<Color x:Key="Color.Accent">#1550AA</Color>
 	<Color x:Key="Color.AccentHover">#1A60C4</Color>
 	<Color x:Key="Color.AccentPress">#104090</Color>
@@ -22,7 +22,7 @@
 	<Color x:Key="Color.InputBg">#FBFCFE</Color>
 	<Color x:Key="Color.InputHoverBg">#F6F8FB</Color>
 	<Color x:Key="Color.ButtonBg">#FBFCFE</Color>
-	<Color x:Key="Color.ButtonHoverBg">#F6F8FB</Color>
+	<Color x:Key="Color.ButtonHoverBg">#F2F5FA</Color>
 	<Color x:Key="Color.ButtonPressBg">#E9EEF6</Color>
 	<Color x:Key="Color.ButtonBorder">#D6DDE8</Color>
 	<Color x:Key="Color.Progress">#6BBFA4</Color>
@@ -34,7 +34,7 @@
 	<Color x:Key="Color.SplashCardTop">#FBFCFE</Color>
 	<Color x:Key="Color.SplashCardBottom">#F4F6FA</Color>
 	<Color x:Key="Color.SplashCardBorder">#00FFFFFF</Color>
-	<Color x:Key="Color.SplashSubtitle">#6B7280</Color>
+	<Color x:Key="Color.SplashSubtitle">#4B5563</Color>
 	<Color x:Key="Color.SplashStepActive">#1F2937</Color>
 
 	<SolidColorBrush x:Key="Brush.WindowBg" Color="{StaticResource Color.WindowBg}"/>
@@ -163,6 +163,24 @@
 		<Setter Property="Background" Value="{DynamicResource Brush.SurfaceElevated}"/>
 		<Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}"/>
 		<Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
+		<Setter Property="Padding" Value="0"/>
+		<Setter Property="BorderThickness" Value="0"/>
+		<Setter Property="Template">
+			<Setter.Value>
+				<ControlTemplate TargetType="{x:Type ToolTip}">
+					<Border
+						Background="{TemplateBinding Background}"
+						BorderBrush="{TemplateBinding BorderBrush}"
+						BorderThickness="1"
+						CornerRadius="8"
+						MaxWidth="420"
+						Padding="10,7"
+						SnapsToDevicePixels="True">
+						<ContentPresenter RecognizesAccessKey="True"/>
+					</Border>
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
 	</Style>
 	<Style TargetType="FlowDocumentScrollViewer">
 		<Setter Property="Background" Value="{DynamicResource Brush.Surface}"/>

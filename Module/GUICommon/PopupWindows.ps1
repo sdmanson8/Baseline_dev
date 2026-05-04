@@ -372,6 +372,74 @@ function Add-GuiPopupWindowChrome
 
 <#
     .SYNOPSIS
+    Internal function New-GuiPopupInfoIcon.
+#>
+function New-GuiPopupInfoIcon
+{
+	<# .SYNOPSIS Creates the standard per-row information glyph used in popup picker windows. #>
+	param(
+		[string]$TooltipText,
+
+		[hashtable]$Theme = $null,
+
+		[object]$UseDarkMode = $true,
+
+		[object]$Margin = $null
+	)
+
+	$resolvedUseDarkMode = Get-GuiBooleanValue -Value $UseDarkMode -Default $true -Context 'New-GuiPopupInfoIcon'
+	$themeRef = if ($Theme) { $Theme } elseif (Test-GuiObjectField -Object $Script:CurrentTheme -FieldName 'AccentBlue') { $Script:CurrentTheme } else { @{} }
+	$accentColor = if ($resolvedUseDarkMode) { '#89B4FA' } else { '#2563EB' }
+
+	try
+	{
+		if ($themeRef -and ($themeRef -is [System.Collections.IDictionary]) -and $themeRef.Contains('AccentBlue'))
+		{
+			$themeAccent = [string]$themeRef['AccentBlue']
+			if (-not [string]::IsNullOrWhiteSpace($themeAccent))
+			{
+				$accentColor = $themeAccent
+			}
+		}
+	}
+	catch
+	{
+		Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.New-GuiPopupInfoIcon.ResolveThemeColor'
+	}
+
+	if ($null -eq $Margin)
+	{
+		$Margin = [System.Windows.Thickness]::new(4, 0, 4, 0)
+	}
+
+	$icon = New-Object -TypeName System.Windows.Controls.TextBlock
+	$icon.Text = [char]0x24D8
+	$icon.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI Symbol')
+	$icon.FontSize = 14
+	$icon.FontWeight = [System.Windows.FontWeights]::SemiBold
+	$icon.VerticalAlignment = 'Center'
+	$icon.Margin = $Margin
+	$icon.Cursor = [System.Windows.Input.Cursors]::Arrow
+	$icon.ToolTip = if ([string]::IsNullOrWhiteSpace($TooltipText)) { 'More information' } else { $TooltipText }
+	[System.Windows.Controls.ToolTipService]::SetPlacement($icon, [System.Windows.Controls.Primitives.PlacementMode]::Right)
+	[System.Windows.Controls.ToolTipService]::SetShowDuration($icon, 20000)
+	[System.Windows.Controls.ToolTipService]::SetInitialShowDelay($icon, 150)
+
+	try
+	{
+		$icon.Foreground = $Script:SharedBrushConverter.ConvertFromString($accentColor)
+	}
+	catch
+	{
+		Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.New-GuiPopupInfoIcon.SetForeground'
+		$icon.Foreground = [System.Windows.Media.Brushes]::DodgerBlue
+	}
+
+	return $icon
+}
+
+<#
+    .SYNOPSIS
     Internal function Show-GuiActivatedDialog.
 #>
 function Show-GuiActivatedDialog

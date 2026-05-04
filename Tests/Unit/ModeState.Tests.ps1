@@ -6,6 +6,13 @@ BeforeAll {
 }
 
 Describe 'Mode state' {
+    It 'persists Safe and Expert startup-mode changes' {
+        $script:ModeStateContent | Should -Match 'function Save-GuiDefaultStartupModePreference'
+        $script:ModeStateContent | Should -Match 'Set-BaselineUserPreference -Key ''DefaultStartupMode'' -Value \$Mode'
+        $script:ModeStateContent | Should -Match "Save-GuiDefaultStartupModePreference -Mode 'Safe'"
+        $script:ModeStateContent | Should -Match 'Save-GuiDefaultStartupModePreference -Mode \$nextStartupMode'
+    }
+
     It 'routes design-mode preference writes through Write-DebugSwallowedException' {
         $script:ModeStateContent | Should -Match "ModeState\.Set-DesignModeState\.SavePreference"
     }

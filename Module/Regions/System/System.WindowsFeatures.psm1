@@ -659,19 +659,7 @@ Supports capability info icon handling inside Baseline.
 	{
 		param ([string]$TooltipText)
 
-		$icon = New-Object -TypeName System.Windows.Controls.TextBlock
-		$icon.Text = [char]0x24D8  # info icon
-		$icon.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI Symbol')
-		$icon.FontSize = 14
-		$icon.Foreground = [System.Windows.Media.Brushes]::DodgerBlue
-		$icon.VerticalAlignment = 'Center'
-		$icon.Margin = [System.Windows.Thickness]::new(4, 0, 4, 0)
-		$icon.Cursor = [System.Windows.Input.Cursors]::Arrow
-		$icon.ToolTip = $(if ([string]::IsNullOrWhiteSpace($TooltipText)) { 'Optional feature' } else { $TooltipText })
-		[System.Windows.Controls.ToolTipService]::SetPlacement($icon, [System.Windows.Controls.Primitives.PlacementMode]::Right)
-		[System.Windows.Controls.ToolTipService]::SetShowDuration($icon, 20000)
-		[System.Windows.Controls.ToolTipService]::SetInitialShowDelay($icon, 150)
-		return $icon
+		return GUICommon\New-GuiPopupInfoIcon -TooltipText $(if ([string]::IsNullOrWhiteSpace($TooltipText)) { 'Optional feature' } else { $TooltipText }) -Theme $Theme -UseDarkMode $UseDarkMode
 	}
 
 	<#
@@ -1513,19 +1501,7 @@ Supports feature info icon handling inside Baseline.
 	{
 		param ([string]$TooltipText)
 
-		$icon = New-Object -TypeName System.Windows.Controls.TextBlock
-		$icon.Text = [char]0x24D8  # info icon
-		$icon.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI Symbol')
-		$icon.FontSize = 14
-		$icon.Foreground = [System.Windows.Media.Brushes]::DodgerBlue
-		$icon.VerticalAlignment = 'Center'
-		$icon.Margin = [System.Windows.Thickness]::new(4, 0, 4, 0)
-		$icon.Cursor = [System.Windows.Input.Cursors]::Arrow
-		$icon.ToolTip = $(if ([string]::IsNullOrWhiteSpace($TooltipText)) { 'Windows feature' } else { $TooltipText })
-		[System.Windows.Controls.ToolTipService]::SetPlacement($icon, [System.Windows.Controls.Primitives.PlacementMode]::Right)
-		[System.Windows.Controls.ToolTipService]::SetShowDuration($icon, 20000)
-		[System.Windows.Controls.ToolTipService]::SetInitialShowDelay($icon, 150)
-		return $icon
+		return GUICommon\New-GuiPopupInfoIcon -TooltipText $(if ([string]::IsNullOrWhiteSpace($TooltipText)) { 'Windows feature' } else { $TooltipText }) -Theme $Theme -UseDarkMode $UseDarkMode
 	}
 
 	<#

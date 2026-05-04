@@ -2,6 +2,7 @@ Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/GUI/SessionState.ps1'
+    $script:SessionStateContent = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
         foreach ($fn in $functions) {
@@ -150,6 +151,15 @@ Describe 'GUI session snapshots' {
         $script:GamingOnlyFilter = $false
         $script:LastStandardPrimaryTab = $null
         $script:GameModePreviousPrimaryTab = $null
+        $script:Ctx = @{
+            Mode = @{
+                Safe = $script:SafeMode
+                Expert = $script:AdvancedMode
+                Game = $script:GameMode
+                Design = $script:DesignMode
+            }
+            UI = @{}
+        }
     }
 
     It 'captures GUI preference fields in the GUI snapshot' {
@@ -165,5 +175,40 @@ Describe 'GUI session snapshots' {
         $snapshot.ExperimentalFeatures | Should -Be $true
         $snapshot.DesignMode | Should -Be $true
         $snapshot.HideUnavailableItems | Should -Be $true
+    }
+
+    It 'captures Expert Mode from the canonical GUI mode context' {
+        $script:SafeMode = $true
+        $script:AdvancedMode = $false
+        $script:Ctx.Mode.Safe = $false
+        $script:Ctx.Mode.Expert = $true
+
+        $snapshot = Get-GuiSettingsSnapshot
+
+        $snapshot.SafeMode | Should -Be $false
+        $snapshot.AdvancedMode | Should -Be $true
+    }
+}
+
+Describe 'GUI session restore mode wiring' {
+    It 'restores Safe or Expert through Set-GuiMode instead of only script flags' {
+        $script:SessionStateContent | Should -Match '\$desiredViewMode = if \(\$desiredSafe\) \{ ''Safe'' \} elseif \(\$desiredAdvanced\) \{ ''Expert'' \} else \{ ''Standard'' \}'
+        $script:SessionStateContent | Should -Match 'Set-GuiMode -ViewMode \$desiredViewMode -GameMode \$desiredGameMode'
+        $script:SessionStateContent | Should -Match '\$Script:DefaultStartupMode = if \(\$desiredAdvanced\) \{ ''Expert'' \} else \{ ''Safe'' \}'
+    }
+
+    It 'persists restored theme and startup mode preferences' {
+        $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''Theme'' -Value \$desiredTheme'
+        $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''DefaultStartupMode'' -Value \$Script:DefaultStartupMode'
+    }
+
+    It 'restores Expert Mode banner visibility from the restored mode' {
+        $script:SessionStateContent | Should -Match '\$ExpertModeBanner\.Visibility = if \(\$desiredAdvanced\)'
+    }
+
+    It 'syncs search placeholder visibility after restoring search text while events are suppressed' {
+        $script:SessionStateContent | Should -Match '\$Script:SearchUiUpdating = \$true'
+        $script:SessionStateContent | Should -Match "Get-Command -Name 'Sync-GuiSearchInputChrome'"
+        $script:SessionStateContent | Should -Match 'Sync-GuiSearchInputChrome'
     }
 }

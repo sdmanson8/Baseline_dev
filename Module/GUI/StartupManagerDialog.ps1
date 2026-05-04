@@ -258,6 +258,176 @@ function Add-GuiStartupManagerRowsToPanel
 	}
 }
 
+function Invoke-GuiCustomizationsStartupManagerAction
+{
+	[CmdletBinding()]
+	param ()
+
+	if (Get-Command -Name 'Test-GuiRunInProgress' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		if (Test-GuiRunInProgress) { return }
+	}
+
+	try
+	{
+		$startupManagerDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiStartupManagerDialog' -CommandType 'Function'
+		if (-not $startupManagerDialogCommand)
+		{
+			throw 'Startup Manager dialog command is not available.'
+		}
+		$null = & $startupManagerDialogCommand
+	}
+	catch
+	{
+		LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to open Startup Manager')
+		[void](Show-ThemedDialog -Title (Get-UxLocalizedString -Key 'GuiStartupManagerTitle' -Fallback 'Startup Manager') -Message ("Failed to open Startup Manager.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+	}
+}
+
+function Invoke-GuiCustomizationsUserFoldersAction
+{
+	[CmdletBinding()]
+	param ()
+
+	if (Get-Command -Name 'Test-GuiRunInProgress' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		if (Test-GuiRunInProgress) { return }
+	}
+
+	try
+	{
+		$userFoldersDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiUserFoldersDialog' -CommandType 'Function'
+		if (-not $userFoldersDialogCommand)
+		{
+			throw 'User Folders dialog command is not available.'
+		}
+		$null = & $userFoldersDialogCommand
+	}
+	catch
+	{
+		LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to open user folders')
+		[void](Show-ThemedDialog -Title 'User Folders' -Message ("Failed to open user folders.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+	}
+}
+
+function Invoke-GuiCustomizationsWslInstallAction
+{
+	[CmdletBinding()]
+	param ()
+
+	if (Get-Command -Name 'Test-GuiRunInProgress' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		if (Test-GuiRunInProgress) { return }
+	}
+
+	try
+	{
+		$showWslInstallDialogCommand = Get-GuiRuntimeCommand -Name 'Show-WslInstallDialog' -CommandType 'Function'
+		$invokeWslInstallFlowCommand = Get-GuiRuntimeCommand -Name 'Invoke-BaselineWslInstallFlow' -CommandType 'Function'
+		if (-not $showWslInstallDialogCommand -or -not $invokeWslInstallFlowCommand)
+		{
+			throw 'WSL install helpers are not available.'
+		}
+
+		$selectedDistro = & $showWslInstallDialogCommand
+		if (-not $selectedDistro) { return }
+		$alias = if ($selectedDistro.PSObject.Properties.Name -contains 'Alias') { [string]$selectedDistro.Alias } else { [string]$selectedDistro }
+		$label = if ($selectedDistro.PSObject.Properties.Name -contains 'Distribution') { [string]$selectedDistro.Distribution } else { $alias }
+		$result = & $invokeWslInstallFlowCommand -Alias $alias
+
+		if ($result -and $result.Succeeded)
+		{
+			LogInfo ("WSL install flow completed for {0}." -f $label)
+			[void](Show-ThemedDialog -Title (Get-UxLocalizedString -Key 'GuiWslInstallTitle' -Fallback 'Install WSL') -Message ("Installed {0} and completed the post-install WSL update steps." -f $label) -Buttons @('OK') -AccentButton 'OK')
+		}
+		else
+		{
+			$failureReason = if ($result -and $result.Reason) { [string]$result.Reason } else { 'Unknown failure.' }
+			LogError ("WSL install flow failed for {0}: {1}" -f $label, $failureReason)
+			[void](Show-ThemedDialog -Title (Get-UxLocalizedString -Key 'GuiWslInstallTitle' -Fallback 'Install WSL') -Message ("WSL install for {0} did not complete.`n`n{1}" -f $label, $failureReason) -Buttons @('OK') -AccentButton 'OK')
+		}
+	}
+	catch
+	{
+		LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'WSL install launcher failed')
+		[void](Show-ThemedDialog -Title (Get-UxLocalizedString -Key 'GuiWslInstallTitle' -Fallback 'Install WSL') -Message ("Failed to launch the WSL installer.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+	}
+}
+
+function New-GuiCustomizationsActionCard
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$Title,
+
+		[Parameter(Mandatory = $true)]
+		[string]$Description,
+
+		[Parameter(Mandatory = $true)]
+		[string]$ButtonText,
+
+		[Parameter(Mandatory = $true)]
+		[scriptblock]$Action,
+
+		[Parameter(Mandatory = $true)]
+		[object]$Theme,
+
+		[Parameter(Mandatory = $true)]
+		[object]$BrushConverter
+	)
+
+	$card = New-Object System.Windows.Controls.Border
+	$card.Background = $BrushConverter.ConvertFromString($Theme.CardBg)
+	$card.BorderBrush = $BrushConverter.ConvertFromString($Theme.CardBorder)
+	$card.BorderThickness = [System.Windows.Thickness]::new(1)
+	$card.CornerRadius = [System.Windows.CornerRadius]::new($Script:GuiLayout.CardCornerRadius)
+	$card.Padding = [System.Windows.Thickness]::new(14, 12, 14, 12)
+	$card.Margin = [System.Windows.Thickness]::new(8, 0, 8, 8)
+
+	$grid = New-Object System.Windows.Controls.Grid
+	$textColumn = New-Object System.Windows.Controls.ColumnDefinition
+	$textColumn.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
+	$buttonColumn = New-Object System.Windows.Controls.ColumnDefinition
+	$buttonColumn.Width = [System.Windows.GridLength]::Auto
+	[void]$grid.ColumnDefinitions.Add($textColumn)
+	[void]$grid.ColumnDefinitions.Add($buttonColumn)
+
+	$textStack = New-Object System.Windows.Controls.StackPanel
+	$textStack.Orientation = 'Vertical'
+	[System.Windows.Controls.Grid]::SetColumn($textStack, 0)
+
+	$titleBlock = New-Object System.Windows.Controls.TextBlock
+	$titleBlock.Text = $Title
+	$titleBlock.FontSize = 13
+	$titleBlock.FontWeight = [System.Windows.FontWeights]::SemiBold
+	$titleBlock.Foreground = $BrushConverter.ConvertFromString($Theme.TextPrimary)
+	[void]$textStack.Children.Add($titleBlock)
+
+	$descriptionBlock = New-Object System.Windows.Controls.TextBlock
+	$descriptionBlock.Text = $Description
+	$descriptionBlock.FontSize = 11
+	$descriptionBlock.Foreground = $BrushConverter.ConvertFromString($Theme.TextSecondary)
+	$descriptionBlock.TextWrapping = [System.Windows.TextWrapping]::Wrap
+	$descriptionBlock.Margin = [System.Windows.Thickness]::new(0, 2, 12, 0)
+	[void]$textStack.Children.Add($descriptionBlock)
+
+	[void]$grid.Children.Add($textStack)
+
+	$button = New-Object System.Windows.Controls.Button
+	$button.Content = $ButtonText
+	$button.MinWidth = 104
+	$button.Padding = [System.Windows.Thickness]::new(12, 6, 12, 6)
+	$button.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+	$button.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+	[System.Windows.Controls.Grid]::SetColumn($button, 1)
+	[void]$grid.Children.Add($button)
+	Register-GuiEventHandler -Source $button -EventName 'Click' -Handler $Action | Out-Null
+
+	$card.Child = $grid
+	return $card
+}
+
 function New-GuiStartupManagerTabContent
 {
 	<#
@@ -283,69 +453,37 @@ function New-GuiStartupManagerTabContent
 	$mainPanel = New-TabContentMainPanel -BrushConverter $bc
 	$mainPanel.Margin = [System.Windows.Thickness]::new(0)
 
-	$summaryCard = New-Object System.Windows.Controls.Border
-	$summaryCard.Background = $bc.ConvertFromString($theme.HeaderBg)
-	$summaryCard.BorderBrush = $bc.ConvertFromString($theme.BorderColor)
-	$summaryCard.BorderThickness = [System.Windows.Thickness]::new(1)
-	$summaryCard.CornerRadius = [System.Windows.CornerRadius]::new($Script:GuiLayout.CardCornerRadius)
-	$summaryCard.Margin = [System.Windows.Thickness]::new(8, 8, 8, 8)
-	$summaryCard.Padding = [System.Windows.Thickness]::new(16, 12, 16, 12)
+	$actionSectionTitle = New-Object System.Windows.Controls.TextBlock
+	$actionSectionTitle.Text = Get-UxLocalizedString -Key 'GuiCustomizationsActionsTitle' -Fallback 'Tweak utilities'
+	$actionSectionTitle.FontSize = 13
+	$actionSectionTitle.FontWeight = [System.Windows.FontWeights]::SemiBold
+	$actionSectionTitle.Foreground = $bc.ConvertFromString($theme.TextPrimary)
+	$actionSectionTitle.Margin = [System.Windows.Thickness]::new(8, 8, 8, 8)
+	[void]($mainPanel.Children.Add($actionSectionTitle))
 
-	$summaryGrid = New-Object System.Windows.Controls.Grid
-	$summaryTextCol = New-Object System.Windows.Controls.ColumnDefinition
-	$summaryTextCol.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
-	$summaryCountCol = New-Object System.Windows.Controls.ColumnDefinition
-	$summaryCountCol.Width = [System.Windows.GridLength]::Auto
-	[void]$summaryGrid.ColumnDefinitions.Add($summaryTextCol)
-	[void]$summaryGrid.ColumnDefinitions.Add($summaryCountCol)
+	[void]($mainPanel.Children.Add((New-GuiCustomizationsActionCard `
+		-Title $titleText `
+		-Description ("{0} {1}" -f $subtitleText, $entryCountText) `
+		-ButtonText (Get-UxLocalizedString -Key 'GuiOpenButton' -Fallback 'Open') `
+		-Action { Invoke-GuiCustomizationsStartupManagerAction } `
+		-Theme $theme `
+		-BrushConverter $bc)))
 
-	$summaryStack = New-Object System.Windows.Controls.StackPanel
-	$summaryStack.Orientation = 'Vertical'
-	[System.Windows.Controls.Grid]::SetColumn($summaryStack, 0)
+	[void]($mainPanel.Children.Add((New-GuiCustomizationsActionCard `
+		-Title (Get-UxLocalizedString -Key 'GuiUserFoldersTitle' -Fallback 'User Folders') `
+		-Description (Get-UxLocalizedString -Key 'GuiUserFoldersSubtitle' -Fallback 'Move Desktop, Documents, Downloads, Music, Pictures, and Videos from the System Tweaks category.') `
+		-ButtonText (Get-UxLocalizedString -Key 'GuiOpenButton' -Fallback 'Open') `
+		-Action { Invoke-GuiCustomizationsUserFoldersAction } `
+		-Theme $theme `
+		-BrushConverter $bc)))
 
-	$summaryTitle = New-Object System.Windows.Controls.TextBlock
-	$summaryTitle.Text = $titleText
-	$summaryTitle.FontSize = 16
-	$summaryTitle.FontWeight = [System.Windows.FontWeights]::SemiBold
-	$summaryTitle.Foreground = $bc.ConvertFromString($theme.TextPrimary)
-	[void]$summaryStack.Children.Add($summaryTitle)
-
-	$summarySubtitle = New-Object System.Windows.Controls.TextBlock
-	$summarySubtitle.Text = $subtitleText
-	$summarySubtitle.FontSize = 12
-	$summarySubtitle.Foreground = $bc.ConvertFromString($theme.TextMuted)
-	$summarySubtitle.Margin = [System.Windows.Thickness]::new(0, 2, 0, 0)
-	$summarySubtitle.TextWrapping = 'Wrap'
-	[void]$summaryStack.Children.Add($summarySubtitle)
-
-	[void]$summaryGrid.Children.Add($summaryStack)
-
-	$countBadge = New-Object System.Windows.Controls.Border
-	$countBadge.Background = $bc.ConvertFromString($theme.CardBg)
-	$countBadge.BorderBrush = $bc.ConvertFromString($theme.CardBorder)
-	$countBadge.BorderThickness = [System.Windows.Thickness]::new(1)
-	$countBadge.CornerRadius = [System.Windows.CornerRadius]::new(999)
-	$countBadge.Padding = [System.Windows.Thickness]::new(12, 6, 12, 6)
-	$countBadge.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
-	$countBadge.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-	[System.Windows.Controls.Grid]::SetColumn($countBadge, 1)
-
-	$countText = New-Object System.Windows.Controls.TextBlock
-	$countText.Text = $entryCountText
-	$countText.FontSize = 11
-	$countText.FontWeight = [System.Windows.FontWeights]::SemiBold
-	$countText.Foreground = $bc.ConvertFromString($theme.TextSecondary)
-	$countBadge.Child = $countText
-	[void]$summaryGrid.Children.Add($countBadge)
-
-	$summaryCard.Child = $summaryGrid
-	[void]($mainPanel.Children.Add($summaryCard))
-
-	$rowsPanel = New-Object System.Windows.Controls.StackPanel
-	$rowsPanel.Orientation = 'Vertical'
-	$rowsPanel.Margin = [System.Windows.Thickness]::new(8, 0, 8, 8)
-	Add-GuiStartupManagerRowsToPanel -Panel $rowsPanel -Entries $entries -BrushConverter $bc -Theme $theme
-	[void]($mainPanel.Children.Add($rowsPanel))
+	[void]($mainPanel.Children.Add((New-GuiCustomizationsActionCard `
+		-Title (Get-UxLocalizedString -Key 'GuiWslInstallTitle' -Fallback 'Install WSL') `
+		-Description (Get-UxLocalizedString -Key 'GuiWslInstallSubtitle' -Fallback 'Install a Windows Subsystem for Linux distribution and enable WSL update delivery from the System Tweaks category.') `
+		-ButtonText (Get-UxLocalizedString -Key 'GuiInstallButton' -Fallback 'Install') `
+		-Action { Invoke-GuiCustomizationsWslInstallAction } `
+		-Theme $theme `
+		-BrushConverter $bc)))
 
 	return $mainPanel
 }

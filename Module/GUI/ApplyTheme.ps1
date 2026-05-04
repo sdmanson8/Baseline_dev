@@ -241,4 +241,8 @@
 		}
 
 		$Script:ThemePreference = $normalized
+		if (Get-Command -Name 'Set-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			try { Set-BaselineUserPreference -Key 'Theme' -Value $normalized } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplyTheme.ApplyBaselineThemePreference.SavePreference' }
+		}
 	}

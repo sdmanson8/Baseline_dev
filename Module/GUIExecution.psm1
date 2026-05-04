@@ -395,8 +395,11 @@ function Start-GuiExecutionWorker
 			$Global:GUIMode = $true
 			$Script:RunState = $runState
 
-			# Load JSON localization helper and localized strings in the background runspace.
-			$bgHelperPath = Join-Path (Split-Path $bgLoaderPath -Parent) 'SharedHelpers\Localization.Helpers.ps1'
+			# Load JSON and localization helpers in the background runspace before importing the execution module.
+			$bgModuleRoot = Split-Path $bgLoaderPath -Parent
+			$bgJsonHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Json.Helpers.ps1'
+			$bgHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Localization.Helpers.ps1'
+			. $bgJsonHelperPath
 			. $bgHelperPath
 			$Global:Localization = Import-BaselineLocalization -BaseDirectory $bgLocDir -UICulture $bgUICulture
 			[void](Set-BaselineThreadCulture -UICulture $bgUICulture)

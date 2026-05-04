@@ -97,13 +97,34 @@ function Show-BaselineUpdateCheckDialog
 	$releasePageUrl = 'https://github.com/sdmanson8/Baseline/releases/latest'
 	$currentVersion = '0.0.0'
 	$hideBaselineUpdateOverlayCommand = Get-GuiRuntimeCommand -Name 'Hide-BaselineUpdateOverlay' -CommandType 'Function'
-	$startBaselineDownloadCommand = Get-GuiRuntimeCommand -Name 'Start-BaselineDownload' -CommandType 'Function'
 	$showSingleCloseButton = {
 		if ($Script:BtnDownloadNo)
 		{
 			$Script:BtnDownloadNo.Visibility = [System.Windows.Visibility]::Collapsed
 			$Script:BtnDownloadNo.IsEnabled = $false
 		}
+	}
+	$setUpdateCheckPrimaryClickEvent = {
+		param ([scriptblock]$Handler)
+
+		if (-not $Script:BtnDownloadYes) { return }
+
+		if ($Script:UpdateCheckPrimaryClickEvent)
+		{
+			try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckPrimaryClickEvent' }
+			$Script:UpdateCheckPrimaryClickEvent = $null
+		}
+		if ($Script:DownloadStartEvent)
+		{
+			try { $Script:BtnDownloadYes.Remove_Click($Script:DownloadStartEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveDownloadStartEvent' }
+		}
+		if ($Script:DownloadExtractEvent)
+		{
+			try { $Script:BtnDownloadYes.Remove_Click($Script:DownloadExtractEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveDownloadExtractEvent' }
+		}
+
+		$Script:UpdateCheckPrimaryClickEvent = $Handler.GetNewClosure()
+		$Script:BtnDownloadYes.Add_Click($Script:UpdateCheckPrimaryClickEvent)
 	}
 
 	try
@@ -124,13 +145,8 @@ function Show-BaselineUpdateCheckDialog
 		{
 			Show-BaselineUpdateOverlay -Title $title -Description $upToDateDescription -StatusText $checkingStatus -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
 			& $showSingleCloseButton
-			if ($Script:BtnDownloadYes)
-			{
-				if ($Script:UpdateCheckPrimaryClickEvent) { try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckPrimaryClickEvent' } }
-				$Script:UpdateCheckPrimaryClickEvent = {
-					& $hideBaselineUpdateOverlayCommand
-				}.GetNewClosure()
-				$Script:BtnDownloadYes.Add_Click($Script:UpdateCheckPrimaryClickEvent)
+			& $setUpdateCheckPrimaryClickEvent {
+				if ($hideBaselineUpdateOverlayCommand) { & $hideBaselineUpdateOverlayCommand }
 			}
 			return
 		}
@@ -142,13 +158,8 @@ function Show-BaselineUpdateCheckDialog
 		{
 			Show-BaselineUpdateOverlay -Title $title -Description $upToDateDescription -StatusText ($upToDateStatus -f $latestTag) -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
 			& $showSingleCloseButton
-			if ($Script:BtnDownloadYes)
-			{
-				if ($Script:UpdateCheckPrimaryClickEvent) { try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckPrimaryClickEvent' } }
-				$Script:UpdateCheckPrimaryClickEvent = {
-					& $hideBaselineUpdateOverlayCommand
-				}.GetNewClosure()
-				$Script:BtnDownloadYes.Add_Click($Script:UpdateCheckPrimaryClickEvent)
+			& $setUpdateCheckPrimaryClickEvent {
+				if ($hideBaselineUpdateOverlayCommand) { & $hideBaselineUpdateOverlayCommand }
 			}
 			return
 		}
@@ -159,40 +170,25 @@ function Show-BaselineUpdateCheckDialog
 			$availableDescription = (Get-UxLocalizedString -Key 'GuiUpdateCheckAvailableDescription' -Fallback 'A newer version of Baseline is available on GitHub Releases.') -f $latestTag
 			$availableStatus = (Get-UxLocalizedString -Key 'GuiUpdateCheckAvailableStatus' -Fallback 'Update available: {0}.') -f $latestTag
 			Show-BaselineUpdateOverlay -Title $title -Description $availableDescription -StatusText $availableStatus -PrimaryButtonText $openReleaseLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
-			if ($Script:BtnDownloadYes)
-			{
-				if ($Script:UpdateCheckPrimaryClickEvent) { try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckPrimaryClickEvent' } }
-				$Script:UpdateCheckPrimaryClickEvent = {
-					try { Start-Process -FilePath $releasePageUrl -ErrorAction SilentlyContinue } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.OpenReleasePage' }
-					& $hideBaselineUpdateOverlayCommand
-				}.GetNewClosure()
-				$Script:BtnDownloadYes.Add_Click($Script:UpdateCheckPrimaryClickEvent)
+			& $setUpdateCheckPrimaryClickEvent {
+				try { Start-Process -FilePath $releasePageUrl -ErrorAction SilentlyContinue } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.OpenReleasePage' }
+				if ($hideBaselineUpdateOverlayCommand) { & $hideBaselineUpdateOverlayCommand }
 			}
 			return
 		}
 
 		Show-BaselineUpdateOverlay -Title $title -Description $errorDescription -StatusText ($availableStatus -f $latestTag) -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
 		& $showSingleCloseButton
-		if ($Script:BtnDownloadYes)
-		{
-			if ($Script:UpdateCheckPrimaryClickEvent) { try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckPrimaryClickEvent' } }
-			$Script:UpdateCheckPrimaryClickEvent = {
-				& $hideBaselineUpdateOverlayCommand
-			}.GetNewClosure()
-			$Script:BtnDownloadYes.Add_Click($Script:UpdateCheckPrimaryClickEvent)
+		& $setUpdateCheckPrimaryClickEvent {
+			if ($hideBaselineUpdateOverlayCommand) { & $hideBaselineUpdateOverlayCommand }
 		}
 	}
 	catch
 	{
 		Show-BaselineUpdateOverlay -Title $title -Description $errorDescription -StatusText $_.Exception.Message -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
 		& $showSingleCloseButton
-		if ($Script:BtnDownloadYes)
-		{
-			if ($Script:UpdateCheckPrimaryClickEvent) { try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckPrimaryClickEvent' } }
-			$Script:UpdateCheckPrimaryClickEvent = {
-				& $hideBaselineUpdateOverlayCommand
-			}.GetNewClosure()
-			$Script:BtnDownloadYes.Add_Click($Script:UpdateCheckPrimaryClickEvent)
+		& $setUpdateCheckPrimaryClickEvent {
+			if ($hideBaselineUpdateOverlayCommand) { & $hideBaselineUpdateOverlayCommand }
 		}
 	}
 }

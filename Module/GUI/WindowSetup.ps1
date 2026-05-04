@@ -448,12 +448,10 @@
 	$MenuToolsRemoteConsole = $Form.FindName("MenuToolsRemoteConsole")
 	$MenuToolsOperatorConsole = $Form.FindName("MenuToolsOperatorConsole")
 	$MenuToolsRemoteSessionStatus = $Form.FindName("MenuToolsRemoteSessionStatus")
-	$MenuToolsStartupManager = $Form.FindName("MenuToolsStartupManager")
-	$MenuToolsUserFolders = $Form.FindName("MenuToolsUserFolders")
 	$MenuToolsRemovalPersistence = $Form.FindName("MenuToolsRemovalPersistence")
-	$MenuToolsInstallWsl    = $Form.FindName("MenuToolsInstallWsl")
 	$MenuToolsSepApps           = $Form.FindName("MenuToolsSepApps")
 	$MenuHelp                   = $Form.FindName("MenuHelp")
+	$MenuHelpHelp               = $Form.FindName("MenuHelpHelp")
 	$MenuHelpStartGuide         = $Form.FindName("MenuHelpStartGuide")
 	$MenuHelpReadme             = $Form.FindName("MenuHelpReadme")
 	$MenuHelpFAQ                = $Form.FindName("MenuHelpFAQ")
@@ -503,14 +501,12 @@
 	$Script:MenuToolsRemoteConsole = $MenuToolsRemoteConsole
 	$Script:MenuToolsOperatorConsole = $MenuToolsOperatorConsole
 	$Script:MenuToolsRemoteSessionStatus = $MenuToolsRemoteSessionStatus
-	$Script:MenuToolsStartupManager = $MenuToolsStartupManager
-	$Script:MenuToolsUserFolders = $MenuToolsUserFolders
 	$Script:MenuToolsRemovalPersistence = $MenuToolsRemovalPersistence
-	$Script:MenuToolsInstallWsl    = $MenuToolsInstallWsl
 	$Script:MenuActionsSep1              = $MenuActionsSep1
 	$Script:MenuActionsSep2              = $MenuActionsSep2
 	$Script:MenuActionsSep3              = $MenuActionsSep3
 	$Script:MenuToolsSepApps             = $MenuToolsSepApps
+	$Script:MenuHelpHelp                 = $MenuHelpHelp
 	$Script:MenuHelpStartGuide           = $MenuHelpStartGuide
 	$Script:MenuHelpReadme               = $MenuHelpReadme
 	$Script:MenuHelpFAQ                  = $MenuHelpFAQ
@@ -791,6 +787,7 @@
 			$Script:RestoreLastSession = [bool](Get-BaselineUserPreference -Key 'RestoreLastSession' -Default $true)
 			$Script:DebugLoggingEnabled = [bool](Get-BaselineUserPreference -Key 'DebugLoggingEnabled' -Default $false)
 			$Script:LogFileDirectory = [string](Get-BaselineUserPreference -Key 'LogFileDirectory' -Default '')
+			$Script:AppsPackageSourcePreference = [string](Get-BaselineUserPreference -Key 'AppsPackageSourcePreference' -Default $Script:AppsPackageSourcePreference)
 		}
 	}
 	catch
@@ -801,6 +798,7 @@
 		$Script:RestoreLastSession = $true
 		$Script:DebugLoggingEnabled = $false
 		$Script:LogFileDirectory = ''
+		$Script:AppsPackageSourcePreference = 'auto'
 	}
 	if ($Script:RestoreLastSession)
 	{

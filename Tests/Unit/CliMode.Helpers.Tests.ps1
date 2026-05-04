@@ -153,11 +153,12 @@ Describe 'Bootstrap CLI intent wiring' {
         $script:BootstrapContent | Should -Match "Write-LaunchTrace 'Bootstrap splash was not shown'"
     }
 
-    It 'only primes the updates pulse when auto-update is eligible' {
+    It 'primes the updates pulse whenever GUI auto-update is enabled' {
         $script:BootstrapContent | Should -Match '\$shouldPrimeUpdatesPulse = \$false'
         $script:BootstrapContent | Should -Match '\$env:BASELINE_INSTALLER_MODE -ne ''1'' -and \$env:BASELINE_SKIP_UPDATE -ne ''1'' -and \$env:BASELINE_EMBEDDED_HOST -eq ''1'''
-        $script:BootstrapContent | Should -Match "Get-Command -Name 'Get-BaselineAutoUpdateThrottleDecision'"
-        $script:BootstrapContent | Should -Match '\$shouldPrimeUpdatesPulse = \[bool\]\$autoUpdateThrottleDecision\.ShouldCheck'
+        $script:BootstrapContent | Should -Match '\$shouldPrimeUpdatesPulse = \$true'
+        $script:BootstrapContent | Should -Not -Match "Get-Command -Name 'Get-BaselineAutoUpdateThrottleDecision'"
+        $script:BootstrapContent | Should -Not -Match '\$shouldPrimeUpdatesPulse = \[bool\]\$autoUpdateThrottleDecision\.ShouldCheck'
         $script:BootstrapContent | Should -Match 'if \(-not \$shouldPrimeUpdatesPulse\)'
         $script:BootstrapContent | Should -Match '\$Script:BootstrapSplash = & \$showBootstrapSplashCommand\s*\r?\n'
         $script:BootstrapContent | Should -Match '\$Script:BootstrapSplash = & \$showBootstrapSplashCommand -StartUpdatesPulse'

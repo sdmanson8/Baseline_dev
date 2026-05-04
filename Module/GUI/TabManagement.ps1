@@ -13,6 +13,7 @@
 			'Privacy & Telemetry'  = 'GuiTabPrivacyTelemetry'
 			'Security'             = 'GuiTabSecurity'
 			'System'               = 'GuiTabSystem'
+			'Customizations'       = 'GuiTabCustomizations'
 			'Updates'              = 'GuiTabUpdates'
 			'UI & Personalization' = 'GuiTabUIPersonalization'
 			'UWP Apps'             = 'GuiTabUWPApps'

@@ -15,7 +15,7 @@ function Show-RiskDecisionDialog
 		[string]$Title = 'Warning',
 		[string]$Message,
 		[object[]]$SummaryCards = @(),
-		[string[]]$Buttons = @('Cancel', 'Continue Anyway'),
+		[string[]]$Buttons = @('Cancel', 'Preview Run', 'Run Anyway'),
 		[object]$UseDarkMode = $true,
 		[string]$AccentButton = $null,
 		[string]$DestructiveButton = $null
@@ -191,7 +191,7 @@ function Show-RiskDecisionDialog
 			'Yes' { return 'Passed' }
 			'Apply' { return 'Passed' }
 			'Continue' { return 'Passed' }
-			'Continue Anyway' { return 'Warning' }
+			'Run Anyway' { return 'Warning' }
 		}
 
 		if ($Label -eq $Accent -or (($null -eq $Accent -or [string]::IsNullOrWhiteSpace($Accent)) -and $ButtonCount -eq 1))

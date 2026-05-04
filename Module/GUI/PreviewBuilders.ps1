@@ -1160,13 +1160,13 @@
 			{
 				return 'PreviewRequired'
 			}
-			return 'Continue Anyway'
+			return 'Run Anyway'
 		}
 
 		# Expert Mode: skip medium-risk confirmation when no high-risk/advanced/restore-point flags
 		if (Test-UxShouldSkipLowRiskConfirmation -Summary $summary -AdvancedTierCount $advancedTierCount)
 		{
-			return 'Continue Anyway'
+			return 'Run Anyway'
 		}
 
 		$runPathContext = Get-UxRunPathContext
@@ -1297,9 +1297,8 @@
 		return (Show-RiskDecisionDialog -Title $title `
 			-Message ($messageParts -join "`n`n") `
 			-SummaryCards $summaryCards `
-			-Buttons @('Cancel', 'Create Restore Point', $previewActionLabel, 'Continue Anyway') `
-			-AccentButton 'Create Restore Point' `
-			-DestructiveButton 'Continue Anyway')
+			-Buttons @('Cancel', $previewActionLabel, 'Run Anyway') `
+			-DestructiveButton 'Run Anyway')
 	}
 
 	<#

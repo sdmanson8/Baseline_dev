@@ -1054,14 +1054,14 @@ function Show-BootstrapLoadingSplash
 		if ($useLightTheme)
 		{
 			$splashBg = '#F0F2F6'; $splashBorder = '#E6EAF0'; $splashFg = '#1F2937'
-			$splashSub = '#6B7280'; $splashAccent = '#1550AA'; $splashFooterBg = '#E9EDF3'
-			$splashMuted = '#7A8494'; $splashBtnFg = '#6B7280'; $splashStepActive = '#1F2937'; $splashDarkMode = $false
+			$splashSub = '#4B5563'; $splashAccent = '#1550AA'; $splashFooterBg = '#E9EDF3'
+			$splashMuted = '#5F6B7A'; $splashBtnFg = '#4B5563'; $splashStepActive = '#1F2937'; $splashDarkMode = $false
 		}
 		else
 		{
 			$splashBg = '#10131C'; $splashBorder = '#293044'; $splashFg = '#F4F7FF'
-			$splashSub = '#AEB7D1'; $splashAccent = '#7CB7FF'; $splashFooterBg = '#151824'
-			$splashMuted = '#7E89A8'; $splashBtnFg = '#B8C1D9'; $splashStepActive = '#E6EBFF'; $splashDarkMode = $true
+			$splashSub = '#CDD6EA'; $splashAccent = '#7CB7FF'; $splashFooterBg = '#151824'
+			$splashMuted = '#A3ADC6'; $splashBtnFg = '#CDD6EA'; $splashStepActive = '#E6EBFF'; $splashDarkMode = $true
 		}
 		$CurrentTheme = [ordered]@{
 			WindowBg    = $splashBg
@@ -1122,7 +1122,7 @@ function Show-BootstrapLoadingSplash
 		$runspace.SessionStateProxy.SetVariable('CurrentTheme', $CurrentTheme)
 		$runspace.SessionStateProxy.SetVariable('SplashTheme', $SplashTheme)
 		# Pass localization strings for splash screen
-		$splashLocSubtitle = Get-BaselineLocalizedString -Key 'GuiSplashSubtitle' -Fallback 'Windows Optimization & Hardening'
+		$splashLocSubtitle = Get-BaselineLocalizedString -Key 'GuiSplashSubtitle' -Fallback 'Review, preview, and apply system changes safely'
 		$splashLocLoading = Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...'
 		$splashLocStepUpdates    = Get-BaselineLocalizedString -Key 'Bootstrap_StepCheckingForUpdates' -Fallback 'Checking for Updates'
 		$splashLocStepSystem     = Get-BaselineLocalizedString -Key 'Bootstrap_StepRunningSystemChecks' -Fallback 'Running System Checks'
@@ -3102,7 +3102,7 @@ function Invoke-BaselineAutoUpdate
 		Set-BaselineAutoUpdateThrottleTimestamp -Path $throttlePath
 
 		Set-DownloadSecurityProtocol
-		[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'Bootstrap_CheckingForUpdates' -Fallback 'Checking for updates...') -Indeterminate)
+		[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'Bootstrap_CheckingForUpdates' -Fallback 'Checking for updates...') -Completed 0 -Total 5)
 		if (Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction SilentlyContinue)
 		{
 			[void](Set-BootstrapLoadingSplashStep -Splash $Splash -StepId 'updates' -Status 'in_progress' -SubAction '')
