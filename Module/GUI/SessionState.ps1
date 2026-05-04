@@ -911,8 +911,10 @@ function Import-GuiRemoteTargetApprovalPolicy
 			'Dark'
 		}
 
-		$searchText = if ($null -ne $Script:SearchText) { [string]$Script:SearchText } else { '' }
-		$appsSearchText = if ($null -ne $Script:AppsSearchText) { [string]$Script:AppsSearchText } else { '' }
+		# Search text is transient view state. Persisting it makes a fresh launch
+		# reopen stale filtered results instead of the restored primary tab.
+		$searchText = ''
+		$appsSearchText = ''
 		# System scan is transient machine state. Persisting it across launches can silently
 		# re-run expensive detection work during startup, so session snapshots always store it off.
 		$scanEnabled = $false
@@ -1197,8 +1199,8 @@ function Import-GuiRemoteTargetApprovalPolicy
 		# replayed from a saved session.
 		$desiredScan  = $false
 		$desiredLanguage = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'Language') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.Language)) { [string]$Snapshot.Language } else { $null }
-		$desiredSearch = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'SearchText')) { [string]$Snapshot.SearchText } else { '' }
-		$desiredAppsSearch = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsSearchText')) { [string]$Snapshot.AppsSearchText } else { '' }
+		$desiredSearch = ''
+		$desiredAppsSearch = ''
 		$desiredAuditRetentionDays = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AuditRetentionDays')) { [int]$Snapshot.AuditRetentionDays } else { 90 }
 		$desiredAppsPackageSourcePreference = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsPackageSourcePreference') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsPackageSourcePreference)) { [string]$Snapshot.AppsPackageSourcePreference } else { 'auto' }
 		$desiredAppsSourceFilter = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsSourceFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsSourceFilter)) { [string]$Snapshot.AppsSourceFilter } else { 'All' }

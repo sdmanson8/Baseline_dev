@@ -163,8 +163,13 @@ Describe 'GUI session snapshots' {
     }
 
     It 'captures GUI preference fields in the GUI snapshot' {
+        $script:SearchText = 'powershell'
+        $script:AppsSearchText = 'chrome'
+
         $snapshot = Get-GuiSettingsSnapshot
 
+        $snapshot.SearchText | Should -Be ''
+        $snapshot.AppsSearchText | Should -Be ''
         $snapshot.AutoScanOnLaunch | Should -Be $true
         $snapshot.RestoreLastSession | Should -Be $false
         $snapshot.RequireRunConfirmation | Should -Be $false
@@ -206,7 +211,9 @@ Describe 'GUI session restore mode wiring' {
         $script:SessionStateContent | Should -Match '\$ExpertModeBanner\.Visibility = if \(\$desiredAdvanced\)'
     }
 
-    It 'syncs search placeholder visibility after restoring search text while events are suppressed' {
+    It 'clears saved search state during session restore while events are suppressed' {
+        $script:SessionStateContent | Should -Match '\$desiredSearch = '''''
+        $script:SessionStateContent | Should -Match '\$desiredAppsSearch = '''''
         $script:SessionStateContent | Should -Match '\$Script:SearchUiUpdating = \$true'
         $script:SessionStateContent | Should -Match "Get-Command -Name 'Sync-GuiSearchInputChrome'"
         $script:SessionStateContent | Should -Match 'Sync-GuiSearchInputChrome'
