@@ -59,7 +59,7 @@ Describe 'Launcher identity host' {
         $script:LauncherProgramContent | Should -Match 'RuntimeCacheFolderName\s*=\s*"RC"'
         $script:LauncherProgramContent | Should -Match 'StagingSuffix\s*=\s*"\.s"'
 
-        $runtimeRoot = 'C:\Users\Administrator\AppData\Local\Baseline\RC\4.0.0\4\00000000000000000000000000000000.s\000000000000'
+        $runtimeRoot = 'C:\Users\Administrator\AppData\Local\Temp\Baseline\RC\4.0.0\4\00000000000000000000000000000000.s\000000000000'
         $payloadRoots = @(
             @{ Root = Join-Path $script:RepoRoot 'Bootstrap'; Prefix = 'Bootstrap\' },
             @{ Root = Join-Path $script:RepoRoot 'Module'; Prefix = 'Module\' },

@@ -101,10 +101,10 @@
 					{
 						if ($null -ne $Script:RestoreLastSession) { [bool]$Script:RestoreLastSession } else { $true }
 					}
-					AutoScanOnLaunch = [bool]$Script:AutoScanOnLaunch
+					AutoScanOnLaunch = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'AutoScanOnLaunch' -Default $false) } else { [bool]$Script:AutoScanOnLaunch }
 					HideUnavailableItems = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'HideUnavailableItems' -Default $true) } else { $true }
 					Theme = if ($Script:ThemePreference) { [string]$Script:ThemePreference } elseif ($Script:CurrentThemeName) { [string]$Script:CurrentThemeName } else { 'Dark' }
-					UIDensity = if ($Script:UIDensity) { [string]$Script:UIDensity } else { 'Comfortable' }
+					UIDensity = if (Get-Command -Name 'Get-BaselineUiDensity' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineUiDensity } elseif ($Script:UIDensity) { [string]$Script:UIDensity } else { 'Comfort' }
 					SafeMode = [bool]$Script:SafeMode
 					RequireRunConfirmation = if ($null -ne $Script:RequireRunConfirmation) { [bool]$Script:RequireRunConfirmation } else { $true }
 					PreviewBeforeRunDefault = [bool]$Script:PreviewBeforeRunDefault
@@ -239,10 +239,26 @@
 					}
 					$Script:RestoreLastSession = $restoreLastSessionWanted
 				}
-				if ($result.ContainsKey('AutoScanOnLaunch')) { $Script:AutoScanOnLaunch = [bool]$result.AutoScanOnLaunch }
+				if ($result.ContainsKey('AutoScanOnLaunch'))
+				{
+					$autoScanWanted = [bool]$result.AutoScanOnLaunch
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'AutoScanOnLaunch' -Value $autoScanWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist AutoScanOnLaunch failed') }
+					}
+					$Script:AutoScanOnLaunch = $autoScanWanted
+				}
 				if ($result.ContainsKey('HideUnavailableItems'))
 				{
 					$hideUnavailWanted = [bool]$result.HideUnavailableItems
+					if (Get-Command -Name 'Set-HideUnavailableItemsState' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						try { Set-HideUnavailableItemsState -HideUnavailableItems $hideUnavailWanted | Out-Null } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Set-HideUnavailableItemsState failed') }
+					}
+					else
+					{
+						$Script:HideUnavailableItems = $hideUnavailWanted
+					}
 					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
 					{
 						try { Set-BaselineUserPreference -Key 'HideUnavailableItems' -Value $hideUnavailWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist HideUnavailableItems failed') }

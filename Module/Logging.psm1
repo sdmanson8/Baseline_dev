@@ -89,7 +89,7 @@ function Get-BaselineLogDirectory {
         $localAppData = $FallbackRoot
     }
 
-    $logDirectory = Join-Path $localAppData 'Baseline\UserState\Logs'
+    $logDirectory = Join-Path $localAppData 'Temp\Baseline\Logs'
     try
     {
         [void](New-Item -ItemType Directory -Path $logDirectory -Force -ErrorAction Stop)

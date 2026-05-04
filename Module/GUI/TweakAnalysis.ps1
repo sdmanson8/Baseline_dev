@@ -237,6 +237,105 @@
 
 	<#
 	    .SYNOPSIS
+	    Internal function Get-GuiToggleGoalState.
+	#>
+
+	function Get-GuiToggleGoalState
+	{
+		param (
+			[object]$Tweak
+		)
+
+		if ($Tweak -and (Test-GuiObjectField -Object $Tweak -FieldName 'Default'))
+		{
+			return [bool](Get-GuiObjectField -Object $Tweak -FieldName 'Default')
+		}
+
+		return $false
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Get-GuiToggleDetectedState.
+	#>
+
+	function Get-GuiToggleDetectedState
+	{
+		param (
+			[object]$Tweak
+		)
+
+		if (-not [bool]$Script:ScanEnabled -or -not $Tweak -or -not (Test-GuiObjectField -Object $Tweak -FieldName 'Detect') -or -not $Tweak.Detect)
+		{
+			return [pscustomobject]@{
+				Known = $false
+				Value = $null
+			}
+		}
+
+		$goalState = Get-GuiToggleGoalState -Tweak $Tweak
+		return [pscustomobject]@{
+			Known = $true
+			Value = [bool](Invoke-GuiDetectScriptblock -Detect $Tweak.Detect -DefaultValue $goalState)
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function Get-GuiToggleDisplayState.
+	#>
+
+	function Get-GuiToggleDisplayState
+	{
+		param (
+			[object]$Tweak,
+			[object]$StateSource = $null
+		)
+
+		$goalState = Get-GuiToggleGoalState -Tweak $Tweak
+		$detected = Get-GuiToggleDetectedState -Tweak $Tweak
+		$isSelected = Test-TweakIsSelected -Tweak $Tweak -StateSource $StateSource
+		$matchesDesired = ([bool]$detected.Known -and [bool]$detected.Value -eq [bool]$goalState)
+
+		if ($matchesDesired)
+		{
+			return [pscustomobject]@{
+				StateLabel = Get-UxLocalizedString -Key 'GuiTweakStateAlreadySet' -Fallback 'Already Set'
+				StateTone = 'Muted'
+				StateDetail = Get-UxLocalizedString -Key 'GuiTweakStateDetailDetectedMatchesGoal' -Fallback 'Detected state matches the configured goal.'
+				MatchesDesired = $true
+				DetectedState = [bool]$detected.Value
+				GoalState = [bool]$goalState
+				IsSelected = [bool]$isSelected
+			}
+		}
+
+		if ($isSelected)
+		{
+			return [pscustomobject]@{
+				StateLabel = Get-UxLocalizedString -Key 'GuiTweakStateWillChange' -Fallback 'Will Change'
+				StateTone = 'Primary'
+				StateDetail = Get-UxLocalizedString -Key 'GuiTweakStateDetailWillChange' -Fallback 'Selected and will change the system state when run.'
+				MatchesDesired = $false
+				DetectedState = if ([bool]$detected.Known) { [bool]$detected.Value } else { $null }
+				GoalState = [bool]$goalState
+				IsSelected = $true
+			}
+		}
+
+		return [pscustomobject]@{
+			StateLabel = Get-UxLocalizedString -Key 'GuiTweakStateNotApplied' -Fallback 'Not Applied'
+			StateTone = 'Muted'
+			StateDetail = Get-UxLocalizedString -Key 'GuiTweakStateDetailNotApplied' -Fallback 'Not selected for this run.'
+			MatchesDesired = $false
+			DetectedState = if ([bool]$detected.Known) { [bool]$detected.Value } else { $null }
+			GoalState = [bool]$goalState
+			IsSelected = $false
+		}
+	}
+
+	<#
+	    .SYNOPSIS
 	    Internal function Test-TweakIsRestorable.
 	#>
 

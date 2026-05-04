@@ -55,6 +55,22 @@ BeforeAll {
         return $null
     }
 
+    function Get-GuiExplicitSelectionDefinition {
+        param([string]$FunctionName)
+        if ($script:ExplicitSelectionDefinitions -and $script:ExplicitSelectionDefinitions.ContainsKey($FunctionName)) {
+            return $script:ExplicitSelectionDefinitions[$FunctionName]
+        }
+        return $null
+    }
+
+    function Invoke-GuiDetectScriptblock {
+        param(
+            [object]$Detect,
+            [bool]$DefaultValue
+        )
+        return [bool]$script:DetectedToggleState
+    }
+
     $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
     $guiDir   = Join-Path $repoRoot 'Module/GUI'
 
@@ -183,6 +199,12 @@ Describe 'Icon fallback behavior (W-1f)' {
 # W-1c: Preview count generation
 # ─────────────────────────────────────────────────────────────
 Describe 'Preview count generation (W-1c)' {
+    BeforeEach {
+        $script:ExplicitSelectionDefinitions = @{}
+        $script:DetectedToggleState = $false
+        $Script:ScanEnabled = $false
+    }
+
     It 'Get-TweakVisualMetadata function exists' {
         Get-Command -Name 'Get-TweakVisualMetadata' -CommandType Function -ErrorAction SilentlyContinue |
             Should -Not -BeNullOrEmpty
@@ -218,6 +240,53 @@ Describe 'Preview count generation (W-1c)' {
         $result.PSObject.Properties.Name | Should -Contain 'MatchesDesired'
         $result.PSObject.Properties.Name | Should -Contain 'StateLabel'
         $result.PSObject.Properties.Name | Should -Contain 'StateTone'
+    }
+
+    It 'marks a toggle Already Set only when detected state equals goal state: <CaseName>' -ForEach @(
+        @{ CaseName = 'Disabled matches Disable'; Detected = $false; Goal = $false; ExpectedLabel = 'Already Set'; ExpectedMatches = $true }
+        @{ CaseName = 'Enabled does not match Disable'; Detected = $true; Goal = $false; ExpectedLabel = 'Not Applied'; ExpectedMatches = $false }
+        @{ CaseName = 'Enabled matches Enable'; Detected = $true; Goal = $true; ExpectedLabel = 'Already Set'; ExpectedMatches = $true }
+        @{ CaseName = 'Disabled does not match Enable'; Detected = $false; Goal = $true; ExpectedLabel = 'Not Applied'; ExpectedMatches = $false }
+    ) {
+        $Script:ScanEnabled = $true
+        $script:DetectedToggleState = [bool]$Detected
+        $tweak = [pscustomobject]@{
+            Name = 'Toggle State Test'
+            Type = 'Toggle'
+            Default = [bool]$Goal
+            Detect = { $script:DetectedToggleState }
+            Function = 'ToggleStateTest'
+            Risk = 'Low'
+            Tags = @()
+            ScenarioTags = @()
+        }
+        $state = [pscustomobject]@{ IsChecked = $false }
+
+        $result = Get-TweakVisualMetadata -Tweak $tweak -StateSource $state
+
+        $result.StateLabel | Should -Be $ExpectedLabel
+        $result.MatchesDesired | Should -Be $ExpectedMatches
+    }
+
+    It 'shows Will Change when a scanned toggle is selected but detected state does not match the goal' {
+        $Script:ScanEnabled = $true
+        $script:DetectedToggleState = $false
+        $tweak = [pscustomobject]@{
+            Name = 'Toggle State Test'
+            Type = 'Toggle'
+            Default = $true
+            Detect = { $script:DetectedToggleState }
+            Function = 'ToggleStateTest'
+            Risk = 'Low'
+            Tags = @()
+            ScenarioTags = @()
+        }
+        $state = [pscustomobject]@{ IsChecked = $true }
+
+        $result = Get-TweakVisualMetadata -Tweak $tweak -StateSource $state
+
+        $result.StateLabel | Should -Be 'Will Change'
+        $result.MatchesDesired | Should -BeFalse
     }
 
     It 'returns null for null tweak input' {
@@ -484,6 +553,17 @@ Describe 'Safe Mode visibility (W-1h)' {
             'ChkScan',
             'FilterOptionsPanel',
             'MenuTools',
+            'MenuToolsAppsManager',
+            'MenuToolsUpdateAllApps',
+            'MenuToolsExportSupportBundle',
+            'MenuToolsApproveRemoteTargets',
+            'MenuToolsSaveRemoteApprovalPolicy',
+            'MenuToolsLoadRemoteApprovalPolicy',
+            'MenuToolsRemoteConsole',
+            'MenuToolsOperatorConsole',
+            'MenuToolsRemoteSessionStatus',
+            'MenuToolsRemovalPersistence',
+            'MenuToolsSepApps',
             'MenuActionsCheckCompliance',
             'MenuActionsScanSystem',
             'MenuActionsAuditLog',
@@ -503,6 +583,28 @@ Describe 'Safe Mode visibility (W-1h)' {
         $Script:FilterOptionsPanel = $null
         $Script:MenuTools = [System.Windows.Controls.MenuItem]::new()
         $Script:MenuTools.Visibility = 'Visible'
+        $Script:MenuToolsAppsManager = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuToolsAppsManager.Visibility = 'Visible'
+        $Script:MenuToolsUpdateAllApps = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuToolsUpdateAllApps.Visibility = 'Visible'
+        $Script:MenuToolsExportSupportBundle = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuToolsExportSupportBundle.Visibility = 'Visible'
+        $Script:MenuToolsApproveRemoteTargets = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuToolsApproveRemoteTargets.Visibility = 'Visible'
+        $Script:MenuToolsSaveRemoteApprovalPolicy = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuToolsSaveRemoteApprovalPolicy.Visibility = 'Visible'
+        $Script:MenuToolsLoadRemoteApprovalPolicy = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuToolsLoadRemoteApprovalPolicy.Visibility = 'Visible'
+        $Script:MenuToolsRemoteConsole = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuToolsRemoteConsole.Visibility = 'Visible'
+        $Script:MenuToolsOperatorConsole = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuToolsOperatorConsole.Visibility = 'Visible'
+        $Script:MenuToolsRemoteSessionStatus = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuToolsRemoteSessionStatus.Visibility = 'Visible'
+        $Script:MenuToolsRemovalPersistence = [System.Windows.Controls.MenuItem]::new()
+        $Script:MenuToolsRemovalPersistence.Visibility = 'Visible'
+        $Script:MenuToolsSepApps = [System.Windows.Controls.Separator]::new()
+        $Script:MenuToolsSepApps.Visibility = 'Visible'
         $Script:MenuActionsCheckCompliance = [System.Windows.Controls.MenuItem]::new()
         $Script:MenuActionsCheckCompliance.Visibility = 'Visible'
         $Script:MenuActionsScanSystem = [System.Windows.Controls.MenuItem]::new()
@@ -534,7 +636,18 @@ Describe 'Safe Mode visibility (W-1h)' {
         $script:BtnFilterToggle.Visibility | Should -Be 'Collapsed'
         $script:ChkScan.Visibility | Should -Be 'Collapsed'
         $script:ExpertModeBanner.Visibility | Should -Be 'Collapsed'
-        $script:MenuTools.Visibility | Should -Be 'Collapsed'
+        $script:MenuTools.Visibility | Should -Be 'Visible'
+        $script:MenuToolsExportSupportBundle.Visibility | Should -Be 'Visible'
+        $script:MenuToolsAppsManager.Visibility | Should -Be 'Visible'
+        $script:MenuToolsUpdateAllApps.Visibility | Should -Be 'Visible'
+        $script:MenuToolsApproveRemoteTargets.Visibility | Should -Be 'Collapsed'
+        $script:MenuToolsSaveRemoteApprovalPolicy.Visibility | Should -Be 'Collapsed'
+        $script:MenuToolsLoadRemoteApprovalPolicy.Visibility | Should -Be 'Collapsed'
+        $script:MenuToolsRemoteConsole.Visibility | Should -Be 'Collapsed'
+        $script:MenuToolsOperatorConsole.Visibility | Should -Be 'Collapsed'
+        $script:MenuToolsRemoteSessionStatus.Visibility | Should -Be 'Collapsed'
+        $script:MenuToolsRemovalPersistence.Visibility | Should -Be 'Collapsed'
+        $script:MenuToolsSepApps.Visibility | Should -Be 'Collapsed'
         $script:MenuActionsCheckCompliance.Visibility | Should -Be 'Collapsed'
         $script:MenuActionsScanSystem.Visibility | Should -Be 'Collapsed'
         $script:MenuActionsAuditLog.Visibility | Should -Be 'Collapsed'
@@ -553,6 +666,17 @@ Describe 'Safe Mode visibility (W-1h)' {
         $script:ChkScan.Visibility = 'Collapsed'
         $script:ExpertModeBanner.Visibility = 'Collapsed'
         $script:MenuTools.Visibility = 'Collapsed'
+        $script:MenuToolsExportSupportBundle.Visibility = 'Visible'
+        $script:MenuToolsAppsManager.Visibility = 'Collapsed'
+        $script:MenuToolsUpdateAllApps.Visibility = 'Collapsed'
+        $script:MenuToolsApproveRemoteTargets.Visibility = 'Collapsed'
+        $script:MenuToolsSaveRemoteApprovalPolicy.Visibility = 'Collapsed'
+        $script:MenuToolsLoadRemoteApprovalPolicy.Visibility = 'Collapsed'
+        $script:MenuToolsRemoteConsole.Visibility = 'Collapsed'
+        $script:MenuToolsOperatorConsole.Visibility = 'Collapsed'
+        $script:MenuToolsRemoteSessionStatus.Visibility = 'Collapsed'
+        $script:MenuToolsRemovalPersistence.Visibility = 'Collapsed'
+        $script:MenuToolsSepApps.Visibility = 'Collapsed'
         $script:MenuActionsCheckCompliance.Visibility = 'Collapsed'
         $script:MenuActionsScanSystem.Visibility = 'Collapsed'
         $script:MenuActionsAuditLog.Visibility = 'Collapsed'
@@ -570,6 +694,17 @@ Describe 'Safe Mode visibility (W-1h)' {
         $script:ChkScan.Visibility | Should -Be 'Visible'
         $script:ExpertModeBanner.Visibility | Should -Be 'Collapsed'
         $script:MenuTools.Visibility | Should -Be 'Visible'
+        $script:MenuToolsExportSupportBundle.Visibility | Should -Be 'Visible'
+        $script:MenuToolsAppsManager.Visibility | Should -Be 'Visible'
+        $script:MenuToolsUpdateAllApps.Visibility | Should -Be 'Visible'
+        $script:MenuToolsApproveRemoteTargets.Visibility | Should -Be 'Visible'
+        $script:MenuToolsSaveRemoteApprovalPolicy.Visibility | Should -Be 'Visible'
+        $script:MenuToolsLoadRemoteApprovalPolicy.Visibility | Should -Be 'Visible'
+        $script:MenuToolsRemoteConsole.Visibility | Should -Be 'Visible'
+        $script:MenuToolsOperatorConsole.Visibility | Should -Be 'Visible'
+        $script:MenuToolsRemoteSessionStatus.Visibility | Should -Be 'Visible'
+        $script:MenuToolsRemovalPersistence.Visibility | Should -Be 'Visible'
+        $script:MenuToolsSepApps.Visibility | Should -Be 'Visible'
         $script:MenuActionsCheckCompliance.Visibility | Should -Be 'Visible'
         $script:MenuActionsScanSystem.Visibility | Should -Be 'Visible'
         $script:MenuActionsAuditLog.Visibility | Should -Be 'Visible'

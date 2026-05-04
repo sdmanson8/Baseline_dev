@@ -132,6 +132,7 @@ Describe 'Focused GUI rebuilds' {
     It 'loads the AppData startup session snapshot before primary tab hydration' {
         $script:GuiContent | Should -Match '\$Script:StartupSessionSnapshot = \$null'
         $script:GuiContent | Should -Match 'GUICommon\\Read-GuiSessionStateDocument -AppName ''Baseline'' -ExpectedSchema ''Baseline\.GuiSettings'''
+        $script:GuiContent | Should -Match '\$Script:UIDensity = if \(Get-Command -Name ''Normalize-BaselineUiDensity'''
         $script:GuiContent | Should -Match '\$Script:StartupHydratePrimaryTab = \$desiredTab'
         $script:GuiContent | Should -Match '\$Script:StartupHydratePrimaryTab = \$desiredLast'
         $script:GuiContent | Should -Match '\$startupHydratePrimaryTab = if \(-not \[string\]::IsNullOrWhiteSpace\(\[string\]\$Script:StartupHydratePrimaryTab\)\)'

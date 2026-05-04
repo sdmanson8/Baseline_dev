@@ -38,4 +38,13 @@ Describe 'Support bundle GUI wiring' {
         $script:StyleManagementContent | Should -Match 'Set-GuiActionButtonsEnabled'
         $script:StyleManagementContent | Should -Match 'MenuToolsExportSupportBundle\.IsEnabled = \$Enabled'
     }
+
+    It 'keeps app maintenance and support bundle export visible while Safe Mode hides advanced Tools actions' {
+        $modeStateContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/GUI/ModeState.ps1') -Raw -Encoding UTF8
+        $modeStateContent | Should -Match '\$Script:MenuTools\.Visibility\s+=\s+''Visible'''
+        $modeStateContent | Should -Match '\$Script:MenuToolsAppsManager\.Visibility\s+=\s+''Visible'''
+        $modeStateContent | Should -Match '\$Script:MenuToolsUpdateAllApps\.Visibility\s+=\s+''Visible'''
+        $modeStateContent | Should -Match '\$Script:MenuToolsExportSupportBundle\.Visibility\s+=\s+''Visible'''
+        $modeStateContent | Should -Match '\$Script:MenuToolsRemoteConsole\.Visibility\s+=\s+\$safeModeHidden'
+    }
 }

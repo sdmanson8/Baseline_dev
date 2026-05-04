@@ -34,8 +34,8 @@
 	    Internal function Show-GuiSettingsImportDialog.
 	#>
 
-	function Show-GuiSettingsImportDialog
-	{
+function Show-GuiSettingsImportDialog
+{
 		param (
 			[string]$AppName = 'Baseline'
 		)
@@ -252,6 +252,422 @@
 	return $resultRef.Value
 }
 
+function Get-GuiBaselineStorageRoot
+{
+	$localAppData = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)
+	if ([string]::IsNullOrWhiteSpace($localAppData)) { $localAppData = $env:LOCALAPPDATA }
+	if ([string]::IsNullOrWhiteSpace($localAppData)) { return $null }
+	return ([System.IO.Path]::Combine($localAppData, 'Baseline'))
+}
+
+function Get-GuiBaselineTempStorageRoot
+{
+	$localAppData = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)
+	if ([string]::IsNullOrWhiteSpace($localAppData)) { $localAppData = $env:LOCALAPPDATA }
+	if ([string]::IsNullOrWhiteSpace($localAppData)) { return $null }
+	return ([System.IO.Path]::Combine($localAppData, 'Temp', 'Baseline'))
+}
+
+function Format-GuiStorageSize
+{
+	param ([Int64]$Bytes)
+
+	if ($Bytes -lt 0) { $Bytes = 0 }
+	$units = @('B', 'KB', 'MB', 'GB', 'TB')
+	$value = [double]$Bytes
+	$unitIndex = 0
+	while (($value -ge 1024) -and ($unitIndex -lt ($units.Count - 1)))
+	{
+		$value = $value / 1024
+		$unitIndex++
+	}
+
+	if ($unitIndex -eq 0) { return ('{0} {1}' -f [Int64]$value, $units[$unitIndex]) }
+	return ('{0:N1} {1}' -f $value, $units[$unitIndex])
+}
+
+function Get-GuiDirectorySize
+{
+	param ([string]$Path)
+
+	if ([string]::IsNullOrWhiteSpace($Path) -or -not [System.IO.Directory]::Exists($Path)) { return 0 }
+
+	$total = [Int64]0
+	foreach ($file in @(Get-ChildItem -LiteralPath $Path -Recurse -File -Force -ErrorAction SilentlyContinue))
+	{
+		try { $total += [Int64]$file.Length } catch { $null = $_ }
+	}
+	return $total
+}
+
+function Get-GuiBaselineStorageUsage
+{
+	$appDataRoot = Get-GuiBaselineStorageRoot
+	$tempRoot = Get-GuiBaselineTempStorageRoot
+	$appDataBytes = if ($appDataRoot) { Get-GuiDirectorySize -Path $appDataRoot } else { 0 }
+	$tempBytes = if ($tempRoot) { Get-GuiDirectorySize -Path $tempRoot } else { 0 }
+	return [pscustomobject]@{
+		AppDataRoot = $appDataRoot
+		TempRoot    = $tempRoot
+		AppDataBytes = $appDataBytes
+		TempBytes   = $tempBytes
+		TotalBytes  = ([Int64]$appDataBytes + [Int64]$tempBytes)
+	}
+}
+
+function Format-GuiBaselineStorageLocation
+{
+	param ([string]$Path)
+
+	if ([string]::IsNullOrWhiteSpace($Path)) { return '' }
+	$localAppData = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)
+	if ([string]::IsNullOrWhiteSpace($localAppData)) { $localAppData = $env:LOCALAPPDATA }
+	if (-not [string]::IsNullOrWhiteSpace($localAppData))
+	{
+		$baselineRoot = [System.IO.Path]::Combine($localAppData, 'Baseline')
+		if ([string]::Equals([System.IO.Path]::GetFullPath($Path), [System.IO.Path]::GetFullPath($baselineRoot), [System.StringComparison]::OrdinalIgnoreCase))
+		{
+			return '%LOCALAPPDATA%\Baseline'
+		}
+		$tempRoot = [System.IO.Path]::Combine($localAppData, 'Temp', 'Baseline')
+		if ([string]::Equals([System.IO.Path]::GetFullPath($Path), [System.IO.Path]::GetFullPath($tempRoot), [System.StringComparison]::OrdinalIgnoreCase))
+		{
+			return '%LOCALAPPDATA%\Temp\Baseline'
+		}
+	}
+	return $Path
+}
+
+function Test-GuiPathInsideRoot
+{
+	param (
+		[string]$Path,
+		[string]$Root
+	)
+
+	if ([string]::IsNullOrWhiteSpace($Path) -or [string]::IsNullOrWhiteSpace($Root)) { return $false }
+	$fullPath = [System.IO.Path]::GetFullPath($Path).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+	$fullRoot = [System.IO.Path]::GetFullPath($Root).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+	return (
+		[string]::Equals($fullPath, $fullRoot, [System.StringComparison]::OrdinalIgnoreCase) -or
+		$fullPath.StartsWith(($fullRoot + [System.IO.Path]::DirectorySeparatorChar), [System.StringComparison]::OrdinalIgnoreCase) -or
+		$fullPath.StartsWith(($fullRoot + [System.IO.Path]::AltDirectorySeparatorChar), [System.StringComparison]::OrdinalIgnoreCase)
+	)
+}
+
+function Remove-GuiStoragePath
+{
+	param (
+		[string]$Path,
+		[string]$Root
+	)
+
+	if ([string]::IsNullOrWhiteSpace($Path) -or [string]::IsNullOrWhiteSpace($Root)) { return 0 }
+	if (-not (Test-GuiPathInsideRoot -Path $Path -Root $Root)) { return 0 }
+	if (-not (Test-Path -LiteralPath $Path)) { return 0 }
+
+	$removed = 0
+	$item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+	if ($item.PSIsContainer)
+	{
+		foreach ($child in @(Get-ChildItem -LiteralPath $Path -Force -ErrorAction SilentlyContinue))
+		{
+			Remove-Item -LiteralPath $child.FullName -Recurse -Force -ErrorAction Stop
+			$removed++
+		}
+	}
+	else
+	{
+		Remove-Item -LiteralPath $Path -Force -ErrorAction Stop
+		$removed = 1
+	}
+
+	return $removed
+}
+
+function Remove-GuiWorkingCache
+{
+	param ([string]$Root)
+
+	if ([string]::IsNullOrWhiteSpace($Root)) { return 0 }
+	$rcRoot = [System.IO.Path]::Combine($Root, 'RC')
+	if (-not (Test-GuiPathInsideRoot -Path $rcRoot -Root $Root)) { return 0 }
+	if (-not [System.IO.Directory]::Exists($rcRoot)) { return 0 }
+
+	$activeExtractedRoot = ''
+	if (-not [string]::IsNullOrWhiteSpace([string]$Script:GuiExtractedRoot))
+	{
+		try { $activeExtractedRoot = [System.IO.Path]::GetFullPath([string]$Script:GuiExtractedRoot) } catch { $activeExtractedRoot = '' }
+	}
+
+	$removed = 0
+	foreach ($child in @(Get-ChildItem -LiteralPath $rcRoot -Force -ErrorAction SilentlyContinue))
+	{
+		$childPath = [System.IO.Path]::GetFullPath([string]$child.FullName)
+		if (
+			-not [string]::IsNullOrWhiteSpace($activeExtractedRoot) -and
+			($activeExtractedRoot.StartsWith(($childPath.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar), [System.StringComparison]::OrdinalIgnoreCase) -or
+			[string]::Equals($activeExtractedRoot.TrimEnd('\', '/'), $childPath.TrimEnd('\', '/'), [System.StringComparison]::OrdinalIgnoreCase))
+		)
+		{
+			continue
+		}
+
+		try
+		{
+			Remove-Item -LiteralPath $child.FullName -Recurse -Force -ErrorAction Stop
+			$removed++
+		}
+		catch
+		{
+			Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ClearGuiBaselineStorageCache.ClearWorkingCache'
+		}
+	}
+
+	return $removed
+}
+
+function Clear-GuiBaselineStorageCache
+{
+	param (
+		[bool]$TemporaryCacheFiles,
+		[bool]$WorkingFiles,
+		[bool]$Logs,
+		[bool]$AuditHistory,
+		[bool]$SavedSessionState,
+		[string]$LogDirectory
+	)
+
+	$appDataRoot = Get-GuiBaselineStorageRoot
+	$tempRoot = Get-GuiBaselineTempStorageRoot
+	if ([string]::IsNullOrWhiteSpace($appDataRoot) -or [string]::IsNullOrWhiteSpace($tempRoot)) { throw 'Baseline storage location is unavailable.' }
+
+	$before = ([Int64](Get-GuiDirectorySize -Path $appDataRoot) + [Int64](Get-GuiDirectorySize -Path $tempRoot))
+	$removed = 0
+
+	if ($TemporaryCacheFiles)
+	{
+		$removed += Remove-GuiWorkingCache -Root $tempRoot
+	}
+
+	if ($WorkingFiles)
+	{
+		foreach ($path in @(
+			[System.IO.Path]::Combine($tempRoot, '.hydrate.lock'),
+			[System.IO.Path]::Combine($tempRoot, 'detect-cache.json')
+		))
+		{
+			$removed += Remove-GuiStoragePath -Path $path -Root $tempRoot
+		}
+	}
+
+	if ($Logs)
+	{
+		$removed += Remove-GuiStoragePath -Path ([System.IO.Path]::Combine($tempRoot, 'perf.log')) -Root $tempRoot
+		$logRoots = New-Object System.Collections.Generic.List[string]
+		$defaultLogRoot = [System.IO.Path]::Combine($tempRoot, 'Logs')
+		if (-not [string]::IsNullOrWhiteSpace($defaultLogRoot)) { [void]$logRoots.Add($defaultLogRoot) }
+		if (-not [string]::IsNullOrWhiteSpace($LogDirectory)) { [void]$logRoots.Add([string]$LogDirectory) }
+		$currentLogPath = if ($global:LogFilePath) { [System.IO.Path]::GetFullPath([string]$global:LogFilePath) } else { '' }
+		foreach ($logRoot in @($logRoots | Select-Object -Unique))
+		{
+			if ([string]::IsNullOrWhiteSpace($logRoot) -or -not [System.IO.Directory]::Exists($logRoot)) { continue }
+			foreach ($logFile in @(Get-ChildItem -LiteralPath $logRoot -Recurse -File -ErrorAction SilentlyContinue))
+			{
+				$logPath = [System.IO.Path]::GetFullPath([string]$logFile.FullName)
+				if (-not [string]::IsNullOrWhiteSpace($currentLogPath) -and [string]::Equals($logPath, $currentLogPath, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+				Remove-Item -LiteralPath $logFile.FullName -Force -ErrorAction Stop
+				$removed++
+			}
+		}
+	}
+
+	if ($AuditHistory)
+	{
+		$removed += Remove-GuiStoragePath -Path ([System.IO.Path]::Combine($appDataRoot, 'audit.jsonl')) -Root $appDataRoot
+	}
+
+	if ($SavedSessionState)
+	{
+		$removed += Remove-GuiStoragePath -Path ([System.IO.Path]::Combine($appDataRoot, 'UserState')) -Root $appDataRoot
+	}
+
+	$after = ([Int64](Get-GuiDirectorySize -Path $appDataRoot) + [Int64](Get-GuiDirectorySize -Path $tempRoot))
+	return [pscustomobject]@{
+		Removed = $removed
+		Before = $before
+		After = $after
+	}
+}
+
+function Show-GuiClearCacheDialog
+{
+	param (
+		[object]$Theme,
+		[string]$Title,
+		[string]$Message,
+		[string]$TemporaryCacheFilesLabel,
+		[string]$WorkingFilesLabel,
+		[string]$LogsLabel,
+		[string]$AuditHistoryLabel,
+		[string]$SavedSessionStateLabel,
+		[string]$SavedSessionStateDescription,
+		[string]$CancelLabel,
+		[string]$ClearSelectedLabel
+	)
+
+	$bc = New-SafeBrushConverter -Context 'DialogHelpers-ClearCache'
+	$textPrimary = if ($Theme.TextPrimary) { [string]$Theme.TextPrimary } else { '#F4F7FF' }
+	$textSecondary = if ($Theme.TextSecondary) { [string]$Theme.TextSecondary } else { '#B8C1D9' }
+	$cardBg = if ($Theme.CardBg) { [string]$Theme.CardBg } else { [string]$Theme.PanelBg }
+	$cardBorder = if ($Theme.CardBorder) { [string]$Theme.CardBorder } else { [string]$Theme.BorderColor }
+	$titleXaml = [System.Security.SecurityElement]::Escape([string]$Title)
+	$messageXaml = [System.Security.SecurityElement]::Escape([string]$Message)
+	$temporaryCacheFilesLabelXaml = [System.Security.SecurityElement]::Escape([string]$TemporaryCacheFilesLabel)
+	$workingFilesLabelXaml = [System.Security.SecurityElement]::Escape([string]$WorkingFilesLabel)
+	$logsLabelXaml = [System.Security.SecurityElement]::Escape([string]$LogsLabel)
+	$auditHistoryLabelXaml = [System.Security.SecurityElement]::Escape([string]$AuditHistoryLabel)
+	$savedSessionStateLabelXaml = [System.Security.SecurityElement]::Escape([string]$SavedSessionStateLabel)
+	$savedSessionStateDescriptionXaml = [System.Security.SecurityElement]::Escape([string]$SavedSessionStateDescription)
+	$cancelLabelXaml = [System.Security.SecurityElement]::Escape([string]$CancelLabel)
+	$clearSelectedLabelXaml = [System.Security.SecurityElement]::Escape([string]$ClearSelectedLabel)
+
+	[xml]$xaml = @"
+<Window
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	Title="$titleXaml"
+	Width="520" Height="420"
+	MinWidth="480" MinHeight="380"
+	WindowStartupLocation="CenterOwner"
+	ResizeMode="NoResize"
+	FontSize="12"
+	Background="Transparent"
+	WindowStyle="None"
+	AllowsTransparency="True">
+	<Border Name="RootBorder" CornerRadius="8">
+		<Grid>
+			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="*"/>
+				<RowDefinition Height="Auto"/>
+			</Grid.RowDefinitions>
+
+			<Border Name="DlgTitleBar" Grid.Row="0" Background="$($Theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8">
+				<Grid>
+					<TextBlock Text="$titleXaml" VerticalAlignment="Center" FontSize="12" Foreground="$textPrimary"/>
+					<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
+						Background="Transparent" Foreground="$textPrimary" BorderThickness="0" Cursor="Hand"
+						HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+				</Grid>
+			</Border>
+
+			<StackPanel Grid.Row="1" Margin="22,18,22,18">
+				<TextBlock Text="$titleXaml" FontSize="17" FontWeight="SemiBold" Foreground="$textPrimary" Margin="0,0,0,6"/>
+				<TextBlock Text="$messageXaml" FontSize="12" Foreground="$textSecondary" TextWrapping="Wrap" Margin="0,0,0,18"/>
+				<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Padding="14,12">
+					<StackPanel>
+						<CheckBox Name="ChkTemporaryCacheFiles" Content="$temporaryCacheFilesLabelXaml" IsChecked="True" Margin="0,0,0,10"/>
+						<CheckBox Name="ChkWorkingFiles" Content="$workingFilesLabelXaml" IsChecked="True" Margin="0,0,0,10"/>
+						<CheckBox Name="ChkLogs" Content="$logsLabelXaml" IsChecked="False" Margin="0,0,0,10"/>
+						<CheckBox Name="ChkAuditHistory" Content="$auditHistoryLabelXaml" IsChecked="False" Margin="0,0,0,10"/>
+						<CheckBox Name="ChkSavedSessionState" Content="$savedSessionStateLabelXaml" IsChecked="False" Margin="0,0,0,4"/>
+						<TextBlock Text="$savedSessionStateDescriptionXaml" FontSize="11" Foreground="$textSecondary" TextWrapping="Wrap" Margin="22,0,0,0"/>
+					</StackPanel>
+				</Border>
+			</StackPanel>
+
+			<Border Grid.Row="2" Background="$($Theme.HeaderBg)" BorderBrush="$($Theme.BorderColor)" BorderThickness="0,1,0,0" Padding="20,12">
+				<StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+					<Button Name="BtnCancel" Content="$cancelLabelXaml" Padding="20,7" Margin="0,0,10,0"/>
+					<Button Name="BtnClearSelected" Content="$clearSelectedLabelXaml" Padding="24,8" FontWeight="SemiBold"/>
+				</StackPanel>
+			</Border>
+		</Grid>
+	</Border>
+</Window>
+"@
+
+	$reader = [System.Xml.XmlNodeReader]::new($xaml)
+	$dlg = [Windows.Markup.XamlReader]::Load($reader)
+	if ($Form) { $dlg.Owner = $Form }
+
+	$rootBorder = $dlg.FindName('RootBorder')
+	if ($rootBorder)
+	{
+		$rootBorder.Background = $bc.ConvertFromString($Theme.WindowBg)
+		$rootBorder.BorderBrush = $bc.ConvertFromString($Theme.BorderColor)
+		$rootBorder.BorderThickness = [System.Windows.Thickness]::new(1)
+	}
+	[void](GUICommon\Set-GuiWindowChromeTheme -Window $dlg -UseDarkMode ($Script:CurrentThemeName -eq 'Dark'))
+
+	$btnDlgClose = $dlg.FindName('BtnDlgClose')
+	$dlgTitleBar = $dlg.FindName('DlgTitleBar')
+	$btnCancel = $dlg.FindName('BtnCancel')
+	$btnClearSelected = $dlg.FindName('BtnClearSelected')
+	$chkTemporaryCacheFiles = $dlg.FindName('ChkTemporaryCacheFiles')
+	$chkWorkingFiles = $dlg.FindName('ChkWorkingFiles')
+	$chkLogs = $dlg.FindName('ChkLogs')
+	$chkAuditHistory = $dlg.FindName('ChkAuditHistory')
+	$chkSavedSessionState = $dlg.FindName('ChkSavedSessionState')
+	$resultRef = @{ Value = $null }
+	$applyButtonChrome = ${function:Set-ButtonChrome}
+
+	foreach ($checkbox in @($chkTemporaryCacheFiles, $chkWorkingFiles, $chkLogs, $chkAuditHistory, $chkSavedSessionState))
+	{
+		if ($checkbox)
+		{
+			$checkbox.Foreground = $bc.ConvertFromString($textPrimary)
+		}
+	}
+
+	$syncClearButton = {
+		$hasDangerousSelection = (($chkLogs -and [bool]$chkLogs.IsChecked) -or ($chkAuditHistory -and [bool]$chkAuditHistory.IsChecked) -or ($chkSavedSessionState -and [bool]$chkSavedSessionState.IsChecked))
+		if ($hasDangerousSelection)
+		{
+			& $applyButtonChrome -Button $btnClearSelected -Variant 'Danger'
+		}
+		else
+		{
+			& $applyButtonChrome -Button $btnClearSelected -Variant 'Primary'
+		}
+	}.GetNewClosure()
+
+	if ($dlgTitleBar) { $dlgTitleBar.Add_MouseLeftButtonDown({ $dlg.DragMove() }.GetNewClosure()) }
+	if ($btnDlgClose) { $btnDlgClose.Add_Click({ $dlg.Close() }.GetNewClosure()) }
+	if ($btnCancel)
+	{
+		& $applyButtonChrome -Button $btnCancel -Variant 'Secondary' -Compact
+		$btnCancel.IsCancel = $true
+		$btnCancel.Add_Click({ $dlg.Close() }.GetNewClosure())
+	}
+	if ($btnClearSelected)
+	{
+		& $syncClearButton
+		$btnClearSelected.Add_Click({
+			$resultRef.Value = @{
+				TemporaryCacheFiles = [bool]$chkTemporaryCacheFiles.IsChecked
+				WorkingFiles = [bool]$chkWorkingFiles.IsChecked
+				Logs = [bool]$chkLogs.IsChecked
+				AuditHistory = [bool]$chkAuditHistory.IsChecked
+				SavedSessionState = [bool]$chkSavedSessionState.IsChecked
+			}
+			$dlg.Close()
+		}.GetNewClosure())
+	}
+	foreach ($dangerCheckbox in @($chkLogs, $chkAuditHistory, $chkSavedSessionState))
+	{
+		if ($dangerCheckbox)
+		{
+			$dangerCheckbox.Add_Checked({ & $syncClearButton }.GetNewClosure())
+			$dangerCheckbox.Add_Unchecked({ & $syncClearButton }.GetNewClosure())
+		}
+	}
+
+	[void](GUICommon\Show-GuiActivatedDialog -Window $dlg)
+	return $resultRef.Value
+}
+
 	<#
 	    .SYNOPSIS
 	    Internal function Show-GuiSettingsDialog.
@@ -283,7 +699,7 @@ function Show-GuiSettingsDialog
 	$exportSupportBundleLabel = Get-UxLocalizedString -Key 'GuiMenuToolsExportSupportBundle' -Fallback 'Export Support Bundle...'
 	$openExportBundleButtonLabel = Get-UxLocalizedString -Key 'GuiSettingsOpenExportBundleTool' -Fallback 'Open Export Support Bundle tool'
 	$getUxLocalizedStringCapture = ${function:Get-UxLocalizedString}
-	$debugExportHint = "Need to send diagnostics? Enable debug mode, reproduce the issue, then use Tools -> $exportSupportBundleLabel."
+	$debugExportHint = Get-UxLocalizedString -Key 'GuiSettingsDebugExportHint' -Fallback 'Need to send diagnostics? Enable debug mode, reproduce the issue, then use Tools -> {0}.' -FormatArgs @($exportSupportBundleLabel)
 
 	$generalHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupGeneral' -Fallback 'General'
 	$appearanceHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupAppearance' -Fallback 'Appearance'
@@ -291,6 +707,105 @@ function Show-GuiSettingsDialog
 	$appsHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupApplications' -Fallback 'Applications'
 	$loggingHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupLogging' -Fallback 'Logging'
 	$advancedHeading = Get-UxLocalizedString -Key 'GuiSettingsGroupAdvanced' -Fallback 'Advanced'
+
+	$settingsGeneralSection = Get-UxLocalizedString -Key 'GuiSettingsGeneralSection' -Fallback 'General preferences'
+	$settingsGeneralSubtitle = Get-UxLocalizedString -Key 'GuiSettingsGeneralSubtitle' -Fallback 'Startup behavior and language.'
+	$settingsLanguageLabel = Get-UxLocalizedString -Key 'GuiSettingsLanguageLabel' -Fallback 'Language'
+	$settingsLanguageHelper = Get-UxLocalizedString -Key 'GuiSettingsLanguageHelper' -Fallback 'Choose the UI language used throughout Baseline.'
+	$settingsStartupModeLabel = Get-UxLocalizedString -Key 'GuiSettingsStartupModeLabel' -Fallback 'Default startup mode'
+	$settingsRestoreLastSessionLabel = Get-UxLocalizedString -Key 'GuiSettingsRestoreLastSessionLabel' -Fallback 'Restore last session on launch'
+	$settingsAutoScanOnLaunchLabel = Get-UxLocalizedString -Key 'GuiSettingsAutoScanOnLaunchLabel' -Fallback 'Scan system state on launch'
+	$settingsAutoScanOnLaunchHelper = Get-UxLocalizedString -Key 'GuiSettingsAutoScanOnLaunchHelper' -Fallback 'When off, Baseline opens without running detection; use System Scan when you want live already-set recommendations.'
+	$settingsHideUnavailableLabel = Get-UxLocalizedString -Key 'GuiSettingsHideUnavailableLabel' -Fallback 'Hide items not available on this system'
+	$settingsHideUnavailableHelper = Get-UxLocalizedString -Key 'GuiSettingsHideUnavailableHelper' -Fallback "When off, items that don't apply to this system are shown greyed-out with a badge instead of being hidden."
+	$settingsAppearanceSection = Get-UxLocalizedString -Key 'GuiSettingsAppearanceSection' -Fallback 'Appearance'
+	$settingsAppearanceSubtitle = Get-UxLocalizedString -Key 'GuiSettingsAppearanceSubtitle' -Fallback 'Theme and UI density.'
+	$settingsThemeLabel = Get-UxLocalizedString -Key 'GuiSettingsThemeLabel' -Fallback 'Theme'
+	$settingsUiDensityLabel = Get-UxLocalizedString -Key 'GuiSettingsUiDensityLabel' -Fallback 'UI density'
+	$settingsUiDensityHelper = Get-UxLocalizedString -Key 'GuiSettingsUiDensityHelper' -Fallback 'Controls tweak-list density without changing navigation or action button styles.'
+	$settingsRunBehaviorSection = Get-UxLocalizedString -Key 'GuiSettingsRunBehaviorSection' -Fallback 'Run behavior'
+	$settingsRunBehaviorSubtitle = Get-UxLocalizedString -Key 'GuiSettingsRunBehaviorSubtitle' -Fallback 'Defaults that apply before tweaks are executed.'
+	$settingsSafeModeDefaultLabel = Get-UxLocalizedString -Key 'GuiSettingsSafeModeDefaultLabel' -Fallback 'Enable Safe Mode by default'
+	$settingsRequireRunConfirmationLabel = Get-UxLocalizedString -Key 'GuiSettingsRequireRunConfirmationLabel' -Fallback 'Require confirmation before Run'
+	$settingsPreviewBeforeRunLabel = Get-UxLocalizedString -Key 'GuiSettingsPreviewBeforeRunLabel' -Fallback 'Show preview before Run by default'
+	$settingsAuditRetentionSection = Get-UxLocalizedString -Key 'GuiSettingsAuditRetentionSection' -Fallback 'Audit retention'
+	$settingsAuditRetentionSubtitle = Get-UxLocalizedString -Key 'GuiSettingsAuditRetentionSubtitle' -Fallback 'Used by audit exports, log cleanup, and support bundles.'
+	$settingsAuditRetentionLabel = Get-UxLocalizedString -Key 'GuiSettingsAuditRetentionLabel' -Fallback 'Retention window'
+	$settingsAppsSection = Get-UxLocalizedString -Key 'GuiSettingsAppsSection' -Fallback 'Application management'
+	$settingsAppsSubtitle = Get-UxLocalizedString -Key 'GuiSettingsAppsSubtitle' -Fallback 'Installer preferences for managed apps.'
+	$settingsPackageSourceLabel = Get-UxLocalizedString -Key 'GuiSettingsPackageSourceLabel' -Fallback 'Preferred package source'
+	$settingsAppsSilentInstallLabel = Get-UxLocalizedString -Key 'GuiSettingsAppsSilentInstallLabel' -Fallback 'Silent install when supported'
+	$settingsAppsAutoUpdateLabel = Get-UxLocalizedString -Key 'GuiSettingsAppsAutoUpdateLabel' -Fallback 'Automatically update managed apps'
+	$settingsLoggingSection = Get-UxLocalizedString -Key 'GuiSettingsLoggingSection' -Fallback 'Logging'
+	$settingsLoggingSubtitle = Get-UxLocalizedString -Key 'GuiSettingsLoggingSubtitle' -Fallback 'Control diagnostic output and log file location.'
+	$settingsLoggingEnabledLabel = Get-UxLocalizedString -Key 'GuiSettingsLoggingEnabledLabel' -Fallback 'Enable logging'
+	$settingsDebugLoggingLabel = Get-UxLocalizedString -Key 'GuiSettingsDebugLoggingLabel' -Fallback 'Debug Mode (verbose logging + perf trace)'
+	$settingsLogLevelLabel = Get-UxLocalizedString -Key 'GuiSettingsLogLevelLabel' -Fallback 'Log level'
+	$settingsLogFolderLabel = Get-UxLocalizedString -Key 'GuiSettingsLogFolderLabel' -Fallback 'Current log folder'
+	$settingsOpenLogFolderLabel = Get-UxLocalizedString -Key 'GuiSettingsOpenLogFolderLabel' -Fallback 'Open Log Folder'
+	$settingsCopyLogFolderPathLabel = Get-UxLocalizedString -Key 'GuiSettingsCopyLogFolderPathLabel' -Fallback 'Copy Log Folder Path'
+	$settingsClearOldLogsLabel = Get-UxLocalizedString -Key 'GuiSettingsClearOldLogsLabel' -Fallback 'Clear Old Logs'
+	$settingsLogFolderDefaultHelper = Get-UxLocalizedString -Key 'GuiSettingsLogFolderDefaultHelper' -Fallback 'Logs stay in the default per-user folder. Expert mode allows choosing another folder.'
+	$settingsLogFolderExpertHelper = Get-UxLocalizedString -Key 'GuiSettingsLogFolderExpertHelper' -Fallback 'Expert mode can choose another log folder. Leave it unchanged to use the default per-user location.'
+	$settingsLogFolderEnableExpertHelper = Get-UxLocalizedString -Key 'GuiSettingsLogFolderEnableExpertHelper' -Fallback 'Logs stay in the default per-user folder. Enable Expert mode to choose another folder.'
+	$settingsAdvancedSection = Get-UxLocalizedString -Key 'GuiSettingsAdvancedSection' -Fallback 'Advanced'
+	$settingsAdvancedSubtitle = Get-UxLocalizedString -Key 'GuiSettingsAdvancedSubtitle' -Fallback 'Features intended for power users.'
+	$settingsAdvancedModeLabel = Get-UxLocalizedString -Key 'GuiSettingsAdvancedModeLabel' -Fallback 'Enable Expert mode'
+	$settingsExperimentalFeaturesLabel = Get-UxLocalizedString -Key 'GuiSettingsExperimentalFeaturesLabel' -Fallback 'Enable experimental features'
+	$settingsExperimentalFeaturesHelper = Get-UxLocalizedString -Key 'GuiSettingsExperimentalFeaturesHelper' -Fallback 'Experimental options may change behavior without notice.'
+	$settingsDesignModeLabel = Get-UxLocalizedString -Key 'GuiSettingsDesignModeLabel' -Fallback 'Design Mode'
+	$settingsDesignModeHelper = Get-UxLocalizedString -Key 'GuiSettingsDesignModeHelper' -Fallback 'Build a config using default values instead of reading live system state.'
+	$settingsStorageCacheSection = Get-UxLocalizedString -Key 'GuiSettingsStorageCacheSection' -Fallback 'Storage & Cache'
+	$settingsStorageUsageHeader = Get-UxLocalizedString -Key 'GuiSettingsStorageUsageHeader' -Fallback 'Baseline Storage Usage:'
+	$settingsStorageUsageAppData = Get-UxLocalizedString -Key 'GuiSettingsStorageUsageAppData' -Fallback 'AppData: {0}'
+	$settingsStorageUsageTemp = Get-UxLocalizedString -Key 'GuiSettingsStorageUsageTemp' -Fallback 'Temp: {0}'
+	$settingsStorageUsageTotal = Get-UxLocalizedString -Key 'GuiSettingsStorageUsageTotal' -Fallback 'Total: {0}'
+	$settingsStorageLocationHeader = Get-UxLocalizedString -Key 'GuiSettingsStorageLocationHeader' -Fallback 'Location:'
+	$settingsStorageUnavailable = Get-UxLocalizedString -Key 'GuiSettingsStorageUnavailable' -Fallback 'Storage location unavailable'
+	$settingsStorageRefreshLabel = Get-UxLocalizedString -Key 'GuiSettingsStorageRefreshLabel' -Fallback 'Refresh'
+	$settingsClearCacheLabel = Get-UxLocalizedString -Key 'GuiSettingsClearCacheLabel' -Fallback 'Clear Cache'
+	$settingsClearCacheDialogTitle = Get-UxLocalizedString -Key 'GuiSettingsClearCacheDialogTitle' -Fallback 'Clear Baseline Cache'
+	$settingsClearCacheDialogMessage = Get-UxLocalizedString -Key 'GuiSettingsClearCacheDialogMessage' -Fallback 'This removes temporary Baseline data and selected local files. It does NOT undo applied system tweaks.'
+	$settingsClearCacheTemporaryFilesLabel = Get-UxLocalizedString -Key 'GuiSettingsClearCacheTemporaryFilesLabel' -Fallback 'Temporary runtime cache (Temp\Baseline\RC)'
+	$settingsClearCacheWorkingFilesLabel = Get-UxLocalizedString -Key 'GuiSettingsClearCacheWorkingFilesLabel' -Fallback 'Temporary files and extracted data'
+	$settingsClearCacheLogsLabel = Get-UxLocalizedString -Key 'GuiSettingsClearCacheLogsLabel' -Fallback 'Logs (perf.log)'
+	$settingsClearCacheAuditHistoryLabel = Get-UxLocalizedString -Key 'GuiSettingsClearCacheAuditHistoryLabel' -Fallback 'Audit history (audit.jsonl)'
+	$settingsClearCacheSavedSessionLabel = Get-UxLocalizedString -Key 'GuiSettingsClearCacheSavedSessionLabel' -Fallback 'Saved session state'
+	$settingsClearCacheSavedSessionDescription = Get-UxLocalizedString -Key 'GuiSettingsClearCacheSavedSessionDescription' -Fallback 'Clears saved selections, filters, density mode, preferences, and last UI session. Does not undo Windows changes.'
+	$settingsClearSelectedLabel = Get-UxLocalizedString -Key 'GuiSettingsClearSelectedLabel' -Fallback 'Clear Selected'
+	$settingsClearCacheRemoved = Get-UxLocalizedString -Key 'GuiSettingsClearCacheRemoved' -Fallback 'Cleared selected cache items. Reclaimed {0}.'
+	$settingsClearCacheFailed = Get-UxLocalizedString -Key 'GuiSettingsClearCacheFailed' -Fallback "Failed to clear selected cache items.`n`n{0}"
+	$settingsStorageCacheSectionXaml = [System.Security.SecurityElement]::Escape([string]$settingsStorageCacheSection)
+
+	$settingsOptionStartupSafe = Get-UxLocalizedString -Key 'GuiSettingsOptionStartupSafe' -Fallback 'Safe'
+	$settingsOptionStartupExpert = Get-UxLocalizedString -Key 'GuiSettingsOptionStartupExpert' -Fallback 'Expert'
+	$settingsOptionThemeSystem = Get-UxLocalizedString -Key 'GuiSettingsOptionThemeSystem' -Fallback 'System Default'
+	$settingsOptionThemeDark = Get-UxLocalizedString -Key 'GuiSettingsOptionThemeDark' -Fallback 'Dark'
+	$settingsOptionThemeLight = Get-UxLocalizedString -Key 'GuiSettingsOptionThemeLight' -Fallback 'Light'
+	$settingsOptionDensityComfort = Get-UxLocalizedString -Key 'GuiSettingsOptionDensityComfort' -Fallback 'Comfort'
+	$settingsOptionDensityCompact = Get-UxLocalizedString -Key 'GuiSettingsOptionDensityCompact' -Fallback 'Compact'
+	$settingsOptionDensityHigh = Get-UxLocalizedString -Key 'GuiSettingsOptionDensityHigh' -Fallback 'High'
+	$settingsOptionRetention30 = Get-UxLocalizedString -Key 'GuiSettingsOptionRetention30' -Fallback '30 days'
+	$settingsOptionRetention90 = Get-UxLocalizedString -Key 'GuiSettingsOptionRetention90' -Fallback '90 days'
+	$settingsOptionRetention180 = Get-UxLocalizedString -Key 'GuiSettingsOptionRetention180' -Fallback '180 days'
+	$settingsOptionRetention365 = Get-UxLocalizedString -Key 'GuiSettingsOptionRetention365' -Fallback '365 days'
+	$settingsOptionPackageAuto = Get-UxLocalizedString -Key 'GuiSettingsOptionPackageAuto' -Fallback 'Auto (prefer available)'
+	$settingsOptionPackageWinGet = Get-UxLocalizedString -Key 'GuiSettingsOptionPackageWinGet' -Fallback 'WinGet'
+	$settingsOptionPackageChocolatey = Get-UxLocalizedString -Key 'GuiSettingsOptionPackageChocolatey' -Fallback 'Chocolatey'
+	$settingsLogLevelError = Get-UxLocalizedString -Key 'GuiSettingsLogLevelError' -Fallback 'Error'
+	$settingsLogLevelWarn = Get-UxLocalizedString -Key 'GuiSettingsLogLevelWarn' -Fallback 'Warn'
+	$settingsLogLevelInfo = Get-UxLocalizedString -Key 'GuiSettingsLogLevelInfo' -Fallback 'Info'
+	$settingsLogLevelDebug = Get-UxLocalizedString -Key 'GuiSettingsLogLevelDebug' -Fallback 'Debug'
+	$settingsLogLevelTrace = Get-UxLocalizedString -Key 'GuiSettingsLogLevelTrace' -Fallback 'Trace'
+	$settingsLogFolderBrowseDescription = Get-UxLocalizedString -Key 'GuiSettingsLogFolderBrowseDescription' -Fallback 'Select Baseline log folder'
+	$settingsLogFolderChooseFailed = Get-UxLocalizedString -Key 'GuiSettingsLogFolderChooseFailed' -Fallback "Failed to choose a log folder.`n`n{0}"
+	$settingsLogFolderOpenFailed = Get-UxLocalizedString -Key 'GuiSettingsLogFolderOpenFailed' -Fallback "Failed to open the log folder.`n`n{0}"
+	$settingsLogFolderCopyFailed = Get-UxLocalizedString -Key 'GuiSettingsLogFolderCopyFailed' -Fallback "Failed to copy the log folder path.`n`n{0}"
+	$settingsClearOldLogsPrompt = Get-UxLocalizedString -Key 'GuiSettingsClearOldLogsPrompt' -Fallback "Delete old Baseline .log files from:`n{0}`n`nThe current session log is kept."
+	$settingsClearOldLogsConfirm = Get-UxLocalizedString -Key 'GuiSettingsClearOldLogsConfirm' -Fallback 'Clear'
+	$settingsClearOldLogsRemoved = Get-UxLocalizedString -Key 'GuiSettingsClearOldLogsRemoved' -Fallback 'Removed {0} old log file(s).'
+	$settingsClearOldLogsFailed = Get-UxLocalizedString -Key 'GuiSettingsClearOldLogsFailed' -Fallback "Failed to clear old logs.`n`n{0}"
+	$okLabel = Get-UxLocalizedString -Key 'GuiOKButton' -Fallback 'OK'
 
 	$cardBg = if ($theme.CardBg) { [string]$theme.CardBg } else { [string]$theme.PanelBg }
 	$cardBorder = if ($theme.CardBorder) { [string]$theme.CardBorder } else { [string]$theme.BorderColor }
@@ -624,10 +1139,10 @@ function Show-GuiSettingsDialog
 					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
 						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
 							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
-								<TextBlock Style="{StaticResource SectionHeading}" Text="General preferences"/>
-								<TextBlock Style="{StaticResource SectionSubtitle}" Text="Startup behavior and language."/>
+								<TextBlock Style="{StaticResource SectionHeading}" Text="$settingsGeneralSection"/>
+								<TextBlock Style="{StaticResource SectionSubtitle}" Text="$settingsGeneralSubtitle"/>
 
-								<TextBlock Style="{StaticResource FieldLabel}" Name="LblLanguage" Text="Language"/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblLanguage" Text="$settingsLanguageLabel"/>
 								<Grid Width="360" HorizontalAlignment="Left" Margin="0,0,0,18">
 									<ToggleButton Name="BtnSettingsLanguage" Height="30" Padding="10,4" Cursor="Hand"
 											HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center"
@@ -677,17 +1192,18 @@ function Show-GuiSettingsDialog
 										</Border>
 									</Popup>
 								</Grid>
-								<TextBlock Style="{StaticResource HelperText}" Text="Choose the UI language used throughout Baseline."/>
+								<TextBlock Style="{StaticResource HelperText}" Text="$settingsLanguageHelper"/>
 
-								<TextBlock Style="{StaticResource FieldLabel}" Name="LblDefaultStartupMode" Text="Default startup mode"/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblDefaultStartupMode" Text="$settingsStartupModeLabel"/>
 								<ComboBox Style="{StaticResource SettingsCombo}" Name="CmbDefaultStartupMode"/>
 
 								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,4,0,18" Opacity="0.35"/>
 
-								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkRestoreLastSession" Content="Restore last session on launch"/>
-								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkAutoScanOnLaunch" Content="Auto-scan system on launch"/>
-								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkHideUnavailableItems" Content="Hide items not available on this system"/>
-								<TextBlock Style="{StaticResource HelperText}" Text="When off, items that don't apply to this system are shown greyed-out with a badge instead of being hidden."/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkRestoreLastSession" Content="$settingsRestoreLastSessionLabel"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkAutoScanOnLaunch" Content="$settingsAutoScanOnLaunchLabel"/>
+								<TextBlock Style="{StaticResource HelperText}" Text="$settingsAutoScanOnLaunchHelper"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkHideUnavailableItems" Content="$settingsHideUnavailableLabel"/>
+								<TextBlock Style="{StaticResource HelperText}" Text="$settingsHideUnavailableHelper"/>
 							</StackPanel>
 						</ScrollViewer>
 					</Border>
@@ -697,15 +1213,15 @@ function Show-GuiSettingsDialog
 					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
 						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
 							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
-								<TextBlock Style="{StaticResource SectionHeading}" Text="Appearance"/>
-								<TextBlock Style="{StaticResource SectionSubtitle}" Text="Theme and UI density."/>
+								<TextBlock Style="{StaticResource SectionHeading}" Text="$settingsAppearanceSection"/>
+								<TextBlock Style="{StaticResource SectionSubtitle}" Text="$settingsAppearanceSubtitle"/>
 
-								<TextBlock Style="{StaticResource FieldLabel}" Name="LblTheme" Text="Theme"/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblTheme" Text="$settingsThemeLabel"/>
 								<ComboBox Style="{StaticResource SettingsCombo}" Name="CmbTheme"/>
 
-								<TextBlock Style="{StaticResource FieldLabel}" Name="LblUIDensity" Text="UI density"/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblUIDensity" Text="$settingsUiDensityLabel"/>
 								<ComboBox Style="{StaticResource SettingsCombo}" Name="CmbUIDensity"/>
-								<TextBlock Style="{StaticResource HelperText}" Text="Compact reduces padding around rows and controls."/>
+								<TextBlock Style="{StaticResource HelperText}" Text="$settingsUiDensityHelper"/>
 							</StackPanel>
 						</ScrollViewer>
 					</Border>
@@ -715,19 +1231,19 @@ function Show-GuiSettingsDialog
 					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
 						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
 							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
-								<TextBlock Style="{StaticResource SectionHeading}" Text="Run behavior"/>
-								<TextBlock Style="{StaticResource SectionSubtitle}" Text="Defaults that apply before tweaks are executed."/>
+								<TextBlock Style="{StaticResource SectionHeading}" Text="$settingsRunBehaviorSection"/>
+								<TextBlock Style="{StaticResource SectionSubtitle}" Text="$settingsRunBehaviorSubtitle"/>
 
-								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkSafeModeDefault" Content="Enable Safe Mode by default"/>
-								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkRequireRunConfirmation" Content="Require confirmation before Run"/>
-								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkPreviewBeforeRunDefault" Content="Show preview before Run by default"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkSafeModeDefault" Content="$settingsSafeModeDefaultLabel"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkRequireRunConfirmation" Content="$settingsRequireRunConfirmationLabel"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkPreviewBeforeRunDefault" Content="$settingsPreviewBeforeRunLabel"/>
 
 								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,12,0,20" Opacity="0.35"/>
 
-								<TextBlock Style="{StaticResource SectionHeading}" Text="Audit retention"/>
-								<TextBlock Style="{StaticResource SectionSubtitle}" Text="Used by audit exports, log cleanup, and support bundles."/>
+								<TextBlock Style="{StaticResource SectionHeading}" Text="$settingsAuditRetentionSection"/>
+								<TextBlock Style="{StaticResource SectionSubtitle}" Text="$settingsAuditRetentionSubtitle"/>
 
-								<TextBlock Style="{StaticResource FieldLabel}" Name="LblAuditRetention" Text="Retention window"/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblAuditRetention" Text="$settingsAuditRetentionLabel"/>
 								<ComboBox Style="{StaticResource SettingsCombo}" Name="CmbAuditRetention"/>
 							</StackPanel>
 						</ScrollViewer>
@@ -738,14 +1254,14 @@ function Show-GuiSettingsDialog
 					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
 						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
 							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
-								<TextBlock Style="{StaticResource SectionHeading}" Text="Application management"/>
-								<TextBlock Style="{StaticResource SectionSubtitle}" Text="Installer preferences for managed apps."/>
+								<TextBlock Style="{StaticResource SectionHeading}" Text="$settingsAppsSection"/>
+								<TextBlock Style="{StaticResource SectionSubtitle}" Text="$settingsAppsSubtitle"/>
 
-								<TextBlock Style="{StaticResource FieldLabel}" Name="LblPackageSource" Text="Preferred package source"/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblPackageSource" Text="$settingsPackageSourceLabel"/>
 								<ComboBox Style="{StaticResource SettingsCombo}" Name="CmbPackageSource"/>
 								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,4,0,18" Opacity="0.35"/>
-								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkAppsSilentInstall" Content="Silent install when supported"/>
-								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkAppsAutoUpdate" Content="Automatically update managed apps"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkAppsSilentInstall" Content="$settingsAppsSilentInstallLabel"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkAppsAutoUpdate" Content="$settingsAppsAutoUpdateLabel"/>
 							</StackPanel>
 						</ScrollViewer>
 					</Border>
@@ -755,11 +1271,11 @@ function Show-GuiSettingsDialog
 					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
 						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
 							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
-								<TextBlock Style="{StaticResource SectionHeading}" Text="Logging"/>
-								<TextBlock Style="{StaticResource SectionSubtitle}" Text="Control diagnostic output and log file location."/>
+								<TextBlock Style="{StaticResource SectionHeading}" Text="$settingsLoggingSection"/>
+								<TextBlock Style="{StaticResource SectionSubtitle}" Text="$settingsLoggingSubtitle"/>
 
-								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkLoggingEnabled" Content="Enable logging"/>
-								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkDebugLogging" Content="Debug Mode (verbose logging + perf trace)"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkLoggingEnabled" Content="$settingsLoggingEnabledLabel"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkDebugLogging" Content="$settingsDebugLoggingLabel"/>
 								<TextBlock Style="{StaticResource HelperText}" Text="$debugExportHint"/>
 								<Button Name="BtnSettingsExportSupportBundle" Margin="0,6,0,0" HorizontalAlignment="Left" Padding="0" Background="Transparent" BorderBrush="Transparent" BorderThickness="0" Cursor="Hand">
 									<TextBlock FontSize="11" Foreground="$accentBlue" Text="$openExportBundleButtonLabel" TextDecorations="Underline"/>
@@ -767,9 +1283,9 @@ function Show-GuiSettingsDialog
 
 								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,8,0,20" Opacity="0.35"/>
 
-								<TextBlock Style="{StaticResource FieldLabel}" Name="LblLogLevel" Text="Log level"/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblLogLevel" Text="$settingsLogLevelLabel"/>
 								<ComboBox Style="{StaticResource SettingsCombo}" Name="CmbLogLevel"/>
-								<TextBlock Style="{StaticResource FieldLabel}" Name="LblLogFolderPath" Text="Current log folder"/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblLogFolderPath" Text="$settingsLogFolderLabel"/>
 								<Grid Width="600" HorizontalAlignment="Left" Margin="0,0,0,10">
 									<Grid.ColumnDefinitions>
 										<ColumnDefinition Width="*"/>
@@ -790,11 +1306,11 @@ function Show-GuiSettingsDialog
 									<Button Grid.Column="1" Name="BtnLogFolderBrowse" Content="..." Width="36" Height="30" Margin="8,0,0,0" Visibility="Collapsed"/>
 								</Grid>
 								<StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-									<Button Name="BtnOpenLogFolder" Content="Open Log Folder" Padding="12,6" Margin="0,0,8,0"/>
-									<Button Name="BtnCopyLogFolderPath" Content="Copy Log Folder Path" Padding="12,6" Margin="0,0,8,0"/>
-									<Button Name="BtnClearOldLogs" Content="Clear Old Logs" Padding="12,6"/>
+									<Button Name="BtnOpenLogFolder" Content="$settingsOpenLogFolderLabel" Padding="12,6" Margin="0,0,8,0"/>
+									<Button Name="BtnCopyLogFolderPath" Content="$settingsCopyLogFolderPathLabel" Padding="12,6" Margin="0,0,8,0"/>
+									<Button Name="BtnClearOldLogs" Content="$settingsClearOldLogsLabel" Padding="12,6"/>
 								</StackPanel>
-								<TextBlock Style="{StaticResource HelperText}" Name="TxtLogFolderHelper" Text="Logs stay in the default per-user folder. Expert mode allows choosing another folder."/>
+								<TextBlock Style="{StaticResource HelperText}" Name="TxtLogFolderHelper" Text="$settingsLogFolderDefaultHelper"/>
 							</StackPanel>
 						</ScrollViewer>
 					</Border>
@@ -804,15 +1320,23 @@ function Show-GuiSettingsDialog
 					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
 						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
 							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
-								<TextBlock Style="{StaticResource SectionHeading}" Text="Advanced"/>
-								<TextBlock Style="{StaticResource SectionSubtitle}" Text="Features intended for power users."/>
+								<TextBlock Style="{StaticResource SectionHeading}" Text="$settingsAdvancedSection"/>
+								<TextBlock Style="{StaticResource SectionSubtitle}" Text="$settingsAdvancedSubtitle"/>
 
-								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkAdvancedMode" Content="Enable Expert mode"/>
-								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkExperimentalFeatures" Content="Enable experimental features"/>
-								<TextBlock Style="{StaticResource HelperText}" Text="Experimental options may change behavior without notice."/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkAdvancedMode" Content="$settingsAdvancedModeLabel"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkExperimentalFeatures" Content="$settingsExperimentalFeaturesLabel"/>
+								<TextBlock Style="{StaticResource HelperText}" Text="$settingsExperimentalFeaturesHelper"/>
 								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,8,0,18" Opacity="0.35"/>
-								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkDesignMode" Content="Design Mode"/>
-								<TextBlock Style="{StaticResource HelperText}" Text="Build a config using default values instead of reading live system state."/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkDesignMode" Content="$settingsDesignModeLabel"/>
+								<TextBlock Style="{StaticResource HelperText}" Text="$settingsDesignModeHelper"/>
+								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,16,0,18" Opacity="0.35"/>
+								<TextBlock Style="{StaticResource SectionHeading}" Text="$settingsStorageCacheSectionXaml"/>
+								<TextBlock Name="TxtStorageUsage" FontSize="12" Foreground="$textPrimary" Margin="0,8,0,4"/>
+								<TextBlock Name="TxtStorageLocation" FontSize="11" Foreground="$textSecondary" TextTrimming="CharacterEllipsis" Margin="0,0,0,12"/>
+								<StackPanel Orientation="Horizontal">
+									<Button Name="BtnRefreshStorageUsage" Content="$settingsStorageRefreshLabel" Padding="12,6" Margin="0,0,8,0"/>
+									<Button Name="BtnClearCache" Content="$settingsClearCacheLabel" Padding="12,6"/>
+								</StackPanel>
 							</StackPanel>
 						</ScrollViewer>
 					</Border>
@@ -881,6 +1405,10 @@ function Show-GuiSettingsDialog
 		$chkAdvancedMode = $dlg.FindName('ChkAdvancedMode')
 		$chkExperimentalFeatures = $dlg.FindName('ChkExperimentalFeatures')
 		$chkDesignMode = $dlg.FindName('ChkDesignMode')
+		$txtStorageUsage = $dlg.FindName('TxtStorageUsage')
+		$txtStorageLocation = $dlg.FindName('TxtStorageLocation')
+		$btnRefreshStorageUsage = $dlg.FindName('BtnRefreshStorageUsage')
+		$btnClearCache = $dlg.FindName('BtnClearCache')
 		if ($chkDesignMode) { $chkDesignMode.IsEnabled = $true }
 		$resultRef = @{ Value = $null }
 
@@ -962,6 +1490,8 @@ function Show-GuiSettingsDialog
 			if ($logFolderButton) { Set-ButtonChrome -Button $logFolderButton -Variant 'Subtle' -Compact -Muted }
 		}
 		if ($btnClearOldLogs) { Set-ButtonChrome -Button $btnClearOldLogs -Variant 'DangerSubtle' -Compact }
+		if ($btnRefreshStorageUsage) { Set-ButtonChrome -Button $btnRefreshStorageUsage -Variant 'Subtle' -Compact -Muted }
+		if ($btnClearCache) { Set-ButtonChrome -Button $btnClearCache -Variant 'Secondary' -Compact }
 		if ($btnSettingsExportSupportBundle)
 		{
 			if ($btnSettingsExportSupportBundle.Content -is [System.Windows.Controls.TextBlock])
@@ -1199,51 +1729,57 @@ function Show-GuiSettingsDialog
 
 		if ($cmbDefaultStartupMode)
 		{
-			& $addComboItem $cmbDefaultStartupMode 'Safe' 'Safe'
-			& $addComboItem $cmbDefaultStartupMode 'Expert' 'Expert'
+			& $addComboItem $cmbDefaultStartupMode $settingsOptionStartupSafe 'Safe'
+			& $addComboItem $cmbDefaultStartupMode $settingsOptionStartupExpert 'Expert'
 			& $selectComboByTag $cmbDefaultStartupMode ($(if ($Current.ContainsKey('DefaultStartupMode') -and -not [string]::IsNullOrWhiteSpace([string]$Current.DefaultStartupMode)) { [string]$Current.DefaultStartupMode } else { 'Safe' }))
 		}
 
 		if ($cmbTheme)
 		{
-			& $addComboItem $cmbTheme 'System Default' 'System'
-			& $addComboItem $cmbTheme 'Dark' 'Dark'
-			& $addComboItem $cmbTheme 'Light' 'Light'
+			& $addComboItem $cmbTheme $settingsOptionThemeSystem 'System'
+			& $addComboItem $cmbTheme $settingsOptionThemeDark 'Dark'
+			& $addComboItem $cmbTheme $settingsOptionThemeLight 'Light'
 			& $selectComboByTag $cmbTheme ($(if ($Current.ContainsKey('Theme') -and -not [string]::IsNullOrWhiteSpace([string]$Current.Theme)) { [string]$Current.Theme } elseif ($Script:CurrentThemeName) { [string]$Script:CurrentThemeName } else { 'Dark' }))
 		}
 
 		if ($cmbUIDensity)
 		{
-			& $addComboItem $cmbUIDensity 'Comfortable' 'Comfortable'
-			& $addComboItem $cmbUIDensity 'Compact' 'Compact'
-			& $selectComboByTag $cmbUIDensity ($(if ($Current.ContainsKey('UIDensity') -and -not [string]::IsNullOrWhiteSpace([string]$Current.UIDensity)) { [string]$Current.UIDensity } else { 'Comfortable' }))
+			& $addComboItem $cmbUIDensity $settingsOptionDensityComfort 'Comfort'
+			& $addComboItem $cmbUIDensity $settingsOptionDensityCompact 'Compact'
+			& $addComboItem $cmbUIDensity $settingsOptionDensityHigh 'High Density'
+			$selectedDensity = if ($Current.ContainsKey('UIDensity') -and -not [string]::IsNullOrWhiteSpace([string]$Current.UIDensity)) { [string]$Current.UIDensity } else { 'Comfort' }
+			if (Get-Command -Name 'Normalize-BaselineUiDensity' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				$selectedDensity = Normalize-BaselineUiDensity -Density $selectedDensity
+			}
+			& $selectComboByTag $cmbUIDensity $selectedDensity
 		}
 
 		if ($cmbAuditRetention)
 		{
-			& $addComboItem $cmbAuditRetention '30 days' 30
-			& $addComboItem $cmbAuditRetention '90 days' 90
-			& $addComboItem $cmbAuditRetention '180 days' 180
-			& $addComboItem $cmbAuditRetention '365 days' 365
+			& $addComboItem $cmbAuditRetention $settingsOptionRetention30 30
+			& $addComboItem $cmbAuditRetention $settingsOptionRetention90 90
+			& $addComboItem $cmbAuditRetention $settingsOptionRetention180 180
+			& $addComboItem $cmbAuditRetention $settingsOptionRetention365 365
 			$selectedRetention = if ($Current.ContainsKey('AuditRetentionDays') -and $Current.AuditRetentionDays) { [int]$Current.AuditRetentionDays } else { 90 }
 			& $selectComboByTag $cmbAuditRetention $selectedRetention
 		}
 
 		if ($cmbPackageSource)
 		{
-			& $addComboItem $cmbPackageSource 'Auto (prefer available)' 'auto'
-			& $addComboItem $cmbPackageSource 'WinGet' 'winget'
-			& $addComboItem $cmbPackageSource 'Chocolatey' 'choco'
+			& $addComboItem $cmbPackageSource $settingsOptionPackageAuto 'auto'
+			& $addComboItem $cmbPackageSource $settingsOptionPackageWinGet 'winget'
+			& $addComboItem $cmbPackageSource $settingsOptionPackageChocolatey 'choco'
 			& $selectComboByTag $cmbPackageSource ($(if ($Current.ContainsKey('AppsPackageSourcePreference') -and -not [string]::IsNullOrWhiteSpace([string]$Current.AppsPackageSourcePreference)) { [string]$Current.AppsPackageSourcePreference } else { 'auto' }))
 		}
 
 		if ($cmbLogLevel)
 		{
-			& $addComboItem $cmbLogLevel 'Error' 'Error'
-			& $addComboItem $cmbLogLevel 'Warn' 'Warn'
-			& $addComboItem $cmbLogLevel 'Info' 'Info'
-			& $addComboItem $cmbLogLevel 'Debug' 'Debug'
-			& $addComboItem $cmbLogLevel 'Trace' 'Trace'
+			& $addComboItem $cmbLogLevel $settingsLogLevelError 'Error'
+			& $addComboItem $cmbLogLevel $settingsLogLevelWarn 'Warn'
+			& $addComboItem $cmbLogLevel $settingsLogLevelInfo 'Info'
+			& $addComboItem $cmbLogLevel $settingsLogLevelDebug 'Debug'
+			& $addComboItem $cmbLogLevel $settingsLogLevelTrace 'Trace'
 			& $selectComboByTag $cmbLogLevel ($(if ($Current.ContainsKey('LogLevel') -and -not [string]::IsNullOrWhiteSpace([string]$Current.LogLevel)) { [string]$Current.LogLevel } else { 'Info' }))
 		}
 
@@ -1302,11 +1838,11 @@ function Show-GuiSettingsDialog
 			{
 				$txtLogFolderHelper.Text = if ($expertEnabled)
 				{
-					'Expert mode can choose another log folder. Leave it unchanged to use the default per-user location.'
+					$settingsLogFolderExpertHelper
 				}
 				else
 				{
-					'Logs stay in the default per-user folder. Enable Expert mode to choose another folder.'
+					$settingsLogFolderEnableExpertHelper
 				}
 			}
 		}.GetNewClosure()
@@ -1325,7 +1861,7 @@ function Show-GuiSettingsDialog
 				{
 					Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
 					$folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
-					$folderDialog.Description = 'Select Baseline log folder'
+					$folderDialog.Description = $settingsLogFolderBrowseDescription
 					$folderDialog.ShowNewFolderButton = $true
 					$selectedPath = & $getEffectiveLogDirectory
 					if (-not [string]::IsNullOrWhiteSpace($selectedPath) -and [System.IO.Directory]::Exists($selectedPath))
@@ -1341,7 +1877,7 @@ function Show-GuiSettingsDialog
 				catch
 				{
 					Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiSettingsDialog.LogFolderBrowse'
-					[void](Show-ThemedDialog -Title 'Logging' -Message ("Failed to choose a log folder.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+					[void](Show-ThemedDialog -Title $settingsLoggingSection -Message ($settingsLogFolderChooseFailed -f $_.Exception.Message) -Buttons @($okLabel) -AccentButton $okLabel)
 				}
 			}.GetNewClosure())
 		}
@@ -1359,7 +1895,7 @@ function Show-GuiSettingsDialog
 				catch
 				{
 					Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiSettingsDialog.OpenLogFolder'
-					[void](Show-ThemedDialog -Title 'Logging' -Message ("Failed to open the log folder.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+					[void](Show-ThemedDialog -Title $settingsLoggingSection -Message ($settingsLogFolderOpenFailed -f $_.Exception.Message) -Buttons @($okLabel) -AccentButton $okLabel)
 				}
 			}.GetNewClosure())
 		}
@@ -1378,7 +1914,7 @@ function Show-GuiSettingsDialog
 				catch
 				{
 					Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiSettingsDialog.CopyLogFolderPath'
-					[void](Show-ThemedDialog -Title 'Logging' -Message ("Failed to copy the log folder path.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+					[void](Show-ThemedDialog -Title $settingsLoggingSection -Message ($settingsLogFolderCopyFailed -f $_.Exception.Message) -Buttons @($okLabel) -AccentButton $okLabel)
 				}
 			}.GetNewClosure())
 		}
@@ -1390,8 +1926,8 @@ function Show-GuiSettingsDialog
 				{
 					$folderPath = & $getEffectiveLogDirectory
 					if ([string]::IsNullOrWhiteSpace($folderPath) -or -not [System.IO.Directory]::Exists($folderPath)) { return }
-					$confirm = Show-ThemedDialog -Title 'Clear Old Logs' -Message ("Delete old Baseline .log files from:`n{0}`n`nThe current session log is kept." -f $folderPath) -Buttons @('Clear', 'Cancel') -DestructiveButton 'Clear'
-					if ($confirm -ne 'Clear') { return }
+					$confirm = Show-ThemedDialog -Title $settingsClearOldLogsLabel -Message ($settingsClearOldLogsPrompt -f $folderPath) -Buttons @($settingsClearOldLogsConfirm, $cancelLabel) -DestructiveButton $settingsClearOldLogsConfirm
+					if ($confirm -ne $settingsClearOldLogsConfirm) { return }
 
 					$currentLogPath = if ($global:LogFilePath) { [System.IO.Path]::GetFullPath([string]$global:LogFilePath) } else { '' }
 					$removedCount = 0
@@ -1402,12 +1938,339 @@ function Show-GuiSettingsDialog
 						Remove-Item -LiteralPath $logFile.FullName -Force -ErrorAction Stop
 						$removedCount++
 					}
-					[void](Show-ThemedDialog -Title 'Clear Old Logs' -Message ("Removed {0} old log file(s)." -f $removedCount) -Buttons @('OK') -AccentButton 'OK')
+					[void](Show-ThemedDialog -Title $settingsClearOldLogsLabel -Message ($settingsClearOldLogsRemoved -f $removedCount) -Buttons @($okLabel) -AccentButton $okLabel)
 				}
 				catch
 				{
 					Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiSettingsDialog.ClearOldLogs'
-					[void](Show-ThemedDialog -Title 'Clear Old Logs' -Message ("Failed to clear old logs.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+					[void](Show-ThemedDialog -Title $settingsClearOldLogsLabel -Message ($settingsClearOldLogsFailed -f $_.Exception.Message) -Buttons @($okLabel) -AccentButton $okLabel)
+				}
+			}.GetNewClosure())
+		}
+
+		$getGuiBaselineStorageRoot = {
+			$localAppData = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)
+			if ([string]::IsNullOrWhiteSpace($localAppData)) { $localAppData = $env:LOCALAPPDATA }
+			if ([string]::IsNullOrWhiteSpace($localAppData)) { return $null }
+			return ([System.IO.Path]::Combine($localAppData, 'Baseline'))
+		}.GetNewClosure()
+
+		$getGuiBaselineTempStorageRoot = {
+			$localAppData = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)
+			if ([string]::IsNullOrWhiteSpace($localAppData)) { $localAppData = $env:LOCALAPPDATA }
+			if ([string]::IsNullOrWhiteSpace($localAppData)) { return $null }
+			return ([System.IO.Path]::Combine($localAppData, 'Temp', 'Baseline'))
+		}.GetNewClosure()
+
+		$formatGuiStorageSize = {
+			param ([Int64]$Bytes)
+
+			if ($Bytes -lt 0) { $Bytes = 0 }
+			$units = @('B', 'KB', 'MB', 'GB', 'TB')
+			$value = [double]$Bytes
+			$unitIndex = 0
+			while (($value -ge 1024) -and ($unitIndex -lt ($units.Count - 1)))
+			{
+				$value = $value / 1024
+				$unitIndex++
+			}
+
+			if ($unitIndex -eq 0) { return ('{0} {1}' -f [Int64]$value, $units[$unitIndex]) }
+			return ('{0:N1} {1}' -f $value, $units[$unitIndex])
+		}.GetNewClosure()
+
+		$getGuiDirectorySize = {
+			param ([string]$Path)
+
+			if ([string]::IsNullOrWhiteSpace($Path) -or -not [System.IO.Directory]::Exists($Path)) { return 0 }
+
+			$total = [Int64]0
+			foreach ($file in @(Get-ChildItem -LiteralPath $Path -Recurse -File -Force -ErrorAction SilentlyContinue))
+			{
+				try { $total += [Int64]$file.Length } catch { $null = $_ }
+			}
+			return $total
+		}.GetNewClosure()
+
+		$getGuiBaselineStorageUsage = {
+			$appDataRoot = & $getGuiBaselineStorageRoot
+			$tempRoot = & $getGuiBaselineTempStorageRoot
+			$appDataBytes = if ($appDataRoot) { & $getGuiDirectorySize -Path $appDataRoot } else { 0 }
+			$tempBytes = if ($tempRoot) { & $getGuiDirectorySize -Path $tempRoot } else { 0 }
+			return [pscustomobject]@{
+				AppDataRoot = $appDataRoot
+				TempRoot = $tempRoot
+				AppDataBytes = $appDataBytes
+				TempBytes = $tempBytes
+				TotalBytes = ([Int64]$appDataBytes + [Int64]$tempBytes)
+			}
+		}.GetNewClosure()
+
+		$formatGuiBaselineStorageLocation = {
+			param ([string]$Path)
+
+			if ([string]::IsNullOrWhiteSpace($Path)) { return '' }
+			$localAppData = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)
+			if ([string]::IsNullOrWhiteSpace($localAppData)) { $localAppData = $env:LOCALAPPDATA }
+			if (-not [string]::IsNullOrWhiteSpace($localAppData))
+			{
+				$baselineRoot = [System.IO.Path]::Combine($localAppData, 'Baseline')
+				if ([string]::Equals([System.IO.Path]::GetFullPath($Path), [System.IO.Path]::GetFullPath($baselineRoot), [System.StringComparison]::OrdinalIgnoreCase))
+				{
+					return '%LOCALAPPDATA%\Baseline'
+				}
+				$tempRoot = [System.IO.Path]::Combine($localAppData, 'Temp', 'Baseline')
+				if ([string]::Equals([System.IO.Path]::GetFullPath($Path), [System.IO.Path]::GetFullPath($tempRoot), [System.StringComparison]::OrdinalIgnoreCase))
+				{
+					return '%LOCALAPPDATA%\Temp\Baseline'
+				}
+			}
+			return $Path
+		}.GetNewClosure()
+
+		$testGuiPathInsideRoot = {
+			param (
+				[string]$Path,
+				[string]$Root
+			)
+
+			if ([string]::IsNullOrWhiteSpace($Path) -or [string]::IsNullOrWhiteSpace($Root)) { return $false }
+			$fullPath = [System.IO.Path]::GetFullPath($Path).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+			$fullRoot = [System.IO.Path]::GetFullPath($Root).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+			return (
+				[string]::Equals($fullPath, $fullRoot, [System.StringComparison]::OrdinalIgnoreCase) -or
+				$fullPath.StartsWith(($fullRoot + [System.IO.Path]::DirectorySeparatorChar), [System.StringComparison]::OrdinalIgnoreCase) -or
+				$fullPath.StartsWith(($fullRoot + [System.IO.Path]::AltDirectorySeparatorChar), [System.StringComparison]::OrdinalIgnoreCase)
+			)
+		}.GetNewClosure()
+
+		$removeGuiStoragePath = {
+			param (
+				[string]$Path,
+				[string]$Root
+			)
+
+			if ([string]::IsNullOrWhiteSpace($Path) -or [string]::IsNullOrWhiteSpace($Root)) { return 0 }
+			if (-not (& $testGuiPathInsideRoot -Path $Path -Root $Root)) { return 0 }
+			if (-not (Test-Path -LiteralPath $Path)) { return 0 }
+
+			$removed = 0
+			$item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+			if ($item.PSIsContainer)
+			{
+				foreach ($child in @(Get-ChildItem -LiteralPath $Path -Force -ErrorAction SilentlyContinue))
+				{
+					Remove-Item -LiteralPath $child.FullName -Recurse -Force -ErrorAction Stop
+					$removed++
+				}
+			}
+			else
+			{
+				Remove-Item -LiteralPath $Path -Force -ErrorAction Stop
+				$removed = 1
+			}
+
+			return $removed
+		}.GetNewClosure()
+
+		$removeGuiWorkingCache = {
+			param ([string]$Root)
+
+			if ([string]::IsNullOrWhiteSpace($Root)) { return 0 }
+			$rcRoot = [System.IO.Path]::Combine($Root, 'RC')
+			if (-not (& $testGuiPathInsideRoot -Path $rcRoot -Root $Root)) { return 0 }
+			if (-not [System.IO.Directory]::Exists($rcRoot)) { return 0 }
+
+			$activeExtractedRoot = ''
+			if (-not [string]::IsNullOrWhiteSpace([string]$Script:GuiExtractedRoot))
+			{
+				try { $activeExtractedRoot = [System.IO.Path]::GetFullPath([string]$Script:GuiExtractedRoot) } catch { $activeExtractedRoot = '' }
+			}
+
+			$removed = 0
+			foreach ($child in @(Get-ChildItem -LiteralPath $rcRoot -Force -ErrorAction SilentlyContinue))
+			{
+				$childPath = [System.IO.Path]::GetFullPath([string]$child.FullName)
+				if (
+					-not [string]::IsNullOrWhiteSpace($activeExtractedRoot) -and
+					($activeExtractedRoot.StartsWith(($childPath.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar), [System.StringComparison]::OrdinalIgnoreCase) -or
+					[string]::Equals($activeExtractedRoot.TrimEnd('\', '/'), $childPath.TrimEnd('\', '/'), [System.StringComparison]::OrdinalIgnoreCase))
+				)
+				{
+					continue
+				}
+
+				try
+				{
+					Remove-Item -LiteralPath $child.FullName -Recurse -Force -ErrorAction Stop
+					$removed++
+				}
+				catch
+				{
+					Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiSettingsDialog.ClearWorkingCache'
+				}
+			}
+
+			return $removed
+		}.GetNewClosure()
+
+		$clearGuiBaselineStorageCache = {
+			param (
+				[bool]$TemporaryCacheFiles,
+				[bool]$WorkingFiles,
+				[bool]$Logs,
+				[bool]$AuditHistory,
+				[bool]$SavedSessionState,
+				[string]$LogDirectory
+			)
+
+			$appDataRoot = & $getGuiBaselineStorageRoot
+			$tempRoot = & $getGuiBaselineTempStorageRoot
+			if ([string]::IsNullOrWhiteSpace($appDataRoot) -or [string]::IsNullOrWhiteSpace($tempRoot)) { throw 'Baseline storage location is unavailable.' }
+
+			$before = ([Int64](& $getGuiDirectorySize -Path $appDataRoot) + [Int64](& $getGuiDirectorySize -Path $tempRoot))
+			$removed = 0
+
+			if ($TemporaryCacheFiles)
+			{
+				$removed += & $removeGuiWorkingCache -Root $tempRoot
+			}
+
+			if ($WorkingFiles)
+			{
+				foreach ($path in @(
+					[System.IO.Path]::Combine($tempRoot, '.hydrate.lock'),
+					[System.IO.Path]::Combine($tempRoot, 'detect-cache.json')
+				))
+				{
+					$removed += & $removeGuiStoragePath -Path $path -Root $tempRoot
+				}
+			}
+
+			if ($Logs)
+			{
+				$removed += & $removeGuiStoragePath -Path ([System.IO.Path]::Combine($tempRoot, 'perf.log')) -Root $tempRoot
+				$logRoots = New-Object System.Collections.Generic.List[string]
+				$defaultLogRoot = [System.IO.Path]::Combine($tempRoot, 'Logs')
+				if (-not [string]::IsNullOrWhiteSpace($defaultLogRoot)) { [void]$logRoots.Add($defaultLogRoot) }
+				if (-not [string]::IsNullOrWhiteSpace($LogDirectory)) { [void]$logRoots.Add([string]$LogDirectory) }
+				$currentLogPath = if ($global:LogFilePath) { [System.IO.Path]::GetFullPath([string]$global:LogFilePath) } else { '' }
+				foreach ($logRoot in @($logRoots | Select-Object -Unique))
+				{
+					if ([string]::IsNullOrWhiteSpace($logRoot) -or -not [System.IO.Directory]::Exists($logRoot)) { continue }
+					foreach ($logFile in @(Get-ChildItem -LiteralPath $logRoot -Recurse -File -ErrorAction SilentlyContinue))
+					{
+						$logPath = [System.IO.Path]::GetFullPath([string]$logFile.FullName)
+						if (-not [string]::IsNullOrWhiteSpace($currentLogPath) -and [string]::Equals($logPath, $currentLogPath, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+						Remove-Item -LiteralPath $logFile.FullName -Force -ErrorAction Stop
+						$removed++
+					}
+				}
+			}
+
+			if ($AuditHistory)
+			{
+				$removed += & $removeGuiStoragePath -Path ([System.IO.Path]::Combine($appDataRoot, 'audit.jsonl')) -Root $appDataRoot
+			}
+
+			if ($SavedSessionState)
+			{
+				$removed += & $removeGuiStoragePath -Path ([System.IO.Path]::Combine($appDataRoot, 'UserState')) -Root $appDataRoot
+			}
+
+			$after = ([Int64](& $getGuiDirectorySize -Path $appDataRoot) + [Int64](& $getGuiDirectorySize -Path $tempRoot))
+			return [pscustomobject]@{
+				Removed = $removed
+				Before = $before
+				After = $after
+			}
+		}.GetNewClosure()
+
+		$showGuiClearCacheDialog = ${function:Show-GuiClearCacheDialog}
+		$showThemedDialog = ${function:Show-ThemedDialog}
+
+		$refreshStorageDisplay = {
+			$usage = & $getGuiBaselineStorageUsage
+			if ($txtStorageUsage)
+			{
+				$usageText = if ($usage)
+				{
+					@(
+						$settingsStorageUsageHeader
+						''
+						('- {0}' -f ($settingsStorageUsageAppData -f (& $formatGuiStorageSize -Bytes ([Int64]$usage.AppDataBytes))))
+						('- {0}' -f ($settingsStorageUsageTemp -f (& $formatGuiStorageSize -Bytes ([Int64]$usage.TempBytes))))
+						('- {0}' -f ($settingsStorageUsageTotal -f (& $formatGuiStorageSize -Bytes ([Int64]$usage.TotalBytes))))
+					) -join [Environment]::NewLine
+				}
+				else
+				{
+					$settingsStorageUnavailable
+				}
+				$txtStorageUsage.Text = $usageText
+			}
+			if ($txtStorageLocation)
+			{
+				$locationText = if ($usage)
+				{
+					@(
+						$settingsStorageLocationHeader
+						(& $formatGuiBaselineStorageLocation -Path ([string]$usage.AppDataRoot))
+						(& $formatGuiBaselineStorageLocation -Path ([string]$usage.TempRoot))
+					) -join [Environment]::NewLine
+				}
+				else
+				{
+					$settingsStorageUnavailable
+				}
+				$txtStorageLocation.Text = $locationText
+			}
+		}.GetNewClosure()
+		& $refreshStorageDisplay
+
+		if ($btnRefreshStorageUsage)
+		{
+			$btnRefreshStorageUsage.Add_Click({
+				& $refreshStorageDisplay
+			}.GetNewClosure())
+		}
+
+		if ($btnClearCache)
+		{
+			$btnClearCache.Add_Click({
+				try
+				{
+					$selection = & $showGuiClearCacheDialog `
+						-Theme $theme `
+						-Title $settingsClearCacheDialogTitle `
+						-Message $settingsClearCacheDialogMessage `
+						-TemporaryCacheFilesLabel $settingsClearCacheTemporaryFilesLabel `
+						-WorkingFilesLabel $settingsClearCacheWorkingFilesLabel `
+						-LogsLabel $settingsClearCacheLogsLabel `
+						-AuditHistoryLabel $settingsClearCacheAuditHistoryLabel `
+						-SavedSessionStateLabel $settingsClearCacheSavedSessionLabel `
+						-SavedSessionStateDescription $settingsClearCacheSavedSessionDescription `
+						-CancelLabel $cancelLabel `
+						-ClearSelectedLabel $settingsClearSelectedLabel
+					if (-not $selection) { return }
+
+					$result = & $clearGuiBaselineStorageCache `
+						-TemporaryCacheFiles ([bool]$selection.TemporaryCacheFiles) `
+						-WorkingFiles ([bool]$selection.WorkingFiles) `
+						-Logs ([bool]$selection.Logs) `
+						-AuditHistory ([bool]$selection.AuditHistory) `
+						-SavedSessionState ([bool]$selection.SavedSessionState) `
+						-LogDirectory (& $getEffectiveLogDirectory)
+
+					& $refreshStorageDisplay
+					$reclaimed = [Int64]$result.Before - [Int64]$result.After
+					if ($reclaimed -lt 0) { $reclaimed = 0 }
+					[void](& $showThemedDialog -Title $settingsClearCacheLabel -Message ($settingsClearCacheRemoved -f (& $formatGuiStorageSize -Bytes $reclaimed)) -Buttons @($okLabel) -AccentButton $okLabel)
+				}
+				catch
+				{
+					Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiSettingsDialog.ClearCache'
+					[void](& $showThemedDialog -Title $settingsClearCacheLabel -Message ($settingsClearCacheFailed -f $_.Exception.Message) -Buttons @($okLabel) -AccentButton $okLabel)
 				}
 			}.GetNewClosure())
 		}
@@ -1479,7 +2342,7 @@ function Show-GuiSettingsDialog
 					AutoScanOnLaunch = [bool]$chkAutoScanOnLaunch.IsChecked
 					HideUnavailableItems = if ($chkHideUnavailableItems) { [bool]$chkHideUnavailableItems.IsChecked } else { $true }
 					Theme = [string](& $getTag $cmbTheme 'Dark')
-					UIDensity = [string](& $getTag $cmbUIDensity 'Comfortable')
+					UIDensity = [string](& $getTag $cmbUIDensity 'Comfort')
 					SafeMode = [bool]$chkSafeModeDefault.IsChecked
 					RequireRunConfirmation = [bool]$chkRequireRunConfirmation.IsChecked
 					PreviewBeforeRunDefault = [bool]$chkPreviewBeforeRunDefault.IsChecked

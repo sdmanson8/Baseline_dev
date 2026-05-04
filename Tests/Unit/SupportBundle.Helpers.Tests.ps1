@@ -65,12 +65,29 @@ Describe 'Export-BaselineSupportBundle' {
         Copy-Item -LiteralPath $script:AuditLogPath -Destination (Join-Path $historyDir 'audit.jsonl') -Force
 
         $previousLocalAppData = $env:LOCALAPPDATA
+        $previousTemp = $env:TEMP
+        $previousTmp = $env:TMP
         $env:LOCALAPPDATA = $historyRoot
+        $env:TEMP = Join-Path $script:TempRoot 'Temp'
+        $env:TMP = $env:TEMP
+        $launchTraceDir = Join-Path $env:TEMP 'Baseline'
+        New-Item -ItemType Directory -Path $launchTraceDir -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $launchTraceDir 'Baseline-launch-trace.txt') -Value 'launch trace line' -Encoding UTF8
+        $sessionSnapshot = [pscustomobject]@{
+            SelectedPreset               = 'Privacy'
+            SafeMode                     = $true
+            AdvancedMode                 = $false
+            UIDensity                    = 'Compact'
+            CurrentPrimaryTab            = 'Privacy'
+            ExplicitSelectionDefinitions = @('AdvertisingID', 'ActivityHistory')
+        }
         try {
-            $result = Export-BaselineSupportBundle -OutputPath $script:BundlePath -IncludeTestReport:$false
+            $result = Export-BaselineSupportBundle -OutputPath $script:BundlePath -IncludeTestReport:$false -ConfigStatePost $sessionSnapshot
         }
         finally {
             $env:LOCALAPPDATA = $previousLocalAppData
+            $env:TEMP = $previousTemp
+            $env:TMP = $previousTmp
         }
 
         Test-Path -LiteralPath $result.OutputPath | Should -BeTrue
@@ -81,24 +98,64 @@ Describe 'Export-BaselineSupportBundle' {
         $metadataPath = Join-Path $extractDir 'metadata.json'
         $auditCopyPath = Join-Path $extractDir 'audit.jsonl'
         $contentsPath = Join-Path $extractDir 'contents.json'
+        $versionPath = Join-Path $extractDir 'baseline-version.json'
+        $environmentPath = Join-Path $extractDir 'environment.json'
+        $featuresPath = Join-Path $extractDir 'windows-features.json'
+        $storagePath = Join-Path $extractDir 'storage-summary.json'
+        $actionContextPath = Join-Path $extractDir 'user-action-context.json'
 
         Test-Path -LiteralPath $metadataPath | Should -BeTrue
         Test-Path -LiteralPath $auditCopyPath | Should -BeTrue
         Test-Path -LiteralPath $contentsPath | Should -BeTrue
+        Test-Path -LiteralPath $versionPath | Should -BeTrue
+        Test-Path -LiteralPath $environmentPath | Should -BeTrue
+        Test-Path -LiteralPath $featuresPath | Should -BeTrue
+        Test-Path -LiteralPath $storagePath | Should -BeTrue
+        Test-Path -LiteralPath $actionContextPath | Should -BeTrue
 
         $metadata = Get-Content -LiteralPath $metadataPath -Raw | ConvertFrom-Json
         $metadata.Schema | Should -Be 'Baseline.SupportBundle'
         $metadata.BaselineVersion | Should -Match '^v4\.0\.0'
         $metadata.AuditRetention.Days | Should -BeGreaterThan 0
 
+        $version = Get-Content -LiteralPath $versionPath -Raw | ConvertFrom-Json
+        $version.version | Should -Be '4.0.0'
+        $version.channel | Should -Be 'dev'
+        $version.ps_version | Should -Not -BeNullOrEmpty
+
+        $environment = Get-Content -LiteralPath $environmentPath -Raw | ConvertFrom-Json
+        $environment.Schema | Should -Be 'Baseline.Environment'
+        $environment.OS.Version | Should -Not -BeNullOrEmpty
+        $environment.PowerShell.Version | Should -Not -BeNullOrEmpty
+
+        $features = Get-Content -LiteralPath $featuresPath -Raw | ConvertFrom-Json
+        $features.Schema | Should -Be 'Baseline.WindowsFeatures'
+        @($features.Services | Where-Object Name -eq 'WinRM').Count | Should -Be 1
+
+        $storage = Get-Content -LiteralPath $storagePath -Raw | ConvertFrom-Json
+        $storage.Schema | Should -Be 'Baseline.StorageSummary'
+        @($storage.Locations | Where-Object Name -eq 'TempBaseline').Count | Should -Be 1
+
+        $actionContext = Get-Content -LiteralPath $actionContextPath -Raw | ConvertFrom-Json
+        $actionContext.Schema | Should -Be 'Baseline.UserActionContext'
+        $actionContext.PresetUsed | Should -Be 'Privacy'
+        $actionContext.SafeMode | Should -BeTrue
+        @($actionContext.SelectedTweaks).Count | Should -Be 2
+
         $contents = Get-Content -LiteralPath $contentsPath -Raw | ConvertFrom-Json
         @($contents.Files).Count | Should -BeGreaterThan 0
+        @($contents.Files | Where-Object Name -eq 'baseline-version.json').Count | Should -Be 1
+        @($contents.Files | Where-Object Name -eq 'environment.json').Count | Should -Be 1
+        @($contents.Files | Where-Object Name -eq 'windows-features.json').Count | Should -Be 1
+        @($contents.Files | Where-Object Name -eq 'storage-summary.json').Count | Should -Be 1
+        @($contents.Files | Where-Object Name -eq 'user-action-context.json').Count | Should -Be 1
         @($contents.Files | Where-Object Name -eq 'remote-orchestration.jsonl').Count | Should -Be 1
         @($contents.Files | Where-Object Name -eq 'remote-orchestration-summary.txt').Count | Should -Be 1
         @($contents.Files | Where-Object Name -eq 'remote-orchestration-runs.json').Count | Should -Be 0
         @($contents.Files | Where-Object Name -eq 'remote-orchestration-reconciliation.json').Count | Should -Be 1
         @($contents.Files | Where-Object Name -eq 'remote-orchestration-details.json').Count | Should -Be 1
         @($contents.Files | Where-Object Name -eq 'validation-evidence.json').Count | Should -Be 1
+        @($contents.Files | Where-Object Name -eq 'Logs/Baseline-launch-trace.txt').Count | Should -Be 1
         @($contents.Files | Where-Object Name -eq 'bundle-index.json').Count | Should -Be 1
 
         $auditLines = @(Get-Content -LiteralPath $auditCopyPath)
@@ -110,6 +167,7 @@ Describe 'Export-BaselineSupportBundle' {
         Test-Path -LiteralPath (Join-Path $extractDir 'remote-orchestration-reconciliation.json') | Should -BeTrue
         Test-Path -LiteralPath (Join-Path $extractDir 'remote-orchestration-details.json') | Should -BeTrue
         Test-Path -LiteralPath (Join-Path $extractDir 'validation-evidence.json') | Should -BeTrue
+        Test-Path -LiteralPath (Join-Path $extractDir 'Logs/Baseline-launch-trace.txt') | Should -BeTrue
         Test-Path -LiteralPath (Join-Path $extractDir 'bundle-index.json') | Should -BeTrue
     }
 

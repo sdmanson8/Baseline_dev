@@ -108,29 +108,13 @@
 		{
 			'Toggle'
 			{
-				$defaultOn = if (Test-GuiObjectField -Object $Tweak -FieldName 'Default') { [bool](Get-GuiObjectField -Object $Tweak -FieldName 'Default') } else { $false }
-				$currentOn = if (Test-GuiObjectField -Object $source -FieldName 'IsChecked') { [bool](Get-GuiObjectField -Object $source -FieldName 'IsChecked') } elseif (Test-GuiObjectField -Object $source -FieldName 'CurrentValue') { [bool](Get-GuiObjectField -Object $source -FieldName 'CurrentValue') } else { $defaultOn }
-
-				if ($currentOn -eq $defaultOn)
-				{
-					$stateLabel = Get-UxLocalizedString -Key 'GuiTweakStateAlreadySet' -Fallback 'Already set'
-					$stateTone = 'Muted'
-					$matchesDesired = $true
-					$stateDetail = Get-UxLocalizedString -Key 'GuiTweakStateDetailAlreadySet' -Fallback 'Already set to the manifest default.'
-				}
-				elseif ($currentOn)
-				{
-					$stateLabel = Get-UxLocalizedString -Key 'GuiTweakStateEnabled' -Fallback 'Enabled'
-					$stateTone = 'Success'
-					$stateDetail = Get-UxLocalizedString -Key 'GuiTweakStateDetailEnabled' -Fallback 'Enabled in the current selection.'
-				}
-				else
-				{
-					$stateLabel = Get-UxLocalizedString -Key 'GuiTweakStateDisabled' -Fallback 'Disabled'
-					$stateTone = 'Muted'
-					$stateDetail = Get-UxLocalizedString -Key 'GuiTweakStateDetailDisabled' -Fallback 'Disabled in the current selection.'
-				}
-				$defaultValueText = if ($defaultOn) { Get-UxLocalizedString -Key 'GuiTweakDefaultEnabled' -Fallback 'Enabled' } else { Get-UxLocalizedString -Key 'GuiTweakDefaultDisabled' -Fallback 'Disabled' }
+				$goalOn = Get-GuiToggleGoalState -Tweak $Tweak
+				$toggleDisplay = Get-GuiToggleDisplayState -Tweak $Tweak -StateSource $source
+				$stateLabel = [string]$toggleDisplay.StateLabel
+				$stateTone = [string]$toggleDisplay.StateTone
+				$matchesDesired = [bool]$toggleDisplay.MatchesDesired
+				$stateDetail = [string]$toggleDisplay.StateDetail
+				$defaultValueText = if ($goalOn) { Get-UxLocalizedString -Key 'GuiTweakDefaultEnabled' -Fallback 'Enabled' } else { Get-UxLocalizedString -Key 'GuiTweakDefaultDisabled' -Fallback 'Disabled' }
 			}
 				'Choice'
 				{

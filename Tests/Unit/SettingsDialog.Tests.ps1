@@ -7,7 +7,9 @@ BeforeAll {
     $script:DialogHelpersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers'
     $script:MenuHandlersPath = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers/MenuHandlers.ps1'
     $script:ActionHandlersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers'
+    $script:BuildPrimaryTabsPath = Join-Path $PSScriptRoot '../../Module/GUI/BuildPrimaryTabs.ps1'
     $script:WindowSetupPath = Join-Path $PSScriptRoot '../../Module/GUI/WindowSetup.ps1'
+    $script:EnUsLocalizationPath = Join-Path $PSScriptRoot '../../Localizations/English (United States)/en-US.json'
 
     $script:DialogHelpersContent = Get-BaselineTestSourceText -Path @(
         $script:DialogHelpersPath
@@ -27,6 +29,8 @@ BeforeAll {
         (Join-Path $script:ActionHandlersSplitRoot 'MenuHandlers.ps1')
     )
     $script:WindowSetupContent = Get-BaselineTestSourceText -Path $script:WindowSetupPath
+    $script:BuildPrimaryTabsContent = Get-BaselineTestSourceText -Path $script:BuildPrimaryTabsPath
+    $script:EnUsLocalizationContent = Get-BaselineTestSourceText -Path $script:EnUsLocalizationPath
 }
 
 Describe 'Settings dialog wiring' {
@@ -47,6 +51,8 @@ Describe 'Settings dialog wiring' {
         $script:DialogHelpersContent | Should -Match '& \$languageUiState\.Render \(\[string\]\$txtSettingsLanguageSearch\.Text\)'
         $script:DialogHelpersContent | Should -Match '\$getUxLocalizedStringCapture = \$\{function:Get-UxLocalizedString\}'
         $script:DialogHelpersContent | Should -Match '& \$getUxLocalizedStringCapture -Key ''GuiLanguageSearchNoResults'''
+        $script:BuildPrimaryTabsContent | Should -Match '\$Script:SetSelectedGuiLanguageScript = \$setSelectedGuiLanguageCommand'
+        $script:MenuHandlersContent | Should -Match '& \$Script:SetSelectedGuiLanguageScript -langCode \$desiredLanguage'
         $script:DialogHelpersContent | Should -Not -Match '\[string\]\$textSender\.Text'
         $script:DialogHelpersContent | Should -Not -Match 'Name="CmbLanguage"'
         $script:DialogHelpersContent | Should -Not -Match '\[string\]\$_\.SearchIndex -like "\*\$normalizedFilter\*"'
@@ -114,5 +120,87 @@ Describe 'Settings dialog wiring' {
     It 'persists default startup mode from Settings save' {
         $script:MenuHandlersContent | Should -Match '\$Script:DefaultStartupMode = \[string\]\$result\.DefaultStartupMode'
         $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''DefaultStartupMode'' -Value \$Script:DefaultStartupMode'
+    }
+
+    It 'applies hide-unavailable changes to live filter state before session snapshots are saved' {
+        $script:SettingsDialogContent | Should -Match 'Name="ChkHideUnavailableItems"'
+        $script:MenuHandlersContent | Should -Match '\$hideUnavailWanted = \[bool\]\$result\.HideUnavailableItems'
+        $script:MenuHandlersContent | Should -Match 'Set-HideUnavailableItemsState -HideUnavailableItems \$hideUnavailWanted'
+        $script:MenuHandlersContent | Should -Match '\$Script:HideUnavailableItems = \$hideUnavailWanted'
+        $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''HideUnavailableItems'' -Value \$hideUnavailWanted'
+    }
+
+    It 'persists launch system scan as an opt-in user preference' {
+        $script:SettingsDialogContent | Should -Match 'Name="ChkAutoScanOnLaunch"'
+        $script:SettingsDialogContent | Should -Match 'Scan system state on launch'
+        $script:MenuHandlersContent | Should -Match 'Get-BaselineUserPreference -Key ''AutoScanOnLaunch'' -Default \$false'
+        $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''AutoScanOnLaunch'' -Value \$autoScanWanted'
+        $script:WindowSetupContent | Should -Match '\$Script:AutoScanOnLaunch = \$false'
+        $script:WindowSetupContent | Should -Match '\$Script:ScanEnabled = \$false'
+        $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''AutoScanOnLaunch'' -Default \$false'
+    }
+
+    It 'adds Advanced storage and cache controls with safe clear defaults' {
+        $script:SettingsDialogContent | Should -Match 'Name="TxtStorageUsage"'
+        $script:SettingsDialogContent | Should -Match 'Name="TxtStorageLocation"'
+        $script:SettingsDialogContent | Should -Match 'Name="BtnRefreshStorageUsage"'
+        $script:SettingsDialogContent | Should -Match 'Name="BtnClearCache"'
+        $script:SettingsDialogContent | Should -Match 'function Show-GuiClearCacheDialog'
+        $script:SettingsDialogContent | Should -Match 'Name="ChkTemporaryCacheFiles" Content="\$temporaryCacheFilesLabelXaml" IsChecked="True"'
+        $script:SettingsDialogContent | Should -Match 'Name="ChkWorkingFiles" Content="\$workingFilesLabelXaml" IsChecked="True"'
+        $script:SettingsDialogContent | Should -Match 'Name="ChkLogs" Content="\$logsLabelXaml" IsChecked="False"'
+        $script:SettingsDialogContent | Should -Match 'Name="ChkAuditHistory" Content="\$auditHistoryLabelXaml" IsChecked="False"'
+        $script:SettingsDialogContent | Should -Match 'Name="ChkSavedSessionState" Content="\$savedSessionStateLabelXaml" IsChecked="False"'
+        $script:SettingsDialogContent | Should -Match 'Set-ButtonChrome -Button \$btnClearCache -Variant ''Secondary'''
+        $script:SettingsDialogContent | Should -Match '\$applyButtonChrome = \$\{function:Set-ButtonChrome\}'
+        $script:SettingsDialogContent | Should -Match '& \$applyButtonChrome -Button \$btnClearSelected -Variant ''Danger'''
+        $script:SettingsDialogContent | Should -Match '& \$applyButtonChrome -Button \$btnClearSelected -Variant ''Primary'''
+        $script:SettingsDialogContent | Should -Match '\$removeGuiWorkingCache = \{'
+        $script:SettingsDialogContent | Should -Match '\$Script:GuiExtractedRoot'
+        $script:SettingsDialogContent | Should -Match '\$getGuiBaselineTempStorageRoot = \{'
+        $script:SettingsDialogContent | Should -Match '& \$removeGuiWorkingCache -Root \$tempRoot'
+        $script:SettingsDialogContent | Should -Match 'GuiSettingsStorageUsageAppData'
+        $script:SettingsDialogContent | Should -Match 'GuiSettingsStorageUsageTemp'
+        $script:SettingsDialogContent | Should -Match 'GuiSettingsStorageUsageTotal'
+        $script:SettingsDialogContent | Should -Not -Match 'Backups / restore points'
+    }
+
+    It 'routes visible settings dialog copy through en-US localization keys' {
+        foreach ($key in @(
+            'GuiSettingsGeneralSection',
+            'GuiSettingsLanguageLabel',
+            'GuiSettingsAutoScanOnLaunchLabel',
+            'GuiSettingsHideUnavailableLabel',
+            'GuiSettingsUiDensityLabel',
+            'GuiSettingsPackageSourceLabel',
+            'GuiSettingsLoggingEnabledLabel',
+            'GuiSettingsOpenLogFolderLabel',
+            'GuiSettingsClearOldLogsLabel',
+            'GuiSettingsAdvancedModeLabel',
+            'GuiSettingsDesignModeLabel',
+            'GuiSettingsStorageCacheSection',
+            'GuiSettingsStorageUsageHeader',
+            'GuiSettingsStorageUsageAppData',
+            'GuiSettingsStorageUsageTemp',
+            'GuiSettingsStorageUsageTotal',
+            'GuiSettingsStorageLocationHeader',
+            'GuiSettingsStorageRefreshLabel',
+            'GuiSettingsClearCacheLabel',
+            'GuiSettingsClearCacheDialogTitle',
+            'GuiSettingsClearCacheTemporaryFilesLabel',
+            'GuiSettingsClearCacheWorkingFilesLabel',
+            'GuiSettingsClearCacheLogsLabel',
+            'GuiSettingsClearCacheAuditHistoryLabel',
+            'GuiSettingsClearCacheSavedSessionLabel',
+            'GuiSettingsClearCacheSavedSessionDescription',
+            'GuiSettingsClearSelectedLabel'
+        )) {
+            $script:SettingsDialogContent | Should -Match "Get-UxLocalizedString -Key '$key'"
+            $script:EnUsLocalizationContent | Should -Match "`"$key`":"
+        }
+
+        $script:SettingsDialogContent | Should -Not -Match 'Text="General preferences"'
+        $script:SettingsDialogContent | Should -Not -Match 'Content="Scan system state on launch"'
+        $script:SettingsDialogContent | Should -Not -Match 'Content="Open Log Folder"'
     }
 }

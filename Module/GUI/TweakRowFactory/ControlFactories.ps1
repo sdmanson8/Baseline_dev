@@ -49,6 +49,8 @@
 		param (
 			[object]$Tweak,
 			[object]$BrushConverter,
+			[double]$FontSize = (GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSubheading' -Default 12),
+			[double]$LineHeight = 17,
 			[switch]$UseWrapPanel
 		)
 
@@ -66,7 +68,9 @@
 		$nameText = New-Object System.Windows.Controls.TextBlock
 		$nameLabel = if ($Tweak.NameKey) { Get-UxString -Key $Tweak.NameKey -Fallback $Tweak.Name } else { $Tweak.Name }
 		Set-TweakSearchHighlightedTextBlock -TextBlock $nameText -Text $nameLabel -BrushConverter $BrushConverter
-		$nameText.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSubheading' -Default 12
+		$nameText.FontSize = $FontSize
+		$nameText.LineHeight = $LineHeight
+		$nameText.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
 		$nameText.FontWeight = [System.Windows.FontWeights]::SemiBold
 		$nameText.Foreground = $BrushConverter.ConvertFromString($Script:CurrentTheme.TextPrimary)
 		$nameText.VerticalAlignment = 'Center'
@@ -582,7 +586,7 @@
 		$leftStack.Orientation = 'Vertical'
 		$leftStack.VerticalAlignment = 'Center'
 
-		$checkBox = New-ToggleLikeCheckBox -Index $Index -InitialChecked (Get-DateInitialRunState -Index $Index -Tweak $Tweak) -BrushConverter $RowContext.BrushConverter
+		$checkBox = New-ToggleLikeCheckBox -Index $Index -InitialChecked (Get-DateInitialRunState -Index $Index -Tweak $Tweak) -BrushConverter $RowContext.BrushConverter -FontSize $RowContext.LabelFontSize
 		Apply-PendingLinkedToggleState -CheckBox $checkBox -FunctionName ([string]$Tweak.Function)
 		$stateControl = [pscustomobject]@{
 			Type = 'Date'
@@ -626,14 +630,16 @@
 		$dateLabel.Text = Get-UxString -Key 'GuiPauseStartDateLabel' -Fallback 'Pause start date:'
 		$dateLabel.Margin = [System.Windows.Thickness]::new(0, 0, 10, 0)
 		$dateLabel.VerticalAlignment = 'Center'
-		$dateLabel.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+		$dateLabel.FontSize = $RowContext.LabelFontSize
+		$dateLabel.LineHeight = $RowContext.LabelLineHeight
+		$dateLabel.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
 		$dateLabel.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextSecondary)
 		[void]($dateRow.Children.Add($dateLabel))
 		[void]($dateRow.Children.Add($datePicker))
 		[void]($leftStack.Children.Add($dateRow))
 
 		Add-TweakMetadataDetails -Container $leftStack -Tweak $Tweak -RowContext $RowContext -DescriptionText $(if ($Tweak.Description) { if ($Tweak.DescriptionKey) { Get-UxString -Key $Tweak.DescriptionKey -Fallback $Tweak.Description } else { $Tweak.Description } } else { Get-UxString -Key 'GuiPauseStartDateDescription' -Fallback 'Pauses updates starting on the selected date.' }) -DescriptionColor $Script:CurrentTheme.TextSecondary -DescriptionMargin $Script:T.DescIndent -MetadataMargin $Script:T.MetaIndent -BlastMargin $Script:T.BlastIndent
-		[void](Add-TweakWhyBlockDetails -Container $leftStack -Tweak $Tweak -LeftIndent 28 -RowMargin $Script:T.WhyIndent)
+		[void](Add-TweakWhyBlockDetails -Container $leftStack -Tweak $Tweak -RowContext $RowContext -LeftIndent 28 -RowMargin $Script:T.WhyIndent)
 
 		$stateControl.DatePicker = $datePicker
 		$stateControl.SelectedDate = $datePicker.SelectedDate
@@ -653,13 +659,14 @@
 		param (
 			[int]$Index,
 			[bool]$InitialChecked,
-			[object]$BrushConverter
+			[object]$BrushConverter,
+			[double]$FontSize = (GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11)
 		)
 
 		$checkBox = New-Object System.Windows.Controls.CheckBox
 		$checkBox.VerticalAlignment = 'Center'
 		$checkBox.Margin = $Script:T.CheckBoxRight
-		$checkBox.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+		$checkBox.FontSize = $FontSize
 		$checkBox.IsChecked = $InitialChecked
 		$checkBox.Tag = $Index
 		$checkBox.Foreground = $BrushConverter.ConvertFromString($Script:CurrentTheme.TextPrimary)
@@ -695,7 +702,7 @@
 
 		try
 		{
-			$nameRow = New-TweakNamePanel -Tweak $Tweak -BrushConverter $RowContext.BrushConverter -UseWrapPanel
+			$nameRow = New-TweakNamePanel -Tweak $Tweak -BrushConverter $RowContext.BrushConverter -FontSize $RowContext.NameFontSize -LineHeight $RowContext.NameLineHeight -UseWrapPanel
 		}
 		catch
 		{
@@ -734,7 +741,7 @@
 		[void]($nameRow.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star) })))
 		[void]($nameRow.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::Auto })))
 
-		$nameInner = New-TweakNamePanel -Tweak $Tweak -BrushConverter $RowContext.BrushConverter
+		$nameInner = New-TweakNamePanel -Tweak $Tweak -BrushConverter $RowContext.BrushConverter -FontSize $RowContext.NameFontSize -LineHeight $RowContext.NameLineHeight
 		[System.Windows.Controls.Grid]::SetColumn($nameInner, 0)
 		[void]($nameRow.Children.Add($nameInner))
 
@@ -764,48 +771,61 @@
 		$statusRow.Margin = $Script:T.StatusRow
 
 		$statusLabel = New-Object System.Windows.Controls.TextBlock
-		$statusLabel.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
+		$statusLabel.FontSize = $RowContext.DetailFontSize
+		$statusLabel.LineHeight = $RowContext.DetailLineHeight
+		$statusLabel.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
 		$statusLabel.FontWeight = [System.Windows.FontWeights]::Medium
 		$statusLabel.VerticalAlignment = 'Center'
 		[System.Windows.Controls.Grid]::SetColumn($statusLabel, 0)
 
 		$onColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.StateEnabled) { $Script:CurrentTheme.StateEnabled } else { '#9FD6AA' }
 		$offColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.StateDisabled) { $Script:CurrentTheme.StateDisabled } else { '#98A0B7' }
-		if ($CheckBox.IsChecked)
+		$primaryColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.AccentBlue) { $Script:CurrentTheme.AccentBlue } else { $onColor }
+		$mutedColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.TextMuted) { $Script:CurrentTheme.TextMuted } else { $offColor }
+		$toggleDisplay = $null
+		try
 		{
-			$statusLabel.Text = Get-UxToggleStateLabel -Enabled $true
-			$statusLabel.Foreground = $RowContext.BrushConverter.ConvertFromString($onColor)
+			$toggleDisplay = Get-GuiToggleDisplayState -Tweak $Tweak -StateSource $CheckBox
 		}
-		else
+		catch
 		{
-			$statusLabel.Text = Get-UxToggleStateLabel -Enabled $false
-			$statusLabel.Foreground = $RowContext.BrushConverter.ConvertFromString($offColor)
+			$statusLabel.Text = Get-UxString -Key 'GuiDetectionFailed' -Fallback 'Detection failed'
+			$statusLabel.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.CautionText)
+			Write-GuiRuntimeWarning -Context 'Build-TweakRow/Detect' -Message ("Detect failed for tweak '{0}' ({1}): {2}" -f [string]$Tweak.Name, [string]$Tweak.Function, $_.Exception.Message)
 		}
 
-		if ($Script:ScanEnabled -and $Tweak.Detect)
+		if ($toggleDisplay)
 		{
-			try
+			if ([bool]$toggleDisplay.MatchesDesired)
 			{
-				$detectedOn = [bool](Invoke-GuiDetectScriptblock -Detect $Tweak.Detect -DefaultValue ([bool]$Tweak.Default))
-				$onLabel = if ($Tweak.OnParam) { Get-UxString -Key "GuiToggleFallback$($Tweak.OnParam)" -Fallback $Tweak.OnParam } else { Get-UxToggleStateLabel -Enabled $true }
-				$offLabel = if ($Tweak.OffParam) { Get-UxString -Key "GuiToggleFallback$($Tweak.OffParam)" -Fallback $Tweak.OffParam } else { Get-UxToggleStateLabel -Enabled $false }
-				if ($detectedOn -eq [bool]$Tweak.Default)
+				$CheckBox.IsChecked = $true
+				$CheckBox.IsEnabled = $false
+				if (Get-Command -Name 'Remove-GuiExplicitSelectionDefinition' -CommandType Function -ErrorAction SilentlyContinue)
 				{
-					$stateWord = if ($detectedOn) { (Get-UxString -Key 'GuiAlreadyPrefix' -Fallback 'Already') + " $onLabel" } else { (Get-UxString -Key 'GuiAlreadyPrefix' -Fallback 'Already') + " $offLabel" }
-					$statusLabel.Text = $stateWord
-					$statusLabel.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextMuted)
-				}
-				else
-				{
-					$stateWord = if ($detectedOn) { $onLabel } else { $offLabel }
-					$statusLabel.Text = $stateWord
+					Remove-GuiExplicitSelectionDefinition -FunctionName ([string]$Tweak.Function)
 				}
 			}
-			catch
+
+			$statusLabel.Text = [string]$toggleDisplay.StateLabel
+			$statusLabel.Foreground = $RowContext.BrushConverter.ConvertFromString($(if ([string]$toggleDisplay.StateTone -eq 'Primary') { $primaryColor } else { $mutedColor }))
+		}
+
+		if ([bool]$CheckBox.IsChecked -and -not [bool]$CheckBox.IsEnabled)
+		{
+			$statusLabel.Text = Get-UxString -Key 'GuiTweakStateAlreadySet' -Fallback 'Already Set'
+			$statusLabel.Foreground = $RowContext.BrushConverter.ConvertFromString($mutedColor)
+		}
+		elseif (-not $toggleDisplay)
+		{
+			if ($CheckBox.IsChecked)
 			{
-				$statusLabel.Text = Get-UxString -Key 'GuiDetectionFailed' -Fallback 'Detection failed'
-				$statusLabel.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.CautionText)
-				Write-GuiRuntimeWarning -Context 'Build-TweakRow/Detect' -Message ("Detect failed for tweak '{0}' ({1}): {2}" -f [string]$Tweak.Name, [string]$Tweak.Function, $_.Exception.Message)
+				$statusLabel.Text = Get-UxString -Key 'GuiTweakStateWillChange' -Fallback 'Will Change'
+				$statusLabel.Foreground = $RowContext.BrushConverter.ConvertFromString($primaryColor)
+			}
+			else
+			{
+				$statusLabel.Text = Get-UxString -Key 'GuiTweakStateNotApplied' -Fallback 'Not Applied'
+				$statusLabel.Foreground = $RowContext.BrushConverter.ConvertFromString($mutedColor)
 			}
 		}
 
@@ -823,6 +843,8 @@
 			WhyBlock    = $whyBlock
 			OnColor     = $onColor
 			OffColor    = $offColor
+			PrimaryColor = $primaryColor
+			MutedColor   = $mutedColor
 		}
 	}
 
@@ -842,21 +864,23 @@
 		$statusLabelCapture = $StatusContext.StatusLabel
 		$onColorCapture = $StatusContext.OnColor
 		$offColorCapture = $StatusContext.OffColor
+		$primaryColorCapture = if ((Test-GuiObjectField -Object $StatusContext -FieldName 'PrimaryColor')) { [string]$StatusContext.PrimaryColor } else { $onColorCapture }
+		$mutedColorCapture = if ((Test-GuiObjectField -Object $StatusContext -FieldName 'MutedColor')) { [string]$StatusContext.MutedColor } else { $offColorCapture }
 		$convertBrushCapture = $RowContext.ConvertBrushCapture
-		$labelEnabled  = Get-UxToggleStateLabel -Enabled $true
-		$labelDisabled = Get-UxToggleStateLabel -Enabled $false
+		$labelEnabled  = Get-UxString -Key 'GuiTweakStateWillChange' -Fallback 'Will Change'
+		$labelDisabled = Get-UxString -Key 'GuiTweakStateNotApplied' -Fallback 'Not Applied'
 		$null = Register-GuiEventHandler -Source $CheckBox -EventName 'Checked' -Handler ({
 			if ($statusLabelCapture)
 			{
 				$statusLabelCapture.Text = $labelEnabled
-				$statusLabelCapture.Foreground = & $convertBrushCapture -Color $onColorCapture -Context 'Build-TweakRow/StatusEnabled'
+				$statusLabelCapture.Foreground = & $convertBrushCapture -Color $primaryColorCapture -Context 'Build-TweakRow/StatusWillChange'
 			}
 		}.GetNewClosure())
 		$null = Register-GuiEventHandler -Source $CheckBox -EventName 'Unchecked' -Handler ({
 			if ($statusLabelCapture)
 			{
 				$statusLabelCapture.Text = $labelDisabled
-				$statusLabelCapture.Foreground = & $convertBrushCapture -Color $offColorCapture -Context 'Build-TweakRow/StatusDisabled'
+				$statusLabelCapture.Foreground = & $convertBrushCapture -Color $mutedColorCapture -Context 'Build-TweakRow/StatusNotApplied'
 			}
 		}.GetNewClosure())
 	}
@@ -1615,7 +1639,7 @@
 
 		try { $Card.Child = $ChildContent } catch { throw "Finalize/SetChild: $($_.Exception.Message)" }
 		try { Add-CardHoverEffects -Card $Card -FocusSources @($CheckBox) } catch { throw "Finalize/HoverEffects: $($_.Exception.Message)" }
-		if ($Tweak.LinkedWith)
+		if ($Tweak.LinkedWith -and [bool]$CheckBox.IsEnabled)
 		{
 			try { & $RowContext.SyncLinkedState $Tweak.LinkedWith ([bool]$CheckBox.IsChecked) } catch { throw "Finalize/SyncLinked: $($_.Exception.Message)" }
 		}
@@ -1674,7 +1698,7 @@
 		$leftStack.Orientation = 'Vertical'
 		$leftStack.VerticalAlignment = 'Center'
 
-		$checkBox = New-ToggleLikeCheckBox -Index $Index -InitialChecked (Get-ToggleInitialCheckedState -Index $Index -Tweak $Tweak) -BrushConverter $RowContext.BrushConverter
+		$checkBox = New-ToggleLikeCheckBox -Index $Index -InitialChecked (Get-ToggleInitialCheckedState -Index $Index -Tweak $Tweak) -BrushConverter $RowContext.BrushConverter -FontSize $RowContext.LabelFontSize
 		Apply-PendingLinkedToggleState -CheckBox $checkBox -FunctionName ([string]$Tweak.Function)
 
 		$statusContext = New-ToggleStatusRow -Tweak $Tweak -CheckBox $checkBox -RowContext $RowContext
@@ -1690,6 +1714,11 @@
 		[void]($leftStack.Children.Add((New-ToggleLikeHeaderGrid -CheckBox $checkBox -Tweak $Tweak -RowContext $RowContext)))
 		[void]($leftStack.Children.Add($statusContext.Row))
 		Add-TweakMetadataDetails -Container $leftStack -Tweak $Tweak -RowContext $RowContext -DescriptionText $(if ($Tweak.Description) { if ($Tweak.DescriptionKey) { Get-UxString -Key $Tweak.DescriptionKey -Fallback $Tweak.Description } else { $Tweak.Description } } else { Get-UxString -Key 'GuiToggleDefaultDescription' -Fallback 'Turns this feature on when checked and off when unchecked.' }) -DescriptionColor $Script:CurrentTheme.TextSecondary -DescriptionMargin $Script:T.DescIndent -MetadataMargin $Script:T.MetaIndent -BlastMargin $Script:T.BlastIndent
+		if ($statusContext.WhyBlock -and $statusContext.WhyBlock.Tag)
+		{
+			Add-TweakScenarioTagsToDetailsPanel -DetailsHost $statusContext.WhyBlock.Tag -RowContext $RowContext
+			[void]($leftStack.Children.Add($statusContext.WhyBlock.Tag))
+		}
 
 		Register-ToggleStatusHandlers -CheckBox $checkBox -StatusContext $statusContext -RowContext $RowContext
 		Register-GuiToggleExplicitSelectionHandlers -CheckBox $checkBox -FunctionName ([string]$Tweak.Function) -RowContext $RowContext -StateControl $stateControl
@@ -1752,7 +1781,7 @@
 		}
 		[void]($leftStack.Children.Add((New-ChoiceHeaderGrid -Tweak $Tweak -RowContext $RowContext)))
 		Add-TweakMetadataDetails -Container $leftStack -Tweak $Tweak -RowContext $RowContext -DescriptionText $(if ($Tweak.DescriptionKey) { Get-UxString -Key $Tweak.DescriptionKey -Fallback ([string]$Tweak.Description) } else { [string]$Tweak.Description }) -DescriptionColor $Script:CurrentTheme.TextMuted -DescriptionMargin $Script:T.DescFlush -MetadataMargin $Script:T.MetaFlush -BlastMargin $Script:T.BlastFlush
-		[void](Add-TweakWhyBlockDetails -Container $leftStack -Tweak $Tweak -LeftIndent 0 -RowMargin $Script:T.WhyFlush)
+		[void](Add-TweakWhyBlockDetails -Container $leftStack -Tweak $Tweak -RowContext $RowContext -LeftIndent 0 -RowMargin $Script:T.WhyFlush)
 		[void]($grid.Children.Add($leftStack))
 
 		Register-GuiChoiceSelectionHandler -ComboBox $combo -FunctionName ([string]$Tweak.Function) -ChoiceOptions $choiceOptions -RowContext $RowContext -StateControl $stateControl
@@ -1786,12 +1815,14 @@
 		$numericRange = if ((Test-GuiObjectField -Object $Tweak -FieldName 'NumericRange')) { $Tweak.NumericRange } else { $null }
 		$units = if ($numericRange -and (Test-GuiObjectField -Object $numericRange -FieldName 'Units')) { [string]$numericRange.Units } else { $null }
 
-		$checkBox = New-ToggleLikeCheckBox -Index $Index -InitialChecked (Get-NumericRangeInitialCheckedState -Index $Index -Tweak $Tweak -RowContext $RowContext) -BrushConverter $RowContext.BrushConverter
+		$checkBox = New-ToggleLikeCheckBox -Index $Index -InitialChecked (Get-NumericRangeInitialCheckedState -Index $Index -Tweak $Tweak -RowContext $RowContext) -BrushConverter $RowContext.BrushConverter -FontSize $RowContext.LabelFontSize
 		Apply-PendingLinkedToggleState -CheckBox $checkBox -FunctionName ([string]$Tweak.Function)
 
 		$summaryText = New-Object System.Windows.Controls.TextBlock
 		$summaryText.TextWrapping = [System.Windows.TextWrapping]::Wrap
-		$summaryText.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+		$summaryText.FontSize = $RowContext.LabelFontSize
+		$summaryText.LineHeight = $RowContext.LabelLineHeight
+		$summaryText.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
 		$summaryText.Margin = [System.Windows.Thickness]::new(28, 4, 0, 0)
 		$summaryText.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextSecondary)
 		[void]($leftStack.Children.Add($summaryText))
@@ -1815,7 +1846,9 @@
 			$label.Text = $LabelText
 			$label.VerticalAlignment = 'Center'
 			$label.Margin = [System.Windows.Thickness]::new(0, 0, 10, 0)
-			$label.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+			$label.FontSize = $RowContext.LabelFontSize
+			$label.LineHeight = $RowContext.LabelLineHeight
+			$label.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
 			$label.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextMuted)
 			[System.Windows.Controls.Grid]::SetRow($label, $RowIndex)
 			[System.Windows.Controls.Grid]::SetColumn($label, 0)
@@ -1838,7 +1871,9 @@
 			$valueText = New-Object System.Windows.Controls.TextBlock
 			$valueText.Text = (Format-GuiNumericRangeValueText -Value $InitialValue -NumericRange $numericRange -Units $units)
 			$valueText.VerticalAlignment = 'Center'
-			$valueText.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+			$valueText.FontSize = $RowContext.LabelFontSize
+			$valueText.LineHeight = $RowContext.LabelLineHeight
+			$valueText.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
 			$valueText.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextSecondary)
 			[System.Windows.Controls.Grid]::SetRow($valueText, $RowIndex)
 			[System.Windows.Controls.Grid]::SetColumn($valueText, 2)
@@ -1891,7 +1926,7 @@
 		[void]($leftStack.Children.Add((New-ToggleLikeHeaderGrid -CheckBox $checkBox -Tweak $Tweak -RowContext $RowContext)))
 		[void]($leftStack.Children.Add($channelGrid))
 		Add-TweakMetadataDetails -Container $leftStack -Tweak $Tweak -RowContext $RowContext -DescriptionText $(if ($Tweak.Description) { if ($Tweak.DescriptionKey) { Get-UxString -Key $Tweak.DescriptionKey -Fallback $Tweak.Description } else { $Tweak.Description } } else { Get-UxString -Key 'GuiNumericRangeDefaultDescription' -Fallback 'Adjusts a numeric power value for the selected power scheme.' }) -DescriptionColor $Script:CurrentTheme.TextSecondary -DescriptionMargin $Script:T.DescIndent -MetadataMargin $Script:T.MetaIndent -BlastMargin $Script:T.BlastIndent
-		[void](Add-TweakWhyBlockDetails -Container $leftStack -Tweak $Tweak -LeftIndent 28 -RowMargin $Script:T.WhyIndent)
+		[void](Add-TweakWhyBlockDetails -Container $leftStack -Tweak $Tweak -RowContext $RowContext -LeftIndent 28 -RowMargin $Script:T.WhyIndent)
 
 		Register-GuiNumericRangeSelectionHandlers -CheckBox $checkBox -AcSlider $acChannel.Slider -DcSlider $dcChannel.Slider -AcValueText $acChannel.ValueText -DcValueText $dcChannel.ValueText -SummaryText $summaryText -FunctionName ([string]$Tweak.Function) -NumericRange $numericRange -Units $units -RowContext $RowContext -StateControl $stateControl
 		$stateControl.ACValueText.Text = (Format-GuiNumericRangeValueText -Value $acChannel.Slider.Value -NumericRange $numericRange -Units $units)
@@ -1915,7 +1950,7 @@
 		)
 
 		$card = New-TweakRowCard -BrushConverter $RowContext.BrushConverter -Margin $RowContext.RowCardMargin -Padding $RowContext.RowCardPadding -Tweak $Tweak
-		$checkBox = New-ToggleLikeCheckBox -Index $Index -InitialChecked (Get-ActionInitialCheckedState -Index $Index -Tweak $Tweak) -BrushConverter $RowContext.BrushConverter
+		$checkBox = New-ToggleLikeCheckBox -Index $Index -InitialChecked (Get-ActionInitialCheckedState -Index $Index -Tweak $Tweak) -BrushConverter $RowContext.BrushConverter -FontSize $RowContext.LabelFontSize
 		Apply-PendingLinkedToggleState -CheckBox $checkBox -FunctionName ([string]$Tweak.Function)
 		$actionPicker = Get-GuiActionPickerConfig -Tweak $Tweak
 		$initialSelectedPath = $null
@@ -1979,7 +2014,7 @@
 		}
 		try
 		{
-			[void](Add-TweakWhyBlockDetails -Container $nameRowWithDescription -Tweak $Tweak -LeftIndent 28 -RowMargin $Script:T.WhyIndent)
+			[void](Add-TweakWhyBlockDetails -Container $nameRowWithDescription -Tweak $Tweak -RowContext $RowContext -LeftIndent 28 -RowMargin $Script:T.WhyIndent)
 		}
 		catch
 		{

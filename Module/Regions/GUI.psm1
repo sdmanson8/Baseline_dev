@@ -574,7 +574,12 @@ function Show-TweakGUI
 		if (-not $env:BASELINE_PERF_LOG) { return }
 		try
 		{
-			$tracePath = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline-launch-trace.txt'
+			$traceDirectory = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline'
+			if (-not [System.IO.Directory]::Exists($traceDirectory))
+			{
+				[void][System.IO.Directory]::CreateDirectory($traceDirectory)
+			}
+			$tracePath = Join-Path $traceDirectory 'Baseline-launch-trace.txt'
 			[System.IO.File]::AppendAllText($tracePath, ("{0:o} [GUI] {1}`r`n" -f [DateTime]::UtcNow, $Message), [System.Text.Encoding]::UTF8)
 		}
 		catch
@@ -597,6 +602,7 @@ function Show-TweakGUI
 	& $traceGuiStartup 'Core context loaded'
 
 	. (Join-Path $Script:GuiExtractedRoot 'UxPolicy.ps1')
+	. (Join-Path $Script:GuiExtractedRoot 'UIDensity.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'SessionState.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'PreviewBuilders.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'ExecutionSummary.ps1')
@@ -1113,6 +1119,10 @@ Supports GUI primary tab for tweak handling inside Baseline.
 				$Script:StartupRestoreSessionPending = $true
 				$desiredTab = if (Test-GuiObjectField -Object $startupSessionSnapshot -FieldName 'CurrentPrimaryTab') { [string]$startupSessionSnapshot.CurrentPrimaryTab } else { $null }
 				$desiredLast = if (Test-GuiObjectField -Object $startupSessionSnapshot -FieldName 'LastStandardPrimaryTab') { [string]$startupSessionSnapshot.LastStandardPrimaryTab } else { $null }
+				if (Test-GuiObjectField -Object $startupSessionSnapshot -FieldName 'UIDensity' -and -not [string]::IsNullOrWhiteSpace([string]$startupSessionSnapshot.UIDensity))
+				{
+					$Script:UIDensity = if (Get-Command -Name 'Normalize-BaselineUiDensity' -CommandType Function -ErrorAction SilentlyContinue) { Normalize-BaselineUiDensity -Density ([string]$startupSessionSnapshot.UIDensity) } else { [string]$startupSessionSnapshot.UIDensity }
+				}
 				if (-not [string]::IsNullOrWhiteSpace($desiredTab) -and $desiredTab -ne $Script:SearchResultsTabTag)
 				{
 					$Script:StartupHydratePrimaryTab = $desiredTab
@@ -1269,6 +1279,7 @@ Supports GUI primary tab for tweak handling inside Baseline.
 	$Script:SyncUxActionButtonTextScript = ${function:Sync-UxActionButtonText}
 	$Script:ClearInvisibleSelectionStateScript = ${function:Clear-InvisibleSelectionState}
 	$Script:UpdateHeaderModeStateTextScript = ${function:Update-HeaderModeStateText}
+	$invokeGuiSystemScanOnLaunchScript = ${function:Invoke-GuiSystemScan}
 
 	# Apply initial theme based on the saved session, then Windows theme when no session exists.
 	$initialThemeName = 'Dark'
@@ -1482,8 +1493,9 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 				$closePs = [powershell]::Create()
 				$closePs.Runspace = $closeRunspace
 				[void]$closePs.AddScript({
-					$tracePath = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline-launch-trace.txt'
-					$trace = { param($m) try { [System.IO.File]::AppendAllText($tracePath, ("{0:o} {1}`r`n" -f [DateTime]::UtcNow, $m), [System.Text.Encoding]::UTF8) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.Trace.AppendAllText' } }
+					$traceDirectory = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline'
+					$tracePath = Join-Path $traceDirectory 'Baseline-launch-trace.txt'
+					$trace = { param($m) try { if (-not [System.IO.Directory]::Exists($traceDirectory)) { [void][System.IO.Directory]::CreateDirectory($traceDirectory) }; [System.IO.File]::AppendAllText($tracePath, ("{0:o} {1}`r`n" -f [DateTime]::UtcNow, $m), [System.Text.Encoding]::UTF8) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SplashClose.Trace.AppendAllText' } }
 					& $trace 'SplashClose runspace: started polling GuiReady'
 					try
 					{
@@ -1607,6 +1619,24 @@ if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefault
 		if (Get-Command -Name 'Update-WindowMinWidthFromHeader' -CommandType Function -ErrorAction SilentlyContinue)
 		{
 			Update-WindowMinWidthFromHeader
+		}
+
+		if ([bool]$Script:AutoScanOnLaunch -and $invokeGuiSystemScanOnLaunchScript)
+		{
+			$autoScanAction = {
+				try
+				{
+					& $invokeGuiSystemScanOnLaunchScript
+				}
+				catch
+				{
+					Write-DebugSwallowedException -ErrorRecord $_ -Source 'Regions.GUI.AutoScanOnLaunch'
+				}
+			}.GetNewClosure()
+			$null = $Form.Dispatcher.BeginInvoke(
+				[System.Action]$autoScanAction,
+				[System.Windows.Threading.DispatcherPriority]::ApplicationIdle
+			)
 		}
 
 		if (-not $shouldShowFirstRunWelcome)

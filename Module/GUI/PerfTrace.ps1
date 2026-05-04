@@ -1,7 +1,7 @@
 ﻿# Lightweight in-process perf tracer for the Baseline GUI.
 # Activation: set env var BASELINE_PERF_LOG=1 before launching. When unset,
 # Start/Stop scopes are near-zero-cost no-ops (single env read + early return).
-# Output: $env:LOCALAPPDATA\Baseline\perf.log (one line per scope: ISO8601, ms, name, note).
+# Output: $env:LOCALAPPDATA\Temp\Baseline\perf.log (one line per scope: ISO8601, ms, name, note).
 
 $Script:GuiPerfEnabled = $null
 $Script:GuiPerfLogPath = $null
@@ -19,7 +19,7 @@ function Initialize-GuiPerfTrace
 
 	$base = $env:LOCALAPPDATA
 	if ([string]::IsNullOrWhiteSpace($base)) { $base = [System.IO.Path]::GetTempPath() }
-	$dir = Join-Path $base 'Baseline'
+	$dir = Join-Path $base 'Temp\Baseline'
 	try
 	{
 		if (-not (Test-Path -LiteralPath $dir)) { [void](New-Item -ItemType Directory -Path $dir -Force) }

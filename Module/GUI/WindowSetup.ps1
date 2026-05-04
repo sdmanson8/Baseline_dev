@@ -776,8 +776,11 @@
 	$Script:HideUnavailableItems = $true
 	$Script:DesignMode = $false
 	$Script:RestoreLastSession = $true
+	$Script:AutoScanOnLaunch = $false
+	$Script:ScanEnabled = $false
 	$Script:DebugLoggingEnabled = $false
 	$Script:LogFileDirectory = ''
+	$Script:UIDensity = if (Get-Command -Name 'Get-BaselineUiDensity' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineUiDensity } else { 'Comfort' }
 	try
 	{
 		if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
@@ -785,8 +788,10 @@
 			$Script:HideUnavailableItems = [bool](Get-BaselineUserPreference -Key 'HideUnavailableItems' -Default $true)
 			$Script:DesignMode = [bool](Get-BaselineUserPreference -Key 'DesignMode' -Default $false)
 			$Script:RestoreLastSession = [bool](Get-BaselineUserPreference -Key 'RestoreLastSession' -Default $true)
+			$Script:AutoScanOnLaunch = [bool](Get-BaselineUserPreference -Key 'AutoScanOnLaunch' -Default $false)
 			$Script:DebugLoggingEnabled = [bool](Get-BaselineUserPreference -Key 'DebugLoggingEnabled' -Default $false)
 			$Script:LogFileDirectory = [string](Get-BaselineUserPreference -Key 'LogFileDirectory' -Default '')
+			$Script:UIDensity = if (Get-Command -Name 'Normalize-BaselineUiDensity' -CommandType Function -ErrorAction SilentlyContinue) { Normalize-BaselineUiDensity -Density ([string](Get-BaselineUserPreference -Key 'UIDensity' -Default $Script:UIDensity)) } else { [string](Get-BaselineUserPreference -Key 'UIDensity' -Default $Script:UIDensity) }
 			$Script:AppsPackageSourcePreference = [string](Get-BaselineUserPreference -Key 'AppsPackageSourcePreference' -Default $Script:AppsPackageSourcePreference)
 		}
 	}

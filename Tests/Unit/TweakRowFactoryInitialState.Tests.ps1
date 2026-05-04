@@ -12,9 +12,11 @@ BeforeAll {
         Internal function .
     #>
     function Get-GuiObjectField { param([object]$Object, [string]$FieldName) if ($null -eq $Object) { return $null }; if ($Object -is [System.Collections.IDictionary]) { return $Object[$FieldName] }; if ($Object.PSObject -and $Object.PSObject.Properties[$FieldName]) { return $Object.PSObject.Properties[$FieldName].Value }; return $null }
+    $densityPath = Join-Path $PSScriptRoot '../../Module/GUI/UIDensity.ps1'
     $filePath = Join-Path $PSScriptRoot '../../Module/GUI/TweakRowFactory.ps1'
     $splitRoot = Join-Path $PSScriptRoot '../../Module/GUI/TweakRowFactory'
     $filePaths = @(
+        $densityPath
         $filePath
         (Join-Path $splitRoot 'RowStateDefaults.ps1')
         (Join-Path $splitRoot 'MetadataDetails.ps1')
@@ -84,7 +86,11 @@ Describe 'Tweak row content pins' {
         $script:FileContent | Should -Match 'Thickness1\s+= if \(\$isLight\) \{ \$Script:T\.CardBorder \} else \{ \$Script:T\.RowDivider \}'
         $script:FileContent | Should -Match 'Thickness2\s+= if \(\$isLight\) \{ \$Script:T\.CardBorderFocus \} else \{ \$Script:T\.RowDividerFocus \}'
         $script:FileContent | Should -Match 'AccentBorder\s+= \[System\.Windows\.Thickness\]::new\(3, 0, 0, 1\)'
-        $script:FileContent | Should -Match 'RowCardPadding\s+= \[System\.Windows\.Thickness\]::new\(12, 8, 12, 8\)'
+        $script:FileContent | Should -Match 'RowCardPadding\s+= \[System\.Windows\.Thickness\]::new\(16, 12, 16, 12\)'
+        $script:FileContent | Should -Match 'RowCardPadding\s+= \[System\.Windows\.Thickness\]::new\(10, 7, 10, 7\)'
+        $script:FileContent | Should -Match 'RowCardPadding\s+= \[System\.Windows\.Thickness\]::new\(7, 4, 7, 4\)'
+        $script:FunctionTextByName['Build-TweakRow'] | Should -Match 'RowContextSharedDensity'
+        $script:FunctionTextByName['Build-TweakRow'] | Should -Match 'NameLineHeight'
     }
 
     It 'does not render per-row reset actions in the primary row header' {
@@ -95,15 +101,27 @@ Describe 'Tweak row content pins' {
         $script:FileContent | Should -Not -Match 'New-ChoiceHeaderGrid[^\r\n]+-ResetButton'
     }
 
-    It 'keeps tweak details collapsed behind row-level Show details controls' {
+    It 'keeps tweak metadata inline like the recovered stash' {
+        $detailsFunction = $script:FunctionTextByName['Add-TweakMetadataDetails']
         $script:FileContent | Should -Match 'Set-TweakSearchHighlightedTextBlock'
-        $script:FileContent | Should -Match '\$detailsPanel\.Visibility = \[System\.Windows\.Visibility\]::Collapsed'
-        $script:FileContent | Should -Match "Get-UxString -Key 'GuiShowDetails' -Fallback 'Show details'"
-        $script:FileContent | Should -Match "Get-UxString -Key 'GuiHideDetails' -Fallback 'Hide details'"
-        $script:FileContent | Should -Match 'Add-TweakDetailLine -Container \$detailsPanel .*GuiSectionImpact'
-        $script:FileContent | Should -Match 'Add-TweakDetailLine -Container \$detailsPanel .*GuiSectionBehavior'
-        $script:FileContent | Should -Match 'Add-TweakDetailLine -Container \$detailsPanel .*GuiSectionRecovery'
-        $script:FileContent | Should -Match 'Add-TweakDetailLine -Container \$detailsPanel .*GuiSectionTags'
+        $detailsFunction | Should -Not -Match '\$detailsPanel'
+        $detailsFunction | Should -Not -Match "Get-UxString -Key 'GuiDetailsButton' -Fallback 'Details'"
+        $detailsFunction | Should -Not -Match "Get-UxString -Key 'GuiShowDetails' -Fallback 'Show details'"
+        $detailsFunction | Should -Not -Match "Get-UxString -Key 'GuiHideDetails' -Fallback 'Hide details'"
+        $detailsFunction | Should -Not -Match 'Add-TweakDetailLine'
+        $detailsFunction | Should -Match '\[void\]\(\$Container\.Children\.Add\(\$descriptionTextBlock\)\)'
+        $detailsFunction | Should -Match 'New-TweakMetadataChipPanel -Metadata \$RowContext\.Metadata -IncludeType:\$false -IncludeState:\$false -IncludeRestart:\$false -IncludeRestorable:\$false -IncludeRecoveryLevel:\$true .* -IncludeScenarioTags:\$false'
+        $detailsFunction | Should -Match '-not \[bool\]\$RowContext\.Metadata\.MatchesDesired -and -not \[string\]::IsNullOrWhiteSpace\(\[string\]\$RowContext\.Metadata\.BlastRadius\)'
+        $script:FunctionTextByName['Add-TweakScenarioTagsToDetailsPanel'] | Should -Not -Match 'New-TweakMetadataChipPanel'
+        $script:FunctionTextByName['Add-TweakScenarioTagsToDetailsPanel'] | Should -Match '\$tagBorder = .*AccentBlue'
+        $script:FunctionTextByName['Add-TweakScenarioTagsToDetailsPanel'] | Should -Match '\$tagForeground = .*AccentHover'
+        $script:FunctionTextByName['Add-TweakScenarioTagsToDetailsPanel'] | Should -Match "Get-UxString -Key 'GuiTweakChipTooltipScenarioTag'"
+        $script:FunctionTextByName['Add-TweakScenarioTagsToDetailsPanel'] | Should -Match "Get-UxString -Key 'GuiTweakChipMoreFormat'"
+        $script:FunctionTextByName['Add-TweakScenarioTagsToDetailsPanel'] | Should -Not -Match "Get-UxString -Key 'GuiSectionTags' -Fallback 'Tags'"
+        $script:FunctionTextByName['Add-TweakWhyBlockDetails'] | Should -Match 'Add-TweakScenarioTagsToDetailsPanel -DetailsHost \$whyBlock\.Tag -RowContext \$RowContext'
+        $script:FunctionTextByName['New-ToggleTweakRow'] | Should -Match '\$statusContext\.WhyBlock -and \$statusContext\.WhyBlock\.Tag'
+        $script:FunctionTextByName['New-ToggleTweakRow'] | Should -Match 'Add-TweakScenarioTagsToDetailsPanel -DetailsHost \$statusContext\.WhyBlock\.Tag -RowContext \$RowContext'
+        $script:FunctionTextByName['New-ToggleTweakRow'] | Should -Match '\[void\]\(\$leftStack\.Children\.Add\(\$statusContext\.WhyBlock\.Tag\)\)'
     }
 }
 
@@ -326,8 +344,10 @@ Describe 'Tweak row initial state recovery' {
     }
 
     Describe 'Numeric range row wiring' {
-        It 'resolves the shared label font size through the guarded helper inside the toggle-like checkbox helper' {
-            $script:FunctionTextByName['New-ToggleLikeCheckBox'] | Should -Match '(?i)\$checkBox\.FontSize\s*=\s*GUICommon\\Get-GuiSafeFontSize\s*-Key\s*''FontSizeLabel''\s*-Default\s*11'
+        It 'resolves the checkbox label font size through density-aware row context tokens' {
+            $script:FunctionTextByName['New-ToggleLikeCheckBox'] | Should -Match '\[double\]\$FontSize = \(GUICommon\\Get-GuiSafeFontSize -Key ''FontSizeLabel'' -Default 11\)'
+            $script:FunctionTextByName['New-ToggleLikeCheckBox'] | Should -Match '\$checkBox\.FontSize = \$FontSize'
+            $script:FunctionTextByName['New-NumericRangeTweakRow'] | Should -Match '-FontSize \$RowContext\.LabelFontSize'
         }
 
         It 'does not force FontSize onto the numeric-range checkbox or slider controls' {

@@ -1275,8 +1275,22 @@
 			return 'Info'
 		}
 
-		$logFontSizeLabel = $Script:GuiLayout.FontSizeLabel
-		$logFontSizeSubheading = $Script:GuiLayout.FontSizeSubheading
+		$uiDensityTokens = if (Get-Command -Name 'Get-BaselineUiDensityTokens' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineUiDensityTokens } else { $null }
+		$logFontSizeLabel = if ($uiDensityTokens) { [double]$uiDensityTokens.LabelFontSize } else { $Script:GuiLayout.FontSizeLabel }
+		$logFontSizeSubheading = if ($uiDensityTokens) { [double]$uiDensityTokens.NameFontSize } else { $Script:GuiLayout.FontSizeSubheading }
+		$logLineHeight = if ($uiDensityTokens) { [double]$uiDensityTokens.LabelLineHeight } else { 16 }
+		$logRowMargin = switch ($(if ($uiDensityTokens) { [string]$uiDensityTokens.Density } else { 'Comfort' }))
+		{
+			'High' { [System.Windows.Thickness]::new(0, 0, 0, 0); break }
+			'Compact' { [System.Windows.Thickness]::new(0, 1, 0, 0); break }
+			default { [System.Windows.Thickness]::new(0, 2, 0, 2) }
+		}
+		$logIconMargin = switch ($(if ($uiDensityTokens) { [string]$uiDensityTokens.Density } else { 'Comfort' }))
+		{
+			'High' { [System.Windows.Thickness]::new(0, 0, 4, 0); break }
+			'Compact' { [System.Windows.Thickness]::new(0, 1, 5, 0); break }
+			default { [System.Windows.Thickness]::new(0, 1, 6, 0) }
+		}
 		$loadLogContent = {
 			$logPanel.Children.Clear()
 
@@ -1346,7 +1360,7 @@
 				$colText.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
 				[void]$row.ColumnDefinitions.Add($colIcon)
 				[void]$row.ColumnDefinitions.Add($colText)
-				$row.Margin = [System.Windows.Thickness]::new(0, 1, 0, 1)
+				$row.Margin = $logRowMargin
 
 				$icon = [System.Windows.Controls.TextBlock]::new()
 				$icon.Text = [char]0xF4F5
@@ -1354,13 +1368,15 @@
 				$icon.FontSize = $logFontSizeLabel
 				$icon.Foreground = $bc.ConvertFromString($color)
 				$icon.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
-				$icon.Margin = [System.Windows.Thickness]::new(0, 1, 6, 0)
+				$icon.Margin = $logIconMargin
 				[System.Windows.Controls.Grid]::SetColumn($icon, 0)
 
 				$tb = [System.Windows.Controls.TextBlock]::new()
 				$tb.Text = $line
 				$tb.FontFamily = [System.Windows.Media.FontFamily]::new('Consolas, Courier New')
 				$tb.FontSize = $logFontSizeLabel
+				$tb.LineHeight = $logLineHeight
+				$tb.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
 				$tb.Foreground = $bc.ConvertFromString($color)
 				$tb.TextWrapping = [System.Windows.TextWrapping]::NoWrap
 				$tb.Margin = [System.Windows.Thickness]::new(0)

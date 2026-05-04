@@ -15,7 +15,7 @@ function Get-GuiSettingsProfileDirectory
 	}
 	elseif ($env:LOCALAPPDATA)
 	{
-		$baseDir = Join-Path $env:LOCALAPPDATA "$AppName\Profiles"
+		$baseDir = Join-Path $env:LOCALAPPDATA "$AppName\UserState\Profiles"
 	}
 	else
 	{
@@ -27,6 +27,22 @@ function Get-GuiSettingsProfileDirectory
 		if (-not (Test-Path -LiteralPath $baseDir))
 		{
 			[void](New-Item -ItemType Directory -Path $baseDir -Force -ErrorAction Stop)
+		}
+
+		if ([string]::IsNullOrWhiteSpace([string]$stateRoot) -and $env:LOCALAPPDATA)
+		{
+			$legacyDir = Join-Path $env:LOCALAPPDATA "$AppName\Profiles"
+			if ((Test-Path -LiteralPath $legacyDir) -and -not [string]::Equals([System.IO.Path]::GetFullPath($legacyDir), [System.IO.Path]::GetFullPath($baseDir), [System.StringComparison]::OrdinalIgnoreCase))
+			{
+				foreach ($legacyFile in @(Get-ChildItem -LiteralPath $legacyDir -File -Filter '*.json' -ErrorAction SilentlyContinue))
+				{
+					$targetPath = Join-Path $baseDir $legacyFile.Name
+					if (-not (Test-Path -LiteralPath $targetPath))
+					{
+						Copy-Item -LiteralPath $legacyFile.FullName -Destination $targetPath -Force -ErrorAction Stop
+					}
+				}
+			}
 		}
 	}
 	catch

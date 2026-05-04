@@ -45,27 +45,32 @@ $tweakRowFactorySplitRoot = Join-Path $PSScriptRoot 'TweakRowFactory'
 	$Script:CardCornerRadius6 = [System.Windows.CornerRadius]::new(6)
 	# Pre-computed Thickness values reused across all tweak row cards to avoid
 	# per-row allocations.  Thickness is immutable in WPF so sharing is safe.
-	$Script:T = @{
-		Zero           = [System.Windows.Thickness]::new(0)
-		CheckBoxRight  = [System.Windows.Thickness]::new(0, 0, 10, 0)
-		ComboLeft      = [System.Windows.Thickness]::new(14, 0, 0, 0)
-		StatusRow      = [System.Windows.Thickness]::new(28, 0, 0, 0)
-		BadgePad       = [System.Windows.Thickness]::new(5, 1, 5, 1)
-		RowDivider     = [System.Windows.Thickness]::new(0, 0, 0, 1)
-		RowDividerFocus = [System.Windows.Thickness]::new(0, 0, 0, 2)
-		CardBorder     = [System.Windows.Thickness]::new(1)
-		CardBorderFocus = [System.Windows.Thickness]::new(2)
-		AccentBorder   = [System.Windows.Thickness]::new(3, 0, 0, 1)
-		AccentFocus    = [System.Windows.Thickness]::new(3, 0, 0, 2)
-		DescIndent     = [System.Windows.Thickness]::new(28, 1, 6, 0)
-		MetaIndent     = [System.Windows.Thickness]::new(28, 6, 0, 0)
-		BlastIndent    = [System.Windows.Thickness]::new(28, 4, 6, 0)
-		WhyIndent      = [System.Windows.Thickness]::new(28, 2, 0, 0)
-		DescFlush      = [System.Windows.Thickness]::new(0, 1, 0, 0)
-		MetaFlush      = [System.Windows.Thickness]::new(0, 6, 0, 0)
-		BlastFlush     = [System.Windows.Thickness]::new(0, 4, 0, 0)
-		WhyFlush       = [System.Windows.Thickness]::new(0, 2, 0, 0)
+	function Set-TweakRowFactoryDensityTokens
+	{
+		$densityTokens = Get-BaselineUiDensityTokens
+		$Script:T = @{
+			Zero            = [System.Windows.Thickness]::new(0)
+			CheckBoxRight   = $densityTokens.CheckBoxRight
+			ComboLeft       = [System.Windows.Thickness]::new(14, 0, 0, 0)
+			StatusRow       = $densityTokens.StatusRow
+			BadgePad        = [System.Windows.Thickness]::new(5, 1, 5, 1)
+			RowDivider      = [System.Windows.Thickness]::new(0, 0, 0, 1)
+			RowDividerFocus = [System.Windows.Thickness]::new(0, 0, 0, 2)
+			CardBorder      = [System.Windows.Thickness]::new(1)
+			CardBorderFocus = [System.Windows.Thickness]::new(2)
+			AccentBorder    = [System.Windows.Thickness]::new(3, 0, 0, 1)
+			AccentFocus     = [System.Windows.Thickness]::new(3, 0, 0, 2)
+			DescIndent      = $densityTokens.DescIndent
+			MetaIndent      = $densityTokens.MetaIndent
+			BlastIndent     = $densityTokens.BlastIndent
+			WhyIndent       = $densityTokens.WhyIndent
+			DescFlush       = $densityTokens.DescFlush
+			MetaFlush       = $densityTokens.MetaFlush
+			BlastFlush      = $densityTokens.BlastFlush
+			WhyFlush        = $densityTokens.WhyFlush
+		}
 	}
+	Set-TweakRowFactoryDensityTokens
 
 	<#
 	    .SYNOPSIS
@@ -85,21 +90,31 @@ $tweakRowFactorySplitRoot = Join-Path $PSScriptRoot 'TweakRowFactory'
 			}
 
 			# Cache shared row context parts that are identical for every row.
-			if (-not $Script:RowContextShared -or $Script:RowContextSharedTheme -ne $Script:CurrentThemeName)
+			$density = Get-BaselineUiDensity
+			if (-not $Script:RowContextShared -or $Script:RowContextSharedTheme -ne $Script:CurrentThemeName -or $Script:RowContextSharedDensity -ne $density)
 			{
+				$densityTokens = Get-BaselineUiDensityTokens -Density $density
 				$Script:RowContextShared = @{
 					ConvertBrushCapture               = Get-GuiRuntimeCommand -Name 'ConvertTo-GuiBrush' -CommandType 'Function'
 					GetExplicitSelectionDefinition    = ${function:Get-GuiExplicitSelectionDefinition}
 					SetExplicitSelectionDefinition    = ${function:Set-GuiExplicitSelectionDefinition}
 					RemoveExplicitSelectionDefinition = ${function:Remove-GuiExplicitSelectionDefinition}
 					SyncGameModePlanFromControlsScript = ${function:Sync-GameModePlanFromGamingControls}
-					RowCardMargin                     = [System.Windows.Thickness]::new(8, 3, 8, 5)
-					RowCardPadding                    = [System.Windows.Thickness]::new(12, 8, 12, 8)
-					BadgeSpacing                      = [System.Windows.Thickness]::new(4, 0, 0, 0)
+					RowCardMargin                     = $densityTokens.RowCardMargin
+					RowCardPadding                    = $densityTokens.RowCardPadding
+					BadgeSpacing                      = $densityTokens.BadgeSpacing
+					NameFontSize                      = [double]$densityTokens.NameFontSize
+					LabelFontSize                     = [double]$densityTokens.LabelFontSize
+					DetailFontSize                    = [double]$densityTokens.DetailFontSize
+					NameLineHeight                    = [double]$densityTokens.NameLineHeight
+					LabelLineHeight                   = [double]$densityTokens.LabelLineHeight
+					DetailLineHeight                  = [double]$densityTokens.DetailLineHeight
+					RowIconSize                       = [double]$densityTokens.RowIconSize
 					SyncLinkedState                   = $syncLinkedState
 					FallbackBrushConverter            = New-SafeBrushConverter -Context 'Build-TweakRow'
 				}
 				$Script:RowContextSharedTheme = $Script:CurrentThemeName
+				$Script:RowContextSharedDensity = $density
 			}
 			$shared = $Script:RowContextShared
 			$rowContext = [pscustomobject]@{
@@ -114,6 +129,13 @@ $tweakRowFactorySplitRoot = Join-Path $PSScriptRoot 'TweakRowFactory'
 				RowCardMargin                     = $shared.RowCardMargin
 				RowCardPadding                    = $shared.RowCardPadding
 				BadgeSpacing                      = $shared.BadgeSpacing
+				NameFontSize                      = $shared.NameFontSize
+				LabelFontSize                     = $shared.LabelFontSize
+				DetailFontSize                    = $shared.DetailFontSize
+				NameLineHeight                    = $shared.NameLineHeight
+				LabelLineHeight                   = $shared.LabelLineHeight
+				DetailLineHeight                  = $shared.DetailLineHeight
+				RowIconSize                       = $shared.RowIconSize
 				SyncLinkedState                   = $shared.SyncLinkedState
 			}
 

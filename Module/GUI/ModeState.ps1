@@ -111,8 +111,20 @@
 		}
 		if ($ChkScan)          { $ChkScan.Visibility          = $safeModeHidden }
 
-		# Menu bar: hide advanced menu items and Tools menu entirely in Safe Mode
-		if ($Script:MenuTools)                  { $Script:MenuTools.Visibility                  = $safeModeHidden }
+		# Menu bar: hide advanced menu items in Safe Mode, but keep Tools
+		# available for app maintenance and support bundle export.
+		if ($Script:MenuTools)                  { $Script:MenuTools.Visibility                  = 'Visible' }
+		if ($Script:MenuToolsAppsManager)       { $Script:MenuToolsAppsManager.Visibility       = 'Visible' }
+		if ($Script:MenuToolsUpdateAllApps)     { $Script:MenuToolsUpdateAllApps.Visibility     = 'Visible' }
+		if ($Script:MenuToolsApproveRemoteTargets) { $Script:MenuToolsApproveRemoteTargets.Visibility = $safeModeHidden }
+		if ($Script:MenuToolsSaveRemoteApprovalPolicy) { $Script:MenuToolsSaveRemoteApprovalPolicy.Visibility = $safeModeHidden }
+		if ($Script:MenuToolsLoadRemoteApprovalPolicy) { $Script:MenuToolsLoadRemoteApprovalPolicy.Visibility = $safeModeHidden }
+		if ($Script:MenuToolsRemoteConsole)     { $Script:MenuToolsRemoteConsole.Visibility     = $safeModeHidden }
+		if ($Script:MenuToolsOperatorConsole)   { $Script:MenuToolsOperatorConsole.Visibility   = $safeModeHidden }
+		if ($Script:MenuToolsRemoteSessionStatus) { $Script:MenuToolsRemoteSessionStatus.Visibility = $safeModeHidden }
+		if ($Script:MenuToolsRemovalPersistence) { $Script:MenuToolsRemovalPersistence.Visibility = $safeModeHidden }
+		if ($Script:MenuToolsSepApps)           { $Script:MenuToolsSepApps.Visibility           = $safeModeHidden }
+		if ($Script:MenuToolsExportSupportBundle) { $Script:MenuToolsExportSupportBundle.Visibility = 'Visible' }
 		if ($Script:MenuActionsCheckCompliance) { $Script:MenuActionsCheckCompliance.Visibility = $safeModeHidden }
 		if ($Script:MenuActionsScanSystem)      { $Script:MenuActionsScanSystem.Visibility      = $safeModeHidden }
 		if ($Script:MenuActionsAuditLog)        { $Script:MenuActionsAuditLog.Visibility        = $safeModeHidden }
@@ -212,6 +224,17 @@
 
 		# Restore menu bar items hidden by Safe Mode
 		if ($Script:MenuTools)                  { $Script:MenuTools.Visibility                  = 'Visible' }
+		if ($Script:MenuToolsAppsManager)       { $Script:MenuToolsAppsManager.Visibility       = 'Visible' }
+		if ($Script:MenuToolsUpdateAllApps)     { $Script:MenuToolsUpdateAllApps.Visibility     = 'Visible' }
+		if ($Script:MenuToolsApproveRemoteTargets) { $Script:MenuToolsApproveRemoteTargets.Visibility = 'Visible' }
+		if ($Script:MenuToolsSaveRemoteApprovalPolicy) { $Script:MenuToolsSaveRemoteApprovalPolicy.Visibility = 'Visible' }
+		if ($Script:MenuToolsLoadRemoteApprovalPolicy) { $Script:MenuToolsLoadRemoteApprovalPolicy.Visibility = 'Visible' }
+		if ($Script:MenuToolsRemoteConsole)     { $Script:MenuToolsRemoteConsole.Visibility     = 'Visible' }
+		if ($Script:MenuToolsOperatorConsole)   { $Script:MenuToolsOperatorConsole.Visibility   = 'Visible' }
+		if ($Script:MenuToolsRemoteSessionStatus) { $Script:MenuToolsRemoteSessionStatus.Visibility = 'Visible' }
+		if ($Script:MenuToolsRemovalPersistence) { $Script:MenuToolsRemovalPersistence.Visibility = 'Visible' }
+		if ($Script:MenuToolsSepApps)           { $Script:MenuToolsSepApps.Visibility           = 'Visible' }
+		if ($Script:MenuToolsExportSupportBundle) { $Script:MenuToolsExportSupportBundle.Visibility = 'Visible' }
 		if ($Script:MenuActionsCheckCompliance) { $Script:MenuActionsCheckCompliance.Visibility = 'Visible' }
 		if ($Script:MenuActionsScanSystem)      { $Script:MenuActionsScanSystem.Visibility      = 'Visible' }
 		if ($Script:MenuActionsAuditLog)        { $Script:MenuActionsAuditLog.Visibility        = 'Visible' }

@@ -487,7 +487,11 @@
 			if ($Script:AppliedTweaks.Contains($st.Function))
 			{
 				$sctl.IsEnabled = $false
-				if ((Test-GuiObjectField -Object $sctl -FieldName 'IsChecked')) { $sctl.IsChecked = $false }
+				if ((Test-GuiObjectField -Object $sctl -FieldName 'IsChecked')) { $sctl.IsChecked = $true }
+				if (Get-Command -Name 'Remove-GuiExplicitSelectionDefinition' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Remove-GuiExplicitSelectionDefinition -FunctionName ([string]$st.Function)
+				}
 				$matchCount++
 				$sessionApplied++
 				continue
@@ -502,7 +506,11 @@
 			if ($currentlyOn -eq [bool]$st.Default)
 			{
 				$sctl.IsEnabled = $false
-				if ((Test-GuiObjectField -Object $sctl -FieldName 'IsChecked')) { $sctl.IsChecked = $false }
+				if ((Test-GuiObjectField -Object $sctl -FieldName 'IsChecked')) { $sctl.IsChecked = $true }
+				if (Get-Command -Name 'Remove-GuiExplicitSelectionDefinition' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Remove-GuiExplicitSelectionDefinition -FunctionName ([string]$st.Function)
+				}
 				$matchCount++
 			}
 		}

@@ -53,6 +53,19 @@ Describe 'UxPolicy' {
             $result | Should -Be ''
         }
 
+        It 'uses non-empty fallback text when a non-English locale is missing a GUI key' {
+            $previousLanguage = [System.Environment]::GetEnvironmentVariable('BASELINE_LANGUAGE', 'Process')
+            try {
+                [System.Environment]::SetEnvironmentVariable('BASELINE_LANGUAGE', 'sq', 'Process')
+                $Global:Localization = @{}
+
+                Get-UxLocalizedString -Key 'Missing_Gui_Key' -Fallback 'Required label' | Should -Be 'Required label'
+            }
+            finally {
+                [System.Environment]::SetEnvironmentVariable('BASELINE_LANGUAGE', $previousLanguage, 'Process')
+            }
+        }
+
         It 'recommends the Basic preset outside Safe Mode' {
             Get-UxRecommendedPresetName | Should -Be 'Basic'
         }

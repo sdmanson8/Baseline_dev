@@ -189,7 +189,8 @@ param
 
 Set-StrictMode -Version Latest
 $Script:IsEmbeddedHost = ([System.Environment]::GetEnvironmentVariable('BASELINE_EMBEDDED_HOST') -eq '1')
-$Script:LaunchTracePath = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline-launch-trace.txt'
+$Script:LaunchTraceDirectory = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline'
+$Script:LaunchTracePath = Join-Path $Script:LaunchTraceDirectory 'Baseline-launch-trace.txt'
 
 <#
     .SYNOPSIS
@@ -202,6 +203,10 @@ function Write-LaunchTrace
 
 	try
 	{
+		if (-not [System.IO.Directory]::Exists($Script:LaunchTraceDirectory))
+		{
+			[void][System.IO.Directory]::CreateDirectory($Script:LaunchTraceDirectory)
+		}
 		Add-Content -LiteralPath $Script:LaunchTracePath -Value ("{0:o} {1}" -f [DateTime]::UtcNow, $Message) -ErrorAction SilentlyContinue
 	}
 	catch
@@ -830,26 +835,7 @@ if ($Script:MultiTargetPreviewOnly)
 Import-Module -Name (Join-Path $Script:ModuleRoot 'Logging.psm1') -Force -ErrorAction Stop
 Write-LaunchTrace 'Logging module imported'
 $osName = (Get-OSInfo).OSName
-$stateRoot = [System.Environment]::GetEnvironmentVariable('BASELINE_STATE_ROOT')
-if (-not [string]::IsNullOrWhiteSpace([string]$stateRoot))
-{
-	$logDirectory = Join-Path $stateRoot 'Logs'
-	try
-	{
-		if (-not (Test-Path -LiteralPath $logDirectory))
-		{
-			[void](New-Item -ItemType Directory -Path $logDirectory -Force -ErrorAction Stop)
-		}
-	}
-	catch
-	{
-		$logDirectory = $env:TEMP
-	}
-}
-else
-{
-	$logDirectory = Get-BaselineLogDirectory -FallbackRoot $env:TEMP
-}
+$logDirectory = Get-BaselineLogDirectory -FallbackRoot $env:TEMP
 $logDirectory = Get-BaselineConfiguredLogDirectory -DefaultDirectory $logDirectory -FallbackRoot $env:TEMP
 $Global:LogFilePath = New-BaselineSessionLogPath -LogDirectory $logDirectory -OsName $osName
 $Script:LogDefaultFileName = [System.IO.Path]::GetFileName($Global:LogFilePath)

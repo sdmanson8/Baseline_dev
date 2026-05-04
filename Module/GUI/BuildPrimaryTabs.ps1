@@ -332,6 +332,7 @@
 			}
 
 			$setSelectedGuiLanguageCommand = ${function:Set-SelectedGuiLanguage}
+			$Script:SetSelectedGuiLanguageScript = $setSelectedGuiLanguageCommand
 			$renderLanguageList = {
 				param ([string]$FilterText = '')
 

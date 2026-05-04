@@ -12,7 +12,7 @@
 #          reference. One-shot, gated by the InitialConfigBackupCompleted
 #          pref. On timeout the pref is left unset so the next launch
 #          retries.
-# Phase 3: Remove stale %LOCALAPPDATA%\Baseline\RC\<old-version>\
+# Phase 3: Remove stale %LOCALAPPDATA%\Temp\Baseline\RC\<old-version>\
 #          directories from prior launcher versions. Best-effort.
 # Phase 4: Verify the on-disk extracted module against the bundled
 #          integrity.manifest.json. Logs warnings on hash mismatch but
@@ -24,7 +24,7 @@ function Write-StartupOrchestratorLog
 	if (-not $env:BASELINE_PERF_LOG) { return }
 	try
 	{
-		$logPath = Join-Path $env:LOCALAPPDATA 'Baseline\perf.log'
+		$logPath = Join-Path $env:LOCALAPPDATA 'Temp\Baseline\perf.log'
 		$line = '{0} [Startup] {1}{2}' -f ([DateTime]::UtcNow.ToString('o')), $Message, [Environment]::NewLine
 		[System.IO.File]::AppendAllText($logPath, $line, [System.Text.Encoding]::UTF8)
 	}
@@ -113,7 +113,7 @@ function Invoke-StaleRcDirCleanup
 	param ([string]$CurrentVersion)
 
 	if ([string]::IsNullOrWhiteSpace($CurrentVersion)) { return 0 }
-	$rcRoot = Join-Path $env:LOCALAPPDATA 'Baseline\RC'
+	$rcRoot = Join-Path $env:LOCALAPPDATA 'Temp\Baseline\RC'
 	if (-not (Test-Path -LiteralPath $rcRoot)) { return 0 }
 	$deleted = 0
 	# Old RC dirs hold the launcher's prior extraction. They aren't loaded

@@ -147,7 +147,7 @@ namespace Baseline.RunLauncher
                 localAppData = Path.Combine(Path.GetTempPath(), "Baseline_LocalAppData");
             }
 
-            var cacheRoot = Path.Combine(localAppData, "Baseline", RuntimeCacheFolderName);
+            var cacheRoot = Path.Combine(localAppData, "Temp", "Baseline", RuntimeCacheFolderName);
             var runtimeRoot = Path.Combine(cacheRoot, version, RuntimeCacheSchema, buildId, launcherFingerprint);
             if (IsRuntimeReady(runtimeRoot, payloadResources, launcherFingerprint)) return runtimeRoot;
 

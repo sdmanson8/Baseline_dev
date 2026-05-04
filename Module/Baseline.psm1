@@ -39,27 +39,9 @@ if (Get-Command -Name 'Invoke-BaselineModuleIntegrityGate' -ErrorAction Silently
 # Detect the OS version once through the shared helper so every module uses the same logic.
 $osName = (Get-OSInfo).OSName
 
-# Initialize logging and use the launcher-provided state root when available.
-$stateRoot = [System.Environment]::GetEnvironmentVariable('BASELINE_STATE_ROOT')
-if (-not [string]::IsNullOrWhiteSpace([string]$stateRoot))
-{
-    $logDirectory = Join-Path $stateRoot 'Logs'
-    try
-    {
-        if (-not (Test-Path -LiteralPath $logDirectory))
-        {
-            [void](New-Item -ItemType Directory -Path $logDirectory -Force -ErrorAction Stop)
-        }
-    }
-    catch
-    {
-        $logDirectory = $env:TEMP
-    }
-}
-else
-{
-    $logDirectory = Get-BaselineLogDirectory -FallbackRoot $env:TEMP
-}
+# Initialize logging in the disposable temp storage root. BASELINE_STATE_ROOT is
+# reserved for persistent user state such as profiles and saved sessions.
+$logDirectory = Get-BaselineLogDirectory -FallbackRoot $env:TEMP
 $logDirectory = Get-BaselineConfiguredLogDirectory -DefaultDirectory $logDirectory -FallbackRoot $env:TEMP
 
 $resolvedLogPath = [string]$global:LogFilePath

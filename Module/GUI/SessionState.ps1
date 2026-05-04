@@ -911,10 +911,10 @@ function Import-GuiRemoteTargetApprovalPolicy
 			'Dark'
 		}
 
-		# Search text is transient view state. Persisting it makes a fresh launch
-		# reopen stale filtered results instead of the restored primary tab.
-		$searchText = ''
-		$appsSearchText = ''
+		# Session restore is UI state restore: keep the user's last search and
+		# filter context, then re-detect live system state during restore.
+		$searchText = if ($Script:SearchText) { [string]$Script:SearchText } else { '' }
+		$appsSearchText = if ($Script:AppsSearchText) { [string]$Script:AppsSearchText } else { '' }
 		# System scan is transient machine state. Persisting it across launches can silently
 		# re-run expensive detection work during startup, so session snapshots always store it off.
 		$scanEnabled = $false
@@ -940,6 +940,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			Language = if ($Script:SelectedLanguage) { [string]$Script:SelectedLanguage } else { 'en' }
 			SearchText = $searchText
 			AppsSearchText = $appsSearchText
+			UIDensity = if (Get-Command -Name 'Get-BaselineUiDensity' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineUiDensity } elseif ($Script:UIDensity) { [string]$Script:UIDensity } else { 'Comfort' }
 			AuditRetentionDays = if ($Script:AuditRetentionDays) { [int]$Script:AuditRetentionDays } else { 90 }
 			AppsPackageSourcePreference = if ($Script:AppsPackageSourcePreference) { [string]$Script:AppsPackageSourcePreference } else { 'auto' }
 			AppsSourceFilter = if ($Script:AppsSourceFilter) { [string]$Script:AppsSourceFilter } else { 'All' }
@@ -1014,7 +1015,8 @@ function Import-GuiRemoteTargetApprovalPolicy
 			{
 				'Date'
 				{
-					$entry.IsChecked = if ($control -and (Test-GuiObjectField -Object $control -FieldName 'IsChecked')) { [bool]$control.IsChecked } else { $false }
+					$controlIsEnabled = if ($control -and (Test-GuiObjectField -Object $control -FieldName 'IsEnabled')) { [bool]$control.IsEnabled } else { $true }
+					$entry.IsChecked = if ($controlIsEnabled -and $control -and (Test-GuiObjectField -Object $control -FieldName 'IsChecked')) { [bool]$control.IsChecked } else { $false }
 					$selectedDate = $null
 					if ($control)
 					{
@@ -1046,7 +1048,8 @@ function Import-GuiRemoteTargetApprovalPolicy
 				}
 				default
 				{
-					$entry.IsChecked = if ($control -and (Test-GuiObjectField -Object $control -FieldName 'IsChecked')) { [bool]$control.IsChecked } else { $false }
+					$controlIsEnabled = if ($control -and (Test-GuiObjectField -Object $control -FieldName 'IsEnabled')) { [bool]$control.IsEnabled } else { $true }
+					$entry.IsChecked = if ($controlIsEnabled -and $control -and (Test-GuiObjectField -Object $control -FieldName 'IsChecked')) { [bool]$control.IsChecked } else { $false }
 				}
 			}
 
@@ -1199,8 +1202,13 @@ function Import-GuiRemoteTargetApprovalPolicy
 		# replayed from a saved session.
 		$desiredScan  = $false
 		$desiredLanguage = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'Language') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.Language)) { [string]$Snapshot.Language } else { $null }
-		$desiredSearch = ''
-		$desiredAppsSearch = ''
+		$desiredSearch = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'SearchText')) { [string]$Snapshot.SearchText } else { '' }
+		$desiredAppsSearch = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsSearchText')) { [string]$Snapshot.AppsSearchText } else { '' }
+		$desiredUiDensity = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'UIDensity') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.UIDensity)) { [string]$Snapshot.UIDensity } else { 'Comfort' }
+		if (Get-Command -Name 'Normalize-BaselineUiDensity' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			$desiredUiDensity = Normalize-BaselineUiDensity -Density $desiredUiDensity
+		}
 		$desiredAuditRetentionDays = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AuditRetentionDays')) { [int]$Snapshot.AuditRetentionDays } else { 90 }
 		$desiredAppsPackageSourcePreference = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsPackageSourcePreference') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsPackageSourcePreference)) { [string]$Snapshot.AppsPackageSourcePreference } else { 'auto' }
 		$desiredAppsSourceFilter = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsSourceFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsSourceFilter)) { [string]$Snapshot.AppsSourceFilter } else { 'All' }
@@ -1208,7 +1216,12 @@ function Import-GuiRemoteTargetApprovalPolicy
 		if ($allowedAppsSourceFilter -notcontains $desiredAppsSourceFilter) { $desiredAppsSourceFilter = 'All' }
 		$desiredAppsQueuedActions = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsQueuedActions') -and $null -ne $Snapshot.AppsQueuedActions) { @($Snapshot.AppsQueuedActions) } else { @() }
 		$desiredPinnedBaselineVersion = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'PinnedBaselineVersion') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.PinnedBaselineVersion)) { [string]$Snapshot.PinnedBaselineVersion } else { $null }
-		$desiredAutoScanOnLaunch = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AutoScanOnLaunch')) { [bool]$Snapshot.AutoScanOnLaunch } else { $false }
+		$desiredAutoScanOnLaunch = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			[bool](Get-BaselineUserPreference -Key 'AutoScanOnLaunch' -Default $false)
+		}
+		elseif ((Test-GuiObjectField -Object $Snapshot -FieldName 'AutoScanOnLaunch')) { [bool]$Snapshot.AutoScanOnLaunch }
+		else { $false }
 		$desiredRestoreLastSession = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RestoreLastSession')) { [bool]$Snapshot.RestoreLastSession } else { $true }
 		$desiredSafe = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'SafeMode')) { [bool]$Snapshot.SafeMode } else { $false }
 		$desiredAdvanced = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AdvancedMode')) { [bool]$Snapshot.AdvancedMode } else { $false }
@@ -1349,6 +1362,15 @@ function Import-GuiRemoteTargetApprovalPolicy
 			{
 				try { Set-BaselineUserPreference -Key 'Theme' -Value $desiredTheme } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveThemePreference' }
 				try { Set-BaselineUserPreference -Key 'DefaultStartupMode' -Value $Script:DefaultStartupMode } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveDefaultStartupModePreference' }
+				try { Set-BaselineUserPreference -Key 'UIDensity' -Value $desiredUiDensity } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveUIDensityPreference' }
+			}
+			$Script:UIDensity = $desiredUiDensity
+			$Script:RowContextShared = $null
+			$Script:RowContextSharedTheme = $null
+			$Script:RowContextSharedDensity = $null
+			if (Get-Command -Name 'Set-TweakRowFactoryDensityTokens' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Set-TweakRowFactoryDensityTokens
 			}
 			if ($ChkSafeMode)
 			{
@@ -1370,7 +1392,18 @@ function Import-GuiRemoteTargetApprovalPolicy
 			if ($BtnLog) { $BtnLog.Visibility = [System.Windows.Visibility]::Collapsed }
 			if ($BtnFilterToggle) { $BtnFilterToggle.Visibility = $modeHidden }
 			if ($ChkScan) { $ChkScan.Visibility = $modeHidden }
-			if ($Script:MenuTools) { $Script:MenuTools.Visibility = $modeHidden }
+			if ($Script:MenuTools) { $Script:MenuTools.Visibility = [System.Windows.Visibility]::Visible }
+			if ($Script:MenuToolsAppsManager) { $Script:MenuToolsAppsManager.Visibility = [System.Windows.Visibility]::Visible }
+			if ($Script:MenuToolsUpdateAllApps) { $Script:MenuToolsUpdateAllApps.Visibility = [System.Windows.Visibility]::Visible }
+			if ($Script:MenuToolsApproveRemoteTargets) { $Script:MenuToolsApproveRemoteTargets.Visibility = $modeHidden }
+			if ($Script:MenuToolsSaveRemoteApprovalPolicy) { $Script:MenuToolsSaveRemoteApprovalPolicy.Visibility = $modeHidden }
+			if ($Script:MenuToolsLoadRemoteApprovalPolicy) { $Script:MenuToolsLoadRemoteApprovalPolicy.Visibility = $modeHidden }
+			if ($Script:MenuToolsRemoteConsole) { $Script:MenuToolsRemoteConsole.Visibility = $modeHidden }
+			if ($Script:MenuToolsOperatorConsole) { $Script:MenuToolsOperatorConsole.Visibility = $modeHidden }
+			if ($Script:MenuToolsRemoteSessionStatus) { $Script:MenuToolsRemoteSessionStatus.Visibility = $modeHidden }
+			if ($Script:MenuToolsRemovalPersistence) { $Script:MenuToolsRemovalPersistence.Visibility = $modeHidden }
+			if ($Script:MenuToolsSepApps) { $Script:MenuToolsSepApps.Visibility = $modeHidden }
+			if ($Script:MenuToolsExportSupportBundle) { $Script:MenuToolsExportSupportBundle.Visibility = [System.Windows.Visibility]::Visible }
 			if ($Script:MenuActionsCheckCompliance) { $Script:MenuActionsCheckCompliance.Visibility = $modeHidden }
 			if ($Script:MenuActionsScanSystem) { $Script:MenuActionsScanSystem.Visibility = $modeHidden }
 			if ($Script:MenuActionsAuditLog) { $Script:MenuActionsAuditLog.Visibility = $modeHidden }
@@ -1636,6 +1669,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 		{
 			if ($stopGuiPerfScopeScript) { & $stopGuiPerfScopeScript -Scope $__perf }
 		}
+		Set-GuiStatusText -Text (Get-UxLocalizedString -Key 'GuiLogSessionRestoredPreviousState' -Fallback 'Session restored') -Tone 'accent'
 		$Script:StartupRestoreSessionPending = $false
 		Update-HeaderModeStateText
 		if ($TxtLanguageState -and -not [string]::IsNullOrWhiteSpace([string]$Script:SelectedLanguage))

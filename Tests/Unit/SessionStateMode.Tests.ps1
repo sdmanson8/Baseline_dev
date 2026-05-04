@@ -118,6 +118,7 @@ Describe 'GUI session snapshots' {
         $script:CurrentThemeName = 'Dark'
         $script:SearchText = ''
         $script:AppsSearchText = ''
+        $script:UIDensity = 'Compact'
         $script:AuditRetentionDays = 90
         $script:AppsPackageSourcePreference = 'auto'
         $script:AppsSourceFilter = 'All'
@@ -168,8 +169,9 @@ Describe 'GUI session snapshots' {
 
         $snapshot = Get-GuiSettingsSnapshot
 
-        $snapshot.SearchText | Should -Be ''
-        $snapshot.AppsSearchText | Should -Be ''
+        $snapshot.SearchText | Should -Be 'powershell'
+        $snapshot.AppsSearchText | Should -Be 'chrome'
+        $snapshot.UIDensity | Should -Be 'Compact'
         $snapshot.AutoScanOnLaunch | Should -Be $true
         $snapshot.RestoreLastSession | Should -Be $false
         $snapshot.RequireRunConfirmation | Should -Be $false
@@ -193,6 +195,25 @@ Describe 'GUI session snapshots' {
         $snapshot.SafeMode | Should -Be $false
         $snapshot.AdvancedMode | Should -Be $true
     }
+
+    It 'does not persist disabled already-set display checks as pending selections' {
+        $script:TweakManifest = @(
+            [pscustomobject]@{
+                Function = 'AlreadySetToggle'
+                Type = 'Toggle'
+            }
+        )
+        $script:Controls = @(
+            [pscustomobject]@{
+                IsChecked = $true
+                IsEnabled = $false
+            }
+        )
+
+        $snapshot = Get-GuiSettingsSnapshot
+
+        $snapshot.Controls[0].IsChecked | Should -BeFalse
+    }
 }
 
 Describe 'GUI session restore mode wiring' {
@@ -211,11 +232,28 @@ Describe 'GUI session restore mode wiring' {
         $script:SessionStateContent | Should -Match '\$ExpertModeBanner\.Visibility = if \(\$desiredAdvanced\)'
     }
 
-    It 'clears saved search state during session restore while events are suppressed' {
-        $script:SessionStateContent | Should -Match '\$desiredSearch = '''''
-        $script:SessionStateContent | Should -Match '\$desiredAppsSearch = '''''
+    It 'restores saved search state during session restore while events are suppressed' {
+        $script:SessionStateContent | Should -Match '\$desiredSearch = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''SearchText''\)\)'
+        $script:SessionStateContent | Should -Match '\$desiredAppsSearch = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''AppsSearchText''\)\)'
         $script:SessionStateContent | Should -Match '\$Script:SearchUiUpdating = \$true'
         $script:SessionStateContent | Should -Match "Get-Command -Name 'Sync-GuiSearchInputChrome'"
         $script:SessionStateContent | Should -Match 'Sync-GuiSearchInputChrome'
+    }
+
+    It 'restores UI density without forcing a system scan' {
+        $script:SessionStateContent | Should -Match 'UIDensity = if \(Get-Command -Name ''Get-BaselineUiDensity'''
+        $script:SessionStateContent | Should -Match '\$desiredUiDensity = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''UIDensity''\)'
+        $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''UIDensity'' -Value \$desiredUiDensity'
+        $script:SessionStateContent | Should -Match 'Set-TweakRowFactoryDensityTokens'
+        $script:SessionStateContent | Should -Not -Match "Get-Command -Name 'Invoke-GuiSystemScan'"
+        $script:SessionStateContent | Should -Not -Match 'Invoke-GuiSystemScan'
+        $script:SessionStateContent | Should -Match 'Set-GuiStatusText -Text \(Get-UxLocalizedString -Key ''GuiLogSessionRestoredPreviousState'''
+    }
+
+    It 'restores HideUnavailableItems from the session snapshot instead of the default preference' {
+        $script:SessionStateContent | Should -Match '\$desiredHideUnavailableItems = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''HideUnavailableItems''\)\) \{ \[bool\]\$Snapshot\.HideUnavailableItems \}'
+        $script:SessionStateContent | Should -Match '\$Script:HideUnavailableItems = \$desiredHideUnavailableItems'
+        $script:SessionStateContent | Should -Match '\$ChkHideUnavailableItems\.IsChecked = \$desiredHideUnavailableItems'
+        $script:SessionStateContent | Should -Match 'Set-HideUnavailableItemsState -HideUnavailableItems \$desiredHideUnavailableItems'
     }
 }

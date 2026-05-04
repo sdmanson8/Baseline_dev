@@ -65,47 +65,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Add-TweakDetailLine.
-	#>
-	function Add-TweakDetailLine
-	{
-		param (
-			[System.Windows.Controls.Panel]$Container,
-			[object]$RowContext,
-			[string]$Label,
-			[string]$Text,
-			[System.Windows.Thickness]$Margin
-		)
-
-		if (-not $Container -or [string]::IsNullOrWhiteSpace($Text)) { return }
-
-		$line = New-Object System.Windows.Controls.TextBlock
-		$line.TextWrapping = 'Wrap'
-		$line.Margin = $Margin
-		$line.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
-		$line.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextSecondary)
-
-		if (-not [string]::IsNullOrWhiteSpace($Label))
-		{
-			$labelRun = New-Object System.Windows.Documents.Run
-			$labelRun.Text = ('{0}: ' -f $Label)
-			$labelRun.FontWeight = [System.Windows.FontWeights]::SemiBold
-			$labelRun.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextPrimary)
-			[void]($line.Inlines.Add($labelRun))
-		}
-
-		$textRun = New-Object System.Windows.Documents.Run
-		$textRun.Text = [string]$Text
-		[void]($line.Inlines.Add($textRun))
-		if ($Label -eq (Get-UxString -Key 'GuiSectionTags' -Fallback 'Tags'))
-		{
-			Set-TweakSearchHighlightedTextBlock -TextBlock $line -Text ('{0}: {1}' -f $Label, $Text) -BrushConverter $RowContext.BrushConverter
-		}
-		[void]($Container.Children.Add($line))
-	}
-
-	<#
-	    .SYNOPSIS
 	    Internal function Get-CardHoverResources.
 	#>
 
@@ -289,6 +248,91 @@
 	    Internal function Add-TweakMetadataDetails.
 	#>
 
+	function Add-TweakScenarioTagsToDetailsPanel
+	{
+		param (
+			[System.Windows.Controls.Border]$DetailsHost,
+			[object]$RowContext
+		)
+
+		if (-not $DetailsHost -or -not $RowContext -or -not $RowContext.Metadata) { return }
+		if (-not (Test-GuiObjectField -Object $RowContext.Metadata -FieldName 'ScenarioTags') -or -not $RowContext.Metadata.ScenarioTags) { return }
+
+		$contentStack = if ($DetailsHost.Child -is [System.Windows.Controls.StackPanel])
+		{
+			$DetailsHost.Child
+		}
+		else
+		{
+			$existingChild = $DetailsHost.Child
+			$stack = New-Object System.Windows.Controls.StackPanel
+			$stack.Orientation = 'Vertical'
+			if ($existingChild)
+			{
+				$DetailsHost.Child = $null
+				[void]($stack.Children.Add($existingChild))
+			}
+			$DetailsHost.Child = $stack
+			$stack
+		}
+
+		$scenarioTags = @($RowContext.Metadata.ScenarioTags | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+		if ($scenarioTags.Count -eq 0) { return }
+
+		$tagBackground = if ($Script:CurrentTheme -and $Script:CurrentTheme.TabActiveBg) { [string]$Script:CurrentTheme.TabActiveBg } else { '#262D40' }
+		$tagBorder = if ($Script:CurrentTheme -and $Script:CurrentTheme.AccentBlue) { [string]$Script:CurrentTheme.AccentBlue } else { '#7CB7FF' }
+		$tagForeground = if ($Script:CurrentTheme -and $Script:CurrentTheme.AccentHover) { [string]$Script:CurrentTheme.AccentHover } else { '#9ACAFF' }
+		$scenarioTagToolTip = Get-UxString -Key 'GuiTweakChipTooltipScenarioTag' -Fallback 'Scenario tag'
+		$moreTagsToolTip = Get-UxString -Key 'GuiTweakChipTooltipMoreTags' -Fallback 'Additional scenario tags are present in the manifest.'
+		$moreTagsFormat = Get-UxString -Key 'GuiTweakChipMoreFormat' -Fallback '+{0} more'
+
+		$tagsPanel = New-Object System.Windows.Controls.WrapPanel
+		$tagsPanel.Orientation = 'Horizontal'
+		$tagsPanel.HorizontalAlignment = 'Left'
+		$tagsPanel.Margin = [System.Windows.Thickness]::new(0, 7, 0, -5)
+
+		$addTagPill = {
+			param (
+				[string]$Label,
+				[string]$ToolTip
+			)
+
+			if ([string]::IsNullOrWhiteSpace($Label)) { return }
+
+			$pill = New-Object System.Windows.Controls.Border
+			$pill.Background = $RowContext.BrushConverter.ConvertFromString($tagBackground)
+			$pill.BorderBrush = $RowContext.BrushConverter.ConvertFromString($tagBorder)
+			$pill.BorderThickness = [System.Windows.Thickness]::new(1)
+			$pill.CornerRadius = [System.Windows.CornerRadius]::new($Script:GuiLayout.PillCornerRadius)
+			$pill.Margin = [System.Windows.Thickness]::new(0, 0, 6, 5)
+			$pill.Padding = [System.Windows.Thickness]::new(8, 2, 8, 2)
+			$pill.VerticalAlignment = 'Center'
+			$pill.ToolTip = $ToolTip
+
+			$text = New-Object System.Windows.Controls.TextBlock
+			$text.Text = $Label
+			$text.FontSize = $RowContext.DetailFontSize
+			$text.LineHeight = $RowContext.DetailLineHeight
+			$text.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
+			$text.FontWeight = [System.Windows.FontWeights]::SemiBold
+			$text.Foreground = $RowContext.BrushConverter.ConvertFromString($tagForeground)
+			$pill.Child = $text
+			[void]($tagsPanel.Children.Add($pill))
+		}
+
+		foreach ($tag in @($scenarioTags | Select-Object -First 4))
+		{
+			& $addTagPill -Label ([string]$tag) -ToolTip $scenarioTagToolTip
+		}
+		if ($scenarioTags.Count -gt 4)
+		{
+			& $addTagPill -Label ($moreTagsFormat -f ($scenarioTags.Count - 4)) -ToolTip $moreTagsToolTip
+		}
+
+		if ($tagsPanel.Children.Count -eq 0) { return }
+		[void]($contentStack.Children.Add($tagsPanel))
+	}
+
 	function Add-TweakMetadataDetails
 	{
 		param (
@@ -302,76 +346,44 @@
 			[System.Windows.Thickness]$BlastMargin
 		)
 
-		$toggleButton = New-Object System.Windows.Controls.Button
-		$toggleButton.Content = Get-UxString -Key 'GuiShowDetails' -Fallback 'Show details'
-		$toggleButton.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
-		$toggleButton.FontWeight = [System.Windows.FontWeights]::SemiBold
-		$toggleButton.Padding = [System.Windows.Thickness]::new(8, 3, 8, 3)
-		$toggleButton.Margin = $DescriptionMargin
-		$toggleButton.HorizontalAlignment = 'Left'
-		$toggleButton.Cursor = [System.Windows.Input.Cursors]::Hand
-		if (Get-Command -Name 'Set-ButtonChrome' -CommandType Function -ErrorAction SilentlyContinue)
-		{
-			Set-ButtonChrome -Button $toggleButton -Variant 'Subtle' -Compact -Muted
-		}
-		[void]($Container.Children.Add($toggleButton))
-
-		$detailsPanel = New-Object System.Windows.Controls.StackPanel
-		$detailsPanel.Orientation = 'Vertical'
-		$detailsPanel.Visibility = [System.Windows.Visibility]::Collapsed
-		try { $Tweak | Add-Member -MemberType NoteProperty -Name '_RowDetailsPanel' -Value $detailsPanel -Force } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.AddMetadataDetails.AttachDetailsPanel' }
-
 		$descriptionTextBlock = New-Object System.Windows.Controls.TextBlock
 		Set-TweakSearchHighlightedTextBlock -TextBlock $descriptionTextBlock -Text $DescriptionText -BrushConverter $RowContext.BrushConverter
-		$descriptionTextBlock.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
+		$descriptionTextBlock.FontSize = $RowContext.DetailFontSize
+		$descriptionTextBlock.LineHeight = $RowContext.DetailLineHeight
+		$descriptionTextBlock.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
 		$descriptionTextBlock.Foreground = $RowContext.BrushConverter.ConvertFromString($DescriptionColor)
 		$descriptionTextBlock.Margin = $DescriptionMargin
 		$descriptionTextBlock.TextWrapping = 'Wrap'
-		[void]($detailsPanel.Children.Add($descriptionTextBlock))
+		[void]($Container.Children.Add($descriptionTextBlock))
 
-		# Keep high-risk consequence text with the rest of the expanded details.
+		# Show CautionReason inline on the tweak row for High-risk items so the
+		# consequence text is visible by default without expanding the caution section.
 		if ([string]$Tweak.Risk -eq 'High' -and [bool]$Tweak.Caution -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.CautionReason))
 		{
-			$cautionColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.CautionText) { $Script:CurrentTheme.CautionText } else { '#D6A84A' }
-			$neutralTextColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.TextSecondary) { $Script:CurrentTheme.TextSecondary } else { '#CDD6EA' }
+			$cautionColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.CautionText) { $Script:CurrentTheme.CautionText } else { '#E5A84B' }
 			$cautionInline = New-Object System.Windows.Controls.TextBlock
 			$cautionInline.TextWrapping = 'Wrap'
 			$cautionInline.Margin = $DescriptionMargin
-			$cautionInline.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
+			$cautionInline.FontSize = $RowContext.DetailFontSize
+			$cautionInline.LineHeight = $RowContext.DetailLineHeight
+			$cautionInline.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
 			$cautionInline.FontWeight = [System.Windows.FontWeights]::Medium
-			$cautionInline.Foreground = $RowContext.BrushConverter.ConvertFromString($neutralTextColor)
+			$cautionInline.Foreground = $RowContext.BrushConverter.ConvertFromString($cautionColor)
 
 			$cautionIcon = New-Object System.Windows.Documents.Run
 			$cautionIcon.Text = ([char]0x26A0).ToString() + ' '
-			$cautionIcon.Foreground = $RowContext.BrushConverter.ConvertFromString($cautionColor)
 			[void]($cautionInline.Inlines.Add($cautionIcon))
 
 			$cautionText = New-Object System.Windows.Documents.Run
 			$cautionText.Text = [string]$Tweak.CautionReason
 			[void]($cautionInline.Inlines.Add($cautionText))
 
-			[void]($detailsPanel.Children.Add($cautionInline))
-		}
-
-		$impactText = if ((Test-GuiObjectField -Object $Tweak -FieldName 'Impact') -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.Impact)) { [string]$Tweak.Impact } else { $null }
-		Add-TweakDetailLine -Container $detailsPanel -RowContext $RowContext -Label (Get-UxString -Key 'GuiSectionImpact' -Fallback 'Impact') -Text $impactText -Margin $DescriptionMargin
-		$behaviorText = if ((Test-GuiObjectField -Object $Tweak -FieldName 'Detail') -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.Detail)) { [string]$Tweak.Detail } else { $null }
-		Add-TweakDetailLine -Container $detailsPanel -RowContext $RowContext -Label (Get-UxString -Key 'GuiSectionBehavior' -Fallback 'Behavior') -Text $behaviorText -Margin $DescriptionMargin
-		$whyText = if ((Test-GuiObjectField -Object $Tweak -FieldName 'WhyThisMatters') -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.WhyThisMatters)) { [string]$Tweak.WhyThisMatters } else { $null }
-		Add-TweakDetailLine -Container $detailsPanel -RowContext $RowContext -Label (Get-UxString -Key 'GuiSectionWhyThisMatters' -Fallback 'Why This Matters') -Text $whyText -Margin $DescriptionMargin
-		$recoveryText = if ((Test-GuiObjectField -Object $Tweak -FieldName 'RecoveryLevel') -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.RecoveryLevel)) { [string]$Tweak.RecoveryLevel } else { $null }
-		Add-TweakDetailLine -Container $detailsPanel -RowContext $RowContext -Label (Get-UxString -Key 'GuiSectionRecovery' -Fallback 'Recovery') -Text $recoveryText -Margin $DescriptionMargin
-		$restartText = if ([bool]$Tweak.RequiresRestart) { Get-UxString -Key 'GuiTweakChipRestartRequired' -Fallback 'Restart required' } else { Get-UxString -Key 'GuiTweakChipRestartNotRequired' -Fallback 'No restart required' }
-		Add-TweakDetailLine -Container $detailsPanel -RowContext $RowContext -Label (Get-UxString -Key 'GuiSectionRestart' -Fallback 'Restart') -Text $restartText -Margin $DescriptionMargin
-		if ($RowContext.Metadata -and (Test-GuiObjectField -Object $RowContext.Metadata -FieldName 'ScenarioTags') -and $RowContext.Metadata.ScenarioTags)
-		{
-			$tagsText = (@($RowContext.Metadata.ScenarioTags) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }) -join ', '
-			Add-TweakDetailLine -Container $detailsPanel -RowContext $RowContext -Label (Get-UxString -Key 'GuiSectionTags' -Fallback 'Tags') -Text $tagsText -Margin $DescriptionMargin
+			[void]($Container.Children.Add($cautionInline))
 		}
 
 		try
 		{
-			$detailMetaPanel = New-TweakMetadataChipPanel -Metadata $RowContext.Metadata -IncludeType:$true -IncludeState:$true -IncludeRestart:$true -IncludeRestorable:$true -IncludeRecoveryLevel:$true -UseCompactRecoveryLevelLabel:$RowContext.UseCompactRecoveryLevelLabel -IncludeScenarioTags:$true
+			$detailMetaPanel = New-TweakMetadataChipPanel -Metadata $RowContext.Metadata -IncludeType:$false -IncludeState:$false -IncludeRestart:$false -IncludeRestorable:$false -IncludeRecoveryLevel:$true -UseCompactRecoveryLevelLabel:$RowContext.UseCompactRecoveryLevelLabel -IncludeScenarioTags:$false
 		}
 		catch
 		{
@@ -380,33 +392,21 @@
 		if ($detailMetaPanel)
 		{
 			$detailMetaPanel.Margin = $MetadataMargin
-			[void]($detailsPanel.Children.Add($detailMetaPanel))
+			[void]($Container.Children.Add($detailMetaPanel))
 		}
 
-		if (-not [string]::IsNullOrWhiteSpace([string]$RowContext.Metadata.BlastRadius))
+		if (-not [bool]$RowContext.Metadata.MatchesDesired -and -not [string]::IsNullOrWhiteSpace([string]$RowContext.Metadata.BlastRadius))
 		{
 			$blastText = New-Object System.Windows.Controls.TextBlock
 			$blastText.Text = [string]$RowContext.Metadata.BlastRadius
 			$blastText.TextWrapping = 'Wrap'
 			$blastText.Margin = $BlastMargin
-			$blastText.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
+			$blastText.FontSize = $RowContext.DetailFontSize
+			$blastText.LineHeight = $RowContext.DetailLineHeight
+			$blastText.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
 			$blastText.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextSecondary)
-			[void]($detailsPanel.Children.Add($blastText))
+			[void]($Container.Children.Add($blastText))
 		}
-
-		$showDetailsLabel = Get-UxString -Key 'GuiShowDetails' -Fallback 'Show details'
-		$hideDetailsLabel = Get-UxString -Key 'GuiHideDetails' -Fallback 'Hide details'
-		Register-GuiEventHandler -Source $toggleButton -EventName 'Click' -Handler ({
-			$showDetails = ($detailsPanel.Visibility -ne [System.Windows.Visibility]::Visible)
-			$detailsPanel.Visibility = if ($showDetails) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
-			$toggleButton.Content = if ($showDetails) {
-				$hideDetailsLabel
-			}
-			else {
-				$showDetailsLabel
-			}
-		}.GetNewClosure()) | Out-Null
-		[void]($Container.Children.Add($detailsPanel))
 	}
 
 	<#
@@ -419,6 +419,7 @@
 		param (
 			[System.Windows.Controls.Panel]$Container,
 			[object]$Tweak,
+			[object]$RowContext = $null,
 			[int]$LeftIndent = 0,
 			[System.Windows.Thickness]$RowMargin = [System.Windows.Thickness]::new(0, 2, 0, 0)
 		)
@@ -443,6 +444,10 @@
 		[void]($Container.Children.Add($whyRow))
 		if ($whyBlock.Tag)
 		{
+			if ($RowContext)
+			{
+				Add-TweakScenarioTagsToDetailsPanel -DetailsHost $whyBlock.Tag -RowContext $RowContext
+			}
 			[void]($Container.Children.Add($whyBlock.Tag))
 		}
 

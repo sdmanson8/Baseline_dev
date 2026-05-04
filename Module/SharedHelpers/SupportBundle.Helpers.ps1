@@ -386,6 +386,56 @@ function Export-BaselineSupportBundle
 			}
 		}
 
+		try
+		{
+			$versionInfo = New-BaselineSupportBundleVersionInfo -BaselineVersion $baselineVersion
+			$versionInfoPath = Join-Path $stagingDir 'baseline-version.json'
+			[System.IO.File]::WriteAllText($versionInfoPath, ($versionInfo | ConvertTo-Json -Depth 8), $utf8NoBom)
+			$bundleEntries.Add([pscustomobject]@{ Name = 'baseline-version.json'; Source = $versionInfoPath })
+			$bundleIndex.Files['BaselineVersion'] = 'baseline-version.json'
+		}
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SupportBundle.Assembly.BaselineVersion' }
+
+		try
+		{
+			$environmentInfo = New-BaselineSupportBundleEnvironmentInfo
+			$environmentInfoPath = Join-Path $stagingDir 'environment.json'
+			[System.IO.File]::WriteAllText($environmentInfoPath, ($environmentInfo | ConvertTo-Json -Depth 8), $utf8NoBom)
+			$bundleEntries.Add([pscustomobject]@{ Name = 'environment.json'; Source = $environmentInfoPath })
+			$bundleIndex.Files['Environment'] = 'environment.json'
+		}
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SupportBundle.Assembly.Environment' }
+
+		try
+		{
+			$windowsFeatures = New-BaselineSupportBundleWindowsFeatures
+			$windowsFeaturesPath = Join-Path $stagingDir 'windows-features.json'
+			[System.IO.File]::WriteAllText($windowsFeaturesPath, ($windowsFeatures | ConvertTo-Json -Depth 8), $utf8NoBom)
+			$bundleEntries.Add([pscustomobject]@{ Name = 'windows-features.json'; Source = $windowsFeaturesPath })
+			$bundleIndex.Files['WindowsFeatures'] = 'windows-features.json'
+		}
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SupportBundle.Assembly.WindowsFeatures' }
+
+		try
+		{
+			$storageSummary = New-BaselineSupportBundleStorageSummary
+			$storageSummaryPath = Join-Path $stagingDir 'storage-summary.json'
+			[System.IO.File]::WriteAllText($storageSummaryPath, ($storageSummary | ConvertTo-Json -Depth 8), $utf8NoBom)
+			$bundleEntries.Add([pscustomobject]@{ Name = 'storage-summary.json'; Source = $storageSummaryPath })
+			$bundleIndex.Files['StorageSummary'] = 'storage-summary.json'
+		}
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SupportBundle.Assembly.StorageSummary' }
+
+		try
+		{
+			$userActionContext = New-BaselineSupportBundleUserActionContext -ProfilePath $ProfilePath -ReproductionContext $reproContext -ConfigStatePre $ConfigStatePre -ConfigStatePost $ConfigStatePost
+			$userActionContextPath = Join-Path $stagingDir 'user-action-context.json'
+			[System.IO.File]::WriteAllText($userActionContextPath, ($userActionContext | ConvertTo-Json -Depth 10), $utf8NoBom)
+			$bundleEntries.Add([pscustomobject]@{ Name = 'user-action-context.json'; Source = $userActionContextPath })
+			$bundleIndex.Files['UserActionContext'] = 'user-action-context.json'
+		}
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SupportBundle.Assembly.UserActionContext' }
+
 		if ($featureMaturityReport)
 		{
 			$featureMaturityPath = Join-Path $stagingDir 'feature-maturity.json'
@@ -706,7 +756,7 @@ function Export-BaselineSupportBundle
 
 		try
 		{
-			$perfLogPath = Join-Path (Join-Path $env:LOCALAPPDATA 'Baseline') 'perf.log'
+			$perfLogPath = Join-Path (Join-Path $env:LOCALAPPDATA 'Temp\Baseline') 'perf.log'
 			if (Test-Path -LiteralPath $perfLogPath)
 			{
 				$destPerfLogPath = Join-Path $logsDir 'perf.log'
@@ -719,6 +769,22 @@ function Export-BaselineSupportBundle
 			}
 		}
 		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SupportBundle.Assembly.PerfLog' }
+
+		try
+		{
+			$launchTracePath = Join-Path (Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline') 'Baseline-launch-trace.txt'
+			if (Test-Path -LiteralPath $launchTracePath)
+			{
+				$destLaunchTracePath = Join-Path $logsDir 'Baseline-launch-trace.txt'
+				Copy-Item -LiteralPath $launchTracePath -Destination $destLaunchTracePath -Force -ErrorAction SilentlyContinue
+				if (Test-Path -LiteralPath $destLaunchTracePath)
+				{
+					$bundleEntries.Add([pscustomobject]@{ Name = 'Logs/Baseline-launch-trace.txt'; Source = $destLaunchTracePath })
+					$bundleIndex.Files['LaunchTrace'] = 'Logs/Baseline-launch-trace.txt'
+				}
+			}
+		}
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SupportBundle.Assembly.LaunchTrace' }
 
 		# --- system-info.json: richer environment context than metadata.json ---
 		try
@@ -805,7 +871,7 @@ function Export-BaselineSupportBundle
 			$dailyLogPath = if ($global:LogFilePath) { [string]$global:LogFilePath } else { $null }
 			if (-not [string]::IsNullOrWhiteSpace($dailyLogPath) -and (Test-Path -LiteralPath $dailyLogPath))
 			{
-				$classified = Get-BaselineSupportBundleClassifiedErrors -LogPath $dailyLogPath -MaxErrors 200
+				$classified = Get-BaselineSupportBundleClassifiedErrors -LogPath $dailyLogPath -MaxErrors 20
 				if ($classified -and $classified.Errors.Count -gt 0)
 				{
 					$errorsPath = Join-Path $stagingDir 'errors.json'
@@ -1362,6 +1428,475 @@ function New-BaselineSupportBundleRemoteTargets
 	}
 }
 
+function Test-BaselineSupportBundleElevated
+{
+	try
+	{
+		$current = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+		$principal = [System.Security.Principal.WindowsPrincipal]::new($current)
+		return [bool]$principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+	}
+	catch { return $null }
+}
+
+function Get-BaselineSupportBundleMaskedName
+{
+	param (
+		[string]$Name
+	)
+
+	if ([string]::IsNullOrWhiteSpace($Name)) { return $null }
+	$trimmed = $Name.Trim()
+	if ($trimmed.Length -le 1) { return '*' }
+	return ('{0}{1}' -f $trimmed.Substring(0, 1), ('*' * ($trimmed.Length - 1)))
+}
+
+function Get-BaselineSupportBundleObjectValue
+{
+	param (
+		[object]$InputObject,
+		[string]$Name
+	)
+
+	if ($null -eq $InputObject) { return $null }
+	$property = $InputObject.PSObject.Properties[$Name]
+	if ($property) { return $property.Value }
+	return $null
+}
+
+function Get-BaselineSupportBundleGitBuildId
+{
+	$repoRoot = $null
+	$repoRootVariable = Get-Variable -Name 'SharedHelpersRepoRoot' -Scope Script -ErrorAction SilentlyContinue
+	if ($repoRootVariable) { $repoRoot = [string]$repoRootVariable.Value }
+	if ([string]::IsNullOrWhiteSpace($repoRoot))
+	{
+		$repoRoot = try { Split-Path (Split-Path $PSScriptRoot -Parent) -Parent } catch { $null }
+	}
+	if ([string]::IsNullOrWhiteSpace($repoRoot)) { return $null }
+
+	$gitDir = Join-Path $repoRoot '.git'
+	if (-not (Test-Path -LiteralPath $gitDir)) { return $null }
+
+	try
+	{
+		$headPath = Join-Path $gitDir 'HEAD'
+		if (-not (Test-Path -LiteralPath $headPath)) { return $null }
+		$head = ([System.IO.File]::ReadAllText($headPath, [System.Text.UTF8Encoding]::new($false))).Trim()
+		if ([string]::IsNullOrWhiteSpace($head)) { return $null }
+		if ($head -match '^ref:\s+(.+)$')
+		{
+			$refPath = Join-Path $gitDir $matches[1]
+			if (Test-Path -LiteralPath $refPath)
+			{
+				$commit = ([System.IO.File]::ReadAllText($refPath, [System.Text.UTF8Encoding]::new($false))).Trim()
+				if ($commit -match '^[0-9a-fA-F]{7,40}$') { return $commit }
+			}
+
+			$packedRefsPath = Join-Path $gitDir 'packed-refs'
+			if (Test-Path -LiteralPath $packedRefsPath)
+			{
+				$packedLines = [System.IO.File]::ReadAllLines($packedRefsPath, [System.Text.UTF8Encoding]::new($false))
+				$escapedRef = [regex]::Escape($matches[1])
+				foreach ($line in $packedLines)
+				{
+					if ($line -match ("^([0-9a-fA-F]{{40}})\s+{0}$" -f $escapedRef)) { return $matches[1] }
+				}
+			}
+			return $head
+		}
+		if ($head -match '^[0-9a-fA-F]{7,40}$') { return $head }
+		return $head
+	}
+	catch { return $null }
+}
+
+function New-BaselineSupportBundleVersionInfo
+{
+	[CmdletBinding()]
+	param (
+		[string]$BaselineVersion
+	)
+
+	$displayVersion = $BaselineVersion
+	if ([string]::IsNullOrWhiteSpace($displayVersion))
+	{
+		$displayVersion = 'unknown'
+	}
+
+	$normalizedVersion = ([string]$displayVersion).Trim()
+	if ($normalizedVersion.StartsWith('v', [System.StringComparison]::OrdinalIgnoreCase))
+	{
+		$normalizedVersion = $normalizedVersion.Substring(1)
+	}
+	$releaseLabel = $null
+	if ($normalizedVersion -match '(?i)(alpha|beta|rc|preview|dev|nightly)')
+	{
+		$releaseLabel = $matches[1].ToLowerInvariant()
+	}
+	if ($normalizedVersion -match '^(\d+\.\d+\.\d+(?:\.\d+)?)')
+	{
+		$normalizedVersion = $matches[1]
+	}
+
+	$buildId = Get-BaselineSupportBundleGitBuildId
+	if ([string]::IsNullOrWhiteSpace($buildId))
+	{
+		try { $buildId = [System.Reflection.Assembly]::GetEntryAssembly().ManifestModule.ModuleVersionId.ToString('N') } catch { $buildId = $null }
+	}
+
+	$channel = 'stable'
+	if ($releaseLabel -or $displayVersion -match '(?i)(alpha|beta|rc|preview|dev|nightly)' -or -not [string]::IsNullOrWhiteSpace($env:BASELINE_DEV_CHANNEL))
+	{
+		$channel = 'dev'
+	}
+
+	return [pscustomobject][ordered]@{
+		Schema          = 'Baseline.Version'
+		SchemaVersion   = 1
+		GeneratedAt     = [System.DateTime]::UtcNow.ToString('o')
+		version         = $normalizedVersion
+		display_version = $displayVersion
+		release_label   = $releaseLabel
+		build           = $buildId
+		channel         = $channel
+		ps_version      = [string]$PSVersionTable.PSVersion
+		ps_edition      = [string]$PSVersionTable.PSEdition
+		elevated        = (Test-BaselineSupportBundleElevated)
+	}
+}
+
+function New-BaselineSupportBundleEnvironmentInfo
+{
+	[CmdletBinding()]
+	param ()
+
+	$osInfo = [ordered]@{
+		Version      = [string][System.Environment]::OSVersion.Version
+		BuildNumber  = $null
+		Edition      = $null
+		Caption      = [string][System.Environment]::OSVersion.VersionString
+		Architecture = if ([System.Environment]::Is64BitOperatingSystem) { 'x64' } else { 'x86' }
+	}
+	try
+	{
+		$os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+		$osInfo['Caption'] = [string]$os.Caption
+		$osInfo['Version'] = [string]$os.Version
+		$osInfo['BuildNumber'] = [string]$os.BuildNumber
+		$osInfo['Architecture'] = [string]$os.OSArchitecture
+	}
+	catch { }
+	try
+	{
+		$ntVersion = Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -ErrorAction Stop
+		$osInfo['Edition'] = [string]$ntVersion.EditionID
+		if ([string]::IsNullOrWhiteSpace([string]$osInfo['BuildNumber']) -and $ntVersion.CurrentBuildNumber)
+		{
+			$osInfo['BuildNumber'] = [string]$ntVersion.CurrentBuildNumber
+		}
+	}
+	catch { }
+
+	$domainInfo = [ordered]@{
+		Type = $null
+		Name = $null
+	}
+	try
+	{
+		$cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop
+		if ([bool]$cs.PartOfDomain)
+		{
+			$domainInfo['Type'] = 'Domain'
+			$domainInfo['Name'] = [string]$cs.Domain
+		}
+		else
+		{
+			$domainInfo['Type'] = 'Workgroup'
+			$domainInfo['Name'] = [string]$cs.Workgroup
+		}
+	}
+	catch
+	{
+		$domainInfo['Type'] = 'Unknown'
+		$domainInfo['Name'] = $env:USERDOMAIN
+	}
+
+	$executionPolicies = @()
+	try
+	{
+		$executionPolicies = @(Get-ExecutionPolicy -List | ForEach-Object {
+			[pscustomobject][ordered]@{
+				Scope           = [string]$_.Scope
+				ExecutionPolicy = [string]$_.ExecutionPolicy
+			}
+		})
+	}
+	catch { $executionPolicies = @() }
+
+	return [pscustomobject][ordered]@{
+		Schema        = 'Baseline.Environment'
+		SchemaVersion = 1
+		GeneratedAt   = [System.DateTime]::UtcNow.ToString('o')
+		OS            = $osInfo
+		Process       = [ordered]@{
+			Architecture = if ([System.Environment]::Is64BitProcess) { 'x64' } else { 'x86' }
+			Elevated     = (Test-BaselineSupportBundleElevated)
+		}
+		User          = [ordered]@{
+			NameMasked  = (Get-BaselineSupportBundleMaskedName -Name $env:USERNAME)
+			Domain      = $env:USERDOMAIN
+			MachineName = (Get-BaselineSupportBundleMaskedName -Name $env:COMPUTERNAME)
+		}
+		Domain        = $domainInfo
+		PowerShell    = [ordered]@{
+			Edition = [string]$PSVersionTable.PSEdition
+			Version = [string]$PSVersionTable.PSVersion
+		}
+		ExecutionPolicy = @($executionPolicies)
+		Locale        = [ordered]@{
+			Culture   = [System.Globalization.CultureInfo]::CurrentCulture.Name
+			UICulture = [System.Globalization.CultureInfo]::CurrentUICulture.Name
+			Language  = [System.Globalization.CultureInfo]::CurrentUICulture.TwoLetterISOLanguageName
+		}
+	}
+}
+
+function New-BaselineSupportBundleWindowsFeatures
+{
+	[CmdletBinding()]
+	param ()
+
+	$serviceNames = @('WinRM', 'wuauserv', 'BITS', 'EventLog', 'Schedule', 'WinDefend', 'MpsSvc')
+	$services = [System.Collections.Generic.List[pscustomobject]]::new()
+	foreach ($serviceName in $serviceNames)
+	{
+		try
+		{
+			$svc = Get-Service -Name $serviceName -ErrorAction Stop
+			[void]$services.Add([pscustomobject][ordered]@{
+				Name      = $serviceName
+				Status    = [string]$svc.Status
+				StartType = [string]$svc.StartType
+			})
+		}
+		catch
+		{
+			[void]$services.Add([pscustomobject][ordered]@{
+				Name      = $serviceName
+				Status    = 'Unavailable'
+				StartType = $null
+			})
+		}
+	}
+
+	$defender = $null
+	try
+	{
+		if (Get-Command -Name 'Get-MpComputerStatus' -ErrorAction SilentlyContinue)
+		{
+			$mpStatus = Get-MpComputerStatus -ErrorAction Stop
+			$defender = [ordered]@{
+				AMServiceEnabled           = [bool]$mpStatus.AMServiceEnabled
+				AntivirusEnabled          = [bool]$mpStatus.AntivirusEnabled
+				RealTimeProtectionEnabled = [bool]$mpStatus.RealTimeProtectionEnabled
+				IoavProtectionEnabled     = [bool]$mpStatus.IoavProtectionEnabled
+				NISEnabled                = [bool]$mpStatus.NISEnabled
+				AntispywareEnabled        = [bool]$mpStatus.AntispywareEnabled
+			}
+		}
+	}
+	catch { $defender = $null }
+
+	$optionalFeatures = [System.Collections.Generic.List[pscustomobject]]::new()
+	$featureNames = @(
+		'Microsoft-Windows-Subsystem-Linux',
+		'VirtualMachinePlatform',
+		'Microsoft-Hyper-V-All',
+		'Containers',
+		'NetFx3',
+		'IIS-WebServerRole',
+		'TelnetClient',
+		'SMB1Protocol'
+	)
+	$getOptionalFeature = Get-Command -Name 'Get-WindowsOptionalFeature' -ErrorAction SilentlyContinue
+	foreach ($featureName in $featureNames)
+	{
+		if (-not $getOptionalFeature)
+		{
+			[void]$optionalFeatures.Add([pscustomobject][ordered]@{
+				Name  = $featureName
+				State = 'Unavailable'
+			})
+			continue
+		}
+		try
+		{
+			$feature = Get-WindowsOptionalFeature -Online -FeatureName $featureName -ErrorAction Stop
+			[void]$optionalFeatures.Add([pscustomobject][ordered]@{
+				Name  = $featureName
+				State = [string]$feature.State
+			})
+		}
+		catch
+		{
+			[void]$optionalFeatures.Add([pscustomobject][ordered]@{
+				Name  = $featureName
+				State = 'Unavailable'
+			})
+		}
+	}
+
+	return [pscustomobject][ordered]@{
+		Schema           = 'Baseline.WindowsFeatures'
+		SchemaVersion    = 1
+		GeneratedAt      = [System.DateTime]::UtcNow.ToString('o')
+		Services         = @($services)
+		Defender         = $defender
+		OptionalFeatures = @($optionalFeatures)
+	}
+}
+
+function Get-BaselineSupportBundleDirectorySummary
+{
+	param (
+		[Parameter(Mandatory = $true)][string]$Name,
+		[AllowNull()]
+		[AllowEmptyString()]
+		[string]$Path
+	)
+
+	$summary = [ordered]@{
+		Name           = $Name
+		Path           = $Path
+		Exists         = $false
+		FileCount      = 0
+		DirectoryCount = 0
+		Bytes          = 0
+		Error          = $null
+	}
+
+	if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path))
+	{
+		return [pscustomobject]$summary
+	}
+
+	$summary['Exists'] = $true
+	try
+	{
+		$items = @(Get-ChildItem -LiteralPath $Path -Recurse -Force -ErrorAction Stop)
+		foreach ($item in $items)
+		{
+			if ($item.PSIsContainer)
+			{
+				$summary['DirectoryCount'] = [int]$summary['DirectoryCount'] + 1
+			}
+			else
+			{
+				$summary['FileCount'] = [int]$summary['FileCount'] + 1
+				$summary['Bytes'] = [int64]$summary['Bytes'] + [int64]$item.Length
+			}
+		}
+	}
+	catch
+	{
+		$summary['Error'] = $_.Exception.Message
+	}
+
+	return [pscustomobject]$summary
+}
+
+function New-BaselineSupportBundleStorageSummary
+{
+	[CmdletBinding()]
+	param ()
+
+	$localAppData = $env:LOCALAPPDATA
+	$tempRoot = [System.IO.Path]::GetTempPath()
+	$baselineRoot = if (-not [string]::IsNullOrWhiteSpace($localAppData)) { Join-Path $localAppData 'Baseline' } else { $null }
+	$localTempBaseline = if (-not [string]::IsNullOrWhiteSpace($localAppData)) { Join-Path (Join-Path $localAppData 'Temp') 'Baseline' } else { $null }
+	$tempBaseline = Join-Path $tempRoot 'Baseline'
+	$userStatePath = if (-not [string]::IsNullOrWhiteSpace($baselineRoot)) { Join-Path $baselineRoot 'UserState' } else { $null }
+	$runtimeCachePath = if (-not [string]::IsNullOrWhiteSpace($localTempBaseline)) { Join-Path $localTempBaseline 'RC' } else { $null }
+	$localTempLogsPath = if (-not [string]::IsNullOrWhiteSpace($localTempBaseline)) { Join-Path $localTempBaseline 'Logs' } else { $null }
+
+	$locations = @(
+		(Get-BaselineSupportBundleDirectorySummary -Name 'BaselineAppData' -Path $baselineRoot),
+		(Get-BaselineSupportBundleDirectorySummary -Name 'UserState' -Path $userStatePath),
+		(Get-BaselineSupportBundleDirectorySummary -Name 'BaselineLocalTemp' -Path $localTempBaseline),
+		(Get-BaselineSupportBundleDirectorySummary -Name 'RuntimeCache' -Path $runtimeCachePath),
+		(Get-BaselineSupportBundleDirectorySummary -Name 'LocalTempLogs' -Path $localTempLogsPath),
+		(Get-BaselineSupportBundleDirectorySummary -Name 'TempBaseline' -Path $tempBaseline),
+		(Get-BaselineSupportBundleDirectorySummary -Name 'TempBaselineLogs' -Path (Join-Path $tempBaseline 'Logs'))
+	)
+
+	return [pscustomobject][ordered]@{
+		Schema        = 'Baseline.StorageSummary'
+		SchemaVersion = 1
+		GeneratedAt   = [System.DateTime]::UtcNow.ToString('o')
+		Locations     = @($locations)
+	}
+}
+
+function New-BaselineSupportBundleUserActionContext
+{
+	[CmdletBinding()]
+	param (
+		[string]$ProfilePath,
+		[object]$ReproductionContext,
+		[object]$ConfigStatePre,
+		[object]$ConfigStatePost
+	)
+
+	$sessionState = $ConfigStatePost
+	if ($null -eq $sessionState -and -not [string]::IsNullOrWhiteSpace($ProfilePath) -and (Test-Path -LiteralPath $ProfilePath))
+	{
+		try
+		{
+			$profileJson = [System.IO.File]::ReadAllText($ProfilePath, [System.Text.UTF8Encoding]::new($false))
+			$profile = if (Get-Command -Name 'ConvertFrom-BaselineJson' -ErrorAction SilentlyContinue)
+			{
+				$profileJson | ConvertFrom-BaselineJson -Depth 32
+			}
+			else
+			{
+				$profileJson | ConvertFrom-Json
+			}
+			$profileState = Get-BaselineSupportBundleObjectValue -InputObject $profile -Name 'State'
+			if ($null -ne $profileState) { $sessionState = $profileState } else { $sessionState = $profile }
+		}
+		catch { $sessionState = $null }
+	}
+
+	$selectedPreset = Get-BaselineSupportBundleObjectValue -InputObject $sessionState -Name 'SelectedPreset'
+	$explicitSelections = Get-BaselineSupportBundleObjectValue -InputObject $sessionState -Name 'ExplicitSelections'
+	$explicitSelectionDefinitions = Get-BaselineSupportBundleObjectValue -InputObject $sessionState -Name 'ExplicitSelectionDefinitions'
+	$selectedTweaks = @()
+	if ($null -ne $explicitSelectionDefinitions)
+	{
+		$selectedTweaks = @($explicitSelectionDefinitions)
+	}
+	elseif ($null -ne $explicitSelections)
+	{
+		$selectedTweaks = @($explicitSelections)
+	}
+
+	return [pscustomobject][ordered]@{
+		Schema              = 'Baseline.UserActionContext'
+		SchemaVersion       = 1
+		GeneratedAt         = [System.DateTime]::UtcNow.ToString('o')
+		PresetUsed          = $selectedPreset
+		SelectedTweaks      = @($selectedTweaks)
+		SafeMode            = Get-BaselineSupportBundleObjectValue -InputObject $sessionState -Name 'SafeMode'
+		ExpertMode          = Get-BaselineSupportBundleObjectValue -InputObject $sessionState -Name 'AdvancedMode'
+		UIDensity           = Get-BaselineSupportBundleObjectValue -InputObject $sessionState -Name 'UIDensity'
+		CurrentPrimaryTab   = Get-BaselineSupportBundleObjectValue -InputObject $sessionState -Name 'CurrentPrimaryTab'
+		HasPreConfigState   = ($null -ne $ConfigStatePre)
+		HasPostConfigState  = ($null -ne $ConfigStatePost)
+		ReproductionContext = $ReproductionContext
+	}
+}
+
 <#
 	.SYNOPSIS
 	Build a richer system info snapshot for support bundles.
@@ -1553,8 +2088,9 @@ function Get-BaselineSupportBundleClassifiedErrors
 	$classified = [System.Collections.Generic.List[pscustomobject]]::new()
 	$counts = [ordered]@{ AUTH = 0; NETWORK = 0; POLICY = 0; DEPENDENCY = 0; UNKNOWN = 0 }
 
-	foreach ($line in $lines)
+	for ($i = $lines.Count - 1; $i -ge 0; $i--)
 	{
+		$line = $lines[$i]
 		if ([string]::IsNullOrWhiteSpace($line)) { continue }
 		# Match the LogMessage format: "dd-MM-yyyy HH:mm LEVEL: ..."
 		if ($line -notmatch '\b(ERROR|WARNING)\b') { continue }
@@ -1567,10 +2103,25 @@ function Get-BaselineSupportBundleClassifiedErrors
 		elseif ($msg -match 'group\s+policy|gpo\b|policy\s+(restricted|prevents)|disabled\s+by\s+(your\s+)?administrator|managed\s+by\s+your\s+organization') { $category = 'POLICY' }
 		elseif ($msg -match 'not\s+found|missing|cannot\s+find|no\s+such\s+file|service\s+(not\s+installed|missing)|cmdletnot|commandnot|cannot\s+load|module\s+not\s+found') { $category = 'DEPENDENCY' }
 
+		$stackTrace = [System.Collections.Generic.List[string]]::new()
+		for ($stackIndex = $i + 1; $stackIndex -lt $lines.Count -and $stackTrace.Count -lt 20; $stackIndex++)
+		{
+			$stackLine = [string]$lines[$stackIndex]
+			if ([string]::IsNullOrWhiteSpace($stackLine)) { continue }
+			if ($stackLine -match '\b(INFO|DEBUG|WARNING|ERROR)\b') { break }
+			if ($stackLine -match '^\s+at\s+|^\s+in\s+.*:\s*line\s+\d+|^\s*\+\s+|^\s*CategoryInfo\s*:|^\s*FullyQualifiedErrorId\s*:|^\s*ScriptStackTrace\s*:|^\s*Exception\s*:')
+			{
+				[void]$stackTrace.Add($stackLine)
+				continue
+			}
+			if ($stackTrace.Count -gt 0) { break }
+		}
+
 		$counts[$category]++
 		[void]$classified.Add([pscustomobject]@{
-			Category = $category
-			Line     = $line
+			Category   = $category
+			Line       = $line
+			StackTrace = @($stackTrace)
 		})
 	}
 

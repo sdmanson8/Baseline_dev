@@ -70,14 +70,10 @@ function Get-UxLocalizedString
 			[object[]]$FormatArgs = @()
 		)
 
-		# Keep the English fallback for English UI only; non-English sessions should
-		# not leak hardcoded English when a translation key is missing.
-		$cultureName = [string]([System.Environment]::GetEnvironmentVariable('BASELINE_LANGUAGE'))
-		if ([string]::IsNullOrWhiteSpace($cultureName))
-		{
-			$cultureName = [string][System.Threading.Thread]::CurrentThread.CurrentUICulture.Name
-		}
-		$template = if ([string]::IsNullOrWhiteSpace($cultureName) -or ($cultureName -match '^(?i)en(-|$)')) { $Fallback } else { '' }
+		# GUI callers pass Fallback as the required display text. Use it whenever
+		# the active locale does not provide a non-empty value so controls never
+		# receive blank labels from incomplete translation packs.
+		$template = $Fallback
 		$localizationSource = $Global:Localization
 		if ($null -ne $localizationSource)
 		{
