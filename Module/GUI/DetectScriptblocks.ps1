@@ -22,6 +22,18 @@ function Invoke-GuiDetectScriptblock
 	return (& $Detect)
 }
 
+function Get-GuiDetectMpPreference
+{
+	try
+	{
+		return (Get-MpPreference -EA Stop)
+	}
+	catch
+	{
+		return $null
+	}
+}
+
 $Script:DetectScriptblocks = @{
 	'DiagTrackService' = { (Get-Service DiagTrack -EA SilentlyContinue).StartType -ne "Disabled" }
 	'MaintenanceWakeUp' = {
@@ -358,10 +370,10 @@ $Script:DetectScriptblocks = @{
 	'WindowsGameMode' = { (Get-ItemProperty "HKCU:\Software\Microsoft\GameBar" -Name AutoGameModeEnabled -EA SilentlyContinue).AutoGameModeEnabled -ne 0 }
 	'MouseAcceleration' = { (Get-ItemProperty "HKCU:\Control Panel\Mouse" -Name MouseSpeed -EA SilentlyContinue).MouseSpeed -ne "0" }
 	'NaglesAlgorithm' = { -not ((Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\*" -Name TCPNoDelay -EA SilentlyContinue).TCPNoDelay -contains 1) }
-	'NetworkProtection' = { try { (Get-MpPreference -EA Stop).EnableNetworkProtection -eq 1 } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.NetworkProtection.LoadMpPreference'; $false } }
+	'NetworkProtection' = { $mpPreference = Get-GuiDetectMpPreference; $mpPreference -and $mpPreference.EnableNetworkProtection -eq 1 }
 	'DefenderSandbox' = { [System.Environment]::GetEnvironmentVariable("MP_FORCE_USE_SANDBOX","Machine") -eq "1" }
-	'DefenderScanCPULimit' = { try { (Get-MpPreference -EA Stop).ScanAvgCPULoadFactor -le 25 } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.DefenderScanCPULimit.LoadMpPreference'; $false } }
-	'DefenderSignatureUpdateInterval' = { try { $i = (Get-MpPreference -EA Stop).SignatureUpdateInterval; ($i -ge 1 -and $i -le 1) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.DefenderSignatureUpdateInterval.LoadMpPreference'; $false } }
+	'DefenderScanCPULimit' = { $mpPreference = Get-GuiDetectMpPreference; $mpPreference -and $mpPreference.ScanAvgCPULoadFactor -le 25 }
+	'DefenderSignatureUpdateInterval' = { $mpPreference = Get-GuiDetectMpPreference; if (-not $mpPreference) { $false } else { $i = $mpPreference.SignatureUpdateInterval; ($i -ge 1 -and $i -le 1) } }
 	'PowerShellModulesLogging' = { (Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging" -Name EnableModuleLogging -EA SilentlyContinue).EnableModuleLogging -eq 1 }
 	'PowerShellScriptsLogging' = { (Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging" -Name EnableScriptBlockLogging -EA SilentlyContinue).EnableScriptBlockLogging -eq 1 }
 	'AppsSmartScreen' = { (Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name EnableSmartScreen -EA SilentlyContinue).EnableSmartScreen -ne 0 }

@@ -174,6 +174,46 @@
 		}
 	}
 
+	# Keep the startup splash release contract in one place so cached and
+	# freshly built startup tabs behave the same.
+	function Invoke-GuiStartupReadySignal
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param (
+			[object]$MainForm = $Script:MainForm,
+			[object]$Splash = $Global:LoadingSplash
+		)
+
+		try
+		{
+			# Signal GuiReady NOW — the foreground tab is built and the GUI is
+			# interactive. The background pre-builds below run silently after
+			# the splash closes; the user shouldn't wait ~55 s for every tab
+			# to finish building before they can use the app.
+			if ($Splash -and $Splash -is [hashtable])
+			{
+				$completeStartupSplashStepCommand = Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
+				if ($completeStartupSplashStepCommand)
+				{
+					& $completeStartupSplashStepCommand -Splash $Splash -StepId 'finalize' -Status 'completed' -SubAction '' | Out-Null
+				}
+				$Splash.GuiReady = $true
+			}
+			if ($MainForm)
+			{
+				$MainForm.Visibility = [System.Windows.Visibility]::Visible
+				$MainForm.ShowInTaskbar = $true
+				$MainForm.Opacity = 1
+				if ($MainForm.WindowState -eq [System.Windows.WindowState]::Minimized)
+				{
+					$MainForm.WindowState = [System.Windows.WindowState]::Normal
+				}
+				[void]$MainForm.Activate()
+			}
+		}
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.UpdateView.SignalGuiReady' }
+	}
+
 	# Helper for Dispatcher.BeginInvoke tab pre-builds. Uses [scriptblock]::Create()
 	# to embed $Tag as a string literal — PowerShell scriptblocks use dynamic scoping
 	# so function parameters do not survive past the function return. The block is then
@@ -226,6 +266,7 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 			}
 			if (Restore-CachedTabContent -PrimaryTab $PrimaryTab)
 			{
+				Invoke-GuiStartupReadySignal
 				return
 			}
 		}
@@ -287,6 +328,8 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 				{
 					throw "Build-TabContent/RestoreScrollOffset for tab '$PrimaryTab' failed: $($_.Exception.Message)"
 				}
+
+				Invoke-GuiStartupReadySignal
 
 				if (-not $SkipIdlePrebuild -and $PrimaryTabs -and $PrimaryTabs.Dispatcher)
 				{
@@ -414,34 +457,7 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 				throw "Build-TabContent/RestoreScrollOffset for tab '$PrimaryTab' failed: $($_.Exception.Message)"
 			}
 
-			# Signal GuiReady NOW — the foreground tab is built and the GUI is
-			# interactive. The background pre-builds below run silently after
-			# the splash closes; the user shouldn't wait ~55 s for every tab
-			# to finish building before they can use the app.
-			try
-			{
-				if ($Global:LoadingSplash -and $Global:LoadingSplash -is [hashtable])
-				{
-					$completeStartupSplashStepCommand = Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
-					if ($completeStartupSplashStepCommand)
-					{
-						& $completeStartupSplashStepCommand -Splash $Global:LoadingSplash -StepId 'finalize' -Status 'completed' -SubAction '' | Out-Null
-					}
-					$Global:LoadingSplash.GuiReady = $true
-				}
-				if ($Script:MainForm)
-				{
-					$Script:MainForm.Visibility = [System.Windows.Visibility]::Visible
-					$Script:MainForm.ShowInTaskbar = $true
-					$Script:MainForm.Opacity = 1
-					if ($Script:MainForm.WindowState -eq [System.Windows.WindowState]::Minimized)
-					{
-						$Script:MainForm.WindowState = [System.Windows.WindowState]::Normal
-					}
-					[void]$Script:MainForm.Activate()
-				}
-			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.UpdateView.SignalGuiReady' }
+			Invoke-GuiStartupReadySignal
 
 			# Schedule pre-builds for uncached tabs at idle priority so first-visit
 			# switches are instant. Each pre-build runs with -BackgroundBuild,

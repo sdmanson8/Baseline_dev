@@ -3791,6 +3791,67 @@ function Initialize-BaselineMarkdownRuntime
 
 <#
     .SYNOPSIS
+    Internal function Initialize-BaselineWinRtRuntimeDependencies.
+#>
+function Initialize-BaselineWinRtRuntimeDependencies
+{
+	<# .SYNOPSIS Loads bundled assemblies required by Windows Runtime projections in the embedded host. #>
+	[CmdletBinding()]
+	param (
+		[string]$ModuleRoot
+	)
+
+	if ($Script:CachedBaselineWinRtRuntimeDependenciesLoaded) { return $true }
+
+	if ([string]::IsNullOrWhiteSpace($ModuleRoot))
+	{
+		$ModuleRoot = $Script:SharedHelpersModuleRoot
+	}
+
+	if ([string]::IsNullOrWhiteSpace($ModuleRoot) -or -not (Test-Path -LiteralPath $ModuleRoot -PathType Container))
+	{
+		return $false
+	}
+
+	$librariesRoot = Join-Path $ModuleRoot 'Libraries'
+	if (-not (Test-Path -LiteralPath $librariesRoot -PathType Container))
+	{
+		return $false
+	}
+
+	$isAssemblyLoaded = {
+		param ([string]$AssemblyName)
+		foreach ($assembly in [System.AppDomain]::CurrentDomain.GetAssemblies())
+		{
+			$name = $null
+			try { $name = $assembly.GetName().Name } catch { $name = $null }
+			if ([string]::Equals([string]$name, $AssemblyName, [System.StringComparison]::OrdinalIgnoreCase))
+			{
+				return $true
+			}
+		}
+		return $false
+	}
+
+	foreach ($dllName in @(
+		'System.Runtime.CompilerServices.Unsafe.dll',
+		'System.Numerics.Vectors.dll'
+	))
+	{
+		$assemblyName = [System.IO.Path]::GetFileNameWithoutExtension($dllName)
+		if (& $isAssemblyLoaded $assemblyName) { continue }
+
+		$dllPath = Join-Path $librariesRoot $dllName
+		if (-not (Test-Path -LiteralPath $dllPath -PathType Leaf)) { continue }
+		try { Add-Type -Path $dllPath -ErrorAction Stop } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.InitializeBaselineWinRtRuntimeDependencies.AddAssembly' }
+	}
+
+	$Script:CachedBaselineWinRtRuntimeDependenciesLoaded = (& $isAssemblyLoaded 'System.Numerics.Vectors')
+	return [bool]$Script:CachedBaselineWinRtRuntimeDependenciesLoaded
+}
+
+<#
+    .SYNOPSIS
     Internal function Test-BaselineMarkdownRuntimeReady.
 #>
 

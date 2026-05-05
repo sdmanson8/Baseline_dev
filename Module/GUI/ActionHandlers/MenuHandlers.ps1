@@ -292,9 +292,9 @@
 					{
 						try { Set-BaselineUserPreference -Key 'DebugLoggingEnabled' -Value $debugWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist DebugLoggingEnabled failed') }
 					}
-					if ($debugWanted -and -not $env:BASELINE_PERF_LOG)
+					if (Get-Command -Name 'Set-GuiPerfTraceState' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						$env:BASELINE_PERF_LOG = '1'
+						try { Set-GuiPerfTraceState -Enabled $debugWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Set-GuiPerfTraceState failed') }
 					}
 				}
 				if ($result.ContainsKey('LogLevel')) { $Script:LogLevel = [string]$result.LogLevel }

@@ -16,7 +16,7 @@
 
         if ($Script:ExecutionProgressBar -or $Script:ExecutionProgressText)
         {
-            $Script:ExecutionProgressIndeterminate = ($Total -le 0 -or ($Completed -le 0 -and $CurrentAction -notin @('Done', 'Aborted')))
+            $Script:ExecutionProgressIndeterminate = ($Total -le 0)
             Set-SharedProgressBarState -ProgressBar $Script:ExecutionProgressBar -ProgressText $Script:ExecutionProgressText -Completed $Completed -Total $Total -CurrentAction $CurrentAction -Indeterminate:($Script:ExecutionProgressIndeterminate)
         }
 
@@ -254,4 +254,3 @@
 				}
 			}
 		}
-

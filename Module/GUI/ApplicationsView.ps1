@@ -756,7 +756,11 @@
 
 		if ([string]::IsNullOrWhiteSpace([string]$Script:AppsCategoryFilter))
 		{
-			$Script:AppsCategoryFilter = 'All'
+			$Script:AppsCategoryFilter = if (Get-Command -Name 'Get-AppsDefaultCatalogCategory' -CommandType Function -ErrorAction SilentlyContinue) { Get-AppsDefaultCatalogCategory } else { 'Browsers' }
+		}
+		elseif ($Script:AppsCategoryFilter -eq 'All')
+		{
+			$Script:AppsCategoryFilter = if (Get-Command -Name 'Get-AppsDefaultCatalogCategory' -CommandType Function -ErrorAction SilentlyContinue) { Get-AppsDefaultCatalogCategory } else { 'Browsers' }
 		}
 
 		if ($null -eq $Script:AppsFilterUiUpdating)
@@ -775,21 +779,14 @@
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ()
 
-		$catalog = @(Get-BaselineApplicationsCatalog)
-		$categories = @(
-			$catalog |
-				ForEach-Object {
-					if ($_)
-					{
-						$categoryName = if ([string]::IsNullOrWhiteSpace([string]$_.SubCategory)) { 'Other' } else { [string]$_.SubCategory.Trim() }
-						if (-not [string]::IsNullOrWhiteSpace($categoryName))
-						{
-							$categoryName
-						}
-					}
-				} |
-				Sort-Object -Unique
-		)
+		$categories = if (Get-Command -Name 'Get-AppsCatalogCategoryNames' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			@(Get-AppsCatalogCategoryNames)
+		}
+		else
+		{
+			@()
+		}
 
 		return $categories
 	}
@@ -882,7 +879,7 @@
 
 		Initialize-AppCategoryFilterState
 
-		$currentValue = if (-not [string]::IsNullOrWhiteSpace([string]$Script:AppsCategoryFilter)) { [string]$Script:AppsCategoryFilter.Trim() } else { 'All' }
+		$currentValue = if (Get-Command -Name 'Resolve-AppsCatalogCategory' -CommandType Function -ErrorAction SilentlyContinue) { Resolve-AppsCatalogCategory -Category $Script:AppsCategoryFilter } elseif (-not [string]::IsNullOrWhiteSpace([string]$Script:AppsCategoryFilter) -and [string]$Script:AppsCategoryFilter -ne 'All') { [string]$Script:AppsCategoryFilter.Trim() } else { 'Browsers' }
 		$values = @(Get-AppCategoryFilterValues)
 
 		$Script:AppsFilterUiUpdating = $true
@@ -891,7 +888,6 @@
 			$Script:AppsCategoryTabs.Items.Clear()
 			$Script:AppsCategoryFilterInternalValues = [System.Collections.Generic.List[string]]::new()
 			$appsCatLocKeyMap = @{
-				'All'           = 'GuiAppsCategoryAll'
 				'Browsers'      = 'GuiAppsCategoryBrowsers'
 				'Communication' = 'GuiAppsCategoryCommunication'
 				'Compression'   = 'GuiAppsCategoryCompression'
@@ -907,7 +903,6 @@
 				'Utilities'     = 'GuiAppsCategoryUtilities'
 			}
 			$appsCatIconMap = @{
-				'All'            = 'Apps'
 				'Browsers'       = 'Globe'
 				'Communication'  = 'Chat'
 				'Compression'    = 'Archive'
@@ -1018,24 +1013,18 @@
 		if (-not $Script:AppsCategoryTabs -or $Script:AppsCategoryTabs.Items.Count -eq 0) { return }
 
 		$activeSearchQuery = if ($Script:AppsModeActive) { [string]$Script:AppsSearchText } else { [string]$Script:SearchText }
+		$currentCategory = if (Get-Command -Name 'Resolve-AppsCatalogCategory' -CommandType Function -ErrorAction SilentlyContinue) { Resolve-AppsCatalogCategory -Category $Script:AppsCategoryFilter } elseif (-not [string]::IsNullOrWhiteSpace([string]$Script:AppsCategoryFilter) -and [string]$Script:AppsCategoryFilter -ne 'All') { [string]$Script:AppsCategoryFilter.Trim() } else { 'Browsers' }
 		$catalog = @(Get-AppsCatalogItemsBySearchStatusAndSourceFilters -SearchQuery $activeSearchQuery)
-		$counts = @{}
-		foreach ($entry in $catalog)
-		{
-			$cat = if ([string]::IsNullOrWhiteSpace([string]$entry.SubCategory)) { 'Other' } else { [string]$entry.SubCategory.Trim() }
-			if (-not $counts.ContainsKey($cat)) { $counts[$cat] = 0 }
-			$counts[$cat]++
-		}
+		$currentCount = $catalog.Count
 
 		foreach ($tab in $Script:AppsCategoryTabs.Items)
 		{
 			if (-not ($tab -is [System.Windows.Controls.TabItem])) { continue }
 			$tag = [string]$tab.Tag
 			if ([string]::IsNullOrWhiteSpace($tag)) { continue }
-			$tabCount = if ($counts.ContainsKey($tag)) { [int]$counts[$tag] } else { 0 }
 			$displayName = if ($tab.PSObject.Properties['AppsDisplayName']) { [string]$tab.AppsDisplayName } else { $tag }
 			$iconName = if ($tab.PSObject.Properties['AppsIconName']) { [string]$tab.AppsIconName } else { $null }
-			$headerText = "$displayName ($tabCount)"
+			$headerText = if ($tag -eq $currentCategory) { "$displayName ($currentCount)" } else { $displayName }
 			if ($iconName -and (Get-Command -Name 'New-GuiLabeledIconContent' -CommandType Function -ErrorAction SilentlyContinue))
 			{
 				$tab.Header = New-GuiLabeledIconContent -IconName $iconName -Text $headerText -IconSize 16 -Gap 6 -AllowTextOnlyFallback
@@ -1116,7 +1105,7 @@
 
 		Initialize-AppCategoryFilterState
 
-		$normalizedCategory = if ([string]::IsNullOrWhiteSpace($Category)) { 'All' } else { [string]$Category.Trim() }
+		$normalizedCategory = if (Get-Command -Name 'Resolve-AppsCatalogCategory' -CommandType Function -ErrorAction SilentlyContinue) { Resolve-AppsCatalogCategory -Category $Category } elseif ([string]::IsNullOrWhiteSpace($Category) -or [string]$Category -eq 'All') { 'Browsers' } else { [string]$Category.Trim() }
 		$Script:AppsCategoryFilter = $normalizedCategory
 
 		Update-AppsCategoryTabVisuals

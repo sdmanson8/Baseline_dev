@@ -602,7 +602,6 @@
 		$Script:ExecutionSubProgressBar = $null
 		$Script:ExecutionSubProgressText = $null
 		$Script:TxtAppsProgressText = $null
-		$Script:AppsProgressHost = $null
 		$Script:AppsProgressBar = $null
 		$Script:PresetProgressHost = $null
 		$Script:PresetProgressBar = $null

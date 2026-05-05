@@ -755,28 +755,35 @@ function Get-ApplicationCacheSnapshot
     Internal function Get-BaselineApplicationsCatalog.
 #>
 
-function Get-BaselineApplicationsCatalog
+function Get-AppsDefaultCatalogCategory
+{
+	[CmdletBinding()]
+	param ()
+
+	return 'Browsers'
+}
+
+function Resolve-AppsCatalogCategory
 {
 	[CmdletBinding()]
 	param (
-		[switch]$Force
+		[string]$Category = $null
 	)
 
-	if (Get-Command -Name 'Test-WinGetAvailable' -CommandType Function -ErrorAction SilentlyContinue)
+	$resolved = if ([string]::IsNullOrWhiteSpace([string]$Category)) { [string]$Script:AppsCategoryFilter } else { [string]$Category }
+	if ([string]::IsNullOrWhiteSpace([string]$resolved) -or $resolved.Trim() -eq 'All')
 	{
-		try { $null = Test-WinGetAvailable -Refresh } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Get-BaselineApplicationsCatalog.TestWinGetAvailable' }
-	}
-	if (Get-Command -Name 'Test-ChocolateyAvailable' -CommandType Function -ErrorAction SilentlyContinue)
-	{
-		try { $null = Test-ChocolateyAvailable -Refresh } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Get-BaselineApplicationsCatalog.TestChocolateyAvailable' }
+		return (Get-AppsDefaultCatalogCategory)
 	}
 
-	if (-not $Force -and ($Script:BaselineApplicationsCatalog -is [System.Array]) -and $Script:BaselineApplicationsCatalog.Count -gt 0)
-	{
-		return $Script:BaselineApplicationsCatalog
-	}
+	return [string]$resolved.Trim()
+}
 
-	$catalogDirectory = $null
+function Get-AppsCatalogCandidateDirectories
+{
+	[CmdletBinding()]
+	param ()
+
 	$candidateCatalogDirectories = [System.Collections.Generic.List[string]]::new()
 	foreach ($basePath in @($Script:GuiModuleBasePath))
 	{
@@ -803,24 +810,146 @@ function Get-BaselineApplicationsCatalog
 		}
 	}
 
-	$catalogFiles = @()
-	foreach ($candidateDirectory in @($candidateCatalogDirectories | Select-Object -Unique))
+	return @($candidateCatalogDirectories | Select-Object -Unique)
+}
+
+function Get-AppsCatalogCategoryNames
+{
+	[CmdletBinding()]
+	param ()
+
+	foreach ($candidateDirectory in @(Get-AppsCatalogCandidateDirectories))
 	{
-		if (-not [string]::IsNullOrWhiteSpace([string]$candidateDirectory) -and (Test-Path -LiteralPath $candidateDirectory -PathType Container))
+		if ([string]::IsNullOrWhiteSpace([string]$candidateDirectory) -or -not (Test-Path -LiteralPath $candidateDirectory -PathType Container))
 		{
-			$catalogDirectory = $candidateDirectory
-			$catalogFiles = @(Get-ChildItem -LiteralPath $catalogDirectory -Filter '*.json' -File -ErrorAction SilentlyContinue | Sort-Object Name)
-			if ($catalogFiles.Count -gt 0)
+			continue
+		}
+
+		$names = @(
+			Get-ChildItem -LiteralPath $candidateDirectory -Filter '*.json' -File -ErrorAction SilentlyContinue |
+				ForEach-Object { [System.IO.Path]::GetFileNameWithoutExtension($_.Name) } |
+				Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+				Sort-Object -Unique
+		)
+		if ($names.Count -gt 0)
+		{
+			$defaultCategory = Get-AppsDefaultCatalogCategory
+			return @(
+				$names | Where-Object { [string]$_ -eq $defaultCategory }
+				$names | Where-Object { [string]$_ -ne $defaultCategory }
+			)
+		}
+	}
+
+	return @()
+}
+
+function Get-AppsCatalogFilesForCategory
+{
+	[CmdletBinding()]
+	param (
+		[string]$Category = $null
+	)
+
+	$resolvedCategory = Resolve-AppsCatalogCategory -Category $Category
+	foreach ($candidateDirectory in @(Get-AppsCatalogCandidateDirectories))
+	{
+		if ([string]::IsNullOrWhiteSpace([string]$candidateDirectory) -or -not (Test-Path -LiteralPath $candidateDirectory -PathType Container))
+		{
+			continue
+		}
+
+		$categoryFile = Join-Path -Path $candidateDirectory -ChildPath ('{0}.json' -f $resolvedCategory)
+		if (Test-Path -LiteralPath $categoryFile -PathType Leaf)
+		{
+			return @(Get-Item -LiteralPath $categoryFile -ErrorAction Stop)
+		}
+	}
+
+	return @()
+}
+
+function Get-LoadedBaselineApplicationsCatalog
+{
+	[CmdletBinding()]
+	param ()
+
+	$catalog = [System.Collections.Generic.List[object]]::new()
+	$seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
+	if ((Get-Variable -Name 'BaselineApplicationsCatalogByCategory' -Scope Script -ErrorAction SilentlyContinue) -and ($Script:BaselineApplicationsCatalogByCategory -is [hashtable]))
+	{
+		foreach ($categoryCatalog in @($Script:BaselineApplicationsCatalogByCategory.Values))
+		{
+			foreach ($entry in @($categoryCatalog))
 			{
-				break
+				if (-not $entry) { continue }
+				$key = Get-ApplicationCatalogIdentityKey -Entry $entry
+				if (-not [string]::IsNullOrWhiteSpace([string]$key) -and $seen.Add([string]$key))
+				{
+					[void]$catalog.Add($entry)
+				}
 			}
 		}
 	}
 
+	if ($catalog.Count -eq 0 -and $Script:BaselineApplicationsCatalog)
+	{
+		foreach ($entry in @($Script:BaselineApplicationsCatalog))
+		{
+			if (-not $entry) { continue }
+			$key = Get-ApplicationCatalogIdentityKey -Entry $entry
+			if (-not [string]::IsNullOrWhiteSpace([string]$key) -and $seen.Add([string]$key))
+			{
+				[void]$catalog.Add($entry)
+			}
+		}
+	}
+
+	return @($catalog)
+}
+
+function Get-BaselineApplicationsCatalog
+{
+	[CmdletBinding()]
+	param (
+		[switch]$Force,
+		[string]$Category = $null
+	)
+
+	if (Get-Command -Name 'Test-WinGetAvailable' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		try { $null = Test-WinGetAvailable -Refresh } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Get-BaselineApplicationsCatalog.TestWinGetAvailable' }
+	}
+	if (Get-Command -Name 'Test-ChocolateyAvailable' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		try { $null = Test-ChocolateyAvailable -Refresh } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Get-BaselineApplicationsCatalog.TestChocolateyAvailable' }
+	}
+
+	$effectiveCategory = Resolve-AppsCatalogCategory -Category $Category
+	if (-not (Get-Variable -Name 'BaselineApplicationsCatalogByCategory' -Scope Script -ErrorAction SilentlyContinue) -or -not ($Script:BaselineApplicationsCatalogByCategory -is [hashtable]))
+	{
+		$Script:BaselineApplicationsCatalogByCategory = @{}
+	}
+	if ($Force)
+	{
+		$Script:BaselineApplicationsCatalogByCategory.Clear()
+	}
+	if (-not $Force -and $Script:BaselineApplicationsCatalogByCategory.ContainsKey($effectiveCategory))
+	{
+		$Script:BaselineApplicationsCatalog = @($Script:BaselineApplicationsCatalogByCategory[$effectiveCategory])
+		$Script:BaselineApplicationsCatalogCategory = $effectiveCategory
+		return $Script:BaselineApplicationsCatalog
+	}
+
+	$catalogFiles = @(Get-AppsCatalogFilesForCategory -Category $effectiveCategory)
+
 	if (-not $catalogFiles -or $catalogFiles.Count -eq 0)
 	{
-		LogError (Get-UxBilingualLocalizedString -Key 'GuiLogApplicationsCatalogNotFound' -Fallback 'Applications catalog not found: {0}' -FormatArgs @($catalogDirectory))
+		LogError (Get-UxBilingualLocalizedString -Key 'GuiLogApplicationsCatalogNotFound' -Fallback 'Applications catalog not found: {0}' -FormatArgs @($effectiveCategory))
 		$Script:BaselineApplicationsCatalog = @()
+		$Script:BaselineApplicationsCatalogCategory = $effectiveCategory
+		$Script:BaselineApplicationsCatalogByCategory[$effectiveCategory] = @()
 		return $Script:BaselineApplicationsCatalog
 	}
 
@@ -886,7 +1015,9 @@ function Get-BaselineApplicationsCatalog
 						if (-not [string]::IsNullOrWhiteSpace([string]$warning)) { LogWarning $warning }
 					}
 					$acceptedUserEntries = @($mergeResult.Entries | Where-Object {
-						$_ -and $_.PSObject.Properties['Source'] -and ([string]$_.Source -eq 'User')
+						$_ -and
+						$_.PSObject.Properties['Source'] -and ([string]$_.Source -eq 'User') -and
+						$_.PSObject.Properties['SubCategory'] -and ([string]$_.SubCategory -eq $effectiveCategory)
 					})
 					if ($acceptedUserEntries.Count -gt 0)
 					{
@@ -1025,6 +1156,8 @@ function Get-BaselineApplicationsCatalog
 	}
 
 	$Script:BaselineApplicationsCatalog = @($catalog)
+	$Script:BaselineApplicationsCatalogCategory = $effectiveCategory
+	$Script:BaselineApplicationsCatalogByCategory[$effectiveCategory] = @($catalog)
 	return $Script:BaselineApplicationsCatalog
 }
 

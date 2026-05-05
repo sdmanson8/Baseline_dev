@@ -107,7 +107,8 @@ Describe 'Settings dialog wiring' {
         $script:MenuHandlersContent | Should -Match '\$Script:DebugLoggingEnabled = \$debugWanted'
         $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''DebugLoggingEnabled'' -Default \$false'
         $script:WindowSetupContent | Should -Match 'Set-BaselineDebugLogging -Enabled \(\[bool\]\$Script:DebugLoggingEnabled\)'
-        $script:WindowSetupContent | Should -Match '\$env:BASELINE_PERF_LOG = ''1'''
+        $script:WindowSetupContent | Should -Match 'Set-GuiPerfTraceState -Enabled \(\[bool\]\$Script:DebugLoggingEnabled\)'
+        $script:MenuHandlersContent | Should -Match 'Set-GuiPerfTraceState -Enabled \$debugWanted'
     }
 
     It 'persists package source preference and reopens settings from stored state' {

@@ -33,7 +33,7 @@ function Start-AppsModuleQueuedActionAsync
 	if ($Script:AppsQueuedActions.Count -eq 0) { return }
 	if ($Script:AppsOperationInProgress -or $Script:AppsCacheRefreshInProgress) { return }
 
-	$catalog = $Script:BaselineApplicationsCatalog
+	$catalog = if (Get-Command -Name 'Get-LoadedBaselineApplicationsCatalog' -CommandType Function -ErrorAction SilentlyContinue) { @(Get-LoadedBaselineApplicationsCatalog) } else { @($Script:BaselineApplicationsCatalog) }
 	if (-not $catalog) { return }
 
 	$installApps   = [System.Collections.Generic.List[object]]::new()
@@ -293,7 +293,6 @@ function Build-AppsViewCards
 		$emptyState.Child.Foreground = $bc.ConvertFromString($theme.TextSecondary)
 		[void]$Script:AppsWrapPanel.Children.Add($emptyState)
 		$emptySummaryText = (Get-UxLocalizedString -Key 'GuiAppsEmptyStateNoPackageBackedApplications' -Fallback 'No package-backed applications were found.')
-		if ($Script:TxtAppCacheStatus) { $Script:TxtAppCacheStatus.Text = $emptySummaryText }
 		if ($Script:TxtAppsProgressText) { $Script:TxtAppsProgressText.Text = $emptySummaryText }
 		$Script:AppsViewBuildSignature = $renderSignature
 		Update-AppsSelectionSummary
@@ -342,7 +341,7 @@ function Build-AppsViewCards
 		$emptyState.Child.TextWrapping = 'Wrap'
 		$emptyState.Child.Foreground = $bc.ConvertFromString($theme.TextSecondary)
 		[void]$Script:AppsWrapPanel.Children.Add($emptyState)
-		if ($Script:TxtAppCacheStatus)
+		if ($Script:TxtAppsProgressText)
 		{
 			$installedCount = 0
 			$updateAvailableCount = 0
@@ -367,11 +366,7 @@ function Build-AppsViewCards
 			{
 				[string]::Format((Get-UxLocalizedString -Key 'AppStatusSummary' -Fallback 'Installed: {0}/{1} | Showing: 0/{1}'), $installedCount, $allCatalog.Count)
 			}
-			$Script:TxtAppCacheStatus.Text = $summaryText
-			if ($Script:TxtAppsProgressText)
-			{
-				$Script:TxtAppsProgressText.Text = $summaryText
-			}
+			$Script:TxtAppsProgressText.Text = $summaryText
 		}
 		$Script:AppsViewBuildSignature = $renderSignature
 		Update-AppsSelectionSummary
@@ -385,17 +380,9 @@ function Build-AppsViewCards
 	)
 	$installedCount = 0
 	$updateAvailableCount = 0
-	if ($Script:TxtAppCacheStatus -and $Script:AppsProgressBar)
-	{
-		$Script:TxtAppCacheStatus.Text = $buildProgressLabel
-	}
 	if ($Script:TxtAppsProgressText -and $buildProgressLabel)
 	{
 		$Script:TxtAppsProgressText.Text = $buildProgressLabel
-	}
-	if ($Script:AppsProgressBar)
-	{
-		try { $Script:AppsProgressBar.IsIndeterminate = $true } catch { Write-GuiRuntimeWarning -Context 'Build-AppsViewCards:ProgressBar' -Message $_.Exception.Message }
 	}
 
 	foreach ($app in @($sortedCatalog))
@@ -897,15 +884,11 @@ function Build-AppsViewCards
 		}
 	}
 
-	if ($Script:TxtAppCacheStatus)
+	if ($Script:TxtAppsProgressText)
 	{
 		if (-not $cacheReady)
 		{
-			$Script:TxtAppCacheStatus.Text = $cacheRefreshPrompt
-			if ($Script:TxtAppsProgressText)
-			{
-				$Script:TxtAppsProgressText.Text = $cacheRefreshPrompt
-			}
+			$Script:TxtAppsProgressText.Text = $cacheRefreshPrompt
 			Update-AppsSelectionSummary
 			return
 		}
@@ -932,24 +915,7 @@ function Build-AppsViewCards
 				[string]::Format((Get-UxLocalizedString -Key 'AppStatusSummaryAll' -Fallback 'Installed: {0}/{1}'), $installedCount, $allCatalog.Count)
 			}
 		}
-		$Script:TxtAppCacheStatus.Text = $summaryText
-		if ($Script:TxtAppsProgressText)
-		{
-			$Script:TxtAppsProgressText.Text = $summaryText
-		}
-	}
-	if ($Script:AppsProgressBar)
-	{
-		try
-		{
-			$Script:AppsProgressBar.IsIndeterminate = $false
-			$Script:AppsProgressBar.Maximum = 1
-			$Script:AppsProgressBar.Value = 0
-		}
-		catch
-		{
-			Write-GuiRuntimeWarning -Context 'Build-AppsViewCards:ProgressBarReset' -Message $_.Exception.Message
-		}
+		$Script:TxtAppsProgressText.Text = $summaryText
 	}
 	$Script:AppsViewBuildSignature = $renderSignature
 	Update-AppsSelectionSummary
@@ -975,11 +941,6 @@ function Start-AppsCacheRefresh
 
 	$Script:AppsCacheRefreshInProgress = $true
 	Set-AppsActionControlsEnabled -Enabled $false
-	Initialize-AppsProgressSection
-	if ($Script:AppsProgressContainer)
-	{
-		$Script:AppsProgressContainer.Visibility = [System.Windows.Visibility]::Visible
-	}
 	# Resolve every localized label here on the UI thread. The background
 	# runspace does NOT have Get-UxLocalizedString / Get-UxBilingualLocalizedString
 	# (they live in Module/GUI/UxPolicy.ps1 and aren't imported by
@@ -1006,10 +967,10 @@ function Start-AppsCacheRefresh
 		IsComplete   = $false
 		Error        = $null
 	})
-	if ($Script:TxtAppCacheStatus)
+	if ($Script:TxtAppsProgressText)
 	{
 		$initialProgressText = Set-SharedProgressBarState -ProgressBar $Script:AppsProgressBar -ProgressText $Script:TxtAppsProgressText -Completed $syncHash.Completed -Total $syncHash.Total -CurrentAction $syncHash.CurrentAction -PassThruText
-		$Script:TxtAppCacheStatus.Text = $initialProgressText
+		$Script:TxtAppsProgressText.Text = $initialProgressText
 	}
 
 	$appModulePath = Join-Path -Path $Script:GuiModuleBasePath -ChildPath 'Regions\Applications.psm1'
@@ -1152,16 +1113,12 @@ function Start-AppsCacheRefresh
 	# them as regular locals.
 	$tickProgressBar = $Script:AppsProgressBar
 	$tickProgressText = $Script:TxtAppsProgressText
-	$tickCacheStatus = $Script:TxtAppCacheStatus
 	$appsScriptScope = $ExecutionContext.SessionState.Module
 	$timer.Add_Tick({
 		if ($syncHash.Error)
 		{
 			$timer.Stop()
-			if ($tickCacheStatus)
-			{
-				$tickCacheStatus.Text = (& $appsSetSharedProgressBarStateCommand -ProgressBar $tickProgressBar -ProgressText $tickProgressText -Completed 0 -Total 1 -CurrentAction (& $appsGetUxLocalizedStringCommand -Key 'GuiAppsCacheRefreshFailed' -Fallback 'Failed to scan installed applications.') -PassThruText)
-			}
+			& $appsSetSharedProgressBarStateCommand -ProgressBar $tickProgressBar -ProgressText $tickProgressText -Completed 0 -Total 1 -CurrentAction (& $appsGetUxLocalizedStringCommand -Key 'GuiAppsCacheRefreshFailed' -Fallback 'Failed to scan installed applications.') -PassThruText | Out-Null
 			& $appsLogErrorCommand (& $appsGetUxLocalizedStringCommand -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @([string]$syncHash.Error))
 			try { $ps.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Start-AppsCacheRefresh.DisposePowerShell' }
 			try { $runspace.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Start-AppsCacheRefresh.DisposeRunspace' }
@@ -1171,10 +1128,6 @@ function Start-AppsCacheRefresh
 		if ($tickProgressBar -or $tickProgressText)
 		{
 			$progressText = & $appsSetSharedProgressBarStateCommand -ProgressBar $tickProgressBar -ProgressText $tickProgressText -Completed $syncHash.Completed -Total $syncHash.Total -CurrentAction $syncHash.CurrentAction -PassThruText
-			if ($tickCacheStatus)
-			{
-				$tickCacheStatus.Text = $progressText
-			}
 		}
 
 		if (-not $asyncResult.IsCompleted)
@@ -1243,10 +1196,6 @@ function Start-AppsCacheRefresh
 				$Script:AppsViewDirty = $true
 			}
 			$progressText = & $appsSetSharedProgressBarStateCommand -ProgressBar $tickProgressBar -ProgressText $tickProgressText -Completed 0 -Total 1 -CurrentAction (& $appsGetUxLocalizedStringCommand -Key 'GuiAppsCacheRefreshFailed' -Fallback 'Failed to scan installed applications.') -PassThruText
-			if ($tickCacheStatus)
-			{
-				$tickCacheStatus.Text = $progressText
-			}
 			& $appsLogErrorCommand (& $appsGetUxLocalizedStringCommand -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @($_.Exception.Message))
 		}
 		finally

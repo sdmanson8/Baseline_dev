@@ -346,11 +346,25 @@
 		if ($Script:SearchRefreshTimer)
 		{
 			$Script:SearchRefreshTimer.Stop()
-			$Script:SearchRefreshTimer.Start()
 		}
-		else
+
+		if ($Script:AppsModeActive)
 		{
-			& $refreshSearchContent
+			if (Get-Command -Name 'Build-AppsViewCards' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Build-AppsViewCards
+			}
+			return
+		}
+
+		if ($Script:TabContentCache -and $Script:SearchResultsTabTag -and $Script:TabContentCache.ContainsKey($Script:SearchResultsTabTag))
+		{
+			[void]$Script:TabContentCache.Remove($Script:SearchResultsTabTag)
+		}
+		Update-SearchResultsTabState
+		if (Get-Command -Name 'Update-CurrentTabContent' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-CurrentTabContent -SkipIdlePrebuild
 		}
 	})
 	# Enable pixel-based smooth scrolling

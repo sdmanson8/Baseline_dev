@@ -228,6 +228,7 @@ function New-GuiLabeledIconContent
         [string]$IconName,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string]$Text,
 
         [double]$IconSize = 16,
@@ -248,9 +249,11 @@ function New-GuiLabeledIconContent
 
     $resolvedForeground = Resolve-GuiBrushInput -Value $Foreground -Context 'New-GuiLabeledIconContent'
     $icon = New-GuiIconTextBlock -IconName $IconName -Size $IconSize -Foreground $resolvedForeground -ToolTip $ToolTip -VerticalAlignment $VerticalAlignment
+    $hasText = -not [string]::IsNullOrEmpty($Text)
+
     if ($icon)
     {
-        $icon.Margin = [System.Windows.Thickness]::new(0, 0, $Gap, 0)
+        $icon.Margin = [System.Windows.Thickness]::new(0, 0, $(if ($hasText) { $Gap } else { 0 }), 0)
         [void]$panel.Children.Add($icon)
     }
     elseif (-not $AllowTextOnlyFallback)
@@ -258,31 +261,34 @@ function New-GuiLabeledIconContent
         return $null
     }
 
-    $label = [System.Windows.Controls.TextBlock]::new()
-    $label.Text = $Text
-    if (Test-GuiPositiveFontSize -Value $TextFontSize)
+    if ($hasText)
     {
-        $label.FontSize = $TextFontSize
-    }
-    $label.VerticalAlignment = $VerticalAlignment
-    $label.TextWrapping = 'NoWrap'
-    $label.TextTrimming = 'CharacterEllipsis'
-    if ($Bold)
-    {
-        $label.FontWeight = [System.Windows.FontWeights]::SemiBold
-    }
+        $label = [System.Windows.Controls.TextBlock]::new()
+        $label.Text = $Text
+        if (Test-GuiPositiveFontSize -Value $TextFontSize)
+        {
+            $label.FontSize = $TextFontSize
+        }
+        $label.VerticalAlignment = $VerticalAlignment
+        $label.TextWrapping = 'NoWrap'
+        $label.TextTrimming = 'CharacterEllipsis'
+        if ($Bold)
+        {
+            $label.FontWeight = [System.Windows.FontWeights]::SemiBold
+        }
 
-    if ($null -ne $resolvedForeground)
-    {
-        $label.Foreground = $resolvedForeground
-    }
+        if ($null -ne $resolvedForeground)
+        {
+            $label.Foreground = $resolvedForeground
+        }
 
-    if (-not [string]::IsNullOrWhiteSpace($ToolTip))
-    {
-        $label.ToolTip = $ToolTip
-    }
+        if (-not [string]::IsNullOrWhiteSpace($ToolTip))
+        {
+            $label.ToolTip = $ToolTip
+        }
 
-    [void]$panel.Children.Add($label)
+        [void]$panel.Children.Add($label)
+    }
     return $panel
 }
 
@@ -303,6 +309,7 @@ function Set-GuiButtonIconContent
         [string]$IconName,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string]$Text,
 
         [double]$IconSize = 16,

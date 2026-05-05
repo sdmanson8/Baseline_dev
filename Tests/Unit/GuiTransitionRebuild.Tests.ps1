@@ -23,6 +23,7 @@ BeforeAll {
     $sessionStatePath = Join-Path $PSScriptRoot '../../Module/GUI/SessionState.ps1'
     $gameModePath = Join-Path $PSScriptRoot '../../Module/GUI/GameModeUI.ps1'
     $updatesPanelPath = Join-Path $PSScriptRoot '../../Module/GUI/UpdatesPanel.ps1'
+    $searchFilterHandlersPath = Join-Path $PSScriptRoot '../../Module/GUI/SearchFilterHandlers.ps1'
 
     $script:GuiContent = @(
         Get-Content -LiteralPath $mainWindowPath -Raw -Encoding UTF8
@@ -38,6 +39,7 @@ BeforeAll {
         Get-Content -LiteralPath $buildTweakControlsPath -Raw -Encoding UTF8
         Get-Content -LiteralPath $applyThemePath -Raw -Encoding UTF8
         Get-Content -LiteralPath $updatesPanelPath -Raw -Encoding UTF8
+        Get-Content -LiteralPath $searchFilterHandlersPath -Raw -Encoding UTF8
     ) -join "`n"
     $script:BuildPrimaryTabsContent = Get-Content -LiteralPath $buildPrimaryTabsPath -Raw -Encoding UTF8
     $script:StyleContent = Get-Content -LiteralPath $stylePath -Raw -Encoding UTF8
@@ -79,6 +81,10 @@ Describe 'Focused GUI rebuilds' {
         $script:BuildPrimaryTabsContent | Should -Not -Match '\$Script:MainForm\.Visibility = \[System\.Windows\.Visibility\]::Visible'
         $script:GuiContent | Should -Match '\$startGuiPerfScopeScript = Get-GuiFunctionCapture -Name ''Start-GuiPerfScope'''
         $script:GuiContent | Should -Match '\$stopGuiPerfScopeScript = Get-GuiFunctionCapture -Name ''Stop-GuiPerfScope'''
+    }
+
+    It 'releases the splash when cached startup tab content short-circuits the build' {
+        $script:BuildTabContentContent | Should -Match '(?s)if \(Restore-CachedTabContent -PrimaryTab \$PrimaryTab\)\s*\{\s*Invoke-GuiStartupReadySignal'
     }
 
     It 'initializes perf tracing before the dialog helpers load' {
@@ -127,6 +133,20 @@ Describe 'Focused GUI rebuilds' {
         $script:SessionStateContent | Should -Match '& \$refreshCurrentTabContentScript -SkipIdlePrebuild'
         $script:SessionStateContent | Should -Match '\$Script:StartupRestoreSessionPending = \$false'
         $script:SessionStateContent | Should -Not -Match '\$Script:MainForm\.Dispatcher\.BeginInvoke\(\s*\[System\.Action\]\$refreshCurrentTabContentAction'
+    }
+
+    It 'keeps restored inline search results as the active refresh target' {
+        $script:GuiContent | Should -Match '\$activeSearchQuery = if \(\$null -eq \$Script:SearchText\)'
+        $script:GuiContent | Should -Match '\$activeSearchQuery = \$activeSearchQuery\.Trim\(\)'
+        $script:GuiContent | Should -Match 'if \(-not \[string\]::IsNullOrWhiteSpace\(\$activeSearchQuery\)\)'
+        $script:GuiContent | Should -Match '\$targetTab = \$Script:SearchResultsTabTag'
+    }
+
+    It 'clears inline search results back to the selected tweak tab immediately' {
+        $script:GuiContent | Should -Match '\$Script:SearchText\s*=\s*'''''
+        $script:GuiContent | Should -Match '\$Script:SearchRefreshTimer\.Stop\(\)'
+        $script:GuiContent | Should -Match 'Update-SearchResultsTabState'
+        $script:GuiContent | Should -Match 'Update-CurrentTabContent -SkipIdlePrebuild'
     }
 
     It 'loads the AppData startup session snapshot before primary tab hydration' {
@@ -249,6 +269,28 @@ Describe 'Focused GUI rebuilds' {
     It 'does not auto-refresh the apps cache when entering Apps mode' {
         $script:GuiContent | Should -Match 'function Set-GuiAppsMode'
         $script:GuiContent | Should -Not -Match 'function Set-GuiAppsMode[\s\S]*Start-AppsCacheRefresh'
+    }
+
+    It 'lazy-loads Software and Apps categories from the selected category only' {
+        $script:GuiContent | Should -Match 'function Get-AppsDefaultCatalogCategory'
+        $script:GuiContent | Should -Match "return 'Browsers'"
+        $script:GuiContent | Should -Not -Match 'AppsProgressContainer'
+        $script:GuiContent | Should -Match 'function New-GuiExecutionProgressBarTemplate'
+        $script:GuiContent | Should -Match '\$progressBar = New-Object System\.Windows\.Controls\.ProgressBar'
+        $script:GuiContent | Should -Match '\$progressBar\.Template = New-GuiExecutionProgressBarTemplate'
+        $script:GuiContent | Should -Not -Match 'New-SharedProgressBarHost[\s\S]{0,900}WindowsFormsHost'
+        $script:GuiContent | Should -Match 'function Get-AppsCatalogFilesForCategory'
+        $script:GuiContent | Should -Match '\$catalogFiles = @\(Get-AppsCatalogFilesForCategory -Category \$effectiveCategory\)'
+        $script:GuiContent | Should -Match '\$Script:BaselineApplicationsCatalogByCategory'
+        $script:GuiContent | Should -Match '\$Script:AppsCategoryFilter = Resolve-AppsCatalogCategory -Category \$Script:AppsCategoryFilter'
+        $script:ApplicationsViewContent | Should -Match 'Get-AppsCatalogCategoryNames'
+        $script:ApplicationsViewContent | Should -Not -Match 'Get-AppCategoryFilterValues[\s\S]{0,500}Get-BaselineApplicationsCatalog'
+        $script:SessionStateContent | Should -Match 'AppsCategoryFilter = if \(\$Script:AppsCategoryFilter\) \{ \[string\]\$Script:AppsCategoryFilter \} else \{ ''Browsers'' \}'
+        $script:SessionStateContent | Should -Match 'NavigationMode = \$currentNavigationMode'
+        $script:SessionStateContent | Should -Match '\$desiredNavigationMode = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''NavigationMode''\)'
+        $script:SessionStateContent | Should -Match '\$desiredSearchText = if \(\$desiredNavigationMode -eq ''Apps''\)'
+        $script:SessionStateContent | Should -Match 'Set-GuiAppsMode -Enable:\$true'
+        $script:SessionStateContent | Should -Match 'Set-GuiUpdatesMode -Enable:\$true'
     }
 
     It 'keeps the visible window title version-free and leaves the version for Help content' {
@@ -427,7 +469,7 @@ Describe 'Focused GUI rebuilds' {
     It 'shows a refresh prompt and returns early when the installed-app cache has not been scanned yet' {
         $script:GuiContent | Should -Match 'if \(\-not \$cacheReady\)'
         $script:GuiContent | Should -Match '\$cacheRefreshPrompt ='
-        $script:GuiContent | Should -Match '\$Script:TxtAppCacheStatus\.Text = \$cacheRefreshPrompt'
+        $script:GuiContent | Should -Match '\$Script:TxtAppsProgressText\.Text = \$cacheRefreshPrompt'
         $script:GuiContent | Should -Match 'Update-AppsSelectionSummary'
         $script:GuiContent | Should -Match 'return'
     }

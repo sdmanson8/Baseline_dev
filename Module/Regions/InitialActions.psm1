@@ -31,6 +31,7 @@ function Test-BaselineAppxPackagePresence
 
 	try
 	{
+		[void](Initialize-BaselineWinRtRuntimeDependencies)
 		Import-Module Appx -DisableNameChecking -ErrorAction Stop -WarningAction SilentlyContinue | Out-Null
 		$package = Get-AppxPackage -Name $Name -WarningAction SilentlyContinue -ErrorAction Stop
 		return [bool]$package

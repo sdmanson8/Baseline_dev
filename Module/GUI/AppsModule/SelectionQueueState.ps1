@@ -303,7 +303,7 @@ function Get-QueuedAppsProfileActions
 
 	Initialize-AppsQueuedActionState
 
-	$catalog = @(Get-BaselineApplicationsCatalog)
+	$catalog = if (Get-Command -Name 'Get-LoadedBaselineApplicationsCatalog' -CommandType Function -ErrorAction SilentlyContinue) { @(Get-LoadedBaselineApplicationsCatalog) } else { @(Get-BaselineApplicationsCatalog) }
 	if ($catalog.Count -eq 0 -or $Script:AppsQueuedActions.Count -eq 0)
 	{
 		return @()
@@ -446,7 +446,7 @@ function Get-SelectedAppsCatalogItems
 		return @()
 	}
 
-	$catalog = @(Get-BaselineApplicationsCatalog)
+	$catalog = if (Get-Command -Name 'Get-LoadedBaselineApplicationsCatalog' -CommandType Function -ErrorAction SilentlyContinue) { @(Get-LoadedBaselineApplicationsCatalog) } else { @(Get-BaselineApplicationsCatalog) }
 	if ($catalog.Count -eq 0)
 	{
 		return @()

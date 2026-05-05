@@ -67,8 +67,20 @@
 		$progressStack.Margin = if ($ShowAbortButton) { [System.Windows.Thickness]::new(0,0,12,0) } else { [System.Windows.Thickness]::new(0) }
 		[System.Windows.Controls.Grid]::SetColumn($progressStack, 0)
 
-		$sharedProgress = New-SharedProgressBarHost -Maximum 1 -Value 0
-		$progressHost = $sharedProgress.Host
+		$progressBar = New-Object System.Windows.Controls.ProgressBar
+		$progressBar.Minimum = 0
+		$progressBar.Maximum = 1
+		$progressBar.Value = 0
+		$progressBar.Height = [double]$Script:GuiLayout.ProgressBarHeight
+		$progressBar.MinHeight = [double]$Script:GuiLayout.ProgressBarHeight
+		$progressBar.MinWidth = [double]$Script:GuiLayout.ProgressBarMinWidth
+		$progressBar.HorizontalAlignment = 'Stretch'
+		$progressBar.VerticalAlignment = 'Center'
+		$progressBar.Foreground = ConvertTo-GuiBrush -Color $Script:CurrentTheme.ProgressGreen -Context 'ExecutionView.ProgressBar.Foreground'
+		$progressBar.Background = ConvertTo-GuiBrush -Color $Script:CurrentTheme.ProgressGreenTrack -Context 'ExecutionView.ProgressBar.Background'
+		$progressBar.BorderThickness = [System.Windows.Thickness]::new(0)
+		$progressBar.Template = New-ExecutionProgressBarTemplate
+		$progressHost = $progressBar
 		$progressHost.Margin = [System.Windows.Thickness]::new(0,0,0,6)
 		[void]($progressStack.Children.Add($progressHost))
 
@@ -109,10 +121,23 @@
 		return @{
 			Grid        = $progressGrid
 			ProgressHost = $progressHost
-			ProgressBar = $sharedProgress.ProgressBar
+			ProgressBar = $progressBar
 			ProgressText = $progressText
 			AbortButton = $abortBtn
 		}
+	}
+
+	<#
+	    .SYNOPSIS
+	    Internal function New-ExecutionProgressBarTemplate.
+	#>
+
+	function New-ExecutionProgressBarTemplate
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param ()
+
+		return New-GuiExecutionProgressBarTemplate
 	}
 
 	<#

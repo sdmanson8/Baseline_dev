@@ -12,7 +12,9 @@ Describe 'UWP apps picker surface' {
         $script:UwpAppsContent | Should -Match 'GUICommon\\Get-GuiBooleanValue -Value \$UseDarkMode'
         ([regex]::Matches($script:UwpAppsContent, 'Set-UWPAppsPickerSurface -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer')).Count | Should -Be 2
         $script:UwpAppsContent | Should -Match 'Repair-GuiThemePalette -Theme \$surfaceTheme -ThemeName'
+        $script:UwpAppsContent | Should -Match '\$defaultThemeColors = if \(\$resolvedUseDarkMode\)'
         $script:UwpAppsContent | Should -Match '\$getThemeColor = \{'
+        $script:UwpAppsContent | Should -Match '\[void\]\$BrushConverter\.ConvertFromString\(\$value\)'
         $script:UwpAppsContent | Should -Match '\$windowBg = & \$getThemeColor -ColorName ''WindowBg'' -DefaultColor'
         $script:UwpAppsContent | Should -Match '\$panelBg = & \$getThemeColor -ColorName ''PanelBg'' -DefaultColor'
         $script:UwpAppsContent | Should -Match '\$Window\.Background = \$BrushConverter\.ConvertFromString\(\$windowBg\)'
@@ -30,5 +32,13 @@ Describe 'UWP apps picker surface' {
         ([regex]::Matches($script:UwpAppsContent, 'GUICommon\\Start-GuiPopupCommandAsync -Window \$Form -ModulePath \$modulePath -AdditionalModulePaths @\(\$guiCommonPath\) -CommandName ''UWPApps'' -CommandParameters \$commandParameters')).Count | Should -Be 2
         $script:UwpAppsContent | Should -Match '\$Form\.PSObject\.Properties\[''GuiPopupOperationResult''\]'
         $script:UwpAppsContent | Should -Match '\$Form\.GuiPopupOperationResult'
+    }
+
+    It 'loads all WPF assemblies needed by the picker explicitly' {
+        ([regex]::Matches($script:UwpAppsContent, 'Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase -ErrorAction Stop')).Count | Should -Be 2
+    }
+
+    It 'loads bundled WinRT dependencies before using Appx cmdlets' {
+        $script:UwpAppsContent | Should -Match '\[void\]\(Initialize-BaselineWinRtRuntimeDependencies\)'
     }
 }

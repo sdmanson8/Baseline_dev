@@ -29,11 +29,12 @@ Describe 'Invoke-GuiDetectScriptblock' {
         $result | Should -Be $true
     }
 
-    It 'routes detection fallback catches through Write-DebugSwallowedException' {
+    It 'routes expected detection catches through Write-DebugSwallowedException and keeps Defender probes quiet' {
         $script:DetectScriptblocksContent | Should -Match 'DetectScriptblocks\.RegistryBackup\.LoadAutoRegBackupTask'
-        $script:DetectScriptblocksContent | Should -Match 'DetectScriptblocks\.NetworkProtection\.LoadMpPreference'
-        $script:DetectScriptblocksContent | Should -Match 'DetectScriptblocks\.DefenderScanCPULimit\.LoadMpPreference'
-        $script:DetectScriptblocksContent | Should -Match 'DetectScriptblocks\.DefenderSignatureUpdateInterval\.LoadMpPreference'
+        $script:DetectScriptblocksContent | Should -Match 'function Get-GuiDetectMpPreference'
+        $script:DetectScriptblocksContent | Should -Not -Match 'DetectScriptblocks\.NetworkProtection\.LoadMpPreference'
+        $script:DetectScriptblocksContent | Should -Not -Match 'DetectScriptblocks\.DefenderScanCPULimit\.LoadMpPreference'
+        $script:DetectScriptblocksContent | Should -Not -Match 'DetectScriptblocks\.DefenderSignatureUpdateInterval\.LoadMpPreference'
         $script:DetectScriptblocksContent | Should -Match 'DetectScriptblocks\.BlockStoreSearchResults\.LoadIdentitySid'
     }
 }

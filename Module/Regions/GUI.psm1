@@ -571,7 +571,6 @@ function Show-TweakGUI
 	$Script:GuiExtractedRoot = Join-Path (Split-Path $PSScriptRoot -Parent) 'GUI'
 	$traceGuiStartup = {
 		param([string]$Message)
-		if (-not $env:BASELINE_PERF_LOG) { return }
 		try
 		{
 			$traceDirectory = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline'

@@ -132,6 +132,8 @@ Describe 'GUI session snapshots' {
         $script:SafeMode = $false
         $script:GameMode = $false
         $script:DesignMode = $true
+        $script:AppsModeActive = $false
+        $script:UpdatesModeActive = $false
         $script:AutoScanOnLaunch = $true
         $script:RestoreLastSession = $false
         $script:RequireRunConfirmation = $false
@@ -171,6 +173,7 @@ Describe 'GUI session snapshots' {
 
         $snapshot.SearchText | Should -Be 'powershell'
         $snapshot.AppsSearchText | Should -Be 'chrome'
+        $snapshot.NavigationMode | Should -Be 'Optimize'
         $snapshot.UIDensity | Should -Be 'Compact'
         $snapshot.AutoScanOnLaunch | Should -Be $true
         $snapshot.RestoreLastSession | Should -Be $false
@@ -182,6 +185,21 @@ Describe 'GUI session snapshots' {
         $snapshot.ExperimentalFeatures | Should -Be $true
         $snapshot.DesignMode | Should -Be $true
         $snapshot.HideUnavailableItems | Should -Be $true
+    }
+
+    It 'captures the active top-level navigation mode in the GUI snapshot' {
+        $script:AppsModeActive = $true
+
+        $appsSnapshot = Get-GuiSettingsSnapshot
+
+        $appsSnapshot.NavigationMode | Should -Be 'Apps'
+
+        $script:AppsModeActive = $false
+        $script:UpdatesModeActive = $true
+
+        $updatesSnapshot = Get-GuiSettingsSnapshot
+
+        $updatesSnapshot.NavigationMode | Should -Be 'Updates'
     }
 
     It 'captures Expert Mode from the canonical GUI mode context' {

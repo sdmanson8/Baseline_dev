@@ -9,29 +9,61 @@
 #   Import-TweakManifestFromData       (Manifest.Helpers.ps1)
 #   Get-HeadlessPresetCommandList      (Preset.Helpers.ps1)
 
-if (-not (Get-Variable -Name CachedRemoteSessionCache -Scope Script -ErrorAction SilentlyContinue) -or -not $Script:CachedRemoteSessionCache)
+if (-not (Test-Path -Path 'Variable:\Script:CachedRemoteSessionCache'))
 {
 	$Script:CachedRemoteSessionCache = @{}
 }
+else
+{
+	$cachedRemoteSessionCacheValue = Get-Variable -Name CachedRemoteSessionCache -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+	if ($null -eq $cachedRemoteSessionCacheValue)
+	{
+		$Script:CachedRemoteSessionCache = @{}
+	}
+}
 
-if (-not (Get-Variable -Name CachedRemoteOrchestrationHistoryPath -Scope Script -ErrorAction SilentlyContinue) -or -not $Script:CachedRemoteOrchestrationHistoryPath)
+if (-not (Test-Path -Path 'Variable:\Script:CachedRemoteOrchestrationHistoryPath'))
 {
 	$Script:CachedRemoteOrchestrationHistoryPath = $null
 }
 
-if (-not (Get-Variable -Name CachedRemoteOrchestrationDefaultRetryCount -Scope Script -ErrorAction SilentlyContinue) -or -not $Script:CachedRemoteOrchestrationDefaultRetryCount)
+if (-not (Test-Path -Path 'Variable:\Script:CachedRemoteOrchestrationDefaultRetryCount'))
 {
 	$Script:CachedRemoteOrchestrationDefaultRetryCount = 2
 }
+else
+{
+	$cachedRemoteOrchestrationDefaultRetryCountValue = Get-Variable -Name CachedRemoteOrchestrationDefaultRetryCount -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+	if ($null -eq $cachedRemoteOrchestrationDefaultRetryCountValue)
+	{
+		$Script:CachedRemoteOrchestrationDefaultRetryCount = 2
+	}
+}
 
-if (-not (Get-Variable -Name CachedRemoteOrchestrationDefaultRetryDelayMilliseconds -Scope Script -ErrorAction SilentlyContinue) -or -not $Script:CachedRemoteOrchestrationDefaultRetryDelayMilliseconds)
+if (-not (Test-Path -Path 'Variable:\Script:CachedRemoteOrchestrationDefaultRetryDelayMilliseconds'))
 {
 	$Script:CachedRemoteOrchestrationDefaultRetryDelayMilliseconds = 250
 }
+else
+{
+	$cachedRemoteOrchestrationDefaultRetryDelayMillisecondsValue = Get-Variable -Name CachedRemoteOrchestrationDefaultRetryDelayMilliseconds -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+	if ($null -eq $cachedRemoteOrchestrationDefaultRetryDelayMillisecondsValue)
+	{
+		$Script:CachedRemoteOrchestrationDefaultRetryDelayMilliseconds = 250
+	}
+}
 
-if (-not (Get-Variable -Name CachedRemoteSessionIdleTimeoutMinutes -Scope Script -ErrorAction SilentlyContinue) -or -not $Script:CachedRemoteSessionIdleTimeoutMinutes)
+if (-not (Test-Path -Path 'Variable:\Script:CachedRemoteSessionIdleTimeoutMinutes'))
 {
 	$Script:CachedRemoteSessionIdleTimeoutMinutes = 15
+}
+else
+{
+	$cachedRemoteSessionIdleTimeoutMinutesValue = Get-Variable -Name CachedRemoteSessionIdleTimeoutMinutes -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+	if ($null -eq $cachedRemoteSessionIdleTimeoutMinutesValue)
+	{
+		$Script:CachedRemoteSessionIdleTimeoutMinutes = 15
+	}
 }
 
 <#

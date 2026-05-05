@@ -371,7 +371,6 @@
 	$AppsScroll = $Form.FindName("AppsScroll")
 	$AppsWrapPanel = $Form.FindName("AppsWrapPanel")
 	$BtnUpdateAllApps = $Form.FindName("BtnUpdateAllApps")
-	$TxtAppCacheStatus = $Form.FindName("TxtAppCacheStatus")
 	$AppsPackageManagerBanner = $Form.FindName("AppsPackageManagerBanner")
 	$TxtAppsPackageManagerBanner = $Form.FindName("TxtAppsPackageManagerBanner")
 	$AppsCategoryTabs = $Form.FindName("AppsCategoryTabs")
@@ -548,7 +547,6 @@
 	$Script:AppsScroll = $AppsScroll
 	$Script:AppsWrapPanel = $AppsWrapPanel
 	$Script:BtnUpdateAllApps = $BtnUpdateAllApps
-	$Script:TxtAppCacheStatus = $TxtAppCacheStatus
 	$Script:AppsPackageManagerBanner = $AppsPackageManagerBanner
 	$Script:TxtAppsPackageManagerBanner = $TxtAppsPackageManagerBanner
 	$Script:AppsCategoryTabs = $AppsCategoryTabs
@@ -607,6 +605,8 @@
 	$Script:BgPS = $null
 	$Script:BgAsync = $null
 	$Script:BaselineApplicationsCatalog = $null
+	$Script:BaselineApplicationsCatalogByCategory = @{}
+	$Script:BaselineApplicationsCatalogCategory = $null
 	$Script:InstalledAppsCache = [pscustomobject]@{
 		WinGet = @{}
 		Chocolatey = @{}
@@ -621,12 +621,11 @@
 	$Script:AppsViewBuildSignature = $null
 	$Script:AppsCacheRefreshInProgress = $false
 	$Script:AppsOperationInProgress = $false
-	$Script:AppsCategoryFilter = 'All'
+	$Script:AppsCategoryFilter = 'Browsers'
 	$Script:AppsStatusFilter = 'All'
 	$Script:AppsViewMode = 'Cards'
 	$Script:AppsViewModeUiUpdating = $false
 	$Script:AppsFilterUiUpdating = $false
-	$Script:AppsProgressHost = $null
 	$Script:AppsProgressBar = $null
 	$Script:AppsActionButtons = [System.Collections.Generic.List[object]]::new()
 	$Script:AppsBulkActionButtons = [System.Collections.Generic.List[object]]::new()
@@ -646,7 +645,6 @@
 	}
 	$Script:DownloadStartEvent = $null
 	$Script:DownloadExtractEvent = $null
-	Initialize-AppsProgressSection
 	Initialize-BaselineUpdateOverlay
 	$Script:SearchText = ''
 	$Script:AppsSearchText = ''
@@ -805,20 +803,15 @@
 		$Script:LogFileDirectory = ''
 		$Script:AppsPackageSourcePreference = 'auto'
 	}
-	if ($Script:RestoreLastSession)
-	{
-		# Keep verbose logging on while the restored session rehydrates so perf
-		# traces and startup diagnostics stay available for the whole launch.
-		$Script:DebugLoggingEnabled = $true
-	}
 	if (Get-Command -Name 'Set-BaselineDebugLogging' -CommandType Function -ErrorAction SilentlyContinue)
 	{
 		try { Set-BaselineDebugLogging -Enabled ([bool]$Script:DebugLoggingEnabled) }
 		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowSetup.ApplyDebugLoggingPreference' }
 	}
-	if ($Script:DebugLoggingEnabled -and -not $env:BASELINE_PERF_LOG)
+	if (Get-Command -Name 'Set-GuiPerfTraceState' -CommandType Function -ErrorAction SilentlyContinue)
 	{
-		$env:BASELINE_PERF_LOG = '1'
+		try { Set-GuiPerfTraceState -Enabled ([bool]$Script:DebugLoggingEnabled) }
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowSetup.ApplyPerfTraceState' }
 	}
 	$Script:SafeMode = $true
 	$Script:AdvancedMode = $false

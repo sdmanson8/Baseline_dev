@@ -197,6 +197,54 @@ public class SheenProgressBar : Control
 
 <#
     .SYNOPSIS
+    Internal function New-GuiExecutionProgressBarTemplate.
+#>
+
+function New-GuiExecutionProgressBarTemplate
+{
+	[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+	param ()
+
+	$templateXaml = @'
+<ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 TargetType="{x:Type ProgressBar}">
+	<Grid ClipToBounds="True" SnapsToDevicePixels="True">
+		<Border x:Name="PART_Track" Background="{TemplateBinding Background}" CornerRadius="3" Opacity="0.82"/>
+		<Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="3">
+			<Border.Effect>
+				<DropShadowEffect Color="{DynamicResource Color.Progress}" BlurRadius="10" ShadowDepth="0" Opacity="0.35"/>
+			</Border.Effect>
+		</Border>
+		<Rectangle x:Name="ExecutionSheenRect" Width="84" HorizontalAlignment="Left" IsHitTestVisible="False">
+			<Rectangle.Fill>
+				<LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+					<GradientStop Color="#00FFFFFF" Offset="0"/>
+					<GradientStop Color="#7FFFFFFF" Offset="0.5"/>
+					<GradientStop Color="#00FFFFFF" Offset="1"/>
+				</LinearGradientBrush>
+			</Rectangle.Fill>
+			<Rectangle.RenderTransform>
+				<TranslateTransform x:Name="ExecutionSheenT" X="-100"/>
+			</Rectangle.RenderTransform>
+			<Rectangle.Triggers>
+				<EventTrigger RoutedEvent="FrameworkElement.Loaded">
+					<BeginStoryboard>
+						<Storyboard RepeatBehavior="Forever">
+							<DoubleAnimation Storyboard.TargetProperty="RenderTransform.(TranslateTransform.X)" From="-100" To="900" Duration="0:0:1.4"/>
+						</Storyboard>
+					</BeginStoryboard>
+				</EventTrigger>
+			</Rectangle.Triggers>
+		</Rectangle>
+	</Grid>
+</ControlTemplate>
+'@
+	return [System.Windows.Markup.XamlReader]::Parse($templateXaml)
+}
+
+<#
+    .SYNOPSIS
     Internal function New-SharedProgressBarHost.
 #>
 
@@ -211,25 +259,22 @@ function New-SharedProgressBarHost
 		[double]$MinWidth = $Script:GuiLayout.ProgressBarMinWidth
 	)
 
-	Ensure-SheenProgressBarType
-
-	$windowsFormsHost = [System.Windows.Forms.Integration.WindowsFormsHost]::new()
-	$windowsFormsHost.HorizontalAlignment = 'Stretch'
-	$windowsFormsHost.VerticalAlignment = 'Center'
-	$windowsFormsHost.MinWidth = $MinWidth
-	$windowsFormsHost.Height = $Height
-
-	$progressBar = [SheenProgressBar]::new()
-	$progressBar.Dock = [System.Windows.Forms.DockStyle]::Fill
+	$progressBar = New-Object System.Windows.Controls.ProgressBar
 	$progressBar.Minimum = 0
 	$progressBar.Maximum = [Math]::Max(1, $Maximum)
 	$progressBar.Value = [Math]::Min([Math]::Max(0, $Value), $progressBar.Maximum)
 	$progressBar.IsIndeterminate = [bool]$Indeterminate
+	$progressBar.Height = $Height
+	$progressBar.MinHeight = $Height
+	$progressBar.MinWidth = $MinWidth
+	$progressBar.HorizontalAlignment = 'Stretch'
+	$progressBar.VerticalAlignment = 'Center'
+	$progressBar.BorderThickness = [System.Windows.Thickness]::new(0)
+	$progressBar.Template = New-GuiExecutionProgressBarTemplate
 	Set-SheenProgressBarTheme -ProgressBar $progressBar
-	$windowsFormsHost.Child = $progressBar
 
 	return @{
-		Host        = $windowsFormsHost
+		Host        = $progressBar
 		ProgressBar = $progressBar
 	}
 }
@@ -266,6 +311,12 @@ function Set-SheenProgressBarTheme
 	{
 		$progressColor = if ($Theme.ContainsKey('ProgressGreen') -and -not [string]::IsNullOrWhiteSpace([string]$Theme.ProgressGreen)) { [string]$Theme.ProgressGreen } else { [string]$Theme.AccentBlue }
 		$progressTrack = if ($Theme.ContainsKey('ProgressGreenTrack') -and -not [string]::IsNullOrWhiteSpace([string]$Theme.ProgressGreenTrack)) { [string]$Theme.ProgressGreenTrack } else { [string]$Theme.CardBorder }
+		if ($ProgressBar -is [System.Windows.Controls.ProgressBar])
+		{
+			$ProgressBar.Foreground = ConvertTo-GuiBrush -Color $progressColor -Context 'SharedProgress.ProgressBar.Foreground'
+			$ProgressBar.Background = ConvertTo-GuiBrush -Color $progressTrack -Context 'SharedProgress.ProgressBar.Background'
+			return
+		}
 		$ProgressBar.BarColor = [System.Drawing.ColorTranslator]::FromHtml($progressColor)
 		$ProgressBar.BackgroundColor = [System.Drawing.ColorTranslator]::FromHtml($progressTrack)
 	}
@@ -373,54 +424,6 @@ function Set-SharedProgressBarState
 	if ($PassThruText)
 	{
 		return $displayText
-	}
-}
-
-<#
-    .SYNOPSIS
-    Internal function Initialize-AppsProgressSection.
-#>
-
-function Initialize-AppsProgressSection
-{
-	[CmdletBinding()]
-	param ()
-
-	if (-not $Script:AppsProgressContainer)
-	{
-		return
-	}
-
-	if (-not $Script:AppsProgressHost -or -not $Script:AppsProgressBar)
-	{
-		$sharedProgress = New-SharedProgressBarHost -Maximum 1 -Value 0
-		$Script:AppsProgressHost = $sharedProgress.Host
-		$Script:AppsProgressBar = $sharedProgress.ProgressBar
-		$Script:AppsProgressContainer.Child = $Script:AppsProgressHost
-	}
-
-	$theme = Get-GuiCurrentTheme
-	if ($theme)
-	{
-		$bc = New-SafeBrushConverter -Context 'Initialize-AppsProgressSection'
-		$Script:AppsProgressContainer.Background = $bc.ConvertFromString($theme.CardBorder)
-	}
-
-	Set-SheenProgressBarTheme -ProgressBar $Script:AppsProgressBar
-
-	if ($Script:AppsProgressBar)
-	{
-		$Script:AppsProgressBar.IsIndeterminate = $false
-		$Script:AppsProgressBar.Maximum = 1
-		$Script:AppsProgressBar.Value = 0
-	}
-	if ($Script:TxtAppsProgressText)
-	{
-		$Script:TxtAppsProgressText.Text = (Get-AppsCacheRefreshPromptText)
-	}
-	if ($Script:TxtAppCacheStatus)
-	{
-		$Script:TxtAppCacheStatus.Text = (Get-AppsCacheRefreshPromptText)
 	}
 }
 
@@ -646,25 +649,14 @@ function Set-GuiAppsMode
 		$Script:ModeSubtitle.Text = (Get-UxLocalizedString -Key $subtitleKey -Fallback $subtitleFallback)
 		$Script:ModeSubtitle.HorizontalAlignment = if ($Enable) { [System.Windows.HorizontalAlignment]::Right } else { [System.Windows.HorizontalAlignment]::Left }
 	}
-	if ($Enable -and (-not $Script:AppsProgressBar -or -not $Script:AppsProgressHost))
-	{
-		Initialize-AppsProgressSection
-	}
-	if ($Enable -and $Script:AppsProgressBar -and -not $Script:AppsOperationInProgress -and -not $Script:AppsCacheRefreshInProgress)
+	if ($Enable -and -not $Script:AppsOperationInProgress -and -not $Script:AppsCacheRefreshInProgress)
 	{
 		$appsViewAlreadyRendered = [bool]($Script:AppsWrapPanel -and $Script:AppsWrapPanel.Children -and $Script:AppsWrapPanel.Children.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace([string]$Script:AppsViewBuildSignature))
 		if (-not $appsViewAlreadyRendered)
 		{
-			$Script:AppsProgressBar.IsIndeterminate = $false
-			$Script:AppsProgressBar.Maximum = 1
-			$Script:AppsProgressBar.Value = 0
 			if ($Script:TxtAppsProgressText)
 			{
 				$Script:TxtAppsProgressText.Text = (Get-AppsCacheRefreshPromptText)
-			}
-			if ($Script:TxtAppCacheStatus)
-			{
-				$Script:TxtAppCacheStatus.Text = (Get-AppsCacheRefreshPromptText)
 			}
 			if (Get-Command -Name 'Update-AppsPackageManagerBanner' -CommandType Function -ErrorAction SilentlyContinue)
 			{
@@ -763,6 +755,14 @@ function Set-GuiAppsMode
 
 	if ($Enable)
 	{
+		if (Get-Command -Name 'Resolve-AppsCatalogCategory' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			$Script:AppsCategoryFilter = Resolve-AppsCatalogCategory -Category $Script:AppsCategoryFilter
+		}
+		elseif ([string]::IsNullOrWhiteSpace([string]$Script:AppsCategoryFilter) -or [string]$Script:AppsCategoryFilter -eq 'All')
+		{
+			$Script:AppsCategoryFilter = 'Browsers'
+		}
 		Initialize-AppPackageSourcePreferenceState
 		Update-AppPackageSourcePreferenceControls
 		if (Get-Command -Name 'Update-AppSourceFilterControls' -CommandType Function -ErrorAction SilentlyContinue)
@@ -786,21 +786,19 @@ function Set-GuiAppsMode
 
 	if ($Enable)
 	{
+		if ($Script:TxtAppsProgressText)
+		{
+			$Script:TxtAppsProgressText.Visibility = [System.Windows.Visibility]::Visible
+		}
 		Build-AppsViewCards
 	}
 	else
 	{
-		if ($Script:CurrentPrimaryTab)
+		# Returning to Optimize should only reveal the existing tweaks view.
+		if ($Script:TxtAppsProgressText)
 		{
-			$Script:FilterGeneration++
-			if ($Script:UpdateCurrentTabContentScript)
-			{
-				& $Script:UpdateCurrentTabContentScript
-			}
-			elseif (Get-Command -Name 'Update-CurrentTabContent' -CommandType Function -ErrorAction SilentlyContinue)
-			{
-				Update-CurrentTabContent
-			}
+			$Script:TxtAppsProgressText.Visibility = [System.Windows.Visibility]::Collapsed
+			$Script:TxtAppsProgressText.Text = ''
 		}
 	}
 
@@ -816,4 +814,3 @@ function Set-GuiAppsMode
 		}
 	}
 }
-

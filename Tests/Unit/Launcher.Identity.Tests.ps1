@@ -156,6 +156,7 @@ Describe 'Embedded host bootstrap flow' {
     }
 
     It 'treats startup AppX package probes as non-fatal checks' {
+        $script:InitialActionsContent | Should -Match '\[void\]\(Initialize-BaselineWinRtRuntimeDependencies\)'
         $script:InitialActionsContent | Should -Match "Test-BaselineAppxPackagePresence -Name 'MicrosoftWindows\.Client\.CBS'"
         $script:InitialActionsContent | Should -Match 'Bootstrap_FeatureExperiencePackNotApplicable'
         $script:InitialActionsContent | Should -Match "Test-BaselineAppxPackagePresence -Name 'Microsoft\.WindowsStore'"

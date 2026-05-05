@@ -889,7 +889,7 @@
 		}
 		if ($Script:BtnClearSearch)
 		{
-			Set-GuiButtonIconContent -Button $Script:BtnClearSearch -IconName 'Clear' -Text (Get-UxLocalizedString -Key 'GuiBtnClearSearch' -Fallback 'Clear') -ToolTip (Get-UxLocalizedString -Key 'GuiActionClearSearchTooltip' -Fallback 'Clear search text and active filters.') -IconSize 14 -Gap 6 -TextFontSize 11
+			Set-GuiButtonIconContent -Button $Script:BtnClearSearch -IconName 'Clear' -Text '' -ToolTip (Get-UxLocalizedString -Key 'GuiActionClearSearchTooltip' -Fallback 'Clear search text and active filters.') -IconSize 14 -Gap 0 -TextFontSize 11
 		}
 		if ($BtnLanguage)
 		{
@@ -1212,6 +1212,7 @@
 		{
 			$clearButton.Visibility = if ($isSearchEmpty) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
 			Set-ButtonChrome -Button $clearButton -Variant 'Subtle' -Compact -Muted
+			Set-GuiButtonIconContent -Button $clearButton -IconName 'Clear' -Text '' -ToolTip (Get-UxLocalizedString -Key 'GuiActionClearSearchTooltip' -Fallback 'Clear search text and active filters.') -IconSize 14 -Gap 0 -TextFontSize 11 -Foreground $clearButton.Foreground
 		}
 	}
 

@@ -40,6 +40,7 @@ Describe 'Customizations tab wiring' {
     It 'special-cases Build-TabContent for Customizations' {
         $script:BuildTabContentContent | Should -Match 'if \(\$PrimaryTab -eq ''Customizations''\)'
         $script:BuildTabContentContent | Should -Match 'New-GuiStartupManagerTabContent'
+        $script:BuildTabContentContent | Should -Match '(?s)if \(\$PrimaryTab -eq ''Customizations''\).*?Invoke-GuiStartupReadySignal'
     }
 
     It 'hosts Startup Manager, User Folders, and WSL install action cards inside Customizations' {

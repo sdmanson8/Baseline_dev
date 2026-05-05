@@ -100,10 +100,17 @@
 		{
 			if ($progressBar)
 			{
-				Set-SheenProgressBarTheme -ProgressBar $progressBar -Theme $Theme
+				if ($progressBar -is [System.Windows.Controls.ProgressBar])
+				{
+					$progressBar.Foreground = ConvertTo-GuiBrush -Color $Theme.ProgressGreen -Context 'ApplyTheme.ProgressBar.Foreground'
+					$progressBar.Background = ConvertTo-GuiBrush -Color $Theme.ProgressGreenTrack -Context 'ApplyTheme.ProgressBar.Background'
+				}
+				else
+				{
+					Set-SheenProgressBarTheme -ProgressBar $progressBar -Theme $Theme
+				}
 			}
 		}
-		if ($Script:TxtAppCacheStatus) { $Script:TxtAppCacheStatus.Foreground = $bc.ConvertFromString($Theme.TextSecondary) }
 		if ($Script:AppsPackageManagerBanner)
 		{
 			$Script:AppsPackageManagerBanner.Background = $bc.ConvertFromString($Theme.CautionBg)

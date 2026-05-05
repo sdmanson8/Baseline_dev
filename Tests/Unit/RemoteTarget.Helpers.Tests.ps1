@@ -20,6 +20,8 @@ BeforeAll {
 Describe 'Remote session caching' {
     It 'declares a reusable remote session cache and reuses it across remote operations' {
         $script:RemoteTargetHelpersContent | Should -Match 'RemoteSessionCache'
+        $script:RemoteTargetHelpersContent | Should -Match 'Variable:\\Script:CachedRemoteSessionCache'
+        $script:RemoteTargetHelpersContent | Should -Not -Match 'CachedRemoteSessionCacheVariable'
         $script:RemoteTargetHelpersContent | Should -Match 'function Get-BaselineRemoteCredentialScopeKey'
         $script:RemoteTargetHelpersContent | Should -Match 'function Get-BaselineRemoteSessionKey'
         $script:RemoteTargetHelpersContent | Should -Match 'function Get-BaselineRemoteTransportSettingsSignature'

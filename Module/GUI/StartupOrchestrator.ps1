@@ -22,6 +22,19 @@ function Write-StartupOrchestratorLog
 {
 	param ([string]$Message)
 	if (-not $env:BASELINE_PERF_LOG) { return }
+	if (Get-Command -Name 'Get-BaselineDebugLogging' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		try { if (-not [bool](Get-BaselineDebugLogging)) { return } }
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StartupOrchestrator.PerfLog.GetDebugMode'; return }
+	}
+	elseif ((Test-Path -Path Variable:\Script:DebugLoggingEnabled) -and -not [bool]$Script:DebugLoggingEnabled)
+	{
+		return
+	}
+	else
+	{
+		return
+	}
 	try
 	{
 		$logPath = Join-Path $env:LOCALAPPDATA 'Temp\Baseline\perf.log'

@@ -753,6 +753,15 @@ Describe 'Baseline markdown runtime' {
     }
 }
 
+Describe 'Baseline WinRT runtime dependencies' {
+    It 'defines a loader for bundled Windows Runtime projection dependencies' {
+        $script:EnvironmentHelpersContent | Should -Match 'function Initialize-BaselineWinRtRuntimeDependencies'
+        $script:EnvironmentHelpersContent | Should -Match 'System\.Runtime\.CompilerServices\.Unsafe\.dll'
+        $script:EnvironmentHelpersContent | Should -Match 'System\.Numerics\.Vectors\.dll'
+        $script:EnvironmentHelpersContent | Should -Match 'Environment\.InitializeBaselineWinRtRuntimeDependencies\.AddAssembly'
+    }
+}
+
 Describe 'Baseline webview2 runtime' {
     BeforeEach {
         $script:CachedBaselineWebView2RuntimeLoaded = $false

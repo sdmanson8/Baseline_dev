@@ -1810,7 +1810,6 @@
 
 			$Script:TotalRunnableTweaks = $tweakList.Count
 		$Script:CurrentTweakDisplayName = $null
-		& $Script:UpdateProgressFn -Completed 0 -Total $Script:TotalRunnableTweaks -CurrentAction (Get-UxLocalizedString -Key 'GuiProgressStarting' -Fallback 'Starting...')
 
 		$Script:RunState = [hashtable]::Synchronized(@{
 			StartedAt        = (Get-Date)
@@ -1833,6 +1832,7 @@
 			AppliedTweakMetadata = [System.Collections.ArrayList]::new()
 			SummaryPayload   = $null
 		})
+		& $Script:UpdateProgressFn -Completed 0 -Total $Script:TotalRunnableTweaks -CurrentAction (Get-UxLocalizedString -Key 'GuiProgressStarting' -Fallback 'Starting...')
 
 		$Script:AppendLogFn = {
 			param($Text, $Level = 'INFO')
@@ -2151,9 +2151,18 @@
 					}
 					catch
 					{
+						$errorText = if (Get-Command -Name 'Format-BaselineErrorForLog' -CommandType Function -ErrorAction SilentlyContinue)
+						{
+							Format-BaselineErrorForLog -ErrorObject $_ -Prefix ("Interactive selection request failed: {0}" -f [string]$entry.RequestType)
+						}
+						else
+						{
+							$_.Exception.ToString()
+						}
+						try { LogError $errorText } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ExecutionOrchestration.InteractiveSelectionRequest.LogError' }
 						if ($responseState)
 						{
-							$responseState['Error'] = $_.Exception.Message
+							$responseState['Error'] = $errorText
 						}
 					}
 					finally

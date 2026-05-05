@@ -797,18 +797,11 @@ function Test-PreflightPendingReboot
         {
             [void]$reasons.Add('Windows Update')
         }
-        try
-        {
-            $pfro = Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' -Name 'PendingFileRenameOperations' -ErrorAction Stop
-            if ($pfro -and $pfro.PendingFileRenameOperations) { [void]$reasons.Add('Pending file rename operations') }
-        }
-        catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreflightChecks.TestPreflightPendingReboot.LoadPendingFileRenameOperations' }
-        try
-        {
-            $crv = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update' -Name 'PostRebootReporting' -ErrorAction Stop
-            if ($crv) { [void]$reasons.Add('Windows Update post-reboot reporting') }
-        }
-        catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreflightChecks.TestPreflightPendingReboot.LoadPostRebootReporting' }
+        $sessionManager = Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' -ErrorAction SilentlyContinue
+        if ($sessionManager -and $sessionManager.PSObject.Properties['PendingFileRenameOperations'] -and $sessionManager.PendingFileRenameOperations) { [void]$reasons.Add('Pending file rename operations') }
+
+        $windowsUpdateAutoUpdate = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update' -ErrorAction SilentlyContinue
+        if ($windowsUpdateAutoUpdate -and $windowsUpdateAutoUpdate.PSObject.Properties['PostRebootReporting'] -and $windowsUpdateAutoUpdate.PostRebootReporting) { [void]$reasons.Add('Windows Update post-reboot reporting') }
 
         if ($reasons.Count -eq 0)
         {

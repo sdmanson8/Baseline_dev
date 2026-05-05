@@ -66,64 +66,73 @@
 			}
 			else
 			{
-			if ($PrimaryTabs -and ($null -eq $PrimaryTabs.SelectedItem -or -not $PrimaryTabs.SelectedItem.Tag))
-			{
-				$resolvedSelection = $null
-				$preferredTag = if (-not [string]::IsNullOrWhiteSpace([string]$Script:CurrentPrimaryTab))
+				$activeSearchQuery = if ($null -eq $Script:SearchText) { '' } else { [string]$Script:SearchText }
+				$activeSearchQuery = $activeSearchQuery.Trim()
+				if (-not [string]::IsNullOrWhiteSpace($activeSearchQuery))
 				{
-					[string]$Script:CurrentPrimaryTab
-				}
-				elseif (-not [string]::IsNullOrWhiteSpace([string]$Script:LastStandardPrimaryTab))
-				{
-					[string]$Script:LastStandardPrimaryTab
+					$targetTab = $Script:SearchResultsTabTag
 				}
 				else
 				{
-					$null
-				}
-
-				if ($preferredTag)
-				{
-					foreach ($tabItem in $PrimaryTabs.Items)
+					if ($PrimaryTabs -and ($null -eq $PrimaryTabs.SelectedItem -or -not $PrimaryTabs.SelectedItem.Tag))
 					{
-						if (($tabItem -is [System.Windows.Controls.TabItem]) -and $tabItem.Tag -and ([string]$tabItem.Tag -eq $preferredTag))
+						$resolvedSelection = $null
+						$preferredTag = if (-not [string]::IsNullOrWhiteSpace([string]$Script:CurrentPrimaryTab))
 						{
-							$resolvedSelection = $tabItem
-							break
+							[string]$Script:CurrentPrimaryTab
+						}
+						elseif (-not [string]::IsNullOrWhiteSpace([string]$Script:LastStandardPrimaryTab))
+						{
+							[string]$Script:LastStandardPrimaryTab
+						}
+						else
+						{
+							$null
+						}
+
+						if ($preferredTag)
+						{
+							foreach ($tabItem in $PrimaryTabs.Items)
+							{
+								if (($tabItem -is [System.Windows.Controls.TabItem]) -and $tabItem.Tag -and ([string]$tabItem.Tag -eq $preferredTag))
+								{
+									$resolvedSelection = $tabItem
+									break
+								}
+							}
+						}
+
+						if (-not $resolvedSelection)
+						{
+							foreach ($tabItem in $PrimaryTabs.Items)
+							{
+								if (($tabItem -is [System.Windows.Controls.TabItem]) -and $tabItem.Tag -and ([string]$tabItem.Tag -ne $Script:SearchResultsTabTag))
+								{
+									$resolvedSelection = $tabItem
+									break
+								}
+							}
+						}
+
+						if ($resolvedSelection -and $PrimaryTabs.SelectedItem -ne $resolvedSelection)
+						{
+							$PrimaryTabs.SelectedItem = $resolvedSelection
 						}
 					}
-				}
 
-				if (-not $resolvedSelection)
-				{
-					foreach ($tabItem in $PrimaryTabs.Items)
+					$targetTab = if ($PrimaryTabs -and $PrimaryTabs.SelectedItem -and $PrimaryTabs.SelectedItem.Tag)
 					{
-						if (($tabItem -is [System.Windows.Controls.TabItem]) -and $tabItem.Tag -and ([string]$tabItem.Tag -ne $Script:SearchResultsTabTag))
-						{
-							$resolvedSelection = $tabItem
-							break
-						}
+						[string]$PrimaryTabs.SelectedItem.Tag
+					}
+					elseif ($Script:CurrentPrimaryTab)
+					{
+						[string]$Script:CurrentPrimaryTab
+					}
+					else
+					{
+						$null
 					}
 				}
-
-				if ($resolvedSelection -and $PrimaryTabs.SelectedItem -ne $resolvedSelection)
-				{
-					$PrimaryTabs.SelectedItem = $resolvedSelection
-				}
-			}
-
-			$targetTab = if ($PrimaryTabs -and $PrimaryTabs.SelectedItem -and $PrimaryTabs.SelectedItem.Tag)
-			{
-				[string]$PrimaryTabs.SelectedItem.Tag
-			}
-			elseif ($Script:CurrentPrimaryTab)
-			{
-				[string]$Script:CurrentPrimaryTab
-			}
-			else
-			{
-				$null
-			}
 			}
 
 			if ([string]::IsNullOrWhiteSpace($targetTab)) { return }

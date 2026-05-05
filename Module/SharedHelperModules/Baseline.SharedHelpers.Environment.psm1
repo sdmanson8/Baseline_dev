@@ -53,6 +53,7 @@ $ExportedFunctions = @(
     'Get-BaselineOperationMode'
     'Test-BaselineReadOnlyMode'
     'Assert-BaselineWriteAllowed'
+    'Initialize-BaselineWinRtRuntimeDependencies'
     'Initialize-BaselineMarkdownRuntime'
     'Test-BaselineMarkdownRuntimeReady'
     'ConvertFrom-BaselineMarkdownToFlowDocument'

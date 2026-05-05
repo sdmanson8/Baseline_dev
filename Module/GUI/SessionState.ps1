@@ -931,6 +931,9 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$currentSafeMode = if ($Script:Ctx -and $Script:Ctx.ContainsKey('Mode') -and $null -ne $Script:Ctx.Mode -and $Script:Ctx.Mode.ContainsKey('Safe')) { [bool]$Script:Ctx.Mode.Safe } else { [bool]$Script:SafeMode }
 		$currentAdvancedMode = if ($Script:Ctx -and $Script:Ctx.ContainsKey('Mode') -and $null -ne $Script:Ctx.Mode -and $Script:Ctx.Mode.ContainsKey('Expert')) { [bool]$Script:Ctx.Mode.Expert } else { [bool]$Script:AdvancedMode }
 		$currentModePreference = Resolve-GuiModePreference -SafeMode $currentSafeMode -AdvancedMode $currentAdvancedMode
+		$currentAppsModeActive = if (Get-Variable -Name 'AppsModeActive' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:AppsModeActive } else { $false }
+		$currentUpdatesModeActive = if (Get-Variable -Name 'UpdatesModeActive' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:UpdatesModeActive } else { $false }
+		$currentNavigationMode = if ($currentUpdatesModeActive) { 'Updates' } elseif ($currentAppsModeActive) { 'Apps' } else { 'Optimize' }
 
 		$snapshot = [ordered]@{
 			Schema = 'Baseline.GuiSettings'
@@ -944,6 +947,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			AuditRetentionDays = if ($Script:AuditRetentionDays) { [int]$Script:AuditRetentionDays } else { 90 }
 			AppsPackageSourcePreference = if ($Script:AppsPackageSourcePreference) { [string]$Script:AppsPackageSourcePreference } else { 'auto' }
 			AppsSourceFilter = if ($Script:AppsSourceFilter) { [string]$Script:AppsSourceFilter } else { 'All' }
+			NavigationMode = $currentNavigationMode
 			PinnedBaselineVersion = if ($Script:PinnedBaselineVersion) { [string]$Script:PinnedBaselineVersion } else { $null }
 			AppsQueuedActions = @(
 				if ($Script:AppsQueuedActions -is [System.Collections.Generic.Dictionary[string, string]])
@@ -975,7 +979,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			RiskFilter = if ($Script:RiskFilter) { [string]$Script:RiskFilter } else { 'All' }
 			CategoryFilter = if ($Script:CategoryFilter) { [string]$Script:CategoryFilter } else { 'All' }
 			PlatformFilter = if ($Script:PlatformFilter) { [string]$Script:PlatformFilter } else { 'ThisDevice' }
-			AppsCategoryFilter = if ($Script:AppsCategoryFilter) { [string]$Script:AppsCategoryFilter } else { 'All' }
+			AppsCategoryFilter = if ($Script:AppsCategoryFilter) { [string]$Script:AppsCategoryFilter } else { 'Browsers' }
 			AppsStatusFilter = if ($Script:AppsStatusFilter) { [string]$Script:AppsStatusFilter } else { 'All' }
 			SelectedOnlyFilter = [bool]$Script:SelectedOnlyFilter
 			HideUnavailableItems = [bool]$Script:HideUnavailableItems
@@ -1214,6 +1218,9 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$desiredAppsSourceFilter = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsSourceFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsSourceFilter)) { [string]$Snapshot.AppsSourceFilter } else { 'All' }
 		$allowedAppsSourceFilter = @('All', 'winget', 'choco')
 		if ($allowedAppsSourceFilter -notcontains $desiredAppsSourceFilter) { $desiredAppsSourceFilter = 'All' }
+		$desiredNavigationMode = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'NavigationMode') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.NavigationMode)) { [string]$Snapshot.NavigationMode } else { 'Optimize' }
+		$allowedNavigationModes = @('Optimize', 'Apps', 'Updates')
+		if ($allowedNavigationModes -notcontains $desiredNavigationMode) { $desiredNavigationMode = 'Optimize' }
 		$desiredAppsQueuedActions = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsQueuedActions') -and $null -ne $Snapshot.AppsQueuedActions) { @($Snapshot.AppsQueuedActions) } else { @() }
 		$desiredPinnedBaselineVersion = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'PinnedBaselineVersion') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.PinnedBaselineVersion)) { [string]$Snapshot.PinnedBaselineVersion } else { $null }
 		$desiredAutoScanOnLaunch = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
@@ -1240,7 +1247,15 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$desiredRisk = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RiskFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.RiskFilter)) { [string]$Snapshot.RiskFilter } else { 'All' }
 		$desiredCategory = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'CategoryFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.CategoryFilter)) { [string]$Snapshot.CategoryFilter } else { 'All' }
 		$desiredPlatform = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'PlatformFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.PlatformFilter)) { [string]$Snapshot.PlatformFilter } else { 'ThisDevice' }
-		$desiredAppsCategory = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsCategoryFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsCategoryFilter)) { [string]$Snapshot.AppsCategoryFilter } else { 'All' }
+		$desiredAppsCategory = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsCategoryFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsCategoryFilter)) { [string]$Snapshot.AppsCategoryFilter } else { 'Browsers' }
+		if (Get-Command -Name 'Resolve-AppsCatalogCategory' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			$desiredAppsCategory = Resolve-AppsCatalogCategory -Category $desiredAppsCategory
+		}
+		elseif ($desiredAppsCategory -eq 'All')
+		{
+			$desiredAppsCategory = 'Browsers'
+		}
 		$desiredAppsStatus = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsStatusFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsStatusFilter)) { [string]$Snapshot.AppsStatusFilter } else { 'All' }
 		$allowedAppsStatus = @('All', 'Installed', 'NotInstalled', 'UpdateAvailable')
 		if ($allowedAppsStatus -notcontains $desiredAppsStatus) { $desiredAppsStatus = 'All' }
@@ -1507,7 +1522,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 		Sync-AppsQueuedActionControls
 		if ($TxtSearch)
 		{
-			$desiredSearchText = if ($Script:AppsModeActive) { $desiredAppsSearch } else { $desiredSearch }
+			$desiredSearchText = if ($desiredNavigationMode -eq 'Apps') { $desiredAppsSearch } else { $desiredSearch }
 			if ($TxtSearch.Text -ne $desiredSearchText)
 			{
 				$Script:SearchUiUpdating = $true
@@ -1560,7 +1575,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 					else
 					{
 						$Script:AppsCategoryTabs.SelectedIndex = 0
-						$Script:AppsCategoryFilter = 'All'
+						$Script:AppsCategoryFilter = if ($Script:AppsCategoryFilterInternalValues.Count -gt 0) { [string]$Script:AppsCategoryFilterInternalValues[0] } else { 'Browsers' }
 					}
 				}
 				$Script:AppsStatusFilter = $desiredAppsStatus
@@ -1601,6 +1616,39 @@ function Import-GuiRemoteTargetApprovalPolicy
 		if (Get-Command -Name 'Update-AppsViewModeControls' -CommandType Function -ErrorAction SilentlyContinue)
 		{
 			Update-AppsViewModeControls
+		}
+
+		switch ($desiredNavigationMode)
+		{
+			'Apps'
+			{
+				if (Get-Command -Name 'Set-GuiUpdatesMode' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Set-GuiUpdatesMode -Enable:$false
+				}
+				if (Get-Command -Name 'Set-GuiAppsMode' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Set-GuiAppsMode -Enable:$true
+				}
+			}
+			'Updates'
+			{
+				if (Get-Command -Name 'Set-GuiUpdatesMode' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Set-GuiUpdatesMode -Enable:$true
+				}
+			}
+			default
+			{
+				if (Get-Command -Name 'Set-GuiUpdatesMode' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Set-GuiUpdatesMode -Enable:$false
+				}
+				if (Get-Command -Name 'Set-GuiAppsMode' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Set-GuiAppsMode -Enable:$false
+				}
+			}
 		}
 
 		if ([string]::IsNullOrWhiteSpace($desiredSearch) -and $desiredTab)

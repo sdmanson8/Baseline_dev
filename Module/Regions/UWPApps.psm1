@@ -1637,6 +1637,7 @@ function UWPApps
 		$NonInteractive
 	)
 
+	[void](Initialize-BaselineWinRtRuntimeDependencies)
 	$script:UWPAppsSelectionResult = $null
 	$script:UWPAppsSelectionSeed = if ($null -ne $SelectedPackages) { @($SelectedPackages) } else { @() }
 	$script:UWPAppsExecutionResult = $null
@@ -1811,6 +1812,15 @@ Supports UWP apps picker surface handling inside Baseline.
 				$surfaceTheme = Repair-GuiThemePalette -Theme $surfaceTheme -ThemeName $(if ($resolvedUseDarkMode) { 'Dark' } else { 'Light' })
 			}
 
+			$defaultThemeColors = if ($resolvedUseDarkMode)
+			{
+				@{ WindowBg = '#0E111A'; PanelBg = '#161A26' }
+			}
+			else
+			{
+				@{ WindowBg = '#F0F2F6'; PanelBg = '#F0F2F6' }
+			}
+
 			$getThemeColor = {
 				param(
 					[string]$ColorName,
@@ -1824,6 +1834,7 @@ Supports UWP apps picker surface handling inside Baseline.
 						$value = [string]$surfaceTheme[$ColorName]
 						if (-not [string]::IsNullOrWhiteSpace($value))
 						{
+							[void]$BrushConverter.ConvertFromString($value)
 							return $value
 						}
 					}
@@ -1843,8 +1854,8 @@ Supports UWP apps picker surface handling inside Baseline.
 				return $DefaultColor
 			}.GetNewClosure()
 
-			$windowBg = & $getThemeColor -ColorName 'WindowBg' -DefaultColor $(if ($resolvedUseDarkMode) { [string]$Script:DarkTheme.WindowBg } else { [string]$Script:LightTheme.WindowBg })
-			$panelBg = & $getThemeColor -ColorName 'PanelBg' -DefaultColor $windowBg
+			$windowBg = & $getThemeColor -ColorName 'WindowBg' -DefaultColor ([string]$defaultThemeColors.WindowBg)
+			$panelBg = & $getThemeColor -ColorName 'PanelBg' -DefaultColor ([string]$defaultThemeColors.PanelBg)
 
 			if ($Window)
 			{
@@ -1885,7 +1896,7 @@ Supports UWP apps picker surface handling inside Baseline.
             }
 
             # Show the app picker and install the packages the user selects.
-            Add-Type -AssemblyName PresentationCore, PresentationFramework
+            Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase -ErrorAction Stop
             if (-not $CollectSelectionOnly)
             {
                 Write-ConsoleStatus -Action "Installing UWP apps"
@@ -2754,7 +2765,7 @@ Supports button install set is enabled handling inside Baseline.
             }
 
 			# Show the app picker and remove the packages the user selects.
-			Add-Type -AssemblyName PresentationCore, PresentationFramework
+			Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase -ErrorAction Stop
             if (-not $CollectSelectionOnly)
             {
 			    Write-ConsoleStatus -Action "Uninstalling UWP apps"

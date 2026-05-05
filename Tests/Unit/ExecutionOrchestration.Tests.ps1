@@ -5,6 +5,7 @@ BeforeAll {
     $executionStateSummaryPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration/ExecutionStateSummary.ps1'
     $executionViewPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration/ExecutionView.ps1'
     $executionRunPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration/ExecutionRunOrchestration.ps1'
+    $progressChromePath = Join-Path $PSScriptRoot '../../Module/GUI/AppsModule/ProgressNavChrome.ps1'
     $guiExecutionPath = Join-Path $PSScriptRoot '../../Module/GUIExecution.psm1'
     $sessionStatePath = Join-Path $PSScriptRoot '../../Module/GUI/SessionState.ps1'
     $script:ExecutionContent = @(
@@ -13,7 +14,9 @@ BeforeAll {
         Get-Content -LiteralPath $executionViewPath -Raw -Encoding UTF8
         Get-Content -LiteralPath $executionRunPath -Raw -Encoding UTF8
     ) -join "`n"
+    $script:ExecutionViewContent = Get-Content -LiteralPath $executionViewPath -Raw -Encoding UTF8
     $script:ExecutionRunContent = Get-Content -LiteralPath $executionRunPath -Raw -Encoding UTF8
+    $script:ProgressChromeContent = Get-Content -LiteralPath $progressChromePath -Raw -Encoding UTF8
     $script:GuiExecutionContent = Get-Content -LiteralPath $guiExecutionPath -Raw -Encoding UTF8
     $script:SessionStateContent = Get-Content -LiteralPath $sessionStatePath -Raw -Encoding UTF8
 }
@@ -28,6 +31,21 @@ Describe 'Execution orchestration timer wiring' {
         $script:ExecutionContent | Should -Match 'Test-GuiObjectField -Object \$PrimaryTabs -FieldName ''IsEnabled'''
         $script:ExecutionContent | Should -Match 'Test-GuiObjectField -Object \$BtnRun -FieldName ''Content'''
         $script:ExecutionContent | Should -Match 'Test-GuiObjectField -Object \$Script:BtnUndoLastRun -FieldName ''IsEnabled'''
+    }
+
+    It 'uses a native WPF progress bar in the execution header' {
+        $script:ExecutionViewContent | Should -Match 'New-Object System\.Windows\.Controls\.ProgressBar'
+        $script:ExecutionViewContent | Should -Match 'ExecutionView\.ProgressBar\.Foreground'
+        $script:ExecutionViewContent | Should -Match 'New-ExecutionProgressBarTemplate'
+        $script:ExecutionViewContent | Should -Match 'return New-GuiExecutionProgressBarTemplate'
+        $script:ProgressChromeContent | Should -Match 'function New-GuiExecutionProgressBarTemplate'
+        $script:ProgressChromeContent | Should -Match 'ExecutionSheenRect'
+        $script:ProgressChromeContent | Should -Match 'RenderTransform\.\(TranslateTransform\.X\)'
+        $script:ProgressChromeContent | Should -Not -Match 'Storyboard\.TargetName="ExecutionSheenRect"'
+        $script:ProgressChromeContent | Should -Not -Match 'Storyboard\.TargetName="ExecutionSheenT"'
+        $script:ProgressChromeContent | Should -Match 'RepeatBehavior="Forever"'
+        $script:ExecutionViewContent | Should -Match 'ProgressBar = \$progressBar'
+        $script:ExecutionViewContent | Should -Not -Match 'New-SharedProgressBarHost -Maximum 1 -Value 0'
     }
 
     It 'refreshes the installed-app cache after app actions finish' {
@@ -60,6 +78,8 @@ Describe 'Execution orchestration timer wiring' {
     It 'routes run-loop log failures through Write-DebugSwallowedException' {
         $script:ExecutionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ExecutionOrchestration\.RunLoop\.FatalAppError\.LogError'''
         $script:ExecutionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ExecutionOrchestration\.RunLoop\.FatalAppDiagnostic\.LogError'''
+        $script:ExecutionContent | Should -Match 'Interactive selection request failed: \{0\}'
+        $script:ExecutionContent | Should -Match 'ExecutionOrchestration\.InteractiveSelectionRequest\.LogError'
     }
 
     It 'blocks apply/defaults runs when the host-taint assessment is blocked' {

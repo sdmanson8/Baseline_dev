@@ -8,8 +8,10 @@ BeforeAll {
     $actionSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers'
     $executionPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration.ps1'
     $executionSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration'
+    $iconFactoryPath = Join-Path $PSScriptRoot '../../Module/GUI/IconFactory.ps1'
 
     $script:StyleContent = Get-Content -LiteralPath $stylePath -Raw -Encoding UTF8
+    $script:IconFactoryContent = Get-Content -LiteralPath $iconFactoryPath -Raw -Encoding UTF8
     $script:ActionContent = Get-BaselineTestSourceText -Path @(
         $actionPath
         (Join-Path $actionSplitRoot 'ThemeNavigationHandlers.ps1')
@@ -31,7 +33,10 @@ Describe 'Action button icon content' {
         $script:StyleContent | Should -Match 'Set-GuiButtonIconContent -Button \$BtnLog -IconName ''OpenLog'''
         $script:StyleContent | Should -Match 'Set-GuiButtonIconContent -Button \$BtnLanguage -IconName ''Language'''
         $script:StyleContent | Should -Match 'Set-GuiButtonIconContent -Button \$Script:BtnClearSearch -IconName ''Clear'''
+        $script:StyleContent | Should -Match 'Set-GuiButtonIconContent -Button \$clearButton -IconName ''Clear'' -Text '''''
+        $script:StyleContent | Should -Match '-Foreground \$clearButton\.Foreground'
         $script:StyleContent | Should -Match 'Set-GuiButtonIconContent -Button \$Script:BtnScanInstalledApps -IconName ''Search'''
+        $script:IconFactoryContent | Should -Match 'function Set-GuiButtonIconContent[\s\S]*\[AllowEmptyString\(\)\]\s*\[string\]\$Text'
     }
 
     It 'preserves Preview Run and Run Tweaks icons during UX text refreshes' {

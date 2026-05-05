@@ -1037,6 +1037,7 @@ $ExportedFunctions = @(
     'Get-BaselineRemoteOrchestrationDashboard'
     'Search-BaselineRemoteOrchestrationHistory'
     'Invoke-BaselineAutoUpdate'
+    'Initialize-BaselineWinRtRuntimeDependencies'
     'Initialize-BaselineMarkdownRuntime'
     'Test-BaselineMarkdownRuntimeReady'
     'ConvertFrom-BaselineMarkdownToFlowDocument'

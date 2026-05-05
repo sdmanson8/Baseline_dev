@@ -255,12 +255,13 @@ Describe 'Preflight checks' {
         $script:PreflightChecksContent | Should -Match 'function Get-BaselinePartialSuccessRolloutRisk'
     }
 
-    It 'routes non-fatal preflight fallbacks through Write-DebugSwallowedException' {
+    It 'routes non-fatal preflight catches through Write-DebugSwallowedException and reads optional reboot values quietly' {
         $script:PreflightChecksContent | Should -Match 'PreflightChecks\.Get-BaselinePartialSuccessRolloutRisk\.LoadOutcomes'
         $script:PreflightChecksContent | Should -Match 'PreflightChecks\.TestPreflightManagedPolicyEnvironment\.LoadDomainJoined'
         $script:PreflightChecksContent | Should -Match 'PreflightChecks\.TestPreflightManagedPolicyEnvironment\.TestPathPolicy'
         $script:PreflightChecksContent | Should -Match 'PreflightChecks\.TestPreflightSystemRestore\.LoadSrpStatus'
-        $script:PreflightChecksContent | Should -Match 'PreflightChecks\.TestPreflightPendingReboot\.LoadPendingFileRenameOperations'
-        $script:PreflightChecksContent | Should -Match 'PreflightChecks\.TestPreflightPendingReboot\.LoadPostRebootReporting'
+        $script:PreflightChecksContent | Should -Match 'PSObject\.Properties\[''PendingFileRenameOperations''\]'
+        $script:PreflightChecksContent | Should -Match 'PSObject\.Properties\[''PostRebootReporting''\]'
+        $script:PreflightChecksContent | Should -Not -Match 'PreflightChecks\.TestPreflightPendingReboot\.LoadPostRebootReporting'
     }
 }

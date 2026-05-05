@@ -1,11 +1,49 @@
 ﻿# Lightweight in-process perf tracer for the Baseline GUI.
-# Activation: set env var BASELINE_PERF_LOG=1 before launching. When unset,
-# Start/Stop scopes are near-zero-cost no-ops (single env read + early return).
+# Activation: Debug Mode must be enabled, which sets BASELINE_PERF_LOG=1.
+# When Debug Mode is off, Start/Stop scopes are near-zero-cost no-ops.
 # Output: $env:LOCALAPPDATA\Temp\Baseline\perf.log (one line per scope: ISO8601, ms, name, note).
 
 $Script:GuiPerfEnabled = $null
 $Script:GuiPerfLogPath = $null
 $Script:GuiPerfSink    = $null
+
+function Test-GuiPerfTraceDebugEnabled
+{
+	[CmdletBinding()]
+	param()
+
+	if (Get-Command -Name 'Get-BaselineDebugLogging' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		try { return [bool](Get-BaselineDebugLogging) }
+		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PerfTrace.TestGuiPerfTraceDebugEnabled.GetBaselineDebugLogging' }
+	}
+
+	if (Test-Path -Path Variable:\Script:DebugLoggingEnabled)
+	{
+		return [bool]$Script:DebugLoggingEnabled
+	}
+
+	return $false
+}
+
+function Set-GuiPerfTraceState
+{
+	[CmdletBinding()]
+	param(
+		[bool]$Enabled
+	)
+
+	if (-not $Enabled)
+	{
+		$Script:GuiPerfEnabled = $false
+		$Script:GuiPerfLogPath = $null
+		Remove-Item -Path Env:\BASELINE_PERF_LOG -ErrorAction SilentlyContinue
+		return
+	}
+
+	$env:BASELINE_PERF_LOG = '1'
+	Initialize-GuiPerfTrace
+}
 
 function Initialize-GuiPerfTrace
 {
@@ -13,7 +51,9 @@ function Initialize-GuiPerfTrace
 	param()
 
 	$raw = [System.Environment]::GetEnvironmentVariable('BASELINE_PERF_LOG')
-	$Script:GuiPerfEnabled = (-not [string]::IsNullOrWhiteSpace($raw)) -and ($raw -ne '0' -and $raw.ToLowerInvariant() -ne 'false' -and $raw.ToLowerInvariant() -ne 'off')
+	$perfRequested = (-not [string]::IsNullOrWhiteSpace($raw)) -and ($raw -ne '0' -and $raw.ToLowerInvariant() -ne 'false' -and $raw.ToLowerInvariant() -ne 'off')
+	$debugEnabled = Test-GuiPerfTraceDebugEnabled
+	$Script:GuiPerfEnabled = ($debugEnabled -and $perfRequested)
 
 	if (-not $Script:GuiPerfEnabled) { return }
 
