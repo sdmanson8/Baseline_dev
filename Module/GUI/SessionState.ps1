@@ -1,8 +1,8 @@
-﻿# GUI session state, undo snapshots, and settings profile management
+﻿
+# GUI session state, undo snapshots, and settings profile management
 
 <#
     .SYNOPSIS
-    Internal function Resolve-GuiModePreference.
 #>
 
 function Resolve-GuiModePreference
@@ -36,7 +36,6 @@ function Resolve-GuiModePreference
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiRemoteTargetContext.
 #>
 
 function Get-GuiRemoteTargetContext
@@ -93,7 +92,6 @@ function Get-GuiRemoteTargetContext
 
 <#
     .SYNOPSIS
-    Internal function Test-GuiRemoteTargetConnected.
 #>
 
 function Test-GuiRemoteTargetConnected
@@ -102,10 +100,6 @@ function Test-GuiRemoteTargetConnected
 	return [bool]((Get-GuiRemoteTargetContext).Connected)
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Set-GuiRemoteTargetContext
 {
 	<# .SYNOPSIS Stores the active remote target context for the GUI session. #>
@@ -151,13 +145,12 @@ function Set-GuiRemoteTargetContext
 	$displayTargets = ($targets -join ', ')
 	if ($Script:MenuActionsDisconnect) { $Script:MenuActionsDisconnect.IsEnabled = $true }
 	Set-GuiStatusText -Text ("Remote: {0}" -f $displayTargets) -Tone 'accent'
-	try { Update-GuiRemoteModeBanner } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Set-GuiRemoteTargetContext.UpdateGuiRemoteModeBanner' }
+	try { Update-GuiRemoteModeBanner } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Set-GuiRemoteTargetContext.UpdateGuiRemoteModeBanner' }
 	return (Get-GuiRemoteTargetContext)
 }
 
 <#
     .SYNOPSIS
-    Internal function Clear-GuiRemoteTargetContext.
 #>
 
 function Clear-GuiRemoteTargetContext
@@ -185,16 +178,15 @@ function Clear-GuiRemoteTargetContext
 	$Script:Ctx.Remote.LastConnectivityResults = @()
 	if (Get-Command -Name 'Clear-BaselineRemoteSessionCache' -CommandType Function -ErrorAction SilentlyContinue)
 	{
-		try { Clear-BaselineRemoteSessionCache } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Clear-GuiRemoteTargetContext.ClearBaselineRemoteSessionCache' }
+		try { Clear-BaselineRemoteSessionCache } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Clear-GuiRemoteTargetContext.ClearBaselineRemoteSessionCache' }
 	}
 	if ($Script:MenuActionsDisconnect) { $Script:MenuActionsDisconnect.IsEnabled = $false }
 	Set-GuiStatusText -Text (Get-UxLocalizedString -Key 'GuiRemoteDisconnected' -Fallback 'Remote target disconnected.') -Tone 'muted'
-	try { Update-GuiRemoteModeBanner } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Clear-GuiRemoteTargetContext.UpdateGuiRemoteModeBanner' }
+	try { Update-GuiRemoteModeBanner } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Clear-GuiRemoteTargetContext.UpdateGuiRemoteModeBanner' }
 }
 
 <#
     .SYNOPSIS
-    Internal function Set-GuiRemoteConnectivityResults.
 #>
 
 function Set-GuiRemoteConnectivityResults
@@ -205,7 +197,7 @@ function Set-GuiRemoteConnectivityResults
 		the GUI remote-target context so the Support Bundle exporter and
 		Connect-dialog status panel can read it back. Stores a slim copy
 		(ComputerName / Reachable / Status / Error / FailureCategory /
-		BlockedByPolicy / ConnectionMethod / Timestamp) — full attempt
+		BlockedByPolicy / ConnectionMethod / Timestamp) - full attempt
 		histories live in remote-orchestration.jsonl.
 	#>
 	[CmdletBinding()]
@@ -252,7 +244,6 @@ function Set-GuiRemoteConnectivityResults
 
 <#
     .SYNOPSIS
-    Internal function Update-GuiRemoteModeBanner.
 #>
 
 function Update-GuiRemoteModeBanner
@@ -274,7 +265,7 @@ function Update-GuiRemoteModeBanner
 	if (-not $banner -or -not $label) { return }
 
 	$context = $null
-	try { $context = Get-GuiRemoteTargetContext } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Update-GuiRemoteModeBanner.LoadRemoteTargetContext'; $context = $null }
+	try { $context = Get-GuiRemoteTargetContext } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Update-GuiRemoteModeBanner.LoadRemoteTargetContext'; $context = $null }
 
 	if (-not $context -or -not $context.Connected -or $context.TargetComputers.Count -eq 0)
 	{
@@ -285,7 +276,7 @@ function Update-GuiRemoteModeBanner
 	$methodLabel = 'WinRM'
 	if (Get-Command -Name 'Get-BaselineRemoteConnectionMethodLabel' -CommandType Function -ErrorAction SilentlyContinue)
 	{
-		try { $methodLabel = Get-BaselineRemoteConnectionMethodLabel -Method $context.ConnectionMethod } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Update-GuiRemoteModeBanner.ResolveRemoteConnectionMethodLabel'; $methodLabel = 'WinRM' }
+		try { $methodLabel = Get-BaselineRemoteConnectionMethodLabel -Method $context.ConnectionMethod } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Update-GuiRemoteModeBanner.ResolveRemoteConnectionMethodLabel'; $methodLabel = 'WinRM' }
 	}
 
 	$targetList = ($context.TargetComputers -join ', ')
@@ -295,7 +286,6 @@ function Update-GuiRemoteModeBanner
 
 <#
     .SYNOPSIS
-    Internal function Prompt-GuiRemoteTargetConnection.
 #>
 
 function Prompt-GuiRemoteTargetConnection
@@ -342,7 +332,7 @@ function Prompt-GuiRemoteTargetConnection
 
 	if (-not $canUseWpf)
 	{
-		# Headless / test-runner fallback — uses the same contract minus the UI.
+		# Headless / test-runner fallback - uses the same contract minus the UI.
 		$prompt = if ($defaultTargets) { ('Computer name(s) [{0}]:' -f $defaultTargets) } else { 'Computer name(s):' }
 		$targetText = Read-Host -Prompt $prompt
 		if ([string]::IsNullOrWhiteSpace($targetText)) { $targetText = $defaultTargets }
@@ -350,7 +340,7 @@ function Prompt-GuiRemoteTargetConnection
 		$parsed = ConvertFrom-BaselineRemoteTargetInput -InputText $targetText
 		if ($parsed.Targets.Count -eq 0) { throw 'At least one computer name must be provided.' }
 		$cred = $null
-		try { $cred = Get-Credential -Message 'Enter credentials for remote access, or Cancel for current user.' } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.GetCredential'; $cred = $null }
+		try { $cred = Get-Credential -Message 'Enter credentials for remote access, or Cancel for current user.' } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.GetCredential'; $cred = $null }
 		return [pscustomobject]@{
 			ComputerName     = @($parsed.Targets)
 			Credential       = $cred
@@ -365,6 +355,7 @@ function Prompt-GuiRemoteTargetConnection
 	$cancelLabel = Get-UxLocalizedString -Key 'GuiCancelButton' -Fallback 'Cancel'
 	$connectLabel = Get-UxLocalizedString -Key 'GuiRemoteConnectAction' -Fallback 'Connect'
 	$testLabel = Get-UxLocalizedString -Key 'GuiRemoteConnectTest' -Fallback 'Test Connection'
+	$scrollBarStyleXaml = if (Get-Command -Name 'Get-GuiSharedScrollBarStyleXaml' -ErrorAction SilentlyContinue) { Get-GuiSharedScrollBarStyleXaml -Theme $theme } else { '' }
 
 	[xml]$xaml = @"
 <Window
@@ -380,6 +371,9 @@ function Prompt-GuiRemoteTargetConnection
 	Background="Transparent"
 	WindowStyle="None"
 	AllowsTransparency="True">
+	<Window.Resources>
+$scrollBarStyleXaml
+	</Window.Resources>
 	<Border Name="RootBorder" CornerRadius="8">
 		<Grid>
 			<Grid.RowDefinitions>
@@ -407,7 +401,7 @@ function Prompt-GuiRemoteTargetConnection
 				</StackPanel>
 			</Border>
 
-			<ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="20,18,20,18">
+			<ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Padding="20,18,20,18">
 				<StackPanel>
 					<TextBlock Text="Computer name(s)" FontWeight="SemiBold" FontSize="13" Foreground="$($theme.TextPrimary)" Margin="0,0,0,4"/>
 					<TextBlock Text="Separate multiple names with commas, semicolons, pipes, or whitespace."
@@ -418,9 +412,9 @@ function Prompt-GuiRemoteTargetConnection
 
 					<TextBlock Text="Connection method" FontWeight="SemiBold" FontSize="13" Foreground="$($theme.TextPrimary)" Margin="0,16,0,4"/>
 					<ComboBox Name="CmbMethod" Height="28" FontSize="12">
-						<ComboBoxItem Content="WinRM (HTTP) — default, port 5985" Tag="WinRM"/>
-						<ComboBoxItem Content="WinRM over HTTPS — port 5986" Tag="WinRMHttps"/>
-						<ComboBoxItem Content="SSH (PowerShell over OpenSSH) — port 22" Tag="SSH"/>
+						<ComboBoxItem Content="WinRM (HTTP) - default, port 5985" Tag="WinRM"/>
+						<ComboBoxItem Content="WinRM over HTTPS - port 5986" Tag="WinRMHttps"/>
+						<ComboBoxItem Content="SSH (PowerShell over OpenSSH) - port 22" Tag="SSH"/>
 					</ComboBox>
 
 					<TextBlock Text="Credentials" FontWeight="SemiBold" FontSize="13" Foreground="$($theme.TextPrimary)" Margin="0,16,0,4"/>
@@ -454,7 +448,7 @@ function Prompt-GuiRemoteTargetConnection
 					</Grid>
 
 					<Border Background="$($theme.HeaderBg)" BorderBrush="$($theme.BorderColor)" BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,12,0,0" MinHeight="120">
-						<ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="160">
+						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" MaxHeight="160">
 							<TextBlock Name="TxtResults" FontFamily="Consolas" FontSize="12" Foreground="$($theme.TextSecondary)" TextWrapping="NoWrap" Text="(no test run yet)"/>
 						</ScrollViewer>
 					</Border>
@@ -481,7 +475,7 @@ function Prompt-GuiRemoteTargetConnection
 
 	$reader = [System.Xml.XmlNodeReader]::new($xaml)
 	$dlg = [Windows.Markup.XamlReader]::Load($reader)
-	if ($Script:MainForm) { try { $dlg.Owner = $Script:MainForm } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.SetOwner' } }
+	if ($Script:MainForm) { try { $dlg.Owner = $Script:MainForm } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.SetOwner' } }
 
 	$rootBorder = $dlg.FindName('RootBorder')
 	if ($rootBorder)
@@ -493,7 +487,7 @@ function Prompt-GuiRemoteTargetConnection
 
 	if (Get-Command -Name 'Set-GuiWindowChromeTheme' -ErrorAction SilentlyContinue)
 	{
-		try { [void](Set-GuiWindowChromeTheme -Window $dlg -UseDarkMode ($Script:CurrentThemeName -eq 'Dark')) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.SetWindowChromeTheme' }
+		try { [void](Set-GuiWindowChromeTheme -Window $dlg -UseDarkMode ($Script:CurrentThemeName -eq 'Dark')) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.SetWindowChromeTheme' }
 	}
 
 	$titleBar = $dlg.FindName('DlgTitleBar')
@@ -521,7 +515,7 @@ function Prompt-GuiRemoteTargetConnection
 		if ($btn -and (Get-Command -Name 'Set-ButtonChrome' -ErrorAction SilentlyContinue))
 		{
 			$variant = if ($btn -eq $btnConnect) { 'Primary' } else { 'Secondary' }
-			try { Set-ButtonChrome -Button $btn -Variant $variant -Compact } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.SetButtonChrome' }
+			try { Set-ButtonChrome -Button $btn -Variant $variant -Compact } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.SetButtonChrome' }
 		}
 	}
 
@@ -573,16 +567,16 @@ function Prompt-GuiRemoteTargetConnection
 			return
 		}
 		$txtResults.Text = (($rows | ForEach-Object { $_.Display }) -join [Environment]::NewLine)
-		try { $null = Set-GuiRemoteConnectivityResults -Results $Results } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.SetGuiRemoteConnectivityResults' }
+		try { $null = Set-GuiRemoteConnectivityResults -Results $Results } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.SetGuiRemoteConnectivityResults' }
 	}.GetNewClosure()
 
 	$testState = @{ PS = $null; Async = $null; Timer = $null }
 
 	$cleanupTest = {
-		if ($testState.Timer) { try { $testState.Timer.Stop() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.CleanupTestTimer' }; $testState.Timer = $null }
+		if ($testState.Timer) { try { $testState.Timer.Stop() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.CleanupTestTimer' }; $testState.Timer = $null }
 		if ($testState.PS)
 		{
-			try { $testState.PS.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.CleanupTestDisposePowerShell' }
+			try { $testState.PS.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection.CleanupTestDisposePowerShell' }
 			$testState.PS = $null
 		}
 		$testState.Async = $null
@@ -662,7 +656,6 @@ function Prompt-GuiRemoteTargetConnection
 
 <#
     .SYNOPSIS
-    Internal function Test-GuiRemoteTargetApproval.
 #>
 
 function Test-GuiRemoteTargetApproval
@@ -696,7 +689,6 @@ function Test-GuiRemoteTargetApproval
 
 <#
     .SYNOPSIS
-    Internal function Set-GuiRemoteTargetApprovalList.
 #>
 
 function Set-GuiRemoteTargetApprovalList
@@ -729,7 +721,6 @@ function Set-GuiRemoteTargetApprovalList
 
 <#
     .SYNOPSIS
-    Internal function Clear-GuiRemoteTargetApprovalList.
 #>
 
 function Clear-GuiRemoteTargetApprovalList
@@ -745,16 +736,12 @@ function Clear-GuiRemoteTargetApprovalList
 	$Script:Ctx.Remote.ApprovalMessage = $null
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Get-GuiRemoteTargetPolicyDirectory
 {
 	[CmdletBinding()]
 	param ()
 
-	$settingsRoot = Get-GuiSettingsProfileDirectory
+	$settingsRoot = Get-BaselineGuiSettingsProfileDirectory
 	if ([string]::IsNullOrWhiteSpace($settingsRoot))
 	{
 		$settingsRoot = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::ApplicationData)
@@ -771,7 +758,6 @@ function Get-GuiRemoteTargetPolicyDirectory
 
 <#
     .SYNOPSIS
-    Internal function Export-GuiRemoteTargetApprovalPolicy.
 #>
 
 function Export-GuiRemoteTargetApprovalPolicy
@@ -819,7 +805,6 @@ function Export-GuiRemoteTargetApprovalPolicy
 
 <#
     .SYNOPSIS
-    Internal function Import-GuiRemoteTargetApprovalPolicy.
 #>
 
 function Import-GuiRemoteTargetApprovalPolicy
@@ -875,7 +860,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 <#
     .SYNOPSIS
-    Internal function Save-GuiUndoSnapshot.
 	#>
 
 	function Save-GuiUndoSnapshot
@@ -886,10 +870,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 		Set-GuiActionButtonsEnabled -Enabled (-not (& $Script:TestGuiRunInProgressScript))
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-GuiSettingsSnapshot
 	{
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
@@ -908,7 +888,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			[string]$Script:CurrentThemeName
 		}
 		else {
-			'Dark'
+			'System'
 		}
 
 		# Session restore is UI state restore: keep the user's last search and
@@ -933,11 +913,12 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$currentModePreference = Resolve-GuiModePreference -SafeMode $currentSafeMode -AdvancedMode $currentAdvancedMode
 		$currentAppsModeActive = if (Get-Variable -Name 'AppsModeActive' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:AppsModeActive } else { $false }
 		$currentUpdatesModeActive = if (Get-Variable -Name 'UpdatesModeActive' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:UpdatesModeActive } else { $false }
-		$currentNavigationMode = if ($currentUpdatesModeActive) { 'Updates' } elseif ($currentAppsModeActive) { 'Apps' } else { 'Optimize' }
+		$currentDeploymentMediaModeActive = if (Get-Variable -Name 'DeploymentMediaModeActive' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:DeploymentMediaModeActive } else { $false }
+		$currentNavigationMode = if ($currentUpdatesModeActive) { 'Updates' } elseif ($currentDeploymentMediaModeActive) { 'DeploymentMedia' } elseif ($currentAppsModeActive) { 'Apps' } else { 'Optimize' }
 
 		$snapshot = [ordered]@{
 			Schema = 'Baseline.GuiSettings'
-			SchemaVersion = 16
+			SchemaVersion = 18
 			SavedAt = (Get-Date).ToString('o')
 			Theme = $themeName
 			Language = if ($Script:SelectedLanguage) { [string]$Script:SelectedLanguage } else { 'en' }
@@ -965,6 +946,10 @@ function Import-GuiRemoteTargetApprovalPolicy
 			ScanEnabled = $scanEnabled
 			AutoScanOnLaunch = [bool]$Script:AutoScanOnLaunch
 			RestoreLastSession = if ($null -ne $Script:RestoreLastSession) { [bool]$Script:RestoreLastSession } else { $true }
+			AutoCheckUpdates = if ($null -ne $Script:AutoCheckUpdates) { [bool]$Script:AutoCheckUpdates } else { $true }
+			UpdateCheckFrequency = if ($Script:UpdateCheckFrequency) { [string]$Script:UpdateCheckFrequency } else { 'Startup' }
+			UpdateBranch = if ($Script:UpdateBranch) { [string]$Script:UpdateBranch } elseif (Get-Command -Name 'Get-BaselineDefaultUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineDefaultUpdateBranch } else { 'Stable' }
+			IncludePrereleaseUpdates = if ($null -ne $Script:IncludePrereleaseUpdates) { [bool]$Script:IncludePrereleaseUpdates } else { $false }
 			AdvancedMode = [bool]$currentModePreference.AdvancedMode
 			SafeMode = [bool]$currentModePreference.SafeMode
 			RequireRunConfirmation = if ($null -ne $Script:RequireRunConfirmation) { [bool]$Script:RequireRunConfirmation } else { $true }
@@ -986,6 +971,8 @@ function Import-GuiRemoteTargetApprovalPolicy
 			AppsAutoUpdate = [bool]$Script:AppsAutoUpdate
 			AppsSilentInstall = if ($null -ne $Script:AppsSilentInstall) { [bool]$Script:AppsSilentInstall } else { $true }
 			LoggingEnabled = if ($null -ne $Script:LoggingEnabled) { [bool]$Script:LoggingEnabled } else { $true }
+			DebugLoggingEnabled = if ($null -ne $Script:DebugLoggingEnabled) { [bool]$Script:DebugLoggingEnabled } else { $false }
+			LogLevel = if ($Script:LogLevel) { [string]$Script:LogLevel } else { 'All' }
 			ExperimentalFeatures = [bool]$Script:ExperimentalFeatures
 			DesignMode = [bool]$Script:DesignMode
 			HighRiskOnlyFilter = [bool]$Script:HighRiskOnlyFilter
@@ -1066,7 +1053,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 	<#
 	    .SYNOPSIS
-	    Internal function Restore-GuiSettingsSnapshot.
 	#>
 
 	function Restore-GuiSettingsSnapshot
@@ -1100,108 +1086,10 @@ function Import-GuiRemoteTargetApprovalPolicy
 		Initialize-GuiSelectionStateStores
 		$Script:ExplicitPresetSelections.Clear()
 		$Script:ExplicitPresetSelectionDefinitions.Clear()
-		if ((Test-GuiObjectField -Object $Snapshot -FieldName 'ExplicitSelectionDefinitions') -and $null -ne $Snapshot.ExplicitSelectionDefinitions)
-		{
-			foreach ($selectionDefinition in @($Snapshot.ExplicitSelectionDefinitions))
-			{
-				$functionName = if ($selectionDefinition -and (Test-GuiObjectField -Object $selectionDefinition -FieldName 'Function')) { [string]$selectionDefinition.Function } else { $null }
-				if (-not [string]::IsNullOrWhiteSpace($functionName))
-				{
-					Set-GuiExplicitSelectionDefinition -FunctionName $functionName -Definition $selectionDefinition
-				}
-			}
-		}
-		elseif ((Test-GuiObjectField -Object $Snapshot -FieldName 'ExplicitSelections'))
-		{
-			foreach ($functionName in @($Snapshot.ExplicitSelections))
-			{
-				if (-not [string]::IsNullOrWhiteSpace([string]$functionName))
-				{
-					[void]$Script:ExplicitPresetSelections.Add([string]$functionName)
-				}
-			}
-		}
+				# P5 rollback checkpoint: Restore-GuiSettingsSnapshot part extracted to Module/GUI/SessionState/Restore-GuiSettingsSnapshot/RestoreExplicitSelectionState.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'SessionState\Restore-GuiSettingsSnapshot\RestoreExplicitSelectionState.ps1')
 
-		for ($i = 0; $i -lt $Script:TweakManifest.Count; $i++)
-		{
-			$manifest = $Script:TweakManifest[$i]
-			$control = $Script:Controls[$i]
-			if (-not $control) { continue }
-
-			$state = $controlStates[$manifest.Function]
-			if (-not $state) { continue }
-
-			switch ($manifest.Type)
-			{
-				'Date'
-				{
-					$isChecked = if ((Test-GuiObjectField -Object $state -FieldName 'IsChecked')) { [bool]$state.IsChecked } else { $false }
-					$selectedDate = $null
-					if ((Test-GuiObjectField -Object $state -FieldName 'SelectedDate') -and -not [string]::IsNullOrWhiteSpace([string]$state.SelectedDate))
-					{
-						$parsedDate = [datetime]::MinValue
-						if (-not [datetime]::TryParseExact([string]$state.SelectedDate, 'yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, [ref]$parsedDate))
-						{
-							throw "Invalid GUI session date value for '$([string]$manifest.Function)': '$([string]$state.SelectedDate)'."
-						}
-						$selectedDate = $parsedDate
-					}
-
-					if ((Test-GuiObjectField -Object $control -FieldName 'IsRestoring'))
-					{
-						$control.IsRestoring = $true
-					}
-					if ((Test-GuiObjectField -Object $control -FieldName 'CheckBox') -and $control.CheckBox)
-					{
-						$control.CheckBox.IsChecked = [bool]$isChecked
-					}
-					elseif ((Test-GuiObjectField -Object $control -FieldName 'IsChecked'))
-					{
-						$control.IsChecked = [bool]$isChecked
-					}
-					if ((Test-GuiObjectField -Object $control -FieldName 'DatePicker') -and $control.DatePicker)
-					{
-						$control.DatePicker.SelectedDate = $selectedDate
-					}
-					if ((Test-GuiObjectField -Object $control -FieldName 'SelectedDate'))
-					{
-						$control.SelectedDate = $selectedDate
-					}
-					if ((Test-GuiObjectField -Object $control -FieldName 'IsRestoring'))
-					{
-						$control.IsRestoring = $false
-					}
-				}
-				'Choice'
-				{
-					if ((Test-GuiObjectField -Object $control -FieldName 'SelectedIndex'))
-					{
-						$selectedIndex = -1
-						if ($manifest.Options -and (Test-GuiObjectField -Object $state -FieldName 'SelectedValue') -and -not [string]::IsNullOrWhiteSpace([string]$state.SelectedValue))
-						{
-							$selectedIndex = [array]::IndexOf(@($manifest.Options), [string]$state.SelectedValue)
-						}
-						if ($selectedIndex -lt 0 -and (Test-GuiObjectField -Object $state -FieldName 'SelectedIndex'))
-						{
-							$selectedIndex = [int]$state.SelectedIndex
-						}
-						$optCount = if ($manifest.Options) { $manifest.Options.Count } else { 0 }
-						if ($selectedIndex -ge $optCount) { $selectedIndex = -1 }
-						[int]$idx = $selectedIndex
-						$control.SelectedIndex = $idx
-					}
-				}
-				default
-				{
-					if ((Test-GuiObjectField -Object $control -FieldName 'IsChecked'))
-					{
-						$control.IsChecked = [bool]$state.IsChecked
-					}
-				}
-			}
-		}
-
-		$desiredTheme = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'Theme')) { [string]$Snapshot.Theme } else { 'Dark' }
+		$desiredTheme = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'Theme')) { [string]$Snapshot.Theme } else { 'System' }
 		# System scan must be rerun explicitly for the current machine state instead of being
 		# replayed from a saved session.
 		$desiredScan  = $false
@@ -1219,7 +1107,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$allowedAppsSourceFilter = @('All', 'winget', 'choco')
 		if ($allowedAppsSourceFilter -notcontains $desiredAppsSourceFilter) { $desiredAppsSourceFilter = 'All' }
 		$desiredNavigationMode = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'NavigationMode') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.NavigationMode)) { [string]$Snapshot.NavigationMode } else { 'Optimize' }
-		$allowedNavigationModes = @('Optimize', 'Apps', 'Updates')
+		$allowedNavigationModes = @('Optimize', 'Apps', 'Updates', 'DeploymentMedia')
 		if ($allowedNavigationModes -notcontains $desiredNavigationMode) { $desiredNavigationMode = 'Optimize' }
 		$desiredAppsQueuedActions = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsQueuedActions') -and $null -ne $Snapshot.AppsQueuedActions) { @($Snapshot.AppsQueuedActions) } else { @() }
 		$desiredPinnedBaselineVersion = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'PinnedBaselineVersion') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.PinnedBaselineVersion)) { [string]$Snapshot.PinnedBaselineVersion } else { $null }
@@ -1230,6 +1118,20 @@ function Import-GuiRemoteTargetApprovalPolicy
 		elseif ((Test-GuiObjectField -Object $Snapshot -FieldName 'AutoScanOnLaunch')) { [bool]$Snapshot.AutoScanOnLaunch }
 		else { $false }
 		$desiredRestoreLastSession = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RestoreLastSession')) { [bool]$Snapshot.RestoreLastSession } else { $true }
+		$hasSnapshotUpdateSettings = (Test-GuiObjectField -Object $Snapshot -FieldName 'AutoCheckUpdates') -or (Test-GuiObjectField -Object $Snapshot -FieldName 'UpdateCheckFrequency') -or (Test-GuiObjectField -Object $Snapshot -FieldName 'UpdateBranch') -or (Test-GuiObjectField -Object $Snapshot -FieldName 'IncludePrereleaseUpdates')
+		$desiredAutoCheckUpdates = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AutoCheckUpdates')) { [bool]$Snapshot.AutoCheckUpdates } elseif (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'AutoCheckUpdates' -Default $true) } else { if ($null -ne $Script:AutoCheckUpdates) { [bool]$Script:AutoCheckUpdates } else { $true } }
+		$desiredUpdateCheckFrequency = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'UpdateCheckFrequency') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.UpdateCheckFrequency)) { [string]$Snapshot.UpdateCheckFrequency } elseif (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [string](Get-BaselineUserPreference -Key 'UpdateCheckFrequency' -Default 'Startup') } else { if ($Script:UpdateCheckFrequency) { [string]$Script:UpdateCheckFrequency } else { 'Startup' } }
+		if (Get-Command -Name 'ConvertTo-BaselineUpdateCheckFrequency' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			$desiredUpdateCheckFrequency = ConvertTo-BaselineUpdateCheckFrequency -Frequency $desiredUpdateCheckFrequency
+		}
+		$defaultUpdateBranch = if (Get-Command -Name 'Get-BaselineDefaultUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineDefaultUpdateBranch } else { 'Stable' }
+		$desiredUpdateBranch = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'UpdateBranch') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.UpdateBranch)) { [string]$Snapshot.UpdateBranch } elseif (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [string](Get-BaselineUserPreference -Key 'UpdateBranch' -Default $defaultUpdateBranch) } else { if ($Script:UpdateBranch) { [string]$Script:UpdateBranch } else { $defaultUpdateBranch } }
+		if (Get-Command -Name 'ConvertTo-BaselineUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			$desiredUpdateBranch = ConvertTo-BaselineUpdateBranch -Branch $desiredUpdateBranch
+		}
+		$desiredIncludePrereleaseUpdates = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'IncludePrereleaseUpdates')) { [bool]$Snapshot.IncludePrereleaseUpdates } elseif (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'IncludePrereleaseUpdates' -Default $false) } else { if ($null -ne $Script:IncludePrereleaseUpdates) { [bool]$Script:IncludePrereleaseUpdates } else { $false } }
 		$desiredSafe = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'SafeMode')) { [bool]$Snapshot.SafeMode } else { $false }
 		$desiredAdvanced = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AdvancedMode')) { [bool]$Snapshot.AdvancedMode } else { $false }
 		$desiredRequireRunConfirmation = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RequireRunConfirmation')) { [bool]$Snapshot.RequireRunConfirmation } else { $true }
@@ -1264,6 +1166,12 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$desiredAppsAutoUpdate = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsAutoUpdate')) { [bool]$Snapshot.AppsAutoUpdate } else { $false }
 		$desiredAppsSilentInstall = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsSilentInstall')) { [bool]$Snapshot.AppsSilentInstall } else { $true }
 		$desiredLoggingEnabled = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'LoggingEnabled')) { [bool]$Snapshot.LoggingEnabled } else { $true }
+		$desiredDebugLoggingEnabled = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'DebugLoggingEnabled')) { [bool]$Snapshot.DebugLoggingEnabled } else { if ($null -ne $Script:DebugLoggingEnabled) { [bool]$Script:DebugLoggingEnabled } else { $false } }
+		$desiredLogLevel = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'LogLevel') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.LogLevel)) { [string]$Snapshot.LogLevel } else { if ($Script:LogLevel) { [string]$Script:LogLevel } else { 'All' } }
+		if (Get-Command -Name 'Normalize-GuiLogLevel' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			$desiredLogLevel = Normalize-GuiLogLevel -Level $desiredLogLevel
+		}
 		$desiredExperimentalFeatures = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'ExperimentalFeatures')) { [bool]$Snapshot.ExperimentalFeatures } else { $false }
 		$desiredDesignMode = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'DesignMode')) { [bool]$Snapshot.DesignMode } else { [bool]$Script:DesignMode }
 		$desiredHighRiskOnly = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'HighRiskOnlyFilter')) { [bool]$Snapshot.HighRiskOnlyFilter } else { $false }
@@ -1286,12 +1194,12 @@ function Import-GuiRemoteTargetApprovalPolicy
 		# as 'System' so the choice persists across relaunches.
 		if (Get-Command -Name 'Apply-BaselineThemePreference' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			try { Apply-BaselineThemePreference -Preference $desiredTheme } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.ApplyThemePreference' }
+			try { Apply-BaselineThemePreference -Preference $desiredTheme } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.ApplyThemePreference' }
 		}
 		else
 		{
 			$resolvedTheme = if ($desiredTheme -eq 'System') {
-				if (Get-Command -Name 'Get-BaselineSystemThemePreference' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineSystemThemePreference } else { 'Dark' }
+				if (Get-Command -Name 'Get-BaselineSystemThemePreference' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineSystemThemePreference } else { 'Light' }
 			} elseif ($desiredTheme -eq 'Light' -or $desiredTheme -eq 'Dark') {
 				$desiredTheme
 			} else {
@@ -1336,158 +1244,24 @@ function Import-GuiRemoteTargetApprovalPolicy
         }
 
 		$Script:FilterUiUpdating = $true
-		try
-		{
-			$Script:AutoScanOnLaunch = $desiredAutoScanOnLaunch
-			$Script:RestoreLastSession = $desiredRestoreLastSession
-			$Script:ScanEnabled = $desiredScan
-			$Script:EnvironmentRecommendationData = $null
-			$Script:EnvironmentSummaryText = $null
-			if ($ChkScan)
-			{
-				if ($ChkScan.IsChecked -ne $desiredScan)
-				{
-					$ChkScan.IsChecked = $desiredScan
-				}
-			}
-
-			$desiredViewMode = if ($desiredSafe) { 'Safe' } elseif ($desiredAdvanced) { 'Expert' } else { 'Standard' }
-			if (Get-Command -Name 'Set-GuiMode' -CommandType Function -ErrorAction SilentlyContinue)
-			{
-				Set-GuiMode -ViewMode $desiredViewMode -GameMode $desiredGameMode
-			}
-			else
-			{
-				$Script:SafeMode = $desiredSafe
-				$Script:AdvancedMode = $desiredAdvanced
-				$Script:GameMode = $desiredGameMode
-				if ($Script:Ctx)
-				{
-					if (-not $Script:Ctx.ContainsKey('Mode'))
-					{
-						$Script:Ctx['Mode'] = @{ Safe = $false; Expert = $false; Game = $false; Design = $false; Scenario = $null }
-					}
-					$Script:Ctx.Mode.Safe = $desiredSafe
-					$Script:Ctx.Mode.Expert = $desiredAdvanced
-					$Script:Ctx.Mode.Game = $desiredGameMode
-				}
-			}
-			$Script:DefaultStartupMode = if ($desiredAdvanced) { 'Expert' } else { 'Safe' }
-			if (Get-Command -Name 'Set-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
-			{
-				try { Set-BaselineUserPreference -Key 'Theme' -Value $desiredTheme } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveThemePreference' }
-				try { Set-BaselineUserPreference -Key 'DefaultStartupMode' -Value $Script:DefaultStartupMode } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveDefaultStartupModePreference' }
-				try { Set-BaselineUserPreference -Key 'UIDensity' -Value $desiredUiDensity } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveUIDensityPreference' }
-			}
-			$Script:UIDensity = $desiredUiDensity
-			$Script:RowContextShared = $null
-			$Script:RowContextSharedTheme = $null
-			$Script:RowContextSharedDensity = $null
-			if (Get-Command -Name 'Set-TweakRowFactoryDensityTokens' -CommandType Function -ErrorAction SilentlyContinue)
-			{
-				Set-TweakRowFactoryDensityTokens
-			}
-			if ($ChkSafeMode)
-			{
-				$ChkSafeMode.IsChecked = $desiredSafe
-				$ChkSafeMode.Content = if ($desiredSafe)
-				{
-					Get-UxLocalizedString -Key 'GuiHelpSectionSafeMode' -Fallback 'Safe Mode'
-				}
-				else
-				{
-					Get-UxLocalizedString -Key 'GuiHelpSectionExpertMode' -Fallback 'Expert Mode'
-				}
-			}
-			if ($ExpertModeBanner)
-			{
-				$ExpertModeBanner.Visibility = if ($desiredAdvanced) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
-			}
-			$modeHidden = if ($desiredSafe) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
-			if ($BtnLog) { $BtnLog.Visibility = [System.Windows.Visibility]::Collapsed }
-			if ($BtnFilterToggle) { $BtnFilterToggle.Visibility = $modeHidden }
-			if ($ChkScan) { $ChkScan.Visibility = $modeHidden }
-			if ($Script:MenuTools) { $Script:MenuTools.Visibility = [System.Windows.Visibility]::Visible }
-			if ($Script:MenuToolsAppsManager) { $Script:MenuToolsAppsManager.Visibility = [System.Windows.Visibility]::Visible }
-			if ($Script:MenuToolsUpdateAllApps) { $Script:MenuToolsUpdateAllApps.Visibility = [System.Windows.Visibility]::Visible }
-			if ($Script:MenuToolsApproveRemoteTargets) { $Script:MenuToolsApproveRemoteTargets.Visibility = $modeHidden }
-			if ($Script:MenuToolsSaveRemoteApprovalPolicy) { $Script:MenuToolsSaveRemoteApprovalPolicy.Visibility = $modeHidden }
-			if ($Script:MenuToolsLoadRemoteApprovalPolicy) { $Script:MenuToolsLoadRemoteApprovalPolicy.Visibility = $modeHidden }
-			if ($Script:MenuToolsRemoteConsole) { $Script:MenuToolsRemoteConsole.Visibility = $modeHidden }
-			if ($Script:MenuToolsOperatorConsole) { $Script:MenuToolsOperatorConsole.Visibility = $modeHidden }
-			if ($Script:MenuToolsRemoteSessionStatus) { $Script:MenuToolsRemoteSessionStatus.Visibility = $modeHidden }
-			if ($Script:MenuToolsRemovalPersistence) { $Script:MenuToolsRemovalPersistence.Visibility = $modeHidden }
-			if ($Script:MenuToolsSepApps) { $Script:MenuToolsSepApps.Visibility = $modeHidden }
-			if ($Script:MenuToolsExportSupportBundle) { $Script:MenuToolsExportSupportBundle.Visibility = [System.Windows.Visibility]::Visible }
-			if ($Script:MenuActionsCheckCompliance) { $Script:MenuActionsCheckCompliance.Visibility = $modeHidden }
-			if ($Script:MenuActionsScanSystem) { $Script:MenuActionsScanSystem.Visibility = $modeHidden }
-			if ($Script:MenuActionsAuditLog) { $Script:MenuActionsAuditLog.Visibility = $modeHidden }
-			if ($Script:MenuViewFilters) { $Script:MenuViewFilters.Visibility = $modeHidden }
-			if ($Script:MenuFileExportSystemState) { $Script:MenuFileExportSystemState.Visibility = $modeHidden }
-			if ($Script:MenuFileExportConfigProfile) { $Script:MenuFileExportConfigProfile.Visibility = $modeHidden }
-
-			$Script:GameMode = $desiredGameMode
-			$Script:GameModeProfile = if ([string]::IsNullOrWhiteSpace($desiredGameModeProfile)) { $null } else { $desiredGameModeProfile }
-			$Script:GameModeCorePlan = @($desiredGameModeCorePlan)
-			$Script:GameModePlan = @($desiredGameModePlan)
-			$Script:GameModeDecisionOverrides = @{}
-			foreach ($overrideKey in @($desiredGameModeDecisionOverrides.Keys))
-			{
-				if ([string]::IsNullOrWhiteSpace([string]$overrideKey)) { continue }
-				$Script:GameModeDecisionOverrides[[string]$overrideKey] = [string]$desiredGameModeDecisionOverrides[$overrideKey]
-			}
-			$Script:GameModeAdvancedSelections = @{}
-			foreach ($advSelKey in @($desiredGameModeAdvancedSelections.Keys))
-			{
-				if ([string]::IsNullOrWhiteSpace([string]$advSelKey)) { continue }
-				$Script:GameModeAdvancedSelections[[string]$advSelKey] = [bool]$desiredGameModeAdvancedSelections[$advSelKey]
-			}
-			if ($ChkGameMode)
-			{
-				if ([bool]$ChkGameMode.IsChecked -ne $desiredGameMode)
-				{
-					$ChkGameMode.IsChecked = $desiredGameMode
-				}
-			}
-
-			$Script:RiskFilter = $desiredRisk
-			if ($CmbRiskFilter)
-			{
-				if ($Script:RiskFilterInternalValues -and $Script:RiskFilterInternalValues.Contains($desiredRisk))
-				{
-					$found = $Script:RiskFilterInternalValues.IndexOf($desiredRisk)
-					if ($found -ge 0) { $CmbRiskFilter.SelectedIndex = [int]$found }
-				}
-				else
-				{
-					[int]$idx = 0
-					$CmbRiskFilter.SelectedIndex = $idx
-					$Script:RiskFilter = 'All'
-				}
-			}
-
-			$Script:PlatformFilter = $desiredPlatform
-			$Script:HideUnavailableItems = $desiredHideUnavailableItems
-			if ($ChkHideUnavailableItems) { $ChkHideUnavailableItems.IsChecked = $desiredHideUnavailableItems }
-			$Script:SelectedOnlyFilter = $desiredSelectedOnly
-			if ($ChkSelectedOnly) { $ChkSelectedOnly.IsChecked = $desiredSelectedOnly }
-			$Script:HighRiskOnlyFilter = $desiredHighRiskOnly
-			if ($ChkHighRiskOnly) { $ChkHighRiskOnly.IsChecked = $desiredHighRiskOnly }
-			$Script:RestorableOnlyFilter = $desiredRestorableOnly
-			if ($ChkRestorableOnly) { $ChkRestorableOnly.IsChecked = $desiredRestorableOnly }
-			$Script:GamingOnlyFilter = $desiredGamingOnly
-			if ($ChkGamingOnly) { $ChkGamingOnly.IsChecked = $desiredGamingOnly }
-		}
-		finally
-		{
-			$Script:FilterUiUpdating = $false
-		}
+				# P5 rollback checkpoint: Restore-GuiSettingsSnapshot part extracted to Module/GUI/SessionState/Restore-GuiSettingsSnapshot/RestorePreferenceSettings.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'SessionState\Restore-GuiSettingsSnapshot\RestorePreferenceSettings.ps1')
 
 		$Script:RequireRunConfirmation = $desiredRequireRunConfirmation
 		$Script:PreviewBeforeRunDefault = $desiredPreviewBeforeRunDefault
 		$Script:AppsAutoUpdate = $desiredAppsAutoUpdate
 		$Script:AppsSilentInstall = $desiredAppsSilentInstall
 		$Script:LoggingEnabled = $desiredLoggingEnabled
+		$Script:DebugLoggingEnabled = $desiredDebugLoggingEnabled
+		$Script:LogLevel = $desiredLogLevel
+		if (Get-Command -Name 'Set-BaselineDebugLogging' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			try { Set-BaselineDebugLogging -Enabled $desiredDebugLoggingEnabled } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SetDebugLogging' }
+		}
+		if (Get-Command -Name 'Set-GuiPerfTraceState' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			try { Set-GuiPerfTraceState -Enabled $desiredDebugLoggingEnabled } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SetPerfTrace' }
+		}
 		$Script:ExperimentalFeatures = $desiredExperimentalFeatures
 		$null = Set-PlatformFilterState -PlatformFilter $desiredPlatform
 		$null = Set-HideUnavailableItemsState -HideUnavailableItems $desiredHideUnavailableItems
@@ -1544,64 +1318,8 @@ function Import-GuiRemoteTargetApprovalPolicy
 		Update-SearchResultsTabState
 
 		$Script:FilterUiUpdating = $true
-		try
-		{
-			$Script:CategoryFilter = $desiredCategory
-			if ($CmbCategoryFilter)
-			{
-				if ($Script:CategoryFilterInternalValues -and $Script:CategoryFilterInternalValues.Contains($desiredCategory))
-				{
-					$found = $Script:CategoryFilterInternalValues.IndexOf($desiredCategory)
-					if ($found -ge 0) { $CmbCategoryFilter.SelectedIndex = [int]$found }
-				}
-				else
-				{
-					[int]$idx = 0
-					$CmbCategoryFilter.SelectedIndex = $idx
-					$Script:CategoryFilter = 'All'
-				}
-			}
-			$Script:AppsFilterUiUpdating = $true
-			try
-			{
-				$Script:AppsCategoryFilter = $desiredAppsCategory
-				if ($Script:AppsCategoryTabs -and $Script:AppsCategoryFilterInternalValues -and $Script:AppsCategoryFilterInternalValues.Count -gt 0)
-				{
-					if ($Script:AppsCategoryFilterInternalValues.Contains($desiredAppsCategory))
-					{
-						$found = $Script:AppsCategoryFilterInternalValues.IndexOf($desiredAppsCategory)
-						if ($found -ge 0) { $Script:AppsCategoryTabs.SelectedIndex = [int]$found }
-					}
-					else
-					{
-						$Script:AppsCategoryTabs.SelectedIndex = 0
-						$Script:AppsCategoryFilter = if ($Script:AppsCategoryFilterInternalValues.Count -gt 0) { [string]$Script:AppsCategoryFilterInternalValues[0] } else { 'Browsers' }
-					}
-				}
-				$Script:AppsStatusFilter = $desiredAppsStatus
-				if ($CmbAppsStatusFilter -and $Script:AppsStatusFilterInternalValues -and $Script:AppsStatusFilterInternalValues.Count -gt 0)
-				{
-					if ($Script:AppsStatusFilterInternalValues.Contains($desiredAppsStatus))
-					{
-						$foundStatus = $Script:AppsStatusFilterInternalValues.IndexOf($desiredAppsStatus)
-						if ($foundStatus -ge 0) { $CmbAppsStatusFilter.SelectedIndex = [int]$foundStatus }
-					}
-					else
-					{
-						$CmbAppsStatusFilter.SelectedIndex = 0
-						$Script:AppsStatusFilter = 'All'
-					}
-				}
-			}
-			finally
-			{
-				$Script:AppsFilterUiUpdating = $false
-			}
-		}
-		finally
-		{
-			$Script:FilterUiUpdating = $false
-		}
+				# P5 rollback checkpoint: Restore-GuiSettingsSnapshot part extracted to Module/GUI/SessionState/Restore-GuiSettingsSnapshot/RestoreFilterAndSearchState.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'SessionState\Restore-GuiSettingsSnapshot\RestoreFilterAndSearchState.ps1')
 
 		Update-CategoryFilterList -PrimaryTab $(if ($desiredSearch) { $Script:SearchResultsTabTag } else { $desiredTab })
 		Update-SearchResultsTabState
@@ -1618,81 +1336,8 @@ function Import-GuiRemoteTargetApprovalPolicy
 			Update-AppsViewModeControls
 		}
 
-		switch ($desiredNavigationMode)
-		{
-			'Apps'
-			{
-				if (Get-Command -Name 'Set-GuiUpdatesMode' -CommandType Function -ErrorAction SilentlyContinue)
-				{
-					Set-GuiUpdatesMode -Enable:$false
-				}
-				if (Get-Command -Name 'Set-GuiAppsMode' -CommandType Function -ErrorAction SilentlyContinue)
-				{
-					Set-GuiAppsMode -Enable:$true
-				}
-			}
-			'Updates'
-			{
-				if (Get-Command -Name 'Set-GuiUpdatesMode' -CommandType Function -ErrorAction SilentlyContinue)
-				{
-					Set-GuiUpdatesMode -Enable:$true
-				}
-			}
-			default
-			{
-				if (Get-Command -Name 'Set-GuiUpdatesMode' -CommandType Function -ErrorAction SilentlyContinue)
-				{
-					Set-GuiUpdatesMode -Enable:$false
-				}
-				if (Get-Command -Name 'Set-GuiAppsMode' -CommandType Function -ErrorAction SilentlyContinue)
-				{
-					Set-GuiAppsMode -Enable:$false
-				}
-			}
-		}
-
-		if ([string]::IsNullOrWhiteSpace($desiredSearch) -and $desiredTab)
-		{
-			if ($desiredTab -eq $Script:SearchResultsTabTag)
-			{
-				$restoreTag = if ($desiredLast) { $desiredLast } else { $Script:LastStandardPrimaryTab }
-				$restoreTab = if ($restoreTag) { Get-PrimaryTabItem -Tag $restoreTag } else { $null }
-				if (-not $restoreTab)
-				{
-					foreach ($tab in $PrimaryTabs.Items)
-					{
-						if (($tab -is [System.Windows.Controls.TabItem]) -and $tab.Tag -and ([string]$tab.Tag -ne $Script:SearchResultsTabTag))
-						{
-							$restoreTab = $tab
-							break
-						}
-					}
-				}
-				if ($restoreTab -and $PrimaryTabs.SelectedItem -ne $restoreTab)
-				{
-					$PrimaryTabs.SelectedItem = $restoreTab
-				}
-			}
-			else
-			{
-				$targetTab = Get-PrimaryTabItem -Tag $desiredTab
-				if ($targetTab -and $PrimaryTabs.SelectedItem -ne $targetTab)
-				{
-					$PrimaryTabs.SelectedItem = $targetTab
-				}
-				elseif (-not $targetTab -and $PrimaryTabs)
-				{
-					foreach ($tab in $PrimaryTabs.Items)
-					{
-						if (($tab -is [System.Windows.Controls.TabItem]) -and $tab.Tag -and ([string]$tab.Tag -ne $Script:SearchResultsTabTag))
-						{
-							$PrimaryTabs.SelectedItem = $tab
-							break
-						}
-					}
-				}
-			}
-		}
+				# P5 rollback checkpoint: Restore-GuiSettingsSnapshot part extracted to Module/GUI/SessionState/Restore-GuiSettingsSnapshot/RestoreNavigationMode.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'SessionState\Restore-GuiSettingsSnapshot\RestoreNavigationMode.ps1')
 
 		if (Get-Command -Name 'Set-DesignModeState' -CommandType Function -ErrorAction SilentlyContinue)
 		{
@@ -1741,7 +1386,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 	<#
 	    .SYNOPSIS
-	    Internal function Restore-GuiSnapshot.
 	#>
 
 	function Restore-GuiSnapshot
@@ -1765,7 +1409,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			{
 				Restore-GuiSettingsSnapshot -Snapshot $redoSnapshot
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Restore-GuiSnapshot.RestoreRedoSnapshot' }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Restore-GuiSnapshot.RestoreRedoSnapshot' }
 			throw "Failed to restore the previous GUI snapshot: $($_.Exception.Message)"
 		}
 
@@ -1776,38 +1420,28 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiSettingsProfileDirectory.
 	#>
 
-	function Get-GuiSettingsProfileDirectory
+	function Get-BaselineGuiSettingsProfileDirectory
 	{
 		param ()
 		return (GUICommon\Get-GuiSettingsProfileDirectory -AppName 'Baseline')
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
-	function Get-GuiSessionStatePath
+	function Get-BaselineGuiSessionStatePath
 	{
 		param ()
 		return (GUICommon\Get-GuiSessionStatePath -AppName 'Baseline')
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-GuiFirstRunWelcomeMarkerPath
 	{
 		param ()
-		return (Join-Path (Get-GuiSettingsProfileDirectory) 'Baseline-first-run-welcome.txt')
+		return (Join-Path (Get-BaselineGuiSettingsProfileDirectory) 'Baseline-first-run-welcome.txt')
 	}
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-GuiFirstRunWelcomePending.
 	#>
 
 	function Test-GuiFirstRunWelcomePending
@@ -1816,10 +1450,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 		return (-not (Test-Path -LiteralPath (Get-GuiFirstRunWelcomeMarkerPath)))
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Complete-GuiFirstRunWelcome
 	{
 		param ()
@@ -1845,7 +1475,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 	<#
 	    .SYNOPSIS
-	    Internal function Import-GuiLastRunProfile.
 	#>
 
 	function Import-GuiLastRunProfile
@@ -1871,7 +1500,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 	<#
 	    .SYNOPSIS
-	    Internal function Import-GuiInterruptedRunProfile.
 	#>
 
 	function Import-GuiInterruptedRunProfile
@@ -1897,7 +1525,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 	<#
 	    .SYNOPSIS
-	    Internal function Clear-GuiLastRunProfile.
 	#>
 
 	function Clear-GuiLastRunProfile
@@ -1921,7 +1548,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 	<#
 	    .SYNOPSIS
-	    Internal function Clear-GuiInterruptedRunProfile.
 	#>
 
 	function Clear-GuiInterruptedRunProfile
@@ -1945,7 +1571,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 	<#
 	    .SYNOPSIS
-	    Internal function Save-GuiInterruptedRunProfile.
 	#>
 
 	function Save-GuiInterruptedRunProfile
@@ -1989,7 +1614,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 	<#
 	    .SYNOPSIS
-	    Internal function Save-GuiSessionState.
 	#>
 
 	function Save-GuiSessionState
@@ -1998,10 +1622,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 		return (GUICommon\Save-GuiSessionStateDocument -Snapshot (Get-GuiSettingsSnapshot) -AppName 'Baseline')
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Restore-GuiSessionState
 	{
 		param (
@@ -2034,7 +1654,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 	<#
 	    .SYNOPSIS
-	    Internal function Export-GuiSettingsProfile.
 	#>
 
 	function Export-GuiSettingsProfile
@@ -2065,7 +1684,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 	<#
 	    .SYNOPSIS
-	    Internal function Import-GuiSettingsProfile.
 	#>
 
 	function Import-GuiSettingsProfile
@@ -2090,7 +1708,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			{
 				$sourceLabel = (Get-UxLocalizedString -Key 'GuiImportSettingsOwnTitle' -Fallback 'Saved profile')
 				$sourceDescription = (Get-UxLocalizedString -Key 'GuiImportSettingsOwnDetail' -Fallback ("Open a Baseline settings profile from the {0} settings folder." -f 'Baseline'))
-				$profilePath = GUICommon\Show-GuiFileOpenDialog -Title $importTitle -Filter 'Baseline Settings (*.json)|*.json|All Files (*.*)|*.*' -InitialDirectory (Get-GuiSettingsProfileDirectory)
+				$profilePath = GUICommon\Show-GuiFileOpenDialog -Title $importTitle -Filter 'Baseline Settings (*.json)|*.json|All Files (*.*)|*.*' -InitialDirectory (Get-BaselineGuiSettingsProfileDirectory)
 			}
 			'Recommended'
 			{
@@ -2102,7 +1720,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			{
 				$sourceLabel = (Get-UxLocalizedString -Key 'GuiImportSettingsBackupTitle' -Fallback 'Session backup')
 				$sourceDescription = (Get-UxLocalizedString -Key 'GuiImportSettingsBackupDetail' -Fallback 'Load the current session-state backup used for undo and restore.')
-				$profilePath = Get-GuiSessionStatePath
+				$profilePath = Get-BaselineGuiSessionStatePath
 				$useSessionStateReader = $true
 			}
 			'Custom'
@@ -2188,7 +1806,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 				{
 					Restore-GuiSettingsSnapshot -Snapshot $Script:UiSnapshotUndo
 				}
-				catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SessionState.Import-GuiSettingsProfile.RestoreUndoSnapshot' }
+				catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Import-GuiSettingsProfile.RestoreUndoSnapshot' }
 			}
 			$Script:UiSnapshotUndo = $null
 			Set-GuiActionButtonsEnabled -Enabled (-not (& $Script:TestGuiRunInProgressScript))

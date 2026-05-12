@@ -1,4 +1,4 @@
-# Compliance checking helpers for Baseline.
+﻿# Compliance checking helpers for Baseline.
 # Provides drift detection by comparing current system state against a saved
 # profile (snapshot) and generating compliance reports with remediation plans.
 #
@@ -10,7 +10,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Test-SystemCompliance.
 #>
 
 function Test-SystemCompliance
@@ -101,7 +100,7 @@ function Test-SystemCompliance
 		$entryIndex++
 		if ($dispatcherType -and ($entryIndex % 10 -eq 0))
 		{
-			try { [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::Background) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ComplianceHelpers.Test-SystemCompliance.DispatcherYield' }
+			try { [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::Background) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ComplianceHelpers.Test-SystemCompliance.DispatcherYield' }
 		}
 
 		# Extract the function name and entry name from the profile entry.
@@ -219,7 +218,6 @@ function Test-SystemCompliance
 }
 <#
     .SYNOPSIS
-    Internal function Get-DriftedEntries.
 #>
 
 function Get-DriftedEntries
@@ -242,10 +240,6 @@ function Get-DriftedEntries
 	return @($ComplianceReport.Entries | Where-Object { $_.Status -eq 'Drifted' })
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Get-ComplianceFixList
 {
 	<#
@@ -358,7 +352,6 @@ function Get-ComplianceFixList
 
 <#
     .SYNOPSIS
-    Internal function Add-WindowsUpdateComplianceReportSection.
 #>
 
 function Add-WindowsUpdateComplianceReportSection
@@ -416,7 +409,6 @@ function Add-WindowsUpdateComplianceReportSection
 
 <#
     .SYNOPSIS
-    Internal function Export-ComplianceReport.
 #>
 
 function Export-ComplianceReport

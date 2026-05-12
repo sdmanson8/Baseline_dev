@@ -568,6 +568,8 @@ function WindowsUpdateDisableAll
 	$deliveryOptimizationConfigPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Config'
 	$baselineGuardTaskName = 'WindowsUpdateGuard'
 	$baselineGuardTaskPath = '\Baseline\'
+	$baselineGuardScriptDirectory = Join-Path $env:ProgramData 'Baseline'
+	$baselineGuardScriptPath = Join-Path $baselineGuardScriptDirectory 'WindowsUpdateGuard.ps1'
 	$updateTaskPaths = @(
 		'\Microsoft\Windows\InstallService\*'
 		'\Microsoft\Windows\UpdateOrchestrator\*'
@@ -626,7 +628,9 @@ foreach (`$serviceName in @('BITS','wuauserv','UsoSvc','WaaSMedicSvc')) {
 					Get-ScheduledTask -TaskPath $taskPath -ErrorAction SilentlyContinue | Disable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null
 				}
 
-				$guardAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "{0}"' -f ($guardCommand.Replace('"', '\"').Replace("`r", '').Replace("`n", '; ')))
+				New-Item -Path $baselineGuardScriptDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
+				Set-Content -LiteralPath $baselineGuardScriptPath -Value $guardCommand -Encoding UTF8 -Force -ErrorAction Stop
+				$guardAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}"' -f $baselineGuardScriptPath)
 				$guardTriggers = @(
 					New-ScheduledTaskTrigger -AtStartup
 					New-ScheduledTaskTrigger -AtLogon
@@ -661,6 +665,7 @@ foreach (`$serviceName in @('BITS','wuauserv','UsoSvc','WaaSMedicSvc')) {
 				{
 					Unregister-ScheduledTask -TaskName $baselineGuardTaskName -TaskPath $baselineGuardTaskPath -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
 				}
+				Remove-Item -LiteralPath $baselineGuardScriptPath -Force -ErrorAction SilentlyContinue | Out-Null
 
 				foreach ($serviceDefinition in $updateServiceDefinitions)
 				{
@@ -1485,6 +1490,259 @@ function StoreSearchResults
 	}
 }
 
+function Convert-WindowsUpdateRepairRegistryPathForRegExe
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory = $true)]
+		[string]$Path
+	)
+
+	if ($Path -match '^HKLM:\\(.+)$')
+	{
+		return ('HKLM\{0}' -f $Matches[1])
+	}
+
+	if ($Path -match '^HKCU:\\(.+)$')
+	{
+		return ('HKCU\{0}' -f $Matches[1])
+	}
+
+	throw "Unsupported registry provider path for export: $Path"
+}
+
+function Export-WindowsUpdateRepairRegistryKey
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory = $true)]
+		[string]$Path,
+
+		[Parameter(Mandatory = $true)]
+		[string]$BackupDirectory
+	)
+
+	if (-not (Test-Path -LiteralPath $Path))
+	{
+		LogDebug "Windows Update repair registry backup skipped; path does not exist: $Path"
+		return
+	}
+
+	[void](New-Item -ItemType Directory -Path $BackupDirectory -Force -ErrorAction Stop)
+	$regPath = Convert-WindowsUpdateRepairRegistryPathForRegExe -Path $Path
+	$fileName = (($regPath -replace '[\\/:*?"<>|]', '_') + '.reg')
+	$backupPath = Join-Path $BackupDirectory $fileName
+
+	LogInfo "Exporting Windows Update repair registry backup: $Path -> $backupPath"
+	$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\reg.exe" -ArgumentList @('export', $regPath, $backupPath, '/y') -TimeoutSeconds 120 -AllowedExitCodes @(0)
+}
+
+function Remove-WindowsUpdateRepairRegistryKey
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory = $true)]
+		[string]$Path,
+
+		[Parameter(Mandatory = $true)]
+		[string]$Reason
+	)
+
+	if (-not (Test-Path -LiteralPath $Path))
+	{
+		LogDebug "Windows Update repair registry cleanup skipped; path does not exist: $Path"
+		return
+	}
+
+	LogInfo "Windows Update repair removing registry key ($Reason): $Path"
+	Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction Stop | Out-Null
+}
+
+function Get-WindowsUpdateRepairServiceIfPresent
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory = $true)]
+		[string]$Name
+	)
+
+	$service = Get-Service -Name $Name -ErrorAction SilentlyContinue
+	if (-not $service)
+	{
+		LogDebug "Windows Update repair skipped service '$Name'; service does not exist."
+		return $null
+	}
+
+	return $service
+}
+
+function Stop-WindowsUpdateRepairServiceIfPresent
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory = $true)]
+		[string]$Name
+	)
+
+	$service = Get-WindowsUpdateRepairServiceIfPresent -Name $Name
+	if (-not $service) { return }
+
+	Stop-Service -InputObject $service -Force -ErrorAction Stop | Out-Null
+}
+
+function Set-WindowsUpdateRepairServiceStartupIfPresent
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory = $true)]
+		[string]$Name,
+
+		[Parameter(Mandatory = $true)]
+		[ValidateSet('Automatic', 'Manual', 'Disabled')]
+		[string]$StartupType
+	)
+
+	$service = Get-WindowsUpdateRepairServiceIfPresent -Name $Name
+	if (-not $service) { return }
+
+	Set-Service -Name $Name -StartupType $StartupType -ErrorAction Stop | Out-Null
+}
+
+function Start-WindowsUpdateRepairServiceIfPresent
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory = $true)]
+		[string]$Name
+	)
+
+	$service = Get-WindowsUpdateRepairServiceIfPresent -Name $Name
+	if (-not $service) { return }
+
+	Start-Service -Name $Name -ErrorAction Stop | Out-Null
+}
+
+function Remove-WindowsUpdateRepairItemIfPresent
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory = $true)]
+		[string]$Path,
+
+		[switch]$Recurse,
+		[switch]$Wildcard
+	)
+
+	$items = @()
+	if ($Wildcard)
+	{
+		$parentPath = Split-Path -Path $Path -Parent
+		$filter = Split-Path -Path $Path -Leaf
+		if ([string]::IsNullOrWhiteSpace($parentPath) -or -not (Test-Path -LiteralPath $parentPath))
+		{
+			LogDebug "Windows Update repair cleanup skipped; parent path does not exist: $parentPath"
+			return
+		}
+
+		$items = @(Get-ChildItem -LiteralPath $parentPath -Filter $filter -Force -ErrorAction Stop)
+	}
+	elseif (Test-Path -LiteralPath $Path)
+	{
+		$items = @(Get-Item -LiteralPath $Path -Force -ErrorAction Stop)
+	}
+	else
+	{
+		LogDebug "Windows Update repair cleanup skipped; path does not exist: $Path"
+		return
+	}
+
+	foreach ($item in $items)
+	{
+		Remove-Item -LiteralPath $item.FullName -Force -Recurse:$Recurse -ErrorAction Stop | Out-Null
+	}
+}
+
+function Rename-WindowsUpdateRepairItemIfPresent
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory = $true)]
+		[string]$Path,
+
+		[Parameter(Mandatory = $true)]
+		[string]$NewName
+	)
+
+	if (-not (Test-Path -LiteralPath $Path))
+	{
+		LogDebug "Windows Update repair rename skipped; path does not exist: $Path"
+		return
+	}
+
+	$targetPath = Join-Path (Split-Path -Path $Path -Parent) $NewName
+	if (Test-Path -LiteralPath $targetPath)
+	{
+		throw "Windows Update repair cannot rename '$Path' because '$targetPath' already exists."
+	}
+
+	Rename-Item -LiteralPath $Path -NewName $NewName -ErrorAction Stop | Out-Null
+}
+
+function Remove-WindowsUpdateRepairRegistryValueIfPresent
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory = $true)]
+		[string]$Path,
+
+		[Parameter(Mandatory = $true)]
+		[string]$Name
+	)
+
+	if (-not (Test-Path -LiteralPath $Path))
+	{
+		LogDebug "Windows Update repair registry value cleanup skipped; path does not exist: $Path"
+		return
+	}
+
+	$key = Get-Item -LiteralPath $Path -ErrorAction Stop
+	if (@($key.GetValueNames()) -notcontains $Name)
+	{
+		LogDebug "Windows Update repair registry value cleanup skipped; value does not exist: $Path\$Name"
+		return
+	}
+
+	Remove-ItemProperty -LiteralPath $Path -Name $Name -Force -ErrorAction Stop | Out-Null
+}
+
+function Remove-WindowsUpdateRepairBitsTransfersIfPresent
+{
+	[CmdletBinding()]
+	param()
+
+	if (-not (Get-Command -Name 'Get-BitsTransfer' -ErrorAction SilentlyContinue))
+	{
+		LogDebug 'Windows Update repair BITS transfer cleanup skipped; BITS cmdlets are unavailable.'
+		return
+	}
+
+	$transfers = @(Get-BitsTransfer -ErrorAction Stop)
+	foreach ($transfer in $transfers)
+	{
+		Remove-BitsTransfer -BitsJob $transfer -ErrorAction Stop
+	}
+}
+
 <#
 	.SYNOPSIS
 	Repair Windows Update
@@ -1499,6 +1757,9 @@ Applies the Baseline behavior for repair Windows Update.
 
 	.PARAMETER Aggressive
 	Run the standard repair sequence plus OS integrity checks and deeper Windows Update cache resets.
+
+	.PARAMETER ResetAllPolicies
+	With -Aggressive, also reset broad Windows policy hives after exporting registry backups.
 
 	.EXAMPLE
 	WindowsUpdate -Standard
@@ -1524,7 +1785,11 @@ function WindowsUpdate
 
 		[Parameter(Mandatory = $true, ParameterSetName = 'Aggressive')]
 		[switch]
-		$Aggressive
+		$Aggressive,
+
+		[Parameter(Mandatory = $false, ParameterSetName = 'Aggressive')]
+		[switch]
+		$ResetAllPolicies
 	)
 
 	$isAggressive = $PSCmdlet.ParameterSetName -eq 'Aggressive'
@@ -1545,31 +1810,31 @@ function WindowsUpdate
 		if ($isAggressive)
 		{
 			LogInfo 'Running aggressive Windows Update repair checks'
-			Start-Process -FilePath "$env:SystemRoot\System32\cmd.exe" -ArgumentList '/c', 'chkdsk /scan /perf' -NoNewWindow -Wait -ErrorAction SilentlyContinue | Out-Null
-			Start-Process -FilePath "$env:SystemRoot\System32\cmd.exe" -ArgumentList '/c', 'sfc /scannow' -NoNewWindow -Wait -ErrorAction SilentlyContinue | Out-Null
-			Start-Process -FilePath "$env:SystemRoot\System32\cmd.exe" -ArgumentList '/c', 'dism /online /cleanup-image /restorehealth' -NoNewWindow -Wait -ErrorAction SilentlyContinue | Out-Null
+			$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\chkdsk.exe" -ArgumentList @('/scan', '/perf') -TimeoutSeconds 3600
+			$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\sfc.exe" -ArgumentList @('/scannow') -TimeoutSeconds 3600
+			$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\dism.exe" -ArgumentList @('/online', '/cleanup-image', '/restorehealth') -TimeoutSeconds 3600
 		}
 
 		foreach ($serviceName in @('BITS', 'wuauserv', 'appidsvc', 'cryptsvc'))
 		{
-			Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue | Out-Null
+			Stop-WindowsUpdateRepairServiceIfPresent -Name $serviceName
 		}
 
-		Remove-Item -Path "$env:ALLUSERSPROFILE\Application Data\Microsoft\Network\Downloader\qmgr*.dat" -ErrorAction SilentlyContinue | Out-Null
+		Remove-WindowsUpdateRepairItemIfPresent -Path "$env:ALLUSERSPROFILE\Application Data\Microsoft\Network\Downloader\qmgr*.dat" -Wildcard
 
 		if ($isAggressive)
 		{
-			Rename-Item -Path "$env:SystemRoot\SoftwareDistribution\DataStore" -NewName 'DataStore.bak' -ErrorAction SilentlyContinue | Out-Null
-			Rename-Item -Path "$env:SystemRoot\System32\Catroot2" -NewName 'catroot2.bak' -ErrorAction SilentlyContinue | Out-Null
+			Rename-WindowsUpdateRepairItemIfPresent -Path "$env:SystemRoot\SoftwareDistribution\DataStore" -NewName 'DataStore.bak'
+			Rename-WindowsUpdateRepairItemIfPresent -Path "$env:SystemRoot\System32\Catroot2" -NewName 'catroot2.bak'
 		}
 
-		Rename-Item -Path "$env:SystemRoot\SoftwareDistribution\Download" -NewName 'Download.bak' -ErrorAction SilentlyContinue | Out-Null
-		Remove-Item -Path "$env:SystemRoot\WindowsUpdate.log" -ErrorAction SilentlyContinue | Out-Null
+		Rename-WindowsUpdateRepairItemIfPresent -Path "$env:SystemRoot\SoftwareDistribution\Download" -NewName 'Download.bak'
+		Remove-WindowsUpdateRepairItemIfPresent -Path "$env:SystemRoot\WindowsUpdate.log"
 
 		if ($isAggressive)
 		{
-			Start-Process -FilePath "$env:SystemRoot\System32\sc.exe" -ArgumentList 'sdset', 'bits', 'D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;AU)(A;;CCLCSWRPWPDTLOCRRC;;;PU)' -Wait -NoNewWindow -ErrorAction SilentlyContinue | Out-Null
-			Start-Process -FilePath "$env:SystemRoot\System32\sc.exe" -ArgumentList 'sdset', 'wuauserv', 'D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;AU)(A;;CCLCSWRPWPDTLOCRRC;;;PU)' -Wait -NoNewWindow -ErrorAction SilentlyContinue | Out-Null
+			$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\sc.exe" -ArgumentList @('sdset', 'bits', 'D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;AU)(A;;CCLCSWRPWPDTLOCRRC;;;PU)') -TimeoutSeconds 300
+			$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\sc.exe" -ArgumentList @('sdset', 'wuauserv', 'D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;AU)(A;;CCLCSWRPWPDTLOCRRC;;;PU)') -TimeoutSeconds 300
 		}
 
 		$dlls = @(
@@ -1584,55 +1849,111 @@ function WindowsUpdate
 
 		foreach ($dll in $dlls)
 		{
-			Start-Process -FilePath "$env:SystemRoot\System32\regsvr32.exe" -ArgumentList '/s', $dll -NoNewWindow -Wait -ErrorAction SilentlyContinue | Out-Null
+			$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\regsvr32.exe" -ArgumentList @('/s', $dll) -TimeoutSeconds 120
 		}
 
-		Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate' -Name 'AccountDomainSid' -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate' -Name 'PingID' -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate' -Name 'SusClientId' -Force -ErrorAction SilentlyContinue | Out-Null
+		Remove-WindowsUpdateRepairRegistryValueIfPresent -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate' -Name 'AccountDomainSid'
+		Remove-WindowsUpdateRepairRegistryValueIfPresent -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate' -Name 'PingID'
+		Remove-WindowsUpdateRepairRegistryValueIfPresent -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate' -Name 'SusClientId'
 
-		Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -Name 'ExcludeWUDriversInQualityUpdate' -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Device Metadata' -Name 'PreventDeviceMetadataFromNetwork' -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DriverSearching' -Name 'DontPromptForWindowsUpdate' -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DriverSearching' -Name 'DontSearchWindowsUpdate' -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DriverSearching' -Name 'DriverUpdateWizardWuSearchEnabled' -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -Name 'NoAutoRebootWithLoggedOnUsers' -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -Name 'AUPowerManagement' -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings' -Name 'BranchReadinessLevel' -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings' -Name 'DeferFeatureUpdatesPeriodInDays' -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings' -Name 'DeferQualityUpdatesPeriodInDays' -Force -ErrorAction SilentlyContinue | Out-Null
+		Remove-WindowsUpdateRepairRegistryValueIfPresent -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -Name 'ExcludeWUDriversInQualityUpdate'
+		Remove-WindowsUpdateRepairRegistryValueIfPresent -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Device Metadata' -Name 'PreventDeviceMetadataFromNetwork'
+		Remove-WindowsUpdateRepairRegistryValueIfPresent -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DriverSearching' -Name 'DontPromptForWindowsUpdate'
+		Remove-WindowsUpdateRepairRegistryValueIfPresent -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DriverSearching' -Name 'DontSearchWindowsUpdate'
+		Remove-WindowsUpdateRepairRegistryValueIfPresent -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DriverSearching' -Name 'DriverUpdateWizardWuSearchEnabled'
+		Remove-WindowsUpdateRepairRegistryValueIfPresent -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -Name 'NoAutoRebootWithLoggedOnUsers'
+		Remove-WindowsUpdateRepairRegistryValueIfPresent -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -Name 'AUPowerManagement'
+		Remove-WindowsUpdateRepairRegistryValueIfPresent -Path 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings' -Name 'BranchReadinessLevel'
+		Remove-WindowsUpdateRepairRegistryValueIfPresent -Path 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings' -Name 'DeferFeatureUpdatesPeriodInDays'
+		Remove-WindowsUpdateRepairRegistryValueIfPresent -Path 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings' -Name 'DeferQualityUpdatesPeriodInDays'
 
-		Remove-Item -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies' -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-Item -Path 'HKCU:\Software\Microsoft\WindowsSelfHost' -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-Item -Path 'HKCU:\Software\Policies' -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-Item -Path 'HKLM:\Software\Microsoft\Policies' -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-Item -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies' -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-Item -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\WindowsStore\WindowsUpdate' -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-Item -Path 'HKLM:\Software\Microsoft\WindowsSelfHost' -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-Item -Path 'HKLM:\Software\Policies' -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-Item -Path 'HKLM:\Software\WOW6432Node\Microsoft\Policies' -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-Item -Path 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Policies' -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-		Remove-Item -Path 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\WindowsStore\WindowsUpdate' -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+		foreach ($registryPath in @(
+			'HKCU:\Software\Microsoft\WindowsSelfHost',
+			'HKLM:\Software\Microsoft\Windows\CurrentVersion\WindowsStore\WindowsUpdate',
+			'HKLM:\Software\Microsoft\WindowsSelfHost',
+			'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\WindowsStore\WindowsUpdate'
+		))
+		{
+			Remove-WindowsUpdateRepairRegistryKey -Path $registryPath -Reason 'scoped Windows Update repair cleanup'
+		}
 
-		Start-Process -FilePath "$env:SystemRoot\System32\secedit.exe" -ArgumentList '/configure', '/cfg', "$env:windir\inf\defltbase.inf", '/db', 'defltbase.sdb', '/verbose' -Wait -NoNewWindow -ErrorAction SilentlyContinue | Out-Null
-		Start-Process -FilePath "$env:SystemRoot\System32\cmd.exe" -ArgumentList '/c', "RD /S /Q $env:WinDir\System32\GroupPolicyUsers" -Wait -NoNewWindow -ErrorAction SilentlyContinue | Out-Null
-		Start-Process -FilePath "$env:SystemRoot\System32\cmd.exe" -ArgumentList '/c', "RD /S /Q $env:WinDir\System32\GroupPolicy" -Wait -NoNewWindow -ErrorAction SilentlyContinue | Out-Null
-		Start-Process -FilePath "$env:SystemRoot\System32\gpupdate.exe" -ArgumentList '/force' -Wait -NoNewWindow -ErrorAction SilentlyContinue | Out-Null
+		if ($ResetAllPolicies)
+		{
+			$policyBackupDirectory = Join-Path $env:ProgramData ("Baseline\Backups\WindowsUpdateRepair\{0}" -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+			LogWarning "Aggressive Windows Update repair was asked to reset broad policy hives. Registry backups will be exported to: $policyBackupDirectory"
 
-		Start-Process -FilePath "$env:SystemRoot\System32\netsh.exe" -ArgumentList 'winsock', 'reset' -NoNewWindow -ErrorAction SilentlyContinue | Out-Null
-		Start-Process -FilePath "$env:SystemRoot\System32\netsh.exe" -ArgumentList 'winhttp', 'reset', 'proxy' -NoNewWindow -ErrorAction SilentlyContinue | Out-Null
-		Start-Process -FilePath "$env:SystemRoot\System32\netsh.exe" -ArgumentList 'int', 'ip', 'reset' -NoNewWindow -ErrorAction SilentlyContinue | Out-Null
+			try
+			{
+				$computerSystem = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop
+				if ($computerSystem -and [bool]$computerSystem.PartOfDomain)
+				{
+					LogWarning 'This machine is domain-joined. ResetAllPolicies can remove enterprise-managed policy state.'
+				}
+			}
+			catch
+			{
+				Write-SwallowedException -ErrorRecord $_ -Source 'WindowsUpdate.ResetAllPolicies.DomainCheck' -Severity Warning
+			}
 
-		Get-BitsTransfer -ErrorAction SilentlyContinue | Remove-BitsTransfer -ErrorAction SilentlyContinue
+			if (Test-Path -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Enrollments')
+			{
+				LogWarning 'MDM enrollment registry data is present. ResetAllPolicies can remove policy state that management may reapply.'
+			}
+
+			foreach ($registryPath in @(
+				'HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies',
+				'HKCU:\Software\Policies',
+				'HKLM:\Software\Microsoft\Policies',
+				'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies',
+				'HKLM:\Software\Policies',
+				'HKLM:\Software\WOW6432Node\Microsoft\Policies',
+				'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Policies'
+			))
+			{
+				Export-WindowsUpdateRepairRegistryKey -Path $registryPath -BackupDirectory $policyBackupDirectory
+				Remove-WindowsUpdateRepairRegistryKey -Path $registryPath -Reason 'explicit ResetAllPolicies aggressive repair'
+			}
+
+			$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\secedit.exe" -ArgumentList @('/configure', '/cfg', "$env:windir\inf\defltbase.inf", '/db', 'defltbase.sdb', '/verbose') -TimeoutSeconds 900
+			foreach ($policyPath in @(
+				(Join-Path $env:WinDir 'System32\GroupPolicyUsers'),
+				(Join-Path $env:WinDir 'System32\GroupPolicy')
+			))
+			{
+				if (Test-Path -LiteralPath $policyPath)
+				{
+					LogWarning "Windows Update repair removing policy directory (explicit ResetAllPolicies aggressive repair): $policyPath"
+					Remove-Item -LiteralPath $policyPath -Recurse -Force -ErrorAction Stop
+				}
+				else
+				{
+					LogDebug "Windows Update repair policy cleanup skipped; path does not exist: $policyPath"
+				}
+			}
+		}
+		$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\gpupdate.exe" -ArgumentList @('/force') -TimeoutSeconds 600
+
+		$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\netsh.exe" -ArgumentList @('winsock', 'reset') -TimeoutSeconds 300
+		$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\netsh.exe" -ArgumentList @('winhttp', 'reset', 'proxy') -TimeoutSeconds 300
+		$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\netsh.exe" -ArgumentList @('int', 'ip', 'reset') -TimeoutSeconds 300
+
+		Remove-WindowsUpdateRepairBitsTransfersIfPresent
 
 		foreach ($serviceName in @('BITS', 'wuauserv', 'CryptSvc'))
 		{
-			Set-Service -Name $serviceName -StartupType Manual -ErrorAction SilentlyContinue | Out-Null
-			Start-Service -Name $serviceName -ErrorAction SilentlyContinue | Out-Null
+			Set-WindowsUpdateRepairServiceStartupIfPresent -Name $serviceName -StartupType Manual
+			Start-WindowsUpdateRepairServiceIfPresent -Name $serviceName
 		}
 
-		Set-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Services\AppIDSvc' -Name 'Start' -Value 3 -ErrorAction SilentlyContinue | Out-Null
-		Start-Service -Name 'AppIDSvc' -ErrorAction SilentlyContinue | Out-Null
+		if (Test-Path -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Services\AppIDSvc')
+		{
+			Set-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Services\AppIDSvc' -Name 'Start' -Value 3 -ErrorAction Stop | Out-Null
+		}
+		else
+		{
+			LogDebug 'Windows Update repair skipped AppIDSvc registry startup update; service key does not exist.'
+		}
+		Start-WindowsUpdateRepairServiceIfPresent -Name 'AppIDSvc'
 
 		try
 		{
@@ -1643,7 +1964,7 @@ function WindowsUpdate
 			LogWarning "Failed to trigger Microsoft.Update.AutoUpdate.DetectNow(): $($_.Exception.Message)"
 		}
 
-		Start-Process -FilePath "$env:SystemRoot\System32\wuauclt.exe" -ArgumentList '/resetauthorization', '/detectnow' -NoNewWindow -ErrorAction SilentlyContinue | Out-Null
+		$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\wuauclt.exe" -ArgumentList @('/resetauthorization', '/detectnow') -TimeoutSeconds 120
 
 		LogInfo 'Windows Update repair completed. Restart recommended.'
 		Write-ConsoleStatus -Status success
@@ -1720,5 +2041,24 @@ function UpdateMicrosoftProducts
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'ActiveHours',
+    'DownloadUpdatesOverMeteredConnection',
+    'FeatureUpdateDeferral',
+    'QualityUpdateDeferral',
+    'RecommendedTroubleshooting',
+    'RestartDeviceAfterUpdate',
+    'RestartNotification',
+    'SaveRestartableApps',
+    'SearchAppInStore',
+    'StoreAppAutoDownload',
+    'StoreSearchResults',
+    'UpdateMicrosoftProducts',
+    'UpdateNotificationLevel',
+    'WindowsLatestUpdate',
+    'WindowsUpdate',
+    'WindowsUpdateDisableAll',
+    'WindowsUpdatePause',
+    'WindowsUpdateSecurityOnlyMode'
+)
+Export-ModuleMember -Function $ExportedFunctions

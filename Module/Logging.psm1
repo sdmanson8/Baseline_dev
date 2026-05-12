@@ -47,6 +47,7 @@ $script:RunId = $null
 $script:RunIdShort = $null
 $script:UILogHandler = $null
 $script:ConsoleStatusContext = $null
+$script:OperationScopeStack = [System.Collections.Generic.List[object]]::new()
 $script:LogMode = $null
 $script:DefaultLogMutexTimeoutMs = 5000
 $script:LogMutexRetryBackoffMs = @(100, 250, 500)
@@ -72,11 +73,7 @@ $script:SessionStatistics = @{
     .SYNOPSIS
     Gets baseline log directory.
 
-    
-.DESCRIPTION
-    
-Supports baseline log directory handling inside Baseline.
-#>
+    #>
 
 function Get-BaselineLogDirectory {
     param(
@@ -176,11 +173,7 @@ function Get-BaselineConfiguredLogDirectory {
     .SYNOPSIS
     Creates baseline session log path.
 
-    
-.DESCRIPTION
-    
-Supports baseline session log path handling inside Baseline.
-#>
+    #>
 
 function New-BaselineSessionLogPath {
     param(
@@ -203,11 +196,7 @@ function New-BaselineSessionLogPath {
     .SYNOPSIS
     Writes UI log warning.
 
-    
-.DESCRIPTION
-    
-Supports UI log warning handling inside Baseline.
-#>
+    #>
 
 function Write-UILogWarning {
     param(
@@ -238,11 +227,7 @@ function Write-UILogWarning {
     .SYNOPSIS
     Send UI log entry.
 
-    
-.DESCRIPTION
-    
-Supports UI log entry handling inside Baseline.
-#>
+    #>
 
 function Send-UILogEntry {
     param(
@@ -278,11 +263,7 @@ function Send-UILogEntry {
     .SYNOPSIS
     Reset log statistics.
 
-    
-.DESCRIPTION
-    
-Supports log statistics handling inside Baseline.
-#>
+    #>
 
 function Reset-LogStatistics {
     $script:LogStatistics = @{
@@ -297,11 +278,7 @@ function Reset-LogStatistics {
     .SYNOPSIS
     Sets log mode.
 
-    
-.DESCRIPTION
-    
-Supports log mode handling inside Baseline.
-#>
+    #>
 function Set-LogMode {
     param(
         [string]$Mode
@@ -319,11 +296,7 @@ function Set-LogMode {
     .SYNOPSIS
     Clears log mode.
 
-    
-.DESCRIPTION
-    
-Supports log mode handling inside Baseline.
-#>
+    #>
 
 function Clear-LogMode {
     $script:LogMode = $null
@@ -384,11 +357,7 @@ function Set-LogFile {
     .SYNOPSIS
     Adds pending log message.
 
-    
-.DESCRIPTION
-    
-Supports pending log message handling inside Baseline.
-#>
+    #>
 function Add-PendingLogMessage {
     param(
         [string]$Message
@@ -414,11 +383,7 @@ function Add-PendingLogMessage {
     .SYNOPSIS
     Restore pending log messages.
 
-    
-.DESCRIPTION
-    
-Supports pending log messages handling inside Baseline.
-#>
+    #>
 function Restore-PendingLogMessages {
     param(
         [string[]]$Messages
@@ -444,11 +409,7 @@ function Restore-PendingLogMessages {
     .SYNOPSIS
     Writes pending log messages to file.
 
-    
-.DESCRIPTION
-    
-Supports pending log messages to file handling inside Baseline.
-#>
+    #>
 function Write-PendingLogMessagesToFile {
     param(
         [string]$CurrentMessage,
@@ -615,7 +576,7 @@ function Write-LogMessage {
     }
     finally {
         if ($acquired) {
-            try { $script:LogLock.ReleaseMutex() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Logging.Write.WriteLogMessage.ReleaseMutex' }
+            try { $script:LogLock.ReleaseMutex() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Logging.Write.WriteLogMessage.ReleaseMutex' -Severity Debug }
         }
     }
 }
@@ -833,6 +794,7 @@ function Write-BaselineError {
         [switch]$ShowConsole
     )
     $logMessage = Format-BaselineErrorForLog -ErrorObject $Message
+    Set-BaselineOperationFailed -Reason $logMessage
     Write-LogMessage -Message $logMessage -Level 'ERROR' -AddGap:$AddGap -ShowConsole:$ShowConsole
 }
 
@@ -840,11 +802,7 @@ function Write-BaselineError {
     .SYNOPSIS
     Gets log statistics.
 
-    
-.DESCRIPTION
-    
-Supports log statistics handling inside Baseline.
-#>
+    #>
 
 function Get-LogStatistics {
     return [PSCustomObject]@{
@@ -853,6 +811,74 @@ function Get-LogStatistics {
         ErrorCount = $script:LogStatistics.Error
         DebugCount = $script:LogStatistics.Debug
     }
+}
+
+function Get-BaselineCurrentOperationScope {
+    if ($script:OperationScopeStack -and $script:OperationScopeStack.Count -gt 0) {
+        return $script:OperationScopeStack[$script:OperationScopeStack.Count - 1]
+    }
+
+    return $null
+}
+
+function Start-BaselineOperationScope {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Name
+    )
+
+    $scope = [PSCustomObject]@{
+        Id = [guid]::NewGuid().ToString('N')
+        Name = $Name
+        Failed = $false
+        FailureReasons = [System.Collections.Generic.List[string]]::new()
+    }
+    [void]$script:OperationScopeStack.Add($scope)
+    return $scope
+}
+
+function Set-BaselineOperationFailed {
+    [CmdletBinding()]
+    param(
+        [object]$Scope,
+        [string]$Reason
+    )
+
+    $targetScope = $Scope
+    if (-not $targetScope) {
+        $targetScope = Get-BaselineCurrentOperationScope
+    }
+    if (-not $targetScope) { return }
+
+    if ($targetScope.PSObject.Properties['Failed']) {
+        $targetScope.Failed = $true
+    }
+    if (
+        -not [string]::IsNullOrWhiteSpace($Reason) -and
+        $targetScope.PSObject.Properties['FailureReasons']
+    ) {
+        $failureReasons = $targetScope.FailureReasons
+        if ($null -ne $failureReasons) {
+            [void]$failureReasons.Add($Reason)
+        }
+    }
+}
+
+function Stop-BaselineOperationScope {
+    [CmdletBinding()]
+    param(
+        [object]$Scope
+    )
+
+    $targetScope = $Scope
+    if (-not $targetScope) {
+        $targetScope = Get-BaselineCurrentOperationScope
+    }
+    if (-not $targetScope) { return $null }
+
+    [void]$script:OperationScopeStack.Remove($targetScope)
+    return $targetScope
 }
 
 <#
@@ -1035,49 +1061,115 @@ function Reset-BaselineActionTrail {
 
 <#
     .SYNOPSIS
-    Record a swallowed exception at DEBUG level.
+    Records a suppressed exception at the requested operational severity.
 
     .DESCRIPTION
-    Replaces the bare `catch { $null = $_ }` pattern in places where the
-    error truly is non-actionable but we still want a breadcrumb when a
-    user opts into Debug Mode. When Debug Mode is off this is a no-op.
-
-    Always wraps the underlying log call so it cannot itself throw — the
-    point of these catches is that the original code path must continue.
-
-    .PARAMETER ErrorRecord
-    The $_ value from inside a catch block.
-
-    .PARAMETER Source
-    Free-form label that names where the swallow happened. Use a stable
-    identifier so support-bundle readers can grep for repeated sites.
-
-    .EXAMPLE
-    catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Splash.Close.RunspaceCleanup' }
+    Use Debug only for harmless cleanup or UI polish paths. Use Warning or
+    Error when the swallowed exception affects persistence, process control,
+    support collection, link/file launch, or native command execution.
 #>
-function Write-DebugSwallowedException {
+function Write-SwallowedException {
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)]
+        [object]
         $ErrorRecord,
+
+        [Parameter(Mandatory=$true)]
+        [string]$Source,
+
+        [ValidateSet('Debug', 'Warning', 'Error')]
+        [string]$Severity = 'Debug'
+    )
+
+    try {
+        $message = Format-BaselineErrorForLog -ErrorObject $ErrorRecord -Prefix ("[swallow] {0}" -f $Source)
+        switch ($Severity)
+        {
+            'Debug'
+            {
+                if ($script:DebugLoggingEnabled)
+                {
+                    Write-LogMessage -Message $message -Level 'DEBUG'
+                }
+            }
+            'Warning'
+            {
+                if (Get-Command -Name 'Write-BaselineWarning' -CommandType Function -ErrorAction SilentlyContinue)
+                {
+                    Write-BaselineWarning $message
+                }
+                else
+                {
+                    Write-Warning $message
+                }
+            }
+            'Error'
+            {
+                if (Get-Command -Name 'Write-BaselineError' -CommandType Function -ErrorAction SilentlyContinue)
+                {
+                    Write-BaselineError $message
+                }
+                else
+                {
+                    Write-Error $message
+                }
+            }
+        }
+    }
+    catch
+    {
+        $loggingFailure = $_
+        $fallbackMessage = "[swallow-log-failure] {0}: failed to record swallowed exception: {1}" -f $Source, $loggingFailure.Exception.Message
+        try
+        {
+            Write-Warning $fallbackMessage
+        }
+        catch
+        {
+            try
+            {
+                $emergencyDirectory = Get-BaselineLogDirectory
+                $emergencyLogPath = Join-Path $emergencyDirectory 'Baseline-emergency.log'
+                $line = "{0} {1}{2}" -f ([datetime]::UtcNow.ToString('o')), $fallbackMessage, [Environment]::NewLine
+                [System.IO.File]::AppendAllText($emergencyLogPath, $line, [System.Text.Encoding]::UTF8)
+            }
+            catch
+            {
+                $null = $_
+            }
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+    Records a swallowed exception at Debug severity.
+
+    .DESCRIPTION
+    Compatibility wrapper for existing harmless cleanup paths. Meaningful
+    swallowed failures should call Write-SwallowedException directly with
+    Warning or Error severity.
+#>
+function Write-DebugSwallowedException {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [object]
+        $ErrorRecord,
+
         [Parameter(Mandatory=$true)]
         [string]$Source
     )
-    if (-not $script:DebugLoggingEnabled) { return }
-    try {
-        $msg = Format-BaselineErrorForLog -ErrorObject $ErrorRecord -Prefix ("[swallow] {0}" -f $Source)
-        Write-LogMessage -Message $msg -Level 'DEBUG'
-    } catch { $null = $_ }
+
+    Write-SwallowedException -ErrorRecord $ErrorRecord -Source $Source -Severity Debug
 }
 
 <#
     .SYNOPSIS
     Sets UI log handler.
 
-    
-.DESCRIPTION
-    
-Supports UI log handler handling inside Baseline.
-#>
+    #>
 function Set-UILogHandler {
     param(
         [Parameter(Mandatory=$true)]
@@ -1090,11 +1182,7 @@ function Set-UILogHandler {
     .SYNOPSIS
     Clears UI log handler.
 
-    
-.DESCRIPTION
-    
-Supports UI log handler handling inside Baseline.
-#>
+    #>
 
 function Clear-UILogHandler {
     $script:UILogHandler = $null
@@ -1104,11 +1192,7 @@ function Clear-UILogHandler {
     .SYNOPSIS
     Writes console status.
 
-    
-.DESCRIPTION
-    
-Supports console status handling inside Baseline.
-#>
+    #>
 function Write-ConsoleStatus {
     [CmdletBinding()]
     param(
@@ -1118,16 +1202,18 @@ function Write-ConsoleStatus {
         [string]$Status
     )
 
-    $writeToHost = (-not $Global:GUIMode)
+    $guiModeValue = Get-Variable -Name GUIMode -Scope Global -ValueOnly -ErrorAction SilentlyContinue
+    $writeToHost = (-not [bool]$guiModeValue)
 
     if ([string]::IsNullOrWhiteSpace($Action) -and [string]::IsNullOrWhiteSpace($Status)) {
         throw "Write-ConsoleStatus requires -Action, -Status, or both."
     }
 
     if (-not [string]::IsNullOrWhiteSpace($Action) -and [string]::IsNullOrWhiteSpace($Status)) {
+        $operationScope = Start-BaselineOperationScope -Name $Action
         $script:ConsoleStatusContext = [PSCustomObject]@{
             Action = $Action
-            ErrorBaseline = if ($Global:Error) { $Global:Error.Count } else { 0 }
+            OperationScope = $operationScope
         }
         $null = Send-UILogEntry -Entry ([PSCustomObject]@{
             Kind = 'ConsoleAction'
@@ -1139,21 +1225,24 @@ function Write-ConsoleStatus {
         return
     }
 
+    $operationScope = if (
+        $script:ConsoleStatusContext -and
+        $script:ConsoleStatusContext.PSObject.Properties['OperationScope']
+    ) {
+        $script:ConsoleStatusContext.OperationScope
+    } else {
+        $null
+    }
     if (-not [string]::IsNullOrWhiteSpace($Action)) {
         $script:ConsoleStatusContext = $null
     }
 
     $statusText = $Status.ToLowerInvariant()
-    if (
-        $statusText -eq 'success' -and
-        $script:ConsoleStatusContext -and
-        ($script:ConsoleStatusContext.PSObject.Properties['ErrorBaseline'])
-    ) {
-        $errorBaseline = [int]$script:ConsoleStatusContext.ErrorBaseline
-        $newErrors = Get-NewUnhandledErrorRecords -BaselineCount $errorBaseline
-        if ($newErrors.Count -gt 0) {
-            $statusText = 'failed'
-        }
+    if ($statusText -eq 'failed') {
+        Set-BaselineOperationFailed -Scope $operationScope -Reason 'Console status failed.'
+    }
+    elseif ($statusText -eq 'success' -and $operationScope -and $operationScope.PSObject.Properties['Failed'] -and [bool]$operationScope.Failed) {
+        $statusText = 'failed'
     }
     $color = switch ($statusText) {
         'success' { 'Green' }
@@ -1169,6 +1258,9 @@ function Write-ConsoleStatus {
         if ($writeToHost) {
             Write-Host ("{0}!" -f $statusText) -ForegroundColor $color
         }
+        if ($operationScope) {
+            $null = Stop-BaselineOperationScope -Scope $operationScope
+        }
         $script:ConsoleStatusContext = $null
         return
     }
@@ -1182,6 +1274,9 @@ function Write-ConsoleStatus {
         Write-Host ("{0} - " -f $Action) -NoNewline
         Write-Host ("{0}!" -f $statusText) -ForegroundColor $color
     }
+    if ($operationScope) {
+        $null = Stop-BaselineOperationScope -Scope $operationScope
+    }
     $script:ConsoleStatusContext = $null
 }
 
@@ -1189,11 +1284,7 @@ function Write-ConsoleStatus {
     .SYNOPSIS
     Initializes session statistics.
 
-    
-.DESCRIPTION
-    
-Supports session statistics handling inside Baseline.
-#>
+    #>
 
 function Initialize-SessionStatistics {
     $lockTaken = $false
@@ -1227,11 +1318,7 @@ function Initialize-SessionStatistics {
     .SYNOPSIS
     Updates session statistics.
 
-    
-.DESCRIPTION
-    
-Supports session statistics handling inside Baseline.
-#>
+    #>
 
 function Update-SessionStatistics {
     param(
@@ -1267,11 +1354,7 @@ function Update-SessionStatistics {
     .SYNOPSIS
     Adds session statistic.
 
-    
-.DESCRIPTION
-    
-Supports session statistic handling inside Baseline.
-#>
+    #>
 
 function Add-SessionStatistic {
     param(
@@ -1301,11 +1384,7 @@ function Add-SessionStatistic {
     .SYNOPSIS
     Gets session statistics.
 
-    
-.DESCRIPTION
-    
-Supports session statistics handling inside Baseline.
-#>
+    #>
 function Get-SessionStatistics {
     $lockTaken = $false
     try
@@ -1327,11 +1406,7 @@ function Get-SessionStatistics {
     .SYNOPSIS
     Writes session summary to log.
 
-    
-.DESCRIPTION
-    
-Supports session summary to log handling inside Baseline.
-#>
+    #>
 
 function Write-SessionSummaryToLog {
     <#
@@ -1420,4 +1495,4 @@ Set-Alias -Name LogError -Value Write-BaselineError -Scope Local
 Set-Alias -Name LogDebug -Value Write-BaselineDebug -Scope Local
 
 # Export the logging functions used by the loader and region modules.
-Export-ModuleMember -Function Get-BaselineLogDirectory, Resolve-BaselineLogDirectory, Get-BaselineConfiguredLogDirectory, New-BaselineSessionLogPath, Set-LogFile, Reset-LogStatistics, Get-LogStatistics, Set-LogMode, Clear-LogMode, Set-UILogHandler, Clear-UILogHandler, Write-BaselineInfo, Write-BaselineWarning, Write-BaselineError, Write-BaselineDebug, Write-DebugSwallowedException, Format-BaselineErrorForLog, Set-BaselineDebugLogging, Get-BaselineDebugLogging, Set-BaselineRunId, Get-BaselineRunId, Get-BaselineRunIdShort, Add-BaselineActionTrail, Get-BaselineActionTrail, Reset-BaselineActionTrail, Write-LogMessage, Write-ConsoleStatus, Initialize-SessionStatistics, Update-SessionStatistics, Add-SessionStatistic, Get-SessionStatistics, Write-SessionSummaryToLog -Alias LogInfo, LogWarning, LogError, LogDebug
+Export-ModuleMember -Function Get-BaselineLogDirectory, Resolve-BaselineLogDirectory, Get-BaselineConfiguredLogDirectory, New-BaselineSessionLogPath, Set-LogFile, Reset-LogStatistics, Get-LogStatistics, Get-BaselineCurrentOperationScope, Start-BaselineOperationScope, Set-BaselineOperationFailed, Stop-BaselineOperationScope, Set-LogMode, Clear-LogMode, Set-UILogHandler, Clear-UILogHandler, Write-BaselineInfo, Write-BaselineWarning, Write-BaselineError, Write-BaselineDebug, Write-SwallowedException, Write-DebugSwallowedException, Format-BaselineErrorForLog, Set-BaselineDebugLogging, Get-BaselineDebugLogging, Set-BaselineRunId, Get-BaselineRunId, Get-BaselineRunIdShort, Add-BaselineActionTrail, Get-BaselineActionTrail, Reset-BaselineActionTrail, Write-LogMessage, Write-ConsoleStatus, Initialize-SessionStatistics, Update-SessionStatistics, Add-SessionStatistic, Get-SessionStatistics, Write-SessionSummaryToLog -Alias LogInfo, LogWarning, LogError, LogDebug

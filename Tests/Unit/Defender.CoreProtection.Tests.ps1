@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/Defender/Defender.CoreProtection.psm1'
@@ -28,7 +28,6 @@ Describe 'DNSoverHTTPS' {
 
         <#
             .SYNOPSIS
-            Internal function Write-ConsoleStatus.
         #>
 
         function Write-ConsoleStatus {
@@ -47,7 +46,6 @@ Describe 'DNSoverHTTPS' {
 
         <#
             .SYNOPSIS
-            Internal function LogInfo.
         #>
 
         function LogInfo {
@@ -57,7 +55,6 @@ Describe 'DNSoverHTTPS' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogWarning {
             param([string]$Message)
@@ -66,7 +63,6 @@ Describe 'DNSoverHTTPS' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogError {
             param([string]$Message)
@@ -75,7 +71,6 @@ Describe 'DNSoverHTTPS' {
 
         <#
             .SYNOPSIS
-            Internal function Get-CimInstance.
         #>
 
         function Get-CimInstance {
@@ -88,7 +83,6 @@ Describe 'DNSoverHTTPS' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Get-NetAdapter {
             param([switch]$Physical)
@@ -100,7 +94,6 @@ Describe 'DNSoverHTTPS' {
 
         <#
             .SYNOPSIS
-            Internal function Set-DnsClientServerAddress.
         #>
 
         function Set-DnsClientServerAddress {
@@ -124,7 +117,6 @@ Describe 'DNSoverHTTPS' {
 
         <#
             .SYNOPSIS
-            Internal function Test-Path.
         #>
 
         function Test-Path {
@@ -135,7 +127,6 @@ Describe 'DNSoverHTTPS' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function New-Item {
             param(
@@ -149,7 +140,6 @@ Describe 'DNSoverHTTPS' {
 
         <#
             .SYNOPSIS
-            Internal function New-ItemProperty.
         #>
 
         function New-ItemProperty {
@@ -172,7 +162,6 @@ Describe 'DNSoverHTTPS' {
 
         <#
             .SYNOPSIS
-            Internal function Set-ItemProperty.
         #>
 
         function Set-ItemProperty {
@@ -192,7 +181,6 @@ Describe 'DNSoverHTTPS' {
 
         <#
             .SYNOPSIS
-            Internal function Remove-Item.
         #>
 
         function Remove-Item {
@@ -210,7 +198,6 @@ Describe 'DNSoverHTTPS' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Clear-DnsClientCache {
             param([object]$ErrorAction)
@@ -220,7 +207,6 @@ Describe 'DNSoverHTTPS' {
 
         <#
             .SYNOPSIS
-            Internal function Register-DnsClient.
         #>
 
         function Register-DnsClient {
@@ -231,7 +217,6 @@ Describe 'DNSoverHTTPS' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Get-ChildItem {
             param(

@@ -1,8 +1,13 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $script:AuditViewPath = Join-Path $PSScriptRoot '../../Module/GUI/AuditView.ps1'
-    $script:AuditViewContent = Get-Content -LiteralPath $script:AuditViewPath -Raw -Encoding UTF8
+    $script:AuditViewContent = Get-BaselineTestSourceText -Path $script:AuditViewPath
 }
 
 Describe 'Audit view retention controls' {

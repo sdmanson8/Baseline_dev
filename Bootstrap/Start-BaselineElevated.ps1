@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Launch Baseline with elevation when the current process is not already elevated.
 
@@ -25,7 +25,6 @@ $ErrorActionPreference = 'Stop'
 
 <#
     .SYNOPSIS
-    Internal function New-BaselineLauncherArgumentList.
 #>
 
 function New-BaselineLauncherArgumentList
@@ -45,7 +44,6 @@ function New-BaselineLauncherArgumentList
 
 <#
     .SYNOPSIS
-    Internal function Start-BaselineElevated.
 #>
 
 function Start-BaselineElevated

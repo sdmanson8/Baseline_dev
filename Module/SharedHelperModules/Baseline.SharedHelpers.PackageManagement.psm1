@@ -34,6 +34,7 @@ $ExportedFunctions = @(
     'Test-ChocolateyAvailable'
     'Test-BaselineEnvironmentFlagEnabled'
     'Test-ChocolateyBootstrapInteractiveHost'
+    'Test-ChocolateyBootstrapApproved'
     'Confirm-ChocolateyBootstrapExecution'
     'Get-WinGetBootstrapInstallerMetadata'
     'Get-WinGetBootstrapInstallerArguments'

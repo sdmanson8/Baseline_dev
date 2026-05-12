@@ -1,8 +1,7 @@
-# AppsModule split file loaded by Module\GUI\AppsModule.ps1.
+﻿# AppsModule split file loaded by Module\GUI\AppsModule.ps1.
 
 <#
     .SYNOPSIS
-    Internal function Ensure-SheenProgressBarType.
 #>
 
 function Ensure-SheenProgressBarType
@@ -197,7 +196,6 @@ public class SheenProgressBar : Control
 
 <#
     .SYNOPSIS
-    Internal function New-GuiExecutionProgressBarTemplate.
 #>
 
 function New-GuiExecutionProgressBarTemplate
@@ -211,33 +209,45 @@ function New-GuiExecutionProgressBarTemplate
                  TargetType="{x:Type ProgressBar}">
 	<Grid ClipToBounds="True" SnapsToDevicePixels="True">
 		<Border x:Name="PART_Track" Background="{TemplateBinding Background}" CornerRadius="3" Opacity="0.82"/>
-		<Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="3">
+		<Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="3" Opacity="0.92">
 			<Border.Effect>
 				<DropShadowEffect Color="{DynamicResource Color.Progress}" BlurRadius="10" ShadowDepth="0" Opacity="0.35"/>
 			</Border.Effect>
-		</Border>
-		<Rectangle x:Name="ExecutionSheenRect" Width="84" HorizontalAlignment="Left" IsHitTestVisible="False">
-			<Rectangle.Fill>
-				<LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-					<GradientStop Color="#00FFFFFF" Offset="0"/>
-					<GradientStop Color="#7FFFFFFF" Offset="0.5"/>
-					<GradientStop Color="#00FFFFFF" Offset="1"/>
-				</LinearGradientBrush>
-			</Rectangle.Fill>
-			<Rectangle.RenderTransform>
-				<TranslateTransform x:Name="ExecutionSheenT" X="-100"/>
-			</Rectangle.RenderTransform>
-			<Rectangle.Triggers>
+			<Border.Triggers>
 				<EventTrigger RoutedEvent="FrameworkElement.Loaded">
 					<BeginStoryboard>
-						<Storyboard RepeatBehavior="Forever">
-							<DoubleAnimation Storyboard.TargetProperty="RenderTransform.(TranslateTransform.X)" From="-100" To="900" Duration="0:0:1.4"/>
+						<Storyboard RepeatBehavior="Forever" AutoReverse="True">
+							<DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.82" To="1" Duration="0:0:0.85"/>
 						</Storyboard>
 					</BeginStoryboard>
 				</EventTrigger>
-			</Rectangle.Triggers>
-		</Rectangle>
+			</Border.Triggers>
+		</Border>
+		<Border x:Name="PART_BusyIndicator" Width="180" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="3" Opacity="0">
+			<Border.RenderTransform>
+				<TranslateTransform x:Name="BusyIndicatorTransform" X="-180"/>
+			</Border.RenderTransform>
+			<Border.Effect>
+				<DropShadowEffect Color="{DynamicResource Color.Progress}" BlurRadius="12" ShadowDepth="0" Opacity="0.42"/>
+			</Border.Effect>
+		</Border>
 	</Grid>
+	<ControlTemplate.Triggers>
+		<Trigger Property="IsIndeterminate" Value="True">
+			<Setter TargetName="PART_Indicator" Property="Opacity" Value="0"/>
+			<Setter TargetName="PART_BusyIndicator" Property="Opacity" Value="0.96"/>
+			<Trigger.EnterActions>
+				<BeginStoryboard x:Name="BusyIndicatorStoryboard">
+					<Storyboard RepeatBehavior="Forever">
+						<DoubleAnimation Storyboard.TargetName="BusyIndicatorTransform" Storyboard.TargetProperty="X" From="-180" To="900" Duration="0:0:1.05"/>
+					</Storyboard>
+				</BeginStoryboard>
+			</Trigger.EnterActions>
+			<Trigger.ExitActions>
+				<StopStoryboard BeginStoryboardName="BusyIndicatorStoryboard"/>
+			</Trigger.ExitActions>
+		</Trigger>
+	</ControlTemplate.Triggers>
 </ControlTemplate>
 '@
 	return [System.Windows.Markup.XamlReader]::Parse($templateXaml)
@@ -245,7 +255,6 @@ function New-GuiExecutionProgressBarTemplate
 
 <#
     .SYNOPSIS
-    Internal function New-SharedProgressBarHost.
 #>
 
 function New-SharedProgressBarHost
@@ -281,7 +290,6 @@ function New-SharedProgressBarHost
 
 <#
     .SYNOPSIS
-    Internal function Set-SheenProgressBarTheme.
 #>
 
 function Set-SheenProgressBarTheme
@@ -328,7 +336,6 @@ function Set-SheenProgressBarTheme
 
 <#
     .SYNOPSIS
-    Internal function Set-SharedProgressBarState.
 #>
 
 function Set-SharedProgressBarState
@@ -511,14 +518,15 @@ function Update-GuiNavModeChrome
 
 	$appsActive = [bool]$Script:AppsModeActive
 	$updatesActive = [bool]$Script:UpdatesModeActive
-	if ($Script:NavModeTweaks) { Set-GuiNavButtonChrome -Button $Script:NavModeTweaks -IsActive (-not $appsActive -and -not $updatesActive) }
+	$deploymentMediaActive = [bool]$Script:DeploymentMediaModeActive
+	if ($Script:NavModeTweaks) { Set-GuiNavButtonChrome -Button $Script:NavModeTweaks -IsActive (-not $appsActive -and -not $updatesActive -and -not $deploymentMediaActive) }
 	if ($Script:NavModeApps) { Set-GuiNavButtonChrome -Button $Script:NavModeApps -IsActive $appsActive }
 	if ($Script:NavModeUpdates) { Set-GuiNavButtonChrome -Button $Script:NavModeUpdates -IsActive $updatesActive }
+	if ($Script:NavModeDeploymentMedia) { Set-GuiNavButtonChrome -Button $Script:NavModeDeploymentMedia -IsActive $deploymentMediaActive }
 }
 
 <#
     .SYNOPSIS
-    Internal function Set-GuiUpdatesMode.
 #>
 
 function Set-GuiUpdatesMode
@@ -544,15 +552,24 @@ function Set-GuiUpdatesMode
 		{
 			Set-GuiAppsMode -Enable:$false
 		}
+		if ([bool]$Script:DeploymentMediaModeActive -and (Get-Command -Name 'Set-GuiDeploymentMediaMode' -CommandType Function -ErrorAction SilentlyContinue))
+		{
+			Set-GuiDeploymentMediaMode -Enable:$false
+		}
 	}
 
 	$Script:UpdatesModeActive = $Enable
-	if ($Enable) { $Script:AppsModeActive = $false }
+	if ($Enable)
+	{
+		$Script:AppsModeActive = $false
+		$Script:DeploymentMediaModeActive = $false
+	}
 
-	if ($Script:NavModeTweaks) { $Script:NavModeTweaks.IsChecked = (-not $Enable -and -not [bool]$Script:AppsModeActive) }
+	if ($Script:NavModeTweaks) { $Script:NavModeTweaks.IsChecked = (-not $Enable -and -not [bool]$Script:AppsModeActive -and -not [bool]$Script:DeploymentMediaModeActive) }
 	if ($Script:NavModeApps) { $Script:NavModeApps.IsChecked = [bool]$Script:AppsModeActive }
 	if ($Script:NavModeUpdates) { $Script:NavModeUpdates.IsChecked = $Enable }
-	try { Update-GuiNavModeChrome } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiUpdatesMode.UpdateGuiNavModeChrome' }
+	if ($Script:NavModeDeploymentMedia) { $Script:NavModeDeploymentMedia.IsChecked = [bool]$Script:DeploymentMediaModeActive }
+	try { Update-GuiNavModeChrome } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiUpdatesMode.UpdateGuiNavModeChrome' }
 
 	if ($Script:ModeSubtitle)
 	{
@@ -564,6 +581,7 @@ function Set-GuiUpdatesMode
 
 	if ($Script:TweaksView) { $Script:TweaksView.Visibility = $visible }
 	if ($Script:AppsView) { $Script:AppsView.Visibility = $collapsed }
+	if ($Script:DeploymentMediaView) { $Script:DeploymentMediaView.Visibility = $collapsed }
 	if ($Script:PrimaryTabHost) { $Script:PrimaryTabHost.Visibility = if ($Enable) { $collapsed } else { $visible } }
 	if ($Script:ExpertModeBanner)
 	{
@@ -586,7 +604,7 @@ function Set-GuiUpdatesMode
 			Build-TabContent -PrimaryTab 'Updates' -SkipIdlePrebuild
 		}
 	}
-	else
+	elseif (-not [bool]$Script:DeploymentMediaModeActive)
 	{
 		$restoreTab = if (-not [string]::IsNullOrWhiteSpace([string]$Script:UpdatesReturnPrimaryTab)) { [string]$Script:UpdatesReturnPrimaryTab } else { 'Initial Setup' }
 		if ($Script:PrimaryTabs)
@@ -621,7 +639,180 @@ function Set-GuiUpdatesMode
 
 <#
     .SYNOPSIS
-    Internal function Set-GuiAppsMode.
+#>
+
+function Set-GuiDeploymentMediaMode
+{
+	[CmdletBinding()]
+	param (
+		[bool]$Enable = $false
+	)
+
+	if ($Script:DeploymentMediaModeActive -eq $Enable)
+	{
+		return
+	}
+
+	$collapsed = [System.Windows.Visibility]::Collapsed
+	$visible = [System.Windows.Visibility]::Visible
+
+	if ($Enable)
+	{
+		$selectedPrimaryTab = if ($Script:PrimaryTabs -and $Script:PrimaryTabs.SelectedItem -and $Script:PrimaryTabs.SelectedItem.Tag) { [string]$Script:PrimaryTabs.SelectedItem.Tag } else { $null }
+		$Script:DeploymentMediaReturnPrimaryTab = if (-not [string]::IsNullOrWhiteSpace($selectedPrimaryTab) -and $selectedPrimaryTab -ne $Script:SearchResultsTabTag) { $selectedPrimaryTab } elseif (-not [string]::IsNullOrWhiteSpace([string]$Script:LastStandardPrimaryTab)) { [string]$Script:LastStandardPrimaryTab } else { 'Initial Setup' }
+		$Script:DeploymentMediaModeActive = $true
+		if ([bool]$Script:AppsModeActive)
+		{
+			Set-GuiAppsMode -Enable:$false
+		}
+		if ([bool]$Script:UpdatesModeActive)
+		{
+			Set-GuiUpdatesMode -Enable:$false
+		}
+	}
+
+	$Script:DeploymentMediaModeActive = $Enable
+	if ($Enable)
+	{
+		$Script:AppsModeActive = $false
+		$Script:UpdatesModeActive = $false
+	}
+
+	if ($Script:NavModeTweaks) { $Script:NavModeTweaks.IsChecked = (-not $Enable -and -not [bool]$Script:AppsModeActive -and -not [bool]$Script:UpdatesModeActive) }
+	if ($Script:NavModeUpdates) { $Script:NavModeUpdates.IsChecked = [bool]$Script:UpdatesModeActive }
+	if ($Script:NavModeDeploymentMedia) { $Script:NavModeDeploymentMedia.IsChecked = $Enable }
+	if ($Script:NavModeApps) { $Script:NavModeApps.IsChecked = [bool]$Script:AppsModeActive }
+	try { Update-GuiNavModeChrome } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiDeploymentMediaMode.UpdateGuiNavModeChrome' }
+
+	if ($Script:ModeSubtitle)
+	{
+		$subtitleKey = if ($Enable) { 'Nav_DeploymentMediaSubtitle' } else { 'Nav_OptimizeSubtitle' }
+		$subtitleFallback = if ($Enable) { 'Build Windows setup media' } else { 'Configure system behavior' }
+		$Script:ModeSubtitle.Text = (Get-UxLocalizedString -Key $subtitleKey -Fallback $subtitleFallback)
+		$Script:ModeSubtitle.HorizontalAlignment = if ($Enable) { [System.Windows.HorizontalAlignment]::Center } else { [System.Windows.HorizontalAlignment]::Left }
+	}
+
+	if ($Script:TweaksView) { $Script:TweaksView.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:AppsView) { $Script:AppsView.Visibility = $collapsed }
+	if ($Script:DeploymentMediaView) { $Script:DeploymentMediaView.Visibility = if ($Enable) { $visible } else { $collapsed } }
+	if ($Script:PrimaryTabHost) { $Script:PrimaryTabHost.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:ExpertModeBanner)
+	{
+		$Script:ExpertModeBanner.Visibility = if ($Enable)
+		{
+			$collapsed
+		}
+		elseif ((Get-Command -Name 'Test-IsExpertModeUX' -CommandType Function -ErrorAction SilentlyContinue) -and (Test-IsExpertModeUX))
+		{
+			$visible
+		}
+		else
+		{
+			$collapsed
+		}
+	}
+
+	if ($Script:SafeModeGroup) { $Script:SafeModeGroup.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:ThemeToggleGroup) { $Script:ThemeToggleGroup.Visibility = $collapsed }
+
+	$tweaksOnlyMenu = @(
+		$Script:MenuActionsPreviewRun,
+		$Script:MenuActionsRunTweaks,
+		$Script:MenuActionsUndoLastRun,
+		$Script:MenuActionsRestoreDefaults,
+		$Script:MenuActionsCheckCompliance,
+		$Script:MenuActionsScanSystem,
+		$Script:MenuActionsAuditLog,
+		$Script:MenuActionsSep1,
+		$Script:MenuActionsSep2,
+		$Script:MenuActionsSep3,
+		$Script:MenuToolsApproveRemoteTargets,
+		$Script:MenuToolsSaveRemoteApprovalPolicy,
+		$Script:MenuToolsLoadRemoteApprovalPolicy,
+		$Script:MenuToolsRemoteConsole,
+		$Script:MenuToolsOperatorConsole,
+		$Script:MenuToolsRemoteSessionStatus
+	)
+	foreach ($item in $tweaksOnlyMenu)
+	{
+		if ($item) { $item.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	}
+
+	$appsOnlyMenu = @(
+		$Script:MenuToolsAppsManager,
+		$Script:MenuToolsUpdateAllApps,
+		$Script:MenuToolsSepApps
+	)
+	foreach ($item in $appsOnlyMenu)
+	{
+		if ($item) { $item.Visibility = $collapsed }
+	}
+
+	foreach ($control in @($Script:BtnFilterToggle, $Script:FilterOptionsPanel))
+	{
+		if ($control) { $control.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	}
+
+	foreach ($control in @($Script:TxtSearch, $Script:TxtSearchPlaceholder, $Script:BtnClearSearch))
+	{
+		if ($control) { $control.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	}
+	if (-not $Enable -and (Get-Command -Name 'Sync-GuiSearchInputChrome' -CommandType Function -ErrorAction SilentlyContinue))
+	{
+		Sync-GuiSearchInputChrome
+	}
+
+	if ($Script:BtnPreviewRun) { $Script:BtnPreviewRun.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:BtnDefaults) { $Script:BtnDefaults.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:BtnRun) { $Script:BtnRun.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:BtnApplyQueuedActions) { $Script:BtnApplyQueuedActions.Visibility = $collapsed }
+
+	if ($Enable)
+	{
+		if (Get-Command -Name 'Initialize-GuiDeploymentMediaBuilderView' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Initialize-GuiDeploymentMediaBuilderView
+		}
+		if (Get-Command -Name 'Sync-GuiDeploymentMediaBuilderViewText' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Sync-GuiDeploymentMediaBuilderViewText
+		}
+	}
+	else
+	{
+		$restoreTab = if (-not [string]::IsNullOrWhiteSpace([string]$Script:DeploymentMediaReturnPrimaryTab)) { [string]$Script:DeploymentMediaReturnPrimaryTab } else { 'Initial Setup' }
+		if ($Script:PrimaryTabs)
+		{
+			foreach ($tab in $Script:PrimaryTabs.Items)
+			{
+				if (($tab -is [System.Windows.Controls.TabItem]) -and $tab.Tag -and ([string]$tab.Tag -eq $restoreTab))
+				{
+					$Script:PrimaryTabs.SelectedItem = $tab
+					break
+				}
+			}
+		}
+		if (Get-Command -Name 'Build-TabContent' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Build-TabContent -PrimaryTab $restoreTab -SkipIdlePrebuild
+		}
+	}
+
+	if (Get-Command -Name 'Sync-UxActionButtonText' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		if ($Script:SyncUxActionButtonTextScript)
+		{
+			& $Script:SyncUxActionButtonTextScript
+		}
+		else
+		{
+			Sync-UxActionButtonText
+		}
+	}
+}
+
+<#
+    .SYNOPSIS
 #>
 
 function Set-GuiAppsMode
@@ -636,12 +827,22 @@ function Set-GuiAppsMode
 		return
 	}
 
+	if ($Enable -and [bool]$Script:DeploymentMediaModeActive -and (Get-Command -Name 'Set-GuiDeploymentMediaMode' -CommandType Function -ErrorAction SilentlyContinue))
+	{
+		Set-GuiDeploymentMediaMode -Enable:$false
+	}
+
 	$Script:AppsModeActive = $Enable
-	if ($Enable) { $Script:UpdatesModeActive = $false }
-	if ($Script:NavModeTweaks) { $Script:NavModeTweaks.IsChecked = -not $Enable }
+	if ($Enable)
+	{
+		$Script:UpdatesModeActive = $false
+		$Script:DeploymentMediaModeActive = $false
+	}
+	if ($Script:NavModeTweaks) { $Script:NavModeTweaks.IsChecked = (-not $Enable -and -not [bool]$Script:UpdatesModeActive -and -not [bool]$Script:DeploymentMediaModeActive) }
 	if ($Script:NavModeApps) { $Script:NavModeApps.IsChecked = $Enable }
 	if ($Script:NavModeUpdates) { $Script:NavModeUpdates.IsChecked = $false }
-	try { Update-GuiNavModeChrome } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiAppsMode.UpdateGuiNavModeChrome' }
+	if ($Script:NavModeDeploymentMedia) { $Script:NavModeDeploymentMedia.IsChecked = [bool]$Script:DeploymentMediaModeActive }
+	try { Update-GuiNavModeChrome } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiAppsMode.UpdateGuiNavModeChrome' }
 	if ($Script:ModeSubtitle)
 	{
 		$subtitleKey = if ($Enable) { 'Nav_SoftwareAndAppsSubtitle' } else { 'Nav_OptimizeSubtitle' }
@@ -654,13 +855,9 @@ function Set-GuiAppsMode
 		$appsViewAlreadyRendered = [bool]($Script:AppsWrapPanel -and $Script:AppsWrapPanel.Children -and $Script:AppsWrapPanel.Children.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace([string]$Script:AppsViewBuildSignature))
 		if (-not $appsViewAlreadyRendered)
 		{
-			if ($Script:TxtAppsProgressText)
-			{
-				$Script:TxtAppsProgressText.Text = (Get-AppsCacheRefreshPromptText)
-			}
 			if (Get-Command -Name 'Update-AppsPackageManagerBanner' -CommandType Function -ErrorAction SilentlyContinue)
 			{
-				try { Update-AppsPackageManagerBanner } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiAppsMode.UpdateAppsPackageManagerBanner' }
+				try { Update-AppsPackageManagerBanner } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiAppsMode.UpdateAppsPackageManagerBanner' }
 			}
 		}
 	}
@@ -670,6 +867,7 @@ function Set-GuiAppsMode
 
 	if ($Script:TweaksView) { $Script:TweaksView.Visibility = if ($Enable) { $collapsed } else { $visible } }
 	if ($Script:AppsView) { $Script:AppsView.Visibility = if ($Enable) { $visible } else { $collapsed } }
+	if ($Script:DeploymentMediaView) { $Script:DeploymentMediaView.Visibility = $collapsed }
 	if ($Script:PrimaryTabHost) { $Script:PrimaryTabHost.Visibility = if ($Enable) { $collapsed } else { $visible } }
 	if ($Script:ExpertModeBanner)
 	{
@@ -786,19 +984,13 @@ function Set-GuiAppsMode
 
 	if ($Enable)
 	{
-		if ($Script:TxtAppsProgressText)
-		{
-			$Script:TxtAppsProgressText.Visibility = [System.Windows.Visibility]::Visible
-		}
 		Build-AppsViewCards
 	}
-	else
+	elseif (-not [bool]$Script:UpdatesModeActive -and -not [bool]$Script:DeploymentMediaModeActive)
 	{
-		# Returning to Optimize should only reveal the existing tweaks view.
-		if ($Script:TxtAppsProgressText)
+		if (Get-Command -Name 'Update-CurrentTabContent' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			$Script:TxtAppsProgressText.Visibility = [System.Windows.Visibility]::Collapsed
-			$Script:TxtAppsProgressText.Text = ''
+			Update-CurrentTabContent -SkipIdlePrebuild
 		}
 	}
 

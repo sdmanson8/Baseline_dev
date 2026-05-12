@@ -1,9 +1,13 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     <#
         .SYNOPSIS
-        Internal function Get-BaselineDisplayVersion.
     #>
 
     function Get-BaselineDisplayVersion { return '4.0.0-beta' }
@@ -13,7 +17,7 @@ BeforeAll {
     $schedulerHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Scheduler.Helpers.ps1'
     $script:SharedHelpersRepoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     $script:SharedHelpersModuleRoot = Join-Path $script:SharedHelpersRepoRoot 'Module'
-    $script:AuditHelpersContent = Get-Content -LiteralPath $auditHelpersPath -Raw -Encoding UTF8
+    $script:AuditHelpersContent = Get-BaselineTestSourceText -Path $auditHelpersPath
 
     $environmentAst = [System.Management.Automation.Language.Parser]::ParseFile($environmentHelpersPath, [ref]$null, [ref]$null)
     $environmentFunctions = $environmentAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
@@ -89,8 +93,8 @@ Describe 'Write-AuditRecord' {
         $record.Details.Entries | Should -Be 3
     }
 
-    It 'routes audit retention cleanup through Write-DebugSwallowedException' {
-        $script:AuditHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''AuditTrail\.Write-AuditRecord\.InvokeRetentionPolicy'''
+    It 'routes audit retention cleanup through warning-severity swallowed-exception logging' {
+        $script:AuditHelpersContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''AuditTrail\.Write-AuditRecord\.InvokeRetentionPolicy'' -Severity Warning'
     }
 
     It 'throws in ReadOnly mode before creating audit storage' {

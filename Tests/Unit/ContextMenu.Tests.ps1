@@ -1,6 +1,11 @@
 ﻿Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     # Json helpers must load first — ContextMenu calls ConvertFrom-BaselineJson.
     . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Json.Helpers.ps1')
 
@@ -283,8 +288,13 @@ Describe 'Set-TakeOwnershipContextMenu' {
 
 Describe 'TakeOwnership ContextMenu JSON entry' {
     BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
         $jsonPath = Join-Path $PSScriptRoot '..\..\Module\Data\ContextMenu.json'
-        $script:contextMenuJson = Get-Content -LiteralPath $jsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $script:contextMenuJson = Get-BaselineTestSourceText -Path $jsonPath | ConvertFrom-Json
         $script:takeOwnershipEntry = $script:contextMenuJson.Entries | Where-Object { $_.Function -eq 'TakeOwnershipContextMenu' }
     }
 
@@ -429,7 +439,13 @@ Describe 'OpenWindowsTerminalAdminContext' {
             [void]$script:removeRegCalls.Add([pscustomobject]@{ Path = $(if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }); Name = $Name })
         }
         function Set-Content {
-            param([string]$Path, [object]$Encoding, [switch]$Force, [object]$ErrorAction)
+            param(
+                [Parameter(ValueFromPipeline = $true)]
+                [object]$Value,
+                [string]$Path,
+                [object]$Encoding,
+                [switch]$Force
+            )
             begin { }
             process { }
             end { [void]$script:setContentPaths.Add($Path) }

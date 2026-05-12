@@ -1,8 +1,13 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $applicationsPath = Join-Path $PSScriptRoot '../../Module/Regions/Applications.psm1'
-    $script:ApplicationsContent = Get-Content -LiteralPath $applicationsPath -Raw -Encoding UTF8
+    $script:ApplicationsContent = Get-BaselineTestSourceText -Path $applicationsPath
     $applicationsAst = [System.Management.Automation.Language.Parser]::ParseFile($applicationsPath, [ref]$null, [ref]$null)
     $applicationsFunctions = $applicationsAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $applicationsFunctions)
@@ -45,7 +50,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function Get-BaselineLocalizedString.
     #>
 
     function Get-BaselineLocalizedString {
@@ -65,7 +69,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function Get-UxLocalizedString.
     #>
 
     function Get-UxLocalizedString {
@@ -85,7 +88,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function Get-GuiCurrentTheme.
     #>
 
     function Get-GuiCurrentTheme {
@@ -94,7 +96,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function New-SafeBrushConverter {
         param (
@@ -111,7 +112,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function Get-SelectedAppsCatalogItems.
     #>
 
     function Get-SelectedAppsCatalogItems {
@@ -120,7 +120,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function Resolve-WinGetExecutable {
         return 'winget.exe'
@@ -128,7 +127,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function Resolve-ChocolateyExecutable {
         return 'choco.exe'
@@ -136,7 +134,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function Resolve-ApplicationPackageId {
         param([string]$PackageId)
@@ -145,7 +142,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function Test-WinGetAvailable.
     #>
 
     function Test-WinGetAvailable {
@@ -159,7 +155,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function Test-ChocolateyAvailable {
         param (
@@ -172,31 +167,31 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function Write-ConsoleStatus.
     #>
 
     function Write-ConsoleStatus { param([object]$Action) }
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function LogInfo { param([object]$Message) }
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function LogWarning { param([object]$Message) }
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function LogError { param([object]$Message) }
 
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function Reset-ChocolateyAvailabilityState { }
+
+    <#
+        .SYNOPSIS
+    #>
+    function Invoke-ChocolateyBootstrap { param([int]$TimeoutSeconds) }
 
     $script:GuiModuleBasePath = $TestDrive
     $script:GuiLocalizationDirectoryPath = $TestDrive
@@ -207,7 +202,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function Start-GuiAppExecutionRun {
         param (
@@ -449,28 +443,87 @@ Describe 'WinGet availability' {
     }
 
     It 'launches winget cache scans in a hidden window with non-interactive flags' {
-        Mock Start-Process { [pscustomobject]@{ ExitCode = 0 } }
+        Mock Resolve-WinGetExecutable { 'winget.exe' }
+        Mock Invoke-ProcessTextCapture {
+            [pscustomobject]@{
+                ExitCode = 0
+                StandardOutput = ''
+                StandardError = ''
+            }
+        }
 
         $cache = Get-InstalledAppCache
 
         $cache.Count | Should -Be 0
-        Should -Invoke Start-Process -Times 1 -ParameterFilter {
+        Should -Invoke Invoke-ProcessTextCapture -Times 1 -ParameterFilter {
             $FilePath -eq 'winget.exe' -and
-            $WindowStyle -eq 'Hidden' -and
             @($ArgumentList) -contains '--disable-interactivity'
         }
     }
 
     It 'launches winget update scans in a hidden window with non-interactive flags' {
-        Mock Start-Process { [pscustomobject]@{ ExitCode = 0 } }
+        Mock Resolve-WinGetExecutable { 'winget.exe' }
+        Mock Invoke-ProcessTextCapture {
+            [pscustomobject]@{
+                ExitCode = 0
+                StandardOutput = ''
+                StandardError = ''
+            }
+        }
 
         $cache = Get-AvailableAppUpdateCache
 
         $cache.Count | Should -Be 0
-        Should -Invoke Start-Process -Times 1 -ParameterFilter {
+        Should -Invoke Invoke-ProcessTextCapture -Times 1 -ParameterFilter {
             $FilePath -eq 'winget.exe' -and
-            $WindowStyle -eq 'Hidden' -and
             @($ArgumentList) -contains '--disable-interactivity'
+        }
+    }
+}
+
+Describe 'Application timeout propagation' {
+    It 'detects timeout exceptions inside nested error records' {
+        try
+        {
+            throw ([System.TimeoutException]::new('Timed out after 900 second(s).'))
+        }
+        catch
+        {
+            $timeoutException = Get-ApplicationActionTimeoutException -ErrorRecord $_
+
+            $timeoutException | Should -Not -BeNullOrEmpty
+            $timeoutException.GetType().FullName | Should -Be 'System.TimeoutException'
+        }
+    }
+
+    It 'rethrows timeout failures as TimeoutException' {
+        try
+        {
+            throw ([System.TimeoutException]::new('Timed out after 900 second(s).'))
+        }
+        catch
+        {
+            {
+                Throw-ApplicationActionFailure -TargetName 'Visual Studio Code' -ActionLabel 'Install' -TimeoutSeconds 900 -ErrorRecord $_
+            } | Should -Throw -ExceptionType ([System.TimeoutException])
+        }
+    }
+
+    It 'forwards TimeoutSeconds to the selected route handler' {
+        Mock Resolve-ApplicationExecutionRoute {
+            [pscustomobject]@{
+                Route = 'winget'
+                PackageId = 'Microsoft.VisualStudioCode'
+                DisplayName = 'Visual Studio Code'
+                Reason = $null
+            }
+        }
+        Mock Invoke-WingetInstall {}
+
+        Invoke-ApplicationAction -Action 'Install' -Application ([pscustomobject]@{ Name = 'Visual Studio Code'; WinGetId = 'Microsoft.VisualStudioCode' }) -TimeoutSeconds 321
+
+        Should -Invoke Invoke-WingetInstall -Times 1 -ParameterFilter {
+            $TimeoutSeconds -eq 321 -and $WinGetId -eq 'Microsoft.VisualStudioCode'
         }
     }
 }
@@ -518,59 +571,48 @@ Describe 'Chocolatey availability' {
 
 Describe 'Chocolatey bootstrap' {
     BeforeEach {
-        Mock Get-ExecutionPolicy { 'RemoteSigned' }
-        Mock Set-ExecutionPolicy {}
+        Mock Invoke-ChocolateyBootstrap {
+            [pscustomobject]@{
+                Success = $true
+                Error   = $null
+            }
+        }
         Mock Reset-ChocolateyAvailabilityState {}
-        Mock Confirm-ChocolateyBootstrapExecution {}
-        Remove-Variable -Name ChocolateyBootstrapExecuted -Scope Global -ErrorAction SilentlyContinue
-        $Global:ChocolateyBootstrapExecuted = $false
     }
 
-    AfterEach {
-        Remove-Variable -Name ChocolateyBootstrapExecuted -Scope Global -ErrorAction SilentlyContinue
-    }
+    It 'delegates Chocolatey bootstrap to the reviewed shared helper' {
+        Invoke-ChocolateyBootstrapInstall -TimeoutSeconds 321
 
-    It 'downloads the Chocolatey bootstrap to disk and executes it' {
-        $script:BootstrapScriptPath = Join-Path $TestDrive 'choco-install.ps1'
-        Set-Content -LiteralPath $script:BootstrapScriptPath -Value '$Global:ChocolateyBootstrapExecuted = $true'
-        Mock Save-ChocolateyBootstrapScript { $script:BootstrapScriptPath }
-
-        Invoke-ChocolateyBootstrapInstall
-
-        $Global:ChocolateyBootstrapExecuted | Should -BeTrue
-        Should -Invoke Confirm-ChocolateyBootstrapExecution -Times 1
-        Should -Invoke Save-ChocolateyBootstrapScript -Times 1
+        Should -Invoke Invoke-ChocolateyBootstrap -Times 1 -ParameterFilter {
+            $TimeoutSeconds -eq 321
+        }
         Should -Invoke Reset-ChocolateyAvailabilityState -Times 1
-        Test-Path -LiteralPath $script:BootstrapScriptPath | Should -BeFalse
     }
 
-    It 'restores the previous execution policy when bootstrap download fails' {
-        Mock Save-ChocolateyBootstrapScript { throw 'bootstrap download failed' }
-
-        { Invoke-ChocolateyBootstrapInstall } | Should -Throw '*bootstrap download failed*'
-
-        Should -Invoke Set-ExecutionPolicy -Times 1 -ParameterFilter {
-            $ExecutionPolicy -eq 'Bypass' -and $Scope -eq 'Process' -and $Force
+    It 'throws when the shared Chocolatey bootstrap helper fails' {
+        Mock Invoke-ChocolateyBootstrap {
+            [pscustomobject]@{
+                Success = $false
+                Error   = 'Chocolatey bootstrap failed.'
+            }
         }
-        Should -Invoke Set-ExecutionPolicy -Times 1 -ParameterFilter {
-            $ExecutionPolicy -eq 'RemoteSigned' -and $Scope -eq 'Process' -and $Force
-        }
-    }
-}
 
-Describe 'Chocolatey bootstrap approval' {
-    It 'runs without throwing (approval gate removed)' {
-        { Confirm-ChocolateyBootstrapExecution } | Should -Not -Throw
+        { Invoke-ChocolateyBootstrapInstall } | Should -Throw '*Chocolatey bootstrap failed*'
+
+        Should -Invoke Reset-ChocolateyAvailabilityState -Times 0
     }
 }
 
 Describe 'Test-ChocolateyBootstrapInteractiveHost' {
     BeforeAll {
-        # The 'Chocolatey bootstrap approval' Describe above removes this function
-        # via AfterEach; re-parse it from source so this Describe has its own copy.
-        $applicationsPath = Join-Path $PSScriptRoot '../../Module/Regions/Applications.psm1'
-        $applicationsAst = [System.Management.Automation.Language.Parser]::ParseFile($applicationsPath, [ref]$null, [ref]$null)
-        $targetFn = $applicationsAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Test-ChocolateyBootstrapInteractiveHost' }, $true) | Select-Object -First 1
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
+        $packageManagementPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/PackageManagement.Helpers.ps1'
+        $packageManagementAst = [System.Management.Automation.Language.Parser]::ParseFile($packageManagementPath, [ref]$null, [ref]$null)
+        $targetFn = $packageManagementAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Test-ChocolateyBootstrapInteractiveHost' }, $true) | Select-Object -First 1
         if ($targetFn) { Invoke-Expression $targetFn.Extent.Text }
     }
 
@@ -684,55 +726,60 @@ Describe 'Command execution routes' {
     }
 
     It 'executes parsed commands without Invoke-Expression' {
-        function Invoke-TestApplicationCommand {
-            param (
-                [string]$Mode,
-                [string]$Target
+        Mock Invoke-StreamingProcess {
+            param(
+                [string]$FilePath,
+                [object[]]$ArgumentList,
+                [int]$TimeoutSeconds
             )
 
-            $script:CapturedCommandInvocation = @($Mode, $Target)
+            $script:CapturedCommandInvocation = [pscustomobject]@{
+                FilePath = $FilePath
+                ArgumentList = @($ArgumentList)
+                TimeoutSeconds = $TimeoutSeconds
+            }
+
+            return 0
         }
 
-        try {
-            Invoke-CommandInstall -Command 'Invoke-TestApplicationCommand install baseline' -DisplayName 'Baseline Test App'
+        Invoke-CommandInstall -Command 'Invoke-TestApplicationCommand install baseline' -DisplayName 'Baseline Test App'
 
-            @($script:CapturedCommandInvocation).Count | Should -Be 2
-            $script:CapturedCommandInvocation[0] | Should -Be 'install'
-            $script:CapturedCommandInvocation[1] | Should -Be 'baseline'
-        }
-        finally {
-            Remove-Item -Path Function:\Invoke-TestApplicationCommand -ErrorAction SilentlyContinue
-        }
+        $script:CapturedCommandInvocation.FilePath | Should -Be 'Invoke-TestApplicationCommand'
+        $script:CapturedCommandInvocation.TimeoutSeconds | Should -Be 1800
+        @($script:CapturedCommandInvocation.ArgumentList) | Should -Be @('install', 'baseline')
+        Should -Invoke Invoke-StreamingProcess -Times 1
     }
 
-    It 'executes safe pipelines without Invoke-Expression' {
-        function Get-TestApplicationItem {
-            'baseline'
-        }
+    It 'rejects pipelines for direct command execution' {
+        Mock Invoke-StreamingProcess {
+            param(
+                [string]$FilePath,
+                [object[]]$ArgumentList,
+                [int]$TimeoutSeconds
+            )
 
-        function Invoke-TestPipelineCommand {
-            process {
-                $script:CapturedCommandInvocation = $_
+            $script:CapturedCommandInvocation = [pscustomobject]@{
+                FilePath = $FilePath
+                ArgumentList = @($ArgumentList)
+                TimeoutSeconds = $TimeoutSeconds
             }
+
+            return 0
         }
 
-        try {
+        {
             Invoke-CommandInstall -Command 'Get-TestApplicationItem | Invoke-TestPipelineCommand' -DisplayName 'Baseline Pipeline App'
+        } | Should -Throw '*must resolve to a single executable invocation*'
 
-            $script:CapturedCommandInvocation | Should -Be 'baseline'
-        }
-        finally {
-            Remove-Item -Path Function:\Get-TestApplicationItem -ErrorAction SilentlyContinue
-            Remove-Item -Path Function:\Invoke-TestPipelineCommand -ErrorAction SilentlyContinue
-        }
+        Should -Invoke Invoke-StreamingProcess -Times 0
     }
 }
 
 Describe 'Process capture cleanup' {
-    It 'routes subprocess drain and dispose failures through Write-DebugSwallowedException' {
-        $script:ApplicationsContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Applications\.Invoke-ProcessCapture\.StdoutAwait'''
-        $script:ApplicationsContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Applications\.Invoke-ProcessCapture\.StderrAwait'''
-        $script:ApplicationsContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Applications\.Invoke-ProcessCapture\.DisposeProcess'''
+    It 'routes subprocess drain and dispose failures through Write-SwallowedException' {
+        $script:ApplicationsContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''Applications\.Invoke-ProcessCapture\.StdoutAwait'''
+        $script:ApplicationsContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''Applications\.Invoke-ProcessCapture\.StderrAwait'''
+        $script:ApplicationsContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''Applications\.Invoke-ProcessCapture\.DisposeProcess'''
     }
 }
 
@@ -883,7 +930,6 @@ Describe 'AppUpdate' {
         Mock Get-Command { [pscustomobject]@{ Name = 'choco' } }
         <#
             .SYNOPSIS
-            Internal function Resolve-ApplicationPackageId.
         #>
 
         function Resolve-ApplicationPackageId

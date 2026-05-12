@@ -1,5 +1,7 @@
-﻿#define MyAppName      "Baseline"
+#define MyAppName      "Baseline"
 #define MyAppVersion   "4.0.0"
+#define MyAppChannel   "Beta"
+#define MyAppChannelToken "beta"
 #define MyAppPublisher "sdmanson8"
 #define MyAppExeName   "Baseline.exe"
 #define MyAppId        "{{D5A779F1-8936-4E66-A24D-9A4E43A2A4D9}}"
@@ -31,7 +33,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 
 OutputDir={#MyOutputDir}
-OutputBaseFilename=Baseline-setup-{#MyAppVersion}
+OutputBaseFilename=Baseline-setup-{#MyAppVersion}-{#MyAppChannelToken}
 SetupIconFile={#MySourceRoot}\Assets\baseline-setup.ico
 Uninstallable=IsInstallMode
 CreateUninstallRegKey=IsInstallMode
@@ -59,13 +61,13 @@ Name: "en"; MessagesFile: "compiler:Default.isl"
 Source: "{#MySourceRoot}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion; Check: IsInstallMode
 ; All other payload files (install mode)
 Source: "{#MySourceRoot}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "{#MyAppExeName}"; Check: IsInstallMode
-; Portable mode — extracted to {localappdata}\Baseline
-Source: "{#MySourceRoot}\{#MyAppExeName}"; DestDir: "{localappdata}\Baseline"; Flags: ignoreversion; Check: IsPortableMode
-Source: "{#MySourceRoot}\*"; DestDir: "{localappdata}\Baseline"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "{#MyAppExeName}"; Check: IsPortableMode
+; Portable mode — extracted to the selected portable target
+Source: "{#MySourceRoot}\{#MyAppExeName}"; DestDir: "{code:GetPortableTargetDir}"; Flags: ignoreversion; Check: IsPortableMode
+Source: "{#MySourceRoot}\*"; DestDir: "{code:GetPortableTargetDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "{#MyAppExeName}"; Check: IsPortableMode
 
 [Icons]
-Name: "{group}\{#MyAppName}";         Filename: "{app}\{#MyAppExeName}"; Check: IsInstallMode and IsStartMenuChecked
-Name: "{autodesktop}\{#MyAppName}";   Filename: "{app}\{#MyAppExeName}"; Check: IsInstallMode and IsDesktopChecked
+Name: "{group}\{#MyAppName}";         Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Check: IsInstallMode and IsStartMenuChecked
+Name: "{autodesktop}\{#MyAppName}";   Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Check: IsInstallMode and IsDesktopChecked
 
 [Registry]
 ; Register in Programs and Features for the active install mode.
@@ -172,6 +174,9 @@ var
   GSetupCompleted:   Boolean;  // True only after ssPostInstall succeeds
   GResumeInstallFlow: Boolean;
   GProgrammaticClose: Boolean;
+  GUpdateFlow:       Boolean;
+  GUpdateRelaunchPath: String;
+  GUpdateTargetDir: String;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Check functions referenced in [Files] / [Icons] / [Registry] / [Run]
@@ -185,6 +190,14 @@ end;
 function IsPortableMode: Boolean;
 begin
   Result := not GInstallMode;
+end;
+
+function GetPortableTargetDir(Param: String): String;
+begin
+  if GPortablePath <> '' then
+    Result := GPortablePath
+  else
+    Result := ExpandConstant('{localappdata}') + '\Baseline';
 end;
 
 function IsDesktopChecked: Boolean;
@@ -832,6 +845,213 @@ begin
   Result := True;
 end;
 
+procedure LoadUpdateFlowState;
+var
+  UpdateMode, RelaunchDir: String;
+begin
+  GUpdateFlow := GetCommandLineSwitchValue('BASELINEUPDATE') <> '';
+  if not GUpdateFlow then
+    Exit;
+
+  GUpdateRelaunchPath := GetCommandLineSwitchValue('RELAUNCH');
+  GUpdateTargetDir := GetCommandLineSwitchValue('BASELINEUPDATETARGETDIR');
+  UpdateMode := Uppercase(GetCommandLineSwitchValue('BASELINEUPDATEMODE'));
+  RelaunchDir := ExtractFileDir(GUpdateRelaunchPath);
+  if GUpdateTargetDir = '' then
+    GUpdateTargetDir := RelaunchDir;
+
+  GDesktop := False;
+  GStartMenu := False;
+
+  if UpdateMode = 'PORTABLE' then
+  begin
+    GInstallMode := False;
+    if GUpdateTargetDir <> '' then
+      GPortablePath := GUpdateTargetDir
+    else
+      GPortablePath := ExpandConstant('{localappdata}') + '\Baseline';
+  end
+  else
+  begin
+    GInstallMode := True;
+    if GUpdateTargetDir <> '' then
+      GInstallPath := GUpdateTargetDir;
+  end;
+end;
+
+function GetSetupFreshnessChannel: String;
+begin
+  Result := '{#MyAppChannel}';
+end;
+
+function GetSetupFreshnessApiUrl: String;
+begin
+  if Uppercase(GetSetupFreshnessChannel) = 'BETA' then
+    Result := 'https://api.github.com/repos/sdmanson8/Baseline_dev/releases'
+  else
+    Result := 'https://api.github.com/repos/sdmanson8/Baseline/releases';
+end;
+
+function GetSetupFreshnessScript: String;
+begin
+  Result :=
+    'param([string]$ApiUrl,[string]$CurrentVersion,[string]$Channel,[string]$OutPath)' + #13#10 +
+    '$ErrorActionPreference = ''Stop''' + #13#10 +
+    'function Write-State([hashtable]$State) {' + #13#10 +
+    '  $order = @(''Status'',''CurrentDisplayVersion'',''LatestDisplayVersion'',''ReleaseUrl'')' + #13#10 +
+    '  $lines = foreach ($key in $order) { if ($State.ContainsKey($key)) { "{0}={1}" -f $key, ([string]$State[$key]) } }' + #13#10 +
+    '  $encoding = New-Object System.Text.UTF8Encoding($false)' + #13#10 +
+    '  [System.IO.File]::WriteAllLines($OutPath, [string[]]$lines, $encoding)' + #13#10 +
+    '}' + #13#10 +
+    'function Convert-SetupVersion([string]$Version) {' + #13#10 +
+    '  if ([string]::IsNullOrWhiteSpace($Version)) { return $null }' + #13#10 +
+    '  $match = [regex]::Match($Version.Trim(), ''(?i)(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)(?:[-._]?(?<pre>alpha|beta|preview|rc|dev)(?:[-._]?(?<preNum>\d+))?)?'')' + #13#10 +
+    '  if (-not $match.Success) { return $null }' + #13#10 +
+    '  $pre = $match.Groups[''pre''].Value.ToLowerInvariant()' + #13#10 +
+    '  $rank = 100' + #13#10 +
+    '  if ($pre -eq ''rc'') { $rank = 80 } elseif (($pre -eq ''beta'') -or ($pre -eq ''preview'')) { $rank = 60 } elseif ($pre -eq ''alpha'') { $rank = 40 } elseif ($pre -eq ''dev'') { $rank = 20 } elseif ($pre) { $rank = 10 }' + #13#10 +
+    '  $preNum = 0; if ($match.Groups[''preNum''].Success) { $preNum = [int]$match.Groups[''preNum''].Value }' + #13#10 +
+    '  [pscustomobject]@{ Major = [int]$match.Groups[''major''].Value; Minor = [int]$match.Groups[''minor''].Value; Patch = [int]$match.Groups[''patch''].Value; PreRank = $rank; PreNumber = $preNum }' + #13#10 +
+    '}' + #13#10 +
+    'function Compare-SetupVersion($Left, $Right) {' + #13#10 +
+    '  foreach ($name in @(''Major'',''Minor'',''Patch'',''PreRank'',''PreNumber'')) {' + #13#10 +
+    '    if ($Left.$name -gt $Right.$name) { return 1 }' + #13#10 +
+    '    if ($Left.$name -lt $Right.$name) { return -1 }' + #13#10 +
+    '  }' + #13#10 +
+    '  return 0' + #13#10 +
+    '}' + #13#10 +
+    'function Format-SetupVersion([string]$Version) {' + #13#10 +
+    '  $text = ([string]$Version).Trim()' + #13#10 +
+    '  if ($text -notmatch ''^v'') { $text = ''v'' + $text }' + #13#10 +
+    '  return $text' + #13#10 +
+    '}' + #13#10 +
+    'try {' + #13#10 +
+    '  if ([string]::IsNullOrWhiteSpace($ApiUrl) -or [string]::IsNullOrWhiteSpace($CurrentVersion)) { Write-State @{ Status = ''Skipped'' }; exit 0 }' + #13#10 +
+    '  $currentText = $CurrentVersion.Trim()' + #13#10 +
+    '  if (($Channel -eq ''Beta'') -and ($currentText -notmatch ''(?i)(-|\.)(alpha|beta|preview|rc|dev)'')) { $currentText = $currentText + ''-beta'' }' + #13#10 +
+    '  $currentVersionObject = Convert-SetupVersion $currentText' + #13#10 +
+    '  if ($null -eq $currentVersionObject) { Write-State @{ Status = ''Skipped'' }; exit 0 }' + #13#10 +
+    '  $request = [System.Net.HttpWebRequest]::Create($ApiUrl)' + #13#10 +
+    '  $request.Method = ''GET''' + #13#10 +
+    '  $request.Timeout = 3000' + #13#10 +
+    '  $request.ReadWriteTimeout = 3000' + #13#10 +
+    '  $request.UserAgent = ''Baseline-SetupFreshness''' + #13#10 +
+    '  $response = $request.GetResponse()' + #13#10 +
+    '  $reader = New-Object System.IO.StreamReader($response.GetResponseStream())' + #13#10 +
+    '  $releases = @($reader.ReadToEnd() | ConvertFrom-Json)' + #13#10 +
+    '  $reader.Dispose(); $response.Dispose()' + #13#10 +
+    '  if ($Channel -ne ''Beta'') { $releases = @($releases | Where-Object { -not $_.prerelease }) }' + #13#10 +
+    '  $releaseChannelToken = if ($Channel -eq ''Beta'') { ''beta'' } else { ''stable'' }' + #13#10 +
+    '  $assetPattern = ''(?i)^Baseline-\d+\.\d+\.\d+-'' + [regex]::Escape($releaseChannelToken) + ''\.zip$''' + #13#10 +
+    '  $bestRelease = $null; $bestVersion = $null; $bestUrl = $null' + #13#10 +
+    '  foreach ($release in @($releases | Where-Object { -not $_.draft })) {' + #13#10 +
+    '    $asset = @($release.assets | Where-Object { $_.name -match $assetPattern } | Select-Object -First 1)' + #13#10 +
+    '    if (-not $asset) { continue }' + #13#10 +
+    '    $candidateVersion = Convert-SetupVersion ([string]$release.tag_name)' + #13#10 +
+    '    if ($null -eq $candidateVersion) { continue }' + #13#10 +
+    '    if (($null -eq $bestVersion) -or ((Compare-SetupVersion $candidateVersion $bestVersion) -gt 0)) { $bestRelease = $release; $bestVersion = $candidateVersion; $bestUrl = if ($asset.browser_download_url) { [string]$asset.browser_download_url } else { [string]$release.html_url } }' + #13#10 +
+    '  }' + #13#10 +
+    '  if ($null -eq $bestRelease) { Write-State @{ Status = ''UpToDate''; CurrentDisplayVersion = (Format-SetupVersion $currentText) }; exit 0 }' + #13#10 +
+    '  if ((Compare-SetupVersion $bestVersion $currentVersionObject) -gt 0) { Write-State @{ Status = ''UpdateAvailable''; CurrentDisplayVersion = (Format-SetupVersion $currentText); LatestDisplayVersion = (Format-SetupVersion ([string]$bestRelease.tag_name)); ReleaseUrl = $bestUrl }; exit 0 }' + #13#10 +
+    '  Write-State @{ Status = ''UpToDate''; CurrentDisplayVersion = (Format-SetupVersion $currentText); LatestDisplayVersion = (Format-SetupVersion ([string]$bestRelease.tag_name)) }' + #13#10 +
+    '} catch {' + #13#10 +
+    '  Write-State @{ Status = ''Skipped'' }' + #13#10 +
+    '}';
+end;
+
+function ReadSetupFreshnessStateValue(StatePath, Name: String): String;
+var
+  Lines: TArrayOfString;
+  I, SeparatorPos: Integer;
+  Line, Key: String;
+begin
+  Result := '';
+  if not LoadStringsFromFile(StatePath, Lines) then
+    Exit;
+
+  for I := 0 to GetArrayLength(Lines) - 1 do
+  begin
+    Line := Trim(Lines[I]);
+    SeparatorPos := Pos('=', Line);
+    if SeparatorPos <= 0 then
+      Continue;
+
+    Key := Uppercase(Trim(Copy(Line, 1, SeparatorPos - 1)));
+    if Key = Uppercase(Name) then
+    begin
+      Result := Trim(Copy(Line, SeparatorPos + 1, Length(Line) - SeparatorPos));
+      Exit;
+    end;
+  end;
+end;
+
+function ShowSetupFreshnessPrompt(CurrentDisplayVersion, LatestDisplayVersion: String): Integer;
+begin
+  Result := TaskDialogMsgBox(
+    'A newer Baseline setup is available.',
+    'Installed setup:' + #13#10 +
+    CurrentDisplayVersion + #13#10 + #13#10 +
+    'Latest setup:' + #13#10 +
+    LatestDisplayVersion + #13#10 + #13#10 +
+    'The newer setup may contain fixes, updated assets, or installation improvements.',
+    mbInformation,
+    MB_YESNOCANCEL, ['Continue Anyway', 'Download Latest Setup', 'Cancel'],
+    IDYES);
+end;
+
+function RunSetupFreshnessCheck: Boolean;
+var
+  ScriptPath, StatePath, PowerShellPath, Arguments: String;
+  Status, CurrentDisplayVersion, LatestDisplayVersion, ReleaseUrl: String;
+  ResultCode, Choice: Integer;
+begin
+  Result := True;
+
+  if GUpdateFlow or GResumeInstallFlow or WizardSilent then
+    Exit;
+
+  ScriptPath := ExpandConstant('{tmp}\BaselineSetupFreshness.ps1');
+  StatePath := ExpandConstant('{tmp}\BaselineSetupFreshness.txt');
+  DeleteFile(StatePath);
+
+  if not SaveStringToFile(ScriptPath, GetSetupFreshnessScript, False) then
+    Exit;
+
+  PowerShellPath := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
+  if not FileExists(PowerShellPath) then
+    Exit;
+
+  Arguments :=
+    '-NoProfile -ExecutionPolicy Bypass -File "' + ScriptPath + '"' +
+    ' -ApiUrl "' + GetSetupFreshnessApiUrl + '"' +
+    ' -CurrentVersion "{#MyAppVersion}"' +
+    ' -Channel "' + GetSetupFreshnessChannel + '"' +
+    ' -OutPath "' + StatePath + '"';
+
+  if not Exec(PowerShellPath, Arguments, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    Exit;
+
+  Status := ReadSetupFreshnessStateValue(StatePath, 'Status');
+  if Status <> 'UpdateAvailable' then
+    Exit;
+
+  CurrentDisplayVersion := ReadSetupFreshnessStateValue(StatePath, 'CurrentDisplayVersion');
+  LatestDisplayVersion := ReadSetupFreshnessStateValue(StatePath, 'LatestDisplayVersion');
+  ReleaseUrl := ReadSetupFreshnessStateValue(StatePath, 'ReleaseUrl');
+
+  Choice := ShowSetupFreshnessPrompt(CurrentDisplayVersion, LatestDisplayVersion);
+  if Choice = IDNO then
+  begin
+    Result := False;
+    if ReleaseUrl <> '' then
+      ShellExecAsOriginalUser('open', ReleaseUrl, '', '', SW_SHOWNORMAL, ewNoWait, ResultCode);
+    Exit;
+  end;
+
+  if Choice <> IDYES then
+    Result := False;
+end;
+
 procedure RestartInstallForAllUsers;
 var
   ResultCode: Integer;
@@ -1219,18 +1439,24 @@ procedure ExtractPortable;
 var
   Dest: String;
 begin
-  GPortablePath := ExpandConstant('{localappdata}') + '\Baseline';
+  if GPortablePath = '' then
+    GPortablePath := ExpandConstant('{localappdata}') + '\Baseline';
+  ForceDirectories(GPortablePath);
   Dest := GPortablePath + '\{#MyAppExeName}';
 
-  CreateShellLink(
-    ExpandConstant('{autodesktop}') + '\Baseline.lnk',
-    'Baseline',
-    Dest,
-    '',
-    GPortablePath,
-    '',
-    0,
-    SW_SHOWNORMAL);
+  if not FileExists(Dest) then
+    RaiseException('Portable Baseline.exe was not found after extraction: ' + Dest);
+
+  if GDesktop then
+    CreateShellLink(
+      ExpandConstant('{autodesktop}') + '\Baseline.lnk',
+      'Baseline',
+      Dest,
+      '',
+      GPortablePath,
+      Dest,
+      0,
+      SW_SHOWNORMAL);
 end;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1257,12 +1483,50 @@ end;
 // Launch after finish
 // ─────────────────────────────────────────────────────────────────────────────
 
+function NormalizeSetupComparePath(Value: String): String;
+begin
+  Result := Uppercase(AddBackslash(Value));
+end;
+
+function IsBaselineRelaunchPathAllowed(ExePath, TargetDir: String): Boolean;
+var
+  ExeName, ExeDir, ExpectedDir: String;
+begin
+  Result := False;
+
+  if (ExePath = '') or (TargetDir = '') then
+    Exit;
+
+  ExeName := ExtractFileName(ExePath);
+  if Uppercase(ExeName) <> Uppercase('{#MyAppExeName}') then
+    Exit;
+
+  ExeDir := NormalizeSetupComparePath(ExtractFileDir(ExePath));
+  ExpectedDir := NormalizeSetupComparePath(TargetDir);
+  Result := Pos(ExpectedDir, ExeDir) = 1;
+end;
+
 procedure LaunchBaseline;
 var
-  ExePath, WorkDir: String;
+  ExePath, WorkDir, ExpectedDir: String;
   ResultCode: Integer;
 begin
-  if GInstallMode then
+  if GUpdateRelaunchPath <> '' then
+  begin
+    ExePath := GUpdateRelaunchPath;
+    WorkDir := ExtractFileDir(ExePath);
+    if GInstallMode then
+      ExpectedDir := GInstallPath
+    else
+      ExpectedDir := GPortablePath;
+
+    if not IsBaselineRelaunchPathAllowed(ExePath, ExpectedDir) then
+    begin
+      Log('Rejected update relaunch target: ' + ExePath);
+      Exit;
+    end;
+  end
+  else if GInstallMode then
   begin
     WorkDir := GInstallPath;
     ExePath := WorkDir + '\{#MyAppExeName}';
@@ -1273,8 +1537,14 @@ begin
     ExePath := WorkDir + '\{#MyAppExeName}';
   end;
 
-  if FileExists(ExePath) then
-    Exec(ExePath, '', WorkDir, SW_SHOW, ewNoWait, ResultCode);
+  if not FileExists(ExePath) then
+  begin
+    Log('Baseline launch target missing: ' + ExePath);
+    Exit;
+  end;
+
+  if not ShellExec('open', ExePath, '', WorkDir, SW_SHOW, ewNoWait, ResultCode) then
+    Log('Failed to launch Baseline: ' + ExePath + '; result code: ' + IntToStr(ResultCode));
 end;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1426,8 +1696,20 @@ begin
   GSetupCompleted        := False;
   GResumeInstallFlow     := False;
   GProgrammaticClose     := False;
+  GUpdateFlow            := False;
+  GUpdateRelaunchPath    := '';
+  GUpdateTargetDir       := '';
+
+  LoadUpdateFlowState;
 
   ResumeStatePath := GetCommandLineSwitchValue('RESUMEINSTALL');
+  GResumeInstallFlow := ResumeStatePath <> '';
+  if (not RunSetupFreshnessCheck) then
+  begin
+    Result := False;
+    Exit;
+  end;
+
   if ResumeStatePath = '' then
     Exit;
 
@@ -1438,7 +1720,6 @@ begin
     Exit;
   end;
 
-  GResumeInstallFlow := True;
   if not LoadInstallResumeState(ResumeStatePath) then
   begin
     MsgBox('Setup could not load the elevated install state: ' + ResumeStatePath, mbError, MB_OK);
@@ -1460,12 +1741,24 @@ begin
   CreatePageFinish;
 
   WizardForm.Caption := GetSetupString('WizardTitle.Default');
+
+  if GUpdateFlow then
+  begin
+    WizardForm.Caption := 'Updating Baseline';
+    if Assigned(CbLaunch) then
+      CbLaunch.Checked := True;
+    if Assigned(DirEdit) and (GInstallPath <> '') then
+      DirEdit.Text := GInstallPath;
+    if GInstallPath <> '' then
+      WizardForm.DirEdit.Text := GInstallPath;
+  end;
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := False;
 
+  if GUpdateFlow and ((PageID = PageLanguage.ID) or (PageID = PageMode.ID) or (PageID = PageScope.ID) or (PageID = PageLocation.ID) or (PageID = PageShortcuts.ID) or (PageID = PageFinish.ID)) then begin Result := True; Exit; end;
   if GResumeInstallFlow and ((PageID = PageLanguage.ID) or (PageID = PageMode.ID) or (PageID = PageScope.ID)) then begin Result := True; Exit; end;
   if (PageID = PageLanguage.ID) or (PageID = PageMode.ID) then Exit;
   if PageID = PageScope.ID then begin Result := (not GInstallMode) or IsAdminInstallMode; Exit; end;
@@ -1591,6 +1884,9 @@ begin
     L := TNewStaticText(PageFinish.Surface.FindComponent('FinishMsg'));
     if Assigned(L) then
       L.Caption := Msg;
+
+    if GUpdateFlow then
+      LaunchBaseline;
   end;
 end;
 
@@ -1608,7 +1904,9 @@ begin
   begin
     if Assigned(DirEdit) then
     begin
-      if IsAdminInstallMode then
+      if GUpdateFlow and (GInstallPath <> '') then
+        DirEdit.Text := GInstallPath
+      else if IsAdminInstallMode then
         DirEdit.Text := ExpandConstant('{pf}') + '\Baseline'
       else
         DirEdit.Text := ExpandConstant('{localappdata}') + '\Programs\Baseline';

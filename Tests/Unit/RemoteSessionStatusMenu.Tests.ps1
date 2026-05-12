@@ -10,7 +10,7 @@ BeforeAll {
     $script:DialogHelpersPath = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers.ps1'
     $script:DialogHelpersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers'
     $script:StyleManagementPath = Join-Path $PSScriptRoot '../../Module/GUI/StyleManagement.ps1'
-    $script:GuiContent = (Get-Content -LiteralPath $script:GuiPath -Raw -Encoding UTF8) + "`n" + (Get-Content -LiteralPath $script:MainWindowPath -Raw -Encoding UTF8)
+    $script:GuiContent = (Get-BaselineTestSourceText -Path $script:GuiPath) + "`n" + (Get-BaselineTestSourceText -Path $script:MainWindowPath)
     $script:ActionHandlersContent = Get-BaselineTestSourceText -Path @(
         $script:ActionHandlersPath
         (Join-Path $script:ActionHandlersSplitRoot 'ThemeNavigationHandlers.ps1')
@@ -26,7 +26,7 @@ BeforeAll {
         (Join-Path $script:DialogHelpersSplitRoot 'ContentDialogs.ps1')
         (Join-Path $script:DialogHelpersSplitRoot 'AuditOperatorDialogs.ps1')
     )
-    $script:StyleManagementContent = Get-Content -LiteralPath $script:StyleManagementPath -Raw -Encoding UTF8
+    $script:StyleManagementContent = Get-BaselineTestSourceText -Path $script:StyleManagementPath
 }
 
 Describe 'Remote session status menu' {

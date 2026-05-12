@@ -1,8 +1,7 @@
-# ExecutionOrchestration split file loaded by Module\GUI\ExecutionOrchestration.ps1.
+﻿# ExecutionOrchestration split file loaded by Module\GUI\ExecutionOrchestration.ps1.
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-RunAbortDisposition.
 	#>
 
 	function Set-RunAbortDisposition
@@ -29,7 +28,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-RunAbortDisposition.
 	#>
 
 	function Get-RunAbortDisposition
@@ -75,7 +73,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Reset-RunAbortState.
 	#>
 
 	function Reset-RunAbortState
@@ -84,10 +81,6 @@
 		Set-RunAbortDisposition -Disposition $null
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Build-WhatChangedSummaryText
 	{
 		<#
@@ -149,7 +142,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Invoke-GuiExecutionCompletionToast.
 	#>
 
 	function Invoke-GuiExecutionCompletionToast
@@ -190,13 +182,12 @@
 		}
 		catch
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'ExecutionOrchestration.RunCompletion.Toast'
+			Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionOrchestration.RunCompletion.Toast'
 		}
 	}
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ActiveTweakRunList.
 	#>
 
 	function Get-ActiveTweakRunList

@@ -1,8 +1,8 @@
+
 # Dialog helper split file loaded by Module\GUI\DialogHelpers.ps1.
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-GuiAuditSettingsDialog.
 	#>
 
 	function Show-GuiAuditSettingsDialog
@@ -200,7 +200,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-GuiOperatorConsoleDialog.
 
 	    .DESCRIPTION
 	    Operator-facing safeguards console: per-run cap, concurrency, change
@@ -228,158 +227,8 @@
 		$killEngageLabel = Get-UxLocalizedString -Key 'GuiOperatorKillEngage' -Fallback 'Engage Kill Switch'
 		$killClearLabel = Get-UxLocalizedString -Key 'GuiOperatorKillClear' -Fallback 'Clear Kill Switch'
 
-		[xml]$xaml = @"
-<Window
-	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-	Title="$windowTitle"
-	Width="940" Height="680"
-	MinWidth="780" MinHeight="600"
-	WindowStartupLocation="CenterOwner"
-	ResizeMode="CanResizeWithGrip"
-	FontFamily="FluentSystemIcons"
-	FontSize="12"
-	Background="Transparent"
-	WindowStyle="None"
-	AllowsTransparency="True">
-	<Border Name="RootBorder" CornerRadius="8">
-		<Grid>
-			<Grid.RowDefinitions>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="*"/>
-				<RowDefinition Height="Auto"/>
-			</Grid.RowDefinitions>
-
-			<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
-				<Grid>
-					<TextBlock Text="$windowTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
-					<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
-						Background="Transparent" Foreground="$($theme.TextPrimary)" BorderThickness="0" Cursor="Hand"
-						HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-				</Grid>
-			</Border>
-
-			<Border Grid.Row="1" Background="$($theme.HeaderBg)"
-					BorderBrush="$($theme.BorderColor)" BorderThickness="0,0,0,1"
-					Padding="20,14,20,14">
-				<StackPanel>
-					<TextBlock Name="TxtDialogTitle" Text="$windowTitle" FontSize="16" FontWeight="SemiBold"
-							   Foreground="$($theme.TextPrimary)"/>
-					<TextBlock Name="TxtDialogSubtitle" Text="$windowSubtitle"
-							   FontSize="12" Foreground="$($theme.TextMuted)" Margin="0,2,0,0" TextWrapping="Wrap"/>
-				</StackPanel>
-			</Border>
-
-			<ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="20,16,20,16">
-				<Grid>
-					<Grid.RowDefinitions>
-						<RowDefinition Height="Auto"/>
-						<RowDefinition Height="Auto"/>
-						<RowDefinition Height="Auto"/>
-						<RowDefinition Height="Auto"/>
-						<RowDefinition Height="Auto"/>
-					</Grid.RowDefinitions>
-
-					<!-- Caps -->
-					<Border Grid.Row="0" Background="$($theme.InputBg)" BorderBrush="$($theme.BorderColor)" BorderThickness="1" CornerRadius="6" Padding="14,12,14,12" Margin="0,0,0,12">
-						<Grid>
-							<Grid.ColumnDefinitions>
-								<ColumnDefinition Width="*"/>
-								<ColumnDefinition Width="*"/>
-							</Grid.ColumnDefinitions>
-							<StackPanel Grid.Column="0">
-								<TextBlock Text="Per-run target cap" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)"/>
-								<TextBox Name="TxtMaxTargets" Margin="0,4,8,0" Padding="6,4,6,4"/>
-							</StackPanel>
-							<StackPanel Grid.Column="1">
-								<TextBlock Text="Max concurrent targets" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)"/>
-								<TextBox Name="TxtMaxConcurrent" Margin="0,4,0,0" Padding="6,4,6,4"/>
-							</StackPanel>
-						</Grid>
-					</Border>
-
-					<!-- Change window -->
-					<Border Grid.Row="1" Background="$($theme.InputBg)" BorderBrush="$($theme.BorderColor)" BorderThickness="1" CornerRadius="6" Padding="14,12,14,12" Margin="0,0,0,12">
-						<StackPanel>
-							<TextBlock Text="Change window" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)"/>
-							<TextBlock Name="TxtChangeWindowHint" Text="Comma-separated days (Mon,Tue,...) and HH:mm start/end. Empty = always allowed." Foreground="$($theme.TextMuted)" TextWrapping="Wrap" Margin="0,2,0,6"/>
-							<Grid>
-								<Grid.ColumnDefinitions>
-									<ColumnDefinition Width="2*"/>
-									<ColumnDefinition Width="*"/>
-									<ColumnDefinition Width="*"/>
-								</Grid.ColumnDefinitions>
-								<TextBox Name="TxtChangeDays" Margin="0,0,8,0" Padding="6,4,6,4"/>
-								<TextBox Name="TxtChangeStart" Grid.Column="1" Margin="0,0,8,0" Padding="6,4,6,4"/>
-								<TextBox Name="TxtChangeEnd" Grid.Column="2" Padding="6,4,6,4"/>
-							</Grid>
-							<TextBlock Name="TxtChangeWindowState" Text="" Foreground="$($theme.TextSecondary)" Margin="0,8,0,0" TextWrapping="Wrap"/>
-						</StackPanel>
-					</Border>
-
-					<!-- Allow/Deny -->
-					<Border Grid.Row="2" Background="$($theme.InputBg)" BorderBrush="$($theme.BorderColor)" BorderThickness="1" CornerRadius="6" Padding="14,12,14,12" Margin="0,0,0,12">
-						<Grid>
-							<Grid.ColumnDefinitions>
-								<ColumnDefinition Width="*"/>
-								<ColumnDefinition Width="*"/>
-								<ColumnDefinition Width="*"/>
-							</Grid.ColumnDefinitions>
-							<StackPanel Grid.Column="0">
-								<TextBlock Text="Allowed targets (one per line, empty = all)" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)"/>
-								<TextBox Name="TxtAllowedTargets" Margin="0,4,8,0" Padding="6,4,6,4" Height="80" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
-							</StackPanel>
-							<StackPanel Grid.Column="1">
-								<TextBlock Text="Denied targets (one per line)" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)"/>
-								<TextBox Name="TxtDeniedTargets" Margin="0,4,8,0" Padding="6,4,6,4" Height="80" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
-							</StackPanel>
-							<StackPanel Grid.Column="2">
-								<TextBlock Text="Denied functions (one per line)" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)"/>
-								<TextBox Name="TxtDeniedFunctions" Margin="0,4,0,0" Padding="6,4,6,4" Height="80" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
-							</StackPanel>
-						</Grid>
-					</Border>
-
-					<!-- Kill switch -->
-					<Border Grid.Row="3" Background="$($theme.InputBg)" BorderBrush="$($theme.BorderColor)" BorderThickness="1" CornerRadius="6" Padding="14,12,14,12" Margin="0,0,0,12">
-						<StackPanel>
-							<TextBlock Text="Kill switch" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)"/>
-							<TextBlock Name="TxtKillSwitchPath" Text="" Foreground="$($theme.TextMuted)" Margin="0,2,0,6" TextWrapping="Wrap"/>
-							<TextBlock Name="TxtKillSwitchState" Text="" Foreground="$($theme.TextSecondary)" Margin="0,0,0,8" TextWrapping="Wrap"/>
-							<WrapPanel>
-								<Button Name="BtnKillEngage" Content="" Margin="0,0,8,0" Padding="14,6"/>
-								<Button Name="BtnKillClear" Content="" Padding="14,6"/>
-							</WrapPanel>
-						</StackPanel>
-					</Border>
-
-					<!-- Decision -->
-					<Border Grid.Row="4" Background="$($theme.InputBg)" BorderBrush="$($theme.BorderColor)" BorderThickness="1" CornerRadius="6" Padding="14,12,14,12">
-						<StackPanel>
-							<TextBlock Text="Current policy decision" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)"/>
-							<TextBlock Name="TxtDecisionTargets" Text="" Foreground="$($theme.TextMuted)" Margin="0,2,0,6" TextWrapping="Wrap"/>
-							<TextBlock Name="TxtDecisionSummary" Text="" FontFamily="Consolas, Menlo, monospace" Foreground="$($theme.TextPrimary)" TextWrapping="Wrap"/>
-						</StackPanel>
-					</Border>
-				</Grid>
-			</ScrollViewer>
-
-			<Border Grid.Row="3" Background="$($theme.HeaderBg)"
-					BorderBrush="$($theme.BorderColor)" BorderThickness="0,1,0,0"
-					Padding="20,10,20,10">
-				<WrapPanel HorizontalAlignment="Right">
-					<Button Name="BtnEvaluate" Content="" Margin="0,0,8,0" Padding="16,6" FontSize="13"/>
-					<Button Name="BtnSavePolicy" Content="" Margin="0,0,8,0" Padding="16,6" FontSize="13"/>
-					<Button Name="BtnLoadPolicy" Content="" Margin="0,0,8,0" Padding="16,6" FontSize="13"/>
-					<Button Name="BtnRefresh" Content="" Margin="0,0,8,0" Padding="16,6" FontSize="13"/>
-					<Button Name="BtnClose" Content="" Padding="16,6" FontSize="13"/>
-				</WrapPanel>
-			</Border>
-		</Grid>
-	</Border>
-</Window>
-"@
+				# P5 rollback checkpoint: Show-GuiOperatorConsoleDialog part extracted to Module/GUI/DialogHelpers/AuditOperatorDialogs/Show-GuiOperatorConsoleDialog/Show-GuiOperatorConsoleDialog.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'AuditOperatorDialogs\Show-GuiOperatorConsoleDialog\Show-GuiOperatorConsoleDialog.ps1')
 
 		$reader = [System.Xml.XmlNodeReader]::new($xaml)
 		$dlg = [Windows.Markup.XamlReader]::Load($reader)
@@ -661,7 +510,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-GuiHistoryViewerDialog.
 
 	    .DESCRIPTION
 	    Internal implementation helper used by Baseline. Shows historical run
@@ -917,7 +765,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-GuiReleaseStatusDialog.
 	#>
 
 	function Show-GuiReleaseStatusDialog
@@ -945,7 +792,7 @@
 				$resolvedModuleRoot = Split-Path -Parent $Script:DialogHelpersRoot
 			}
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiReleaseStatusDialog.ResolveModuleRoot' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiReleaseStatusDialog.ResolveModuleRoot' }
 		try
 		{
 			if (-not [string]::IsNullOrWhiteSpace([string]$Script:SharedHelpersRepoRoot))
@@ -961,10 +808,10 @@
 				$resolvedRepoRoot = Split-Path -Parent (Split-Path -Parent $Script:DialogHelpersRoot)
 			}
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiReleaseStatusDialog.ResolveRepoRoot' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiReleaseStatusDialog.ResolveRepoRoot' }
 
 		$version = 'unknown'
-		try { $version = Get-BaselineDisplayVersion } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiReleaseStatusDialog.LoadVersion' }
+		try { $version = Get-BaselineDisplayVersion } catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiReleaseStatusDialog.LoadVersion' }
 		$moduleManifestPath = if ($resolvedModuleRoot) { Join-Path $resolvedModuleRoot 'Baseline.psd1' } else { $null }
 		$manifestText = if ($moduleManifestPath -and (Test-Path -LiteralPath $moduleManifestPath)) { Get-Content -LiteralPath $moduleManifestPath -Raw -Encoding UTF8 } else { $null }
 		$prerelease = if ($manifestText -match "Prerelease\s*=\s*'([^']+)'") { $Matches[1] } else { 'unknown' }
@@ -1109,71 +956,13 @@
 		}
 		$exePaths = @(
 			$(if ($resolvedRepoRoot) { Join-Path $resolvedRepoRoot 'Baseline.exe' }),
-			$(if ($resolvedRepoRoot) { Join-Path $resolvedRepoRoot 'Baseline-setup-4.0.0.exe' }),
-			$(if ($resolvedRepoRoot) { Join-Path $resolvedRepoRoot 'Baseline-4.0.0.zip' })
+			$(if ($resolvedRepoRoot) { Join-Path $resolvedRepoRoot 'Baseline-setup-4.0.0-beta.exe' }),
+			$(if ($resolvedRepoRoot) { Join-Path $resolvedRepoRoot 'Baseline-4.0.0-beta.zip' })
 		)
 		$artifactVerificationCmd = Get-GuiRuntimeCommand -Name 'Get-BaselineReleaseArtifactVerification' -CommandType 'Function'
 
-		[xml]$xaml = @"
-<Window
-	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-	Title="$windowTitle"
-	Width="780" Height="520"
-	MinWidth="680" MinHeight="460"
-	WindowStartupLocation="CenterOwner"
-	ResizeMode="CanResizeWithGrip"
-	FontFamily="FluentSystemIcons"
-	FontSize="12"
-	Background="Transparent"
-	WindowStyle="None"
-	AllowsTransparency="True">
-	<Border Name="RootBorder" CornerRadius="8">
-		<Grid>
-			<Grid.RowDefinitions>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="*"/>
-				<RowDefinition Height="Auto"/>
-			</Grid.RowDefinitions>
-
-			<Border Name="DlgTitleBar" Grid.Row="0" Background="$($theme.HeaderBg)" CornerRadius="8,8,0,0" Padding="12,8,8,8" Cursor="Arrow">
-				<Grid>
-					<TextBlock Text="$windowTitle" VerticalAlignment="Center" FontSize="12" Foreground="$($theme.TextPrimary)"/>
-					<Button Name="BtnDlgClose" Content="x" FontFamily="Arial" FontSize="12" Width="32" Height="28"
-						Background="Transparent" Foreground="$($theme.TextPrimary)" BorderThickness="0" Cursor="Hand"
-						HorizontalAlignment="Right" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
-				</Grid>
-			</Border>
-
-			<Border Grid.Row="1" Background="$($theme.HeaderBg)"
-					BorderBrush="$($theme.BorderColor)" BorderThickness="0,0,0,1"
-					Padding="20,14,20,14">
-				<StackPanel>
-					<TextBlock Text="$windowTitle" FontSize="16" FontWeight="SemiBold" Foreground="$($theme.TextPrimary)"/>
-					<TextBlock Text="$windowSubtitle" FontSize="12" Foreground="$($theme.TextMuted)" Margin="0,2,0,0" TextWrapping="Wrap"/>
-				</StackPanel>
-			</Border>
-
-			<ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="20,18,20,18">
-				<StackPanel Name="ContentPanel"/>
-			</ScrollViewer>
-
-			<Border Grid.Row="3" Background="$($theme.HeaderBg)"
-					BorderBrush="$($theme.BorderColor)" BorderThickness="0,1,0,0"
-					Padding="20,10,20,10">
-				<Grid>
-					<StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-						<Button Name="BtnPinVersion" Content="" Padding="18,6" FontSize="13" Margin="0,0,8,0"/>
-						<Button Name="BtnClearPin" Content="" Padding="18,6" FontSize="13"/>
-					</StackPanel>
-					<Button Name="BtnClose" Content="" HorizontalAlignment="Right" Padding="20,6" FontSize="13"/>
-				</Grid>
-			</Border>
-		</Grid>
-	</Border>
-</Window>
-"@
+				# P5 rollback checkpoint: Show-GuiReleaseStatusDialog part extracted to Module/GUI/DialogHelpers/AuditOperatorDialogs/Show-GuiReleaseStatusDialog/Show-GuiReleaseStatusDialog.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'AuditOperatorDialogs\Show-GuiReleaseStatusDialog\Show-GuiReleaseStatusDialog.ps1')
 
 		$reader = [System.Xml.XmlNodeReader]::new($xaml)
 		$dlg = [Windows.Markup.XamlReader]::Load($reader)

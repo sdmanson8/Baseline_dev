@@ -1,5 +1,6 @@
-using module ..\..\Logging.psm1
+﻿using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
+
 
 
 <#
@@ -60,112 +61,6 @@ function LanmanWorkstationGuestAuthPolicy
 	{
 		Write-ConsoleStatus -Status failed
 		LogError "Failed to configure LanmanWorkstation guest auth policy: $($_.Exception.Message)"
-	}
-}
-
-
-<#
-    .SYNOPSIS
-    Sets system tweaks registry value.
-
-    
-.DESCRIPTION
-    
-Supports system tweaks registry value handling inside Baseline.
-#>
-
-function Set-SystemTweaksRegistryValue
-{
-	param
-	(
-		[Parameter(Mandatory = $true)]
-		[string]$Path,
-
-		[Parameter(Mandatory = $true)]
-		[string]$Name,
-
-		[Parameter(Mandatory = $true)]
-		[object]$Value,
-
-		[Parameter(Mandatory = $true)]
-		[ValidateSet('String', 'ExpandString', 'Binary', 'DWord', 'MultiString', 'QWord')]
-		[string]$Type
-	)
-
-	if (-not (Test-Path -Path $Path))
-	{
-		New-Item -Path $Path -Force -ErrorAction Stop | Out-Null
-	}
-
-	if ($null -ne (Get-ItemProperty -Path $Path -Name $Name -ErrorAction SilentlyContinue))
-	{
-		Set-ItemProperty -LiteralPath $Path -Name $Name -Type $Type -Value $Value -Force -ErrorAction Stop | Out-Null
-	}
-	else
-	{
-		New-ItemProperty -Path $Path -Name $Name -PropertyType $Type -Value $Value -Force -ErrorAction Stop | Out-Null
-	}
-}
-
-
-<#
-    .SYNOPSIS
-    Removes system tweaks registry value.
-
-    
-.DESCRIPTION
-    
-Supports system tweaks registry value handling inside Baseline.
-#>
-
-function Remove-SystemTweaksRegistryValue
-{
-	param
-	(
-		[Parameter(Mandatory = $true)]
-		[string]$Path,
-
-		[Parameter(Mandatory = $true)]
-		[string]$Name
-	)
-
-	return Remove-RegistryValueSafe -Path $Path -Name $Name
-}
-
-
-<#
-    .SYNOPSIS
-    Checks windows11 SMB duplicate SID issue.
-
-    
-.DESCRIPTION
-    
-Supports windows11 SMB duplicate SID issue handling inside Baseline.
-#>
-
-function Test-Windows11SmbDuplicateSidIssue
-{
-	param
-	(
-		[int]$LookbackDays = 30
-	)
-
-	try
-	{
-		$startTime = (Get-Date).AddDays(-1 * [math]::Abs($LookbackDays))
-		$events = Get-WinEvent -FilterHashtable @{
-			LogName   = "System"
-			Id        = 6167
-			StartTime = $startTime
-		} -ErrorAction Stop | Where-Object {$_.Message -like "*partial mismatch in the machine ID*"}
-
-		return (@($events).Count -gt 0)
-	}
-	catch
-	{
-		Remove-HandledErrorRecord -ErrorRecord $_
-		LogInfo "Unable to query LSASS Event ID 6167: $($_.Exception.Message)"
-		return $false
 	}
 }
 
@@ -839,269 +734,12 @@ function SharedPrinterConnectionErrors
 	}
 
 	LogInfo "Applying RPC, SMB, Point and Print, and printer pruning registry settings"
-	foreach ($registrySetting in @(
-		@{ Path = $rpcPath; Name = "RpcUseNamedPipeProtocol"; Value = 1; Type = "DWord"; Description = "Enabled RPC named-pipe protocol for printer connections" },
-		@{ Path = $rpcPath; Name = "RpcProtocols"; Value = 7; Type = "DWord"; Description = "Enabled RPC protocol bitmask 7 for printer connections" },
-		@{ Path = $rpcPath; Name = "RpcListenerProtocols"; Value = 7; Type = "DWord"; Description = "Enabled RPC listener protocol bitmask 7 for printer connections" },
-		@{ Path = $printControlPath; Name = "RpcAuthnLevelPrivacyEnabled"; Value = 0; Type = "DWord"; Description = "Relaxed RPC print authentication privacy" },
-		@{ Path = $lsaPath; Name = "LmCompatibilityLevel"; Value = 1; Type = "DWord"; Description = "Set LAN Manager authentication level to 1" },
-		@{ Path = $lanmanWorkstationParametersPath; Name = "AllowInsecureGuestAuth"; Value = 1; Type = "DWord"; Description = "Enabled insecure guest auth for LanmanWorkstation" },
-		@{ Path = $lanmanWorkstationParametersPath; Name = "AllowsecureGuestAuth"; Value = 1; Type = "DWord"; Description = "Enabled compatibility guest auth flag for LanmanWorkstation" },
-		@{ Path = $lanmanWorkstationPolicyPath; Name = "AllowInsecureGuestAuth"; Value = 1; Type = "DWord"; Description = "Enabled insecure guest auth policy for LanmanWorkstation" },
-		@{ Path = $lanmanServerParametersPath; Name = "SMB2"; Value = 1; Type = "DWord"; Description = "Enabled SMB2 server registry flag" },
-		@{ Path = $lanmanServerParametersPath; Name = "AutoShareWks"; Value = 1; Type = "DWord"; Description = "Enabled workstation admin shares" },
-		@{ Path = $dnsClientPolicyPath; Name = "EnableMulticast"; Value = 1; Type = "DWord"; Description = "Enabled LLMNR multicast name resolution" },
-		@{ Path = $printersPolicyPath; Name = "PruningInterval"; Value = 0xFFFFFFFF; Type = "DWord"; Description = "Disabled printer pruning" },
-		@{ Path = $pointAndPrintPath; Name = "Restricted"; Value = 0; Type = "DWord"; Description = "Disabled Point and Print restrictions" },
-		@{ Path = $pointAndPrintPath; Name = "TrustedServers"; Value = 0; Type = "DWord"; Description = "Disabled Point and Print trusted-server restrictions" },
-		@{ Path = $pointAndPrintPath; Name = "InForest"; Value = 0; Type = "DWord"; Description = "Disabled Point and Print forest restrictions" },
-		@{ Path = $pointAndPrintPath; Name = "NoWarningNoElevationOnInstall"; Value = 1; Type = "DWord"; Description = "Allowed printer installs without warning or elevation prompts" },
-		@{ Path = $pointAndPrintPath; Name = "UpdatePromptSettings"; Value = 0; Type = "DWord"; Description = "Disabled Point and Print update prompts" },
-		@{ Path = $pointAndPrintPath; Name = "RestrictDriverInstallationToAdministrators"; Value = 0; Type = "DWord"; Description = "Allowed printer drivers to install without admin-only restrictions" }
-	))
-	{
-		try
-		{
-			Set-SystemTweaksRegistryValue -Path $registrySetting.Path -Name $registrySetting.Name -Value $registrySetting.Value -Type $registrySetting.Type
-			LogInfo $registrySetting.Description
-		}
-		catch
-		{
-			$hadIssue = $true
-			LogWarning "Failed to set $($registrySetting.Name) at $($registrySetting.Path): $($_.Exception.Message)"
-		}
-	}
-
-	try
-	{
-		if (Get-Command Set-SmbServerConfiguration -ErrorAction SilentlyContinue)
-		{
-			Set-SmbServerConfiguration -EnableSMB2Protocol $true -Force -ErrorAction Stop | Out-Null
-			LogInfo "SMB2 enabled via Set-SmbServerConfiguration"
-		}
-	}
-	catch
-	{
-		$hadIssue = $true
-		LogWarning "Failed to enable SMB2 via Set-SmbServerConfiguration: $($_.Exception.Message)"
-	}
-
-	try
-	{
-		if (Get-Command Set-SmbClientConfiguration -ErrorAction SilentlyContinue)
-		{
-			Set-SmbClientConfiguration -EnableInsecureGuestLogons $true -RequireSecuritySignature $false -EnableSecuritySignature $true -Force -ErrorAction Stop | Out-Null
-			LogInfo "Enabled SMB client guest logons"
-		}
-	}
-	catch
-	{
-		$hadIssue = $true
-		LogWarning "Failed to enable SMB client guest logons: $($_.Exception.Message)"
-	}
-
-	try
-	{
-		if ((Get-Command Get-NetConnectionProfile -ErrorAction SilentlyContinue) -and (Get-Command Set-NetConnectionProfile -ErrorAction SilentlyContinue))
-		{
-			Get-NetConnectionProfile -ErrorAction SilentlyContinue | ForEach-Object {
-				$profileAlias = $_.InterfaceAlias
-				$profileCategory = $_.NetworkCategory
-				LogInfo "Adapter: '$profileAlias' -> $profileCategory"
-
-				if ($profileCategory -eq "Public")
-				{
-					Set-NetConnectionProfile -InterfaceAlias $profileAlias -NetworkCategory Private -ErrorAction Stop
-					LogInfo "Changed '$profileAlias' Public -> Private"
-				}
-				else
-				{
-					LogInfo "'$profileAlias' already $profileCategory"
-				}
-			}
-		}
-		else
-		{
-			LogInfo "Get-NetConnectionProfile/Set-NetConnectionProfile not available on this system"
-		}
-	}
-	catch
-	{
-		$hadIssue = $true
-		LogWarning "Could not check or update network profile: $($_.Exception.Message)"
-	}
-
-	try
-	{
-		if ((Get-Command Get-NetFirewallRule -ErrorAction SilentlyContinue) -and (Get-Command Set-NetFirewallRule -ErrorAction SilentlyContinue))
-		{
-			$firewallRules = @(
-				"@FirewallAPI.dll,-32752",
-				"@FirewallAPI.dll,-28502"
-			)
-
-			$firewallProfiles = @(
-				Get-NetConnectionProfile -ErrorAction SilentlyContinue |
-					Select-Object -ExpandProperty NetworkCategory -Unique |
-					ForEach-Object {
-						switch ($_)
-						{
-							"Private" { "Private" }
-							"DomainAuthenticated" { "Domain" }
-							"Public" { "Public" }
-						}
-					}
-			) | Where-Object { $_ } | Select-Object -Unique
-
-			if (-not $firewallProfiles)
-			{
-				$firewallProfiles = @("Private", "Domain")
-			}
-
-			Set-NetFirewallRule -Group $firewallRules -Profile $firewallProfiles -Enabled True -ErrorAction Stop | Out-Null
-			Get-NetFirewallRule -Name FPS-SMB-In-TCP -ErrorAction SilentlyContinue |
-				Set-NetFirewallRule -Profile $firewallProfiles -Enabled True -ErrorAction Stop | Out-Null
-
-			LogInfo "Enabled file and printer sharing firewall rules for profiles: $($firewallProfiles -join ', ')"
-		}
-		else
-		{
-			& netsh advfirewall firewall set rule group="File and Printer Sharing" new enable=Yes | Out-Null
-			& netsh advfirewall firewall set rule group="Network Discovery" new enable=Yes | Out-Null
-			LogInfo "File and printer sharing firewall rules enabled via netsh"
-		}
-	}
-	catch
-	{
-		$hadIssue = $true
-		LogWarning "Failed to enable file and printer sharing firewall rules: $($_.Exception.Message)"
-	}
-
-	try
-	{
-		if (Get-Command Get-Service -ErrorAction SilentlyContinue)
-		{
-			$netServices = @(
-				"fdPHost",
-				"FDResPub",
-				"FDResSvc",
-				"lmhosts",
-				"SSDPSRV",
-				"upnphost",
-				"LanmanServer",
-				"LanmanWorkstation"
-			)
-
-			foreach ($serviceName in $netServices)
-			{
-				$service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
-				if ($service)
-				{
-					$wasRunning = ($service.Status -eq "Running")
-					Set-Service -Name $serviceName -StartupType Automatic -ErrorAction Stop
-					if (-not $wasRunning)
-					{
-						Start-Service -Name $serviceName -ErrorAction SilentlyContinue
-					}
-					LogInfo "Service $serviceName - Automatic + $(if ($wasRunning) { 'Already running' } else { 'Started' })"
-				}
-				else
-				{
-					LogInfo "Service $serviceName not present on this OS"
-				}
-			}
-		}
-	}
-	catch
-	{
-		$hadIssue = $true
-		LogWarning "Could not configure network discovery services: $($_.Exception.Message)"
-	}
+			# P5 rollback checkpoint: SharedPrinterConnectionErrors part extracted to Module/Regions/SystemTweaks/SMBRepair/SharedPrinterConnectionErrors/RegistryCompatibilitySettings.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'SMBRepair\SharedPrinterConnectionErrors\RegistryCompatibilitySettings.ps1')
 
 	LogInfo "Refreshing DNS and NetBIOS caches"
-	try
-	{
-		& ipconfig /flushdns | Out-Null
-		if ($LASTEXITCODE -ne 0)
-		{
-			throw "ipconfig returned exit code $LASTEXITCODE while flushing DNS"
-		}
-		LogInfo "DNS cache flushed"
-	}
-	catch
-	{
-		$hadIssue = $true
-		LogWarning "ipconfig /flushdns failed: $($_.Exception.Message)"
-	}
-
-	try
-	{
-		& nbtstat -R | Out-Null
-		if ($LASTEXITCODE -ne 0)
-		{
-			throw "nbtstat returned exit code $LASTEXITCODE while purging the NetBIOS cache"
-		}
-		LogInfo "NetBIOS cache purged (nbtstat -R)"
-	}
-	catch
-	{
-		$hadIssue = $true
-		LogWarning "nbtstat -R failed: $($_.Exception.Message)"
-	}
-
-	try
-	{
-		& nbtstat -RR | Out-Null
-		if ($LASTEXITCODE -ne 0)
-		{
-			throw "nbtstat returned exit code $LASTEXITCODE while re-registering NetBIOS names"
-		}
-		LogInfo "NetBIOS names re-registered (nbtstat -RR)"
-	}
-	catch
-	{
-		$hadIssue = $true
-		LogWarning "nbtstat -RR failed: $($_.Exception.Message)"
-	}
-
-	try
-	{
-		$nicConfigs = Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration -Filter "IPEnabled=TRUE" -ErrorAction SilentlyContinue
-		if ($nicConfigs)
-		{
-			foreach ($nic in $nicConfigs)
-			{
-				$result = Invoke-CimMethod -InputObject $nic -MethodName SetTcpipNetbios -Arguments @{ TcpipNetbiosOptions = 1 } -ErrorAction SilentlyContinue
-				if ($result.ReturnValue -eq 0)
-				{
-					LogInfo "NetBIOS enabled on adapter: $($nic.Description)"
-				}
-				else
-				{
-					$hadIssue = $true
-					LogWarning "NetBIOS set returned $($result.ReturnValue) on: $($nic.Description)"
-				}
-			}
-		}
-		elseif (Get-Command wmic -ErrorAction SilentlyContinue)
-		{
-			& wmic nicconfig where "(IPEnabled=TRUE)" call SetTcpipNetbios 1 | Out-Null
-			if ($LASTEXITCODE -ne 0)
-			{
-				throw "wmic returned exit code $LASTEXITCODE while enabling NetBIOS"
-			}
-			LogInfo "NetBIOS over TCP/IP enabled via wmic"
-		}
-		else
-		{
-			LogInfo "NetBIOS enable skipped because the WMI and wmic paths were unavailable"
-		}
-	}
-	catch
-	{
-		$hadIssue = $true
-		LogWarning "NetBIOS enable failed: $($_.Exception.Message)"
-	}
+			# P5 rollback checkpoint: SharedPrinterConnectionErrors part extracted to Module/Regions/SystemTweaks/SMBRepair/SharedPrinterConnectionErrors/NetworkCacheFlush.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'SMBRepair\SharedPrinterConnectionErrors\NetworkCacheFlush.ps1')
 
 	LogInfo "Stopping the Print Spooler to clear stale jobs"
 	try
@@ -1311,46 +949,8 @@ function SharedPrinterConnectionErrors
 	}
 
 	LogInfo "HKCU\\..\\Windows registry ACL"
-	try
-	{
-		$regKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey(
-			"Software\Microsoft\Windows NT\CurrentVersion\Windows",
-			[Microsoft.Win32.RegistryKeyPermissionCheck]::ReadWriteSubTree,
-			[System.Security.AccessControl.RegistryRights]::ChangePermissions
-		)
-
-		if ($null -eq $regKey)
-		{
-			throw "Could not open HKCU registry key for ACL modification."
-		}
-
-		$acl = $regKey.GetAccessControl()
-		$currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-		$systemAcc = (New-Object System.Security.Principal.SecurityIdentifier(
-			[System.Security.Principal.WellKnownSidType]::LocalSystemSid, $null
-		)).Translate([System.Security.Principal.NTAccount]).Value
-
-		foreach ($id in @($currentUser, $systemAcc))
-		{
-			$rule = New-Object System.Security.AccessControl.RegistryAccessRule(
-				$id,
-				[System.Security.AccessControl.RegistryRights]::FullControl,
-				[System.Security.AccessControl.InheritanceFlags]::ContainerInherit,
-				[System.Security.AccessControl.PropagationFlags]::None,
-				[System.Security.AccessControl.AccessControlType]::Allow
-			)
-			$acl.SetAccessRule($rule)
-			LogInfo "FullControl on HKCU\\..\\Windows -> $id"
-		}
-
-		$regKey.SetAccessControl($acl)
-		$regKey.Close()
-	}
-	catch
-	{
-		$hadIssue = $true
-		LogWarning "Could not set HKCU registry ACL: $($_.Exception.Message)"
-	}
+			# P5 rollback checkpoint: SharedPrinterConnectionErrors part extracted to Module/Regions/SystemTweaks/SMBRepair/SharedPrinterConnectionErrors/PrinterRegistryAclRepair.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'SMBRepair\SharedPrinterConnectionErrors\PrinterRegistryAclRepair.ps1')
 
 	LogInfo "TCP connection tuning (ephemeral ports, TIME_WAIT, backlog)"
 	foreach ($tcpSetting in @(
@@ -1377,247 +977,23 @@ function SharedPrinterConnectionErrors
 	}
 
 	LogInfo "TCP stack performance (auto-tuning, RSS, chimney)"
-	try
-	{
-		& netsh int tcp set global autotuninglevel=normal 2>&1 | Out-Null
-		if ($LASTEXITCODE -ne 0)
-		{
-			throw "netsh returned exit code $LASTEXITCODE while setting autotuninglevel"
-		}
-		LogInfo "TCP autotuninglevel = normal"
-	}
-	catch
-	{
-		$hadIssue = $true
-		LogWarning "netsh tcp autotuninglevel failed: $($_.Exception.Message)"
-	}
-
-	try
-	{
-		& netsh int tcp set global rss=enabled 2>&1 | Out-Null
-		if ($LASTEXITCODE -ne 0)
-		{
-			throw "netsh returned exit code $LASTEXITCODE while setting RSS"
-		}
-		LogInfo "TCP RSS = enabled"
-	}
-	catch
-	{
-		$hadIssue = $true
-		LogWarning "netsh tcp rss failed: $($_.Exception.Message)"
-	}
-
-	try
-	{
-		& netsh int tcp set global chimney=enabled 2>&1 | Out-Null
-		if ($LASTEXITCODE -ne 0)
-		{
-			throw "netsh returned exit code $LASTEXITCODE while setting chimney"
-		}
-		LogInfo "TCP chimney = enabled"
-	}
-	catch
-	{
-		$hadIssue = $true
-		LogWarning "netsh tcp chimney failed (not supported on all hardware): $($_.Exception.Message)"
-	}
+			# P5 rollback checkpoint: SharedPrinterConnectionErrors part extracted to Module/Regions/SystemTweaks/SMBRepair/SharedPrinterConnectionErrors/TcpCompatibilitySettings.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'SMBRepair\SharedPrinterConnectionErrors\TcpCompatibilitySettings.ps1')
 
 	LogInfo "Shared printer audit"
+			# P5 rollback checkpoint: SharedPrinterConnectionErrors part extracted to Module/Regions/SystemTweaks/SMBRepair/SharedPrinterConnectionErrors/SharedPrinterDiscovery.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'SMBRepair\SharedPrinterConnectionErrors\SharedPrinterDiscovery.ps1')
+
+	LogInfo "Host SFC check"
 	try
 	{
-		if (Get-Command Get-Printer -ErrorAction SilentlyContinue)
-		{
-			$printers = Get-Printer -ErrorAction SilentlyContinue
-			$shared = $printers | Where-Object { $_.Shared }
-			if ($shared)
-			{
-				LogInfo "Shared printers on this host:"
-				$shared | ForEach-Object {
-					LogInfo "  -> '$($_.Name)' share='$($_.ShareName)'"
-				}
-			}
-			else
-			{
-				LogInfo "No printers are currently shared on this host."
-			}
-		}
-		else
-		{
-			LogInfo "Get-Printer not available on this system"
-		}
+		$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\sfc.exe" -ArgumentList @('/scannow') -TimeoutSeconds 3600 -AllowedExitCodes @(0)
+		LogInfo "SFC completed successfully"
 	}
 	catch
 	{
 		$hadIssue = $true
-		LogWarning "Could not enumerate printers: $($_.Exception.Message)"
-	}
-
-	if ($ClientMode)
-	{
-		LogInfo "Applying optional client-side printer cleanup"
-
-		try
-		{
-			switch ($osInfo.CurrentBuild)
-			{
-				19041 { Set-SystemTweaksRegistryValue -Path "HKLM:\SYSTEM\CurrentControlSet\Policies\Microsoft\FeatureManagement\Overrides" -Name "713073804" -Value 0 -Type DWord }
-				19042 { Set-SystemTweaksRegistryValue -Path "HKLM:\SYSTEM\CurrentControlSet\Policies\Microsoft\FeatureManagement\Overrides" -Name "713073804" -Value 0 -Type DWord }
-				19043 { Set-SystemTweaksRegistryValue -Path "HKLM:\SYSTEM\CurrentControlSet\Policies\Microsoft\FeatureManagement\Overrides" -Name "713073804" -Value 0 -Type DWord }
-				19044 { Set-SystemTweaksRegistryValue -Path "HKLM:\SYSTEM\CurrentControlSet\Policies\Microsoft\FeatureManagement\Overrides" -Name "713073804" -Value 0 -Type DWord }
-				18363 { Set-SystemTweaksRegistryValue -Path "HKLM:\SYSTEM\CurrentControlSet\Policies\Microsoft\FeatureManagement\Overrides" -Name "1921033356" -Value 0 -Type DWord }
-				17763 { Set-SystemTweaksRegistryValue -Path "HKLM:\SYSTEM\CurrentControlSet\Policies\Microsoft\FeatureManagement\Overrides" -Name "3598754956" -Value 0 -Type DWord }
-				22000 { LogInfo "Win11 21H2 - ensure the relevant printer update is installed." }
-				default
-				{
-					if ($osInfo.CurrentBuild -ge 22621)
-					{
-						LogInfo "Win11 22H2+ - RPC Named Pipes fix is usually the main resolution for 0x7C."
-					}
-					else
-					{
-						LogWarning "Unrecognised build $($osInfo.CurrentBuild) - applying all known KIR values"
-						Set-SystemTweaksRegistryValue -Path "HKLM:\SYSTEM\CurrentControlSet\Policies\Microsoft\FeatureManagement\Overrides" -Name "713073804" -Value 0 -Type DWord
-						Set-SystemTweaksRegistryValue -Path "HKLM:\SYSTEM\CurrentControlSet\Policies\Microsoft\FeatureManagement\Overrides" -Name "1921033356" -Value 0 -Type DWord
-						Set-SystemTweaksRegistryValue -Path "HKLM:\SYSTEM\CurrentControlSet\Policies\Microsoft\FeatureManagement\Overrides" -Name "3598754956" -Value 0 -Type DWord
-					}
-				}
-			}
-		}
-		catch
-		{
-			$hadIssue = $true
-			LogWarning "Failed to apply client KIR values: $($_.Exception.Message)"
-		}
-
-		LogInfo "KIR reboot required for this change to take effect."
-
-		LogInfo "Stopping the Print Spooler for client-side CSR cleanup"
-		try
-		{
-			Stop-Service -Name Spooler -Force -ErrorAction SilentlyContinue
-		}
-		catch
-		{
-			$hadIssue = $true
-			LogWarning "Could not stop the Print Spooler for client-side cleanup: $($_.Exception.Message)"
-		}
-		Start-Sleep -Seconds 2
-
-		try
-		{
-			$clientCsrPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Print\Providers\Client Side Rendering Print Provider"
-			if (Test-Path $clientCsrPath)
-			{
-				$bak = Join-Path $env:TEMP "CSR_Client_backup.reg"
-				$native = $clientCsrPath -replace '^HKLM:\\', 'HKEY_LOCAL_MACHINE\'
-				& reg export $native $bak /y | Out-Null
-				if ($LASTEXITCODE -ne 0)
-				{
-					throw "reg export returned exit code $LASTEXITCODE while backing up the client CSR Print Provider key"
-				}
-				Remove-Item -Path $clientCsrPath -Recurse -Force -ErrorAction Stop
-				LogInfo "Deleted CSR Print Provider key on client (backed up to $bak)"
-			}
-			else
-			{
-				LogInfo "CSR key not present on client -- OK"
-			}
-		}
-		catch
-		{
-			$hadIssue = $true
-			LogWarning "Could not remove client CSR key: $($_.Exception.Message)"
-		}
-
-		LogInfo "mscms.dll copy on client"
-		$clientSrc = Join-Path $env:SystemRoot "System32\mscms.dll"
-		if (Test-Path $clientSrc)
-		{
-			foreach ($f in @(
-				"$env:SystemRoot\System32\spool\drivers\x64\3",
-				"$env:SystemRoot\System32\spool\drivers\x64\4",
-				"$env:SystemRoot\System32\spool\drivers\W32X86\3",
-				"$env:SystemRoot\System32\spool\drivers\arm64\3",
-				"$env:SystemRoot\System32\spool\drivers\arm64\4"
-			))
-			{
-				if (Test-Path $f)
-				{
-					try
-					{
-						Copy-Item -Path $clientSrc -Destination (Join-Path $f "mscms.dll") -Force -ErrorAction Stop
-						LogInfo "Copied mscms.dll -> $f"
-					}
-					catch
-					{
-						$hadIssue = $true
-						LogWarning "Could not copy mscms.dll to $f : $($_.Exception.Message)"
-					}
-				}
-			}
-		}
-		else
-		{
-			$hadIssue = $true
-			LogWarning "mscms.dll not found at $clientSrc -- run sfc /scannow"
-		}
-
-		LogInfo "Client-side SFC system file check"
-		try
-		{
-			$sfc = Start-Process -FilePath sfc.exe -ArgumentList "/scannow" -Wait -PassThru -NoNewWindow -ErrorAction Stop
-			if ($sfc.ExitCode -eq 0)
-			{
-				LogInfo "SFC completed -- no violations found"
-			}
-			else
-			{
-				LogWarning "SFC ExitCode $($sfc.ExitCode) -- check CBS.log for details"
-			}
-		}
-		catch
-		{
-			$hadIssue = $true
-			LogWarning "SFC could not be run: $($_.Exception.Message)"
-		}
-
-		LogInfo "Final client spooler restart"
-		try
-		{
-			Stop-Service -Name Spooler -Force -ErrorAction SilentlyContinue
-		}
-		catch
-		{
-			$hadIssue = $true
-			LogWarning "Could not stop the Print Spooler for the final client restart: $($_.Exception.Message)"
-		}
-		Start-Sleep -Seconds 2
-
-		try
-		{
-			Set-Service -Name Spooler -StartupType Automatic -ErrorAction Stop
-			Start-Service -Name Spooler -ErrorAction SilentlyContinue
-			Start-Sleep -Seconds 2
-			$spoolerStatus = (Get-Service -Name Spooler -ErrorAction Stop).Status
-			LogInfo "Print Spooler: $spoolerStatus"
-		}
-		catch
-		{
-			$hadIssue = $true
-			LogWarning "Could not restart the Print Spooler on the client: $($_.Exception.Message)"
-		}
-	}
-
-	LogInfo "Host SFC check (background)"
-	try
-	{
-		Start-Process -FilePath sfc.exe -ArgumentList "/scannow" -WindowStyle Hidden -ErrorAction Stop | Out-Null
-		LogInfo "SFC launched in background -- check CBS.log if issues persist after reboot"
-	}
-	catch
-	{
-		$hadIssue = $true
-		LogWarning "SFC could not be launched: $($_.Exception.Message)"
+		LogWarning "SFC did not complete successfully: $($_.Exception.Message)"
 	}
 
 	LogWarning "Restart required to complete shared printer connection repairs."
@@ -1630,5 +1006,11 @@ function SharedPrinterConnectionErrors
 		Write-ConsoleStatus -Status success
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'LanmanWorkstationGuestAuthPolicy',
+    'SharedPrinterConnectionErrors',
+    'SMBGuestCompatibility',
+    'SMBSharingCompatibility',
+    'Windows11SMBUpdateIssue'
+)
+Export-ModuleMember -Function $ExportedFunctions

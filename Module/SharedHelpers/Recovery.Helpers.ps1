@@ -3,7 +3,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Get-DirectUndoCommandForEntry.
 #>
 
 function Get-DirectUndoCommandForEntry
@@ -223,7 +222,6 @@ function Get-DirectUndoCommandForEntry
 
 <#
     .SYNOPSIS
-    Internal function Get-DirectUndoCommandLineForEntry.
 #>
 
 function Get-DirectUndoCommandLineForEntry
@@ -278,7 +276,6 @@ function Get-DirectUndoCommandLineForEntry
 
 <#
     .SYNOPSIS
-    Internal function Test-ShouldRecommendRestorePoint.
 #>
 
 function Test-ShouldRecommendRestorePoint

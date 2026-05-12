@@ -1938,5 +1938,40 @@ function AuthHardeningCautionRegistry
 }
 
 #endregion Protection & Hardening
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'ActiveXLockdown',
+    'AdobereaderDCSTIG',
+    'AirstrikeAttack',
+    'AuditingBaseline',
+    'AuthHardeningCautionRegistry',
+    'AuthHardeningRegistry',
+    'AutoRun',
+    'BiometricsAntiSpoofing',
+    'BrowserEnterprisePolicies',
+    'CertPaddingCheck',
+    'ClickOnce',
+    'DLLHijackingPrevention',
+    'EventLogSize',
+    'FileSystemPerformance',
+    'MacroRuntimeScanScope',
+    'MountManagerAutoMount',
+    'MsMsdtHandler',
+    'MSOffice',
+    'MSOfficeLinks',
+    'NetbiosOverTcpip',
+    'NetworkHardeningRegistry',
+    'OneNoteEmbeds',
+    'OS',
+    'PowerShellTranscription',
+    'PowerShellV2',
+    'ProtectedCreds',
+    'RansomwareScriptLockdown',
+    'RegistryPaths',
+    'RPCSurface',
+    'RtfDocuments',
+    'Test-BaselineAdobeReaderInstalled',
+    'WDigestCaching',
+    'WinRM',
+    'WinRMService'
+)
+Export-ModuleMember -Function $ExportedFunctions

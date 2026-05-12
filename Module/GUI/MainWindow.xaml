@@ -69,6 +69,37 @@
 				</Setter.Value>
 			</Setter>
 		</Style>
+		<Style x:Key="BaselineScrollBarArrowButtonStyle" TargetType="RepeatButton">
+			<Setter Property="OverridesDefaultStyle" Value="True"/>
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="IsTabStop" Value="False"/>
+			<Setter Property="Focusable" Value="False"/>
+			<Setter Property="Delay" Value="350"/>
+			<Setter Property="Interval" Value="55"/>
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="RepeatButton">
+						<Grid Background="Transparent" SnapsToDevicePixels="True">
+							<Border x:Name="ArrowSurface" Background="{DynamicResource ScrollBarThumbHoverBrush}" CornerRadius="4" Opacity="0"/>
+							<ContentPresenter x:Name="ArrowGlyph" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.38"/>
+						</Grid>
+						<ControlTemplate.Triggers>
+							<Trigger Property="IsMouseOver" Value="True">
+								<Setter TargetName="ArrowSurface" Property="Opacity" Value="0.16"/>
+								<Setter TargetName="ArrowGlyph" Property="Opacity" Value="0.92"/>
+							</Trigger>
+							<Trigger Property="IsPressed" Value="True">
+								<Setter TargetName="ArrowSurface" Property="Opacity" Value="0.24"/>
+								<Setter TargetName="ArrowGlyph" Property="Opacity" Value="1.0"/>
+							</Trigger>
+							<Trigger Property="IsEnabled" Value="False">
+								<Setter TargetName="ArrowGlyph" Property="Opacity" Value="0.14"/>
+							</Trigger>
+						</ControlTemplate.Triggers>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+		</Style>
 
 		<Style TargetType="ScrollBar">
 			<Setter Property="Background" Value="{DynamicResource ScrollBarTrackBrush}"/>
@@ -77,14 +108,22 @@
 			<Setter Property="SnapsToDevicePixels" Value="True"/>
 			<Style.Triggers>
 				<Trigger Property="Orientation" Value="Vertical">
-					<Setter Property="Width" Value="8"/>
-					<Setter Property="MinWidth" Value="8"/>
+					<Setter Property="Width" Value="10"/>
+					<Setter Property="MinWidth" Value="10"/>
 					<Setter Property="Template">
 						<Setter.Value>
 							<ControlTemplate TargetType="ScrollBar">
-								<Grid Background="Transparent">
-									<Border Background="{TemplateBinding Background}" Opacity="0.30" CornerRadius="4"/>
-									<Track Name="PART_Track" IsDirectionReversed="True">
+								<Grid Background="Transparent" SnapsToDevicePixels="True">
+									<Grid.RowDefinitions>
+										<RowDefinition Height="16"/>
+										<RowDefinition Height="*"/>
+										<RowDefinition Height="16"/>
+									</Grid.RowDefinitions>
+									<RepeatButton Grid.Row="0" Style="{StaticResource BaselineScrollBarArrowButtonStyle}" Command="ScrollBar.LineUpCommand">
+										<Path Data="M 2 6 L 5 3 L 8 6" Stroke="{DynamicResource ScrollBarThumbBrush}" StrokeThickness="1.45" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="8" Height="8" Stretch="Uniform"/>
+									</RepeatButton>
+									<Border Grid.Row="1" Background="{TemplateBinding Background}" Opacity="0.30" CornerRadius="5" Margin="1,0"/>
+									<Track Grid.Row="1" Name="PART_Track" IsDirectionReversed="True">
 										<Track.DecreaseRepeatButton>
 											<RepeatButton Style="{StaticResource BaselineScrollBarRepeatButtonStyle}" Command="ScrollBar.PageUpCommand"/>
 										</Track.DecreaseRepeatButton>
@@ -95,20 +134,31 @@
 											<RepeatButton Style="{StaticResource BaselineScrollBarRepeatButtonStyle}" Command="ScrollBar.PageDownCommand"/>
 										</Track.IncreaseRepeatButton>
 									</Track>
+									<RepeatButton Grid.Row="2" Style="{StaticResource BaselineScrollBarArrowButtonStyle}" Command="ScrollBar.LineDownCommand">
+										<Path Data="M 2 3 L 5 6 L 8 3" Stroke="{DynamicResource ScrollBarThumbBrush}" StrokeThickness="1.45" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="8" Height="8" Stretch="Uniform"/>
+									</RepeatButton>
 								</Grid>
 							</ControlTemplate>
 						</Setter.Value>
 					</Setter>
 				</Trigger>
 				<Trigger Property="Orientation" Value="Horizontal">
-					<Setter Property="Height" Value="8"/>
-					<Setter Property="MinHeight" Value="8"/>
+					<Setter Property="Height" Value="10"/>
+					<Setter Property="MinHeight" Value="10"/>
 					<Setter Property="Template">
 						<Setter.Value>
 							<ControlTemplate TargetType="ScrollBar">
-								<Grid Background="Transparent">
-									<Border Background="{TemplateBinding Background}" Opacity="0.30" CornerRadius="4"/>
-									<Track Name="PART_Track" IsDirectionReversed="False">
+								<Grid Background="Transparent" SnapsToDevicePixels="True">
+									<Grid.ColumnDefinitions>
+										<ColumnDefinition Width="16"/>
+										<ColumnDefinition Width="*"/>
+										<ColumnDefinition Width="16"/>
+									</Grid.ColumnDefinitions>
+									<RepeatButton Grid.Column="0" Style="{StaticResource BaselineScrollBarArrowButtonStyle}" Command="ScrollBar.LineLeftCommand">
+										<Path Data="M 6 2 L 3 5 L 6 8" Stroke="{DynamicResource ScrollBarThumbBrush}" StrokeThickness="1.45" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="8" Height="8" Stretch="Uniform"/>
+									</RepeatButton>
+									<Border Grid.Column="1" Background="{TemplateBinding Background}" Opacity="0.30" CornerRadius="5" Margin="0,1"/>
+									<Track Grid.Column="1" Name="PART_Track" IsDirectionReversed="False">
 										<Track.DecreaseRepeatButton>
 											<RepeatButton Style="{StaticResource BaselineScrollBarRepeatButtonStyle}" Command="ScrollBar.PageLeftCommand"/>
 										</Track.DecreaseRepeatButton>
@@ -119,6 +169,9 @@
 											<RepeatButton Style="{StaticResource BaselineScrollBarRepeatButtonStyle}" Command="ScrollBar.PageRightCommand"/>
 										</Track.IncreaseRepeatButton>
 									</Track>
+									<RepeatButton Grid.Column="2" Style="{StaticResource BaselineScrollBarArrowButtonStyle}" Command="ScrollBar.LineRightCommand">
+										<Path Data="M 3 2 L 6 5 L 3 8" Stroke="{DynamicResource ScrollBarThumbBrush}" StrokeThickness="1.45" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="8" Height="8" Stretch="Uniform"/>
+									</RepeatButton>
 								</Grid>
 							</ControlTemplate>
 						</Setter.Value>
@@ -374,6 +427,9 @@
 					<MenuItem Name="MenuToolsUpdateAllApps" Header="Update All Applications" Visibility="Collapsed"/>
 					<Separator Name="MenuToolsSepApps" Visibility="Collapsed"/>
 					<MenuItem Name="MenuToolsExportSupportBundle" Header="Export Support Bundle..."/>
+					<MenuItem Name="MenuToolsAdvanced" Header="Advanced Tools">
+						<MenuItem Name="MenuToolsDeploymentMediaBuilder" Header="Deployment Media Builder..."/>
+					</MenuItem>
 					<MenuItem Name="MenuToolsApproveRemoteTargets" Header="Approve Target List..."/>
 					<MenuItem Name="MenuToolsSaveRemoteApprovalPolicy" Header="Save Remote Approval Policy..."/>
 					<MenuItem Name="MenuToolsLoadRemoteApprovalPolicy" Header="Load Remote Approval Policy..."/>
@@ -497,6 +553,7 @@
 						<StackPanel Orientation="Horizontal" Margin="0,0,0,2">
 							<RadioButton Name="NavModeTweaks" Content="" IsChecked="True" FontSize="11" Margin="0,0,10,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
 							<RadioButton Name="NavModeUpdates" Content="" FontSize="11" Margin="0,0,10,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
+							<RadioButton Name="NavModeDeploymentMedia" Content="" FontSize="11" Margin="0,0,10,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
 							<RadioButton Name="NavModeApps" Content="" FontSize="11" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
 						</StackPanel>
 						<TextBlock Name="ModeSubtitle" Text="" HorizontalAlignment="Left" FontSize="10" Opacity="0.6" Margin="2,0,0,0"/>
@@ -584,6 +641,173 @@
 				<Grid Name="TweaksView" Visibility="Visible">
 					<ScrollViewer Name="ContentScroll" VerticalScrollBarVisibility="Auto"
 						HorizontalScrollBarVisibility="Disabled"/>
+				</Grid>
+				<Grid Name="DeploymentMediaView" Visibility="Collapsed">
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="*"/>
+					</Grid.RowDefinitions>
+					<StackPanel Grid.Row="0" Orientation="Vertical" Margin="10,4,10,10">
+						<Grid Margin="0,0,0,8">
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="Auto"/>
+								<ColumnDefinition Width="*"/>
+								<ColumnDefinition Width="Auto"/>
+							</Grid.ColumnDefinitions>
+							<StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+								<Button Name="BtnDeploymentMediaDetectIso" Content="" Padding="10,5" Margin="0,0,8,0" Cursor="Hand"/>
+								<Button Name="BtnDeploymentMediaPreviewPlan" Content="" Padding="10,5" Margin="0,0,8,0" Cursor="Hand"/>
+							</StackPanel>
+							<TextBlock Grid.Column="1" Name="TxtDeploymentMediaSelectionStatus" HorizontalAlignment="Stretch" VerticalAlignment="Center" FontSize="12" TextAlignment="Center" TextTrimming="CharacterEllipsis" Margin="8,0,8,0" Text=""/>
+							<StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+								<Button Name="BtnDeploymentMediaStartBuild" Content="" Padding="10,5" Cursor="Hand" IsEnabled="False" ToolTipService.ShowOnDisabled="True"/>
+							</StackPanel>
+						</Grid>
+						<Border Name="DeploymentMediaStatusBanner" Visibility="Collapsed" Margin="0,0,0,8" Padding="10,6" CornerRadius="6" BorderThickness="1">
+							<TextBlock Name="TxtDeploymentMediaBuildStatus" VerticalAlignment="Center" TextWrapping="Wrap"/>
+						</Border>
+					</StackPanel>
+					<ScrollViewer Name="DeploymentMediaScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+						HorizontalScrollBarVisibility="Disabled">
+						<WrapPanel Name="DeploymentMediaWrapPanel" Orientation="Horizontal" HorizontalAlignment="Left" Margin="10">
+							<Border Name="DeploymentMediaSourceCard" Width="430" MinHeight="224" Margin="0,0,12,12" Padding="14" CornerRadius="6" BorderThickness="1" Background="{DynamicResource Brush.SurfaceElevated}" BorderBrush="{DynamicResource Brush.Border}">
+								<Grid>
+									<Grid.RowDefinitions>
+										<RowDefinition Height="Auto"/>
+										<RowDefinition Height="Auto"/>
+										<RowDefinition Height="Auto"/>
+										<RowDefinition Height="Auto"/>
+										<RowDefinition Height="Auto"/>
+									</Grid.RowDefinitions>
+									<TextBlock Grid.Row="0" Text="Source ISO &amp; edition" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,4"/>
+									<TextBlock Grid.Row="1" Text="Use an official Microsoft Windows 10/11 ISO, then detect editions before building." TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextSecondary}" Margin="0,0,0,12"/>
+									<Grid Grid.Row="2" Margin="0,0,0,10">
+										<Grid.ColumnDefinitions>
+											<ColumnDefinition Width="*"/>
+											<ColumnDefinition Width="Auto"/>
+										</Grid.ColumnDefinitions>
+										<TextBox Name="TxtDeploymentMediaSourceIso" Grid.Column="0" Height="30" Padding="8,4" VerticalContentAlignment="Center" ToolTip="Path to an official Microsoft Windows ISO."/>
+										<Button Name="BtnDeploymentMediaBrowseIso" Grid.Column="1" Content="Browse..." Height="30" MinWidth="92" Margin="8,0,0,0" Cursor="Hand"/>
+									</Grid>
+									<Grid Grid.Row="3" Margin="0,0,0,10">
+										<Grid.ColumnDefinitions>
+											<ColumnDefinition Width="88"/>
+											<ColumnDefinition Width="*"/>
+										</Grid.ColumnDefinitions>
+										<TextBox Name="TxtDeploymentMediaEditionIndex" Grid.Column="0" Height="30" Padding="8,4" VerticalContentAlignment="Center" Text="1" ToolTip="Windows image index to build."/>
+										<ComboBox Name="CmbDeploymentMediaDetectedEdition" Grid.Column="1" Height="30" Margin="8,0,0,0" IsEnabled="False" ToolTip="Run Detect Editions after choosing a source ISO."/>
+									</Grid>
+									<TextBlock Grid.Row="4" Name="TxtDeploymentMediaDetectedIsoSummary" Text="No ISO inspected yet." Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap"/>
+								</Grid>
+							</Border>
+							<Border Name="DeploymentMediaOutputCard" Width="430" MinHeight="224" Margin="0,0,12,12" Padding="14" CornerRadius="6" BorderThickness="1" Background="{DynamicResource Brush.SurfaceElevated}" BorderBrush="{DynamicResource Brush.Border}">
+								<Grid>
+									<Grid.RowDefinitions>
+										<RowDefinition Height="Auto"/>
+										<RowDefinition Height="Auto"/>
+										<RowDefinition Height="Auto"/>
+										<RowDefinition Height="Auto"/>
+										<RowDefinition Height="Auto"/>
+									</Grid.RowDefinitions>
+									<TextBlock Grid.Row="0" Text="Build output" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,4"/>
+									<TextBlock Grid.Row="1" Text="Choose where Baseline stages copied media and what final artifact to produce." TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextSecondary}" Margin="0,0,0,12"/>
+									<TextBlock Grid.Row="2" Text="Working directory" Foreground="{DynamicResource Brush.TextPrimary}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+									<Grid Grid.Row="3" Margin="0,0,0,10">
+										<Grid.ColumnDefinitions>
+											<ColumnDefinition Width="*"/>
+											<ColumnDefinition Width="Auto"/>
+										</Grid.ColumnDefinitions>
+										<TextBox Name="TxtDeploymentMediaWorkingDirectory" Grid.Column="0" Height="30" Padding="8,4" VerticalContentAlignment="Center"/>
+										<Button Name="BtnDeploymentMediaBrowseWorking" Grid.Column="1" Content="Browse..." Height="30" MinWidth="92" Margin="8,0,0,0" Cursor="Hand"/>
+									</Grid>
+									<Grid Grid.Row="4">
+										<Grid.ColumnDefinitions>
+											<ColumnDefinition Width="*"/>
+											<ColumnDefinition Width="*"/>
+										</Grid.ColumnDefinitions>
+										<StackPanel Grid.Column="0" Margin="0,0,8,0">
+											<TextBlock Text="Output mode" Foreground="{DynamicResource Brush.TextPrimary}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+											<ComboBox Name="CmbDeploymentMediaOutputMode" Height="30" SelectedIndex="0">
+												<ComboBoxItem Content="Create ISO"/>
+												<ComboBoxItem Content="Create USB"/>
+												<ComboBoxItem Content="Export Working Folder Only"/>
+											</ComboBox>
+										</StackPanel>
+										<StackPanel Grid.Column="1" Margin="8,0,0,0">
+											<TextBlock Text="USB target" Foreground="{DynamicResource Brush.TextPrimary}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+											<Grid>
+												<Grid.ColumnDefinitions>
+													<ColumnDefinition Width="*"/>
+													<ColumnDefinition Width="Auto"/>
+												</Grid.ColumnDefinitions>
+												<TextBox Name="TxtDeploymentMediaUsbTargetRoot" Grid.Column="0" Height="30" Padding="8,4" VerticalContentAlignment="Center" ToolTip="Root of an empty removable drive, for example E:\"/>
+												<Button Name="BtnDeploymentMediaBrowseUsbTarget" Grid.Column="1" Content="..." Height="30" Width="36" Margin="6,0,0,0" Cursor="Hand"/>
+											</Grid>
+										</StackPanel>
+									</Grid>
+								</Grid>
+							</Border>
+							<Border Name="DeploymentMediaCustomizationCard" Width="430" MinHeight="224" Margin="0,0,12,12" Padding="14" CornerRadius="6" BorderThickness="1" Background="{DynamicResource Brush.SurfaceElevated}" BorderBrush="{DynamicResource Brush.Border}">
+								<Grid>
+									<Grid.RowDefinitions>
+										<RowDefinition Height="Auto"/>
+										<RowDefinition Height="Auto"/>
+										<RowDefinition Height="Auto"/>
+										<RowDefinition Height="Auto"/>
+										<RowDefinition Height="Auto"/>
+									</Grid.RowDefinitions>
+									<TextBlock Grid.Row="0" Text="Setup customizations" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,4"/>
+									<TextBlock Grid.Row="1" Text="Stage an answer file, optional driver folder, and selected Baseline setup customizations." TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextSecondary}" Margin="0,0,0,12"/>
+									<TextBlock Grid.Row="2" Text="Autounattend.xml" Foreground="{DynamicResource Brush.TextPrimary}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+									<Grid Grid.Row="3" Margin="0,0,0,10">
+										<Grid.ColumnDefinitions>
+											<ColumnDefinition Width="*"/>
+											<ColumnDefinition Width="Auto"/>
+										</Grid.ColumnDefinitions>
+										<TextBox Name="TxtDeploymentMediaAutounattend" Grid.Column="0" Height="30" Padding="8,4" VerticalContentAlignment="Center"/>
+										<Button Name="BtnDeploymentMediaBrowseAutounattend" Grid.Column="1" Content="Browse..." Height="30" MinWidth="92" Margin="8,0,0,0" Cursor="Hand"/>
+									</Grid>
+									<StackPanel Grid.Row="4" Orientation="Vertical">
+										<TextBlock Text="Driver folder" Foreground="{DynamicResource Brush.TextPrimary}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+										<Grid Margin="0,0,0,8">
+											<Grid.ColumnDefinitions>
+												<ColumnDefinition Width="*"/>
+												<ColumnDefinition Width="Auto"/>
+											</Grid.ColumnDefinitions>
+											<TextBox Name="TxtDeploymentMediaDriverSource" Grid.Column="0" Height="30" Padding="8,4" VerticalContentAlignment="Center"/>
+											<Button Name="BtnDeploymentMediaBrowseDrivers" Grid.Column="1" Content="Browse..." Height="30" MinWidth="92" Margin="8,0,0,0" Cursor="Hand"/>
+										</Grid>
+										<CheckBox Name="ChkDeploymentMediaBootDrivers" Content="Inject storage/network drivers into boot.wim" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,4"/>
+										<CheckBox Name="ChkDeploymentMediaBaselineTweaks" Content="Stage selected Baseline setup customizations" Foreground="{DynamicResource Brush.TextPrimary}"/>
+									</StackPanel>
+								</Grid>
+							</Border>
+							<Border Name="DeploymentMediaChecklistCard" Width="430" MinHeight="224" Margin="0,0,12,12" Padding="14" CornerRadius="6" BorderThickness="1" Background="{DynamicResource Brush.SurfaceElevated}" BorderBrush="{DynamicResource Brush.Border}">
+								<StackPanel>
+									<TextBlock Text="Setup checklist" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,4"/>
+									<TextBlock Text="The builder validates each item before Start ISO Build is enabled." TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextSecondary}" Margin="0,0,0,12"/>
+									<TextBlock Text="Required: official Microsoft ISO" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,6"/>
+									<TextBlock Text="Required: detected WIM/ESD image and selected edition" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,6"/>
+									<TextBlock Text="Required: working directory for copied media" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,6"/>
+									<TextBlock Text="Optional: answer file and driver folder" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,6"/>
+									<TextBlock Text="Required for USB: empty removable-drive root" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,6"/>
+									<TextBlock Text="Required: preview the build plan before starting" Foreground="{DynamicResource Brush.TextPrimary}"/>
+								</StackPanel>
+							</Border>
+							<Border Name="DeploymentMediaPlanCard" Width="872" MinHeight="304" Margin="0,0,12,12" Padding="14" CornerRadius="6" BorderThickness="1" Background="{DynamicResource Brush.SurfaceElevated}" BorderBrush="{DynamicResource Brush.Border}">
+								<Grid>
+									<Grid.RowDefinitions>
+										<RowDefinition Height="Auto"/>
+										<RowDefinition Height="Auto"/>
+										<RowDefinition Height="*"/>
+									</Grid.RowDefinitions>
+									<TextBlock Grid.Row="0" Text="Build plan preview" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,4"/>
+									<TextBlock Grid.Row="1" Text="Preview records validation results and the exact media operation Baseline will run." TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextSecondary}" Margin="0,0,0,12"/>
+									<TextBox Name="TxtDeploymentMediaPlanPreview" Grid.Row="2" MinHeight="220" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True"/>
+								</Grid>
+							</Border>
+						</WrapPanel>
+					</ScrollViewer>
 				</Grid>
 				<Grid Name="AppsView" Visibility="Collapsed">
 					<Grid.RowDefinitions>
@@ -715,34 +939,31 @@
 			<Grid.ColumnDefinitions>
 				<ColumnDefinition Width="*"/>
 				<ColumnDefinition Width="Auto"/>
-				<ColumnDefinition Width="Auto"/>
 					</Grid.ColumnDefinitions>
 					<TextBlock Name="StatusText" Grid.Column="0" VerticalAlignment="Center"
 						FontSize="12" Margin="4,0,16,0" TextWrapping="Wrap" Visibility="Collapsed"/>
-					<TextBlock Name="TxtAppsProgressText" Grid.Column="1" HorizontalAlignment="Right"
-						VerticalAlignment="Center" FontSize="11" Margin="4,0,8,0" Opacity="0.7" Text=""/>
-					<TextBlock Name="RunPathContextLabel" Grid.Column="2" HorizontalAlignment="Right"
+					<TextBlock Name="RunPathContextLabel" Grid.Column="1" HorizontalAlignment="Right"
 						VerticalAlignment="Center" FontSize="11" Margin="4,0,8,0" Visibility="Collapsed"/>
 				</Grid>
 			</Grid>
 		</Border>
-		<Grid Name="UpdateDialogOverlay" Grid.RowSpan="6" Visibility="Collapsed" Background="{DynamicResource Brush.Overlay}" Panel.ZIndex="1000">
-			<Border Name="UpdateDialogCard" Background="{DynamicResource Brush.SurfaceElevated}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="8" Padding="24" Width="450" HorizontalAlignment="Center" VerticalAlignment="Center">
-				<StackPanel>
-					<TextBlock Name="TxtOverlayTitle" Text="" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10"/>
-					<TextBlock Name="TxtUpdateDescription" Text="" TextWrapping="Wrap" Opacity="0.8" Margin="0,0,0,20"/>
-					<Border Name="CustomPBarContainer" Height="10" Margin="0,0,0,10" CornerRadius="2" ClipToBounds="True"/>
-					<Grid Margin="0,0,0,25">
-						<TextBlock Name="TxtDownloadProgressLabel" Text="" Opacity="0.6" HorizontalAlignment="Left" FontSize="11"/>
-						<TextBlock Name="TxtDownloadProgressPct" Text="0%" Opacity="0.6" HorizontalAlignment="Right" FontSize="11"/>
-					</Grid>
-					<StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-						<Button Name="BtnDownloadNo" Content="" Width="90" Margin="0,0,10,0" Cursor="Hand"/>
-						<Button Name="BtnDownloadYes" Content="" Width="130" Cursor="Hand"/>
-					</StackPanel>
+	</Grid>
+	<Grid Name="UpdateDialogOverlay" Grid.RowSpan="2" Visibility="Collapsed" Background="{DynamicResource Brush.Overlay}" Panel.ZIndex="1000">
+		<Border Name="UpdateDialogCard" Background="{DynamicResource Brush.SurfaceElevated}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="8" Padding="24" Width="450" HorizontalAlignment="Center" VerticalAlignment="Center">
+			<StackPanel>
+				<TextBlock Name="TxtOverlayTitle" Text="" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10"/>
+				<TextBlock Name="TxtUpdateDescription" Text="" TextWrapping="Wrap" Opacity="0.8" Margin="0,0,0,20"/>
+				<Border Name="CustomPBarContainer" Height="10" Margin="0,0,0,10" CornerRadius="2" ClipToBounds="True"/>
+				<Grid Margin="0,0,0,25">
+					<TextBlock Name="TxtDownloadProgressLabel" Text="" Opacity="0.6" HorizontalAlignment="Left" FontSize="11"/>
+					<TextBlock Name="TxtDownloadProgressPct" Text="0%" Opacity="0.6" HorizontalAlignment="Right" FontSize="11"/>
+				</Grid>
+				<StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+					<Button Name="BtnDownloadNo" Content="" Width="90" Margin="0,0,10,0" Cursor="Hand"/>
+					<Button Name="BtnDownloadYes" Content="" Width="130" Cursor="Hand"/>
 				</StackPanel>
-			</Border>
-		</Grid>
+			</StackPanel>
+		</Border>
 	</Grid>
 </Grid>
 </Border>

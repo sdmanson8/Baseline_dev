@@ -2,10 +2,9 @@
 
 <#
 	    .SYNOPSIS
-	    Internal function Set-ButtonChrome.
 	#>
 
-	function Set-ButtonChrome
+	function Set-GuiButtonChrome
 	{
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param (
@@ -203,7 +202,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-WindowCaptionButtonStyle.
 	#>
 
 	function Set-WindowCaptionButtonStyle
@@ -275,6 +273,7 @@
 		$bd.SetValue([System.Windows.Controls.Border]::SnapsToDevicePixelsProperty, $true)
 
 		$cp = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.ContentPresenter])
+		$cp.SetValue([System.Windows.Controls.ContentPresenter]::ContentSourceProperty, 'Content')
 		$cp.SetValue([System.Windows.Controls.ContentPresenter]::HorizontalAlignmentProperty, [System.Windows.HorizontalAlignment]::Center)
 		$cp.SetValue([System.Windows.Controls.ContentPresenter]::VerticalAlignmentProperty, [System.Windows.VerticalAlignment]::Center)
 		$cp.SetValue([System.Windows.Controls.ContentPresenter]::RecognizesAccessKeyProperty, $true)
@@ -313,7 +312,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-HeaderToggleStyle.
 	#>
 
 	function Set-HeaderToggleStyle
@@ -493,12 +491,12 @@
 				$Script:HeaderToggleTemplates[$templateCacheKey] = $null
 				[void]$Script:HeaderToggleTemplateLoadFailures.Add($templateCacheKey)
 				Write-GuiRuntimeWarning -Context 'Set-HeaderToggleStyle' -Message ("Failed to load header toggle template '{0}': {1}" -f $templateCacheKey, $_.Exception.Message)
-				Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-HeaderToggleStyle.LoadTemplate'
+				Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-HeaderToggleStyle.LoadTemplate'
 			}
 			finally {
 				if ($templateReader)
 				{
-					try { $templateReader.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-HeaderToggleStyle.TemplateReaderDispose' }
+					try { $templateReader.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-HeaderToggleStyle.TemplateReaderDispose' }
 				}
 			}
 		}
@@ -522,13 +520,12 @@
 			$CheckBox.Foreground = $bc.ConvertFromString($(if ($Palette -eq 'Theme') { $theme.TextPrimary } else { $theme.TextSecondary }))
 		}
 		catch {
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-HeaderToggleStyle.ApplyChrome'
+			Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-HeaderToggleStyle.ApplyChrome'
 		}
 	}
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-HeaderToggleControlsStyle.
 	#>
 
 	function Set-HeaderToggleControlsStyle
@@ -543,14 +540,10 @@
 		}
 		catch
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-HeaderToggleControlsStyle.ApplyChrome'
+			Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-HeaderToggleControlsStyle.ApplyChrome'
 		}
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Update-WindowMinWidthFromHeader
 	{
 		<#
@@ -578,12 +571,11 @@
 				$Form.Width = $workArea.Width
 			}
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-WindowMinWidthFromHeader' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-WindowMinWidthFromHeader' }
 	}
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-HeaderModeStateText.
 	#>
 
 	function Update-HeaderModeStateText
@@ -595,7 +587,7 @@
 		$themeMenuLabel = if ($lightEnabled) { (Get-UxLocalizedString -Key 'GuiMenuViewSwitchToDarkMode' -Fallback 'Switch to Dark Mode') } else { (Get-UxLocalizedString -Key 'GuiMenuViewSwitchToLightMode' -Fallback 'Switch to Light Mode') }
 		if ($Script:MenuViewTheme)
 		{
-			try { $Script:MenuViewTheme.IsChecked = $lightEnabled } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-HeaderModeStateText.SyncMenuViewTheme' }
+			try { $Script:MenuViewTheme.IsChecked = $lightEnabled } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-HeaderModeStateText.SyncMenuViewTheme' }
 			$Script:MenuViewTheme.Header = $themeMenuLabel
 		}
 
@@ -633,7 +625,7 @@
 			}
 			catch
 			{
-				Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-HeaderModeStateText.UpdateMainFormTitle'
+				Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-HeaderModeStateText.UpdateMainFormTitle'
 			}
 		}
 		if ($TxtThemeState)
@@ -646,7 +638,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-GuiMenuBarLocalization.
 	#>
 
 	function Update-GuiMenuBarLocalization
@@ -680,6 +671,8 @@
 		if ($Script:MenuToolsAppsManager)        { $Script:MenuToolsAppsManager.Header        = (Get-UxLocalizedString -Key 'GuiMenuToolsAppsManager' -Fallback 'Apps Manager') }
 		if ($Script:MenuToolsUpdateAllApps)      { $Script:MenuToolsUpdateAllApps.Header      = (Get-UxLocalizedString -Key 'GuiMenuToolsUpdateAllApps' -Fallback 'Update All Applications') }
 		if ($Script:MenuToolsExportSupportBundle){ $Script:MenuToolsExportSupportBundle.Header = (New-GuiLabeledIconContent -IconName 'Archive' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsExportSupportBundle' -Fallback 'Export Support Bundle...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
+		if ($Script:MenuToolsAdvanced)           { $Script:MenuToolsAdvanced.Header           = (New-GuiLabeledIconContent -IconName 'Toolbox' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsAdvanced' -Fallback 'Advanced Tools') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
+		if ($Script:MenuToolsDeploymentMediaBuilder){ $Script:MenuToolsDeploymentMediaBuilder.Header = (New-GuiLabeledIconContent -IconName 'WindowSettings' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsDeploymentMediaBuilder' -Fallback 'Deployment Media Builder...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
 		if ($Script:MenuToolsApproveRemoteTargets){ $Script:MenuToolsApproveRemoteTargets.Header = (New-GuiLabeledIconContent -IconName 'Shield' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsApproveRemoteTargets' -Fallback 'Approve Target List...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
 		if ($Script:MenuToolsSaveRemoteApprovalPolicy){ $Script:MenuToolsSaveRemoteApprovalPolicy.Header = (New-GuiLabeledIconContent -IconName 'Document' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsSaveRemoteApprovalPolicy' -Fallback 'Save Remote Approval Policy...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
 		if ($Script:MenuToolsLoadRemoteApprovalPolicy){ $Script:MenuToolsLoadRemoteApprovalPolicy.Header = (New-GuiLabeledIconContent -IconName 'Document' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsLoadRemoteApprovalPolicy' -Fallback 'Load Remote Approval Policy...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
@@ -698,7 +691,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-GuiMenuBarTheme.
 	#>
 
 	function Update-GuiMenuBarTheme
@@ -756,7 +748,7 @@
 		}
 		catch
 		{
-			try { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Menu bar theme update failed') } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-GuiMenuBarTheme.LogWarning' }
+			try { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Menu bar theme update failed') } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-GuiMenuBarTheme.LogWarning' }
 		}
 		if ($Script:MenuBarBorder)
 		{
@@ -765,13 +757,12 @@
 				$Script:MenuBarBorder.Background = $bc.ConvertFromString($theme.HeaderBg)
 				$Script:MenuBarBorder.BorderBrush = $bc.ConvertFromString($theme.BorderColor)
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-GuiMenuBarTheme.UpdateMenuBarBorder' }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-GuiMenuBarTheme.UpdateMenuBarBorder' }
 		}
 	}
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-GuiScrollBarTheme.
 	#>
 
 	function Update-GuiScrollBarTheme
@@ -834,13 +825,12 @@
 		}
 		catch
 		{
-			try { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Scrollbar theme update failed') } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-GuiScrollBarTheme.LogWarning' }
+			try { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Scrollbar theme update failed') } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-GuiScrollBarTheme.LogWarning' }
 		}
 	}
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-GuiDuplicateActionVisibility.
 	#>
 
 	function Update-GuiDuplicateActionVisibility
@@ -866,7 +856,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-GuiLocalizationStrings.
 	#>
 
 	function Update-GuiLocalizationStrings
@@ -926,12 +915,23 @@
 			[System.Windows.Controls.ToolTipService]::SetInitialShowDelay($Script:NavModeUpdates, 350)
 			[System.Windows.Controls.ToolTipService]::SetShowDuration($Script:NavModeUpdates, 15000)
 		}
+		if ($Script:NavModeDeploymentMedia)
+		{
+			$deploymentMediaTip = (Get-UxLocalizedString -Key 'Nav_DeploymentMediaTooltip' -Fallback "Deployment Media Builder / Windows Setup Builder.`nDetect editions, preview the plan, then create the selected output.")
+			Set-GuiButtonIconContent -Button $Script:NavModeDeploymentMedia -IconName 'WindowSettings' -Text (Get-UxLocalizedString -Key 'Nav_DeploymentMedia' -Fallback 'Windows Setup Builder') -ToolTip $deploymentMediaTip -IconSize 14 -Gap 6 -TextFontSize 11
+			[System.Windows.Controls.ToolTipService]::SetInitialShowDelay($Script:NavModeDeploymentMedia, 350)
+			[System.Windows.Controls.ToolTipService]::SetShowDuration($Script:NavModeDeploymentMedia, 15000)
+		}
 		if ($Script:ModeSubtitle)
 		{
-			$modeSubtitleKey = if ($Script:UpdatesModeActive) { 'Nav_WindowsUpdatesSubtitle' } elseif ($Script:AppsModeActive) { 'Nav_SoftwareAndAppsSubtitle' } else { 'Nav_OptimizeSubtitle' }
-			$modeSubtitleFallback = if ($Script:UpdatesModeActive) { 'Manage Windows Update' } elseif ($Script:AppsModeActive) { 'Manage installed applications' } else { 'Configure system behavior' }
+			$modeSubtitleKey = if ($Script:UpdatesModeActive) { 'Nav_WindowsUpdatesSubtitle' } elseif ($Script:DeploymentMediaModeActive) { 'Nav_DeploymentMediaSubtitle' } elseif ($Script:AppsModeActive) { 'Nav_SoftwareAndAppsSubtitle' } else { 'Nav_OptimizeSubtitle' }
+			$modeSubtitleFallback = if ($Script:UpdatesModeActive) { 'Manage Windows Update' } elseif ($Script:DeploymentMediaModeActive) { 'Build Windows setup media' } elseif ($Script:AppsModeActive) { 'Manage installed applications' } else { 'Configure system behavior' }
 			$Script:ModeSubtitle.Text = (Get-UxLocalizedString -Key $modeSubtitleKey -Fallback $modeSubtitleFallback)
-			$Script:ModeSubtitle.HorizontalAlignment = if ($Script:UpdatesModeActive) { [System.Windows.HorizontalAlignment]::Center } elseif ($Script:AppsModeActive) { [System.Windows.HorizontalAlignment]::Right } else { [System.Windows.HorizontalAlignment]::Left }
+			$Script:ModeSubtitle.HorizontalAlignment = if ($Script:UpdatesModeActive -or $Script:DeploymentMediaModeActive) { [System.Windows.HorizontalAlignment]::Center } elseif ($Script:AppsModeActive) { [System.Windows.HorizontalAlignment]::Right } else { [System.Windows.HorizontalAlignment]::Left }
+		}
+		if (Get-Command -Name 'Sync-GuiDeploymentMediaBuilderViewText' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Sync-GuiDeploymentMediaBuilderViewText
 		}
 		if ($Script:BtnUpdateAllApps)
 		{
@@ -1138,7 +1138,6 @@
 	#region Themed Dialog
 	<#
 	    .SYNOPSIS
-	    Internal function Show-ThemedDialog.
 	#>
 
 	function Show-ThemedDialog
@@ -1151,7 +1150,7 @@
 			[string]$DestructiveButton = $null
 		)
 
-		return (GUICommon\Show-ThemedDialog `
+		return (GUICommon\Show-GuiCommonThemedDialog `
 			-Theme $Script:CurrentTheme `
 			-ApplyButtonChrome ${function:Set-ButtonChrome} `
 			-OwnerWindow $Form `
@@ -1165,7 +1164,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-SearchInputStyle.
 	#>
 
 	function Set-SearchInputStyle
@@ -1188,7 +1186,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Sync-GuiSearchInputChrome.
 	#>
 
 	function Sync-GuiSearchInputChrome
@@ -1218,7 +1215,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-LanguageSearchInputStyle.
 	#>
 
 	function Set-LanguageSearchInputStyle
@@ -1241,7 +1237,168 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-ChoiceComboStyle.
+	#>
+
+	function New-GuiChoiceComboTemplate
+	{
+		param (
+			[System.Windows.Media.Brush]$PopupBgBrush,
+			[System.Windows.Media.Brush]$HoverBgBrush,
+			[System.Windows.Media.Brush]$ActiveBorderBrush,
+			[System.Windows.Media.Brush]$TextPrimaryBrush,
+			[System.Windows.Media.Brush]$TextSecondaryBrush
+		)
+
+		$newTemplatedParentBinding = {
+			param (
+				[string]$Path,
+				[switch]$TwoWay
+			)
+
+			$binding = if ([string]::IsNullOrWhiteSpace($Path))
+			{
+				New-Object System.Windows.Data.Binding
+			}
+			else
+			{
+				New-Object System.Windows.Data.Binding($Path)
+			}
+			$binding.RelativeSource = New-Object System.Windows.Data.RelativeSource([System.Windows.Data.RelativeSourceMode]::TemplatedParent)
+			if ($TwoWay)
+			{
+				$binding.Mode = [System.Windows.Data.BindingMode]::TwoWay
+			}
+			return $binding
+		}.GetNewClosure()
+
+		$template = New-Object System.Windows.Controls.ControlTemplate([System.Windows.Controls.ComboBox])
+
+		$rootGrid = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.Grid])
+		$rootGrid.SetValue([System.Windows.UIElement]::SnapsToDevicePixelsProperty, $true)
+		$rootGrid.SetBinding([System.Windows.Documents.TextElement]::ForegroundProperty, (& $newTemplatedParentBinding -Path 'Foreground'))
+
+		$comboRoot = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.Border])
+		$comboRoot.Name = 'ComboRoot'
+		$comboRoot.SetBinding([System.Windows.Controls.Border]::BackgroundProperty, (& $newTemplatedParentBinding -Path 'Background'))
+		$comboRoot.SetBinding([System.Windows.Controls.Border]::BorderBrushProperty, (& $newTemplatedParentBinding -Path 'BorderBrush'))
+		$comboRoot.SetValue([System.Windows.Controls.Border]::BorderThicknessProperty, [System.Windows.Thickness]::new(1))
+		$comboRoot.SetValue([System.Windows.Controls.Border]::CornerRadiusProperty, [System.Windows.CornerRadius]::new(6))
+		$comboRoot.SetValue([System.Windows.UIElement]::SnapsToDevicePixelsProperty, $true)
+		$rootGrid.AppendChild($comboRoot)
+
+		$contentSite = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.ContentPresenter])
+		$contentSite.Name = 'ContentSite'
+		$contentSite.SetValue([System.Windows.FrameworkElement]::MarginProperty, [System.Windows.Thickness]::new(10, 4, 28, 4))
+		$contentSite.SetBinding([System.Windows.FrameworkElement]::HorizontalAlignmentProperty, (& $newTemplatedParentBinding -Path 'HorizontalContentAlignment'))
+		$contentSite.SetBinding([System.Windows.FrameworkElement]::VerticalAlignmentProperty, (& $newTemplatedParentBinding -Path 'VerticalContentAlignment'))
+		$contentSite.SetBinding([System.Windows.Controls.ContentPresenter]::ContentProperty, (& $newTemplatedParentBinding -Path 'SelectionBoxItem'))
+		$contentSite.SetBinding([System.Windows.Controls.ContentPresenter]::ContentTemplateProperty, (& $newTemplatedParentBinding -Path 'SelectionBoxItemTemplate'))
+		$contentSite.SetBinding([System.Windows.Controls.ContentPresenter]::ContentTemplateSelectorProperty, (& $newTemplatedParentBinding -Path 'ItemTemplateSelector'))
+		$contentSite.SetBinding([System.Windows.Controls.ContentPresenter]::ContentStringFormatProperty, (& $newTemplatedParentBinding -Path 'SelectionBoxItemStringFormat'))
+		$contentSite.SetValue([System.Windows.Documents.TextElement]::ForegroundProperty, $TextPrimaryBrush)
+		$contentSite.SetValue([System.Windows.UIElement]::IsHitTestVisibleProperty, $false)
+		$contentSite.SetValue([System.Windows.Controls.ContentPresenter]::RecognizesAccessKeyProperty, $true)
+		$contentSite.SetValue([System.Windows.UIElement]::SnapsToDevicePixelsProperty, $true)
+		$rootGrid.AppendChild($contentSite)
+
+		$toggleTemplate = New-Object System.Windows.Controls.ControlTemplate([System.Windows.Controls.Primitives.ToggleButton])
+		$toggleBorder = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.Border])
+		$toggleBorder.SetValue([System.Windows.Controls.Border]::BackgroundProperty, [System.Windows.Media.Brushes]::Transparent)
+		$toggleBorder.SetValue([System.Windows.Controls.Border]::BorderBrushProperty, [System.Windows.Media.Brushes]::Transparent)
+		$toggleBorder.SetValue([System.Windows.Controls.Border]::BorderThicknessProperty, [System.Windows.Thickness]::new(0))
+		$toggleBorder.SetValue([System.Windows.UIElement]::SnapsToDevicePixelsProperty, $true)
+		$toggleTemplate.VisualTree = $toggleBorder
+
+		$toggleButton = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.Primitives.ToggleButton])
+		$toggleButton.Name = 'ToggleButton'
+		$toggleButton.SetValue([System.Windows.UIElement]::FocusableProperty, $false)
+		$toggleButton.SetValue([System.Windows.Controls.Primitives.ButtonBase]::ClickModeProperty, [System.Windows.Controls.ClickMode]::Press)
+		$toggleButton.SetValue([System.Windows.Controls.Control]::BackgroundProperty, [System.Windows.Media.Brushes]::Transparent)
+		$toggleButton.SetValue([System.Windows.Controls.Control]::BorderBrushProperty, [System.Windows.Media.Brushes]::Transparent)
+		$toggleButton.SetValue([System.Windows.Controls.Control]::BorderThicknessProperty, [System.Windows.Thickness]::new(0))
+		$toggleButton.SetValue([System.Windows.Controls.Control]::TemplateProperty, $toggleTemplate)
+		$toggleButton.SetBinding([System.Windows.Controls.Primitives.ToggleButton]::IsCheckedProperty, (& $newTemplatedParentBinding -Path 'IsDropDownOpen' -TwoWay))
+		$toggleButton.SetValue([System.Windows.FrameworkElement]::HorizontalAlignmentProperty, [System.Windows.HorizontalAlignment]::Stretch)
+		$toggleButton.SetValue([System.Windows.FrameworkElement]::VerticalAlignmentProperty, [System.Windows.VerticalAlignment]::Stretch)
+		$rootGrid.AppendChild($toggleButton)
+
+		$chevron = New-Object System.Windows.FrameworkElementFactory([System.Windows.Shapes.Path])
+		$chevron.SetValue([System.Windows.FrameworkElement]::HorizontalAlignmentProperty, [System.Windows.HorizontalAlignment]::Right)
+		$chevron.SetValue([System.Windows.FrameworkElement]::VerticalAlignmentProperty, [System.Windows.VerticalAlignment]::Center)
+		$chevron.SetValue([System.Windows.FrameworkElement]::MarginProperty, [System.Windows.Thickness]::new(0, 0, 10, 0))
+		$chevron.SetValue([System.Windows.Shapes.Path]::DataProperty, [System.Windows.Media.Geometry]::Parse('M 0 0 L 4 4 L 8 0'))
+		$chevron.SetBinding([System.Windows.Shapes.Path]::StrokeProperty, (& $newTemplatedParentBinding -Path 'Foreground'))
+		$chevron.SetValue([System.Windows.Shapes.Path]::StrokeThicknessProperty, [double]1.6)
+		$chevron.SetValue([System.Windows.Shapes.Shape]::StrokeStartLineCapProperty, [System.Windows.Media.PenLineCap]::Round)
+		$chevron.SetValue([System.Windows.Shapes.Shape]::StrokeEndLineCapProperty, [System.Windows.Media.PenLineCap]::Round)
+		$chevron.SetValue([System.Windows.Shapes.Path]::StretchProperty, [System.Windows.Media.Stretch]::Fill)
+		$chevron.SetValue([System.Windows.FrameworkElement]::WidthProperty, [double]8)
+		$chevron.SetValue([System.Windows.FrameworkElement]::HeightProperty, [double]4)
+		$chevron.SetValue([System.Windows.UIElement]::IsHitTestVisibleProperty, $false)
+		$rootGrid.AppendChild($chevron)
+
+		$popup = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.Primitives.Popup])
+		$popup.Name = 'Popup'
+		$popup.SetValue([System.Windows.Controls.Primitives.Popup]::PlacementProperty, [System.Windows.Controls.Primitives.PlacementMode]::Bottom)
+		$popup.SetValue([System.Windows.Controls.Primitives.Popup]::AllowsTransparencyProperty, $true)
+		$popup.SetValue([System.Windows.UIElement]::FocusableProperty, $false)
+		$popup.SetValue([System.Windows.Controls.Primitives.Popup]::PopupAnimationProperty, [System.Windows.Controls.Primitives.PopupAnimation]::Slide)
+		$popup.SetBinding([System.Windows.Controls.Primitives.Popup]::IsOpenProperty, (& $newTemplatedParentBinding -Path 'IsDropDownOpen' -TwoWay))
+		$popup.SetBinding([System.Windows.Controls.Primitives.Popup]::PlacementTargetProperty, (& $newTemplatedParentBinding))
+		$popup.SetBinding([System.Windows.FrameworkElement]::WidthProperty, (& $newTemplatedParentBinding -Path 'ActualWidth'))
+
+		$popupBorder = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.Border])
+		$popupBorder.SetValue([System.Windows.Controls.Border]::BackgroundProperty, $PopupBgBrush)
+		$popupBorder.SetBinding([System.Windows.Controls.Border]::BorderBrushProperty, (& $newTemplatedParentBinding -Path 'BorderBrush'))
+		$popupBorder.SetValue([System.Windows.Controls.Border]::BorderThicknessProperty, [System.Windows.Thickness]::new(1))
+		$popupBorder.SetValue([System.Windows.Controls.Border]::CornerRadiusProperty, [System.Windows.CornerRadius]::new(6))
+		$popupBorder.SetValue([System.Windows.UIElement]::SnapsToDevicePixelsProperty, $true)
+
+		$scrollViewer = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.ScrollViewer])
+		$scrollViewer.SetValue([System.Windows.FrameworkElement]::MarginProperty, [System.Windows.Thickness]::new(4, 6, 4, 6))
+		$scrollViewer.SetValue([System.Windows.UIElement]::SnapsToDevicePixelsProperty, $true)
+
+		$itemsPresenter = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.ItemsPresenter])
+		$itemsPresenter.SetValue([System.Windows.Input.KeyboardNavigation]::DirectionalNavigationProperty, [System.Windows.Input.KeyboardNavigationMode]::Contained)
+		$scrollViewer.AppendChild($itemsPresenter)
+		$popupBorder.AppendChild($scrollViewer)
+		$popup.AppendChild($popupBorder)
+		$rootGrid.AppendChild($popup)
+
+		$template.VisualTree = $rootGrid
+
+		$hoverTrigger = New-Object System.Windows.Trigger
+		$hoverTrigger.Property = [System.Windows.Controls.ComboBox]::IsMouseOverProperty
+		$hoverTrigger.Value = $true
+		[void]($hoverTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BackgroundProperty) -Value $HoverBgBrush -TargetName 'ComboRoot')))
+		[void]($hoverTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BorderBrushProperty) -Value $ActiveBorderBrush -TargetName 'ComboRoot')))
+		[void]($template.Triggers.Add($hoverTrigger))
+
+		$focusTrigger = New-Object System.Windows.Trigger
+		$focusTrigger.Property = [System.Windows.Controls.ComboBox]::IsKeyboardFocusWithinProperty
+		$focusTrigger.Value = $true
+		[void]($focusTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BackgroundProperty) -Value $HoverBgBrush -TargetName 'ComboRoot')))
+		[void]($focusTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BorderBrushProperty) -Value $ActiveBorderBrush -TargetName 'ComboRoot')))
+		[void]($template.Triggers.Add($focusTrigger))
+
+		$openTrigger = New-Object System.Windows.Trigger
+		$openTrigger.Property = [System.Windows.Controls.ComboBox]::IsDropDownOpenProperty
+		$openTrigger.Value = $true
+		[void]($openTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BackgroundProperty) -Value $HoverBgBrush -TargetName 'ComboRoot')))
+		[void]($openTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BorderBrushProperty) -Value $ActiveBorderBrush -TargetName 'ComboRoot')))
+		[void]($template.Triggers.Add($openTrigger))
+
+		$disabledTrigger = New-Object System.Windows.Trigger
+		$disabledTrigger.Property = [System.Windows.Controls.ComboBox]::IsEnabledProperty
+		$disabledTrigger.Value = $false
+		[void]($disabledTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value $TextSecondaryBrush)))
+		[void]($template.Triggers.Add($disabledTrigger))
+
+		return $template
+	}
+
+	<#
+	    .SYNOPSIS
 	#>
 
 	function Set-ChoiceComboStyle
@@ -1250,7 +1407,6 @@
 		if (-not $Combo) { return }
 
 		$theme = $Script:CurrentTheme
-		$bc = New-SafeBrushConverter -Context 'Set-ChoiceComboStyle'
 
 		# Helper to ensure a color is a valid hex string
 		$ensureHexColor = {
@@ -1262,158 +1418,107 @@
 
 		$inputBg       = & $ensureHexColor $theme.InputBg       '#2A3146'
 		$textPrimary   = & $ensureHexColor $theme.TextPrimary   '#F4F7FF'
-		$borderBrush   = & $ensureHexColor $theme.SearchBorder  '#585B70'
-		$hoverBg       = & $ensureHexColor $theme.CardHoverBg   '#343C55'
-		$activeBg      = & $ensureHexColor $theme.TabActiveBg   '#3670B8'
+		$textSecondary = & $ensureHexColor $theme.TextSecondary '#CDD6EA'
+		$borderBrush   = & $ensureHexColor $(if ($theme.BorderStrong) { [string]$theme.BorderStrong } elseif ($theme.SearchBorder) { [string]$theme.SearchBorder } else { $theme.BorderColor }) '#585B70'
+		$hoverBg       = & $ensureHexColor $theme.InputHoverBg  $(if ($theme.CardHoverBg) { [string]$theme.CardHoverBg } else { '#343C55' })
+		$popupBg       = & $ensureHexColor $(if ($theme.CardBg) { [string]$theme.CardBg } else { $inputBg }) $inputBg
+		$selectionBg   = & $ensureHexColor $(if ($theme.StatusPillBg) { [string]$theme.StatusPillBg } elseif ($theme.TabActiveBg) { [string]$theme.TabActiveBg } else { $hoverBg }) '#202638'
 		$activeBorder  = & $ensureHexColor $theme.ActiveTabBorder '#7CB7FF'
-		if (-not $Script:ChoiceComboTemplateLoadFailures)
+		$inputBgBrush = ConvertTo-GuiBrush -Color $inputBg -Context 'Set-ChoiceComboStyle/InputBg'
+		$textPrimaryBrush = ConvertTo-GuiBrush -Color $textPrimary -Context 'Set-ChoiceComboStyle/TextPrimary'
+		$textSecondaryBrush = ConvertTo-GuiBrush -Color $textSecondary -Context 'Set-ChoiceComboStyle/TextSecondary'
+		$borderBrushValue = ConvertTo-GuiBrush -Color $borderBrush -Context 'Set-ChoiceComboStyle/Border'
+		$hoverBgBrush = ConvertTo-GuiBrush -Color $hoverBg -Context 'Set-ChoiceComboStyle/HoverBg'
+		$popupBgBrush = ConvertTo-GuiBrush -Color $popupBg -Context 'Set-ChoiceComboStyle/PopupBg'
+		$selectionBgBrush = ConvertTo-GuiBrush -Color $selectionBg -Context 'Set-ChoiceComboStyle/SelectionBg'
+		$activeBorderBrush = ConvertTo-GuiBrush -Color $activeBorder -Context 'Set-ChoiceComboStyle/ActiveBorder'
+		$comboTemplateKey = @(
+			[string]$Script:CurrentThemeName,
+			$inputBg,
+			$textPrimary,
+			$textSecondary,
+			$borderBrush,
+			$hoverBg,
+			$popupBg,
+			$selectionBg,
+			$activeBorder
+		) -join '|'
+
+		if (-not $Script:ChoiceComboTemplate -or $Script:ChoiceComboTemplateTheme -ne $comboTemplateKey)
 		{
-			$Script:ChoiceComboTemplateLoadFailures = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
-		}
-		$comboTemplateFailedForTheme = $Script:ChoiceComboTemplateLoadFailures.Contains($Script:CurrentThemeName)
-
-		if (
-			-not $comboTemplateFailedForTheme -and
-			(-not $Script:ChoiceComboTemplate -or $Script:ChoiceComboTemplateTheme -ne $Script:CurrentThemeName)
-		)
-		{
-			$comboTemplateXaml = @"
-<ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                 TargetType="{x:Type ComboBox}">
-    <Grid SnapsToDevicePixels="True"
-          TextElement.Foreground="{TemplateBinding Foreground}">
-        <Border Background="$inputBg"
-                BorderBrush="$borderBrush"
-                BorderThickness="1"
-                CornerRadius="6"
-                SnapsToDevicePixels="True" />
-
-        <ContentPresenter x:Name="ContentSite"
-                          Margin="{TemplateBinding Padding}"
-                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                          Content="{TemplateBinding SelectionBoxItem}"
-                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                          ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
-                          ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
-                          IsHitTestVisible="False"
-                          RecognizesAccessKey="True"
-                          SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
-
-        <ToggleButton x:Name="ToggleButton"
-                      Focusable="False"
-                      ClickMode="Press"
-                      Background="Transparent"
-                      BorderBrush="Transparent"
-                      BorderThickness="0"
-                      IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
-                      HorizontalAlignment="Stretch"
-                      VerticalAlignment="Stretch">
-            <ToggleButton.Template>
-                <ControlTemplate TargetType="{x:Type ToggleButton}">
-                    <Border Background="Transparent"
-                            BorderBrush="Transparent"
-                            BorderThickness="0"
-                            SnapsToDevicePixels="True" />
-                </ControlTemplate>
-            </ToggleButton.Template>
-        </ToggleButton>
-
-        <Path HorizontalAlignment="Right"
-              VerticalAlignment="Center"
-              Margin="0,0,10,0"
-              Data="M 0 0 L 4 4 L 8 0"
-              Stroke="{TemplateBinding Foreground}"
-              StrokeThickness="1.6"
-              StrokeStartLineCap="Round"
-              StrokeEndLineCap="Round"
-              Stretch="Fill"
-              Width="8"
-              Height="4"
-              IsHitTestVisible="False" />
-
-        <Popup x:Name="Popup"
-               Placement="Bottom"
-               AllowsTransparency="True"
-               Focusable="False"
-               IsOpen="{TemplateBinding IsDropDownOpen}"
-               PopupAnimation="Slide"
-               PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}">
-            <Border Width="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource AncestorType={x:Type Popup}}}"
-                    Background="$inputBg"
-                    BorderBrush="$borderBrush"
-                    BorderThickness="1"
-                    CornerRadius="6"
-                    SnapsToDevicePixels="True">
-                <ScrollViewer Margin="4,6,4,6"
-                              SnapsToDevicePixels="True">
-                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
-                </ScrollViewer>
-            </Border>
-        </Popup>
-    </Grid>
-</ControlTemplate>
-"@
-			$comboTemplateReader = $null
-			try {
-				$comboTemplateReader = New-Object System.Xml.XmlNodeReader ([xml]$comboTemplateXaml)
-				$Script:ChoiceComboTemplate = [System.Windows.Markup.XamlReader]::Load($comboTemplateReader)
-				$Script:ChoiceComboTemplateTheme = $Script:CurrentThemeName
-			}
-			catch {
-				$Script:ChoiceComboTemplate = $null
-				$Script:ChoiceComboTemplateTheme = $null
-				[void]$Script:ChoiceComboTemplateLoadFailures.Add($Script:CurrentThemeName)
-				Write-GuiRuntimeWarning -Context 'Set-ChoiceComboStyle' -Message ("Failed to load combo box template for theme '{0}': {1}" -f $Script:CurrentThemeName, $_.Exception.Message)
-			}
-			finally {
-				if ($comboTemplateReader)
-				{
-					try { $comboTemplateReader.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-ChoiceComboStyle.TemplateReaderDispose' }
-				}
-			}
+			$Script:ChoiceComboTemplate = New-GuiChoiceComboTemplate `
+				-PopupBgBrush $popupBgBrush `
+				-HoverBgBrush $hoverBgBrush `
+				-ActiveBorderBrush $activeBorderBrush `
+				-TextPrimaryBrush $textPrimaryBrush `
+				-TextSecondaryBrush $textSecondaryBrush
+			$Script:ChoiceComboTemplateTheme = $comboTemplateKey
 		}
 
 		# Apply the template and styles (with error swallowing)
 		try {
-			$Combo.Resources[[System.Windows.SystemColors]::WindowBrushKey] = $bc.ConvertFromString($inputBg)
-			$Combo.Resources[[System.Windows.SystemColors]::WindowTextBrushKey] = $bc.ConvertFromString($textPrimary)
-			$Combo.Resources[[System.Windows.SystemColors]::ControlBrushKey] = $bc.ConvertFromString($inputBg)
-			$Combo.Resources[[System.Windows.SystemColors]::ControlTextBrushKey] = $bc.ConvertFromString($textPrimary)
-			$Combo.Resources[[System.Windows.SystemColors]::HighlightBrushKey] = $bc.ConvertFromString($activeBg)
-			$Combo.Resources[[System.Windows.SystemColors]::HighlightTextBrushKey] = $bc.ConvertFromString($textPrimary)
-			$Combo.Resources[[System.Windows.SystemColors]::MenuBrushKey] = $bc.ConvertFromString($inputBg)
-			$Combo.Resources[[System.Windows.SystemColors]::MenuTextBrushKey] = $bc.ConvertFromString($textPrimary)
+			$Combo.Resources[[System.Windows.SystemColors]::WindowBrushKey] = [System.Windows.Media.Brush]$popupBgBrush
+			$Combo.Resources[[System.Windows.SystemColors]::WindowTextBrushKey] = [System.Windows.Media.Brush]$textPrimaryBrush
+			$Combo.Resources[[System.Windows.SystemColors]::ControlBrushKey] = [System.Windows.Media.Brush]$inputBgBrush
+			$Combo.Resources[[System.Windows.SystemColors]::ControlTextBrushKey] = [System.Windows.Media.Brush]$textPrimaryBrush
+			$Combo.Resources[[System.Windows.SystemColors]::HighlightBrushKey] = [System.Windows.Media.Brush]$selectionBgBrush
+			$Combo.Resources[[System.Windows.SystemColors]::HighlightTextBrushKey] = [System.Windows.Media.Brush]$textPrimaryBrush
+			$Combo.Resources[[System.Windows.SystemColors]::MenuBrushKey] = [System.Windows.Media.Brush]$popupBgBrush
+			$Combo.Resources[[System.Windows.SystemColors]::MenuTextBrushKey] = [System.Windows.Media.Brush]$textPrimaryBrush
 
 			$itemStyle = New-Object System.Windows.Style([System.Windows.Controls.ComboBoxItem])
-			[void]($itemStyle.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value ($bc.ConvertFromString($inputBg)))))
-			[void]($itemStyle.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value ($bc.ConvertFromString($textPrimary)))))
-			[void]($itemStyle.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::BorderBrushProperty) -Value ($bc.ConvertFromString($borderBrush)))))
+			[void]($itemStyle.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value $popupBgBrush)))
+			[void]($itemStyle.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value $textPrimaryBrush)))
+			[void]($itemStyle.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::BorderBrushProperty) -Value ([System.Windows.Media.Brushes]::Transparent))))
 			[void]($itemStyle.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::BorderThicknessProperty) -Value ([System.Windows.Thickness]::new(0)))))
 			[void]($itemStyle.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::PaddingProperty) -Value ([System.Windows.Thickness]::new(10, 4, 10, 4)))))
 			[void]($itemStyle.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::HorizontalContentAlignmentProperty) -Value ([System.Windows.HorizontalAlignment]::Stretch))))
+			[void]($itemStyle.Setters.Add((New-WpfSetter -Property ([System.Windows.FrameworkElement]::MinHeightProperty) -Value ([double]28))))
+			$itemTemplate = New-Object System.Windows.Controls.ControlTemplate([System.Windows.Controls.ComboBoxItem])
+			$itemRoot = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.Border])
+			$itemRoot.Name = 'ItemRoot'
+			$itemRoot.SetValue([System.Windows.Controls.Border]::BackgroundProperty, [System.Windows.Media.Brush]$popupBgBrush)
+			$itemRoot.SetValue([System.Windows.Controls.Border]::BorderBrushProperty, [System.Windows.Media.Brushes]::Transparent)
+			$itemRoot.SetValue([System.Windows.Controls.Border]::BorderThicknessProperty, [System.Windows.Thickness]::new(0))
+			$itemRoot.SetValue([System.Windows.Controls.Border]::PaddingProperty, [System.Windows.Thickness]::new(10, 4, 10, 4))
+			$itemRoot.SetValue([System.Windows.Controls.Border]::SnapsToDevicePixelsProperty, $true)
+			$itemPresenter = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.ContentPresenter])
+			$itemPresenter.SetValue([System.Windows.Controls.ContentPresenter]::HorizontalAlignmentProperty, [System.Windows.HorizontalAlignment]::Stretch)
+			$itemPresenter.SetValue([System.Windows.Controls.ContentPresenter]::VerticalAlignmentProperty, [System.Windows.VerticalAlignment]::Center)
+			$itemPresenter.SetValue([System.Windows.Documents.TextElement]::ForegroundProperty, $textPrimaryBrush)
+			$itemRoot.AppendChild($itemPresenter)
+			$itemTemplate.VisualTree = $itemRoot
+			$itemHoverTemplateTrigger = New-Object System.Windows.Trigger
+			$itemHoverTemplateTrigger.Property = [System.Windows.Controls.ComboBoxItem]::IsMouseOverProperty
+			$itemHoverTemplateTrigger.Value = $true
+			[void]($itemHoverTemplateTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BackgroundProperty) -Value $hoverBgBrush -TargetName 'ItemRoot')))
+			[void]($itemTemplate.Triggers.Add($itemHoverTemplateTrigger))
+			$itemSelectedTemplateTrigger = New-Object System.Windows.Trigger
+			$itemSelectedTemplateTrigger.Property = [System.Windows.Controls.ComboBoxItem]::IsSelectedProperty
+			$itemSelectedTemplateTrigger.Value = $true
+			[void]($itemSelectedTemplateTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BackgroundProperty) -Value $selectionBgBrush -TargetName 'ItemRoot')))
+			[void]($itemSelectedTemplateTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BorderBrushProperty) -Value $activeBorderBrush -TargetName 'ItemRoot')))
+			[void]($itemSelectedTemplateTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Border]::BorderThicknessProperty) -Value ([System.Windows.Thickness]::new(1)) -TargetName 'ItemRoot')))
+			[void]($itemTemplate.Triggers.Add($itemSelectedTemplateTrigger))
+			[void]($itemStyle.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::TemplateProperty) -Value $itemTemplate)))
 			$hoverTrigger = New-Object System.Windows.Trigger
 			$hoverTrigger.Property = [System.Windows.Controls.ComboBoxItem]::IsMouseOverProperty
 			$hoverTrigger.Value = $true
-			[void]($hoverTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value ($bc.ConvertFromString($hoverBg)))))
-			[void]($hoverTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::BorderBrushProperty) -Value ($bc.ConvertFromString($activeBorder)))))
+			[void]($hoverTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value $hoverBgBrush)))
 			[void]($itemStyle.Triggers.Add($hoverTrigger))
 			$selectedTrigger = New-Object System.Windows.Trigger
 			$selectedTrigger.Property = [System.Windows.Controls.ComboBoxItem]::IsSelectedProperty
 			$selectedTrigger.Value = $true
-			[void]($selectedTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value ($bc.ConvertFromString($activeBg)))))
-			[void]($selectedTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value ($bc.ConvertFromString($textPrimary)))))
-			[void]($selectedTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::BorderBrushProperty) -Value ($bc.ConvertFromString($activeBorder)))))
-			[void]($selectedTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::BorderThicknessProperty) -Value ([System.Windows.Thickness]::new(1.5, 0, 0, 0)))))
+			[void]($selectedTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value $selectionBgBrush)))
+			[void]($selectedTrigger.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::ForegroundProperty) -Value $textPrimaryBrush)))
 			[void]($itemStyle.Triggers.Add($selectedTrigger))
 			$Combo.ItemContainerStyle = $itemStyle
-			$Combo.Background = $bc.ConvertFromString($inputBg)
-			$Combo.Foreground = $bc.ConvertFromString($textPrimary)
-			$Combo.SetValue([System.Windows.Documents.TextElement]::ForegroundProperty, $bc.ConvertFromString($textPrimary))
-			$Combo.BorderBrush = $bc.ConvertFromString($borderBrush)
+			$Combo.Background = [System.Windows.Media.Brush]$inputBgBrush
+			$Combo.Foreground = [System.Windows.Media.Brush]$textPrimaryBrush
+			$Combo.SetValue([System.Windows.Documents.TextElement]::ForegroundProperty, [System.Windows.Media.Brush]$textPrimaryBrush)
+			$Combo.BorderBrush = [System.Windows.Media.Brush]$borderBrushValue
 			$Combo.BorderThickness = [System.Windows.Thickness]::new(1)
-			if ($Script:ChoiceComboTemplate -and $Script:ChoiceComboTemplateTheme -eq $Script:CurrentThemeName)
+			if ($Script:ChoiceComboTemplate -and $Script:ChoiceComboTemplateTheme -eq $comboTemplateKey)
 			{
 				$Combo.OverridesDefaultStyle = $true
 				$Combo.Template = $Script:ChoiceComboTemplate
@@ -1426,6 +1531,7 @@
 			$Combo.Padding = [System.Windows.Thickness]::new(10, 4, 10, 4)
 			$Combo.MinWidth = 190
 			$Combo.Height = 30
+			try { [void]$Combo.ApplyTemplate() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-ChoiceComboStyle.ApplyTemplate' }
 		}
 		catch {
 			# Silently ignore any remaining errors - the combo will still work
@@ -1435,7 +1541,48 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-FilterControlStyle.
+	#>
+
+	function Update-ChoiceComboStyles
+	{
+		if (-not $Script:Controls) { return }
+
+		$entries = if ($Script:Controls -is [System.Collections.IDictionary])
+		{
+			@($Script:Controls.Values)
+		}
+		else
+		{
+			@($Script:Controls)
+		}
+
+		foreach ($entry in $entries)
+		{
+			$combo = $null
+			if ($entry -is [System.Windows.Controls.ComboBox])
+			{
+				$combo = $entry
+			}
+			elseif ((Test-GuiObjectField -Object $entry -FieldName 'ComboBox') -and ($entry.ComboBox -is [System.Windows.Controls.ComboBox]))
+			{
+				$combo = $entry.ComboBox
+			}
+
+			if (-not $combo) { continue }
+
+			try
+			{
+				Set-ChoiceComboStyle -Combo $combo
+			}
+			catch
+			{
+				Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-ChoiceComboStyles.SetChoiceComboStyle'
+			}
+		}
+	}
+
+	<#
+	    .SYNOPSIS
 	#>
 
 	function Set-FilterControlStyle
@@ -1479,6 +1626,9 @@
 		if ($CmbCategoryFilter) { Set-ChoiceComboStyle -Combo $CmbCategoryFilter }
 		if ($CmbPlatformFilter) { Set-ChoiceComboStyle -Combo $CmbPlatformFilter }
 		if ($CmbAppsStatusFilter) { Set-ChoiceComboStyle -Combo $CmbAppsStatusFilter }
+		Update-ChoiceComboStyles
+		if ($Script:CmbDeploymentMediaDetectedEdition) { Set-ChoiceComboStyle -Combo $Script:CmbDeploymentMediaDetectedEdition }
+		if ($Script:CmbDeploymentMediaOutputMode) { Set-ChoiceComboStyle -Combo $Script:CmbDeploymentMediaOutputMode }
 		if ($TxtLanguageState) { $TxtLanguageState.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
 		if ($LanguagePopupBorder)
 		{
@@ -1505,7 +1655,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-SearchControlsEnabled.
 	#>
 
 	function Set-SearchControlsEnabled
@@ -1528,7 +1677,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-GuiActionButtonsEnabled.
 	#>
 
 	function Set-GuiActionButtonsEnabled
@@ -1560,6 +1708,7 @@
 		if ($Script:MenuFileSettings) { $Script:MenuFileSettings.IsEnabled = $Enabled }
 		if ($Script:MenuFileAuditSettings) { $Script:MenuFileAuditSettings.IsEnabled = $Enabled }
 		if ($Script:MenuToolsExportSupportBundle) { $Script:MenuToolsExportSupportBundle.IsEnabled = $Enabled }
+		if ($Script:MenuToolsDeploymentMediaBuilder) { $Script:MenuToolsDeploymentMediaBuilder.IsEnabled = $Enabled }
 		if ($Script:MenuToolsApproveRemoteTargets) { $Script:MenuToolsApproveRemoteTargets.IsEnabled = ($Enabled -and $isRemoteConnected) }
 		if ($Script:MenuToolsSaveRemoteApprovalPolicy) { $Script:MenuToolsSaveRemoteApprovalPolicy.IsEnabled = ($Enabled -and $isRemoteConnected -and $isRemoteApprovalReady) }
 		if ($Script:MenuToolsLoadRemoteApprovalPolicy) { $Script:MenuToolsLoadRemoteApprovalPolicy.IsEnabled = ($Enabled -and $isRemoteConnected) }

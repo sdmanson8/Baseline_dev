@@ -3687,5 +3687,48 @@ function Set-ShowGalleryInNavPane
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'CheckBoxes',
+    'ControlPanelView',
+    'EncCompFilesColor',
+    'ExplorerTitleFullPath',
+    'FileDeleteConfirm',
+    'FileExplorerCompactMode',
+    'FileExtensions',
+    'FileOperationsDetails',
+    'FileTransferDialog',
+    'FirstLogonAnimation',
+    'FldrSeparateProcess',
+    'FolderGroupBy',
+    'HiddenItems',
+    'JPEGWallpapersQuality',
+    'MergeConflicts',
+    'NavigationPaneExpand',
+    'NavPaneAllFolders',
+    'NavPaneLibraries',
+    'OneDriveFileExplorerAd',
+    'OpenFileExplorerTo',
+    'QuickAccessFrequentFolders',
+    'QuickAccessRecentFiles',
+    'RecentShortcuts',
+    'RecycleBinDeleteConfirmation',
+    'RestoreFldrWindows',
+    'SelectCheckboxes',
+    'Set-DisplayFileIconOnThumbnails',
+    'Set-ExplorerAlwaysShowMenuBar',
+    'Set-ExplorerBrowseMode',
+    'Set-ExplorerClickBehavior',
+    'Set-ExplorerStatusBar',
+    'Set-ExplorerTypeAhead',
+    'Set-FolderTooltipDetails',
+    'Set-HideEmptyDrives',
+    'Set-OfficeCloudFilesInQuickAccess',
+    'Set-Show3DObjectsFolder',
+    'Set-ShowDriveLetters',
+    'Set-ShowGalleryInNavPane',
+    'Set-ShowHomeFolderInNavPane',
+    'Set-StartupAppDelay',
+    'SuperHiddenFiles',
+    'TaskManagerDetails'
+)
+Export-ModuleMember -Function $ExportedFunctions

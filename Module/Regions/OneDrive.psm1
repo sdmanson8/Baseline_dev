@@ -59,44 +59,6 @@ function OneDrive
 		$AllUsers
 	)
 
-	<#
-	    .SYNOPSIS
-	    Gets one drive setup path.
-
-	    
-.DESCRIPTION
-	    
-Supports one drive setup path handling inside Baseline.
-	#>
-
-	function Get-OneDriveSetupPath
-	{
-		$preferredPaths = @()
-
-		if ([Environment]::Is64BitOperatingSystem)
-		{
-			$preferredPaths += Join-Path $env:SystemRoot 'System32\OneDriveSetup.exe'
-			$preferredPaths += Join-Path $env:SystemRoot 'Sysnative\OneDriveSetup.exe'
-
-			if (-not [string]::IsNullOrWhiteSpace($env:ProgramFiles))
-			{
-				$preferredPaths += Join-Path $env:ProgramFiles 'Microsoft OneDrive\OneDriveSetup.exe'
-			}
-
-			if (-not [string]::IsNullOrWhiteSpace(${env:ProgramFiles(x86)}))
-			{
-				$preferredPaths += Join-Path ${env:ProgramFiles(x86)} 'Microsoft OneDrive\OneDriveSetup.exe'
-				$preferredPaths += Join-Path $env:SystemRoot 'SysWOW64\OneDriveSetup.exe'
-			}
-		}
-		else
-		{
-			$preferredPaths += Join-Path $env:SystemRoot 'System32\OneDriveSetup.exe'
-		}
-
-		$preferredPaths | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
-	}
-
 	# Remove all policies in order to make changes visible in UI only if it's possible
 	Remove-ItemProperty -Path HKLM:\Policies\Microsoft\Windows\OneDrive -Name DisableFileSyncNGSC -Force -ErrorAction Ignore | Out-Null
 	Set-Policy -Scope Computer -Path SOFTWARE\Policies\Microsoft\Windows\OneDrive -Name DisableFileSyncNGSC -Type CLEAR | Out-Null
@@ -137,7 +99,7 @@ Supports one drive setup path handling inside Baseline.
 		        # Prefer a locally resolved setup executable so ARM64 does not inherit an incompatible uninstall path.
 				if ($resolvedOneDriveSetup)
 				{
-		            $OneDriveUninstallProcess = Start-Process -FilePath $resolvedOneDriveSetup -ArgumentList '/uninstall' -Wait -PassThru -ErrorAction Stop
+		            $OneDriveUninstallProcess = Invoke-BaselineProcess -FilePath $resolvedOneDriveSetup -ArgumentList @('/uninstall') -TimeoutSeconds 900
 					if ($OneDriveUninstallProcess.ExitCode -ne 0) { throw "OneDrive uninstaller returned exit code $($OneDriveUninstallProcess.ExitCode)" }
 		        }
 				else
@@ -146,7 +108,7 @@ Supports one drive setup path handling inside Baseline.
 		        	$Arguments = if ($OneDriveSetup.Count -gt 1) { $OneDriveSetup[1..($OneDriveSetup.Count-1)] } else { @('/uninstall') }
 
 		        	if ($OneDriveSetup -and $OneDriveSetup[0]) {
-		            	$OneDriveUninstallProcess = Start-Process -FilePath $OneDriveSetup[0] -ArgumentList $Arguments -Wait -PassThru -ErrorAction Stop
+						$OneDriveUninstallProcess = Invoke-BaselineProcess -FilePath $OneDriveSetup[0] -ArgumentList $Arguments -TimeoutSeconds 900
 						if ($OneDriveUninstallProcess.ExitCode -ne 0) { throw "OneDrive uninstaller returned exit code $($OneDriveUninstallProcess.ExitCode)" }
 		        	}
 					else
@@ -160,7 +122,7 @@ Supports one drive setup path handling inside Baseline.
 	  	    		if ((Get-ChildItem -Path $env:OneDrive -ErrorAction Ignore | Measure-Object).Count -eq 0) {
 	        			Remove-Item -Path $env:OneDrive -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
 	    			} else {
-	           			Start-Process -FilePath explorer -ArgumentList $env:OneDrive -ErrorAction SilentlyContinue | Out-Null
+	           			Invoke-UserLaunch -FilePath 'explorer.exe' -ArgumentList @($env:OneDrive) -Description 'OneDrive folder' | Out-Null
 	    			}
 				}
 
@@ -204,12 +166,12 @@ Supports one drive setup path handling inside Baseline.
 					if ($AllUsers)
 					{
 						# Install OneDrive silently for all users
-						$OneDriveInstallProcess = Start-Process -FilePath $resolvedOneDriveSetup -ArgumentList "/silent /allusers" -Wait -PassThru -ErrorAction Stop
+						$OneDriveInstallProcess = Invoke-BaselineProcess -FilePath $resolvedOneDriveSetup -ArgumentList @('/silent', '/allusers') -TimeoutSeconds 1800
 						if ($OneDriveInstallProcess.ExitCode -ne 0) { throw "OneDriveSetup.exe returned exit code $($OneDriveInstallProcess.ExitCode)" }
 					}
 					else
 					{
-						$OneDriveInstallProcess = Start-Process -FilePath $resolvedOneDriveSetup -ArgumentList "/silent" -Wait -PassThru -ErrorAction Stop
+						$OneDriveInstallProcess = Invoke-BaselineProcess -FilePath $resolvedOneDriveSetup -ArgumentList @('/silent') -TimeoutSeconds 1800
 						if ($OneDriveInstallProcess.ExitCode -ne 0) { throw "OneDriveSetup.exe returned exit code $($OneDriveInstallProcess.ExitCode)" }
 					}
 				}
@@ -234,12 +196,12 @@ Supports one drive setup path handling inside Baseline.
 
 						if ($AllUsers)
 						{
-							& "$DownloadsFolder\OneDriveSetup.exe" /silent /allusers 2>$null | Out-Null
-							if ($LASTEXITCODE -ne 0) { throw "Downloaded OneDriveSetup.exe returned exit code $LASTEXITCODE" }
+							$DownloadedOneDriveProcess = Invoke-BaselineProcess -FilePath "$DownloadsFolder\OneDriveSetup.exe" -ArgumentList @('/silent', '/allusers') -TimeoutSeconds 1800
+							if ($DownloadedOneDriveProcess.ExitCode -ne 0) { throw "Downloaded OneDriveSetup.exe returned exit code $($DownloadedOneDriveProcess.ExitCode)" }
 						}
 						else
 						{
-							$DownloadedOneDriveProcess = Start-Process -FilePath "$DownloadsFolder\OneDriveSetup.exe" -ArgumentList "/silent" -Wait -PassThru -ErrorAction Stop
+							$DownloadedOneDriveProcess = Invoke-BaselineProcess -FilePath "$DownloadsFolder\OneDriveSetup.exe" -ArgumentList @('/silent') -TimeoutSeconds 1800
 							if ($DownloadedOneDriveProcess.ExitCode -ne 0) { throw "Downloaded OneDriveSetup.exe returned exit code $($DownloadedOneDriveProcess.ExitCode)" }
 						}
 
@@ -272,5 +234,7 @@ Supports one drive setup path handling inside Baseline.
 }
 
 #endregion OneDrive
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'OneDrive'
+)
+Export-ModuleMember -Function $ExportedFunctions

@@ -1,4 +1,4 @@
-﻿# Mode presentation helpers - Safe Mode gets beginner-focused wording while
+# Mode presentation helpers - Safe Mode gets beginner-focused wording while
 # the existing full-detail views keep the original wording.
 # The execution engine is the same in all views; these only change what the user sees.
 #
@@ -8,36 +8,12 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-IsSafeModeUX.
-	#>
-
-	function Test-IsSafeModeUX
-	{
-		return ([bool]$Script:SafeMode)
-	}
-
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
-function Test-IsExpertModeUX
-{
-	return ([bool]$Script:AdvancedMode)
-}
-
-	<#
-	    .SYNOPSIS
-	    Internal function Test-IsDesignModeUX.
 	#>
 function Test-IsDesignModeUX
 {
 	return ([bool]$Script:DesignMode)
 }
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 function Get-UxOnboardingMode
 	{
 		if (Test-IsExpertModeUX)
@@ -54,7 +30,6 @@ function Get-UxOnboardingMode
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxLocalizedString.
 	#>
 
 function Get-UxLocalizedString
@@ -103,7 +78,6 @@ function Get-UxLocalizedString
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxMainWindowTitleText.
 	#>
 
 function Get-UxMainWindowTitleText
@@ -117,11 +91,11 @@ function Get-UxMainWindowTitleText
 			$osName = [string]$osInfo.OSName
 		}
 	}
-	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UxPolicy.GetUxMainWindowTitleText.LoadOSInfo' }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'UxPolicy.GetUxMainWindowTitleText.LoadOSInfo' }
 
 	if (Test-IsDesignModeUX)
 	{
-		return ('Baseline (Design Mode — not applying changes) | Utility for {0}' -f $osName)
+		return ('Baseline (Design Mode - not applying changes) | Utility for {0}' -f $osName)
 	}
 
 	return (Get-UxLocalizedString -Key 'GuiMainWindowTitleFormat' -Fallback 'Baseline | Utility for {0}' -FormatArgs @($osName))
@@ -129,7 +103,6 @@ function Get-UxMainWindowTitleText
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxString.
 	#>
 
 	function Get-UxString
@@ -150,7 +123,6 @@ function Get-UxMainWindowTitleText
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxBilingualLocalizedString.
 	#>
 
 	function Get-UxBilingualLocalizedString
@@ -173,7 +145,6 @@ function Get-UxMainWindowTitleText
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxToggleStateLabel.
 	#>
 
 	function Get-UxToggleStateLabel
@@ -192,7 +163,6 @@ function Get-UxMainWindowTitleText
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxExecutionSummaryDialogStrings.
 	#>
 
 	function Get-UxExecutionSummaryDialogStrings
@@ -207,10 +177,6 @@ function Get-UxMainWindowTitleText
 		}
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-UxExecutionPlaceholderText
 	{
 		param (
@@ -227,7 +193,6 @@ function Get-UxMainWindowTitleText
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxEmptyTabStateMessage.
 	#>
 
 	function Get-UxEmptyTabStateMessage
@@ -276,7 +241,6 @@ function Get-UxMainWindowTitleText
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxRecommendedPresetName.
 	#>
 
 	function Get-UxRecommendedPresetName
@@ -296,7 +260,6 @@ function Get-UxMainWindowTitleText
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxFirstRunPrimaryActionLabel.
 	#>
 
 	function Get-UxFirstRunPrimaryActionLabel
@@ -310,10 +273,6 @@ function Get-UxMainWindowTitleText
 		return (Get-UxLocalizedString -Key 'GuiFirstRunStartWith' -Fallback 'Start with {0}' -FormatArgs @((Get-UxPresetDisplayName -PresetName $recommendedPreset)))
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-UxPresetLoadedStatusText
 	{
 		param ([string]$PresetName)
@@ -325,7 +284,6 @@ function Get-UxMainWindowTitleText
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxStartGuideButtonLabel.
 	#>
 
 	function Get-UxStartGuideButtonLabel
@@ -338,10 +296,6 @@ function Get-UxMainWindowTitleText
 		return (Get-UxLocalizedString -Key 'GuiStartGuideLabel' -Fallback 'Start Guide')
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-UxHelpButtonLabel
 	{
 		return (Get-UxLocalizedString -Key 'GuiHelpBtnLabel' -Fallback 'Help')
@@ -349,7 +303,6 @@ function Get-UxMainWindowTitleText
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxOpenHelpActionLabel.
 	#>
 
 	function Get-UxOpenHelpActionLabel
@@ -357,19 +310,11 @@ function Get-UxMainWindowTitleText
 		return (Get-UxLocalizedString -Key 'GuiOpenHelpActionLabel' -Fallback 'Open Help')
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-UxPreviewButtonLabel
 	{
 		return (Get-UxLocalizedString -Key 'GuiBtnPreviewRun' -Fallback 'Preview Run')
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-UxFirstRunDialogTitle
 	{
 		if ((Get-UxOnboardingMode) -eq 'Expert')
@@ -382,7 +327,6 @@ function Get-UxMainWindowTitleText
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxHelpDialogTitle.
 	#>
 
 	function Get-UxHelpDialogTitle
@@ -390,10 +334,6 @@ function Get-UxMainWindowTitleText
 		return (Get-UxLocalizedString -Key 'GuiHelpDialogTitle' -Fallback 'Help')
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-UxHelpDialogSubtitle
 	{
 		$subtitle = $null
@@ -434,7 +374,6 @@ function Get-UxMainWindowTitleText
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxExpertGameModeHelpSections.
 	#>
 
 	function Get-UxExpertGameModeHelpSections
@@ -494,23 +433,18 @@ function Get-UxMainWindowTitleText
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxRunActionLabel.
 	#>
 
 function Get-UxRunActionLabel
 {
 	if (Test-IsDesignModeUX)
 	{
-		return 'Save Config…'
+		return 'Save Config...'
 	}
 
 	return (Get-UxLocalizedString -Key 'GuiBtnRun' -Fallback 'Run Tweaks')
 }
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-UxPreviewButtonToolTip
 	{
 		if ([bool]$Script:GameMode)
@@ -533,7 +467,6 @@ function Get-UxRunActionLabel
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxRunActionToolTip.
 	#>
 
 function Get-UxRunActionToolTip
@@ -564,7 +497,6 @@ function Get-UxRunActionToolTip
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxRunPathContext.
 	#>
 
 function Get-UxRunPathContext
@@ -596,7 +528,6 @@ function Get-UxRunPathContext
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxRunPathConfirmationMessage.
 	#>
 
 	function Get-UxRunPathConfirmationMessage
@@ -627,7 +558,6 @@ function Get-UxRunPathContext
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxUndoSelectionActionLabel.
 	#>
 
 	function Get-UxUndoSelectionActionLabel
@@ -640,10 +570,6 @@ function Get-UxRunPathContext
 		return (Get-UxLocalizedString -Key 'GuiRestoreSnapshot' -Fallback 'Restore Snapshot')
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-UxUndoProfileActionLabel
 	{
 		if ((Get-UxOnboardingMode) -eq 'Safe')
@@ -656,7 +582,6 @@ function Get-UxRunPathContext
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxScenarioHeading.
 	#>
 
 	function Get-UxScenarioHeading
@@ -669,10 +594,6 @@ function Get-UxRunPathContext
 		return (Get-UxLocalizedString -Key 'GuiScenarioModesHeading' -Fallback 'Scenario Modes')
 	}
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Get-UxQuickStartSteps
 {
 	$previewLabel = Get-UxPreviewButtonLabel
@@ -706,7 +627,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxHelpGettingStartedLines.
 	#>
 
 	function Get-UxHelpGettingStartedLines
@@ -744,7 +664,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxUndoAndRestoreLines.
 	#>
 
 	function Get-UxUndoAndRestoreLines
@@ -769,7 +688,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxImportExportLines.
 	#>
 
 	function Get-UxImportExportLines
@@ -790,7 +708,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxFirstRunWelcomeMessage.
 	#>
 
 	function Get-UxFirstRunWelcomeMessage
@@ -872,7 +789,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxPresetDisplayName.
 	#>
 
 	function Get-UxPresetDisplayName
@@ -893,7 +809,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxPresetEmphasisText.
 	#>
 
 	function Get-UxPresetEmphasisText
@@ -916,7 +831,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxPresetSummaryText.
 	#>
 
 	function Get-UxPresetSummaryText
@@ -938,7 +852,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxConfirmationMessage.
 	#>
 
 	function Get-UxConfirmationMessage
@@ -1048,7 +961,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxHumanReadableSummary.
 	#>
 
 	function Get-UxHumanReadableSummary
@@ -1096,7 +1008,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxPreviewSummaryParts.
 	#>
 
 	function Get-UxPreviewSummaryParts
@@ -1125,7 +1036,7 @@ function Get-UxQuickStartSteps
 		}
 		catch
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'UxPolicy.GetUxExecutionSummary.LoadValidationMatrix'
+			Write-SwallowedException -ErrorRecord $_ -Source 'UxPolicy.GetUxExecutionSummary.LoadValidationMatrix'
 			$validationMatrix = $null
 		}
 		$currentOS = $null
@@ -1138,7 +1049,7 @@ function Get-UxQuickStartSteps
 		}
 		catch
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'UxPolicy.GetUxExecutionSummary.LoadOSInfo'
+			Write-SwallowedException -ErrorRecord $_ -Source 'UxPolicy.GetUxExecutionSummary.LoadOSInfo'
 			$currentOS = $null
 		}
 		$serverValidationWarning = $null
@@ -1196,7 +1107,7 @@ function Get-UxQuickStartSteps
 		}
 		elseif (Test-IsExpertModeUX)
 		{
-			# Expert Mode: full detail — always show all metrics for completeness
+			# Expert Mode: full detail - always show all metrics for completeness
 			if ($AlreadyDesiredCount -gt 0)
 			{
 				$summaryParts += "$AlreadyDesiredCount $(if ($AlreadyDesiredCount -eq 1) { $noun } else { $nounPlural }) already set."
@@ -1240,7 +1151,7 @@ function Get-UxQuickStartSteps
 		}
 		else
 		{
-			# Standard Mode: moderate detail — show nonzero metrics, skip zero-value recovery noise
+			# Standard Mode: moderate detail - show nonzero metrics, skip zero-value recovery noise
 			if ($AlreadyDesiredCount -gt 0)
 			{
 				$summaryParts += "$AlreadyDesiredCount $(if ($AlreadyDesiredCount -eq 1) { $noun } else { $nounPlural }) already set."
@@ -1304,14 +1215,13 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxPreviewSummaryCards.
 	#>
 
 	function Get-UxPreviewSummaryCards
 	{
 		# Safe Mode: compact set with friendly labels.
 		# Standard Mode: core cards + conditional extras (hide zero-value recovery noise).
-		# Expert Mode: full card set — always show all metrics for completeness.
+		# Expert Mode: full card set - always show all metrics for completeness.
 		param (
 			[object]$Summary,
 			[int]$AlreadyDesiredCount,
@@ -1373,7 +1283,7 @@ function Get-UxQuickStartSteps
 
 		if (Test-IsExpertModeUX)
 		{
-			# Expert Mode: full card set — always show all metrics for completeness
+			# Expert Mode: full card set - always show all metrics for completeness
 			$cards = @(
 				[pscustomobject]@{
 					Label = (Get-UxLocalizedString -Key 'GuiPreviewStatusSelected' -Fallback 'Selected')
@@ -1442,7 +1352,7 @@ function Get-UxQuickStartSteps
 			return @($cards)
 		}
 
-		# Standard Mode: core cards + conditional extras — suppress zero-value recovery noise
+		# Standard Mode: core cards + conditional extras - suppress zero-value recovery noise
 		$cards = @(
 			[pscustomobject]@{
 				Label = (Get-UxLocalizedString -Key 'GuiPreviewStatusSelected' -Fallback 'Selected')
@@ -1519,7 +1429,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxRestoreDefaultsConfirmation.
 	#>
 
 	function Get-UxRestoreDefaultsConfirmation
@@ -1555,7 +1464,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxPostRunNextStepsText.
 	#>
 
 	function Get-UxPostRunNextStepsText
@@ -1618,7 +1526,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxPostRunCountsText.
 	#>
 
 	function Get-UxPostRunCountsText
@@ -1647,7 +1554,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxRemoteManagementHelpLines.
 	#>
 
 	function Get-UxRemoteManagementHelpLines
@@ -1682,7 +1588,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-UxHelpSections.
 	#>
 
 	function Get-UxHelpSections
@@ -1880,7 +1785,6 @@ function Get-UxQuickStartSteps
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-UxShouldSkipLowRiskConfirmation.
 	#>
 
 	function Test-UxShouldSkipLowRiskConfirmation

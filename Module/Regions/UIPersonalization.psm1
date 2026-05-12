@@ -6,7 +6,7 @@ if (Test-Path $uiSubModuleRoot)
 {
     foreach ($subModule in (Get-ChildItem -Path $uiSubModuleRoot -Filter '*.psm1' -File))
     {
-        Import-Module $subModule.FullName -Force -Global
+        Import-Module $subModule.FullName -Force -Global -DisableNameChecking -WarningAction SilentlyContinue
     }
 }
 
@@ -718,5 +718,14 @@ function ChangingSoundScheme
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'ChangingSoundScheme',
+    'ClearRecentFiles',
+    'RecentFiles',
+    'SettingsSuggestedContent',
+    'TrayIcons',
+    'WhatsNewInWindows',
+    'WindowsTips',
+    'WindowsWelcomeExperience'
+)
+Export-ModuleMember -Function $ExportedFunctions

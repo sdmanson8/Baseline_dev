@@ -1179,5 +1179,20 @@ function UWPVoiceActivation
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'UWPAccountInfo',
+    'UWPCalendar',
+    'UWPCallHistory',
+    'UWPContacts',
+    'UWPDiagInfo',
+    'UWPEmail',
+    'UWPFileSystem',
+    'UWPMessaging',
+    'UWPNotifications',
+    'UWPOtherDevices',
+    'UWPPhoneCalls',
+    'UWPRadios',
+    'UWPTasks',
+    'UWPVoiceActivation'
+)
+Export-ModuleMember -Function $ExportedFunctions

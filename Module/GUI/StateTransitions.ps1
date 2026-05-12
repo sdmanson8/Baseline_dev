@@ -1,4 +1,4 @@
-# Shared state-transition orchestration for GUI mode and preset changes.
+﻿# Shared state-transition orchestration for GUI mode and preset changes.
 # Dot-sourced inside Show-TweakGUI after GuiContext.ps1.
 #
 # AS-3: Collapses duplicate orchestration patterns found in ModeState.ps1
@@ -7,7 +7,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Invoke-GuiStateTransition.
 	#>
 
 	function Invoke-GuiStateTransition
@@ -87,7 +86,7 @@
 				[System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke(
 					[action]{}, [System.Windows.Threading.DispatcherPriority]::Input)
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StateTransitions.Invoke-GuiStateTransition.DispatcherYield' }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'StateTransitions.Invoke-GuiStateTransition.DispatcherYield' }
 
 			& $Script:UpdateCurrentTabContentScript -SkipIdlePrebuild
 			if (Get-Command -Name 'Sync-ActivePresetButtonChrome' -CommandType Function -ErrorAction SilentlyContinue)

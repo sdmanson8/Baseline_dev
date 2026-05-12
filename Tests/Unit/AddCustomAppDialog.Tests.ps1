@@ -12,9 +12,9 @@ BeforeAll {
     $script:GuiRegionPath = Join-Path $script:RepoRoot 'Module/Regions/GUI.psm1'
     $script:UserAppsHelpersPath = Join-Path $script:RepoRoot 'Module/SharedHelpers/UserApps.Helpers.ps1'
 
-    $script:DialogContent = Get-Content -LiteralPath $script:DialogPath -Raw -Encoding UTF8
-    $script:XamlContent = Get-Content -LiteralPath $script:XamlPath -Raw -Encoding UTF8
-    $script:WindowSetupContent = Get-Content -LiteralPath $script:WindowSetupPath -Raw -Encoding UTF8
+    $script:DialogContent = Get-BaselineTestSourceText -Path $script:DialogPath
+    $script:XamlContent = Get-BaselineTestSourceText -Path $script:XamlPath
+    $script:WindowSetupContent = Get-BaselineTestSourceText -Path $script:WindowSetupPath
     $script:ActionHandlersContent = Get-BaselineTestSourceText -Path @(
         $script:ActionHandlersPath
         (Join-Path $script:ActionHandlersSplitRoot 'ThemeNavigationHandlers.ps1')
@@ -22,7 +22,7 @@ BeforeAll {
         (Join-Path $script:ActionHandlersSplitRoot 'SystemScanFooterHandlers.ps1')
         (Join-Path $script:ActionHandlersSplitRoot 'MenuHandlers.ps1')
     )
-    $script:GuiRegionContent = Get-Content -LiteralPath $script:GuiRegionPath -Raw -Encoding UTF8
+    $script:GuiRegionContent = Get-BaselineTestSourceText -Path $script:GuiRegionPath
 }
 
 Describe '+ Add custom app dialog: XAML button wiring (#29 / spec #18)' {
@@ -160,7 +160,7 @@ Describe 'Save-BaselineUserAppEntry behavior' {
         $path = Save-BaselineUserAppEntry -Entry $entry -Directory $script:TempUserAppsDir
         Test-Path -LiteralPath $path | Should -Be $true
 
-        $parsed = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+        $parsed = Get-BaselineTestSourceText -Path $path | ConvertFrom-Json
         $parsed.Tab | Should -Be 'Applications'
         @($parsed.Entries).Count | Should -Be 1
         $parsed.Entries[0].Name | Should -Be 'TestUserApp'

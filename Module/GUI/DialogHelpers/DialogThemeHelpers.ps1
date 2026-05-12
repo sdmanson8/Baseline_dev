@@ -1,8 +1,7 @@
-# Dialog helper split file loaded by Module\GUI\DialogHelpers.ps1.
+﻿# Dialog helper split file loaded by Module\GUI\DialogHelpers.ps1.
 
 <#
 	    .SYNOPSIS
-	    Internal function Get-BaselineScrollBarStyleXaml.
 	#>
 
 	function Get-BaselineScrollBarStyleXaml
@@ -13,108 +12,16 @@
 			[hashtable]$Theme
 		)
 
-		$track  = if ($Theme.ScrollBg)          { $Theme.ScrollBg }          else { '#151824' }
-		$thumb  = if ($Theme.ScrollThumb)       { $Theme.ScrollThumb }       else { '#4A4D5E' }
-		$hover  = if ($Theme.ScrollThumbHover)  { $Theme.ScrollThumbHover }  else { $thumb }
-		$active = if ($Theme.ScrollThumbActive) { $Theme.ScrollThumbActive } else { $thumb }
+		if (Get-Command -Name 'GUICommon\Get-GuiSharedScrollBarStyleXaml' -ErrorAction SilentlyContinue)
+		{
+			return GUICommon\Get-GuiSharedScrollBarStyleXaml -Theme $Theme
+		}
 
-		return @"
-<Style x:Key="BaselineDialogScrollThumbStyle" TargetType="Thumb">
-	<Setter Property="OverridesDefaultStyle" Value="True"/>
-	<Setter Property="IsTabStop" Value="False"/>
-	<Setter Property="Focusable" Value="False"/>
-	<Setter Property="Template">
-		<Setter.Value>
-			<ControlTemplate TargetType="Thumb">
-				<Border x:Name="ThumbBorder" Background="$thumb" CornerRadius="4" Margin="2" Opacity="0.55"/>
-				<ControlTemplate.Triggers>
-					<Trigger Property="IsMouseOver" Value="True">
-						<Setter TargetName="ThumbBorder" Property="Background" Value="$hover"/>
-						<Setter TargetName="ThumbBorder" Property="Opacity" Value="0.85"/>
-					</Trigger>
-					<Trigger Property="IsDragging" Value="True">
-						<Setter TargetName="ThumbBorder" Property="Background" Value="$active"/>
-						<Setter TargetName="ThumbBorder" Property="Opacity" Value="1.0"/>
-					</Trigger>
-				</ControlTemplate.Triggers>
-			</ControlTemplate>
-		</Setter.Value>
-	</Setter>
-</Style>
-<Style x:Key="BaselineDialogScrollRepeatButtonStyle" TargetType="RepeatButton">
-	<Setter Property="OverridesDefaultStyle" Value="True"/>
-	<Setter Property="Background" Value="Transparent"/>
-	<Setter Property="IsTabStop" Value="False"/>
-	<Setter Property="Focusable" Value="False"/>
-	<Setter Property="Template">
-		<Setter.Value>
-			<ControlTemplate TargetType="RepeatButton">
-				<Border Background="Transparent"/>
-			</ControlTemplate>
-		</Setter.Value>
-	</Setter>
-</Style>
-<Style TargetType="ScrollBar">
-	<Setter Property="Background" Value="$track"/>
-	<Setter Property="BorderThickness" Value="0"/>
-	<Setter Property="SnapsToDevicePixels" Value="True"/>
-	<Style.Triggers>
-		<Trigger Property="Orientation" Value="Vertical">
-			<Setter Property="Width" Value="8"/>
-			<Setter Property="MinWidth" Value="8"/>
-			<Setter Property="Template">
-				<Setter.Value>
-					<ControlTemplate TargetType="ScrollBar">
-						<Grid Background="Transparent">
-							<Border Background="{TemplateBinding Background}" Opacity="0.30" CornerRadius="4"/>
-							<Track Name="PART_Track" IsDirectionReversed="True">
-								<Track.DecreaseRepeatButton>
-									<RepeatButton Style="{StaticResource BaselineDialogScrollRepeatButtonStyle}" Command="ScrollBar.PageUpCommand"/>
-								</Track.DecreaseRepeatButton>
-								<Track.Thumb>
-									<Thumb Style="{StaticResource BaselineDialogScrollThumbStyle}" MinHeight="30"/>
-								</Track.Thumb>
-								<Track.IncreaseRepeatButton>
-									<RepeatButton Style="{StaticResource BaselineDialogScrollRepeatButtonStyle}" Command="ScrollBar.PageDownCommand"/>
-								</Track.IncreaseRepeatButton>
-							</Track>
-						</Grid>
-					</ControlTemplate>
-				</Setter.Value>
-			</Setter>
-		</Trigger>
-		<Trigger Property="Orientation" Value="Horizontal">
-			<Setter Property="Height" Value="8"/>
-			<Setter Property="MinHeight" Value="8"/>
-			<Setter Property="Template">
-				<Setter.Value>
-					<ControlTemplate TargetType="ScrollBar">
-						<Grid Background="Transparent">
-							<Border Background="{TemplateBinding Background}" Opacity="0.30" CornerRadius="4"/>
-							<Track Name="PART_Track" IsDirectionReversed="False">
-								<Track.DecreaseRepeatButton>
-									<RepeatButton Style="{StaticResource BaselineDialogScrollRepeatButtonStyle}" Command="ScrollBar.PageLeftCommand"/>
-								</Track.DecreaseRepeatButton>
-								<Track.Thumb>
-									<Thumb Style="{StaticResource BaselineDialogScrollThumbStyle}" MinWidth="30"/>
-								</Track.Thumb>
-								<Track.IncreaseRepeatButton>
-									<RepeatButton Style="{StaticResource BaselineDialogScrollRepeatButtonStyle}" Command="ScrollBar.PageRightCommand"/>
-								</Track.IncreaseRepeatButton>
-							</Track>
-						</Grid>
-					</ControlTemplate>
-				</Setter.Value>
-			</Setter>
-		</Trigger>
-	</Style.Triggers>
-</Style>
-"@
+		throw 'Shared GUI scrollbar resources are not available.'
 	}
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-BaselineReadmeInlineTheme.
 	#>
 
 	function Set-BaselineReadmeInlineTheme
@@ -168,7 +75,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-BaselineReadmeBlockTheme.
 	#>
 
 	function Set-BaselineReadmeBlockTheme
@@ -247,7 +153,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-BaselineReadmeFlowDocumentTheme.
 	#>
 
 	function Set-BaselineReadmeFlowDocumentTheme

@@ -1,7 +1,25 @@
-﻿# ActionHandlers split file loaded by Module\GUI\ActionHandlers.ps1.
+# ActionHandlers split file loaded by Module\GUI\ActionHandlers.ps1.
 
 	#region System scan state
 	$buildTabContentCommand = Get-GuiRuntimeCommand -Name 'Build-TabContent' -CommandType 'Function'
+	$hasField = {
+		param (
+			[object]$Object,
+			[string]$FieldName
+		)
+
+		if ($null -eq $Object)
+		{
+			return $false
+		}
+
+		if ($Object -is [System.Collections.IDictionary])
+		{
+			return $Object.Contains($FieldName)
+		}
+
+		return ($null -ne $Object.PSObject.Properties[$FieldName])
+	}.GetNewClosure()
 	Register-GuiEventHandler -Source $ChkScan -EventName 'Unchecked' -Handler ({
 		if ($Script:FilterUiUpdating -or $Script:RunInProgress) { return }
 		$Script:ScanEnabled = $false
@@ -20,7 +38,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Sync-UxActionButtonText.
 	#>
 
 	function Sync-UxActionButtonText
@@ -28,7 +45,7 @@
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ()
 
-		if ($Script:AppsModeActive)
+		if ($Script:AppsModeActive -or $Script:UpdatesModeActive -or $Script:DeploymentMediaModeActive)
 		{
 			if ($Script:BtnRun) { $Script:BtnRun.Visibility = [System.Windows.Visibility]::Collapsed }
 			if ($Script:BtnPreviewRun) { $Script:BtnPreviewRun.Visibility = [System.Windows.Visibility]::Collapsed }
@@ -42,11 +59,7 @@
 		}
 		if ($Script:BtnRun -and -not (& $Script:TestGuiRunInProgressScript))
 		{
-			$btnRunContent = [string]$Script:BtnRun.Content
-			if ($btnRunContent -notin @('Pause', 'Resume', 'Stopping...', 'Exiting...'))
-			{
-				Set-GuiButtonIconContent -Button $Script:BtnRun -IconName 'RunTweaks' -Text (Get-UxRunActionLabel) -ToolTip (Get-UxRunActionToolTip)
-			}
+			Set-GuiButtonIconContent -Button $Script:BtnRun -IconName 'RunTweaks' -Text (Get-UxRunActionLabel) -ToolTip (Get-UxRunActionToolTip)
 		}
 
 		if ($Script:BtnRestoreSnapshot)
@@ -86,7 +99,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-RunPathContextLabel.
 	#>
 
 	function Update-RunPathContextLabel
@@ -119,9 +131,9 @@
 				}
 				catch
 				{
-					if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.UpdateRunPathContextLabel.Foreground'
+						Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.UpdateRunPathContextLabel.Foreground'
 					}
 				}
 			}
@@ -267,7 +279,7 @@
 			}
 
 			$baselineVersion = $null
-			try { $baselineVersion = Get-BaselineDisplayVersion } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.ExportConfigProfile.GetDisplayVersion' }
+			try { $baselineVersion = Get-BaselineDisplayVersion } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.ExportConfigProfile.GetDisplayVersion' }
 			if ([string]::IsNullOrWhiteSpace($baselineVersion)) { $baselineVersion = 'unknown' }
 
 			# Snapshot user-added external software entries so the profile is
@@ -286,9 +298,9 @@
 				}
 				catch
 				{
-					if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.ExportConfigProfile.UserApps'
+						Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.ExportConfigProfile.UserApps'
 					}
 					$userAppSnapshot = @()
 				}
@@ -398,7 +410,7 @@
 		}
 	}.GetNewClosure()) | Out-Null
 
-	# Import Configuration Profile button — file → review-mode dialog → apply.
+	# Import Configuration Profile button - file -> review-mode dialog -> apply.
 	$BtnImportConfigProfile = New-PresetButton -Label (Get-UxLocalizedString -Key 'GuiFooterImportConfigProfile' -Fallback 'Import Config Profile') -Variant 'Subtle' -Compact -Muted
 	$BtnImportConfigProfile.FontSize = $Script:GuiLayout.FontSizeSmall
 	$BtnImportConfigProfile.ToolTip = (Get-UxLocalizedString -Key 'GuiActionImportProfileTooltip' -Fallback 'Load a portable configuration profile, review the per-row diff, and apply the accepted changes.')
@@ -451,7 +463,7 @@
 			}
 
 			$baselineVersion = $null
-			try { $baselineVersion = Get-BaselineDisplayVersion } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.ImportConfigProfile.GetDisplayVersion' }
+			try { $baselineVersion = Get-BaselineDisplayVersion } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.ImportConfigProfile.GetDisplayVersion' }
 			if ([string]::IsNullOrWhiteSpace($baselineVersion)) { $baselineVersion = 'unknown' }
 
 			# If the profile carries inlined custom user-app definitions, offer
@@ -487,7 +499,7 @@
 						LogInfo ('Import config profile user-app restore: {0} imported, {1} skipped, {2} failed.' -f $importedCount, $skippedCount, $failedCount)
 						if ($importedCount -gt 0 -and (Get-Command -Name 'Get-BaselineApplicationsCatalog' -CommandType Function -ErrorAction SilentlyContinue))
 						{
-							try { $null = Get-BaselineApplicationsCatalog -Force } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.ImportConfigProfile.RefreshUserAppsCatalog' }
+							try { $null = Get-BaselineApplicationsCatalog -Force } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.ImportConfigProfile.RefreshUserAppsCatalog' }
 							$Script:AppsViewBuildSignature = $null
 							if ($Script:AppsModeActive -and (Get-Command -Name 'Build-AppsViewCards' -CommandType Function -ErrorAction SilentlyContinue))
 							{
@@ -514,7 +526,7 @@
 			$importedRunList = @(& $importConfigProfileToRunListCommand -Profile $importedProfile -Manifest $Script:TweakManifest)
 			if (@($importedRunList).Count -eq 0)
 			{
-				# UserApps-only profile is a legitimate use case — show a
+				# UserApps-only profile is a legitimate use case - show a
 				# success message reflecting what was restored rather than
 				# the generic "no matching tweaks" warning.
 				if ($userAppRestoreSummary -and @($userAppRestoreSummary.Imported).Count -gt 0)
@@ -604,8 +616,8 @@
 
 						if (($null -eq $preRunSnapshot -or $null -eq $postRunSnapshot) -and $Script:LastRunProfile)
 						{
-							if ($null -eq $preRunSnapshot -and (Test-GuiObjectField -Object $Script:LastRunProfile -FieldName 'PreRunSnapshot')) { $preRunSnapshot = $Script:LastRunProfile.PreRunSnapshot }
-							if ($null -eq $postRunSnapshot -and (Test-GuiObjectField -Object $Script:LastRunProfile -FieldName 'PostRunSnapshot')) { $postRunSnapshot = $Script:LastRunProfile.PostRunSnapshot }
+							if ($null -eq $preRunSnapshot -and (& $hasField -Object $Script:LastRunProfile -FieldName 'PreRunSnapshot')) { $preRunSnapshot = $Script:LastRunProfile.PreRunSnapshot }
+							if ($null -eq $postRunSnapshot -and (& $hasField -Object $Script:LastRunProfile -FieldName 'PostRunSnapshot')) { $postRunSnapshot = $Script:LastRunProfile.PostRunSnapshot }
 						}
 					}
 					catch
@@ -618,7 +630,7 @@
 					try
 					{
 						$ctx = & $getRemoteTargetContextCommand
-						if ($ctx -and (Test-GuiObjectField -Object $ctx -FieldName 'LastConnectivityResults'))
+						if ($ctx -and (& $hasField -Object $ctx -FieldName 'LastConnectivityResults'))
 						{
 							$connectivityResults = @($ctx.LastConnectivityResults)
 						}
@@ -639,9 +651,9 @@
 						}
 						catch
 						{
-							if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 							{
-								Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.ExportSupportBundle.RemoveSessionStatePath'
+								Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.ExportSupportBundle.RemoveSessionStatePath'
 							}
 						}
 					}
@@ -796,6 +808,31 @@
 		}.GetNewClosure()) | Out-Null
 	}
 
+	if ($MenuToolsDeploymentMediaBuilder)
+	{
+		Register-GuiEventHandler -Source $MenuToolsDeploymentMediaBuilder -EventName 'Click' -Handler ({
+			if (& $testGuiRunInProgressCapture) { return }
+			try
+			{
+				$deploymentMediaBuilderDialogCommand = $showGuiDeploymentMediaBuilderDialogCommand
+				if (-not $deploymentMediaBuilderDialogCommand)
+				{
+					$deploymentMediaBuilderDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiDeploymentMediaBuilderDialog' -CommandType 'Function'
+				}
+				if (-not $deploymentMediaBuilderDialogCommand)
+				{
+					throw 'Deployment Media Builder dialog command is not available.'
+				}
+				$null = & $deploymentMediaBuilderDialogCommand
+			}
+			catch
+			{
+				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to open deployment media builder')
+				[void](Show-ThemedDialog -Title 'Deployment Media Builder' -Message ("Failed to open deployment media builder.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+			}
+		}.GetNewClosure()) | Out-Null
+	}
+
 	# Remote session status action
 	if ($MenuToolsRemoteSessionStatus)
 	{
@@ -875,7 +912,7 @@
 	Register-GuiEventHandler -Source $BtnUndoLastRun -EventName 'Click' -Handler ({
 		if (& $testGuiRunInProgressCapture) { return }
 		$lastRunProfile = $Script:LastRunProfile
-		if (-not $lastRunProfile -or -not (Test-GuiObjectField -Object $lastRunProfile -FieldName 'RollbackCommands'))
+		if (-not $lastRunProfile -or -not (& $hasField -Object $lastRunProfile -FieldName 'RollbackCommands'))
 		{
 			Show-ThemedDialog -Title (& $getUxLocalizedStringCapture -Key 'GuiFooterUndoLastRun' -Fallback 'Undo Last Run') -Message (& $getUxLocalizedStringCapture -Key 'GuiActionUndoNoRun' -Fallback 'No previous run is available to undo.') -Buttons @('OK') -AccentButton 'OK'
 			return
@@ -888,7 +925,7 @@
 			return
 		}
 
-		$timestampText = if ((Test-GuiObjectField -Object $lastRunProfile -FieldName 'Timestamp') -and -not [string]::IsNullOrWhiteSpace([string]$lastRunProfile.Timestamp))
+		$timestampText = if ((& $hasField -Object $lastRunProfile -FieldName 'Timestamp') -and -not [string]::IsNullOrWhiteSpace([string]$lastRunProfile.Timestamp))
 		{
 			try { " from $(([datetime]$lastRunProfile.Timestamp).ToString('g'))" } catch { '' }
 		}
@@ -930,7 +967,7 @@
 				Category        = [string]$manifestEntry.Category
 				Risk            = [string]$manifestEntry.Risk
 				Restorable      = $manifestEntry.Restorable
-				RecoveryLevel   = if ((Test-GuiObjectField -Object $manifestEntry -FieldName 'RecoveryLevel')) { [string]$manifestEntry.RecoveryLevel } else { 'Direct' }
+				RecoveryLevel   = if ((& $hasField -Object $manifestEntry -FieldName 'RecoveryLevel')) { [string]$manifestEntry.RecoveryLevel } else { 'Direct' }
 				RequiresRestart = [bool]$manifestEntry.RequiresRestart
 				Impact          = $manifestEntry.Impact
 				PresetTier      = $manifestEntry.PresetTier
@@ -979,7 +1016,7 @@
 	Register-GuiEventHandler -Source $BtnResumeInterruptedRun -EventName 'Click' -Handler ({
 		if (& $testGuiRunInProgressCapture) { return }
 		$interruptedRunProfile = $Script:InterruptedRunProfile
-		if (-not $interruptedRunProfile -or -not (Test-GuiObjectField -Object $interruptedRunProfile -FieldName 'ResumeCandidates'))
+		if (-not $interruptedRunProfile -or -not (& $hasField -Object $interruptedRunProfile -FieldName 'ResumeCandidates'))
 		{
 			Show-ThemedDialog -Title (& $getUxLocalizedStringCapture -Key 'GuiFooterResumeInterruptedRun' -Fallback 'Resume Interrupted Run') -Message (& $getUxLocalizedStringCapture -Key 'GuiActionResumeInterruptedNoRun' -Fallback 'No interrupted run is available to resume.') -Buttons @('OK') -AccentButton 'OK'
 			return
@@ -992,7 +1029,7 @@
 			return
 		}
 
-		$timestampText = if ((Test-GuiObjectField -Object $interruptedRunProfile -FieldName 'Timestamp') -and -not [string]::IsNullOrWhiteSpace([string]$interruptedRunProfile.Timestamp))
+		$timestampText = if ((& $hasField -Object $interruptedRunProfile -FieldName 'Timestamp') -and -not [string]::IsNullOrWhiteSpace([string]$interruptedRunProfile.Timestamp))
 		{
 			try { " from $(([datetime]$interruptedRunProfile.Timestamp).ToString('g'))" } catch { '' }
 		}

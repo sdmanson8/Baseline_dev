@@ -34,11 +34,17 @@
     <EmbeddedResource Include="../Bootstrap/*.ps1">
       <LogicalName>BaselinePayload/Bootstrap/%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="../Bootstrap/Helpers/*.ps1">
+      <LogicalName>BaselinePayload/Bootstrap/Helpers/%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="../Module/Baseline.psd1">
       <LogicalName>BaselinePayload/Module/Baseline.psd1</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="../Module/Baseline.psm1">
       <LogicalName>BaselinePayload/Module/Baseline.psm1</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="../Module/integrity.manifest.json">
+      <LogicalName>BaselinePayload/Module/integrity.manifest.json</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="../Module/Logging.psm1">
       <LogicalName>BaselinePayload/Module/Logging.psm1</LogicalName>
@@ -49,14 +55,17 @@
     <EmbeddedResource Include="../Module/GUICommon.psm1">
       <LogicalName>BaselinePayload/Module/GUICommon.psm1</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="../Module/GUICommon/*.ps1">
-      <LogicalName>BaselinePayload/Module/GUICommon/%(Filename)%(Extension)</LogicalName>
+    <EmbeddedResource Include="../Module/GUICommon/**/*.ps1">
+      <LogicalName>BaselinePayload/Module/GUICommon/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="../Module/GUIExecution.psm1">
       <LogicalName>BaselinePayload/Module/GUIExecution.psm1</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="../Module/SharedHelpers/*.ps1">
-      <LogicalName>BaselinePayload/Module/SharedHelpers/%(Filename)%(Extension)</LogicalName>
+    <EmbeddedResource Include="../Module/GUIExecution/**/*.ps1">
+      <LogicalName>BaselinePayload/Module/GUIExecution/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="../Module/SharedHelpers/**/*.ps1">
+      <LogicalName>BaselinePayload/Module/SharedHelpers/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="../Module/SharedHelperModules/*.psm1">
       <LogicalName>BaselinePayload/Module/SharedHelperModules/%(Filename)%(Extension)</LogicalName>

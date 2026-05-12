@@ -1,8 +1,10 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     $guiRegionPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
-    $script:GuiRegionContent = Get-Content -LiteralPath $guiRegionPath -Raw -Encoding UTF8
+    $script:GuiRegionContent = Get-BaselineTestSourceText -Path $guiRegionPath
 }
 
 Describe 'GUI bootstrap PlatformSupport stamp (P2 #18)' {
@@ -27,7 +29,7 @@ Describe 'GUI bootstrap PlatformSupport stamp (P2 #18)' {
         $script:GuiRegionContent | Should -Match '-SystemInfo \$Script:BaselineSystemPlatformInfo'
     }
 
-    It 'wraps the stamp in a try/catch routed through Write-DebugSwallowedException' {
+    It 'wraps the stamp in a try/catch routed through Write-SwallowedException' {
         $script:GuiRegionContent | Should -Match "Source 'GUI\.ManifestLoad\.AvailabilityStamp'"
     }
 

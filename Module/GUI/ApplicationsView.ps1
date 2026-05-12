@@ -1,8 +1,7 @@
-﻿# Apps view filter state, source preference, and catalog helpers
+# Apps view filter state, source preference, and catalog helpers
 
 	<#
 	    .SYNOPSIS
-	    Internal function ConvertTo-AppPackageSourcePreference.
 	#>
 
 	function ConvertTo-AppPackageSourcePreference
@@ -25,7 +24,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Initialize-AppPackageSourcePreferenceState.
 	#>
 
 	function Initialize-AppPackageSourcePreferenceState
@@ -33,17 +31,15 @@
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ()
 
-		$Script:AppsPackageSourcePreference = ConvertTo-AppPackageSourcePreference -Source $Script:AppsPackageSourcePreference
-		if ($null -eq $Script:AppsSourceUiUpdating)
+		$currentSourcePreference = Get-Variable -Name 'AppsPackageSourcePreference' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+		$Script:AppsPackageSourcePreference = ConvertTo-AppPackageSourcePreference -Source $currentSourcePreference
+		$appsSourceUiUpdating = Get-Variable -Name 'AppsSourceUiUpdating' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+		if ($null -eq $appsSourceUiUpdating)
 		{
 			$Script:AppsSourceUiUpdating = $false
 		}
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-AppsViewRenderSignature
 	{
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
@@ -55,10 +51,21 @@
 		Initialize-AppCategoryFilterState
 		Initialize-AppStatusFilterState
 
-		$searchQuery = if ($Script:AppsModeActive) { [string]$Script:AppsSearchText } else { [string]$Script:SearchText }
-		$themeName = if ([string]::IsNullOrWhiteSpace([string]$Script:CurrentThemeName)) { 'Dark' } else { [string]$Script:CurrentThemeName }
-		$catalogCount = if ($Script:BaselineApplicationsCatalog -is [System.Array]) { [int]$Script:BaselineApplicationsCatalog.Count } else { -1 }
-		$cacheSignature = Get-ApplicationCacheSignature -CacheState $Script:InstalledAppsCache
+		$appsModeActive = [bool](Get-Variable -Name 'AppsModeActive' -Scope Script -ValueOnly -ErrorAction SilentlyContinue)
+		$appsSearchText = Get-Variable -Name 'AppsSearchText' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+		$searchText = Get-Variable -Name 'SearchText' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+		$currentThemeName = Get-Variable -Name 'CurrentThemeName' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+		$baselineApplicationsCatalog = Get-Variable -Name 'BaselineApplicationsCatalog' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+		$installedAppsCache = Get-Variable -Name 'InstalledAppsCache' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+		$appsViewLoaded = [bool](Get-Variable -Name 'AppsViewLoaded' -Scope Script -ValueOnly -ErrorAction SilentlyContinue)
+		$appsViewDirty = [bool](Get-Variable -Name 'AppsViewDirty' -Scope Script -ValueOnly -ErrorAction SilentlyContinue)
+		$appsCacheRefreshInProgress = [bool](Get-Variable -Name 'AppsCacheRefreshInProgress' -Scope Script -ValueOnly -ErrorAction SilentlyContinue)
+		$appsSourceFilter = Get-Variable -Name 'AppsSourceFilter' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+
+		$searchQuery = if ($appsModeActive) { [string]$appsSearchText } else { [string]$searchText }
+		$themeName = if ([string]::IsNullOrWhiteSpace([string]$currentThemeName)) { 'Dark' } else { [string]$currentThemeName }
+		$catalogCount = if ($baselineApplicationsCatalog -is [System.Array]) { [int]$baselineApplicationsCatalog.Count } else { -1 }
+		$cacheSignature = Get-ApplicationCacheSignature -CacheState $installedAppsCache
 		$packageManagerAvailabilitySignature = if ($PackageManagerAvailabilityState -and $PackageManagerAvailabilityState.PSObject.Properties['AvailabilitySignature'])
 		{
 			[string]$PackageManagerAvailabilityState.AvailabilitySignature
@@ -70,15 +77,15 @@
 
 		return @(
 			"Theme=$themeName"
-			"Mode=$([bool]$Script:AppsModeActive)"
+			"Mode=$appsModeActive"
 			"Search=$searchQuery"
 			"Category=$([string]$Script:AppsCategoryFilter)"
 			"Status=$([string]$Script:AppsStatusFilter)"
 			"Source=$([string](ConvertTo-AppPackageSourcePreference -Source $Script:AppsPackageSourcePreference))"
-			"SourceFilter=$([string]$Script:AppsSourceFilter)"
-			"Loaded=$([bool]$Script:AppsViewLoaded)"
-			"Dirty=$([bool]$Script:AppsViewDirty)"
-			"Refresh=$([bool]$Script:AppsCacheRefreshInProgress)"
+			"SourceFilter=$([string]$appsSourceFilter)"
+			"Loaded=$appsViewLoaded"
+			"Dirty=$appsViewDirty"
+			"Refresh=$appsCacheRefreshInProgress"
 			"PackageManagers=$packageManagerAvailabilitySignature"
 			"Cache=$cacheSignature"
 			"Catalog=$catalogCount"
@@ -87,7 +94,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-AppsCacheRefreshPromptText.
 	#>
 
 	function Get-AppsCacheRefreshPromptText
@@ -98,10 +104,6 @@
 		return (Get-UxLocalizedString -Key 'GuiAppsCacheRefreshRequired' -Fallback 'Installed status not scanned')
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-AppsPackageManagerAvailabilityState
 	{
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
@@ -154,7 +156,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-AppsPackageManagerAvailabilitySignature.
 	#>
 
 	function Get-AppsPackageManagerAvailabilitySignature
@@ -166,10 +167,6 @@
 		return [string]$state.AvailabilitySignature
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Update-AppsPackageManagerBanner
 	{
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
@@ -192,17 +189,16 @@
 
 		if ($Script:AppsPackageManagerBanner)
 		{
-			try { $Script:AppsPackageManagerBanner.Visibility = $(if ($showBanner) { 'Visible' } else { 'Collapsed' }) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsPackageManagerBanner.Visibility' }
+			try { $Script:AppsPackageManagerBanner.Visibility = $(if ($showBanner) { 'Visible' } else { 'Collapsed' }) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsPackageManagerBanner.Visibility' }
 		}
 		if ($Script:TxtAppsPackageManagerBanner)
 		{
-			try { $Script:TxtAppsPackageManagerBanner.Text = [string]$bannerText } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsPackageManagerBanner.Text' }
+			try { $Script:TxtAppsPackageManagerBanner.Text = [string]$bannerText } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsPackageManagerBanner.Text' }
 		}
 	}
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ApplicationCacheSignature.
 	#>
 
 	function Get-ApplicationCacheSignature
@@ -256,7 +252,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-AppPackageSourcePreferenceControls.
 	#>
 
 	function Update-AppPackageSourcePreferenceControls
@@ -269,7 +264,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-AppSourceFilterControls.
 	#>
 
 	function Update-AppSourceFilterControls
@@ -293,7 +287,7 @@
 		$wingetTip = Get-UxLocalizedString -Key 'GuiAppsSourceFilterWinGetTip' -Fallback 'Show only apps available through WinGet.'
 		$chocoTip = Get-UxLocalizedString -Key 'GuiAppsSourceFilterChocolateyTip' -Fallback 'Show only apps available through Chocolatey.'
 
-		# Layout + chrome come from AppsFilterRadioStyle in MainWindow.xaml — only
+		# Layout + chrome come from AppsFilterRadioStyle in MainWindow.xaml - only
 		# sync dynamic state (IsChecked, localized Content, ToolTip) here.
 		$Script:AppsSourceFilterUiUpdating = $true
 		try
@@ -301,21 +295,21 @@
 			if ($Script:BtnAppsSourceFilterAll)
 			{
 				$isOn = ($current -eq 'All')
-				try { $Script:BtnAppsSourceFilterAll.IsChecked = $isOn } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsSourceFilterControls.All' }
+				try { $Script:BtnAppsSourceFilterAll.IsChecked = $isOn } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsSourceFilterControls.All' }
 				$Script:BtnAppsSourceFilterAll.Content = $allText
 				$Script:BtnAppsSourceFilterAll.ToolTip = $allTip
 			}
 			if ($Script:BtnAppsSourceFilterWinGet)
 			{
 				$isOn = ($current -eq 'winget')
-				try { $Script:BtnAppsSourceFilterWinGet.IsChecked = $isOn } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsSourceFilterControls.WinGet' }
+				try { $Script:BtnAppsSourceFilterWinGet.IsChecked = $isOn } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsSourceFilterControls.WinGet' }
 				$Script:BtnAppsSourceFilterWinGet.Content = $wingetText
 				$Script:BtnAppsSourceFilterWinGet.ToolTip = $wingetTip
 			}
 			if ($Script:BtnAppsSourceFilterChocolatey)
 			{
 				$isOn = ($current -eq 'choco')
-				try { $Script:BtnAppsSourceFilterChocolatey.IsChecked = $isOn } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsSourceFilterControls.Chocolatey' }
+				try { $Script:BtnAppsSourceFilterChocolatey.IsChecked = $isOn } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsSourceFilterControls.Chocolatey' }
 				$Script:BtnAppsSourceFilterChocolatey.Content = $chocoText
 				$Script:BtnAppsSourceFilterChocolatey.ToolTip = $chocoTip
 			}
@@ -328,7 +322,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-AppsViewModeControls.
 	#>
 
 	function Update-AppsViewModeControls
@@ -344,7 +337,7 @@
 		$current = if ([string]::IsNullOrWhiteSpace([string]$Script:AppsViewMode)) { 'Cards' } else { [string]$Script:AppsViewMode }
 		if ($current -ne 'List') { $current = 'Cards' }
 
-		# Layout + chrome come from AppsFilterRadioStyle in MainWindow.xaml — only
+		# Layout + chrome come from AppsFilterRadioStyle in MainWindow.xaml - only
 		# sync dynamic state (IsChecked) here.
 		$Script:AppsViewModeUiUpdating = $true
 		try
@@ -352,12 +345,12 @@
 			if ($Script:BtnAppsViewCards)
 			{
 				$isOn = ($current -eq 'Cards')
-				try { $Script:BtnAppsViewCards.IsChecked = $isOn } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsViewModeControls.Cards' }
+				try { $Script:BtnAppsViewCards.IsChecked = $isOn } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsViewModeControls.Cards' }
 			}
 			if ($Script:BtnAppsViewList)
 			{
 				$isOn = ($current -eq 'List')
-				try { $Script:BtnAppsViewList.IsChecked = $isOn } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsViewModeControls.List' }
+				try { $Script:BtnAppsViewList.IsChecked = $isOn } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsViewModeControls.List' }
 			}
 		}
 		finally
@@ -368,7 +361,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-AppSourceFilterState.
 	#>
 
 	function Set-AppSourceFilterState
@@ -399,7 +391,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-AppPackageSourcePreferenceState.
 	#>
 
 	function Set-AppPackageSourcePreferenceState
@@ -428,7 +419,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Initialize-AppActionStateStore.
 	#>
 
 	function Initialize-AppActionStateStore
@@ -442,10 +432,6 @@
 		}
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-AppActionStateKey
 	{
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
@@ -490,7 +476,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-AppActionState.
 	#>
 
 	function Get-AppActionState
@@ -519,7 +504,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-AppActionState.
 	#>
 
 	function Set-AppActionState
@@ -562,7 +546,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Clear-AppActionState.
 	#>
 
 	function Clear-AppActionState
@@ -586,7 +569,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-AppActionStatesQueued.
 	#>
 
 	function Set-AppActionStatesQueued
@@ -631,7 +613,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Sync-AppActionStatesFromExecutionResult.
 	#>
 
 	function Sync-AppActionStatesFromExecutionResult
@@ -746,7 +727,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Initialize-AppCategoryFilterState.
 	#>
 
 	function Initialize-AppCategoryFilterState
@@ -754,16 +734,18 @@
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ()
 
-		if ([string]::IsNullOrWhiteSpace([string]$Script:AppsCategoryFilter))
+		$appsCategoryFilter = Get-Variable -Name 'AppsCategoryFilter' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+		if ([string]::IsNullOrWhiteSpace([string]$appsCategoryFilter))
 		{
 			$Script:AppsCategoryFilter = if (Get-Command -Name 'Get-AppsDefaultCatalogCategory' -CommandType Function -ErrorAction SilentlyContinue) { Get-AppsDefaultCatalogCategory } else { 'Browsers' }
 		}
-		elseif ($Script:AppsCategoryFilter -eq 'All')
+		elseif ($appsCategoryFilter -eq 'All')
 		{
 			$Script:AppsCategoryFilter = if (Get-Command -Name 'Get-AppsDefaultCatalogCategory' -CommandType Function -ErrorAction SilentlyContinue) { Get-AppsDefaultCatalogCategory } else { 'Browsers' }
 		}
 
-		if ($null -eq $Script:AppsFilterUiUpdating)
+		$appsFilterUiUpdating = Get-Variable -Name 'AppsFilterUiUpdating' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+		if ($null -eq $appsFilterUiUpdating)
 		{
 			$Script:AppsFilterUiUpdating = $false
 		}
@@ -771,7 +753,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-AppCategoryFilterValues.
 	#>
 
 	function Get-AppCategoryFilterValues
@@ -793,7 +774,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-FilteredApplicationsCatalogItems.
 	#>
 
 	function Get-FilteredApplicationsCatalogItems
@@ -864,7 +844,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-AppCategoryFilterList.
 	#>
 
 	function Update-AppCategoryFilterList
@@ -939,8 +918,8 @@
 				$tabItem | Add-Member -NotePropertyName 'AppsIconName' -NotePropertyValue $iconName -Force
 				if ($Script:CurrentTheme)
 				{
-					try { $tabItem.Foreground = ConvertTo-GuiBrush -Color $Script:CurrentTheme.TextPrimary -Context 'AppsCategoryTabs/Foreground' } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsCategoryTabs.Foreground' }
-					try { $tabItem.Background = ConvertTo-GuiBrush -Color $Script:CurrentTheme.TabBg -Context 'AppsCategoryTabs/Background' } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsCategoryTabs.Background' }
+					try { $tabItem.Foreground = ConvertTo-GuiBrush -Color $Script:CurrentTheme.TextPrimary -Context 'AppsCategoryTabs/Foreground' } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsCategoryTabs.Foreground' }
+					try { $tabItem.Background = ConvertTo-GuiBrush -Color $Script:CurrentTheme.TabBg -Context 'AppsCategoryTabs/Background' } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppsCategoryTabs.Background' }
 				}
 				$tabItem.Padding = [System.Windows.Thickness]::new(14, 7, 14, 7)
 				[void]$Script:AppsCategoryTabs.Items.Add($tabItem)
@@ -970,7 +949,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-AppsCategoryTabVisuals.
 	#>
 
 	function Update-AppsCategoryTabVisuals
@@ -1003,7 +981,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-AppsCategoryTabCounts.
 	#>
 
 	function Update-AppsCategoryTabCounts
@@ -1038,7 +1015,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Add-AppsCategoryTabHoverEffects.
 	#>
 
 	function Add-AppsCategoryTabHoverEffects
@@ -1093,7 +1069,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-AppCategoryFilterState.
 	#>
 
 	function Set-AppCategoryFilterState
@@ -1118,7 +1093,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Initialize-AppStatusFilterState.
 	#>
 
 	function Initialize-AppStatusFilterState
@@ -1127,7 +1101,8 @@
 		param ()
 
 		$allowed = @('All', 'Installed', 'NotInstalled', 'UpdateAvailable')
-		if ([string]::IsNullOrWhiteSpace([string]$Script:AppsStatusFilter) -or $allowed -notcontains [string]$Script:AppsStatusFilter)
+		$appsStatusFilter = Get-Variable -Name 'AppsStatusFilter' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+		if ([string]::IsNullOrWhiteSpace([string]$appsStatusFilter) -or $allowed -notcontains [string]$appsStatusFilter)
 		{
 			$Script:AppsStatusFilter = 'All'
 		}
@@ -1135,7 +1110,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-AppStatusFilterList.
 	#>
 
 	function Update-AppStatusFilterList
@@ -1174,7 +1148,7 @@
 			$Script:AppsStatusFilterInternalValues = [System.Collections.Generic.List[string]]::new()
 			if (Get-Command -Name 'Set-ChoiceComboStyle' -CommandType Function -ErrorAction SilentlyContinue)
 			{
-				try { Set-ChoiceComboStyle -Combo $statusCombo } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppStatusFilterList.SetChoiceComboStyle' }
+				try { Set-ChoiceComboStyle -Combo $statusCombo } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppStatusFilterList.SetChoiceComboStyle' }
 			}
 			$statusBrushConverter = New-SafeBrushConverter -Context 'Update-AppStatusFilterList'
 			$statusForeground = $null
@@ -1204,8 +1178,8 @@
 				$item.Content = [string]$displayValue
 				if ($statusForeground)
 				{
-					try { $item.Foreground = $statusForeground } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppStatusFilterList.Foreground' }
-					try { $item.SetValue([System.Windows.Documents.TextElement]::ForegroundProperty, $statusForeground) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppStatusFilterList.ForegroundProperty' }
+					try { $item.Foreground = $statusForeground } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppStatusFilterList.Foreground' }
+					try { $item.SetValue([System.Windows.Documents.TextElement]::ForegroundProperty, $statusForeground) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppStatusFilterList.ForegroundProperty' }
 				}
 				[void]$statusCombo.Items.Add($item)
 				[void]$Script:AppsStatusFilterInternalValues.Add($value)
@@ -1231,7 +1205,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-AppStatusFilterState.
 	#>
 
 	function Set-AppStatusFilterState

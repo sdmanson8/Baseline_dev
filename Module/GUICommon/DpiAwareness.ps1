@@ -1,6 +1,5 @@
-<#
+﻿<#
     .SYNOPSIS
-    Internal function Initialize-GuiDpiAwareness.
 #>
 function Initialize-GuiDpiAwareness
 {
@@ -49,6 +48,6 @@ namespace WinAPI
 "@ -ErrorAction Stop | Out-Null
 	}
 
-	try { [WinAPI.GuiDpiHelper]::Enable() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DpiAwareness.Initialize-GuiDpiAwareness.Enable' }
+	try { [WinAPI.GuiDpiHelper]::Enable() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'DpiAwareness.Initialize-GuiDpiAwareness.Enable' }
 }
 

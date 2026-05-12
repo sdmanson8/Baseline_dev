@@ -10,7 +10,6 @@ BeforeAll {
     # Rewrites function names with script: scope so they survive Pester 5 scoping.
     <#
         .SYNOPSIS
-        Internal function Import-AstFunctions.
     #>
 
     function Import-AstFunctions {
@@ -33,7 +32,6 @@ BeforeAll {
     # Helper used by several GUI source files
     <#
         .SYNOPSIS
-        Internal function Test-GuiObjectField.
     #>
 
     function Test-GuiObjectField {
@@ -44,7 +42,6 @@ BeforeAll {
     }
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function Get-GuiObjectField {
         param([object]$Object, [string]$FieldName)
@@ -71,6 +68,14 @@ BeforeAll {
         return [bool]$script:DetectedToggleState
     }
 
+    function script:Test-IsSafeModeUX {
+        return ([bool]$script:SafeMode)
+    }
+
+    function script:Test-IsExpertModeUX {
+        return ([bool]$script:AdvancedMode)
+    }
+
     $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
     $guiDir   = Join-Path $repoRoot 'Module/GUI'
 
@@ -80,10 +85,10 @@ BeforeAll {
     # ── Plan summary dialog ──
     Import-AstFunctions -FilePath (Join-Path $guiDir 'PlanSummaryPanel.ps1') -Include 'Show-PlanSummaryDialog'
 
-    # ── Style management (Set-ButtonChrome, Show-ThemedDialog) ──
-    Import-AstFunctions -FilePath (Join-Path $guiDir 'StyleManagement.ps1') -Include 'Set-ButtonChrome', 'Show-ThemedDialog', 'Update-HeaderModeStateText', 'Update-GuiMenuBarLocalization', 'Update-GuiMenuBarTheme', 'Update-GuiDuplicateActionVisibility'
+    # ── Style management (Set-GuiButtonChrome, Show-ThemedDialog) ──
+    Import-AstFunctions -FilePath (Join-Path $guiDir 'StyleManagement.ps1') -Include 'Set-GuiButtonChrome', 'New-GuiChoiceComboTemplate', 'Set-ChoiceComboStyle', 'Show-ThemedDialog', 'Update-HeaderModeStateText', 'Update-GuiMenuBarLocalization', 'Update-GuiMenuBarTheme', 'Update-GuiDuplicateActionVisibility'
 
-    # ── New-SafeThickness, New-WpfSetter from GUI.psm1 (needed by Set-ButtonChrome) ──
+    # ── New-SafeThickness, New-WpfSetter from GUI.psm1 (needed by Set-GuiButtonChrome) ──
     $guiPsmPath = Join-Path $repoRoot 'Module/Regions/GUI.psm1'
     Import-AstFunctions -FilePath $guiPsmPath -Include 'New-SafeThickness', 'New-WpfSetter'
 
@@ -303,7 +308,7 @@ Describe 'Button chrome variants (W-1d)' {
         $Script:CurrentTheme = $Script:DarkTheme
     }
 
-    It 'Set-ButtonChrome accepts all documented variants: <Variant>' -ForEach @(
+    It 'Set-GuiButtonChrome accepts all documented variants: <Variant>' -ForEach @(
         @{ Variant = 'Primary' }
         @{ Variant = 'Preview' }
         @{ Variant = 'Danger' }
@@ -315,7 +320,7 @@ Describe 'Button chrome variants (W-1d)' {
     ) {
         $btn = [System.Windows.Controls.Button]::new()
         # Should not throw for any valid variant
-        { Set-ButtonChrome -Button $btn -Variant $Variant } | Should -Not -Throw
+        { Set-GuiButtonChrome -Button $btn -Variant $Variant } | Should -Not -Throw
     }
 }
 
@@ -331,15 +336,15 @@ Describe 'Theme management (W-1e)' {
         $Script:LightTheme | Should -Not -BeNullOrEmpty
     }
 
-    It 'DarkTheme has required keys: WindowBg, HeaderBg, AccentBlue, CautionBg, TextPrimary' {
-        $required = @('WindowBg', 'HeaderBg', 'AccentBlue', 'CautionBg', 'TextPrimary')
+    It 'DarkTheme has required keys: WindowBg, HeaderBg, AccentBlue, CautionBg, TextPrimary, BorderStrong' {
+        $required = @('WindowBg', 'HeaderBg', 'AccentBlue', 'CautionBg', 'TextPrimary', 'BorderStrong')
         foreach ($key in $required) {
             $Script:DarkTheme.Keys | Should -Contain $key
         }
     }
 
-    It 'LightTheme has required keys: WindowBg, HeaderBg, AccentBlue, CautionBg, TextPrimary' {
-        $required = @('WindowBg', 'HeaderBg', 'AccentBlue', 'CautionBg', 'TextPrimary')
+    It 'LightTheme has required keys: WindowBg, HeaderBg, AccentBlue, CautionBg, TextPrimary, BorderStrong' {
+        $required = @('WindowBg', 'HeaderBg', 'AccentBlue', 'CautionBg', 'TextPrimary', 'BorderStrong')
         foreach ($key in $required) {
             $Script:LightTheme.Keys | Should -Contain $key
         }
@@ -369,6 +374,61 @@ Describe 'Theme management (W-1e)' {
         $button.Style = $style
 
         { $button.Measure([System.Windows.Size]::new(1000, 1000)) } | Should -Not -Throw
+    }
+
+    It 'Set-ChoiceComboStyle stores concrete brushes for combo resources and survives layout' {
+        $Script:CurrentTheme = $Script:DarkTheme
+        $Script:CurrentThemeName = 'Dark'
+        $Script:ChoiceComboTemplate = $null
+        $Script:ChoiceComboTemplateTheme = $null
+        $Script:ChoiceComboTemplateLoadFailures = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+
+        $combo = [System.Windows.Controls.ComboBox]::new()
+        [void]$combo.Items.Add('Disable')
+        [void]$combo.Items.Add('Enable')
+
+        Set-ChoiceComboStyle -Combo $combo
+
+        $combo.Resources[[System.Windows.SystemColors]::MenuBrushKey] | Should -BeOfType ([System.Windows.Media.Brush])
+        $combo.Resources[[System.Windows.SystemColors]::HighlightBrushKey] | Should -BeOfType ([System.Windows.Media.Brush])
+        $combo.ItemContainerStyle | Should -Not -BeNullOrEmpty
+        $combo.OverridesDefaultStyle | Should -BeTrue
+        $combo.Template | Should -Not -BeNullOrEmpty
+        $combo.BorderBrush | Should -BeOfType ([System.Windows.Media.SolidColorBrush])
+        $combo.BorderBrush.Color.ToString() | Should -Be '#FF3C4A66'
+        $comboContentSite = $combo.Template.FindName('ContentSite', $combo)
+        $comboContentSite | Should -Not -BeNullOrEmpty
+        $comboContentSite.GetValue([System.Windows.Documents.TextElement]::ForegroundProperty) | Should -Be $combo.Foreground
+
+        $item = [System.Windows.Controls.ComboBoxItem]::new()
+        $item.Content = 'Disable'
+        $item.Style = $combo.ItemContainerStyle
+
+        {
+            $combo.Measure([System.Windows.Size]::new(1000, 1000))
+            $combo.Arrange([System.Windows.Rect]::new(0, 0, 240, 30))
+            $item.Measure([System.Windows.Size]::new(1000, 1000))
+            $item.Arrange([System.Windows.Rect]::new(0, 0, 240, 30))
+        } | Should -Not -Throw
+    }
+
+    It 'Set-ChoiceComboStyle keeps a themed custom template in light mode' {
+        $Script:CurrentTheme = $Script:LightTheme
+        $Script:CurrentThemeName = 'Light'
+        $Script:ChoiceComboTemplate = $null
+        $Script:ChoiceComboTemplateTheme = $null
+
+        $combo = [System.Windows.Controls.ComboBox]::new()
+        [void]$combo.Items.Add('Disable')
+        [void]$combo.Items.Add('Enable')
+
+        Set-ChoiceComboStyle -Combo $combo
+
+        $combo.OverridesDefaultStyle | Should -BeTrue
+        $combo.Template | Should -Not -BeNullOrEmpty
+        $combo.Background | Should -BeOfType ([System.Windows.Media.Brush])
+        $combo.Foreground | Should -BeOfType ([System.Windows.Media.Brush])
+        $combo.BorderBrush | Should -BeOfType ([System.Windows.Media.Brush])
     }
 
     It 'New-GuiLabeledIconContent normalizes wrapped foreground brushes before layout' {
@@ -411,7 +471,6 @@ Describe 'Theme menu state (W-1g)' {
     BeforeEach {
         <#
             .SYNOPSIS
-            Internal function script.
         #>
 
         function script:Get-UxLocalizedString {
@@ -464,7 +523,6 @@ Describe 'Safe Mode visibility (W-1h)' {
     BeforeEach {
         <#
             .SYNOPSIS
-            Internal function script.
         #>
 
         function script:Get-UxLocalizedString {
@@ -485,7 +543,6 @@ Describe 'Safe Mode visibility (W-1h)' {
 
         <#
             .SYNOPSIS
-            Internal function script.
         #>
 
         function script:Test-GuiModeActive {
@@ -500,7 +557,6 @@ Describe 'Safe Mode visibility (W-1h)' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function script:Set-GuiMode {
             param([string]$ViewMode)
@@ -510,7 +566,6 @@ Describe 'Safe Mode visibility (W-1h)' {
 
         <#
             .SYNOPSIS
-            Internal function script.
         #>
 
         function script:Invoke-GuiStateTransition {
@@ -791,7 +846,6 @@ Describe 'Menu localization refresh (W-1j)' {
     BeforeEach {
         <#
             .SYNOPSIS
-            Internal function script.
         #>
 
         function script:Get-UxLocalizedString {

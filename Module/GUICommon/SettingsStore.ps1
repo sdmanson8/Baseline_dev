@@ -1,6 +1,5 @@
-<#
+﻿<#
     .SYNOPSIS
-    Internal function Get-GuiSettingsProfileDirectory.
 #>
 function Get-GuiSettingsProfileDirectory
 {
@@ -55,7 +54,6 @@ function Get-GuiSettingsProfileDirectory
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiLastRunFilePath.
 #>
 function Get-GuiLastRunFilePath
 {
@@ -64,7 +62,6 @@ function Get-GuiLastRunFilePath
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiInterruptedRunFilePath.
 #>
 function Get-GuiInterruptedRunFilePath
 {
@@ -73,7 +70,6 @@ function Get-GuiInterruptedRunFilePath
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiSessionStatePath.
 #>
 function Get-GuiSessionStatePath
 {
@@ -86,7 +82,6 @@ function Get-GuiSessionStatePath
 
 <#
     .SYNOPSIS
-    Internal function Save-GuiSessionStateDocument.
 #>
 function Save-GuiSessionStateDocument
 {
@@ -118,7 +113,6 @@ function Save-GuiSessionStateDocument
 
 <#
     .SYNOPSIS
-    Internal function Read-GuiSessionStateDocument.
 #>
 function Read-GuiSessionStateDocument
 {
@@ -144,10 +138,10 @@ function Read-GuiSessionStateDocument
 		return $null
 	}
 
-	$snapshot = if ((Test-GuiObjectField -Object $sessionPayload -FieldName 'State')) { $sessionPayload.State } else { $sessionPayload }
+	$snapshot = if ((Test-GuiCommonObjectField -Object $sessionPayload -FieldName 'State')) { $sessionPayload.State } else { $sessionPayload }
 	if (
 		-not $snapshot -or
-		((Test-GuiObjectField -Object $snapshot -FieldName 'Schema') -and [string]$snapshot.Schema -ne $ExpectedSchema)
+		((Test-GuiCommonObjectField -Object $snapshot -FieldName 'Schema') -and [string]$snapshot.Schema -ne $ExpectedSchema)
 	)
 	{
 		LogWarning 'The saved GUI session state is invalid and was ignored.'
@@ -159,7 +153,6 @@ function Read-GuiSessionStateDocument
 
 <#
     .SYNOPSIS
-    Internal function Show-GuiSettingsSaveDialog.
 #>
 function Show-GuiSettingsSaveDialog
 {
@@ -182,7 +175,6 @@ function Show-GuiSettingsSaveDialog
 
 <#
     .SYNOPSIS
-    Internal function Show-GuiFileOpenDialog.
 #>
 function Show-GuiFileOpenDialog
 {
@@ -217,7 +209,6 @@ function Show-GuiFileOpenDialog
 
 <#
     .SYNOPSIS
-    Internal function Show-GuiSettingsOpenDialog.
 #>
 function Show-GuiSettingsOpenDialog
 {
@@ -233,7 +224,6 @@ function Show-GuiSettingsOpenDialog
 
 <#
     .SYNOPSIS
-    Internal function Write-GuiSettingsProfileDocument.
 #>
 function Write-GuiSettingsProfileDocument
 {
@@ -251,7 +241,6 @@ function Write-GuiSettingsProfileDocument
 
 <#
     .SYNOPSIS
-    Internal function Read-GuiSettingsProfileDocument.
 #>
 function Read-GuiSettingsProfileDocument
 {
@@ -264,12 +253,12 @@ function Read-GuiSettingsProfileDocument
 
 	$raw = Get-Content -LiteralPath $FilePath -Raw -Encoding UTF8 -ErrorAction Stop
 	$parsedProfile = $raw | ConvertFrom-BaselineJson -Depth 12 -ErrorAction Stop
-	$snapshot = if ((Test-GuiObjectField -Object $parsedProfile -FieldName 'State')) { $parsedProfile.State } else { $parsedProfile }
+	$snapshot = if ((Test-GuiCommonObjectField -Object $parsedProfile -FieldName 'State')) { $parsedProfile.State } else { $parsedProfile }
 
 	if (
 		-not $snapshot -or
-		((Test-GuiObjectField -Object $snapshot -FieldName 'Schema') -and [string]$snapshot.Schema -ne $ExpectedSchema) -or
-		-not (Test-GuiObjectField -Object $snapshot -FieldName 'Controls')
+		((Test-GuiCommonObjectField -Object $snapshot -FieldName 'Schema') -and [string]$snapshot.Schema -ne $ExpectedSchema) -or
+		-not (Test-GuiCommonObjectField -Object $snapshot -FieldName 'Controls')
 	)
 	{
 		throw 'The selected file does not contain a valid Baseline settings profile.'

@@ -1,10 +1,11 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Tools/New-InstallerPackage.ps1'
+    $script:InstallerPackageContent = Get-Content -LiteralPath $filePath -Raw
     $script:RepoRoot = Split-Path -Path (Split-Path -Path $filePath -Parent) -Parent
-    $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
-    $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+    $script:InstallerPackageAst = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
+    $functions = $script:InstallerPackageAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
         Invoke-Expression $fn.Extent.Text
     }
@@ -39,6 +40,33 @@ Describe 'Resolve-IsccPath' {
     }
 }
 
+Describe 'Invoke-InstallerIscc' {
+    It 'does not use the Start-Process wait parameter' {
+        $commands = $script:InstallerPackageAst.FindAll({
+            param($node)
+            $node -is [System.Management.Automation.Language.CommandAst] -and
+                [string]::Equals($node.GetCommandName(), 'Start-Process', [System.StringComparison]::OrdinalIgnoreCase)
+        }, $true)
+
+        $commands.Count | Should -BeGreaterThan 0
+        foreach ($command in $commands) {
+            $waitParameter = $command.CommandElements | Where-Object {
+                $_ -is [System.Management.Automation.Language.CommandParameterAst] -and
+                    [string]::Equals($_.ParameterName, 'Wait', [System.StringComparison]::OrdinalIgnoreCase)
+            }
+            $waitParameter | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'bounds the Inno Setup compiler wait and kills the process tree on timeout' {
+        $script:InstallerPackageContent | Should -Match '\[int\]\$IsccTimeoutSeconds = 3600'
+        $script:InstallerPackageContent | Should -Match '\$process\.WaitForExit\(\$timeoutMilliseconds\)'
+        $script:InstallerPackageContent | Should -Match 'Stop-BaselineProcessTree -Process \$process'
+        $script:InstallerPackageContent | Should -Match 'NewInstallerPackage\.IsccTimeout'
+        $script:InstallerPackageContent | Should -Match 'Invoke-InstallerIscc[\s\S]+-TimeoutSeconds \$IsccTimeoutSeconds'
+    }
+}
+
 Describe 'Get-InstallerBuildLayout' {
     It 'uses short staging directory names for the installer payload' {
         $layout = Get-InstallerBuildLayout `
@@ -48,6 +76,21 @@ Describe 'Get-InstallerBuildLayout' {
         $layout.TempExtract | Should -Be 'C:\Users\runneradmin\AppData\Local\Temp\BaselineInstaller_1234567890abcdef1234567890abcdef\x'
         $layout.SourceRoot | Should -Be 'C:\Users\runneradmin\AppData\Local\Temp\BaselineInstaller_1234567890abcdef1234567890abcdef\x\B'
         $layout.StageDir | Should -Be 'C:\Users\runneradmin\AppData\Local\Temp\BaselineInstaller_1234567890abcdef1234567890abcdef\s\B'
+    }
+
+    It 'archives the staging root so extraction recreates the payload source root' {
+        $script:InstallerPackageContent | Should -Match 'New-BaselineReleaseZip\s+-SourceDirectory\s+\$stageRoot\s+-DestinationZip\s+\$archivePath'
+    }
+}
+
+Describe 'Get-InstallerPayloadEntries' {
+    It 'does not include repository-only automation content in setup' {
+        $entries = Get-InstallerPayloadEntries
+
+        $entries | Should -Contain 'README.md'
+        $entries | Should -Contain 'LICENSE'
+        $entries | Should -Contain 'CHANGELOG.md'
+        $entries | Should -Not -Contain '.github'
     }
 }
 

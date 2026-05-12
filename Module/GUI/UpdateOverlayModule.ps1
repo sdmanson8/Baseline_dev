@@ -1,9 +1,8 @@
-# Baseline update overlay helpers for progress, update checks, and import flows.
+﻿# Baseline update overlay helpers for progress, update checks, and import flows.
 
 
 <#
     .SYNOPSIS
-    Internal function Initialize-BaselineUpdateOverlay.
 #>
 
 function Initialize-BaselineUpdateOverlay
@@ -25,7 +24,6 @@ function Initialize-BaselineUpdateOverlay
 
 <#
     .SYNOPSIS
-    Internal function Show-BaselineUpdateOverlay.
 #>
 
 function Show-BaselineUpdateOverlay
@@ -76,7 +74,6 @@ function Show-BaselineUpdateOverlay
 
 <#
     .SYNOPSIS
-    Internal function Show-BaselineUpdateCheckDialog.
 #>
 
 function Show-BaselineUpdateCheckDialog
@@ -94,9 +91,19 @@ function Show-BaselineUpdateCheckDialog
 	$availableDescription = (Get-UxLocalizedString -Key 'GuiUpdateCheckAvailableDescription' -Fallback 'A newer version of Baseline is available on GitHub Releases.')
 	$availableStatus = (Get-UxLocalizedString -Key 'GuiUpdateCheckAvailableStatus' -Fallback 'Update available.')
 	$errorDescription = (Get-UxLocalizedString -Key 'GuiUpdateCheckFailedDescription' -Fallback 'Unable to check for updates right now.')
+	$offlineDescription = (Get-UxLocalizedString -Key 'GuiUpdateCheckOfflineDescription' -Fallback 'Unable to check for updates because the network is offline.')
+	$offlineStatus = (Get-UxLocalizedString -Key 'GuiUpdateCheckOfflineStatus' -Fallback 'Skipped (offline).')
 	$releasePageUrl = 'https://github.com/sdmanson8/Baseline/releases/latest'
 	$currentVersion = '0.0.0'
 	$hideBaselineUpdateOverlayCommand = Get-GuiRuntimeCommand -Name 'Hide-BaselineUpdateOverlay' -CommandType 'Function'
+	$hideBaselineUpdateOverlayAction = {
+		if ($hideBaselineUpdateOverlayCommand)
+		{
+			try { & $hideBaselineUpdateOverlayCommand } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.HideUpdateOverlayCommand' }
+		}
+
+		Hide-BaselineUpdateOverlay
+	}.GetNewClosure()
 	$showSingleCloseButton = {
 		if ($Script:BtnDownloadNo)
 		{
@@ -111,91 +118,147 @@ function Show-BaselineUpdateCheckDialog
 
 		if ($Script:UpdateCheckPrimaryClickEvent)
 		{
-			try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckPrimaryClickEvent' }
+			try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckPrimaryClickEvent' }
 			$Script:UpdateCheckPrimaryClickEvent = $null
 		}
 		if ($Script:DownloadStartEvent)
 		{
-			try { $Script:BtnDownloadYes.Remove_Click($Script:DownloadStartEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveDownloadStartEvent' }
+			try { $Script:BtnDownloadYes.Remove_Click($Script:DownloadStartEvent) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveDownloadStartEvent' }
 		}
 		if ($Script:DownloadExtractEvent)
 		{
-			try { $Script:BtnDownloadYes.Remove_Click($Script:DownloadExtractEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveDownloadExtractEvent' }
+			try { $Script:BtnDownloadYes.Remove_Click($Script:DownloadExtractEvent) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveDownloadExtractEvent' }
 		}
 
 		$Script:UpdateCheckPrimaryClickEvent = $Handler.GetNewClosure()
 		$Script:BtnDownloadYes.Add_Click($Script:UpdateCheckPrimaryClickEvent)
+	}
+	$setUpdateCheckCloseClickEvent = {
+		param ([scriptblock]$Handler)
+
+		if (-not $Script:BtnDownloadNo) { return }
+
+		if ($Script:UpdateCheckSecondaryClickEvent)
+		{
+			try { $Script:BtnDownloadNo.Remove_Click($Script:UpdateCheckSecondaryClickEvent) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckSecondaryClickEvent' }
+			$Script:UpdateCheckSecondaryClickEvent = $null
+		}
+
+		$Script:UpdateCheckSecondaryClickEvent = $Handler.GetNewClosure()
+		$Script:BtnDownloadNo.Add_Click($Script:UpdateCheckSecondaryClickEvent)
+	}
+	$wireCloseButtons = {
+		& $setUpdateCheckPrimaryClickEvent $hideBaselineUpdateOverlayAction
+		& $setUpdateCheckCloseClickEvent $hideBaselineUpdateOverlayAction
 	}
 
 	try
 	{
 		$currentVersion = [string](Get-BaselineDisplayVersion)
 	}
-	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.LoadCurrentVersion' }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.LoadCurrentVersion' }
 
 	Show-BaselineUpdateOverlay -Title $title -Description $checkingDescription -StatusText $checkingStatus -ShowButtons:$false -ShowProgressPct:$false -Indeterminate
 
 	try
 	{
-		Set-DownloadSecurityProtocol
-		$headers = @{ 'User-Agent' = "Baseline/$currentVersion" }
-		$releases = Invoke-RestMethod -Uri 'https://api.github.com/repos/sdmanson8/Baseline/releases' -Headers $headers -Method Get -TimeoutSec 10 -ErrorAction Stop
-		$release = Get-BaselineLatestReleaseEntry -Releases $releases
-		if (-not $release)
+		$includePrerelease = $false
+		$updateBranch = if (Get-Command -Name 'Get-BaselineDefaultUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineDefaultUpdateBranch } else { 'Stable' }
+		if (Get-Command -Name 'Get-BaselineUpdateSettings' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			Show-BaselineUpdateOverlay -Title $title -Description $upToDateDescription -StatusText $checkingStatus -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
-			& $showSingleCloseButton
-			& $setUpdateCheckPrimaryClickEvent {
-				if ($hideBaselineUpdateOverlayCommand) { & $hideBaselineUpdateOverlayCommand }
+			$updateSettings = Get-BaselineUpdateSettings
+			$includePrerelease = if ($updateSettings -and $updateSettings.PSObject.Properties['IncludePrereleaseBuilds']) { [bool]$updateSettings.IncludePrereleaseBuilds } else { $false }
+			if ($updateSettings -and $updateSettings.PSObject.Properties['UpdateBranch'] -and -not [string]::IsNullOrWhiteSpace([string]$updateSettings.UpdateBranch))
+			{
+				$updateBranch = [string]$updateSettings.UpdateBranch
 			}
+		}
+		if (Get-Command -Name 'ConvertTo-BaselineUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			$updateBranch = ConvertTo-BaselineUpdateBranch -Branch $updateBranch
+		}
+		if (Get-Command -Name 'Get-BaselineUpdateReleasePageUrl' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			$releasePageUrl = Get-BaselineUpdateReleasePageUrl -Branch $updateBranch
+		}
+		$checkResult = Invoke-BaselineUpdateCheck -CurrentVersion $currentVersion -UpdateBranch $updateBranch -IncludePrerelease:$includePrerelease
+		$release = $checkResult.Release
+		if ([string]$checkResult.Status -eq 'Skipped (offline)')
+		{
+			Show-BaselineUpdateOverlay -Title $title -Description $offlineDescription -StatusText $offlineStatus -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
+			& $showSingleCloseButton
+			& $wireCloseButtons
+			return
+		}
+		if ([string]$checkResult.Status -eq 'Failed')
+		{
+			$errorStatus = if ([string]::IsNullOrWhiteSpace([string]$checkResult.Message)) { $errorDescription } else { [string]$checkResult.Message }
+			Show-BaselineUpdateOverlay -Title $title -Description $errorDescription -StatusText $errorStatus -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
+			& $showSingleCloseButton
+			& $wireCloseButtons
+			return
+		}
+		if (-not $release -or -not [bool]$checkResult.IsUpdateAvailable)
+		{
+			$latestText = if ([string]::IsNullOrWhiteSpace([string]$checkResult.LatestVersion)) { [string]$currentVersion } else { [string]$checkResult.LatestVersion }
+			Show-BaselineUpdateOverlay -Title $title -Description $upToDateDescription -StatusText ($upToDateStatus -f $latestText) -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
+			& $showSingleCloseButton
+			& $wireCloseButtons
 			return
 		}
 
 		$latestTag = [string]$release.tag_name
-		$isNewer = ((Compare-BaselineReleaseVersions -LeftVersion $latestTag -RightVersion $currentVersion) -gt 0)
-
-		if (-not $isNewer)
+		$releaseAssetPattern = if (Get-Command -Name 'Get-BaselineUpdateAssetPattern' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			Show-BaselineUpdateOverlay -Title $title -Description $upToDateDescription -StatusText ($upToDateStatus -f $latestTag) -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
-			& $showSingleCloseButton
-			& $setUpdateCheckPrimaryClickEvent {
-				if ($hideBaselineUpdateOverlayCommand) { & $hideBaselineUpdateOverlayCommand }
+			Get-BaselineUpdateAssetPattern -Branch $updateBranch
+		}
+		else
+		{
+			if ([string]::Equals($updateBranch, 'Beta', [System.StringComparison]::OrdinalIgnoreCase))
+			{
+				'Baseline-*-beta.zip'
 			}
-			return
+			else
+			{
+				'Baseline-*-stable.zip'
+			}
 		}
 
-		$releaseAsset = $release.assets | Where-Object { $_.name -like 'Baseline-*.zip' } | Select-Object -First 1
+		$releaseAsset = $release.assets | Where-Object { $_.name -like $releaseAssetPattern } | Select-Object -First 1
 		if ($releaseAsset)
 		{
 			$availableDescription = (Get-UxLocalizedString -Key 'GuiUpdateCheckAvailableDescription' -Fallback 'A newer version of Baseline is available on GitHub Releases.') -f $latestTag
 			$availableStatus = (Get-UxLocalizedString -Key 'GuiUpdateCheckAvailableStatus' -Fallback 'Update available: {0}.') -f $latestTag
 			Show-BaselineUpdateOverlay -Title $title -Description $availableDescription -StatusText $availableStatus -PrimaryButtonText $openReleaseLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
 			& $setUpdateCheckPrimaryClickEvent {
-				try { Start-Process -FilePath $releasePageUrl -ErrorAction SilentlyContinue } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.OpenReleasePage' }
-				if ($hideBaselineUpdateOverlayCommand) { & $hideBaselineUpdateOverlayCommand }
+				try
+				{
+					[void](Invoke-UserLaunch -FilePath $releasePageUrl -Description 'Baseline release page')
+				}
+				catch
+				{
+					Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.OpenReleasePage'
+				}
+				& $hideBaselineUpdateOverlayAction
 			}
+			& $setUpdateCheckCloseClickEvent $hideBaselineUpdateOverlayAction
 			return
 		}
 
 		Show-BaselineUpdateOverlay -Title $title -Description $errorDescription -StatusText ($availableStatus -f $latestTag) -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
 		& $showSingleCloseButton
-		& $setUpdateCheckPrimaryClickEvent {
-			if ($hideBaselineUpdateOverlayCommand) { & $hideBaselineUpdateOverlayCommand }
-		}
+		& $wireCloseButtons
 	}
 	catch
 	{
 		Show-BaselineUpdateOverlay -Title $title -Description $errorDescription -StatusText $_.Exception.Message -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
 		& $showSingleCloseButton
-		& $setUpdateCheckPrimaryClickEvent {
-			if ($hideBaselineUpdateOverlayCommand) { & $hideBaselineUpdateOverlayCommand }
-		}
+		& $wireCloseButtons
 	}
 }
 
 <#
     .SYNOPSIS
-    Internal function Show-BaselineImportOverlay.
 #>
 
 function Show-BaselineImportOverlay
@@ -210,10 +273,6 @@ function Show-BaselineImportOverlay
 	Show-BaselineUpdateOverlay -Title $Title -Description $Description -StatusText $StatusText -ShowButtons:$false -ShowProgressPct:$false -Indeterminate
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Hide-BaselineUpdateOverlay
 {
 	[CmdletBinding()]
@@ -227,7 +286,6 @@ function Hide-BaselineUpdateOverlay
 
 <#
     .SYNOPSIS
-    Internal function Start-BaselineDownload.
 #>
 
 function Start-BaselineDownload
@@ -325,8 +383,8 @@ function Start-BaselineDownload
 			if ($Script:BtnDownloadYes) { $Script:BtnDownloadYes.Content = (Get-UxLocalizedString -Key 'GuiStatusDownloadRetry' -Fallback 'Retry') }
 			if ($Script:BtnDownloadYes) { $Script:BtnDownloadYes.IsEnabled = $true }
 			if ($Script:BtnDownloadNo) { $Script:BtnDownloadNo.IsEnabled = $true }
-			try { $ps.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposePowerShell' }
-			try { $runspace.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposeRunspace' }
+			try { $ps.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposePowerShell' }
+			try { $runspace.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposeRunspace' }
 			return
 		}
 
@@ -345,15 +403,15 @@ function Start-BaselineDownload
 
 			if ($Script:BtnDownloadYes -and $Script:DownloadStartEvent)
 			{
-				try { $Script:BtnDownloadYes.Remove_Click($Script:DownloadStartEvent) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveDownloadStartEvent' }
+				try { $Script:BtnDownloadYes.Remove_Click($Script:DownloadStartEvent) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveDownloadStartEvent' }
 			}
 			if ($Script:BtnDownloadYes -and $Script:DownloadExtractEvent)
 			{
 				$Script:BtnDownloadYes.Add_Click($Script:DownloadExtractEvent)
 			}
 
-			try { $ps.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposePowerShell' }
-			try { $runspace.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposeRunspace' }
+			try { $ps.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposePowerShell' }
+			try { $runspace.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposeRunspace' }
 		}
 	}.GetNewClosure())
 

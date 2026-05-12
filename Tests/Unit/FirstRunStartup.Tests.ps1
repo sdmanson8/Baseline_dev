@@ -15,7 +15,7 @@ BeforeAll {
     $tabManagementPath = Join-Path $PSScriptRoot '../../Module/GUI/TabManagement.ps1'
     $detectScriptblocksPath = Join-Path $PSScriptRoot '../../Module/GUI/DetectScriptblocks.ps1'
 
-    $guiContent = Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
+    $guiContent = Get-BaselineTestSourceText -Path $guiPath
     $actionHandlersContent = Get-BaselineTestSourceText -Path @(
         $actionHandlersPath
         (Join-Path $actionHandlersSplitRoot 'ThemeNavigationHandlers.ps1')
@@ -23,14 +23,14 @@ BeforeAll {
         (Join-Path $actionHandlersSplitRoot 'SystemScanFooterHandlers.ps1')
         (Join-Path $actionHandlersSplitRoot 'MenuHandlers.ps1')
     )
-    $errorHelpersContent = Get-Content -LiteralPath $errorHelpersPath -Raw -Encoding UTF8
-    $environmentHelpersContent = Get-Content -LiteralPath $environmentHelpersPath -Raw -Encoding UTF8
-    $initialActionsContent = Get-Content -LiteralPath $initialActionsPath -Raw -Encoding UTF8
-    $initialSetupContent = Get-Content -LiteralPath $initialSetupPath -Raw -Encoding UTF8
-    $buildPrimaryTabsContent = Get-Content -LiteralPath $buildPrimaryTabsPath -Raw -Encoding UTF8
-    $tabManagementContent = Get-Content -LiteralPath $tabManagementPath -Raw -Encoding UTF8
-    $detectScriptblocksContent = Get-Content -LiteralPath $detectScriptblocksPath -Raw -Encoding UTF8
-    $initialSetupManifest = Get-Content -LiteralPath $initialSetupManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+    $errorHelpersContent = Get-BaselineTestSourceText -Path $errorHelpersPath
+    $environmentHelpersContent = Get-BaselineTestSourceText -Path $environmentHelpersPath
+    $initialActionsContent = Get-BaselineTestSourceText -Path $initialActionsPath
+    $initialSetupContent = Get-BaselineTestSourceText -Path $initialSetupPath
+    $buildPrimaryTabsContent = Get-BaselineTestSourceText -Path $buildPrimaryTabsPath
+    $tabManagementContent = Get-BaselineTestSourceText -Path $tabManagementPath
+    $detectScriptblocksContent = Get-BaselineTestSourceText -Path $detectScriptblocksPath
+    $initialSetupManifest = Get-BaselineTestSourceText -Path $initialSetupManifestPath | ConvertFrom-Json -ErrorAction Stop
     $initialSetupAst = [System.Management.Automation.Language.Parser]::ParseFile($initialSetupPath, [ref]$null, [ref]$null)
     $initialSetupBootstrapFunction = $initialSetupAst.FindAll({
         param($node)
@@ -89,11 +89,13 @@ Describe 'First-run startup command wiring' {
     It 'starts splash progress at zero with calmer live motion' {
         $environmentHelpersContent | Should -Not -Match 'LogoHeartbeat'
         $environmentHelpersContent | Should -Not -Match 'Storyboard\.TargetName="SplashCenterIcon"\s+Storyboard\.TargetProperty="Opacity"'
-        $environmentHelpersContent | Should -Match '(?s)Storyboard\.TargetName="SubActionSpinnerRotate".*?Duration="0:0:1\.2"'
+        $environmentHelpersContent | Should -Not -Match 'SubActionSpinnerRotate'
+        $environmentHelpersContent | Should -Not -Match 'Name="SubActionSpinner"'
         $environmentHelpersContent | Should -Match '(?s)Storyboard\.TargetName="SplashSheenT".*?Duration="0:0:1\.4"'
-        $environmentHelpersContent | Should -Match 'Set-BootstrapLoadingSplashState'' \$bootstrapLoadingSplashStateDefinition'
-        $environmentHelpersContent | Should -Match '\$bootstrapLoadingSplashStateCommand -Splash \$syncHash -StatusText \$splashLocCheckingForUpdates -Completed 0 -Total 5'
-        $environmentHelpersContent | Should -Not -Match '\$bootstrapLoadingSplashStateCommand -Splash \$syncHash -StatusText \$splashLocCheckingForUpdates -Indeterminate'
+        $environmentHelpersContent | Should -Match 'Set-BootstrapLoadingSplashState'' \$bootstrapLoadingSplashStateScriptBlock'
+        $environmentHelpersContent | Should -Match '\$progressBarControl = if \(\$syncHash\.ContainsKey\(''ProgressBar''\)\) \{ \$syncHash\[''ProgressBar''\] \} else \{ \$null \}'
+        $environmentHelpersContent | Should -Match '\$fillTo = \(\(\[double\]\$activeIdx \+ 0\.35\) / \$stepCount\) \* \$barWidth'
+        $environmentHelpersContent | Should -Match 'Bootstrap splash initial progress failed'
         $environmentHelpersContent | Should -Match '\$sxa\.From = 1\.0; \$sxa\.To = 1\.4'
         $environmentHelpersContent | Should -Match '\$sxa\.Duration = New-Object System\.Windows\.Duration \(\[TimeSpan\]::FromMilliseconds\(360\)\)'
         $environmentHelpersContent | Should -Match '\$fillTo = \(\(\[double\]\$activeIdx \+ 0\.35\) / \$stepCount\) \* \$barWidth'
@@ -122,9 +124,20 @@ Describe 'First-run startup command wiring' {
         $chocolateyCommands | Should -Not -BeNullOrEmpty
     }
 
-    It 'queues the Chocolatey startup bootstrap job unconditionally (no approval gate)' {
-        $initialSetupContent | Should -Not -Match "Test-BaselineEnvironmentFlagEnabled\s+-Name\s+'BASELINE_ALLOW_CHOCOLATEY_BOOTSTRAP'"
+    It 'queues the Chocolatey startup bootstrap job whenever Chocolatey is missing' {
+        $initialSetupContent | Should -Not -Match "Get-Command -Name 'Test-ChocolateyBootstrapApproved'"
+        $initialSetupContent | Should -Not -Match '\$chocolateyBootstrapApproved'
+        $initialSetupContent | Should -Not -Match '\$skipMessage'
         $initialSetupContent | Should -Match "Start-Job\s+-Name\s+'ChocolateyBootstrap'"
+    }
+
+    It 'bounds startup bootstrap jobs with explicit timeout tracking' {
+        $initialSetupContent | Should -Match '\$bootstrapTimeoutSeconds = 900'
+        $initialSetupContent | Should -Match '\$jobStartedAt = @\{\}'
+        $initialSetupContent | Should -Match 'Invoke-WinGetBootstrap -TimeoutSeconds \$TimeoutSeconds'
+        $initialSetupContent | Should -Match 'Invoke-ChocolateyBootstrap -TimeoutSeconds \$TimeoutSeconds'
+        $initialSetupContent | Should -Match 'Package manager bootstrap job ''\{0\}'' timed out after \{1\} seconds'
+        $initialSetupContent | Should -Match 'Stop-Job -Job \$runningJob -Force -ErrorAction SilentlyContinue'
     }
 
         It 'uses the shared reviewed winget-install metadata instead of duplicating the release pin' {

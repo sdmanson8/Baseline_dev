@@ -1,6 +1,11 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $filePath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Scheduler.Helpers.ps1'
     . $filePath
 }
@@ -18,6 +23,8 @@ Describe 'Register-BaselineScheduledTask' {
         $script:profilePath = Join-Path $TestDrive 'profile.json'
         Set-Content -LiteralPath $script:profilePath -Value '{}' -Encoding UTF8
 
+        $script:originalProgramData = $env:ProgramData
+        $env:ProgramData = $TestDrive
         $script:principalCalls = [System.Collections.Generic.List[object]]::new()
         $script:registerCalls = [System.Collections.Generic.List[object]]::new()
 
@@ -97,6 +104,7 @@ Describe 'Register-BaselineScheduledTask' {
     }
 
     AfterEach {
+        $env:ProgramData = $script:originalProgramData
         foreach ($name in @(
                 'New-ScheduledTaskAction',
                 'New-ScheduledTaskTrigger',
@@ -134,12 +142,12 @@ Describe 'Register-BaselineScheduledTask' {
         $script:registerCalls[0].Action.Execute | Should -Be 'powershell.exe'
         $script:registerCalls[0].Action.Argument | Should -Match '-NoProfile'
         $script:registerCalls[0].Action.Argument | Should -Match '-NonInteractive'
-        $script:registerCalls[0].Action.Argument | Should -Match '-EncodedCommand'
+        $script:registerCalls[0].Action.Argument | Should -Match '-File'
 
-        $encodedCommand = $script:registerCalls[0].Action.Argument -replace '^.*-EncodedCommand\s+', ''
-        $decodedCommand = [System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String($encodedCommand))
-        $decodedCommand | Should -Match 'SharedHelpers\.psm1'
-        $decodedCommand | Should -Match 'Invoke-BaselineWindowsUpdateScheduledRun'
+        $scriptPath = $script:registerCalls[0].Action.Argument -replace '^.*-File\s+"([^"]+)".*$', '$1'
+        $scriptContent = Get-BaselineTestSourceText -Path $scriptPath
+        $scriptContent | Should -Match 'SharedHelpers\.psm1'
+        $scriptContent | Should -Match 'Invoke-BaselineWindowsUpdateScheduledRun'
         $script:registerCalls[0].Principal | Should -Be $script:principalCalls[0]
     }
 }

@@ -1,6 +1,11 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $guiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
     $xamlPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
     $buildPrimaryTabsPath = Join-Path $PSScriptRoot '../../Module/GUI/BuildPrimaryTabs.ps1'
@@ -8,12 +13,12 @@ BeforeAll {
     $styleManagementPath = Join-Path $PSScriptRoot '../../Module/GUI/StyleManagement.ps1'
     $windowSetupPath = Join-Path $PSScriptRoot '../../Module/GUI/WindowSetup.ps1'
     $script:GuiContent = @(
-        Get-Content -LiteralPath $xamlPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $buildPrimaryTabsPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $buildTweakControlsPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $styleManagementPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $windowSetupPath -Raw -Encoding UTF8
+        Get-BaselineTestSourceText -Path $xamlPath
+        Get-BaselineTestSourceText -Path $guiPath
+        Get-BaselineTestSourceText -Path $buildPrimaryTabsPath
+        Get-BaselineTestSourceText -Path $buildTweakControlsPath
+        Get-BaselineTestSourceText -Path $styleManagementPath
+        Get-BaselineTestSourceText -Path $windowSetupPath
     ) -join "`n"
 }
 

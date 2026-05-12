@@ -1,8 +1,7 @@
-# TweakRowFactory split file loaded by Module\GUI\TweakRowFactory.ps1.
+﻿# TweakRowFactory split file loaded by Module\GUI\TweakRowFactory.ps1.
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-TweakSearchHighlightedTextBlock.
 	#>
 	function Set-TweakSearchHighlightedTextBlock
 	{
@@ -65,7 +64,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-CardHoverResources.
 	#>
 
 	function Get-CardHoverResources
@@ -101,7 +99,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Add-CardHoverEffects.
 	#>
 
 	function Add-CardHoverEffects
@@ -167,26 +164,25 @@
 		$Card.Cursor = [System.Windows.Input.Cursors]::Hand
 		# Attach hover/focus handlers directly to avoid Invoke-GuiSafeAction
 		# overhead on these high-frequency visual-only events.
-		$Card.Add_MouseEnter({ try { & $updateChrome } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Build-TweakRowCard.Add_MouseEnter' } }.GetNewClosure())
-		$Card.Add_MouseLeave({ try { & $updateChrome } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Build-TweakRowCard.Add_MouseLeave' } }.GetNewClosure())
+		$Card.Add_MouseEnter({ try { & $updateChrome } catch { Write-SwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Build-TweakRowCard.Add_MouseEnter' } }.GetNewClosure())
+		$Card.Add_MouseLeave({ try { & $updateChrome } catch { Write-SwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Build-TweakRowCard.Add_MouseLeave' } }.GetNewClosure())
 		$pressBg = $res.PressBg
 		$pressHandler = {
 			$Card.Background = $pressBg
 		}.GetNewClosure()
-		$Card.Add_PreviewMouseLeftButtonDown({ try { & $pressHandler } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Build-TweakRowCard.Add_PreviewMouseLeftButtonDown' } }.GetNewClosure())
-		$Card.Add_PreviewMouseLeftButtonUp({ try { & $updateChrome } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Build-TweakRowCard.Add_PreviewMouseLeftButtonUp' } }.GetNewClosure())
+		$Card.Add_PreviewMouseLeftButtonDown({ try { & $pressHandler } catch { Write-SwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Build-TweakRowCard.Add_PreviewMouseLeftButtonDown' } }.GetNewClosure())
+		$Card.Add_PreviewMouseLeftButtonUp({ try { & $updateChrome } catch { Write-SwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Build-TweakRowCard.Add_PreviewMouseLeftButtonUp' } }.GetNewClosure())
 		foreach ($focusSource in $FocusSources)
 		{
 			if (-not $focusSource) { continue }
-			$focusSource.Add_GotKeyboardFocus({ try { & $updateChrome } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Build-TweakRowCard.Add_GotKeyboardFocus' } }.GetNewClosure())
-			$focusSource.Add_LostKeyboardFocus({ try { & $updateChrome } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Build-TweakRowCard.Add_LostKeyboardFocus' } }.GetNewClosure())
+			$focusSource.Add_GotKeyboardFocus({ try { & $updateChrome } catch { Write-SwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Build-TweakRowCard.Add_GotKeyboardFocus' } }.GetNewClosure())
+			$focusSource.Add_LostKeyboardFocus({ try { & $updateChrome } catch { Write-SwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Build-TweakRowCard.Add_LostKeyboardFocus' } }.GetNewClosure())
 		}
-		try { & $updateChrome } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Build-TweakRowCard.UpdateChrome' }
+		try { & $updateChrome } catch { Write-SwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Build-TweakRowCard.UpdateChrome' }
 	}
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-CompatibilityBadgeInfo.
 	#>
 
 	function Get-CompatibilityBadgeInfo
@@ -245,7 +241,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Add-TweakMetadataDetails.
 	#>
 
 	function Add-TweakScenarioTagsToDetailsPanel
@@ -411,7 +406,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Add-TweakWhyBlockDetails.
 	#>
 
 	function Add-TweakWhyBlockDetails

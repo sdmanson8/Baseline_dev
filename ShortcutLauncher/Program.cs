@@ -45,13 +45,6 @@ namespace Baseline.ShortcutLauncher
                 }
 
                 var shell = FindShell();
-                if (shell == null)
-                {
-                    NativeMsgBox(IntPtr.Zero,
-                        "Windows PowerShell 5.1 (powershell.exe) was not found.",
-                        "Baseline", MB_OK | MB_ICONERROR);
-                    return 1;
-                }
 
                 // UseShellExecute=true so Windows honours the requireAdministrator manifest
                 // embedded in this exe — PowerShell inherits the elevated token.
@@ -82,38 +75,24 @@ namespace Baseline.ShortcutLauncher
         /// <summary>
         /// Locates a usable PowerShell executable.
         /// </summary>
-        /// <returns>The resolved shell path, or null if none is available.</returns>
+        /// <returns>The resolved trusted shell path.</returns>
         private static string FindShell()
         {
-            return FindOnPath("powershell.exe");
-        }
-
-        /// <summary>
-        /// Searches the current PATH for an executable.
-        /// </summary>
-        /// <param name="exe">The executable file name.</param>
-        /// <returns>The resolved executable path, or null if it is not found.</returns>
-        private static string FindOnPath(string exe)
-        {
-            var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-            foreach (var dir in pathEnv.Split(Path.PathSeparator))
+            var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            var candidates = new[]
             {
-                var trimmed = dir.Trim();
-                if (string.IsNullOrEmpty(trimmed)) continue;
-                var full = Path.Combine(trimmed, exe);
-                if (File.Exists(full)) return full;
+                Path.Combine(windowsDir, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+                Path.Combine(windowsDir, "Sysnative", "WindowsPowerShell", "v1.0", "powershell.exe")
+            };
+
+            foreach (var path in candidates)
+            {
+                if (File.Exists(path)) return path;
             }
 
-            var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-            var extras = new[]
-            {
-                Path.Combine(windowsDir, "System32", "WindowsPowerShell", "v1.0", exe),
-                Path.Combine(windowsDir, "SysWOW64", "WindowsPowerShell", "v1.0", exe),
-            };
-            foreach (var path in extras)
-                if (File.Exists(path)) return path;
-
-            return null;
+            throw new FileNotFoundException(
+                "Windows PowerShell 5.1 (powershell.exe) was not found at the trusted System32 path.",
+                candidates[0]);
         }
     }
 }

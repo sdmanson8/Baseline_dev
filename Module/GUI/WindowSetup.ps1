@@ -1,8 +1,18 @@
-	if (-not [System.Windows.Application]::Current)
+﻿	if (-not [System.Windows.Application]::Current)
 	{
 		$Script:GuiApplication = [System.Windows.Application]::new()
 	}
-	[void](Set-GuiThemeResources -Target ([System.Windows.Application]::Current) -ThemeName 'Dark')
+	$Script:InitialResolvedThemeName = 'Light'
+	try
+	{
+		$startupThemeName = Get-BaselineStartupThemeName
+		if ($startupThemeName -in @('Light', 'Dark')) { $Script:InitialResolvedThemeName = [string]$startupThemeName }
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.ResolveInitialTheme'
+	}
+	[void](Set-GuiThemeResources -Target ([System.Windows.Application]::Current) -ThemeName $Script:InitialResolvedThemeName)
 
 	$loadedForm = [System.Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $XAML))
 
@@ -13,7 +23,7 @@
 
 	[System.Windows.Window]$Form = $loadedForm
 	$Script:MainForm = $Form
-	[void](Set-GuiThemeResources -Target $Form -ThemeName 'Dark')
+	[void](Set-GuiThemeResources -Target $Form -ThemeName $Script:InitialResolvedThemeName)
 
 	try
 	{
@@ -111,7 +121,7 @@
 				}
 				$placement = Resolve-BaselineWindowPlacement -DefaultRect $defaultRect
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowSetup.ResolvePlacement'; $placement = $null }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.ResolvePlacement'; $placement = $null }
 		}
 
 		if ($placement)
@@ -134,7 +144,7 @@
 	}
 	catch
 	{
-		Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowSetup.ApplyDefaultWindowBounds'
+		Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.ApplyDefaultWindowBounds'
 		$Form.MinWidth = $guiWindowMinWidth
 		$Form.MinHeight = $guiWindowMinHeight
 		$Form.Width  = [Math]::Max(940, $guiWindowMinWidth)
@@ -203,7 +213,7 @@
 			}
 			else { $miRememberPos.IsChecked = $true }
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowSetup.LoadRememberWindowPosition'; $miRememberPos.IsChecked = $true }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.LoadRememberWindowPosition'; $miRememberPos.IsChecked = $true }
 		$miRememberPos.Add_Click({
 			try
 			{
@@ -212,7 +222,7 @@
 					Set-BaselineUserPreference -Key 'RememberWindowPosition' -Value ([bool]$miRememberPos.IsChecked)
 				}
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowSetup.RememberPositionToggle' 2>$null }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.RememberPositionToggle' 2>$null }
 		})
 		$sepRemember = New-Object System.Windows.Controls.Separator
 		$miClose = New-Object System.Windows.Controls.MenuItem
@@ -285,7 +295,7 @@
 		}
 		catch
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowSetup.SaveWindowPlacement' 2>$null
+			Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.SaveWindowPlacement' 2>$null
 		}
 	})
 
@@ -365,8 +375,35 @@
 	$NavModeTweaks = $Form.FindName("NavModeTweaks")
 	$NavModeApps = $Form.FindName("NavModeApps")
 	$NavModeUpdates = $Form.FindName("NavModeUpdates")
+	$NavModeDeploymentMedia = $Form.FindName("NavModeDeploymentMedia")
 	$ModeSubtitle = $Form.FindName("ModeSubtitle")
 	$TweaksView = $Form.FindName("TweaksView")
+	$DeploymentMediaView = $Form.FindName("DeploymentMediaView")
+	$DeploymentMediaScroll = $Form.FindName("DeploymentMediaScroll")
+	$DeploymentMediaWrapPanel = $Form.FindName("DeploymentMediaWrapPanel")
+	$BtnDeploymentMediaDetectIso = $Form.FindName("BtnDeploymentMediaDetectIso")
+	$BtnDeploymentMediaPreviewPlan = $Form.FindName("BtnDeploymentMediaPreviewPlan")
+	$BtnDeploymentMediaStartBuild = $Form.FindName("BtnDeploymentMediaStartBuild")
+	$DeploymentMediaStatusBanner = $Form.FindName("DeploymentMediaStatusBanner")
+	$TxtDeploymentMediaSelectionStatus = $Form.FindName("TxtDeploymentMediaSelectionStatus")
+	$TxtDeploymentMediaBuildStatus = $Form.FindName("TxtDeploymentMediaBuildStatus")
+	$TxtDeploymentMediaSourceIso = $Form.FindName("TxtDeploymentMediaSourceIso")
+	$BtnDeploymentMediaBrowseIso = $Form.FindName("BtnDeploymentMediaBrowseIso")
+	$TxtDeploymentMediaEditionIndex = $Form.FindName("TxtDeploymentMediaEditionIndex")
+	$CmbDeploymentMediaDetectedEdition = $Form.FindName("CmbDeploymentMediaDetectedEdition")
+	$TxtDeploymentMediaDetectedIsoSummary = $Form.FindName("TxtDeploymentMediaDetectedIsoSummary")
+	$TxtDeploymentMediaWorkingDirectory = $Form.FindName("TxtDeploymentMediaWorkingDirectory")
+	$BtnDeploymentMediaBrowseWorking = $Form.FindName("BtnDeploymentMediaBrowseWorking")
+	$CmbDeploymentMediaOutputMode = $Form.FindName("CmbDeploymentMediaOutputMode")
+	$TxtDeploymentMediaUsbTargetRoot = $Form.FindName("TxtDeploymentMediaUsbTargetRoot")
+	$BtnDeploymentMediaBrowseUsbTarget = $Form.FindName("BtnDeploymentMediaBrowseUsbTarget")
+	$TxtDeploymentMediaAutounattend = $Form.FindName("TxtDeploymentMediaAutounattend")
+	$BtnDeploymentMediaBrowseAutounattend = $Form.FindName("BtnDeploymentMediaBrowseAutounattend")
+	$TxtDeploymentMediaDriverSource = $Form.FindName("TxtDeploymentMediaDriverSource")
+	$BtnDeploymentMediaBrowseDrivers = $Form.FindName("BtnDeploymentMediaBrowseDrivers")
+	$ChkDeploymentMediaBootDrivers = $Form.FindName("ChkDeploymentMediaBootDrivers")
+	$ChkDeploymentMediaBaselineTweaks = $Form.FindName("ChkDeploymentMediaBaselineTweaks")
+	$TxtDeploymentMediaPlanPreview = $Form.FindName("TxtDeploymentMediaPlanPreview")
 	$AppsView = $Form.FindName("AppsView")
 	$AppsScroll = $Form.FindName("AppsScroll")
 	$AppsWrapPanel = $Form.FindName("AppsWrapPanel")
@@ -395,7 +432,6 @@
 	$BtnAppsViewCards = $Form.FindName("BtnAppsViewCards")
 	$BtnAppsViewList = $Form.FindName("BtnAppsViewList")
 	$BtnAppsAddCustom = $Form.FindName("BtnAppsAddCustom")
-	$TxtAppsProgressText = $Form.FindName("TxtAppsProgressText")
 	$UpdateDialogOverlay = $Form.FindName("UpdateDialogOverlay")
 	$UpdateDialogCard = $Form.FindName("UpdateDialogCard")
 	$TxtOverlayTitle = $Form.FindName("TxtOverlayTitle")
@@ -441,6 +477,8 @@
 	$MenuToolsAppsManager       = $Form.FindName("MenuToolsAppsManager")
 	$MenuToolsUpdateAllApps     = $Form.FindName("MenuToolsUpdateAllApps")
 	$MenuToolsExportSupportBundle = $Form.FindName("MenuToolsExportSupportBundle")
+	$MenuToolsAdvanced = $Form.FindName("MenuToolsAdvanced")
+	$MenuToolsDeploymentMediaBuilder = $Form.FindName("MenuToolsDeploymentMediaBuilder")
 	$MenuToolsApproveRemoteTargets = $Form.FindName("MenuToolsApproveRemoteTargets")
 	$MenuToolsSaveRemoteApprovalPolicy = $Form.FindName("MenuToolsSaveRemoteApprovalPolicy")
 	$MenuToolsLoadRemoteApprovalPolicy = $Form.FindName("MenuToolsLoadRemoteApprovalPolicy")
@@ -494,6 +532,8 @@
 	$Script:MenuToolsAppsManager         = $MenuToolsAppsManager
 	$Script:MenuToolsUpdateAllApps       = $MenuToolsUpdateAllApps
 	$Script:MenuToolsExportSupportBundle = $MenuToolsExportSupportBundle
+	$Script:MenuToolsAdvanced = $MenuToolsAdvanced
+	$Script:MenuToolsDeploymentMediaBuilder = $MenuToolsDeploymentMediaBuilder
 	$Script:MenuToolsApproveRemoteTargets = $MenuToolsApproveRemoteTargets
 	$Script:MenuToolsSaveRemoteApprovalPolicy = $MenuToolsSaveRemoteApprovalPolicy
 	$Script:MenuToolsLoadRemoteApprovalPolicy = $MenuToolsLoadRemoteApprovalPolicy
@@ -541,8 +581,35 @@
 	$Script:NavModeTweaks = $NavModeTweaks
 	$Script:NavModeApps = $NavModeApps
 	$Script:NavModeUpdates = $NavModeUpdates
+	$Script:NavModeDeploymentMedia = $NavModeDeploymentMedia
 	$Script:ModeSubtitle = $ModeSubtitle
 	$Script:TweaksView = $TweaksView
+	$Script:DeploymentMediaView = $DeploymentMediaView
+	$Script:DeploymentMediaScroll = $DeploymentMediaScroll
+	$Script:DeploymentMediaWrapPanel = $DeploymentMediaWrapPanel
+	$Script:BtnDeploymentMediaDetectIso = $BtnDeploymentMediaDetectIso
+	$Script:BtnDeploymentMediaPreviewPlan = $BtnDeploymentMediaPreviewPlan
+	$Script:BtnDeploymentMediaStartBuild = $BtnDeploymentMediaStartBuild
+	$Script:DeploymentMediaStatusBanner = $DeploymentMediaStatusBanner
+	$Script:TxtDeploymentMediaSelectionStatus = $TxtDeploymentMediaSelectionStatus
+	$Script:TxtDeploymentMediaBuildStatus = $TxtDeploymentMediaBuildStatus
+	$Script:TxtDeploymentMediaSourceIso = $TxtDeploymentMediaSourceIso
+	$Script:BtnDeploymentMediaBrowseIso = $BtnDeploymentMediaBrowseIso
+	$Script:TxtDeploymentMediaEditionIndex = $TxtDeploymentMediaEditionIndex
+	$Script:CmbDeploymentMediaDetectedEdition = $CmbDeploymentMediaDetectedEdition
+	$Script:TxtDeploymentMediaDetectedIsoSummary = $TxtDeploymentMediaDetectedIsoSummary
+	$Script:TxtDeploymentMediaWorkingDirectory = $TxtDeploymentMediaWorkingDirectory
+	$Script:BtnDeploymentMediaBrowseWorking = $BtnDeploymentMediaBrowseWorking
+	$Script:CmbDeploymentMediaOutputMode = $CmbDeploymentMediaOutputMode
+	$Script:TxtDeploymentMediaUsbTargetRoot = $TxtDeploymentMediaUsbTargetRoot
+	$Script:BtnDeploymentMediaBrowseUsbTarget = $BtnDeploymentMediaBrowseUsbTarget
+	$Script:TxtDeploymentMediaAutounattend = $TxtDeploymentMediaAutounattend
+	$Script:BtnDeploymentMediaBrowseAutounattend = $BtnDeploymentMediaBrowseAutounattend
+	$Script:TxtDeploymentMediaDriverSource = $TxtDeploymentMediaDriverSource
+	$Script:BtnDeploymentMediaBrowseDrivers = $BtnDeploymentMediaBrowseDrivers
+	$Script:ChkDeploymentMediaBootDrivers = $ChkDeploymentMediaBootDrivers
+	$Script:ChkDeploymentMediaBaselineTweaks = $ChkDeploymentMediaBaselineTweaks
+	$Script:TxtDeploymentMediaPlanPreview = $TxtDeploymentMediaPlanPreview
 	$Script:AppsView = $AppsView
 	$Script:AppsScroll = $AppsScroll
 	$Script:AppsWrapPanel = $AppsWrapPanel
@@ -571,7 +638,6 @@
 	$Script:BtnAppsViewCards = $BtnAppsViewCards
 	$Script:BtnAppsViewList = $BtnAppsViewList
 	$Script:BtnAppsAddCustom = $BtnAppsAddCustom
-	$Script:TxtAppsProgressText = $TxtAppsProgressText
 	$Script:UpdateDialogOverlay = $UpdateDialogOverlay
 	$Script:UpdateDialogCard = $UpdateDialogCard
 	$Script:TxtOverlayTitle = $TxtOverlayTitle
@@ -588,6 +654,7 @@
 	$Script:ExecutionProgressBar = $null
 	$Script:ExecutionProgressText = $null
 	$Script:ExecutionProgressIndeterminate = $false
+	$Script:ExecutionLastProgressCompleted = -1
 	$Script:ExecutionSubProgressBar = $null
 	$Script:ExecutionSubProgressText = $null
 	$Script:AbortRunButton = $null
@@ -616,6 +683,12 @@
 	$Script:AppsModeActive = $false
 	$Script:UpdatesModeActive = $false
 	$Script:UpdatesReturnPrimaryTab = $null
+	$Script:DeploymentMediaModeActive = $false
+	$Script:DeploymentMediaReturnPrimaryTab = $null
+	$Script:DeploymentMediaBuilderViewInitialized = $false
+	$Script:DeploymentMediaDetectedIsoInfo = $null
+	$Script:DeploymentMediaCurrentPlan = $null
+	$Script:DeploymentMediaBuildInProgress = $false
 	$Script:AppsViewLoaded = $false
 	$Script:AppsViewDirty = $false
 	$Script:AppsViewBuildSignature = $null
@@ -626,6 +699,7 @@
 	$Script:AppsViewMode = 'Cards'
 	$Script:AppsViewModeUiUpdating = $false
 	$Script:AppsFilterUiUpdating = $false
+	$Script:TxtAppsProgressText = $null
 	$Script:AppsProgressBar = $null
 	$Script:AppsActionButtons = [System.Collections.Generic.List[object]]::new()
 	$Script:AppsBulkActionButtons = [System.Collections.Generic.List[object]]::new()
@@ -645,6 +719,8 @@
 	}
 	$Script:DownloadStartEvent = $null
 	$Script:DownloadExtractEvent = $null
+	$Script:UpdateCheckPrimaryClickEvent = $null
+	$Script:UpdateCheckSecondaryClickEvent = $null
 	Initialize-BaselineUpdateOverlay
 	$Script:SearchText = ''
 	$Script:AppsSearchText = ''
@@ -664,8 +740,9 @@
 	$Script:PendingFilterValues = @{}
 	$Script:SearchUiUpdating = $false
 	$Script:AppsSourceUiUpdating = $false
+	$Script:ThemeUiUpdating = $false
 	$Script:SearchRefreshDelayMs = $Script:GuiLayout.SearchRefreshDelayMs
-	$Script:CurrentThemeName = 'Dark'
+	$Script:CurrentThemeName = $Script:InitialResolvedThemeName
 	$Script:UiSnapshotUndo = $null
 	$Script:PresetStatusMessage = $null
 	$Script:PresetStatusTone = 'info'
@@ -696,7 +773,7 @@
 		{
 			$previousGuiDispatcher.remove_UnhandledException($previousGuiUnhandledExceptionHandler)
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowSetup.RemoveUnhandledExceptionHook' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.RemoveUnhandledExceptionHook' }
 	}
 
 	$Script:GuiUnhandledExceptionHooked = $false
@@ -757,7 +834,7 @@
 			$Form.Dispatcher.add_UnhandledException($Script:GuiUnhandledExceptionHandler)
 			$Script:GuiUnhandledExceptionHooked = $true
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowSetup.AddUnhandledExceptionHook' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.AddUnhandledExceptionHook' }
 	}
 	$Script:RiskFilter = 'All'
 	$Script:CategoryFilter = 'All'
@@ -775,8 +852,14 @@
 	$Script:DesignMode = $false
 	$Script:RestoreLastSession = $true
 	$Script:AutoScanOnLaunch = $false
+	$Script:RequireRunConfirmation = $true
+	$Script:AutoCheckUpdates = $true
+	$Script:UpdateCheckFrequency = 'Startup'
+	$Script:UpdateBranch = if (Get-Command -Name 'Get-BaselineDefaultUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineDefaultUpdateBranch } else { 'Stable' }
+	$Script:IncludePrereleaseUpdates = $false
 	$Script:ScanEnabled = $false
 	$Script:DebugLoggingEnabled = $false
+	$Script:LogLevel = 'All'
 	$Script:LogFileDirectory = ''
 	$Script:UIDensity = if (Get-Command -Name 'Get-BaselineUiDensity' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineUiDensity } else { 'Comfort' }
 	try
@@ -787,7 +870,17 @@
 			$Script:DesignMode = [bool](Get-BaselineUserPreference -Key 'DesignMode' -Default $false)
 			$Script:RestoreLastSession = [bool](Get-BaselineUserPreference -Key 'RestoreLastSession' -Default $true)
 			$Script:AutoScanOnLaunch = [bool](Get-BaselineUserPreference -Key 'AutoScanOnLaunch' -Default $false)
+			$Script:RequireRunConfirmation = [bool](Get-BaselineUserPreference -Key 'RequireRunConfirmation' -Default $true)
+			$Script:AutoCheckUpdates = [bool](Get-BaselineUserPreference -Key 'AutoCheckUpdates' -Default $true)
+			$Script:UpdateCheckFrequency = [string](Get-BaselineUserPreference -Key 'UpdateCheckFrequency' -Default 'Startup')
+			if (Get-Command -Name 'ConvertTo-BaselineUpdateCheckFrequency' -CommandType Function -ErrorAction SilentlyContinue) { $Script:UpdateCheckFrequency = ConvertTo-BaselineUpdateCheckFrequency -Frequency $Script:UpdateCheckFrequency }
+			$defaultUpdateBranch = if (Get-Command -Name 'Get-BaselineDefaultUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineDefaultUpdateBranch } else { 'Stable' }
+			$Script:UpdateBranch = [string](Get-BaselineUserPreference -Key 'UpdateBranch' -Default $defaultUpdateBranch)
+			if (Get-Command -Name 'ConvertTo-BaselineUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue) { $Script:UpdateBranch = ConvertTo-BaselineUpdateBranch -Branch $Script:UpdateBranch }
+			$Script:IncludePrereleaseUpdates = [bool](Get-BaselineUserPreference -Key 'IncludePrereleaseUpdates' -Default $false)
 			$Script:DebugLoggingEnabled = [bool](Get-BaselineUserPreference -Key 'DebugLoggingEnabled' -Default $false)
+			$Script:LogLevel = [string](Get-BaselineUserPreference -Key 'LogLevel' -Default 'All')
+			if (Get-Command -Name 'Normalize-GuiLogLevel' -CommandType Function -ErrorAction SilentlyContinue) { $Script:LogLevel = Normalize-GuiLogLevel -Level $Script:LogLevel }
 			$Script:LogFileDirectory = [string](Get-BaselineUserPreference -Key 'LogFileDirectory' -Default '')
 			$Script:UIDensity = if (Get-Command -Name 'Normalize-BaselineUiDensity' -CommandType Function -ErrorAction SilentlyContinue) { Normalize-BaselineUiDensity -Density ([string](Get-BaselineUserPreference -Key 'UIDensity' -Default $Script:UIDensity)) } else { [string](Get-BaselineUserPreference -Key 'UIDensity' -Default $Script:UIDensity) }
 			$Script:AppsPackageSourcePreference = [string](Get-BaselineUserPreference -Key 'AppsPackageSourcePreference' -Default $Script:AppsPackageSourcePreference)
@@ -795,10 +888,15 @@
 	}
 	catch
 	{
-		Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowSetup.LoadGuiPreferences'
+		Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.LoadGuiPreferences'
 		$Script:HideUnavailableItems = $true
 		$Script:DesignMode = $false
 		$Script:RestoreLastSession = $true
+		$Script:RequireRunConfirmation = $true
+		$Script:AutoCheckUpdates = $true
+		$Script:UpdateCheckFrequency = 'Startup'
+		$Script:UpdateBranch = if (Get-Command -Name 'Get-BaselineDefaultUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineDefaultUpdateBranch } else { 'Stable' }
+		$Script:IncludePrereleaseUpdates = $false
 		$Script:DebugLoggingEnabled = $false
 		$Script:LogFileDirectory = ''
 		$Script:AppsPackageSourcePreference = 'auto'
@@ -806,12 +904,12 @@
 	if (Get-Command -Name 'Set-BaselineDebugLogging' -CommandType Function -ErrorAction SilentlyContinue)
 	{
 		try { Set-BaselineDebugLogging -Enabled ([bool]$Script:DebugLoggingEnabled) }
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowSetup.ApplyDebugLoggingPreference' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.ApplyDebugLoggingPreference' }
 	}
 	if (Get-Command -Name 'Set-GuiPerfTraceState' -CommandType Function -ErrorAction SilentlyContinue)
 	{
 		try { Set-GuiPerfTraceState -Enabled ([bool]$Script:DebugLoggingEnabled) }
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowSetup.ApplyPerfTraceState' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.ApplyPerfTraceState' }
 	}
 	$Script:SafeMode = $true
 	$Script:AdvancedMode = $false
@@ -834,7 +932,7 @@
 				$Script:SelectedLanguage = $candidate
 				break
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowSetup.ResolveLocalizationCandidate'; $null = $_ }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.ResolveLocalizationCandidate'; $null = $_ }
 		}
 	}
 	if (-not $Script:SelectedLanguage) { $Script:SelectedLanguage = 'en' }

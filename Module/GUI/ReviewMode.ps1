@@ -63,10 +63,11 @@ function Get-GuiReviewModeRowTone
 	[OutputType([pscustomobject])]
 	param (
 		[Parameter(Mandatory)][string]$Action,
-		[Parameter()][object]$Theme = $Script:CurrentTheme
+		[Parameter()][object]$Theme
 	)
 
-	$resolvedTheme = if ($Theme) { $Theme } else { $Script:CurrentTheme }
+	$currentTheme = Get-Variable -Name 'CurrentTheme' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+	$resolvedTheme = if ($Theme) { $Theme } else { $currentTheme }
 	if (-not $resolvedTheme)
 	{
 		return [pscustomobject]@{
@@ -154,7 +155,8 @@ function Show-GuiReviewModeDialog
 	# Headless / test path — no theme means no WPF host. Return default
 	# decisions for every actionable row so callers can still exercise the
 	# gate logic.
-	if (-not $Script:CurrentTheme)
+	$currentTheme = Get-Variable -Name 'CurrentTheme' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+	if (-not $currentTheme)
 	{
 		$decisions = New-Object System.Collections.Generic.List[object]
 		foreach ($row in $visibleRows)
@@ -169,7 +171,7 @@ function Show-GuiReviewModeDialog
 		return @{ Cancelled = $false; Decisions = @($decisions.ToArray()) }
 	}
 
-	$theme = $Script:CurrentTheme
+	$theme = $currentTheme
 	$bc = New-SafeBrushConverter -Context 'ReviewMode-Dialog'
 
 	$acceptAllLabel = Get-UxLocalizedString -Key 'GuiReviewModeAcceptAll' -Fallback 'Accept all'

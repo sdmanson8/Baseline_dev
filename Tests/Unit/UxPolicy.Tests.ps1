@@ -1,6 +1,11 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     function Get-OSInfo {
         [pscustomobject]@{
             IsWindowsServer = $true
@@ -14,6 +19,14 @@ BeforeAll {
             ServerCIOnly = $true
             HasServerCoverage = $true
         }
+    }
+
+    function script:Test-IsSafeModeUX {
+        return ([bool]$script:SafeMode)
+    }
+
+    function script:Test-IsExpertModeUX {
+        return ([bool]$script:AdvancedMode)
     }
 
     $filePath = Join-Path $PSScriptRoot '../../Module/GUI/UxPolicy.ps1'
@@ -38,9 +51,9 @@ Describe 'UxPolicy' {
         $Global:Localization = $null
     }
 
-    It 'routes OS-info and validation-matrix lookup failures through Write-DebugSwallowedException' {
+    It 'routes OS-info and validation-matrix lookup failures through Write-SwallowedException' {
         $script:GuiContent = $null
-        $content = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8
+        $content = Get-BaselineTestSourceText -Path $filePath
         $content | Should -Match "Source 'UxPolicy\.GetUxMainWindowTitleText\.LoadOSInfo'"
         $content | Should -Match "Source 'UxPolicy\.GetUxExecutionSummary\.LoadValidationMatrix'"
         $content | Should -Match "Source 'UxPolicy\.GetUxExecutionSummary\.LoadOSInfo'"

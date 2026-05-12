@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $utilityPath = Join-Path $PSScriptRoot '../../Module/GUICommon/Utilities.ps1'
@@ -12,7 +12,7 @@ BeforeAll {
     }
 
     foreach ($fn in $functions) {
-        if ($fn.Name -in @('Test-GuiCommonUniqueAdd', 'Write-GuiCommonWarning', 'Get-GuiSafeFontSize')) {
+        if ($fn.Name -in @('Test-GuiCommonUniqueAdd', 'Write-GuiCommonWarning', 'Get-GuiCommonSafeFontSize')) {
             Invoke-Expression $fn.Extent.Text
         }
     }
@@ -49,8 +49,8 @@ Describe 'GUICommon warning dedupe' {
     It 'logs an invalid font-size warning only once for repeated calls' {
         $layout = @{ FontSizeLabel = 'invalid' }
 
-        $first = Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11 -Layout $layout
-        $second = Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11 -Layout $layout
+        $first = Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11 -Layout $layout
+        $second = Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11 -Layout $layout
 
         $first | Should -Be 11
         $second | Should -Be 11

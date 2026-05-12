@@ -1,8 +1,7 @@
-﻿# Tweak filtering, visibility, and category filter management
+# Tweak filtering, visibility, and category filter management
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-TweakVisibleByManifestGate.
 	#>
 
 	function Test-TweakVisibleByManifestGate
@@ -40,7 +39,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-TweakVisibleInSafeMode.
 	#>
 
 	function Test-TweakVisibleInSafeMode
@@ -81,7 +79,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-TweakVisibleInCurrentMode.
 	#>
 
 	function Test-TweakVisibleInCurrentMode
@@ -120,7 +117,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-AvailableCategoryFilters.
 	#>
 
 	function Get-AvailableCategoryFilters
@@ -190,7 +186,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-CategoryFilterList.
 	#>
 
 	function Update-CategoryFilterList
@@ -295,7 +290,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-RiskFilterList.
 	#>
 
 	function Update-RiskFilterList
@@ -363,7 +357,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-PlatformFilterDisplayName.
 	#>
 
 	function Get-PlatformFilterDisplayName
@@ -384,7 +377,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-PlatformFilterAvailability.
 	#>
 
 	function Update-PlatformFilterAvailability
@@ -416,6 +408,10 @@
 			{
 				$null = Set-BaselineManifestAllAvailable -Manifest $Script:TweakManifest
 			}
+			if (Get-Command -Name 'Update-BaselineManifestExecutionSupport' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				$null = Update-BaselineManifestExecutionSupport -Manifest $Script:TweakManifest
+			}
 			return $mode
 		}
 
@@ -434,13 +430,16 @@
 		{
 			$null = Update-BaselineManifestAvailability -Manifest $Script:TweakManifest -SystemInfo $systemInfo
 		}
+		if (Get-Command -Name 'Update-BaselineManifestExecutionSupport' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			$null = Update-BaselineManifestExecutionSupport -Manifest $Script:TweakManifest
+		}
 
 		return $mode
 	}
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-PlatformFilterState.
 	#>
 
 	function Set-PlatformFilterState
@@ -463,7 +462,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-HideUnavailableItemsState.
 	#>
 
 	function Set-HideUnavailableItemsState
@@ -491,7 +489,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-PlatformFilterList.
 	#>
 
 	function Update-PlatformFilterList
@@ -565,7 +562,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-CurrentFilterSummaryItems.
 	#>
 
 	function Get-CurrentFilterSummaryItems
@@ -730,7 +726,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-TweakMatchesCurrentFilters.
 	#>
 
 	function Test-TweakMatchesCurrentFilters
@@ -753,7 +748,7 @@
 			# Cross-tab entries: allow specific tweaks from other tabs to appear in Gaming
 			if ($PrimaryTab -eq 'Gaming' -and $Script:GamingCrossTabFunctions -and $Script:GamingCrossTabFunctions.Contains([string]$Tweak.Function))
 			{
-				# Allow through — this entry belongs to another tab but is cross-listed in Gaming
+				# Allow through - this entry belongs to another tab but is cross-listed in Gaming
 			}
 			else
 			{

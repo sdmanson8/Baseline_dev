@@ -567,5 +567,11 @@ function WPBT
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'RazerBlock',
+    'S3Sleep',
+    'ServicesManual',
+    'Teredo',
+    'WPBT'
+)
+Export-ModuleMember -Function $ExportedFunctions

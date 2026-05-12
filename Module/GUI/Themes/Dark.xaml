@@ -19,6 +19,12 @@
 	<Color x:Key="Color.Success">#35D07F</Color>
 	<Color x:Key="Color.Warning">#D6A84A</Color>
 	<Color x:Key="Color.Danger">#FF6B8A</Color>
+	<Color x:Key="Color.LogBg">#1E2433</Color>
+	<Color x:Key="Color.LogDefault">#F4F7FF</Color>
+	<Color x:Key="Color.LogInfo">#7CB7FF</Color>
+	<Color x:Key="Color.LogSuccess">#35D07F</Color>
+	<Color x:Key="Color.LogWarning">#D6A84A</Color>
+	<Color x:Key="Color.LogError">#FF6B8A</Color>
 	<Color x:Key="Color.InputBg">#262D40</Color>
 	<Color x:Key="Color.InputHoverBg">#30384E</Color>
 	<Color x:Key="Color.ButtonBg">#00FFFFFF</Color>
@@ -54,6 +60,12 @@
 	<SolidColorBrush x:Key="Brush.Success" Color="{StaticResource Color.Success}"/>
 	<SolidColorBrush x:Key="Brush.Warning" Color="{StaticResource Color.Warning}"/>
 	<SolidColorBrush x:Key="Brush.Danger" Color="{StaticResource Color.Danger}"/>
+	<SolidColorBrush x:Key="Brush.LogBg" Color="{StaticResource Color.LogBg}"/>
+	<SolidColorBrush x:Key="Brush.LogDefault" Color="{StaticResource Color.LogDefault}"/>
+	<SolidColorBrush x:Key="Brush.LogInfo" Color="{StaticResource Color.LogInfo}"/>
+	<SolidColorBrush x:Key="Brush.LogSuccess" Color="{StaticResource Color.LogSuccess}"/>
+	<SolidColorBrush x:Key="Brush.LogWarning" Color="{StaticResource Color.LogWarning}"/>
+	<SolidColorBrush x:Key="Brush.LogError" Color="{StaticResource Color.LogError}"/>
 	<SolidColorBrush x:Key="Brush.InputBg" Color="{StaticResource Color.InputBg}"/>
 	<SolidColorBrush x:Key="Brush.InputHoverBg" Color="{StaticResource Color.InputHoverBg}"/>
 	<SolidColorBrush x:Key="Brush.ButtonBg" Color="{StaticResource Color.ButtonBg}"/>

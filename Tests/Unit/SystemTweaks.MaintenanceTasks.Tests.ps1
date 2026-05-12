@@ -221,6 +221,7 @@ Describe 'CleanupTask orchestration' {
         $script:unregisterToastCalls = [System.Collections.Generic.List[object]]::new()
         $script:registerScheduledTaskCalls = [System.Collections.Generic.List[object]]::new()
         $script:unregisterScheduledTaskCalls = [System.Collections.Generic.List[object]]::new()
+        $script:maintenanceScripts = [System.Collections.Generic.List[object]]::new()
         $script:setVolumeFlagsCount = 0
         $script:clearVolumeFlagsCount = 0
 
@@ -244,6 +245,10 @@ Describe 'CleanupTask orchestration' {
 
         function New-BaselineMaintenanceTaskScripts {
             param([string]$BaseName, [string]$PowerShellContent)
+            [void]$script:maintenanceScripts.Add([pscustomobject]@{
+                BaseName = $BaseName
+                PowerShellContent = $PowerShellContent
+            })
             return [pscustomobject]@{
                 Ps1Path = Join-Path $TestDrive "$BaseName.ps1"
                 VbsPath = Join-Path $TestDrive "$BaseName.vbs"
@@ -303,9 +308,12 @@ Describe 'CleanupTask orchestration' {
         $script:registerToastCalls.Count | Should -Be 1
         $script:registerToastCalls[0].AppId | Should -Be 'Baseline'
         $script:registerToastCalls[0].ProtocolName | Should -Be 'BaselineCleanup'
-        $script:registerToastCalls[0].ProtocolCommand | Should -Match 'Start-ScheduledTask'
-        $script:registerToastCalls[0].ProtocolCommand | Should -BeLike "*'\Baseline\'*"
-        $script:registerToastCalls[0].ProtocolCommand | Should -BeLike "*'Windows Cleanup'*"
+        $script:registerToastCalls[0].ProtocolCommand | Should -Match '-File'
+        $script:registerToastCalls[0].ProtocolCommand | Should -Match 'Windows_Cleanup_Protocol\.ps1'
+        $protocolScript = $script:maintenanceScripts | Where-Object BaseName -eq 'Windows_Cleanup_Protocol'
+        $protocolScript.PowerShellContent | Should -Match 'Start-ScheduledTask'
+        $protocolScript.PowerShellContent | Should -BeLike "*'\Baseline\'*"
+        $protocolScript.PowerShellContent | Should -BeLike "*'Windows Cleanup'*"
 
         $script:registerScheduledTaskCalls.Count | Should -Be 2
         $cleanupCall = $script:registerScheduledTaskCalls | Where-Object TaskName -eq 'Windows Cleanup'

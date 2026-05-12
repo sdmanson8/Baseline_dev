@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Internal shared helper loader module for Baseline.
 
@@ -22,8 +22,10 @@ $helperModulesRoot = Join-Path $PSScriptRoot 'SharedHelperModules'
 $HelperModuleNames = @(
     'Baseline.SharedHelpers.Json'
     'Baseline.SharedHelpers.Localization'
-	'Baseline.SharedHelpers.FeatureMaturity'
+    'Baseline.SharedHelpers.FeatureMaturity'
     'Baseline.SharedHelpers.ErrorHandling'
+    'Baseline.SharedHelpers.Process'
+    'Baseline.SharedHelpers.CliMode'
     'Baseline.SharedHelpers.SingleInstance'
     'Baseline.SharedHelpers.Integrity'
     'Baseline.SharedHelpers.Registry'
@@ -76,7 +78,7 @@ foreach ($helperModuleName in $HelperModuleNames)
         Remove-Module -ModuleInfo $existingHelperModule -Force -ErrorAction SilentlyContinue
     }
 
-    Import-Module -Name $helperModulePath -Force -Global | Out-Null
+    Import-Module -Name $helperModulePath -Force -Global -DisableNameChecking -WarningAction SilentlyContinue | Out-Null
 }
 
 $helperModuleNamesForCleanup = @($HelperModuleNames)
@@ -94,11 +96,7 @@ $ExecutionContext.SessionState.Module.OnRemove = {
     .SYNOPSIS
     Converts values to power scheme display value.
 
-    
-.DESCRIPTION
-    
-Supports power scheme display value handling inside Baseline.
-#>
+    #>
 
 function ConvertTo-PowerSchemeDisplayValue
 {
@@ -149,11 +147,7 @@ function ConvertTo-PowerSchemeDisplayValue
     .SYNOPSIS
     Converts values to power scheme system value.
 
-    
-.DESCRIPTION
-    
-Supports power scheme system value handling inside Baseline.
-#>
+    #>
 
 function ConvertTo-PowerSchemeSystemValue
 {
@@ -204,11 +198,7 @@ function ConvertTo-PowerSchemeSystemValue
     .SYNOPSIS
     Gets GUI numeric range value.
 
-    
-.DESCRIPTION
-    
-Supports GUI numeric range value handling inside Baseline.
-#>
+    #>
 
 function Get-GuiNumericRangeValue
 {
@@ -303,11 +293,7 @@ function Get-GuiNumericRangeValue
     .SYNOPSIS
     Formats GUI numeric range value text.
 
-    
-.DESCRIPTION
-    
-Supports GUI numeric range value text handling inside Baseline.
-#>
+    #>
 
 function Format-GuiNumericRangeValueText
 {
@@ -356,11 +342,7 @@ function Format-GuiNumericRangeValueText
     .SYNOPSIS
     Formats GUI power scheme value text.
 
-    
-.DESCRIPTION
-    
-Supports GUI power scheme value text handling inside Baseline.
-#>
+    #>
 
 function Format-GuiPowerSchemeValueText
 {
@@ -455,11 +437,7 @@ function Format-GuiPowerSchemeValueText
     .SYNOPSIS
     Gets GUI numeric range channel value.
 
-    
-.DESCRIPTION
-    
-Supports GUI numeric range channel value handling inside Baseline.
-#>
+    #>
 
 function Get-GuiNumericRangeChannelValue
 {
@@ -524,11 +502,7 @@ function Get-GuiNumericRangeChannelValue
     .SYNOPSIS
     Gets current power scheme guid.
 
-    
-.DESCRIPTION
-    
-Supports current power scheme guid handling inside Baseline.
-#>
+    #>
 
 function Get-CurrentPowerSchemeGuid
 {
@@ -560,11 +534,7 @@ function Get-CurrentPowerSchemeGuid
     .SYNOPSIS
     Gets power scheme setting value.
 
-    
-.DESCRIPTION
-    
-Supports power scheme setting value handling inside Baseline.
-#>
+    #>
 
 function Get-PowerSchemeSettingValue
 {
@@ -623,11 +593,7 @@ function Get-PowerSchemeSettingValue
     .SYNOPSIS
     Sets power scheme setting value.
 
-    
-.DESCRIPTION
-    
-Supports power scheme setting value handling inside Baseline.
-#>
+    #>
 
 function Set-PowerSchemeSettingValue
 {
@@ -761,6 +727,11 @@ $ExportedFunctions = @(
     'Get-BaselineErrorInfo'
     'Format-BaselineErrorDialogMessage'
     'Invoke-SilencedProgress'
+    'Stop-BaselineProcessTree'
+    'ConvertTo-BaselineWindowsProcessArgument'
+    'ConvertTo-BaselineProcessArgumentString'
+    'Invoke-BaselineProcess'
+    'Invoke-UserLaunch'
     'Set-Policy'
     'ConvertTo-NativeRegistryPath'
     'ConvertTo-RegExeValueType'
@@ -781,6 +752,8 @@ $ExportedFunctions = @(
     'Initialize-WpfWindowForeground'
     'Get-WindowsVersionData'
     'Get-OSInfo'
+    'Get-BaselineStartupThemePreference'
+    'Get-BaselineStartupThemeName'
     'Get-LocalizedShellString'
     'ConvertTo-WindowsDisplayVersionComparable'
     'Test-Windows11FeatureBranchSupport'
@@ -809,6 +782,8 @@ $ExportedFunctions = @(
     'Get-BaselineServerReleaseFromBuild'
     'Get-BaselineSystemPlatformInfo'
     'ConvertTo-BaselinePlatformLabel'
+    'Set-BaselineDefenderExecutionAvailability'
+    'Reset-BaselineDefenderExecutionAvailability'
     'Test-BaselineEntryAvailable'
     'Test-BaselineEntrySupportsExecution'
     'Get-BaselineEntryAvailabilitySummary'
@@ -863,6 +838,7 @@ $ExportedFunctions = @(
 	'Get-ChocolateyVersion'
 	'Test-ChocolateyAvailable'
 	'Reset-ChocolateyAvailabilityState'
+	'Test-ChocolateyBootstrapApproved'
 	'Get-WinGetBootstrapInstallerMetadata'
 	'Get-WinGetBootstrapInstallerArguments'
 	'Invoke-WinGetBootstrap'
@@ -1037,6 +1013,20 @@ $ExportedFunctions = @(
     'Get-BaselineRemoteOrchestrationDashboard'
     'Search-BaselineRemoteOrchestrationHistory'
     'Invoke-BaselineAutoUpdate'
+    'Invoke-BaselineUpdateCheck'
+    'Get-BaselineUpdateSettings'
+    'Get-BaselineUpdateCheckState'
+    'Set-BaselineUpdateCheckState'
+    'Format-BaselineUpdateLastChecked'
+    'ConvertTo-BaselineUpdateCheckFrequency'
+    'ConvertTo-BaselineUpdateBranch'
+    'Get-BaselineDefaultUpdateBranch'
+    'Get-BaselineUpdateRepositoryName'
+    'Get-BaselineUpdateRepositoryUrl'
+    'Get-BaselineUpdateReleaseApiUri'
+    'Get-BaselineUpdateReleasePageUrl'
+    'Test-BaselineUpdatePrereleaseAllowed'
+    'Test-BaselineAutoUpdateStartupEnabled'
     'Initialize-BaselineWinRtRuntimeDependencies'
     'Initialize-BaselineMarkdownRuntime'
     'Test-BaselineMarkdownRuntimeReady'

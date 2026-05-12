@@ -1,8 +1,7 @@
-# Game Mode state initialization and reset
+﻿# Game Mode state initialization and reset
 
 	<#
 	    .SYNOPSIS
-	    Internal function Initialize-GameModeState.
 	#>
 
 	function Initialize-GameModeState
@@ -31,7 +30,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Reset-GameModeState.
 	#>
 
 	function Reset-GameModeState
@@ -53,7 +51,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Sync-GameModeContextState.
 	#>
 
 	function Sync-GameModeContextState
@@ -93,7 +90,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-HasGameModeTweaks.
 	#>
 
 	function Test-HasGameModeTweaks
@@ -103,10 +99,6 @@
 		return (@($TweakList | Where-Object { (Test-GuiObjectField -Object $_ -FieldName 'FromGameMode') -and [bool]$_.FromGameMode }).Count -gt 0)
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Test-IsGameModeRun
 	{
 		param (
@@ -120,7 +112,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-IsGameModeActive.
 	#>
 
 	function Test-IsGameModeActive
@@ -130,10 +121,6 @@
 		return [bool]$Script:GameMode
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-GameModeProfile
 	{
 		param ([hashtable]$Context = $Script:Ctx)
@@ -143,7 +130,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GameModePlan.
 	#>
 
 	function Get-GameModePlan
@@ -153,10 +139,6 @@
 		return @($Script:GameModePlan)
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-GameModeDecisionOverrides
 	{
 		param ([hashtable]$Context = $Script:Ctx)
@@ -166,7 +148,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ExecutionGameModeContext.
 	#>
 
 	function Get-ExecutionGameModeContext
@@ -176,10 +157,6 @@
 		return $Script:ExecutionGameModeContext
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Set-ExecutionGameModeContext
 	{
 		param (

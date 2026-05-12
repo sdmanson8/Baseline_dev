@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')

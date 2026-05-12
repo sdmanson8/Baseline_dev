@@ -15,7 +15,6 @@
 
 <#
 	.SYNOPSIS
-	Internal function New-BaselineToastXml.
 #>
 
 function New-BaselineToastXml
@@ -112,7 +111,6 @@ function New-BaselineToastXml
 
 <#
 	.SYNOPSIS
-	Internal function Test-BaselineToastRuntimeAvailable.
 #>
 
 function Test-BaselineToastRuntimeAvailable
@@ -141,7 +139,6 @@ function Test-BaselineToastRuntimeAvailable
 
 <#
 	.SYNOPSIS
-	Internal function Send-BaselineToastXml.
 #>
 
 function Send-BaselineToastXml
@@ -199,7 +196,6 @@ function Send-BaselineToastXml
 
 <#
 	.SYNOPSIS
-	Internal function Show-BaselineToast.
 #>
 
 function Show-BaselineToast
@@ -237,7 +233,6 @@ function Show-BaselineToast
 
 <#
 	.SYNOPSIS
-	Internal function Register-BaselineToastApp.
 #>
 
 function Register-BaselineToastApp
@@ -321,7 +316,6 @@ function Register-BaselineToastApp
 
 <#
 	.SYNOPSIS
-	Internal function Unregister-BaselineToastApp.
 #>
 
 function Unregister-BaselineToastApp

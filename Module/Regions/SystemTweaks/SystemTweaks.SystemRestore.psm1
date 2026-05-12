@@ -7,7 +7,7 @@ Three independent functions that close the tracked gap:
 
   SystemRestoreProtection      Enable / Disable System Protection on the
                                system drive (the persistent equivalent of
-                               clicking "Configure â†’ Turn on system protection"
+                               clicking "Configure -> Turn on system protection"
                                in the System Properties UI).
 
   SystemRestoreAllocation      Set the shadow-copy max-size on C: as a
@@ -19,7 +19,7 @@ Three independent functions that close the tracked gap:
                                Disable removes the override and lets Windows
                                re-apply its built-in throttle.
 
-The functions never modify VSS / srservice startup state â€” Baseline pins
+The functions never modify VSS / srservice startup state -- Baseline pins
 VSS to Manual via ServicesManual; srservice is left at the Windows default
 Manual. If either has been set to Disabled by hand, Enable will surface the
 failure rather than silently flipping the service back on.

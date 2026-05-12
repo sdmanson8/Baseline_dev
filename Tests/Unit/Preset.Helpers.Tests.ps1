@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     # Json helpers must load first - Preset.Helpers calls ConvertFrom-BaselineJson.

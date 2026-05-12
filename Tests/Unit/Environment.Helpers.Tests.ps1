@@ -1,9 +1,10 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     <#
         .SYNOPSIS
-        Internal function Get-BaselineLocalizedString.
     #>
 
     function Get-BaselineLocalizedString {
@@ -23,7 +24,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function Get-BaselineBilingualString.
     #>
 
     function Get-BaselineBilingualString {
@@ -43,25 +43,21 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function LogInfo.
     #>
 
     function LogInfo { param([object]$Message) }
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function LogWarning { param([object]$Message) }
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function LogError { param([object]$Message) }
     <#
         .SYNOPSIS
-        Internal function Write-DebugSwallowedException.
     #>
-    function Write-DebugSwallowedException {
+    function Write-SwallowedException {
         param(
             [object]$ErrorRecord,
             [string]$Source
@@ -73,17 +69,17 @@ BeforeAll {
         })
     }
 
-    # Json helpers must load first — Environment.Helpers calls ConvertFrom-BaselineJson.
+    # Json helpers must load first - Environment.Helpers calls ConvertFrom-BaselineJson.
     . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Json.Helpers.ps1')
 
     $filePath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Environment.Helpers.ps1'
-    $script:EnvironmentHelpersContent = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8
+    $script:EnvironmentHelpersContent = Get-BaselineTestSourceText -Path $filePath
     $script:EnglishLocalizationFiles = @(
         Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot '../../Localizations') -Directory |
             Where-Object { $_.Name -like 'English*' } |
             ForEach-Object { Get-ChildItem -LiteralPath $_.FullName -Filter '*.json' -File }
     )
-    $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
+    $ast = [System.Management.Automation.Language.Parser]::ParseInput($script:EnvironmentHelpersContent, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
         Invoke-Expression $fn.Extent.Text
@@ -91,17 +87,16 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function Set-DownloadSecurityProtocol { }
 
     Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase -ErrorAction Stop
-    if (-not ('TestSplashDispatcher' -as [type]))
+    if (-not ('EnvironmentHelpersSplashTestDispatcher' -as [type]))
     {
         Add-Type -TypeDefinition @'
 using System;
 
-public class TestSplashDispatcher
+public class EnvironmentHelpersSplashTestDispatcher
 {
     public bool HasShutdownStarted { get; set; }
 
@@ -114,7 +109,7 @@ public class TestSplashDispatcher
     }
 }
 
-public class TestSplashElement
+public class EnvironmentHelpersSplashTestElement
 {
     public object Text { get; set; }
     public object Visibility { get; set; }
@@ -124,7 +119,7 @@ public class TestSplashElement
     public object RenderTransform { get; set; }
     public double Opacity { get; set; }
 
-    public TestSplashElement()
+    public EnvironmentHelpersSplashTestElement()
     {
         Opacity = 1.0;
     }
@@ -133,7 +128,7 @@ public class TestSplashElement
     public void BeginAnimation(object property, object animation, object handoffBehavior) { }
 }
 
-public class TestProgressBar
+public class EnvironmentHelpersSplashTestProgressBar
 {
     public object Visibility { get; set; }
     public bool IsIndeterminate { get; set; }
@@ -142,7 +137,7 @@ public class TestProgressBar
     public double Width { get; set; }
     public double ActualWidth { get; set; }
 
-    public TestProgressBar()
+    public EnvironmentHelpersSplashTestProgressBar()
     {
         Maximum = 330.0;
         Width = 330.0;
@@ -190,17 +185,95 @@ Describe 'Invoke-UCPDBypassed' {
     It 'throws on non-zero exit codes and still removes the temporary executable' {
         $tempPath = Join-Path $TestDrive 'powershell_temp.cmd'
 
+        function Invoke-BaselineProcess {}
         Mock Get-UCPDTemporaryPowerShellPath { $tempPath }
         Mock Copy-Item {
             param($Path, $Destination)
             Set-Content -LiteralPath $Destination -Value "@exit /b 5" -Encoding ASCII
         }
+        Mock Invoke-BaselineProcess { throw "Process '$FilePath' failed with exit code 5." }
         Mock Remove-Item {}
 
-        { Invoke-UCPDBypassed -ScriptBlock { 'noop' } } | Should -Throw '*exit code 5*'
+        { Invoke-UCPDBypassed -ScriptText "'noop'" } | Should -Throw '*exit code 5*'
         Assert-MockCalled Remove-Item -Times 1 -ParameterFilter {
-            $Path -eq $tempPath -and $Force
+            $LiteralPath -eq $tempPath -and $Force
         }
+        Microsoft.PowerShell.Management\Remove-Item Function:\Invoke-BaselineProcess -ErrorAction SilentlyContinue
+    }
+
+    It 'accepts script blocks by writing their source text to the temporary script' {
+        $tempPath = Join-Path $TestDrive 'powershell_temp.cmd'
+        $script:ucpdScriptText = $null
+
+        function Invoke-BaselineProcess {}
+        Mock Get-UCPDTemporaryPowerShellPath { $tempPath }
+        Mock Copy-Item {
+            param($Path, $Destination)
+            Set-Content -LiteralPath $Destination -Value '@exit /b 0' -Encoding ASCII
+        }
+        Mock Set-Content {
+            param($LiteralPath, $Value)
+            $script:ucpdScriptText = [string]$Value
+        }
+        Mock Invoke-BaselineProcess { [pscustomobject]@{ ExitCode = 0 } }
+        Mock Remove-Item {}
+
+        Invoke-UCPDBypassed -ScriptBlock { Set-ItemProperty -Path 'HKCU:\Software\Test' -Name Demo -Value 1 }
+
+        $script:ucpdScriptText | Should -Match 'Set-ItemProperty'
+        $script:ucpdScriptText | Should -Match 'HKCU:\\Software\\Test'
+        Microsoft.PowerShell.Management\Remove-Item Function:\Invoke-BaselineProcess -ErrorAction SilentlyContinue
+    }
+}
+
+Describe 'Baseline auto-update setup flow contract' {
+    It 'uses the release setup executable instead of replacing Baseline.exe directly' {
+        $script:EnvironmentHelpersContent | Should -Match "Baseline-setup-\*\.exe"
+        $script:EnvironmentHelpersContent | Should -Match "/BASELINEUPDATE=1"
+        $script:EnvironmentHelpersContent | Should -Match "/BASELINEUPDATETARGETDIR=`"\{0\}`""
+        $script:EnvironmentHelpersContent | Should -Match "/RELAUNCH=`"\{0\}`""
+        $script:EnvironmentHelpersContent | Should -Match '\$updateTargetDirectory = Split-Path -Path \$exePath -Parent'
+        $script:EnvironmentHelpersContent | Should -Match "start /wait"
+        $script:EnvironmentHelpersContent | Should -Not -Match 'move /y `"\$newExePath`" `"\$exePath`"'
+    }
+
+    It 'requires the release zip and setup hashes before applying the setup update' {
+        $script:EnvironmentHelpersContent | Should -Match "\.sha256\.json"
+        $script:EnvironmentHelpersContent | Should -Match '\$releaseAssetPattern = Get-BaselineUpdateAssetPattern -Branch \$updateBranch'
+        $script:EnvironmentHelpersContent | Should -Match 'Get-BaselineUpdateAsset -Assets @\(\$release\.assets\) -Pattern \$releaseAssetPattern'
+        $script:EnvironmentHelpersContent | Should -Match 'Expand-Archive -LiteralPath \$zipPath'
+        $script:EnvironmentHelpersContent | Should -Match 'Release zip must contain exactly one Baseline-setup-\*\.exe'
+        $script:EnvironmentHelpersContent | Should -Match 'Assert-BaselineUpdateFileHash -Path \$zipPath'
+        $script:EnvironmentHelpersContent | Should -Match 'Assert-BaselineUpdateFileHash -Path \$setupPath'
+    }
+
+    It 'uses channel-qualified release zip asset patterns' {
+        Get-BaselineUpdateAssetPattern -Branch Stable | Should -Be 'Baseline-*-stable.zip'
+        Get-BaselineUpdateAssetPattern -Branch Beta | Should -Be 'Baseline-*-beta.zip'
+    }
+
+    It 'uses uninstall registration to identify installed update mode' {
+        $installDirectory = Join-Path $TestDrive 'Programs\Baseline'
+        $null = New-Item -ItemType Directory -Path $installDirectory -Force
+        $exePath = Join-Path $installDirectory 'Baseline.exe'
+        $null = New-Item -ItemType File -Path $exePath -Force
+
+        Mock Get-ItemProperty {
+            [pscustomobject]@{ InstallLocation = $installDirectory }
+        } -ParameterFilter { $LiteralPath -like 'Registry::HKEY_CURRENT_USER*' }
+
+        Get-BaselineUpdateInstallMode -ExecutablePath $exePath | Should -Be 'Install'
+    }
+
+    It 'treats executables without Baseline install registration as portable update mode' {
+        $portableDirectory = Join-Path $TestDrive 'Portable\Baseline'
+        $null = New-Item -ItemType Directory -Path $portableDirectory -Force
+        $exePath = Join-Path $portableDirectory 'Baseline.exe'
+        $null = New-Item -ItemType File -Path $exePath -Force
+
+        Mock Get-ItemProperty { throw 'not found' }
+
+        Get-BaselineUpdateInstallMode -ExecutablePath $exePath | Should -Be 'Portable'
     }
 }
 
@@ -243,7 +316,7 @@ Describe 'Get-BaselineDisplayVersion' {
         $result | Should -Be 'v2.0.0'
     }
 
-    It 'routes manifest parse failures through Write-DebugSwallowedException and returns null' {
+    It 'routes manifest parse failures through Write-SwallowedException and returns null' {
         $moduleRoot = Join-Path $TestDrive 'BrokenModuleRoot'
         $null = New-Item -ItemType Directory -Path $moduleRoot -Force
         $manifestPath = Join-Path $moduleRoot 'Baseline.psd1'
@@ -262,7 +335,7 @@ Describe 'Get-BaselineWindowsThemePreference' {
         $script:DebugSwallowedExceptionCalls.Clear()
     }
 
-    It 'routes registry read failures through Write-DebugSwallowedException and returns null' {
+    It 'routes registry read failures through Write-SwallowedException and returns null' {
         Mock Get-ItemProperty { throw 'registry read failed' } -ParameterFilter {
             $LiteralPath -eq 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
         }
@@ -279,6 +352,7 @@ Describe 'Get-BaselineStartupThemeName' {
     }
 
     It 'prefers the saved session theme over the Windows theme' {
+        Mock Test-Path { $false } -ParameterFilter { $LiteralPath -like '*Baseline-user-prefs.json' }
         Mock Test-Path { $true } -ParameterFilter { $LiteralPath -like '*Baseline-last-session.json' }
         Mock Get-Content { '{}' } -ParameterFilter { $LiteralPath -like '*Baseline-last-session.json' }
         Mock ConvertFrom-BaselineJson {
@@ -292,21 +366,120 @@ Describe 'Get-BaselineStartupThemeName' {
         Get-BaselineStartupThemeName | Should -Be 'Dark'
     }
 
+    It 'defaults first launch to System and resolves through the Windows theme' {
+        Mock Test-Path { $false } -ParameterFilter { $LiteralPath -like '*Baseline-user-prefs.json' -or $LiteralPath -like '*Baseline-last-session.json' }
+        Mock Get-BaselineWindowsThemePreference { 'Light' }
+
+        Get-BaselineStartupThemePreference | Should -Be 'System'
+        Get-BaselineStartupThemeName | Should -Be 'Light'
+    }
+
+    It 'resolves a saved System theme through the Windows theme' {
+        Mock Test-Path { $false } -ParameterFilter { $LiteralPath -like '*Baseline-user-prefs.json' }
+        Mock Test-Path { $true } -ParameterFilter { $LiteralPath -like '*Baseline-last-session.json' }
+        Mock Get-Content { '{}' } -ParameterFilter { $LiteralPath -like '*Baseline-last-session.json' }
+        Mock ConvertFrom-BaselineJson {
+            [pscustomobject]@{
+                State = @{
+                    Theme = 'System'
+                }
+            }
+        }
+        Mock Get-BaselineWindowsThemePreference { 'Dark' }
+
+        Get-BaselineStartupThemePreference | Should -Be 'System'
+        Get-BaselineStartupThemeName | Should -Be 'Dark'
+    }
+
     It 'falls back to the current Windows theme when no saved session exists' {
+        Mock Test-Path { $false } -ParameterFilter { $LiteralPath -like '*Baseline-user-prefs.json' }
         Mock Test-Path { $false } -ParameterFilter { $LiteralPath -like '*Baseline-last-session.json' }
         Mock Get-BaselineWindowsThemePreference { 'Light' }
 
         Get-BaselineStartupThemeName | Should -Be 'Light'
     }
 
-    It 'routes session read failures through Write-DebugSwallowedException and falls back to the Windows theme' {
+    It 'routes session read failures through Write-SwallowedException and falls back to the Windows theme' {
+        Mock Test-Path { $false } -ParameterFilter { $LiteralPath -like '*Baseline-user-prefs.json' }
         Mock Test-Path { $true } -ParameterFilter { $LiteralPath -like '*Baseline-last-session.json' }
         Mock Get-Content { throw 'session read failed' } -ParameterFilter { $LiteralPath -like '*Baseline-last-session.json' }
         Mock Get-BaselineWindowsThemePreference { 'Dark' }
 
         Get-BaselineStartupThemeName | Should -Be 'Dark'
         $script:DebugSwallowedExceptionCalls.Count | Should -Be 1
-        $script:DebugSwallowedExceptionCalls[0].Source | Should -Be 'Environment.GetBaselineStartupThemeName.LoadSession'
+        $script:DebugSwallowedExceptionCalls[0].Source | Should -Be 'Environment.GetBaselineStartupThemePreference.LoadSession'
+    }
+}
+
+Describe 'Get-BaselineUpdateSettings' {
+    It 'treats a disabled update-check state as disabled when the auto-check preference has not been written yet' {
+        $preferencePath = Join-Path $TestDrive 'missing-user-prefs.json'
+        $statePath = Join-Path $TestDrive 'auto-update-check-disabled.json'
+        Set-BaselineUpdateCheckState -Path $statePath -Status 'Disabled' -PreserveLastChecked
+
+        $settings = Get-BaselineUpdateSettings -PreferencePath $preferencePath -StatePath $statePath
+
+        $settings.AutoCheckUpdates | Should -BeFalse
+    }
+
+    It 'lets an explicit auto-check preference override the disabled display state' {
+        $preferencePath = Join-Path $TestDrive 'user-prefs-enabled.json'
+        $statePath = Join-Path $TestDrive 'auto-update-check-disabled.json'
+        Set-BaselineUpdateCheckState -Path $statePath -Status 'Disabled' -PreserveLastChecked
+        [System.IO.File]::WriteAllText(
+            $preferencePath,
+            (@{
+                Schema = 'Baseline.UserPreferences'
+                SchemaVersion = 1
+                Values = @{
+                    AutoCheckUpdates = $true
+                    UpdateCheckFrequency = 'Weekly'
+                    IncludePrereleaseUpdates = $true
+                    UpdateBranch = 'Beta'
+                }
+            } | ConvertTo-Json -Depth 6),
+            [System.Text.Encoding]::UTF8
+        )
+
+        $settings = Get-BaselineUpdateSettings -PreferencePath $preferencePath -StatePath $statePath
+
+        $settings.AutoCheckUpdates | Should -BeTrue
+        $settings.CheckFrequency | Should -Be 'Weekly'
+        $settings.IncludePrereleaseBuilds | Should -BeTrue
+        $settings.UpdateBranch | Should -Be 'Beta'
+        $settings.RepositoryName | Should -Be 'Baseline_dev'
+        $settings.RepositoryUrl | Should -Be 'https://github.com/sdmanson8/Baseline_dev'
+        $settings.ReleaseApiUri | Should -Be 'https://api.github.com/repos/sdmanson8/Baseline_dev/releases'
+    }
+}
+
+Describe 'Baseline update branch mapping' {
+    It 'maps stable and beta branches to their release repositories' {
+        ConvertTo-BaselineUpdateBranch -Branch 'stable' | Should -Be 'Stable'
+        ConvertTo-BaselineUpdateBranch -Branch 'beta' | Should -Be 'Beta'
+        Get-BaselineUpdateRepositoryUrl -Branch 'Stable' | Should -Be 'https://github.com/sdmanson8/Baseline'
+        Get-BaselineUpdateRepositoryUrl -Branch 'Beta' | Should -Be 'https://github.com/sdmanson8/Baseline_dev'
+        Get-BaselineUpdateReleaseApiUri -Branch 'Beta' | Should -Be 'https://api.github.com/repos/sdmanson8/Baseline_dev/releases'
+    }
+
+    It 'defaults beta builds to the beta update branch' {
+        $manifestPath = Join-Path $TestDrive 'Baseline.psd1'
+        Set-Content -LiteralPath $manifestPath -Value "@{ PrivateData = @{ Prerelease = 'beta' } }" -Encoding ASCII
+
+        Get-BaselineDefaultUpdateBranch -ModuleManifestPath $manifestPath | Should -Be 'Beta'
+    }
+
+    It 'defaults stable builds to the stable update branch' {
+        $manifestPath = Join-Path $TestDrive 'Baseline.psd1'
+        Set-Content -LiteralPath $manifestPath -Value "@{ PrivateData = @{} }" -Encoding ASCII
+
+        Get-BaselineDefaultUpdateBranch -ModuleManifestPath $manifestPath | Should -Be 'Stable'
+    }
+
+    It 'allows prerelease candidates by explicit stable preference or by beta branch' {
+        Test-BaselineUpdatePrereleaseAllowed -Branch 'Stable' -IncludePrerelease:$false | Should -BeFalse
+        Test-BaselineUpdatePrereleaseAllowed -Branch 'Stable' -IncludePrerelease:$true | Should -BeTrue
+        Test-BaselineUpdatePrereleaseAllowed -Branch 'Beta' -IncludePrerelease:$false | Should -BeTrue
     }
 }
 
@@ -329,19 +502,21 @@ Describe 'Compare-BaselineReleaseVersions' {
 }
 
 Describe 'Show-BootstrapLoadingSplash' {
-    It 'shows the splash in the taskbar when minimized' {
+    It 'keeps the startup splash visible while the GUI is loading' {
         $script:EnvironmentHelpersContent | Should -Match 'ShowInTaskbar="True"'
         $script:EnvironmentHelpersContent | Should -Not -Match 'ShowInTaskbar="False"'
     }
 
-    It 'does not force the splash into the foreground' {
+    It 'shows the startup splash without forcing foreground focus' {
         $script:EnvironmentHelpersContent | Should -Match 'ShowActivated="False"'
         $script:EnvironmentHelpersContent | Should -Match 'Topmost="False"'
+        $script:EnvironmentHelpersContent | Should -Match '\$recordSplashShownAction = \{'
+        $script:EnvironmentHelpersContent | Should -Not -Match '\$showSplashForegroundAction = \{'
         $script:EnvironmentHelpersContent | Should -Not -Match '\$splash\.Topmost = \$true'
         $script:EnvironmentHelpersContent | Should -Not -Match '\[void\]\$splash\.Activate\(\)'
         $script:EnvironmentHelpersContent | Should -Not -Match '\[void\]\$splash\.Focus\(\)'
         $script:EnvironmentHelpersContent | Should -Match 'Bootstrap splash loaded'
-        $script:EnvironmentHelpersContent | Should -Not -Match 'Bootstrap splash loaded and activated'
+        $script:EnvironmentHelpersContent | Should -Match 'Bootstrap splash content rendered'
     }
 
     It 'uses a danger hover style for the splash close caption button' {
@@ -353,16 +528,48 @@ Describe 'Show-BootstrapLoadingSplash' {
         $script:EnvironmentHelpersContent | Should -Not -Match 'Name="BtnClose"[^>]*Foreground="\{DynamicResource Brush\.TextSecondary\}"'
     }
 
-    It 'can prime the updates step, status, and progress bar when the splash loads' {
+    It 'treats user splash close before GUI readiness as a process abort' {
+        $script:EnvironmentHelpersContent | Should -Match 'UserClosed\s*=\s*\$false'
+        $script:EnvironmentHelpersContent | Should -Match 'AbortRequested\s*=\s*\$false'
+        $script:EnvironmentHelpersContent | Should -Match 'ProgrammaticClose\s*=\s*\$false'
+        $script:EnvironmentHelpersContent | Should -Match '\$requestSplashAbortAction = \{'
+        $script:EnvironmentHelpersContent | Should -Match "\`$syncHash\['AbortRequested'\]\s*=\s*\`$true"
+        $script:EnvironmentHelpersContent | Should -Match '\[System\.Environment\]::Exit\(0\)'
+        $script:EnvironmentHelpersContent | Should -Match '\[System\.Diagnostics\.Process\]::GetCurrentProcess\(\)\.Kill\(\)'
+        $script:EnvironmentHelpersContent | Should -Match '\$btnCls\.Add_Click\(\{ & \$requestSplashAbortAction ''caption button'' \}'
+        $script:EnvironmentHelpersContent | Should -Match '\$miCloseCtx\.Add_Click\(\{ & \$requestSplashAbortAction ''context menu'' \}'
+        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_Closing\(\{[\s\S]*& \$requestSplashAbortAction ''window close'''
+        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_Closed\(\{[\s\S]*Bootstrap splash closed before GUI readiness; aborting process'
+    }
+
+    It 'marks normal splash handoff closes as programmatic so they do not abort startup' {
+        $script:EnvironmentHelpersContent | Should -Match 'function Close-LoadingSplashWindow'
+        $script:EnvironmentHelpersContent | Should -Match "\`$Splash\['ProgrammaticClose'\]\s*=\s*\`$true"
+    }
+
+    It 'primes the first splash step immediately and upgrades that prime for startup update checks' {
         $script:EnvironmentHelpersContent | Should -Match '\[switch\]\$StartUpdatesPulse'
         $script:EnvironmentHelpersContent | Should -Match 'splashLocCheckingForUpdates'
+        $script:EnvironmentHelpersContent | Should -Match '\$splashStepOrder = @\(''system'', ''winget'', ''chocolatey'', ''finalize''\)'
+        $script:EnvironmentHelpersContent | Should -Match '\$splashStepOrder = @\(''updates''\) \+ \$splashStepOrder'
+        $script:EnvironmentHelpersContent | Should -Match 'if \(\$startUpdatesPulse\)[\s\S]*\$updatesStepXaml = @"'
+        $script:EnvironmentHelpersContent | Should -Match '\$syncHash\[''StepOrder''\] = @\(\$splashStepOrder\)'
+        $script:EnvironmentHelpersContent | Should -Match 'InitialStepPrimeApplied = \$false'
         $script:EnvironmentHelpersContent | Should -Match 'bootstrapLoadingSplashStepCommand'
         $script:EnvironmentHelpersContent | Should -Match 'bootstrapLoadingSplashStateCommand'
-        $script:EnvironmentHelpersContent | Should -Match '& \$bootstrapLoadingSplashStateCommand -Splash \$syncHash -StatusText \$splashLocCheckingForUpdates -Completed 0 -Total 5'
-        $script:EnvironmentHelpersContent | Should -Not -Match '& \$bootstrapLoadingSplashStateCommand -Splash \$syncHash -StatusText \$splashLocCheckingForUpdates -Indeterminate'
-        $script:EnvironmentHelpersContent | Should -Match '& \$bootstrapLoadingSplashStepCommand -Splash \$syncHash -StepId ''updates'' -Status ''in_progress'''
-        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_Loaded\(\{[\s\S]*& \$startUpdatesPulseAction ''Loaded'''
-        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_ContentRendered\(\{[\s\S]*& \$startUpdatesPulseAction ''ContentRendered'''
+        $script:EnvironmentHelpersContent | Should -Match '\$initialStepId = if \(\$startUpdatesPulse\) \{ ''updates'' \} else \{ ''system'' \}'
+        $script:EnvironmentHelpersContent | Should -Match 'if \(\$subActionPanelControl\) \{ \$subActionPanelControl\.Visibility = \[System\.Windows\.Visibility\]::Collapsed \}'
+        $script:EnvironmentHelpersContent | Should -Match '\$progressBarControl = if \(\$syncHash\.ContainsKey\(''ProgressBar''\)\) \{ \$syncHash\[''ProgressBar''\] \} else \{ \$null \}'
+        $script:EnvironmentHelpersContent | Should -Match '\$progressBarControl\.BeginAnimation\(\[System\.Windows\.Controls\.ProgressBar\]::ValueProperty, \$fill, \[System\.Windows\.Media\.Animation\.HandoffBehavior\]::SnapshotAndReplace\)'
+        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_Loaded\(\{[\s\S]*& \$primeInitialStepAction ''Loaded'''
+        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_ContentRendered\(\{[\s\S]*& \$primeInitialStepAction ''ContentRendered'''
+    }
+
+    It 'omits the update step when the updates pulse is not active' {
+        $script:EnvironmentHelpersContent | Should -Match "Get-BaselineLocalizedString -Key 'Bootstrap_StepCheckingForUpdates' -Fallback 'Checking for Updates'"
+        $script:EnvironmentHelpersContent | Should -Match 'if \(-not \$startUpdatesPulse\)[\s\S]*\[void\]\$stepGlyphs\.Remove\(''updates''\)'
+        $script:EnvironmentHelpersContent | Should -Match '\$initialStepId = if \(\$startUpdatesPulse\) \{ ''updates'' \} else \{ ''system'' \}'
+        $script:EnvironmentHelpersContent | Should -Not -Match "Bootstrap_StepUpdateCheck"
     }
 
     It 'uses a value-driven progress bar template with standard named parts' {
@@ -407,20 +614,23 @@ Describe 'Show-BootstrapLoadingSplash' {
         $script:EnvironmentHelpersContent | Should -Match '<DropShadowEffect Color="\{DynamicResource Color\.Progress\}" BlurRadius="10" ShadowDepth="0" Opacity="0\.35"\s*/>'
     }
 
-    It 'does not release startup until the splash content has rendered' {
+    It 'keeps a live splash runspace when rendering is delayed' {
         $script:EnvironmentHelpersContent | Should -Match 'WasLoaded\s*=\s*\$false'
         $script:EnvironmentHelpersContent | Should -Match 'WasRendered\s*=\s*\$false'
-        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_Loaded\(\{[\s\S]*\$syncHash\.WasLoaded = \$true'
-        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_ContentRendered\(\{[\s\S]*\$syncHash\.WasRendered = \$true[\s\S]*\$syncHash\.IsReady = \$true'
-        $script:EnvironmentHelpersContent | Should -Match 'if \(\(-not \$syncHash\.IsAlive\) -or \(-not \$syncHash\.WasRendered\)\)'
+        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_Loaded\(\{[\s\S]*\$syncHash\[''WasLoaded''\] = \$true'
+        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_ContentRendered\(\{[\s\S]*\$syncHash\[''WasRendered''\] = \$true[\s\S]*\$syncHash\[''IsReady''\] = \$true'
+        $script:EnvironmentHelpersContent | Should -Match '\$splashStartupFailed = -not \$syncHash\[''IsAlive''\]'
+        $script:EnvironmentHelpersContent | Should -Match 'if \(\$splashStartupFailed\)'
+        $script:EnvironmentHelpersContent | Should -Match 'elseif \(-not \$syncHash\[''WasRendered''\]\)'
+        $script:EnvironmentHelpersContent | Should -Match 'Bootstrap splash render pending after readiness wait; leaving runspace active\.'
 
         $loadedBlock = [regex]::Match(
             $script:EnvironmentHelpersContent,
             '(?s)\$splash\.Add_Loaded\(\{.*?\}\)\s*\r?\n\r?\n\s*\$splash\.Add_ContentRendered'
         ).Value
         $loadedSuccessBlock = [regex]::Match($loadedBlock, '(?s)try\s*\{(?<Body>.*?)\}\s*catch').Groups['Body'].Value
-        $loadedSuccessBlock | Should -Not -Match '\$syncHash\.WasShown = \$true'
-        $loadedSuccessBlock | Should -Not -Match '\$syncHash\.IsReady = \$true'
+        $loadedSuccessBlock | Should -Not -Match '\$syncHash\[''WasShown''\] = \$true'
+        $loadedSuccessBlock | Should -Not -Match '\$syncHash\[''IsReady''\] = \$true'
     }
 
     It 'records splash thread failures instead of reporting a successful splash' {
@@ -435,21 +645,32 @@ Describe 'Get-BaselineLatestReleaseEntry' {
         $script:DebugSwallowedExceptionCalls.Clear()
     }
 
-    It 'selects the highest non-draft release regardless of API ordering' {
+    It 'selects the highest non-draft release regardless of API ordering when pre-release builds are included' {
         $releases = @(
             [pscustomobject]@{ draft = $false; tag_name = 'v3.0.0-beta'; published_at = '2026-03-01T00:00:00Z' }
             [pscustomobject]@{ draft = $false; tag_name = 'v4.0.0-beta'; published_at = '2026-04-01T00:00:00Z' }
         )
 
-        $result = Get-BaselineLatestReleaseEntry -Releases $releases
+        $result = Get-BaselineLatestReleaseEntry -Releases $releases -IncludePrerelease
 
         [string]$result.tag_name | Should -Be 'v4.0.0-beta'
     }
 
+    It 'skips pre-release builds by default' {
+        $releases = @(
+            [pscustomobject]@{ draft = $false; prerelease = $true; tag_name = 'v5.0.0-beta'; published_at = '2026-05-01T00:00:00Z' }
+            [pscustomobject]@{ draft = $false; prerelease = $false; tag_name = 'v4.0.0'; published_at = '2026-04-02T00:00:00Z' }
+        )
+
+        $result = Get-BaselineLatestReleaseEntry -Releases $releases
+
+        [string]$result.tag_name | Should -Be 'v4.0.0'
+    }
+
     It 'prefers a stable release over a prerelease with the same core version' {
         $releases = @(
-            [pscustomobject]@{ draft = $false; tag_name = 'v4.0.0-beta'; published_at = '2026-04-01T00:00:00Z' }
-            [pscustomobject]@{ draft = $false; tag_name = 'v4.0.0'; published_at = '2026-04-02T00:00:00Z' }
+            [pscustomobject]@{ draft = $false; prerelease = $true; tag_name = 'v4.0.0-beta'; published_at = '2026-04-01T00:00:00Z' }
+            [pscustomobject]@{ draft = $false; prerelease = $false; tag_name = 'v4.0.0'; published_at = '2026-04-02T00:00:00Z' }
         )
 
         $result = Get-BaselineLatestReleaseEntry -Releases $releases
@@ -459,8 +680,8 @@ Describe 'Get-BaselineLatestReleaseEntry' {
 
     It 'skips malformed published_at values after routing the parse error' {
         $releases = @(
-            [pscustomobject]@{ draft = $false; tag_name = 'v3.0.0-beta'; published_at = 'not-a-date' }
-            [pscustomobject]@{ draft = $false; tag_name = 'v4.0.0'; published_at = '2026-04-02T00:00:00Z' }
+            [pscustomobject]@{ draft = $false; prerelease = $false; tag_name = 'v3.0.0-beta'; published_at = 'not-a-date' }
+            [pscustomobject]@{ draft = $false; prerelease = $false; tag_name = 'v4.0.0'; published_at = '2026-04-02T00:00:00Z' }
         )
 
         $result = Get-BaselineLatestReleaseEntry -Releases $releases
@@ -568,6 +789,15 @@ Describe 'Invoke-BaselineAutoUpdate' {
             [void]$script:loggedInfoMessages.Add([string]$Message)
         }
         Mock Get-BaselineAutoUpdateThrottlePath { $script:autoUpdateThrottlePath }
+        Mock Get-BaselineUpdateSettings {
+            [pscustomobject]@{
+                AutoCheckUpdates = $true
+                CheckFrequency = 'Startup'
+                UpdateBranch = 'Stable'
+                IncludePrereleaseBuilds = $false
+            }
+        }
+        Mock Test-BaselineUpdateEndpointAvailable { $true }
     }
 
     It 'allows the startup auto-update check when no throttle file exists' {
@@ -630,18 +860,54 @@ Describe 'Invoke-BaselineAutoUpdate' {
         Test-Path -LiteralPath $script:autoUpdateThrottlePath | Should -BeTrue
     }
 
-    It 'keeps the startup update check on determinate checklist progress' {
-        $script:EnvironmentHelpersContent | Should -Match '(?s)Set-BootstrapLoadingSplashState\s+-Splash \$Splash\s+-StatusText\s+\(Get-BaselineLocalizedString\s+-Key ''Bootstrap_CheckingForUpdates''\s+-Fallback ''Checking for updates\.\.\.''\)\s+-Completed 0\s+-Total 5'
-        $script:EnvironmentHelpersContent | Should -Not -Match '(?s)Set-BootstrapLoadingSplashState\s+-Splash \$Splash\s+-StatusText\s+\(Get-BaselineLocalizedString\s+-Key ''Bootstrap_CheckingForUpdates''\s+-Fallback ''Checking for updates\.\.\.''\)\s+-Indeterminate'
-    }
-
-    It 'does not query GitHub again within four hours' {
+    It 'queries the beta release repository when the beta update branch is selected' {
         $env:BASELINE_EMBEDDED_HOST = '1'
         $env:BASELINE_LAUNCHER_PATH = Join-Path $TestDrive 'Baseline.exe'
         Set-Content -LiteralPath $env:BASELINE_LAUNCHER_PATH -Value '' -Encoding ASCII
-        Set-BaselineAutoUpdateThrottleTimestamp -Path $script:autoUpdateThrottlePath -NowUtc ([datetime]::UtcNow.AddHours(-1))
+        $script:updateCheckUri = ''
 
+        Mock Get-BaselineUpdateSettings {
+            [pscustomobject]@{
+                AutoCheckUpdates = $true
+                CheckFrequency = 'Startup'
+                UpdateBranch = 'Beta'
+                IncludePrereleaseBuilds = $false
+            }
+        }
         Mock Set-DownloadSecurityProtocol {}
+        Mock Invoke-RestMethod {
+            param($Uri)
+            $script:updateCheckUri = [string]$Uri
+            [pscustomobject]@{
+                draft    = $false
+                tag_name = '4.0.0'
+                assets   = @()
+            }
+        }
+        Mock Set-BootstrapLoadingSplashState {}
+        Mock Close-LoadingSplashWindow {}
+
+        { Invoke-BaselineAutoUpdate -CurrentVersion '4.0.0' } | Should -Not -Throw
+
+        $script:updateCheckUri | Should -Be 'https://api.github.com/repos/sdmanson8/Baseline_dev/releases'
+    }
+
+    It 'does not touch the network when automatic update checks are disabled' {
+        $env:BASELINE_EMBEDDED_HOST = '1'
+        $env:BASELINE_LAUNCHER_PATH = Join-Path $TestDrive 'Baseline.exe'
+        Set-Content -LiteralPath $env:BASELINE_LAUNCHER_PATH -Value '' -Encoding ASCII
+
+        Mock Get-BaselineUpdateSettings {
+            [pscustomobject]@{
+                AutoCheckUpdates = $false
+                CheckFrequency = 'Startup'
+                UpdateBranch = 'Stable'
+                IncludePrereleaseBuilds = $false
+            }
+        }
+        Mock Set-DownloadSecurityProtocol {
+            throw 'security protocol should not be set'
+        }
         Mock Invoke-RestMethod {
             throw 'release lookup should not run'
         }
@@ -650,8 +916,64 @@ Describe 'Invoke-BaselineAutoUpdate' {
 
         { Invoke-BaselineAutoUpdate -CurrentVersion '4.0.0' } | Should -Not -Throw
 
+        Assert-MockCalled Set-DownloadSecurityProtocol -Times 0
+        Assert-MockCalled Test-BaselineUpdateEndpointAvailable -Times 0
         Assert-MockCalled Invoke-RestMethod -Times 0
-        ($script:loggedInfoMessages -join "`n") | Should -Match 'checked within the last 4 hours'
+        (Get-BaselineUpdateCheckState -Path $script:autoUpdateThrottlePath).Status | Should -Be 'Disabled'
+    }
+
+    It 'marks startup update checks as skipped when the release endpoint is offline' {
+        $env:BASELINE_EMBEDDED_HOST = '1'
+        $env:BASELINE_LAUNCHER_PATH = Join-Path $TestDrive 'Baseline.exe'
+        Set-Content -LiteralPath $env:BASELINE_LAUNCHER_PATH -Value '' -Encoding ASCII
+
+        Mock Test-BaselineUpdateEndpointAvailable { $false }
+        Mock Set-DownloadSecurityProtocol {
+            throw 'security protocol should not be set'
+        }
+        Mock Invoke-RestMethod {
+            throw 'release lookup should not run'
+        }
+        Mock Set-BootstrapLoadingSplashState {}
+        Mock Close-LoadingSplashWindow {}
+
+        { Invoke-BaselineAutoUpdate -CurrentVersion '4.0.0' } | Should -Not -Throw
+
+        Assert-MockCalled Set-DownloadSecurityProtocol -Times 0
+        Assert-MockCalled Invoke-RestMethod -Times 0
+        (Get-BaselineUpdateCheckState -Path $script:autoUpdateThrottlePath).Status | Should -Be 'Skipped (offline)'
+    }
+
+    It 'keeps the startup update check on determinate checklist progress' {
+        $script:EnvironmentHelpersContent | Should -Match '(?s)Set-BootstrapLoadingSplashState\s+-Splash \$Splash\s+-StatusText\s+\(Get-BaselineLocalizedString\s+-Key ''Bootstrap_CheckingForUpdates''\s+-Fallback ''Checking for updates\.\.\.''\)\s+-Completed 0\s+-Total 5'
+        $script:EnvironmentHelpersContent | Should -Not -Match '(?s)Set-BootstrapLoadingSplashState\s+-Splash \$Splash\s+-StatusText\s+\(Get-BaselineLocalizedString\s+-Key ''Bootstrap_CheckingForUpdates''\s+-Fallback ''Checking for updates\.\.\.''\)\s+-Indeterminate'
+    }
+
+    It 'does not query GitHub again before the configured daily interval elapses' {
+        $env:BASELINE_EMBEDDED_HOST = '1'
+        $env:BASELINE_LAUNCHER_PATH = Join-Path $TestDrive 'Baseline.exe'
+        Set-Content -LiteralPath $env:BASELINE_LAUNCHER_PATH -Value '' -Encoding ASCII
+        Set-BaselineUpdateCheckState -Path $script:autoUpdateThrottlePath -Status 'Up to date' -LatestVersion '4.0.0' -NowUtc ([datetime]::UtcNow.AddHours(-1))
+
+        Mock Set-DownloadSecurityProtocol {}
+        Mock Invoke-RestMethod {
+            throw 'release lookup should not run'
+        }
+        Mock Set-BootstrapLoadingSplashState {}
+        Mock Close-LoadingSplashWindow {}
+        Mock Get-BaselineUpdateSettings {
+            [pscustomobject]@{
+                AutoCheckUpdates = $true
+                CheckFrequency = 'Daily'
+                UpdateBranch = 'Stable'
+                IncludePrereleaseBuilds = $false
+            }
+        }
+
+        { Invoke-BaselineAutoUpdate -CurrentVersion '4.0.0' } | Should -Not -Throw
+
+        Assert-MockCalled Invoke-RestMethod -Times 0
+        ($script:loggedInfoMessages -join "`n") | Should -Match 'frequency interval has not elapsed'
     }
 
     It 'uses the highest non-draft release tag when deciding whether the current build is up to date' {
@@ -698,7 +1020,7 @@ Describe 'Baseline markdown runtime' {
     }
 
     It 'uses loaded AppDomain assemblies instead of Type.GetType for Markdig readiness checks' {
-        $content = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8
+        $content = Get-BaselineTestSourceText -Path $filePath
 
         $content | Should -Match '\[System\.AppDomain\]::CurrentDomain\.GetAssemblies\(\)'
         $content | Should -Match 'GetType\(''Markdig\.Wpf\.Markdown'', \$false, \$false\)'
@@ -731,7 +1053,7 @@ Describe 'Baseline markdown runtime' {
         [string]$result.Hyperlinks[0].NavigateUri.OriginalString | Should -Be '#title'
     }
 
-    It 'routes assembly load failures through Write-DebugSwallowedException' {
+    It 'routes assembly load failures through Write-SwallowedException' {
         $moduleRoot = Join-Path $TestDrive 'MarkdownModuleRoot'
         $librariesRoot = Join-Path $moduleRoot 'Libraries'
         $null = New-Item -ItemType Directory -Path $librariesRoot -Force
@@ -768,7 +1090,7 @@ Describe 'Baseline webview2 runtime' {
         $script:DebugSwallowedExceptionCalls.Clear()
     }
 
-    It 'routes assembly load failures through Write-DebugSwallowedException' {
+    It 'routes assembly load failures through Write-SwallowedException' {
         $moduleRoot = Join-Path $TestDrive 'WebView2ModuleRoot'
         $librariesRoot = Join-Path $moduleRoot 'Libraries'
         $null = New-Item -ItemType Directory -Path $librariesRoot -Force
@@ -804,7 +1126,7 @@ Describe 'Bootstrap splash defaults' {
 
     It 'keeps every English splash localization on the neutral loading text' {
         foreach ($localeFile in $script:EnglishLocalizationFiles) {
-            $content = Get-Content -LiteralPath $localeFile.FullName -Raw -Encoding UTF8
+            $content = Get-BaselineTestSourceText -Path $localeFile.FullName
             $content | Should -Match '"GuiSplashLoading": "(Please|Kindly) Wait\.\.\."'
         }
     }
@@ -812,10 +1134,10 @@ Describe 'Bootstrap splash defaults' {
 
 Describe 'Bootstrap splash progress' {
     It 'preserves the current fill when an indeterminate status update arrives' {
-        $dispatcher = [TestSplashDispatcher]::new()
-        $statusText = [TestSplashElement]::new()
-        $subActionPanel = [TestSplashElement]::new()
-        $progressBar = [TestProgressBar]::new()
+        $dispatcher = [EnvironmentHelpersSplashTestDispatcher]::new()
+        $statusText = [EnvironmentHelpersSplashTestElement]::new()
+        $subActionPanel = [EnvironmentHelpersSplashTestElement]::new()
+        $progressBar = [EnvironmentHelpersSplashTestProgressBar]::new()
         $progressBar.Value = 132
         $progressBar.Maximum = 330
         $progressBar.IsIndeterminate = $false
@@ -840,11 +1162,11 @@ Describe 'Bootstrap splash progress' {
     }
 
     It 'shows the splash status line for indeterminate updates even when the status text is blank' {
-        $dispatcher = [TestSplashDispatcher]::new()
-        $statusText = [TestSplashElement]::new()
-        $subActionPanel = [TestSplashElement]::new()
+        $dispatcher = [EnvironmentHelpersSplashTestDispatcher]::new()
+        $statusText = [EnvironmentHelpersSplashTestElement]::new()
+        $subActionPanel = [EnvironmentHelpersSplashTestElement]::new()
         $subActionPanel.Visibility = [System.Windows.Visibility]::Collapsed
-        $progressBar = [TestProgressBar]::new()
+        $progressBar = [EnvironmentHelpersSplashTestProgressBar]::new()
         $progressBar.Visibility = [System.Windows.Visibility]::Collapsed
         $progressBar.IsIndeterminate = $false
 
@@ -864,10 +1186,10 @@ Describe 'Bootstrap splash progress' {
     }
 
     It 'keeps checklist progress determinate when an indeterminate status update follows an active step' {
-        $dispatcher = [TestSplashDispatcher]::new()
-        $statusText = [TestSplashElement]::new()
-        $subActionPanel = [TestSplashElement]::new()
-        $progressBar = [TestProgressBar]::new()
+        $dispatcher = [EnvironmentHelpersSplashTestDispatcher]::new()
+        $statusText = [EnvironmentHelpersSplashTestElement]::new()
+        $subActionPanel = [EnvironmentHelpersSplashTestElement]::new()
+        $progressBar = [EnvironmentHelpersSplashTestProgressBar]::new()
         $progressBar.IsIndeterminate = $false
         $progressBar.Value = 24
         $progressBar.Maximum = 330
@@ -891,8 +1213,8 @@ Describe 'Bootstrap splash progress' {
     }
 
     It 'starts determinate progress when the first splash step advances the bar' {
-        $dispatcher = [TestSplashDispatcher]::new()
-        $progressBar = [TestProgressBar]::new()
+        $dispatcher = [EnvironmentHelpersSplashTestDispatcher]::new()
+        $progressBar = [EnvironmentHelpersSplashTestProgressBar]::new()
         $progressBar.IsIndeterminate = $true
         $progressBar.Value = 0
         $progressBar.Maximum = 1
@@ -906,13 +1228,13 @@ Describe 'Bootstrap splash progress' {
         $stepStates = @{}
         foreach ($stepId in $stepIds)
         {
-            $stepGlyphs[$stepId] = [TestSplashElement]::new()
-            $stepIdleDots[$stepId] = [TestSplashElement]::new()
-            $pulseDot = [TestSplashElement]::new()
+            $stepGlyphs[$stepId] = [EnvironmentHelpersSplashTestElement]::new()
+            $stepIdleDots[$stepId] = [EnvironmentHelpersSplashTestElement]::new()
+            $pulseDot = [EnvironmentHelpersSplashTestElement]::new()
             $pulseDot.RenderTransform = [System.Windows.Media.ScaleTransform]::new()
             $stepPulseDots[$stepId] = $pulseDot
-            $stepChecks[$stepId] = [TestSplashElement]::new()
-            $stepLabels[$stepId] = [TestSplashElement]::new()
+            $stepChecks[$stepId] = [EnvironmentHelpersSplashTestElement]::new()
+            $stepLabels[$stepId] = [EnvironmentHelpersSplashTestElement]::new()
             $stepStates[$stepId] = 'pending'
         }
 
@@ -945,8 +1267,8 @@ Describe 'Bootstrap splash progress' {
     }
 
     It 'keeps the final splash handoff moving until GUI readiness completes it' {
-        $dispatcher = [TestSplashDispatcher]::new()
-        $progressBar = [TestProgressBar]::new()
+        $dispatcher = [EnvironmentHelpersSplashTestDispatcher]::new()
+        $progressBar = [EnvironmentHelpersSplashTestProgressBar]::new()
         $progressBar.IsIndeterminate = $false
         $progressBar.Value = 264
         $progressBar.Maximum = 330
@@ -960,13 +1282,13 @@ Describe 'Bootstrap splash progress' {
         $stepStates = @{}
         foreach ($stepId in $stepIds)
         {
-            $stepGlyphs[$stepId] = [TestSplashElement]::new()
-            $stepIdleDots[$stepId] = [TestSplashElement]::new()
-            $pulseDot = [TestSplashElement]::new()
+            $stepGlyphs[$stepId] = [EnvironmentHelpersSplashTestElement]::new()
+            $stepIdleDots[$stepId] = [EnvironmentHelpersSplashTestElement]::new()
+            $pulseDot = [EnvironmentHelpersSplashTestElement]::new()
             $pulseDot.RenderTransform = [System.Windows.Media.ScaleTransform]::new()
             $stepPulseDots[$stepId] = $pulseDot
-            $stepChecks[$stepId] = [TestSplashElement]::new()
-            $stepLabels[$stepId] = [TestSplashElement]::new()
+            $stepChecks[$stepId] = [EnvironmentHelpersSplashTestElement]::new()
+            $stepLabels[$stepId] = [EnvironmentHelpersSplashTestElement]::new()
             $stepStates[$stepId] = if ($stepId -eq 'finalize') { 'pending' } else { 'completed' }
         }
 

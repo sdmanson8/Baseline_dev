@@ -8,7 +8,7 @@ BeforeAll {
     $script:ActionHandlersPath = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers.ps1'
     $script:ActionHandlersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers'
     $script:StyleManagementPath = Join-Path $PSScriptRoot '../../Module/GUI/StyleManagement.ps1'
-    $script:GuiContent = (Get-Content -LiteralPath $script:GuiPath -Raw -Encoding UTF8) + "`n" + (Get-Content -LiteralPath $script:MainWindowPath -Raw -Encoding UTF8)
+    $script:GuiContent = (Get-BaselineTestSourceText -Path $script:GuiPath) + "`n" + (Get-BaselineTestSourceText -Path $script:MainWindowPath)
     $script:ActionHandlersContent = Get-BaselineTestSourceText -Path @(
         $script:ActionHandlersPath
         (Join-Path $script:ActionHandlersSplitRoot 'ThemeNavigationHandlers.ps1')
@@ -16,7 +16,7 @@ BeforeAll {
         (Join-Path $script:ActionHandlersSplitRoot 'SystemScanFooterHandlers.ps1')
         (Join-Path $script:ActionHandlersSplitRoot 'MenuHandlers.ps1')
     )
-    $script:StyleManagementContent = Get-Content -LiteralPath $script:StyleManagementPath -Raw -Encoding UTF8
+    $script:StyleManagementContent = Get-BaselineTestSourceText -Path $script:StyleManagementPath
 }
 
 Describe 'Support bundle GUI wiring' {
@@ -40,7 +40,7 @@ Describe 'Support bundle GUI wiring' {
     }
 
     It 'keeps app maintenance and support bundle export visible while Safe Mode hides advanced Tools actions' {
-        $modeStateContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/GUI/ModeState.ps1') -Raw -Encoding UTF8
+        $modeStateContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/GUI/ModeState.ps1')
         $modeStateContent | Should -Match '\$Script:MenuTools\.Visibility\s+=\s+''Visible'''
         $modeStateContent | Should -Match '\$Script:MenuToolsAppsManager\.Visibility\s+=\s+''Visible'''
         $modeStateContent | Should -Match '\$Script:MenuToolsUpdateAllApps\.Visibility\s+=\s+''Visible'''

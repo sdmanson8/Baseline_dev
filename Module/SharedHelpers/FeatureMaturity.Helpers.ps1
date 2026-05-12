@@ -44,7 +44,6 @@ function Get-BaselineEnterpriseActionMaturityCatalogData
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineFeatureMaturityLevels.
 #>
 
 function Get-BaselineFeatureMaturityLevels
@@ -58,7 +57,6 @@ function Get-BaselineFeatureMaturityLevels
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-BaselineFeatureMaturityLevel.
 #>
 
 function ConvertTo-BaselineFeatureMaturityLevel
@@ -94,7 +92,6 @@ function ConvertTo-BaselineFeatureMaturityLevel
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineFeatureMaturityRank.
 #>
 
 function Get-BaselineFeatureMaturityRank
@@ -118,7 +115,6 @@ function Get-BaselineFeatureMaturityRank
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineFeatureMaturityAtLeast.
 #>
 
 function Test-BaselineFeatureMaturityAtLeast
@@ -140,7 +136,6 @@ function Test-BaselineFeatureMaturityAtLeast
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineEnterpriseActionMaturityCatalog.
 #>
 
 function Get-BaselineEnterpriseActionMaturityCatalog
@@ -168,7 +163,6 @@ function Get-BaselineEnterpriseActionMaturityCatalog
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineEnterpriseActionMaturityGate.
 #>
 
 function Test-BaselineEnterpriseActionMaturityGate
@@ -222,7 +216,6 @@ function Test-BaselineEnterpriseActionMaturityGate
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineFeatureMaturityReport.
 #>
 
 function Get-BaselineFeatureMaturityReport

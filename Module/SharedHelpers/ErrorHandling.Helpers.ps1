@@ -2,7 +2,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Remove-HandledErrorRecord.
 #>
 
 function Remove-HandledErrorRecord
@@ -45,7 +44,6 @@ function Remove-HandledErrorRecord
 
 <#
     .SYNOPSIS
-    Internal function Test-IgnorableErrorMessage.
 #>
 
 function Test-IgnorableErrorMessage
@@ -67,17 +65,9 @@ function Test-IgnorableErrorMessage
 		$Message
 	)
 
-	if ([string]::IsNullOrWhiteSpace($Message)) { return $true }
+	if ([string]::IsNullOrWhiteSpace($Message)) { return $false }
 
 	$ignorablePatterns = @(
-		# Why: Tweak regions inspect optional PSObject properties that may not exist on
-		# older OS builds; absence is expected and not a failure.
-		'Property .* does not exist'
-
-		# Why: Several tweaks attempt cleanup of paths that may not exist on a fresh
-		# install (e.g. user-customised folders).
-		'Cannot find path'
-
 		# Why: Service/process kill helpers run unconditionally; absence of the target
 		# means the tweak's goal (process not running) is already satisfied.
 		'Cannot find a process with the name'
@@ -113,20 +103,6 @@ function Test-IgnorableErrorMessage
 		# are expected behaviour for our tweaks.
 		'A key in this path already exists\.'
 
-		# Why: Pipeline introspection on optional CIM/WMI results can produce these
-		# when a query returns null on a non-applicable SKU.
-		'You must specify an object for the Get-Member cmdlet'
-		'Cannot bind argument to parameter .InputObject. because it is null'
-		'The property .* cannot be found on this object'
-
-		# Why: Win32 returns this for several no-op cases (e.g. setting an already-set
-		# registry value with mismatched type on locked-down policies).
-		'The parameter is incorrect'
-
-		# Why: Unknown HRESULTs from interop calls — historically these wrap "no work
-		# needed" results from DISM/CIM on edge-case SKUs.
-		'Unknown error \(0x'
-
 		# Why: Disposed runspace handles surface this on cleanup paths; not a tweak
 		# failure, just late teardown.
 		'Safe handle has been closed'
@@ -136,15 +112,6 @@ function Test-IgnorableErrorMessage
 		# the error stream.
 		'command that prompts the user failed because the host program'
 
-		# Why: Many registry/service tweaks legitimately require admin; in -Preview or
-		# limited-permission runs we record but do not escalate these.
-		'Access is denied\.'
-		'Security error\.'
-
-		# Why: Optional cleanup paths for files/dirs that the user may have already
-		# removed; uses the native-API equivalent of "Cannot find path".
-		'The system cannot find the path specified\.'
-		'The system cannot find the file specified\.'
 	)
 
 	$combinedPattern = ($ignorablePatterns -join '|')
@@ -153,7 +120,6 @@ function Test-IgnorableErrorMessage
 
 <#
     .SYNOPSIS
-    Internal function Test-IgnorableErrorRecord.
 #>
 
 function Test-IgnorableErrorRecord
@@ -179,7 +145,7 @@ function Test-IgnorableErrorRecord
 
 <#
     .SYNOPSIS
-    Internal function .
+    Returns new global error records that are not classified as ignorable.
 #>
 function Get-NewUnhandledErrorRecords
 {
@@ -227,7 +193,6 @@ function Get-NewUnhandledErrorRecords
 
 <#
     .SYNOPSIS
-    Internal function Invoke-SilencedProgress.
 #>
 
 function Invoke-SilencedProgress
@@ -258,7 +223,6 @@ function Invoke-SilencedProgress
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineErrorCatalog.
 #>
 
 function Get-BaselineErrorCatalog
@@ -327,7 +291,6 @@ function Get-BaselineErrorCatalog
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineExceptionMessageChain.
 #>
 
 function Get-BaselineExceptionMessageChain
@@ -375,7 +338,6 @@ function Get-BaselineExceptionMessageChain
 
 <#
     .SYNOPSIS
-    Internal function Resolve-BaselineErrorCode.
 #>
 
 function Resolve-BaselineErrorCode
@@ -434,7 +396,6 @@ function Resolve-BaselineErrorCode
 
 <#
     .SYNOPSIS
-    Internal function Resolve-BaselineErrorStageDescription.
 #>
 
 function Resolve-BaselineErrorStageDescription
@@ -469,7 +430,6 @@ function Resolve-BaselineErrorStageDescription
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineErrorInfo.
 #>
 
 function Get-BaselineErrorInfo
@@ -512,7 +472,6 @@ function Get-BaselineErrorInfo
 
 <#
     .SYNOPSIS
-    Internal function Format-BaselineErrorDialogMessage.
 #>
 
 function Format-BaselineErrorDialogMessage

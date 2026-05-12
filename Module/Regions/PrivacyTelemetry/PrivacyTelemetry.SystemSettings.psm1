@@ -1193,5 +1193,20 @@ function UpdateAutoDownload
 }
 
 #endregion Privacy & Telemetry
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'MaintenanceWakeUp',
+    'Microphone',
+    'NTFSLastAccess',
+    'SharedExperiences',
+    'SigninInfo',
+    'SleepButton',
+    'Superfetch',
+    'TailoredExperiences',
+    'UpdateAutoDownload',
+    'UpdateMSProducts',
+    'UpdateMSRT',
+    'UWPSwapFile',
+    'WebLangList',
+    'WiFiSense'
+)
+Export-ModuleMember -Function $ExportedFunctions

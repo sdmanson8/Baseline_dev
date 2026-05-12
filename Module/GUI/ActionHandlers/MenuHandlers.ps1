@@ -19,9 +19,9 @@
 			}
 			catch
 			{
-				if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 				{
-					Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuClickRouting.LogWarning'
+					Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuClickRouting.LogWarning'
 				}
 			}
 		}
@@ -29,6 +29,24 @@
 
 	$setAppPackageSourcePreferenceStateCommand = Get-GuiRuntimeCommand -Name 'Set-AppPackageSourcePreferenceState' -CommandType 'Function'
 	$convertToAppPackageSourcePreferenceCommand = Get-GuiRuntimeCommand -Name 'ConvertTo-AppPackageSourcePreference' -CommandType 'Function'
+	$hasField = {
+		param (
+			[object]$Object,
+			[string]$FieldName
+		)
+
+		if ($null -eq $Object)
+		{
+			return $false
+		}
+
+		if ($Object -is [System.Collections.IDictionary])
+		{
+			return $Object.Contains($FieldName)
+		}
+
+		return ($null -ne $Object.PSObject.Properties[$FieldName])
+	}.GetNewClosure()
 
 	# File menu
 	if ($MenuFileImportSettings)
@@ -81,6 +99,23 @@
 				{
 					$runtimeDebugLoggingEnabled
 				}
+				$runtimeLogLevel = if ($Script:LogLevel) { [string]$Script:LogLevel } else { 'All' }
+				if (Get-Command -Name 'Normalize-GuiLogLevel' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					$runtimeLogLevel = Normalize-GuiLogLevel -Level $runtimeLogLevel
+				}
+				$logLevel = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					[string](Get-BaselineUserPreference -Key 'LogLevel' -Default $runtimeLogLevel)
+				}
+				else
+				{
+					$runtimeLogLevel
+				}
+				if (Get-Command -Name 'Normalize-GuiLogLevel' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					$logLevel = Normalize-GuiLogLevel -Level $logLevel
+				}
 				$runtimeAppsPackageSourcePreference = if ($Script:AppsPackageSourcePreference) { [string]$Script:AppsPackageSourcePreference } else { 'auto' }
 				$appsPackageSourcePreference = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
 				{
@@ -91,6 +126,31 @@
 					$runtimeAppsPackageSourcePreference
 				}
 				if ([string]::IsNullOrWhiteSpace($appsPackageSourcePreference)) { $appsPackageSourcePreference = 'auto' }
+				$updateSettings = if (Get-Command -Name 'Get-BaselineUpdateSettings' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Get-BaselineUpdateSettings
+				}
+				else
+				{
+					[pscustomobject]@{
+						AutoCheckUpdates = if ($null -ne $Script:AutoCheckUpdates) { [bool]$Script:AutoCheckUpdates } else { $true }
+						CheckFrequency = if ($Script:UpdateCheckFrequency) { [string]$Script:UpdateCheckFrequency } else { 'Startup' }
+						UpdateBranch = if ($Script:UpdateBranch) { [string]$Script:UpdateBranch } elseif (Get-Command -Name 'Get-BaselineDefaultUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineDefaultUpdateBranch } else { 'Stable' }
+						IncludePrereleaseBuilds = if ($null -ne $Script:IncludePrereleaseUpdates) { [bool]$Script:IncludePrereleaseUpdates } else { $false }
+					}
+				}
+				$updateCheckState = if (Get-Command -Name 'Get-BaselineUpdateCheckState' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Get-BaselineUpdateCheckState
+				}
+				else
+				{
+					[pscustomobject]@{
+						LastCheckedUtc = $null
+						Status = 'Not checked'
+						LatestVersion = ''
+					}
+				}
 				$currentPrefs = @{
 					Language = if ($Script:SelectedLanguage) { [string]$Script:SelectedLanguage } else { 'en' }
 					DefaultStartupMode = if ($Script:DefaultStartupMode) { [string]$Script:DefaultStartupMode } else { 'Safe' }
@@ -103,7 +163,15 @@
 					}
 					AutoScanOnLaunch = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'AutoScanOnLaunch' -Default $false) } else { [bool]$Script:AutoScanOnLaunch }
 					HideUnavailableItems = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'HideUnavailableItems' -Default $true) } else { $true }
-					Theme = if ($Script:ThemePreference) { [string]$Script:ThemePreference } elseif ($Script:CurrentThemeName) { [string]$Script:CurrentThemeName } else { 'Dark' }
+					AutoCheckUpdates = [bool]$updateSettings.AutoCheckUpdates
+					UpdateCheckFrequency = [string]$updateSettings.CheckFrequency
+					UpdateBranch = if ($updateSettings -and $updateSettings.PSObject.Properties['UpdateBranch'] -and -not [string]::IsNullOrWhiteSpace([string]$updateSettings.UpdateBranch)) { [string]$updateSettings.UpdateBranch } elseif (Get-Command -Name 'Get-BaselineDefaultUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineDefaultUpdateBranch } else { 'Stable' }
+					IncludePrereleaseUpdates = [bool]$updateSettings.IncludePrereleaseBuilds
+					UpdateLastCheckedUtc = $updateCheckState.LastCheckedUtc
+					UpdateCheckStatus = [string]$updateCheckState.Status
+					UpdateLatestVersion = [string]$updateCheckState.LatestVersion
+					CurrentVersion = if (Get-Command -Name 'Get-BaselineDisplayVersion' -CommandType Function -ErrorAction SilentlyContinue) { [string](Get-BaselineDisplayVersion) } elseif ($Script:CurrentAppVersion) { [string]$Script:CurrentAppVersion } else { '0.0.0' }
+					Theme = if ($Script:ThemePreference) { [string]$Script:ThemePreference } else { 'System' }
 					UIDensity = if (Get-Command -Name 'Get-BaselineUiDensity' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineUiDensity } elseif ($Script:UIDensity) { [string]$Script:UIDensity } else { 'Comfort' }
 					SafeMode = [bool]$Script:SafeMode
 					RequireRunConfirmation = if ($null -ne $Script:RequireRunConfirmation) { [bool]$Script:RequireRunConfirmation } else { $true }
@@ -114,7 +182,7 @@
 					AppsAutoUpdate = [bool]$Script:AppsAutoUpdate
 					LoggingEnabled = if ($null -ne $Script:LoggingEnabled) { [bool]$Script:LoggingEnabled } else { $true }
 					DebugLoggingEnabled = $debugLoggingEnabled
-					LogLevel = if ($Script:LogLevel) { [string]$Script:LogLevel } else { 'Info' }
+					LogLevel = $logLevel
 					LogFilePath = if ($Script:LogFilePath) { [string]$Script:LogFilePath } else { '' }
 					DefaultLogFileDirectory = $defaultLogFileDirectory
 					LogFileDirectory = $customLogFileDirectory
@@ -125,6 +193,46 @@
 
 				$result = & $showGuiSettingsDialogCommand -Current $currentPrefs
 				if (-not $result) { return }
+
+				$runUpdateBranchCheckNow = $false
+				if ($result.ContainsKey('UpdateBranch'))
+				{
+					$defaultUpdateBranch = if (Get-Command -Name 'Get-BaselineDefaultUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineDefaultUpdateBranch } else { 'Stable' }
+					$previousUpdateBranch = $defaultUpdateBranch
+					$requestedUpdateBranch = if (-not [string]::IsNullOrWhiteSpace([string]$result.UpdateBranch)) { [string]$result.UpdateBranch } else { $defaultUpdateBranch }
+					if (Get-Command -Name 'ConvertTo-BaselineUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						$previousUpdateBranch = ConvertTo-BaselineUpdateBranch -Branch $previousUpdateBranch
+						$requestedUpdateBranch = ConvertTo-BaselineUpdateBranch -Branch $requestedUpdateBranch
+					}
+
+					if (-not [string]::Equals($previousUpdateBranch, $requestedUpdateBranch, [System.StringComparison]::OrdinalIgnoreCase))
+					{
+						$branchPromptTitle = Get-UxLocalizedString -Key 'GuiSettingsUpdateBranchPromptTitle' -Fallback 'Change Update Channel'
+						$branchPromptMessage = Get-UxLocalizedString -Key 'GuiSettingsUpdateBranchPromptMessage' -Fallback "Switch update channel from {0} to {1}?`n`nSwitching channels may change which releases Baseline offers in future update checks."
+						$branchChangeNowLabel = Get-UxLocalizedString -Key 'GuiSettingsUpdateBranchChangeNow' -Fallback 'Continue'
+						$branchNextReleaseLabel = Get-UxLocalizedString -Key 'GuiSettingsUpdateBranchNextRelease' -Fallback 'Switch On Next Release'
+						$branchCancelLabel = Get-UxLocalizedString -Key 'GuiCancelButton' -Fallback 'Cancel'
+						$branchChoice = if ($showThemedDialogCommand)
+						{
+							& $showThemedDialogCommand `
+								-Title $branchPromptTitle `
+								-Message ($branchPromptMessage -f $previousUpdateBranch, $requestedUpdateBranch) `
+								-Buttons @($branchCancelLabel, $branchNextReleaseLabel, $branchChangeNowLabel) `
+								-AccentButton $branchChangeNowLabel
+						}
+						else
+						{
+							$branchCancelLabel
+						}
+						$runUpdateBranchCheckNow = [string]::Equals([string]$branchChoice, [string]$branchChangeNowLabel, [System.StringComparison]::OrdinalIgnoreCase)
+						$deferUpdateBranchSwitch = [string]::Equals([string]$branchChoice, [string]$branchNextReleaseLabel, [System.StringComparison]::OrdinalIgnoreCase)
+						if (-not ($runUpdateBranchCheckNow -or $deferUpdateBranchSwitch))
+						{
+							return
+						}
+					}
+				}
 
 				# Wired preferences (affect behavior now):
 				if ($result.ContainsKey('Theme'))
@@ -264,6 +372,54 @@
 						try { Set-BaselineUserPreference -Key 'HideUnavailableItems' -Value $hideUnavailWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist HideUnavailableItems failed') }
 					}
 				}
+				if ($result.ContainsKey('AutoCheckUpdates'))
+				{
+					$autoCheckUpdatesWanted = [bool]$result.AutoCheckUpdates
+					$Script:AutoCheckUpdates = $autoCheckUpdatesWanted
+					if (-not $autoCheckUpdatesWanted -and (Get-Command -Name 'Set-BaselineUpdateCheckState' -CommandType Function -ErrorAction SilentlyContinue))
+					{
+						try { Set-BaselineUpdateCheckState -Status 'Disabled' -PreserveLastChecked } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist update disabled state failed') }
+					}
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'AutoCheckUpdates' -Value $autoCheckUpdatesWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist AutoCheckUpdates failed') }
+					}
+				}
+				if ($result.ContainsKey('UpdateCheckFrequency'))
+				{
+					$updateCheckFrequencyWanted = [string]$result.UpdateCheckFrequency
+					if (Get-Command -Name 'ConvertTo-BaselineUpdateCheckFrequency' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						$updateCheckFrequencyWanted = ConvertTo-BaselineUpdateCheckFrequency -Frequency $updateCheckFrequencyWanted
+					}
+					$Script:UpdateCheckFrequency = $updateCheckFrequencyWanted
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'UpdateCheckFrequency' -Value $updateCheckFrequencyWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist UpdateCheckFrequency failed') }
+					}
+				}
+				if ($result.ContainsKey('UpdateBranch'))
+				{
+					$updateBranchWanted = [string]$result.UpdateBranch
+					if (Get-Command -Name 'ConvertTo-BaselineUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						$updateBranchWanted = ConvertTo-BaselineUpdateBranch -Branch $updateBranchWanted
+					}
+					$Script:UpdateBranch = $updateBranchWanted
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'UpdateBranch' -Value $updateBranchWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist UpdateBranch failed') }
+					}
+				}
+				if ($result.ContainsKey('IncludePrereleaseUpdates'))
+				{
+					$includePrereleaseWanted = [bool]$result.IncludePrereleaseUpdates
+					$Script:IncludePrereleaseUpdates = $includePrereleaseWanted
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'IncludePrereleaseUpdates' -Value $includePrereleaseWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist IncludePrereleaseUpdates failed') }
+					}
+				}
 				if ($result.ContainsKey('UIDensity'))
 				{
 					if (Get-Command -Name 'Set-BaselineUiDensity' -CommandType Function -ErrorAction SilentlyContinue)
@@ -275,7 +431,15 @@
 						$Script:UIDensity = [string]$result.UIDensity
 					}
 				}
-				if ($result.ContainsKey('RequireRunConfirmation')) { $Script:RequireRunConfirmation = [bool]$result.RequireRunConfirmation }
+				if ($result.ContainsKey('RequireRunConfirmation'))
+				{
+					$requireRunConfirmationWanted = [bool]$result.RequireRunConfirmation
+					$Script:RequireRunConfirmation = $requireRunConfirmationWanted
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'RequireRunConfirmation' -Value $requireRunConfirmationWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist RequireRunConfirmation failed') }
+					}
+				}
 				if ($result.ContainsKey('PreviewBeforeRunDefault')) { $Script:PreviewBeforeRunDefault = [bool]$result.PreviewBeforeRunDefault }
 				if ($result.ContainsKey('AppsSilentInstall')) { $Script:AppsSilentInstall = [bool]$result.AppsSilentInstall }
 				if ($result.ContainsKey('AppsAutoUpdate')) { $Script:AppsAutoUpdate = [bool]$result.AppsAutoUpdate }
@@ -297,7 +461,19 @@
 						try { Set-GuiPerfTraceState -Enabled $debugWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Set-GuiPerfTraceState failed') }
 					}
 				}
-				if ($result.ContainsKey('LogLevel')) { $Script:LogLevel = [string]$result.LogLevel }
+				if ($result.ContainsKey('LogLevel'))
+				{
+					$logLevelWanted = [string]$result.LogLevel
+					if (Get-Command -Name 'Normalize-GuiLogLevel' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						$logLevelWanted = Normalize-GuiLogLevel -Level $logLevelWanted
+					}
+					$Script:LogLevel = $logLevelWanted
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'LogLevel' -Value $logLevelWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist LogLevel failed') }
+					}
+				}
 				if ($result.ContainsKey('LogFileDirectory'))
 				{
 					$requestedLogDirectory = [string]$result.LogFileDirectory
@@ -388,6 +564,14 @@
 
 				& $setGuiStatusTextCommand -Text (Get-UxLocalizedString -Key 'GuiSettingsSavedStatus' -Fallback 'Settings saved.') -Tone 'success'
 				LogInfo 'Settings dialog: preferences saved.'
+				if ($runUpdateBranchCheckNow)
+				{
+					$updateCheckCommand = if ($showUpdateCheckDialogCommand) { $showUpdateCheckDialogCommand } else { Get-GuiRuntimeCommand -Name 'Show-BaselineUpdateCheckDialog' -CommandType 'Function' }
+					if ($updateCheckCommand)
+					{
+						& $updateCheckCommand
+					}
+				}
 			}
 			catch
 			{
@@ -452,9 +636,9 @@
 			}
 			catch
 			{
-				if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 				{
-					Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuFileExit.CloseMainForm'
+					Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuFileExit.CloseMainForm'
 				}
 			}
 		}) | Out-Null
@@ -469,7 +653,7 @@
 			{
 				$connectionRequest = & $promptRemoteTargetConnectionCommand
 				if (-not $connectionRequest) { return }
-				$requestMethod = if ((Test-GuiObjectField -Object $connectionRequest -FieldName 'ConnectionMethod') -and $connectionRequest.ConnectionMethod) { [string]$connectionRequest.ConnectionMethod } else { 'WinRM' }
+				$requestMethod = if ((& $hasField -Object $connectionRequest -FieldName 'ConnectionMethod') -and $connectionRequest.ConnectionMethod) { [string]$connectionRequest.ConnectionMethod } else { 'WinRM' }
 				$context = & $setRemoteTargetContextCommand -ComputerName $connectionRequest.ComputerName -Credential $connectionRequest.Credential -StatusMessage 'Remote target connected.' -ConnectionMethod $requestMethod
 				$targetLabel = if ($context.TargetComputers.Count -gt 0) { $context.TargetComputers -join ', ' } else { 'unknown target' }
 				& $setGuiStatusTextCommand -Text ("Remote: {0}" -f $targetLabel) -Tone 'accent'
@@ -518,7 +702,7 @@
 			# so any wiring (telemetry / future hooks) flows through one path.
 			if ($Script:MenuActionsDisconnect)
 			{
-				try { $Script:MenuActionsDisconnect.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent)) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuActionsDisconnect.RaiseEvent' }
+				try { $Script:MenuActionsDisconnect.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.MenuItem]::ClickEvent)) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuActionsDisconnect.RaiseEvent' }
 			}
 		}) | Out-Null
 	}
@@ -561,15 +745,15 @@
 	# Scan System - matches ChkScan checkbox
 	if ($MenuActionsScanSystem -and $ChkScan)
 	{
-		try { $MenuActionsScanSystem.IsChecked = [bool]$ChkScan.IsChecked } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuActionsScanSystem.SetChecked' }
+		try { $MenuActionsScanSystem.IsChecked = [bool]$ChkScan.IsChecked } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuActionsScanSystem.SetChecked' }
 		Register-GuiEventHandler -Source $MenuActionsScanSystem -EventName 'Click' -Handler ({
-			try { $ChkScan.IsChecked = [bool]$MenuActionsScanSystem.IsChecked } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuActionsScanSystem.SyncClick' }
+			try { $ChkScan.IsChecked = [bool]$MenuActionsScanSystem.IsChecked } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuActionsScanSystem.SyncClick' }
 		}.GetNewClosure()) | Out-Null
 		Register-GuiEventHandler -Source $ChkScan -EventName 'Checked' -Handler ({
-			try { $MenuActionsScanSystem.IsChecked = $true } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuActionsScanSystem.Checked' }
+			try { $MenuActionsScanSystem.IsChecked = $true } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuActionsScanSystem.Checked' }
 		}.GetNewClosure()) | Out-Null
 		Register-GuiEventHandler -Source $ChkScan -EventName 'Unchecked' -Handler ({
-			try { $MenuActionsScanSystem.IsChecked = $false } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuActionsScanSystem.Unchecked' }
+			try { $MenuActionsScanSystem.IsChecked = $false } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuActionsScanSystem.Unchecked' }
 		}.GetNewClosure()) | Out-Null
 	}
 
@@ -577,7 +761,7 @@
 	{
 		Register-GuiEventHandler -Source $MenuViewFilters -EventName 'Click' -Handler ({
 			& $raiseButtonClick $BtnFilterToggle
-			try { $MenuViewFilters.IsChecked = ($FilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Visible) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuViewFilters.SetChecked' }
+			try { $MenuViewFilters.IsChecked = ($FilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Visible) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuViewFilters.SetChecked' }
 		}.GetNewClosure()) | Out-Null
 	}
 	# Open Logs - opens the log dialog (BtnLog handler)
@@ -589,15 +773,15 @@
 	}
 	if ($MenuViewTheme -and $ChkTheme)
 	{
-		try { $MenuViewTheme.IsChecked = [bool]$ChkTheme.IsChecked } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuViewTheme.SetChecked' }
+		try { $MenuViewTheme.IsChecked = [bool]$ChkTheme.IsChecked } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuViewTheme.SetChecked' }
 		Register-GuiEventHandler -Source $MenuViewTheme -EventName 'Click' -Handler ({
-			try { $ChkTheme.IsChecked = [bool]$MenuViewTheme.IsChecked } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuViewTheme.SyncClick' }
+			try { $ChkTheme.IsChecked = [bool]$MenuViewTheme.IsChecked } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuViewTheme.SyncClick' }
 		}.GetNewClosure()) | Out-Null
 		Register-GuiEventHandler -Source $ChkTheme -EventName 'Checked' -Handler ({
-			try { $MenuViewTheme.IsChecked = $true } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuViewTheme.Checked' }
+			try { $MenuViewTheme.IsChecked = $true } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuViewTheme.Checked' }
 		}.GetNewClosure()) | Out-Null
 		Register-GuiEventHandler -Source $ChkTheme -EventName 'Unchecked' -Handler ({
-			try { $MenuViewTheme.IsChecked = $false } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuViewTheme.Unchecked' }
+			try { $MenuViewTheme.IsChecked = $false } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuViewTheme.Unchecked' }
 		}.GetNewClosure()) | Out-Null
 	}
 
@@ -605,13 +789,13 @@
 	if ($MenuToolsAppsManager -and $NavModeApps)
 	{
 		Register-GuiEventHandler -Source $MenuToolsAppsManager -EventName 'Click' -Handler ({
-			try { $NavModeApps.IsChecked = $true } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuToolsAppsManager.Checked' }
+			try { $NavModeApps.IsChecked = $true } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuToolsAppsManager.Checked' }
 		}.GetNewClosure()) | Out-Null
 	}
 	if ($MenuToolsUpdateAllApps -and $BtnUpdateAllApps)
 	{
 		Register-GuiEventHandler -Source $MenuToolsUpdateAllApps -EventName 'Click' -Handler ({
-			try { $NavModeApps.IsChecked = $true } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuToolsUpdateAllApps.Checked' }
+			try { $NavModeApps.IsChecked = $true } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuToolsUpdateAllApps.Checked' }
 			& $raiseButtonClick $BtnUpdateAllApps
 		}.GetNewClosure()) | Out-Null
 	}
@@ -647,9 +831,9 @@
 				}
 				catch
 				{
-					if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpHelp.LogWarning'
+						Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpHelp.LogWarning'
 					}
 				}
 				if ($showThemedDialogCommand)
@@ -660,9 +844,9 @@
 					}
 					catch
 					{
-						if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 						{
-							Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpHelp.ShowFailureDialog'
+							Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpHelp.ShowFailureDialog'
 						}
 					}
 				}
@@ -685,9 +869,9 @@
 				}
 				catch
 				{
-					if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpGettingStarted.LogWarning'
+						Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpGettingStarted.LogWarning'
 					}
 				}
 			}
@@ -716,9 +900,9 @@
 				}
 				catch
 				{
-					if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpReadme.LogWarning'
+						Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpReadme.LogWarning'
 					}
 				}
 				if ($showThemedDialogCommand)
@@ -731,9 +915,9 @@
 					}
 					catch
 					{
-						if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 						{
-							Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpReadme.ShowThemedDialog'
+							Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpReadme.ShowThemedDialog'
 						}
 					}
 				}
@@ -763,9 +947,9 @@
 				}
 				catch
 				{
-					if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpFAQ.LogWarning'
+						Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpFAQ.LogWarning'
 					}
 				}
 			}
@@ -793,9 +977,9 @@
 				}
 				catch
 				{
-					if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpChangelog.LogWarning'
+						Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpChangelog.LogWarning'
 					}
 				}
 			}
@@ -819,9 +1003,9 @@
 				}
 				catch
 				{
-					if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpUpdateCheck.LogWarning'
+						Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpUpdateCheck.LogWarning'
 					}
 				}
 			}
@@ -845,9 +1029,9 @@
 				}
 				catch
 				{
-					if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpReleaseStatus.LogWarning'
+						Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpReleaseStatus.LogWarning'
 					}
 				}
 			}
@@ -871,9 +1055,9 @@
 				}
 				catch
 				{
-					if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpTroubleshooting.LogWarning'
+						Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpTroubleshooting.LogWarning'
 					}
 				}
 			}
@@ -886,15 +1070,15 @@
 			{
 				$aboutTitle = Get-UxLocalizedString -Key 'GuiMenuHelpAbout' -Fallback 'About Baseline'
 				$version = 'unknown'
-				try { $version = Get-BaselineDisplayVersion } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpAbout.GetDisplayVersion' }
+				try { $version = Get-BaselineDisplayVersion } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpAbout.GetDisplayVersion' }
 				$msg = "Baseline`nVersion: $version`n`nA Windows utility for system configuration and optimization."
 				[void](Show-ThemedDialog -Title $aboutTitle -Message $msg -Buttons @('OK') -AccentButton 'OK')
 			}
 			catch
 			{
-				if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 				{
-					Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpAbout.ShowThemedDialog'
+					Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.MenuHelpAbout.ShowThemedDialog'
 				}
 			}
 		}) | Out-Null
@@ -935,6 +1119,8 @@
 	if ($MenuToolsAppsManager)         { $MenuToolsAppsManager.Header         = (Get-UxLocalizedString -Key 'GuiMenuToolsAppsManager' -Fallback 'Apps Manager') }
 	if ($MenuToolsUpdateAllApps)       { $MenuToolsUpdateAllApps.Header       = (Get-UxLocalizedString -Key 'GuiMenuToolsUpdateAllApps' -Fallback 'Update All Applications') }
 	if ($MenuToolsExportSupportBundle) { $MenuToolsExportSupportBundle.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsExportSupportBundle' -Fallback 'Export Support Bundle...') }
+	if ($MenuToolsAdvanced)            { $MenuToolsAdvanced.Header            = (Get-UxLocalizedString -Key 'GuiMenuToolsAdvanced' -Fallback 'Advanced Tools') }
+	if ($MenuToolsDeploymentMediaBuilder) { $MenuToolsDeploymentMediaBuilder.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeploymentMediaBuilder' -Fallback 'Deployment Media Builder...') }
 	if ($MenuToolsApproveRemoteTargets){ $MenuToolsApproveRemoteTargets.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsApproveRemoteTargets' -Fallback 'Approve Target List...') }
 	if ($MenuToolsSaveRemoteApprovalPolicy){ $MenuToolsSaveRemoteApprovalPolicy.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsSaveRemoteApprovalPolicy' -Fallback 'Save Remote Approval Policy...') }
 	if ($MenuToolsLoadRemoteApprovalPolicy){ $MenuToolsLoadRemoteApprovalPolicy.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsLoadRemoteApprovalPolicy' -Fallback 'Load Remote Approval Policy...') }

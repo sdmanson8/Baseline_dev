@@ -21,7 +21,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Get-ScenarioProfileDefinitions.
 #>
 
 function Get-ScenarioProfileDefinitions
@@ -81,7 +80,6 @@ function Get-ScenarioProfileDefinitions
 
 <#
     .SYNOPSIS
-    Internal function Resolve-ScenarioProfileDefinition.
 #>
 
 function Resolve-ScenarioProfileDefinition
@@ -109,7 +107,6 @@ function Resolve-ScenarioProfileDefinition
 
 <#
     .SYNOPSIS
-    Internal function Get-ScenarioProfileValidationIssues.
 #>
 
 function Get-ScenarioProfileValidationIssues
@@ -191,7 +188,6 @@ function Get-ScenarioProfileValidationIssues
 
 <#
     .SYNOPSIS
-    Internal function Get-ScenarioProfilePlan.
 #>
 
 function Get-ScenarioProfilePlan
@@ -260,7 +256,6 @@ function Get-ScenarioProfilePlan
 
 <#
     .SYNOPSIS
-    Internal function Get-ScenarioProfileCommandList.
 #>
 
 function Get-ScenarioProfileCommandList

@@ -22,9 +22,14 @@ $script:LocaleCases = @(
 
 Describe 'Localization key-set integrity' {
     BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
         $script:RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
         $script:LocalizationDir = Join-Path $script:RepoRoot 'Localizations'
-        $script:SourceFileName = $sourceFileName
+        $script:SourceFileName = 'en-US.json'
         $sourceMatches = @(Get-ChildItem -LiteralPath $script:LocalizationDir -Recurse -File -Filter 'en-US.json' -ErrorAction SilentlyContinue)
         if ($sourceMatches.Count -ne 1) { throw "Localization file 'en-US.json' not found uniquely under '$script:LocalizationDir'." }
         $script:SourcePath = $sourceMatches[0].FullName
@@ -36,7 +41,7 @@ Describe 'Localization key-set integrity' {
         $script:LocalizationSchemaPath = Join-Path $script:LocalizationDir 'localization_schema.json'
         $script:LocaleMapPath = Join-Path $script:LocalizationDir 'locale-map.json'
 
-        $script:SourceMap = Get-Content -LiteralPath $script:SourcePath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+        $script:SourceMap = Get-BaselineTestSourceText -Path $script:SourcePath | ConvertFrom-Json -ErrorAction Stop
         $script:SourceKeys = @($script:SourceMap.PSObject.Properties.Name)
         $sortedSourceKeys = [string[]]@($script:SourceKeys | ForEach-Object { [string]$_ })
         [System.Array]::Sort($sortedSourceKeys, [System.StringComparer]::Ordinal)
@@ -68,8 +73,8 @@ Describe 'Localization key-set integrity' {
             return $h
         }
 
-        $schemaObj = Get-Content -LiteralPath $script:LocalizationSchemaPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
-        $localeMapObj = Get-Content -LiteralPath $script:LocaleMapPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+        $schemaObj = Get-BaselineTestSourceText -Path $script:LocalizationSchemaPath | ConvertFrom-Json -ErrorAction Stop
+        $localeMapObj = Get-BaselineTestSourceText -Path $script:LocaleMapPath | ConvertFrom-Json -ErrorAction Stop
         $script:LocalizationSchema = & $convertToHashtable $schemaObj
         $script:LocaleMap = & $convertToHashtable $localeMapObj
     }
@@ -82,7 +87,7 @@ Describe 'Localization key-set integrity' {
     }
 
     It 'keeps the canonical source schema for en-GB.json' {
-        $sourceLikeMap = Get-Content -LiteralPath $script:SourceLikePath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+        $sourceLikeMap = Get-BaselineTestSourceText -Path $script:SourceLikePath | ConvertFrom-Json -ErrorAction Stop
         $sourceLikeKeys = @($sourceLikeMap.PSObject.Properties.Name)
         $sortedSourceLikeKeys = [string[]]@($sourceLikeKeys | ForEach-Object { [string]$_ })
         [System.Array]::Sort($sortedSourceLikeKeys, [System.StringComparer]::Ordinal)
@@ -106,8 +111,18 @@ Describe 'Localization key-set integrity' {
         [string]$script:LocaleMap[$LocaleCode] | Should -Be $LocaleDirectory
     }
 
+    It 'uses ASCII-safe locale directory names for release package portability' {
+        $nonAsciiDirectories = @(
+            Get-ChildItem -LiteralPath $script:LocalizationDir -Directory |
+                Where-Object { $_.Name -match '[^\x00-\x7F]' } |
+                ForEach-Object { $_.Name }
+        )
+
+        $nonAsciiDirectories | Should -BeNullOrEmpty -Because 'locale directories are embedded in release zips and must extract consistently on non-UTF-8 tools.'
+    }
+
     It '<LocaleName> preserves every source key' -ForEach $script:LocaleCases {
-        $localeMap = Get-Content -LiteralPath $LocalePath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+        $localeMap = Get-BaselineTestSourceText -Path $LocalePath | ConvertFrom-Json -ErrorAction Stop
         $localeKeys = @($localeMap.PSObject.Properties.Name)
         $missingKeys = @($script:SourceKeys | Where-Object { $_ -notin $localeKeys })
         $extraKeys = @($localeKeys | Where-Object { $_ -notin $script:SourceKeys })
@@ -119,6 +134,11 @@ Describe 'Localization key-set integrity' {
 
 Describe 'Localization value integrity' {
     BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
         $script:RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
         $script:LocalizationDir = Join-Path $script:RepoRoot 'Localizations'
         $script:ExemptKeysPath = Join-Path $script:LocalizationDir 'english_exempt_keys.json'
@@ -126,7 +146,7 @@ Describe 'Localization value integrity' {
         $script:ExemptKeys = @()
         if (Test-Path -LiteralPath $script:ExemptKeysPath -PathType Leaf)
         {
-            $exemptData = Get-Content -LiteralPath $script:ExemptKeysPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+            $exemptData = Get-BaselineTestSourceText -Path $script:ExemptKeysPath | ConvertFrom-Json -ErrorAction Stop
             if ($exemptData -is [System.Collections.IDictionary])
             {
                 $script:ExemptKeys = @($exemptData.Keys)
@@ -146,10 +166,38 @@ Describe 'Localization value integrity' {
                 Where-Object { $_ } |
                 Sort-Object -Unique
         )
+
+        function Test-LocalizedFormatString {
+            param([string]$Value)
+
+            $argumentCount = 0
+            $matches = @([regex]::Matches($Value, '\{([0-9]+)(?:,[^{}]+)?(?::[^{}]+)?\}'))
+            if ($matches.Count -gt 0)
+            {
+                $maxIndex = 0
+                foreach ($match in $matches)
+                {
+                    $index = [int]$match.Groups[1].Value
+                    if ($index -gt $maxIndex)
+                    {
+                        $maxIndex = $index
+                    }
+                }
+                $argumentCount = $maxIndex + 1
+            }
+
+            $formatArguments = New-Object object[] $argumentCount
+            for ($i = 0; $i -lt $argumentCount; $i++)
+            {
+                $formatArguments[$i] = $i
+            }
+
+            [void][string]::Format([System.Globalization.CultureInfo]::InvariantCulture, $Value, $formatArguments)
+        }
     }
 
     It '<LocaleName> does not contain empty translations outside the exemption list' -ForEach $script:LocaleCases {
-        $localeMap = Get-Content -LiteralPath $LocalePath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+        $localeMap = Get-BaselineTestSourceText -Path $LocalePath | ConvertFrom-Json -ErrorAction Stop
         $emptyKeys = @(
             $localeMap.PSObject.Properties |
                 Where-Object {
@@ -161,10 +209,33 @@ Describe 'Localization value integrity' {
 
         $emptyKeys | Should -BeNullOrEmpty -Because "Locale file '$LocaleName' must not contain empty translations for non-exempt keys."
     }
+
+    It '<LocaleName> has runtime-valid .NET format strings' -ForEach $script:LocaleCases {
+        $localeMap = Get-BaselineTestSourceText -Path $LocalePath | ConvertFrom-Json -ErrorAction Stop
+        $formatErrors = foreach ($prop in $localeMap.PSObject.Properties)
+        {
+            try
+            {
+                Test-LocalizedFormatString -Value ([string]$prop.Value)
+            }
+            catch
+            {
+                "{0}: {1}" -f $prop.Name, $_.Exception.Message
+            }
+        }
+
+        $formatErrors = @($formatErrors)
+        $formatErrors | Should -BeNullOrEmpty -Because "Locale file '$LocaleName' contains strings that can throw during .NET formatting: $($formatErrors -join '; ')"
+    }
 }
 
 Describe 'Localization string-overflow guard' {
     BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
         $script:RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
         $script:LocalizationDir = Join-Path $script:RepoRoot 'Localizations'
         $script:StringLengthLimitsPath = Join-Path $script:LocalizationDir 'string_length_limits.json'
@@ -172,7 +243,7 @@ Describe 'Localization string-overflow guard' {
         $script:StringLengthLimits = @{}
         if (Test-Path -LiteralPath $script:StringLengthLimitsPath -PathType Leaf)
         {
-            $limitData = Get-Content -LiteralPath $script:StringLengthLimitsPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+            $limitData = Get-BaselineTestSourceText -Path $script:StringLengthLimitsPath | ConvertFrom-Json -ErrorAction Stop
             foreach ($prop in $limitData.PSObject.Properties)
             {
                 if ($prop.Name.StartsWith('_')) { continue }
@@ -186,7 +257,7 @@ Describe 'Localization string-overflow guard' {
     }
 
     It '<LocaleName> respects every declared UI slot length limit' -ForEach $script:LocaleCases {
-        $localeMap = Get-Content -LiteralPath $LocalePath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+        $localeMap = Get-BaselineTestSourceText -Path $LocalePath | ConvertFrom-Json -ErrorAction Stop
         $overflows = foreach ($key in $script:StringLengthLimits.Keys)
         {
             $prop = $localeMap.PSObject.Properties[$key]

@@ -1,12 +1,17 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $filePath = Join-Path $PSScriptRoot '../../Module/GUI/ThemeManagement.ps1'
     $applyThemePath = Join-Path $PSScriptRoot '../../Module/GUI/ApplyTheme.ps1'
     $script:RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
     $script:DarkThemeResourcePath = Join-Path $script:RepoRoot 'Module/GUI/Themes/Dark.xaml'
     $script:LightThemeResourcePath = Join-Path $script:RepoRoot 'Module/GUI/Themes/Light.xaml'
-    $script:ApplyThemeContent = Get-Content -LiteralPath $applyThemePath -Raw -Encoding UTF8
+    $script:ApplyThemeContent = Get-BaselineTestSourceText -Path $applyThemePath
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
@@ -28,7 +33,7 @@ Describe 'GUI theme resource dictionaries' {
     }
 
     It 'defines shared brush tokens and implicit base control styles' {
-        $content = Get-Content -LiteralPath $script:DarkThemeResourcePath -Raw -Encoding UTF8
+        $content = Get-BaselineTestSourceText -Path $script:DarkThemeResourcePath
         foreach ($token in @(
             'Brush.WindowBg',
             'Brush.Surface',
@@ -60,7 +65,7 @@ Describe 'GUI theme resource dictionaries' {
 	}
 
     It 'uses the layered Baseline dark palette instead of the old flat purple theme' {
-        $content = Get-Content -LiteralPath $script:DarkThemeResourcePath -Raw -Encoding UTF8
+        $content = Get-BaselineTestSourceText -Path $script:DarkThemeResourcePath
         $content | Should -Match '<Color x:Key="Color\.WindowBg">#0E111A</Color>'
         $content | Should -Match '<Color x:Key="Color\.HeaderBg">#121624</Color>'
         $content | Should -Match '<Color x:Key="Color\.Surface">#161A26</Color>'
@@ -83,29 +88,39 @@ Describe 'GUI theme resource dictionaries' {
         $content | Should -Match '<Color x:Key="Color\.Danger">#FF6B8A</Color>'
     }
 
-    It 'uses a toned light palette with subtle borders and muted state progress' {
-        $content = Get-Content -LiteralPath $script:LightThemeResourcePath -Raw -Encoding UTF8
-        $themeContent = Get-Content -LiteralPath (Join-Path $script:RepoRoot 'Module/GUI/ThemeManagement.ps1') -Raw -Encoding UTF8
+    It 'uses a dedicated light palette with layered surfaces and readable log colors' {
+        $content = Get-BaselineTestSourceText -Path $script:LightThemeResourcePath
+        $themeContent = Get-BaselineTestSourceText -Path (Join-Path $script:RepoRoot 'Module/GUI/ThemeManagement.ps1')
 
-        $content | Should -Match '<Color x:Key="Color\.WindowBg">#F0F2F6</Color>'
-        $content | Should -Match '<Color x:Key="Color\.SurfaceElevated">#FBFCFE</Color>'
-        $content | Should -Match '<Color x:Key="Color\.SurfaceControl">#F9FAFC</Color>'
-        $content | Should -Match '<Color x:Key="Color\.TextPrimary">#1F2937</Color>'
+        $content | Should -Match '<Color x:Key="Color\.WindowBg">#F3F5F8</Color>'
+        $content | Should -Match '<Color x:Key="Color\.SurfaceElevated">#FFFFFF</Color>'
+        $content | Should -Match '<Color x:Key="Color\.SurfaceControl">#F7F8FA</Color>'
+        $content | Should -Match '<Color x:Key="Color\.TextPrimary">#111827</Color>'
         $content | Should -Match '<Color x:Key="Color\.TextSecondary">#4B5563</Color>'
-        $content | Should -Match '<Color x:Key="Color\.Border">#D4DBE7</Color>'
-        $content | Should -Match '<Color x:Key="Color\.Success">#6BBFA4</Color>'
-        $content | Should -Match '<Color x:Key="Color\.Progress">#6BBFA4</Color>'
-        $content | Should -Match '<Color x:Key="Color\.SplashCardTop">#FBFCFE</Color>'
+        $content | Should -Match '<Color x:Key="Color\.Border">#D8DEE8</Color>'
+        $content | Should -Match '<Color x:Key="Color\.Accent">#2563EB</Color>'
+        $content | Should -Match '<Color x:Key="Color\.AccentHover">#1D4ED8</Color>'
+        $content | Should -Match '<Color x:Key="Color\.Success">#1F7A4C</Color>'
+        $content | Should -Match '<Color x:Key="Color\.Progress">#1F7A4C</Color>'
+        $content | Should -Match '<Color x:Key="Color\.LogBg">#F7F8FA</Color>'
+        $content | Should -Match '<Color x:Key="Color\.LogDefault">#1F2937</Color>'
+        $content | Should -Match '<Color x:Key="Color\.LogInfo">#1D4ED8</Color>'
+        $content | Should -Match '<Color x:Key="Color\.LogSuccess">#1F7A4C</Color>'
+        $content | Should -Match '<Color x:Key="Color\.LogWarning">#9A6700</Color>'
+        $content | Should -Match '<Color x:Key="Color\.LogError">#B42318</Color>'
+        $content | Should -Match '<Color x:Key="Color\.SplashCardTop">#FFFFFF</Color>'
         $content | Should -Match '<Color x:Key="Color\.SplashCardBottom">#F4F6FA</Color>'
         $content | Should -Match '<LinearGradientBrush x:Key="Brush\.SplashCard" StartPoint="0\.5,0" EndPoint="0\.5,1">'
-        $content | Should -Not -Match '<Color x:Key="Color\.WindowBg">#FFFFFF</Color>|<Color x:Key="Color\.SurfaceElevated">#FFFFFF</Color>|<Color x:Key="Color\.Progress">#16A34A</Color>'
+        $content | Should -Not -Match '<Color x:Key="Color\.WindowBg">#FFFFFF</Color>|<Color x:Key="Color\.Progress">#16A34A</Color>'
 
-        $themeContent | Should -Match 'WindowBg\s+= "#F0F2F6"'
-        $themeContent | Should -Match 'CardBg\s+= "#FBFCFE"'
-        $themeContent | Should -Match 'CardBorder\s+= "#D4DBE7"'
-        $themeContent | Should -Match 'StateAccent\s+= "#B34FD1A5"'
-        $themeContent | Should -Match 'StateAccentStrong\s+= "#4FD1A5"'
-        $themeContent | Should -Match 'ProgressGreen\s+= "#6BBFA4"'
+        $themeContent | Should -Match 'WindowBg\s+= "#F3F5F8"'
+        $themeContent | Should -Match 'CardBg\s+= "#FFFFFF"'
+        $themeContent | Should -Match 'CardBorder\s+= "#D8DEE8"'
+        $themeContent | Should -Match 'AccentBlue\s+= "#2563EB"'
+        $themeContent | Should -Match 'StateAccent\s+= "#1F7A4C"'
+        $themeContent | Should -Match 'StateAccentStrong\s+= "#1F7A4C"'
+        $themeContent | Should -Match 'ProgressGreen\s+= "#1F7A4C"'
+        $themeContent | Should -Match 'LogWarning\s+= "#9A6700"'
     }
 }
 

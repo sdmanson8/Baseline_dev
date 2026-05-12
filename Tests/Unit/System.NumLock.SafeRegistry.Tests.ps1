@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $script:filePath = Join-Path $PSScriptRoot '../../Module/Regions/System.psm1'

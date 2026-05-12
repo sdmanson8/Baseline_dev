@@ -2,6 +2,7 @@
 // Resolves the embedded PowerShell workflow and starts it inside a managed host.
 
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -9,7 +10,9 @@ using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using System.Threading;
 using System.Text;
 
@@ -24,8 +27,10 @@ namespace Baseline.RunLauncher
         private const string PortableModeVar = "BASELINE_PORTABLE_MODE";
         private const string InstallerModeVar = "BASELINE_INSTALLER_MODE";
         private const string LanguageVar = "BASELINE_LANGUAGE";
+        private const string PowerShellExecutionPolicyPreferenceVar = "PSExecutionPolicyPreference";
         private const string PayloadPrefix = "BaselinePayload/";
         private const string HydrationSentinel = ".baseline-runtime-ready";
+        private const string HydrationManifest = ".baseline-runtime-manifest.sha256";
         private const string RuntimeCacheSchema = "4";
         private const string RuntimeCacheFolderName = "RC";
         private const string StagingSuffix = ".s";
@@ -50,6 +55,70 @@ namespace Baseline.RunLauncher
             "LifecycleOperation",
             "TargetComputer"
         };
+        private static readonly HashSet<string> BootstrapPowerShellParameterNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Functions",
+            "Include",
+            "Preset",
+            "GameModeProfile",
+            "ScenarioProfile",
+            "GameModeDecisionOverrides",
+            "DryRun",
+            "ComplianceCheck",
+            "ApplyProfile",
+            "Run",
+            "ScheduledRun",
+            "ProfilePath",
+            "ConfigFile",
+            "ReadOnly",
+            "OutputFormat",
+            "Apply",
+            "NoGui",
+            "Design",
+            "ListPresets",
+            "ApplyPreset",
+            "LogPath",
+            "LifecycleOperation",
+            "LifecycleInstallerPath",
+            "LifecycleRollbackProfilePath",
+            "LifecycleSupportBundlePath",
+            "LifecycleOutputPath",
+            "LifecycleExecute",
+            "TargetComputer",
+            "RemoteCredential"
+        };
+        private static readonly HashSet<string> BootstrapSwitchParameterNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "DryRun",
+            "ComplianceCheck",
+            "ApplyProfile",
+            "Run",
+            "ScheduledRun",
+            "ReadOnly",
+            "Apply",
+            "NoGui",
+            "Design",
+            "ListPresets",
+            "LifecycleExecute"
+        };
+        private static readonly HashSet<string> BootstrapArrayParameterNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Functions",
+            "Include",
+            "TargetComputer"
+        };
+        private static readonly Dictionary<string, string> BootstrapParameterAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "Run", "ApplyProfile" },
+            { "ConfigFile", "ProfilePath" }
+        };
+
+        private sealed class PayloadEntry
+        {
+            internal string ResourceName { get; set; }
+            internal string RelativePath { get; set; }
+            internal string Sha256 { get; set; }
+        }
 
         /// <summary>
         /// Displays a native message box for fatal launcher errors.
@@ -129,32 +198,25 @@ namespace Baseline.RunLauncher
         private static string EnsureHydratedRuntime(string launcherPath)
         {
             var asm = Assembly.GetExecutingAssembly();
-            var payloadResources = GetEmbeddedPayloadResourceNames(asm);
-            if (payloadResources.Length == 0)
+            var payloadManifest = GetEmbeddedPayloadManifest(asm);
+            if (payloadManifest.Length == 0)
             {
                 throw new InvalidOperationException("Embedded runtime payload is missing.");
             }
 
             var launcherFingerprint = GetLauncherCacheFingerprint(launcherPath);
             var scriptRoot = AppContext.BaseDirectory;
-            if (IsRuntimeReady(scriptRoot, payloadResources, launcherFingerprint)) return scriptRoot;
+            if (IsRuntimeReady(scriptRoot, payloadManifest, launcherFingerprint)) return scriptRoot;
 
             var version = GetBundleVersion(asm);
             var buildId = GetBundleBuildId(asm);
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            if (string.IsNullOrWhiteSpace(localAppData))
-            {
-                localAppData = Path.Combine(Path.GetTempPath(), "Baseline_LocalAppData");
-            }
-
-            var cacheRoot = Path.Combine(localAppData, "Temp", "Baseline", RuntimeCacheFolderName);
+            var cacheRoot = GetRestrictedRuntimeCacheRoot();
             var runtimeRoot = Path.Combine(cacheRoot, version, RuntimeCacheSchema, buildId, launcherFingerprint);
-            if (IsRuntimeReady(runtimeRoot, payloadResources, launcherFingerprint)) return runtimeRoot;
+            if (IsRuntimeReady(runtimeRoot, payloadManifest, launcherFingerprint)) return runtimeRoot;
 
-            Directory.CreateDirectory(cacheRoot);
             using (var hydrationLock = new FileStream(Path.Combine(cacheRoot, ".hydrate.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
             {
-                if (IsRuntimeReady(runtimeRoot, payloadResources, launcherFingerprint)) return runtimeRoot;
+                if (IsRuntimeReady(runtimeRoot, payloadManifest, launcherFingerprint)) return runtimeRoot;
 
                 var runtimeParent = Path.GetDirectoryName(runtimeRoot);
                 if (!string.IsNullOrWhiteSpace(runtimeParent))
@@ -167,15 +229,14 @@ namespace Baseline.RunLauncher
                 if (Directory.Exists(staging)) Directory.Delete(staging, true);
                 Directory.CreateDirectory(staging);
 
-                foreach (var res in payloadResources)
+                foreach (var payload in payloadManifest)
                 {
-                    var rel = GetPayloadRelativePath(res);
-                    var target = Path.Combine(staging, rel);
-                    using (var rs = asm.GetManifestResourceStream(res))
+                    var target = Path.Combine(staging, payload.RelativePath);
+                    using (var rs = asm.GetManifestResourceStream(payload.ResourceName))
                     {
                         if (rs == null)
                         {
-                            throw new InvalidOperationException("Embedded runtime payload stream could not be opened: " + res);
+                            throw new InvalidOperationException("Embedded runtime payload stream could not be opened: " + payload.ResourceName);
                         }
 
                         WriteHydratedResource(target, rs);
@@ -188,6 +249,7 @@ namespace Baseline.RunLauncher
                     version + Environment.NewLine +
                     buildId + Environment.NewLine +
                     launcherFingerprint + Environment.NewLine);
+                WriteHydrationManifest(staging, payloadManifest);
                 Directory.Move(staging, runtimeRoot);
             }
 
@@ -204,6 +266,27 @@ namespace Baseline.RunLauncher
             return asm.GetManifestResourceNames()
                 .Where(n => n.StartsWith(PayloadPrefix, StringComparison.Ordinal))
                 .OrderBy(n => n, StringComparer.Ordinal)
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Builds the embedded payload manifest used to verify hydrated files before reuse.
+        /// </summary>
+        /// <param name="asm">The launcher assembly.</param>
+        /// <returns>The sorted runtime payload entries with hydrated SHA-256 hashes.</returns>
+        private static PayloadEntry[] GetEmbeddedPayloadManifest(Assembly asm)
+        {
+            return GetEmbeddedPayloadResourceNames(asm)
+                .Select(resourceName =>
+                {
+                    var relativePath = GetPayloadRelativePath(resourceName);
+                    return new PayloadEntry
+                    {
+                        ResourceName = resourceName,
+                        RelativePath = relativePath,
+                        Sha256 = ComputeHydratedResourceSha256(asm, resourceName, relativePath)
+                    };
+                })
                 .ToArray();
         }
 
@@ -239,6 +322,21 @@ namespace Baseline.RunLauncher
 
                 resourceStream.CopyTo(fs);
             }
+        }
+
+        /// <summary>
+        /// Writes the expected hydrated payload hash manifest into the runtime root.
+        /// </summary>
+        /// <param name="runtimeRoot">The hydrated runtime root.</param>
+        /// <param name="payloadManifest">The embedded payload manifest.</param>
+        private static void WriteHydrationManifest(string runtimeRoot, PayloadEntry[] payloadManifest)
+        {
+            var manifestPath = Path.Combine(runtimeRoot, HydrationManifest);
+            var lines = payloadManifest
+                .OrderBy(entry => entry.RelativePath, StringComparer.OrdinalIgnoreCase)
+                .Select(entry => entry.Sha256 + "  " + entry.RelativePath.Replace(Path.DirectorySeparatorChar, '/'))
+                .ToArray();
+            File.WriteAllLines(manifestPath, lines, new UTF8Encoding(false));
         }
 
         /// <summary>
@@ -356,9 +454,9 @@ namespace Baseline.RunLauncher
         /// <param name="root">The runtime root path.</param>
         /// <param name="payloadResources">The embedded runtime payload resource names.</param>
         /// <returns>True when the runtime sentinel is present.</returns>
-        private static bool IsRuntimeReady(string root, string[] payloadResources, string launcherFingerprint)
+        private static bool IsRuntimeReady(string root, PayloadEntry[] payloadManifest, string launcherFingerprint)
         {
-            if (!Directory.Exists(root) || payloadResources.Length == 0)
+            if (!Directory.Exists(root) || payloadManifest.Length == 0)
             {
                 return false;
             }
@@ -383,10 +481,152 @@ namespace Baseline.RunLauncher
                 return false;
             }
 
-            return payloadResources
-                .Select(GetPayloadRelativePath)
-                .Select(relativePath => Path.Combine(root, relativePath))
-                .All(File.Exists);
+            if (!HydrationManifestMatches(root, payloadManifest))
+            {
+                return false;
+            }
+
+            foreach (var payload in payloadManifest)
+            {
+                var filePath = Path.Combine(root, payload.RelativePath);
+                if (!File.Exists(filePath) || !FileMatchesSha256(filePath, payload.Sha256))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Verifies the hydrated manifest file matches the embedded payload manifest.
+        /// </summary>
+        /// <param name="root">The runtime root path.</param>
+        /// <param name="payloadManifest">The expected embedded payload manifest.</param>
+        /// <returns>True when the hydrated manifest exists and matches.</returns>
+        private static bool HydrationManifestMatches(string root, PayloadEntry[] payloadManifest)
+        {
+            var manifestPath = Path.Combine(root, HydrationManifest);
+            if (!File.Exists(manifestPath))
+            {
+                return false;
+            }
+
+            var expected = payloadManifest
+                .OrderBy(entry => entry.RelativePath, StringComparer.OrdinalIgnoreCase)
+                .Select(entry => entry.Sha256 + "  " + entry.RelativePath.Replace(Path.DirectorySeparatorChar, '/'))
+                .ToArray();
+            var actual = File.ReadAllLines(manifestPath);
+            return expected.SequenceEqual(actual, StringComparer.Ordinal);
+        }
+
+        /// <summary>
+        /// Computes the SHA-256 hash for the bytes that will be written during hydration.
+        /// </summary>
+        /// <param name="asm">The launcher assembly.</param>
+        /// <param name="resourceName">The embedded resource name.</param>
+        /// <param name="relativePath">The hydrated relative path.</param>
+        /// <returns>The uppercase SHA-256 hash.</returns>
+        private static string ComputeHydratedResourceSha256(Assembly asm, string resourceName, string relativePath)
+        {
+            using (var stream = asm.GetManifestResourceStream(resourceName))
+            {
+                if (stream == null)
+                {
+                    throw new InvalidOperationException("Embedded runtime payload stream could not be opened: " + resourceName);
+                }
+
+                using (var sha256 = SHA256.Create())
+                {
+                    if (ShouldPrependUtf8Bom(relativePath, stream) && !ResourceStartsWithUtf8Bom(stream))
+                    {
+                        sha256.TransformBlock(Utf8Bom, 0, Utf8Bom.Length, null, 0);
+                    }
+
+                    if (stream.CanSeek)
+                    {
+                        stream.Position = 0;
+                    }
+
+                    var buffer = new byte[81920];
+                    int bytesRead;
+                    while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
+                    }
+
+                    sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+                    return ToHex(sha256.Hash);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies a hydrated file against its embedded SHA-256 hash.
+        /// </summary>
+        /// <param name="path">The hydrated file path.</param>
+        /// <param name="expectedSha256">The expected SHA-256 hash.</param>
+        /// <returns>True when the file hash matches.</returns>
+        private static bool FileMatchesSha256(string path, string expectedSha256)
+        {
+            using (var stream = File.OpenRead(path))
+            using (var sha256 = SHA256.Create())
+            {
+                var hash = sha256.ComputeHash(stream);
+                return string.Equals(ToHex(hash), expectedSha256, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        /// <summary>
+        /// Converts hash bytes to uppercase hexadecimal.
+        /// </summary>
+        /// <param name="bytes">The hash bytes.</param>
+        /// <returns>The uppercase hexadecimal string.</returns>
+        private static string ToHex(byte[] bytes)
+        {
+            var builder = new StringBuilder(bytes.Length * 2);
+            foreach (var value in bytes)
+            {
+                builder.Append(value.ToString("X2"));
+            }
+
+            return builder.ToString();
+        }
+
+        /// <summary>
+        /// Resolves and creates the elevated runtime cache root with restricted ACLs.
+        /// </summary>
+        /// <returns>The restricted runtime cache root.</returns>
+        private static string GetRestrictedRuntimeCacheRoot()
+        {
+            var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+            if (string.IsNullOrWhiteSpace(programData))
+            {
+                throw new InvalidOperationException("ProgramData could not be resolved for the elevated runtime cache.");
+            }
+
+            var cacheRoot = Path.Combine(programData, "Baseline", "RuntimeCache", RuntimeCacheFolderName);
+            EnsureRestrictedDirectory(cacheRoot);
+            return cacheRoot;
+        }
+
+        /// <summary>
+        /// Creates a directory that grants full control only to Administrators and SYSTEM.
+        /// </summary>
+        /// <param name="path">The directory path to secure.</param>
+        private static void EnsureRestrictedDirectory(string path)
+        {
+            Directory.CreateDirectory(path);
+
+            var admins = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+            var system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+            var inheritance = InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
+            var security = new DirectorySecurity();
+            security.SetAccessRuleProtection(true, false);
+            security.AddAccessRule(new FileSystemAccessRule(admins, FileSystemRights.FullControl, inheritance, PropagationFlags.None, AccessControlType.Allow));
+            security.AddAccessRule(new FileSystemAccessRule(system, FileSystemRights.FullControl, inheritance, PropagationFlags.None, AccessControlType.Allow));
+
+            new DirectoryInfo(path).SetAccessControl(security);
         }
 
         /// <summary>
@@ -554,6 +794,7 @@ namespace Baseline.RunLauncher
             Environment.SetEnvironmentVariable(LauncherPathVar, launcherPath, EnvironmentVariableTarget.Process);
             Environment.SetEnvironmentVariable(PortableModeVar, portable ? "1" : "0", EnvironmentVariableTarget.Process);
             Environment.SetEnvironmentVariable(InstallerModeVar, installer ? "1" : "0", EnvironmentVariableTarget.Process);
+            Environment.SetEnvironmentVariable(PowerShellExecutionPolicyPreferenceVar, "Bypass", EnvironmentVariableTarget.Process);
             if (!string.IsNullOrWhiteSpace(lang))
             {
                 Environment.SetEnvironmentVariable(LanguageVar, lang, EnvironmentVariableTarget.Process);
@@ -561,74 +802,78 @@ namespace Baseline.RunLauncher
             Environment.CurrentDirectory = hydratedRoot;
 
             using (var host = new BaselinePowerShellHost())
-            using (var runspace = RunspaceFactory.CreateRunspace(host))
             {
-                runspace.ApartmentState = ApartmentState.STA;
-                runspace.ThreadOptions = PSThreadOptions.ReuseThread;
-                runspace.Open();
-                runspace.SessionStateProxy.SetVariable("BaselineLauncherScript", launcherScript);
-                runspace.SessionStateProxy.SetVariable("BaselineLauncherArguments", normalizedArgs);
+                var initialSessionState = InitialSessionState.CreateDefault();
+                initialSessionState.ExecutionPolicy = Microsoft.PowerShell.ExecutionPolicy.Bypass;
 
-                using (var powershell = PowerShell.Create())
+                using (var runspace = RunspaceFactory.CreateRunspace(host, initialSessionState))
                 {
-                    powershell.Runspace = runspace;
-                    powershell.AddScript("& $BaselineLauncherScript @BaselineLauncherArguments");
+                    runspace.ApartmentState = ApartmentState.STA;
+                    runspace.ThreadOptions = PSThreadOptions.ReuseThread;
+                    runspace.Open();
 
-                    var timeout = GetPowerShellInvokeTimeout(normalizedArgs);
-                    var asyncResult = powershell.BeginInvoke();
-                    var completed = timeout.HasValue
-                        ? asyncResult.AsyncWaitHandle.WaitOne(timeout.Value)
-                        : asyncResult.AsyncWaitHandle.WaitOne();
-                    if (!completed)
+                    using (var powershell = PowerShell.Create())
                     {
+                        powershell.Runspace = runspace;
+                        powershell.AddCommand(launcherScript);
+                        BindPowerShellInvocationArguments(powershell, normalizedArgs);
+
+                        var timeout = GetPowerShellInvokeTimeout(normalizedArgs);
+                        var asyncResult = powershell.BeginInvoke();
+                        var completed = timeout.HasValue
+                            ? asyncResult.AsyncWaitHandle.WaitOne(timeout.Value)
+                            : asyncResult.AsyncWaitHandle.WaitOne();
+                        if (!completed)
+                        {
+                            try
+                            {
+                                powershell.Stop();
+                            }
+                            catch
+                            {
+                                // Stop is best effort only.
+                            }
+
+                            NativeMsgBox(
+                                IntPtr.Zero,
+                                $"Baseline timed out while running the PowerShell workflow after {timeout.Value.TotalMinutes:0} minute(s).",
+                                "Baseline",
+                                MB_OK | MB_ICONERROR);
+                            return 1;
+                        }
+
+                        PSDataCollection<PSObject> output;
                         try
                         {
-                            powershell.Stop();
+                            output = powershell.EndInvoke(asyncResult);
                         }
-                        catch
+                        catch (PipelineStoppedException)
                         {
-                            // Stop is best effort only.
-                        }
-
-                        NativeMsgBox(
-                            IntPtr.Zero,
-                            $"Baseline timed out while running the PowerShell workflow after {timeout.Value.TotalMinutes:0} minute(s).",
-                            "Baseline",
-                            MB_OK | MB_ICONERROR);
-                        return 1;
-                    }
-
-                    PSDataCollection<PSObject> output;
-                    try
-                    {
-                        output = powershell.EndInvoke(asyncResult);
-                    }
-                    catch (PipelineStoppedException)
-                    {
-                        return 1;
-                    }
-
-                    if (host.ShouldExit)
-                    {
-                        return host.ExitCode;
-                    }
-
-                    if (powershell.HadErrors)
-                    {
-                        return 1;
-                    }
-
-                    for (var i = output.Count - 1; i >= 0; i--)
-                    {
-                        var value = output[i] != null ? output[i].BaseObject : null;
-                        if (value is int exitCode)
-                        {
-                            return exitCode;
+                            return 1;
                         }
 
-                        if (value is long exitCodeLong)
+                        if (host.ShouldExit)
                         {
-                            return unchecked((int)exitCodeLong);
+                            return host.ExitCode;
+                        }
+
+                        if (powershell.HadErrors)
+                        {
+                            return 1;
+                        }
+
+                        for (var i = output.Count - 1; i >= 0; i--)
+                        {
+                            var value = output[i] != null ? output[i].BaseObject : null;
+                            if (value is int exitCode)
+                            {
+                                return exitCode;
+                            }
+
+                            if (value is long exitCodeLong)
+                            {
+                                return unchecked((int)exitCodeLong);
+                            }
                         }
                     }
                 }
@@ -657,6 +902,203 @@ namespace Baseline.RunLauncher
             }
 
             return normalized;
+        }
+
+        /// <summary>
+        /// Binds normalized process arguments through the PowerShell SDK parameter APIs.
+        /// </summary>
+        /// <param name="powershell">The PowerShell instance with the bootstrap command already added.</param>
+        /// <param name="normalizedArgs">The normalized process arguments.</param>
+        private static void BindPowerShellInvocationArguments(PowerShell powershell, string[] normalizedArgs)
+        {
+            if (normalizedArgs == null || normalizedArgs.Length == 0)
+            {
+                return;
+            }
+
+            for (var i = 0; i < normalizedArgs.Length; i++)
+            {
+                var argument = normalizedArgs[i];
+                if (TrySplitPowerShellParameterAssignment(argument, out var assignmentName, out var assignmentValue))
+                {
+                    AddBoundPowerShellParameter(powershell, assignmentName, new[] { assignmentValue });
+                    continue;
+                }
+
+                if (!TryGetPowerShellParameterName(argument, out var parameterName))
+                {
+                    powershell.AddArgument(argument);
+                    continue;
+                }
+
+                var canonicalName = GetCanonicalPowerShellParameterName(parameterName);
+                if (BootstrapSwitchParameterNames.Contains(canonicalName))
+                {
+                    powershell.AddParameter(canonicalName, true);
+                    continue;
+                }
+
+                var values = new List<string>();
+                while ((i + 1) < normalizedArgs.Length && !IsKnownPowerShellParameterToken(normalizedArgs[i + 1]))
+                {
+                    i++;
+                    values.Add(normalizedArgs[i]);
+                }
+
+                AddBoundPowerShellParameter(powershell, canonicalName, values.ToArray());
+            }
+        }
+
+        /// <summary>
+        /// Adds one named parameter to the PowerShell command using the expected value shape.
+        /// </summary>
+        /// <param name="powershell">The PowerShell command builder.</param>
+        /// <param name="parameterName">The parameter name.</param>
+        /// <param name="values">The literal CLI values.</param>
+        private static void AddBoundPowerShellParameter(PowerShell powershell, string parameterName, string[] values)
+        {
+            var canonicalName = GetCanonicalPowerShellParameterName(parameterName);
+            if (BootstrapSwitchParameterNames.Contains(canonicalName))
+            {
+                var value = values != null && values.Length > 0 ? values[0] : "true";
+                powershell.AddParameter(canonicalName, ParseSwitchValue(value));
+                return;
+            }
+
+            if (BootstrapArrayParameterNames.Contains(canonicalName))
+            {
+                powershell.AddParameter(canonicalName, values ?? Array.Empty<string>());
+                return;
+            }
+
+            powershell.AddParameter(canonicalName, values != null && values.Length > 0 ? values[0] : null);
+        }
+
+        /// <summary>
+        /// Parses a command-line switch value without evaluating PowerShell syntax.
+        /// </summary>
+        /// <param name="value">The literal switch value.</param>
+        /// <returns>The boolean switch value.</returns>
+        private static bool ParseSwitchValue(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return true;
+            }
+
+            var text = value.Trim().TrimStart('$');
+            if (string.Equals(text, "false", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(text, "0", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(text, "no", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Splits long-form parameter assignments such as -OutputFormat=Json.
+        /// </summary>
+        /// <param name="argument">The argument to inspect.</param>
+        /// <param name="parameterName">The emitted parameter token.</param>
+        /// <param name="parameterValue">The emitted string value.</param>
+        /// <returns>True when the argument was a known parameter assignment.</returns>
+        private static bool TrySplitPowerShellParameterAssignment(string argument, out string parameterName, out string parameterValue)
+        {
+            parameterName = null;
+            parameterValue = null;
+
+            if (string.IsNullOrWhiteSpace(argument))
+            {
+                return false;
+            }
+
+            if (!TryGetPowerShellParameterName(argument, out var candidateName, out var separatorIndex))
+            {
+                return false;
+            }
+
+            if (separatorIndex <= 1)
+            {
+                return false;
+            }
+
+            parameterName = candidateName;
+            parameterValue = argument.Substring(separatorIndex + 1);
+            return true;
+        }
+
+        /// <summary>
+        /// Determines whether a token is a named parameter accepted by Bootstrap/Baseline.ps1.
+        /// </summary>
+        /// <param name="argument">The argument token.</param>
+        /// <returns>True when the token names a bootstrap parameter or supported alias.</returns>
+        private static bool IsKnownPowerShellParameterToken(string argument)
+        {
+            return TryGetPowerShellParameterName(argument, out _);
+        }
+
+        /// <summary>
+        /// Extracts a known bootstrap parameter name from a token.
+        /// </summary>
+        /// <param name="argument">The argument token.</param>
+        /// <param name="parameterName">The canonical parameter or alias name.</param>
+        /// <returns>True when the token names a supported bootstrap parameter.</returns>
+        private static bool TryGetPowerShellParameterName(string argument, out string parameterName)
+        {
+            return TryGetPowerShellParameterName(argument, out parameterName, out _);
+        }
+
+        /// <summary>
+        /// Extracts a known bootstrap parameter name and separator position from a token.
+        /// </summary>
+        /// <param name="argument">The argument token.</param>
+        /// <param name="parameterName">The canonical parameter or alias name.</param>
+        /// <param name="separatorIndex">The inline value separator index, or -1.</param>
+        /// <returns>True when the token names a supported bootstrap parameter.</returns>
+        private static bool TryGetPowerShellParameterName(string argument, out string parameterName, out int separatorIndex)
+        {
+            parameterName = null;
+            separatorIndex = -1;
+
+            if (string.IsNullOrWhiteSpace(argument))
+            {
+                return false;
+            }
+
+            var text = argument.TrimStart();
+            if (!text.StartsWith("-", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            text = text.TrimStart('-');
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return false;
+            }
+
+            separatorIndex = text.IndexOfAny(new[] { ':', '=' });
+            parameterName = separatorIndex >= 0 ? text.Substring(0, separatorIndex) : text;
+            if (!BootstrapPowerShellParameterNames.Contains(parameterName))
+            {
+                return false;
+            }
+
+            separatorIndex = separatorIndex >= 0 ? argument.Length - text.Length + separatorIndex : -1;
+            parameterName = GetCanonicalPowerShellParameterName(parameterName);
+            return true;
+        }
+
+        /// <summary>
+        /// Resolves a bootstrap parameter alias to its declared parameter name.
+        /// </summary>
+        /// <param name="parameterName">The parameter or alias name.</param>
+        /// <returns>The canonical parameter name.</returns>
+        private static string GetCanonicalPowerShellParameterName(string parameterName)
+        {
+            return BootstrapParameterAliases.TryGetValue(parameterName, out var canonicalName) ? canonicalName : parameterName;
         }
 
         /// <summary>

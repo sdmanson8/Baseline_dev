@@ -38,6 +38,7 @@ if (-not (Test-Path -LiteralPath $script:ModuleRoot -PathType Container)) {
 }
 
 Import-Module -Name (Join-Path $script:ModuleRoot 'Logging.psm1') -Force
+Import-Module -Name (Join-Path $script:ModuleRoot 'SharedHelpers.psm1') -Force
 
 # Select the log file in this order: explicit parameter, environment variable,
 # existing global log path, then a temporary fallback file.
@@ -62,7 +63,7 @@ if ($LogFilePath) {
     Gets log file path.
 #>
 
-function Get-LogFilePath {
+function Get-DiskCleanupLogFilePath {
     if ($global:LogFilePath) { return $global:LogFilePath }
     if ($env:diskcleanup) { return $env:diskcleanup }
     return $null
@@ -74,7 +75,7 @@ function Get-LogFilePath {
     .SYNOPSIS
     Writes file safely.
 #>
-function Write-FileSafely {
+function Write-DiskCleanupFileSafely {
     param(
         [string]$Path,
         [string]$Value,
@@ -222,8 +223,15 @@ function Wait-CleanupProcessAndDismissNotification {
 
         [int]$PostExitSeconds = 60,
 
-        [int]$QuietAfterCloseSeconds = 2
+        [int]$QuietAfterCloseSeconds = 2,
+
+        [int]$TimeoutSeconds = 900
     )
+
+    $waitDeadline = $null
+    if ($TimeoutSeconds -gt 0) {
+        $waitDeadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    }
 
     $graceDeadline = $null
     $closeLogged = $false
@@ -231,14 +239,27 @@ function Wait-CleanupProcessAndDismissNotification {
     $cleanupWindowCloseRequested = $false
 
     while ($true) {
-        $Process.Refresh()
+        $now = Get-Date
+        try {
+            $Process.Refresh()
+        } catch {
+            break
+        }
+
+        if ($waitDeadline -and $now -ge $waitDeadline) {
+            if (-not $Process.HasExited) {
+                LogWarning ("cleanmgr.exe timed out after {0} second(s); stopping process tree." -f $TimeoutSeconds)
+                Stop-BaselineProcessTree -Process $Process -Source 'DiskCleanup.CleanmgrTimeout'
+            }
+            break
+        }
 
         if ($Process.HasExited) {
             if (-not $graceDeadline) {
-                $graceDeadline = (Get-Date).AddSeconds($PostExitSeconds)
+                $graceDeadline = $now.AddSeconds($PostExitSeconds)
             }
 
-            if ((Get-Date) -ge $graceDeadline) {
+            if ($now -ge $graceDeadline) {
                 break
             }
         }
@@ -248,25 +269,24 @@ function Wait-CleanupProcessAndDismissNotification {
                 LogInfo "Closed Disk Space Notification popup automatically."
                 $closeLogged = $true
             }
-            $quietDeadline = (Get-Date).AddSeconds($QuietAfterCloseSeconds)
-        } elseif ($quietDeadline -and (Get-Date) -ge $quietDeadline -and -not $cleanupWindowCloseRequested) {
+            $quietDeadline = $now.AddSeconds($QuietAfterCloseSeconds)
+        } elseif ($quietDeadline -and $now -ge $quietDeadline -and -not $cleanupWindowCloseRequested) {
             if (Close-CleanupProcessWindow -Process $Process) {
                 $cleanupWindowCloseRequested = $true
-                $quietDeadline = (Get-Date).AddSeconds($QuietAfterCloseSeconds)
+                $quietDeadline = $now.AddSeconds($QuietAfterCloseSeconds)
             }
-        } elseif ($Process.HasExited -and $quietDeadline -and (Get-Date) -ge $quietDeadline) {
+        } elseif ($cleanupWindowCloseRequested -and $quietDeadline -and $now -ge $quietDeadline) {
+            $Process.Refresh()
+            if (-not $Process.HasExited) {
+                LogWarning "cleanmgr.exe did not exit after its window was closed; stopping process tree."
+                Stop-BaselineProcessTree -Process $Process -Source 'DiskCleanup.CleanmgrTimeout'
+            }
+            break
+        } elseif ($Process.HasExited -and $quietDeadline -and $now -ge $quietDeadline) {
             break
         }
 
         Start-Sleep -Milliseconds 500
-    }
-
-    try {
-        $Process.Refresh()
-        if (-not $Process.HasExited -and $cleanupWindowCloseRequested) {
-            Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
-        }
-    } catch {
     }
 
     Close-DiskSpaceNotificationWindow | Out-Null
@@ -309,7 +329,10 @@ function Invoke-BuiltInSilentCleanup {
             Select-Object -First 1
 
         if ($newCleanmgrProcess) {
-            Wait-CleanupProcessAndDismissNotification -Process $newCleanmgrProcess
+            $remainingSeconds = [int][Math]::Ceiling(($taskDeadline - (Get-Date)).TotalSeconds)
+            if ($remainingSeconds -lt 1) { $remainingSeconds = 1 }
+
+            Wait-CleanupProcessAndDismissNotification -Process $newCleanmgrProcess -TimeoutSeconds $remainingSeconds
             return $true
         }
 
@@ -348,9 +371,11 @@ try {
     }
 
     if (-not $usedSilentCleanupTask) {
-        $cleanmgrProcess = Start-Process -FilePath cleanmgr.exe -ArgumentList "/d C: /VERYLOWDISK" -PassThru -NoNewWindow -ErrorAction SilentlyContinue
-        if ($cleanmgrProcess) {
-            Wait-CleanupProcessAndDismissNotification -Process $cleanmgrProcess
+        try {
+            $cleanmgrProcess = Start-Process -FilePath cleanmgr.exe -ArgumentList "/d C: /VERYLOWDISK" -PassThru -NoNewWindow -ErrorAction Stop
+            Wait-CleanupProcessAndDismissNotification -Process $cleanmgrProcess -TimeoutSeconds 900
+        } catch {
+            LogWarning "Direct cleanmgr.exe launch failed: $($_.Exception.Message)"
         }
     }
     LogInfo "Running cleanmgr.exe completed"
@@ -364,5 +389,5 @@ finally {
 }
 
 # Run DISM component cleanup to remove superseded Windows component store data.
-Start-Process -FilePath Dism.exe -ArgumentList "/online /Cleanup-Image /StartComponentCleanup /ResetBase" -Wait -NoNewWindow -ErrorAction SilentlyContinue | Out-Null
+$null = Invoke-BaselineProcess -FilePath 'Dism.exe' -ArgumentList @('/online', '/Cleanup-Image', '/StartComponentCleanup', '/ResetBase') -TimeoutSeconds 3600
 LogInfo "Running DISM Component Cleanup completed"

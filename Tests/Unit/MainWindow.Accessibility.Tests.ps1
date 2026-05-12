@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $script:xamlPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'

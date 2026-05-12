@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/Applications.psm1'
@@ -233,40 +233,23 @@ Describe 'Invoke-ChocoInstall' {
 
     It 'throws when Chocolatey is unavailable and bootstrap install fails to resolve' {
         function Resolve-ChocolateyExecutable { return $null }
-        function Confirm-ChocolateyBootstrapExecution { }
-        function Get-ExecutionPolicy { param([string]$Scope) return 'RemoteSigned' }
-        function Set-ExecutionPolicy {
-            param([string]$ExecutionPolicy, [string]$Scope, [switch]$Force)
-            [void]$script:executionPolicyCalls.Add([pscustomobject]@{
-                ExecutionPolicy = $ExecutionPolicy
-                Scope = $Scope
-            })
+        function Invoke-ChocolateyBootstrap {
+            param([int]$TimeoutSeconds)
+            [pscustomobject]@{
+                Success = $false
+                Error   = 'Chocolatey bootstrap failed.'
+            }
         }
         function Reset-ChocolateyAvailabilityState { }
-        # Prevent the real WebClient from trying to reach the internet during bootstrap.
-        function New-Object {
-            param([string]$TypeName)
-            $stub = [pscustomobject]@{}
-            Add-Member -InputObject $stub -MemberType ScriptMethod -Name DownloadString -Value { param([string]$Url) return '' }
-            Add-Member -InputObject $stub -MemberType ScriptMethod -Name DownloadFile   -Value { param([string]$Url, [string]$Path) Set-Content -LiteralPath $Path -Value '# stub bootstrap script' -Encoding UTF8 }
-            Add-Member -InputObject $stub -MemberType ScriptMethod -Name Dispose        -Value { }
-            return $stub
-        }
 
         try {
             { Invoke-ChocoInstall -ChocoId 'firefox' -DisplayName 'Firefox' } |
                 Should -Throw '*Firefox Install - Failed*'
-            $script:executionPolicyCalls.Count | Should -Be 2
-            $script:executionPolicyCalls[0].ExecutionPolicy | Should -Be 'Bypass'
-            $script:executionPolicyCalls[1].ExecutionPolicy | Should -Be 'RemoteSigned'
         }
         finally {
             Remove-Item Function:\Resolve-ChocolateyExecutable -ErrorAction SilentlyContinue
-            Remove-Item Function:\Confirm-ChocolateyBootstrapExecution -ErrorAction SilentlyContinue
-            Remove-Item Function:\Get-ExecutionPolicy -ErrorAction SilentlyContinue
-            Remove-Item Function:\Set-ExecutionPolicy -ErrorAction SilentlyContinue
+            Remove-Item Function:\Invoke-ChocolateyBootstrap -ErrorAction SilentlyContinue
             Remove-Item Function:\Reset-ChocolateyAvailabilityState -ErrorAction SilentlyContinue
-            Remove-Item Function:\New-Object -ErrorAction SilentlyContinue
         }
     }
 }

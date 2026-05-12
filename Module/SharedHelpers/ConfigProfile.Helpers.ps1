@@ -1,4 +1,4 @@
-﻿# Configuration profile helpers for Baseline.
+# Configuration profile helpers for Baseline.
 # Provides portable configuration profile creation, import/export, compatibility
 # checking, comparison, and conversion from existing presets.
 # Uses Write-BaselineDocument / Read-BaselineDocument patterns for persistence.
@@ -16,9 +16,9 @@ function Write-ConfigProfileDebugSwallowedException
 		[string]$Source
 	)
 
-	if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 	{
-		Write-DebugSwallowedException -ErrorRecord $ErrorRecord -Source $Source
+		Write-SwallowedException -ErrorRecord $ErrorRecord -Source $Source
 		return
 	}
 
@@ -27,7 +27,6 @@ function Write-ConfigProfileDebugSwallowedException
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-ConfigurationProfileValueText.
 #>
 
 function ConvertTo-ConfigurationProfileValueText
@@ -142,7 +141,6 @@ function ConvertTo-ConfigurationProfileValueText
 
 <#
     .SYNOPSIS
-    Internal function New-ConfigurationProfile.
 #>
 
 function New-ConfigurationProfile
@@ -362,7 +360,7 @@ function New-ConfigurationProfile
 	# Inline a snapshot of user-added external software entries so the profile
 	# is portable: importing on a different machine can restore the catalog
 	# definitions, not just selection state. Only fields that round-trip safely
-	# are copied — runtime annotations (Source, SourceFile) are stripped.
+	# are copied - runtime annotations (Source, SourceFile) are stripped.
 	$userAppEntries = [System.Collections.Generic.List[object]]::new()
 	$userAppCarryFields = @('Name', 'SubCategory', 'Function', 'Description', 'Category', 'Risk', 'Restorable')
 	foreach ($userApp in @($UserApps))
@@ -391,7 +389,7 @@ function New-ConfigurationProfile
 			if ($null -ne $fieldValue) { $normalized[$field] = $fieldValue }
 		}
 
-		# Function defaults to AppInstall — Test-BaselineUserAppEntry rejects
+		# Function defaults to AppInstall - Test-BaselineUserAppEntry rejects
 		# anything else, so stamping it explicitly here matches the security
 		# guard on the dialog's save path.
 		if (-not $normalized.Contains('Function') -or [string]::IsNullOrWhiteSpace([string]$normalized['Function']))
@@ -456,7 +454,6 @@ function New-ConfigurationProfile
 
 <#
     .SYNOPSIS
-    Internal function Export-ConfigurationProfile.
 #>
 
 function Export-ConfigurationProfile
@@ -488,7 +485,6 @@ function Export-ConfigurationProfile
 
 <#
     .SYNOPSIS
-    Internal function Export-BaselineFirstLogonCommandSnippet.
 #>
 
 function Export-BaselineFirstLogonCommandSnippet
@@ -576,7 +572,6 @@ function Export-BaselineFirstLogonCommandSnippet
 
 <#
     .SYNOPSIS
-    Internal function Import-ConfigurationProfile.
 #>
 
 function Import-ConfigurationProfile
@@ -636,7 +631,6 @@ function Import-ConfigurationProfile
 
 <#
     .SYNOPSIS
-    Internal function Import-ConfigurationProfileIncludeLibraries.
 #>
 
 function Import-ConfigurationProfileIncludeLibraries
@@ -678,7 +672,6 @@ function Import-ConfigurationProfileIncludeLibraries
 
 <#
     .SYNOPSIS
-    Internal function Test-ConfigurationProfileCompatibility.
 #>
 
 function Test-ConfigurationProfileCompatibility
@@ -786,7 +779,6 @@ function Test-ConfigurationProfileCompatibility
 
 <#
     .SYNOPSIS
-    Internal function Compare-ConfigurationProfiles.
 #>
 
 function Compare-ConfigurationProfiles
@@ -892,7 +884,6 @@ function Compare-ConfigurationProfiles
 
 <#
     .SYNOPSIS
-    Internal function Get-ProfileEntryComparisonKey.
 #>
 
 function Get-ProfileEntryComparisonKey
@@ -936,7 +927,6 @@ function Get-ProfileEntryComparisonKey
 
 <#
     .SYNOPSIS
-    Internal function ConvertFrom-PresetToProfile.
 #>
 
 function ConvertFrom-PresetToProfile
@@ -1094,7 +1084,6 @@ function ConvertFrom-PresetToProfile
 
 <#
     .SYNOPSIS
-    Internal function ConvertFrom-BaselineConfigProfileToRunList.
 #>
 
 function ConvertFrom-BaselineConfigProfileToRunList
@@ -1287,7 +1276,7 @@ function ConvertFrom-BaselineConfigProfileToRunList
 			}
 			default
 			{
-				# Toggle (or unspecified type — treat as Toggle).
+				# Toggle (or unspecified type - treat as Toggle).
 				$paramRaw = if ($pe.PSObject.Properties['Param']) { [string]$pe.Param } else { $null }
 				if ([string]::IsNullOrWhiteSpace($paramRaw)) { $skipRow = $true; break }
 

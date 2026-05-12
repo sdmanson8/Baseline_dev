@@ -1,6 +1,11 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/System/System.Networking.psm1'
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
@@ -22,7 +27,6 @@ Describe 'DeliveryOptimization' {
 
         <#
             .SYNOPSIS
-            Internal function Write-ConsoleStatus.
         #>
 
         function Write-ConsoleStatus {
@@ -34,7 +38,6 @@ Describe 'DeliveryOptimization' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogInfo {
             param([string]$Message)
@@ -43,7 +46,6 @@ Describe 'DeliveryOptimization' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogError {
             param([string]$Message)
@@ -52,7 +54,6 @@ Describe 'DeliveryOptimization' {
 
         <#
             .SYNOPSIS
-            Internal function Set-Policy.
         #>
 
         function Set-Policy {
@@ -75,7 +76,6 @@ Describe 'DeliveryOptimization' {
 
         <#
             .SYNOPSIS
-            Internal function Test-Path.
         #>
 
         function Test-Path {
@@ -85,7 +85,6 @@ Describe 'DeliveryOptimization' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function New-Item {
             param(
@@ -99,7 +98,6 @@ Describe 'DeliveryOptimization' {
 
         <#
             .SYNOPSIS
-            Internal function New-ItemProperty.
         #>
 
         function New-ItemProperty {
@@ -122,7 +120,6 @@ Describe 'DeliveryOptimization' {
 
         <#
             .SYNOPSIS
-            Internal function Delete-DeliveryOptimizationCache.
         #>
 
         function Delete-DeliveryOptimizationCache {
@@ -174,7 +171,12 @@ Describe 'DeliveryOptimization' {
 
 Describe 'DnsProvider' {
     BeforeAll {
-        $script:NetworkingContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/System/System.Networking.psm1') -Raw -Encoding UTF8
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
+        $script:NetworkingContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/System/System.Networking.psm1')
     }
 
     It 'applies the Google preset to every adapter that is Up' {
@@ -201,7 +203,6 @@ Describe 'DnsProvider' {
 
             <#
                 .SYNOPSIS
-                Internal function Write-ConsoleStatus.
             #>
 
             function Write-ConsoleStatus {
@@ -220,7 +221,6 @@ Describe 'DnsProvider' {
 
             <#
                 .SYNOPSIS
-                Internal function LogInfo.
             #>
 
             function LogInfo {
@@ -230,7 +230,6 @@ Describe 'DnsProvider' {
 
             <#
                 .SYNOPSIS
-                Internal function .
             #>
             function LogWarning {
                 param([string]$Message)
@@ -239,7 +238,6 @@ Describe 'DnsProvider' {
 
             <#
                 .SYNOPSIS
-                Internal function .
             #>
             function LogError {
                 param([string]$Message)
@@ -248,7 +246,6 @@ Describe 'DnsProvider' {
 
             <#
                 .SYNOPSIS
-                Internal function Get-NetAdapter.
             #>
 
             function Get-NetAdapter {
@@ -268,7 +265,6 @@ Describe 'DnsProvider' {
 
             <#
                 .SYNOPSIS
-                Internal function Set-DnsClientServerAddress.
             #>
 
             function Set-DnsClientServerAddress {
@@ -312,7 +308,6 @@ Describe 'NtpServerOverride' {
 
         <#
             .SYNOPSIS
-            Internal function Write-ConsoleStatus.
         #>
 
         function Write-ConsoleStatus {
@@ -324,7 +319,6 @@ Describe 'NtpServerOverride' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogInfo {
             param([string]$Message)
@@ -333,7 +327,6 @@ Describe 'NtpServerOverride' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogError {
             param([string]$Message)
@@ -342,7 +335,6 @@ Describe 'NtpServerOverride' {
 
         <#
             .SYNOPSIS
-            Internal function Start-Service.
         #>
 
         function Start-Service {
@@ -356,7 +348,6 @@ Describe 'NtpServerOverride' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Restart-Service {
             param(
@@ -369,7 +360,6 @@ Describe 'NtpServerOverride' {
 
         <#
             .SYNOPSIS
-            Internal function w32tm.
         #>
 
         function w32tm {
@@ -422,7 +412,6 @@ Describe 'OpenSSHServer' {
 
         <#
             .SYNOPSIS
-            Internal function Write-ConsoleStatus.
         #>
 
         function Write-ConsoleStatus {
@@ -441,7 +430,6 @@ Describe 'OpenSSHServer' {
 
         <#
             .SYNOPSIS
-            Internal function LogInfo.
         #>
 
         function LogInfo {
@@ -451,7 +439,6 @@ Describe 'OpenSSHServer' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogError {
             param([string]$Message)
@@ -460,7 +447,6 @@ Describe 'OpenSSHServer' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Get-WindowsCapability {
             param(
@@ -477,7 +463,6 @@ Describe 'OpenSSHServer' {
 
         <#
             .SYNOPSIS
-            Internal function Add-WindowsCapability.
         #>
 
         function Add-WindowsCapability {
@@ -492,7 +477,6 @@ Describe 'OpenSSHServer' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Set-Service {
             param(
@@ -506,7 +490,6 @@ Describe 'OpenSSHServer' {
 
         <#
             .SYNOPSIS
-            Internal function Start-Service.
         #>
 
         function Start-Service {
@@ -520,7 +503,6 @@ Describe 'OpenSSHServer' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Get-NetFirewallRule {
             param(
@@ -536,7 +518,6 @@ Describe 'OpenSSHServer' {
 
         <#
             .SYNOPSIS
-            Internal function New-NetFirewallRule.
         #>
 
         function New-NetFirewallRule {
@@ -556,7 +537,6 @@ Describe 'OpenSSHServer' {
 
         <#
             .SYNOPSIS
-            Internal function Test-Path.
         #>
 
         function Test-Path {
@@ -566,7 +546,6 @@ Describe 'OpenSSHServer' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function New-Item {
             param(
@@ -581,7 +560,6 @@ Describe 'OpenSSHServer' {
 
         <#
             .SYNOPSIS
-            Internal function Get-Content.
         #>
 
         function Get-Content {
@@ -600,7 +578,6 @@ Match Group administrators
 
         <#
             .SYNOPSIS
-            Internal function Set-Content.
         #>
 
         function Set-Content {
@@ -617,7 +594,6 @@ Match Group administrators
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Restart-Service {
             param(

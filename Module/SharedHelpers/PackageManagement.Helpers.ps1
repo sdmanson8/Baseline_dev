@@ -1,8 +1,7 @@
-﻿# Shared helpers for Baseline.
+# Shared helpers for Baseline.
 
 <#
     .SYNOPSIS
-    Internal function Update-ProcessPathFromRegistry.
 #>
 
 function Update-ProcessPathFromRegistry
@@ -13,10 +12,6 @@ function Update-ProcessPathFromRegistry
 	$env:Path = (@($MachinePath, $UserPath) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join ";"
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Get-ApplicationPackageIdCandidates
 {
 	<# .SYNOPSIS Splits a package identifier into normalized candidate IDs. #>
@@ -39,7 +34,6 @@ function Get-ApplicationPackageIdCandidates
 
 <#
     .SYNOPSIS
-    Internal function Resolve-ApplicationPackageId.
 #>
 
 function Resolve-ApplicationPackageId
@@ -60,7 +54,6 @@ function Resolve-ApplicationPackageId
 
 <#
     .SYNOPSIS
-    Internal function Test-ApplicationPackageIdInCache.
 #>
 
 function Test-ApplicationPackageIdInCache
@@ -89,7 +82,6 @@ function Test-ApplicationPackageIdInCache
 
 <#
     .SYNOPSIS
-    Internal function Write-PackageHelperWarning.
 #>
 
 function Write-PackageHelperWarning
@@ -114,7 +106,6 @@ function Write-PackageHelperWarning
 
 <#
     .SYNOPSIS
-    Internal function Resolve-WinGetExecutable.
 #>
 
 function Resolve-WinGetExecutable
@@ -138,12 +129,107 @@ function Resolve-WinGetExecutable
 
 <#
     .SYNOPSIS
-    Internal function Get-WinGetVersion.
+#>
+function Invoke-PackageManagerProcessCapture
+{
+	<# .SYNOPSIS Executes a process with timeout control and captures stdout/stderr. #>
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$FilePath,
+
+		[string[]]$ArgumentList = @(),
+
+		[int]$TimeoutSeconds = 60
+	)
+
+	$process = New-Object System.Diagnostics.Process
+	$process.StartInfo = New-Object System.Diagnostics.ProcessStartInfo
+	$process.StartInfo.FileName = $FilePath
+	$process.StartInfo.Arguments = [string]::Join(' ', @($ArgumentList))
+	$process.StartInfo.UseShellExecute = $false
+	$process.StartInfo.CreateNoWindow = $true
+	$process.StartInfo.RedirectStandardOutput = $true
+	$process.StartInfo.RedirectStandardError = $true
+
+	[void]$process.Start()
+
+	$stdoutTask = $process.StandardOutput.ReadToEndAsync()
+	$stderrTask = $process.StandardError.ReadToEndAsync()
+	$timedOut = $false
+	if ($TimeoutSeconds -gt 0)
+	{
+		$timedOut = -not $process.WaitForExit([int]([TimeSpan]::FromSeconds($TimeoutSeconds).TotalMilliseconds))
+	}
+	else
+	{
+		$process.WaitForExit()
+	}
+
+	if ($timedOut)
+	{
+		Stop-BaselineProcessTree -Process $process -Source 'PackageManagement.ProcessTimeout'
+		try { $null = $stdoutTask.GetAwaiter().GetResult() } catch { $null = $_ }
+		try { $null = $stderrTask.GetAwaiter().GetResult() } catch { $null = $_ }
+		try { $process.Dispose() } catch { $null = $_ }
+		throw ([System.TimeoutException]::new(("Process '{0}' timed out after {1} second(s)." -f $FilePath, $TimeoutSeconds)))
+	}
+
+	$stdout = ''
+	$stderr = ''
+	try { $stdout = [string]$stdoutTask.GetAwaiter().GetResult() } catch { $null = $_ }
+	try { $stderr = [string]$stderrTask.GetAwaiter().GetResult() } catch { $null = $_ }
+	$exitCode = [int]$process.ExitCode
+	try { $process.Dispose() } catch { $null = $_ }
+
+	return [pscustomobject]@{
+		ExitCode = $exitCode
+		StandardOutput = $stdout
+		StandardError = $stderr
+	}
+}
+
+<#
+    .SYNOPSIS
+#>
+function Wait-PackageManagerProcess
+{
+	<# .SYNOPSIS Waits for a started process with timeout control. #>
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		$Process,
+
+		[int]$TimeoutSeconds = 900
+	)
+
+	if ($TimeoutSeconds -gt 0)
+	{
+		$completed = $Process.WaitForExit([int]([TimeSpan]::FromSeconds($TimeoutSeconds).TotalMilliseconds))
+		if (-not $completed)
+		{
+			Stop-BaselineProcessTree -Process $Process -Source 'PackageManagement.ProcessTimeout'
+			throw ([System.TimeoutException]::new(("Process '{0}' timed out after {1} second(s)." -f [string]$Process.StartInfo.FileName, $TimeoutSeconds)))
+		}
+
+		return [int]$Process.ExitCode
+	}
+
+	$Process.WaitForExit()
+	return [int]$Process.ExitCode
+}
+
+<#
+    .SYNOPSIS
 #>
 
 function Get-WinGetVersion
 {
 	<# .SYNOPSIS Returns the installed winget version string. #>
+	param (
+		[int]$TimeoutSeconds = 60
+	)
+
 	$WingetPath = Resolve-WinGetExecutable
 	if (-not $WingetPath)
 	{
@@ -152,10 +238,10 @@ function Get-WinGetVersion
 
 	try
 	{
-		$WingetVersion = & $WingetPath --version 2>$null
-		if ($LASTEXITCODE -eq 0)
+		$processResult = Invoke-PackageManagerProcessCapture -FilePath $WingetPath -ArgumentList @('--version') -TimeoutSeconds $TimeoutSeconds
+		if ($processResult.ExitCode -eq 0)
 		{
-			$ResolvedVersion = [string]($WingetVersion | Select-Object -First 1)
+			$ResolvedVersion = [string]((@([string]$processResult.StandardOutput -split "(`r`n|`n|`r)") | Select-Object -First 1))
 			if (-not [string]::IsNullOrWhiteSpace($ResolvedVersion))
 			{
 				return $ResolvedVersion.Trim()
@@ -172,7 +258,6 @@ function Get-WinGetVersion
 
 <#
     .SYNOPSIS
-    Internal function Reset-WinGetAvailabilityState.
 #>
 
 function Reset-WinGetAvailabilityState
@@ -181,10 +266,6 @@ function Reset-WinGetAvailabilityState
 	$Script:WinGetAvailabilityState = $null
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Test-WinGetAvailable
 {
 	<# .SYNOPSIS Returns whether WinGet can be executed successfully. #>
@@ -224,7 +305,6 @@ function Test-WinGetAvailable
 
 <#
     .SYNOPSIS
-    Internal function Resolve-ChocolateyExecutable.
 #>
 
 function Resolve-ChocolateyExecutable
@@ -254,12 +334,15 @@ function Resolve-ChocolateyExecutable
 
 <#
     .SYNOPSIS
-    Internal function Get-ChocolateyVersion.
 #>
 
 function Get-ChocolateyVersion
 {
 	<# .SYNOPSIS Returns the installed Chocolatey version string. #>
+	param (
+		[int]$TimeoutSeconds = 60
+	)
+
 	$ChocolateyPath = Resolve-ChocolateyExecutable
 	if (-not $ChocolateyPath)
 	{
@@ -268,10 +351,10 @@ function Get-ChocolateyVersion
 
 	try
 	{
-		$ChocolateyVersion = & $ChocolateyPath --version 2>$null
-		if ($LASTEXITCODE -eq 0)
+		$processResult = Invoke-PackageManagerProcessCapture -FilePath $ChocolateyPath -ArgumentList @('--version') -TimeoutSeconds $TimeoutSeconds
+		if ($processResult.ExitCode -eq 0)
 		{
-			$ResolvedVersion = [string]($ChocolateyVersion | Select-Object -First 1)
+			$ResolvedVersion = [string]((@([string]$processResult.StandardOutput -split "(`r`n|`n|`r)") | Select-Object -First 1))
 			if (-not [string]::IsNullOrWhiteSpace($ResolvedVersion))
 			{
 				return $ResolvedVersion.Trim()
@@ -288,7 +371,6 @@ function Get-ChocolateyVersion
 
 <#
     .SYNOPSIS
-    Internal function Reset-ChocolateyAvailabilityState.
 #>
 
 function Reset-ChocolateyAvailabilityState
@@ -297,10 +379,6 @@ function Reset-ChocolateyAvailabilityState
 	$Script:ChocolateyAvailabilityState = $null
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Test-ChocolateyAvailable
 {
 	<# .SYNOPSIS Returns whether Chocolatey can be executed successfully. #>
@@ -340,7 +418,6 @@ function Test-ChocolateyAvailable
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineEnvironmentFlagEnabled.
 #>
 
 function Test-BaselineEnvironmentFlagEnabled
@@ -370,7 +447,6 @@ function Test-BaselineEnvironmentFlagEnabled
 
 <#
     .SYNOPSIS
-    Internal function Test-ChocolateyBootstrapInteractiveHost.
 #>
 
 function Test-ChocolateyBootstrapInteractiveHost
@@ -393,7 +469,7 @@ function Test-ChocolateyBootstrapInteractiveHost
 
 		# Known non-interactive hosts whose PromptForChoice implementation throws
 		# NotSupportedException: BaselineHost (launcher), ServerRemoteHost (PSRemoting),
-		# Default Host (various automation contexts). RawUI presence is not enough —
+		# Default Host (various automation contexts). RawUI presence is not enough -
 		# BaselineHost exposes RawUI but rejects PromptForChoice.
 		$nonInteractiveHostNames = @('BaselineHost', 'ServerRemoteHost', 'Default Host')
 		if ($HostInstance.Name -and ($nonInteractiveHostNames -contains [string]$HostInstance.Name))
@@ -418,7 +494,18 @@ function Test-ChocolateyBootstrapInteractiveHost
 
 <#
     .SYNOPSIS
-    Internal function Confirm-ChocolateyBootstrapExecution.
+#>
+
+function Test-ChocolateyBootstrapApproved
+{
+	[CmdletBinding()]
+	param()
+
+	return $true
+}
+
+<#
+    .SYNOPSIS
 #>
 
 function Confirm-ChocolateyBootstrapExecution
@@ -426,15 +513,11 @@ function Confirm-ChocolateyBootstrapExecution
 	[CmdletBinding()]
 	param()
 
-	# Approval gate removed — Chocolatey bootstrap runs unconditionally like
-	# WinGet. The downloaded install.ps1 is Chocolatey's official script; the
-	# caller has already chosen to run Baseline, which implies the approval.
 	return
 }
 
 <#
     .SYNOPSIS
-    Internal function Get-PackageManagerBootstrapLogLines.
 #>
 
 function Get-PackageManagerBootstrapLogLines
@@ -459,7 +542,6 @@ function Get-PackageManagerBootstrapLogLines
 
 <#
     .SYNOPSIS
-    Internal function Get-PackageManagerBootstrapFailureSummary.
 #>
 
 function Get-PackageManagerBootstrapFailureSummary
@@ -487,7 +569,6 @@ function Get-PackageManagerBootstrapFailureSummary
 
 <#
     .SYNOPSIS
-    Internal function Get-WinGetBootstrapInstallerMetadata.
 #>
 
 function Get-WinGetBootstrapInstallerMetadata
@@ -508,7 +589,6 @@ function Get-WinGetBootstrapInstallerMetadata
 
 <#
     .SYNOPSIS
-    Internal function Get-WinGetBootstrapInstallerArguments.
 #>
 
 function Get-WinGetBootstrapInstallerArguments
@@ -523,14 +603,15 @@ function Get-WinGetBootstrapInstallerArguments
 
 <#
     .SYNOPSIS
-    Internal function Invoke-WinGetBootstrap.
 #>
 
 function Invoke-WinGetBootstrap
 {
 	<# .SYNOPSIS Installs or repairs WinGet without surfacing startup failures to the caller. #>
 	[CmdletBinding()]
-	param()
+	param (
+		[int]$TimeoutSeconds = 900
+	)
 
 	$result = [pscustomobject]@{
 		PackageManager = 'WinGet'
@@ -595,22 +676,36 @@ function Invoke-WinGetBootstrap
 					'-ExecutionPolicy', 'Bypass',
 					'-WindowStyle', 'Hidden',
 					'-File', "`"$installerPath`""
-				) + $installerArguments) -Wait -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -ErrorAction Stop
+				) + $installerArguments) -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -ErrorAction Stop
+				$null = Wait-PackageManagerProcess -Process $process -TimeoutSeconds $TimeoutSeconds
 			}
 			catch
 			{
 				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_StartProcessFailedInstaller' -Fallback 'Start-Process failed for {0} installer: {1}. Trying direct execution.' -FormatArgs @('WinGet', $_.Exception.Message))
-				& powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File $installerPath @installerArguments
-				$process = [pscustomobject]@{ ExitCode = $LASTEXITCODE }
+				$fallbackResult = Invoke-PackageManagerProcessCapture -FilePath 'powershell.exe' -ArgumentList (@(
+					'-NoProfile',
+					'-ExecutionPolicy', 'Bypass',
+					'-WindowStyle', 'Hidden',
+					'-File', $installerPath
+				) + $installerArguments) -TimeoutSeconds $TimeoutSeconds
+				$process = [pscustomobject]@{ ExitCode = $fallbackResult.ExitCode }
+				$stdoutLines = @(([string]$fallbackResult.StandardOutput -split "(`r`n|`n|`r)") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+				$stderrLines = @(([string]$fallbackResult.StandardError -split "(`r`n|`n|`r)") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 			}
 
-			$stdoutLines = @(Get-PackageManagerBootstrapLogLines -Path $stdoutLog)
+			if ($stdoutLines.Count -eq 0)
+			{
+				$stdoutLines = @(Get-PackageManagerBootstrapLogLines -Path $stdoutLog)
+			}
 			foreach ($stdoutLine in $stdoutLines)
 			{
 				LogInfo "winget-installer: $stdoutLine"
 			}
 
-			$stderrLines = @(Get-PackageManagerBootstrapLogLines -Path $stderrLog)
+			if ($stderrLines.Count -eq 0)
+			{
+				$stderrLines = @(Get-PackageManagerBootstrapLogLines -Path $stderrLog)
+			}
 			foreach ($stderrLine in $stderrLines)
 			{
 				LogError "winget-installer: $stderrLine"
@@ -725,14 +820,15 @@ function Invoke-WinGetBootstrap
 
 <#
     .SYNOPSIS
-    Internal function Invoke-ChocolateyBootstrap.
 #>
 
 function Invoke-ChocolateyBootstrap
 {
 	<# .SYNOPSIS Installs Chocolatey without surfacing startup failures to the caller. #>
 	[CmdletBinding()]
-	param()
+	param (
+		[int]$TimeoutSeconds = 900
+	)
 
 	$result = [pscustomobject]@{
 		PackageManager = 'Chocolatey'
@@ -753,8 +849,6 @@ function Invoke-ChocolateyBootstrap
 
 	try
 	{
-		Confirm-ChocolateyBootstrapExecution
-
 		$chocolateyVersion = Get-ChocolateyVersion
 		if ($chocolateyVersion)
 		{
@@ -780,6 +874,12 @@ function Invoke-ChocolateyBootstrap
 				throw "Chocolatey installer download failed or produced an empty file at $installerPath"
 			}
 
+			$expectedChocolateyInstallerHash = [string][Environment]::GetEnvironmentVariable('BASELINE_CHOCOLATEY_INSTALLER_SHA256')
+			if (-not [string]::IsNullOrWhiteSpace($expectedChocolateyInstallerHash))
+			{
+				$null = Assert-FileHash -Path $installerPath -ExpectedSha256 $expectedChocolateyInstallerHash -Label 'Chocolatey install.ps1'
+			}
+
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_ExecutingInstallerScript' -Fallback 'Executing installer script...')
 			$process = $null
 			try
@@ -789,22 +889,36 @@ function Invoke-ChocolateyBootstrap
 					'-ExecutionPolicy', 'Bypass',
 					'-WindowStyle', 'Hidden',
 					'-File', "`"$installerPath`""
-				) -Wait -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -ErrorAction Stop
+				) -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -ErrorAction Stop
+				$null = Wait-PackageManagerProcess -Process $process -TimeoutSeconds $TimeoutSeconds
 			}
 			catch
 			{
 				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_StartProcessFailedInstaller' -Fallback 'Start-Process failed for {0} installer: {1}. Trying direct execution.' -FormatArgs @('Chocolatey', $_.Exception.Message))
-				& powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File $installerPath
-				$process = [pscustomobject]@{ ExitCode = $LASTEXITCODE }
+				$fallbackResult = Invoke-PackageManagerProcessCapture -FilePath 'powershell.exe' -ArgumentList @(
+					'-NoProfile',
+					'-ExecutionPolicy', 'Bypass',
+					'-WindowStyle', 'Hidden',
+					'-File', $installerPath
+				) -TimeoutSeconds $TimeoutSeconds
+				$process = [pscustomobject]@{ ExitCode = $fallbackResult.ExitCode }
+				$stdoutLines = @(([string]$fallbackResult.StandardOutput -split "(`r`n|`n|`r)") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+				$stderrLines = @(([string]$fallbackResult.StandardError -split "(`r`n|`n|`r)") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 			}
 
-			$stdoutLines = @(Get-PackageManagerBootstrapLogLines -Path $stdoutLog)
+			if ($stdoutLines.Count -eq 0)
+			{
+				$stdoutLines = @(Get-PackageManagerBootstrapLogLines -Path $stdoutLog)
+			}
 			foreach ($stdoutLine in $stdoutLines)
 			{
 				LogInfo "chocolatey-installer: $stdoutLine"
 			}
 
-			$stderrLines = @(Get-PackageManagerBootstrapLogLines -Path $stderrLog)
+			if ($stderrLines.Count -eq 0)
+			{
+				$stderrLines = @(Get-PackageManagerBootstrapLogLines -Path $stderrLog)
+			}
 			foreach ($stderrLine in $stderrLines)
 			{
 				LogError "chocolatey-installer: $stderrLine"
@@ -889,7 +1003,6 @@ function Invoke-ChocolateyBootstrap
 
 <#
     .SYNOPSIS
-    Internal function Invoke-DownloadFile.
 #>
 
 function Invoke-DownloadFile
@@ -967,7 +1080,6 @@ function Invoke-DownloadFile
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineLatestReleaseAssetUrl.
 #>
 
 function Get-BaselineLatestReleaseAssetUrl
@@ -1012,7 +1124,6 @@ function Get-BaselineLatestReleaseAssetUrl
 
 <#
     .SYNOPSIS
-    Internal function Save-BaselineExecutable.
 #>
 
 function Save-BaselineExecutable
@@ -1050,7 +1161,6 @@ function Save-BaselineExecutable
 
 <#
     .SYNOPSIS
-    Internal function Set-DownloadSecurityProtocol.
 #>
 
 function Set-DownloadSecurityProtocol
@@ -1066,10 +1176,6 @@ function Set-DownloadSecurityProtocol
 	}
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Assert-FileHash
 {
 	<# .SYNOPSIS Verifies a file's SHA256 hash matches an expected value. #>
@@ -1128,7 +1234,6 @@ function Assert-FileHash
 
 <#
     .SYNOPSIS
-    Internal function Assert-AuthenticodeSignature.
 #>
 
 function Assert-AuthenticodeSignature
@@ -1178,7 +1283,6 @@ function Assert-AuthenticodeSignature
 
 <#
     .SYNOPSIS
-    Internal function Get-PowerShellInstallerArchitecture.
 #>
 
 function Get-PowerShellInstallerArchitecture
@@ -1199,7 +1303,6 @@ function Get-PowerShellInstallerArchitecture
 
 <#
     .SYNOPSIS
-    Internal function Resolve-PowerShellInstallerUri.
 #>
 
 function Resolve-PowerShellInstallerUri
@@ -1235,7 +1338,6 @@ function Resolve-PowerShellInstallerUri
 
 <#
     .SYNOPSIS
-    Internal function Get-OneDriveSetupPath.
 #>
 
 function Get-OneDriveSetupPath
@@ -1269,7 +1371,6 @@ function Get-OneDriveSetupPath
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-NormalizedVersion.
 #>
 
 function ConvertTo-NormalizedVersion
@@ -1315,7 +1416,6 @@ function ConvertTo-NormalizedVersion
 
 <#
     .SYNOPSIS
-    Internal function Get-InstalledVCRedistVersion.
 #>
 
 function Get-InstalledVCRedistVersion
@@ -1355,7 +1455,6 @@ function Get-InstalledVCRedistVersion
 
 <#
     .SYNOPSIS
-    Internal function Get-InstalledDotNetRuntimeVersion.
 #>
 
 function Get-InstalledDotNetRuntimeVersion
@@ -1401,7 +1500,6 @@ function Get-InstalledDotNetRuntimeVersion
 
 <#
     .SYNOPSIS
-    Internal function Get-LatestDotNetRuntimeRelease.
 #>
 
 function Get-LatestDotNetRuntimeRelease
@@ -1455,7 +1553,6 @@ function Get-LatestDotNetRuntimeRelease
 
 <#
     .SYNOPSIS
-    Internal function Install-VCRedist.
 #>
 
 function Install-VCRedist
@@ -1544,8 +1641,8 @@ function Install-VCRedist
 					$sig = Get-AuthenticodeSignature -FilePath "$DownloadsFolder\VC_redist.x86.exe"
 					if ($sig.Status -ne 'Valid') { throw "Authenticode signature verification failed for VC_redist.x86.exe (status: $($sig.Status))" }
 
-					$VCx86Process = Start-Process -FilePath "$DownloadsFolder\VC_redist.x86.exe" -ArgumentList "/install /passive /norestart" -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
-					if ($VCx86Process.ExitCode -ne 0) { throw "VC_redist.x86.exe returned exit code $($VCx86Process.ExitCode)" }
+					$VCx86Process = Invoke-BaselineProcess -FilePath "$DownloadsFolder\VC_redist.x86.exe" -ArgumentList @('/install', '/passive', '/norestart') -TimeoutSeconds 1800 -AllowedExitCodes @(0, 3010)
+					if ($VCx86Process.ExitCode -notin @(0, 3010)) { throw "VC_redist.x86.exe returned exit code $($VCx86Process.ExitCode)" }
 
 					$Paths = @(
 						"$DownloadsFolder\VC_redist.x86.exe",
@@ -1613,8 +1710,8 @@ function Install-VCRedist
 					$sig = Get-AuthenticodeSignature -FilePath "$DownloadsFolder\VC_redist.x64.exe"
 					if ($sig.Status -ne 'Valid') { throw "Authenticode signature verification failed for VC_redist.x64.exe (status: $($sig.Status))" }
 
-					$VCx64Process = Start-Process -FilePath "$DownloadsFolder\VC_redist.x64.exe" -ArgumentList "/install /passive /norestart" -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
-					if ($VCx64Process.ExitCode -ne 0) { throw "VC_redist.x64.exe returned exit code $($VCx64Process.ExitCode)" }
+					$VCx64Process = Invoke-BaselineProcess -FilePath "$DownloadsFolder\VC_redist.x64.exe" -ArgumentList @('/install', '/passive', '/norestart') -TimeoutSeconds 1800 -AllowedExitCodes @(0, 3010)
+					if ($VCx64Process.ExitCode -notin @(0, 3010)) { throw "VC_redist.x64.exe returned exit code $($VCx64Process.ExitCode)" }
 
 					$Paths = @(
 						"$DownloadsFolder\VC_redist.x64.exe",
@@ -1644,7 +1741,6 @@ function Install-VCRedist
 
 <#
     .SYNOPSIS
-    Internal function Install-DotNetRuntimeVersion.
 #>
 
 function Install-DotNetRuntimeVersion
@@ -1761,8 +1857,8 @@ function Install-DotNetRuntimeVersion
 		$sig = Get-AuthenticodeSignature -FilePath "$DownloadsFolder\$FileName"
 		if ($sig.Status -ne 'Valid') { throw "Authenticode signature verification failed for $FileName (status: $($sig.Status))" }
 
-		$InstallProcess = Start-Process -FilePath "$DownloadsFolder\$FileName" -ArgumentList "/install /passive /norestart" -Wait -PassThru -WindowStyle Hidden -ErrorAction Stop
-		if ($InstallProcess.ExitCode -ne 0) { throw "$FileName returned exit code $($InstallProcess.ExitCode)" }
+		$InstallProcess = Invoke-BaselineProcess -FilePath "$DownloadsFolder\$FileName" -ArgumentList @('/install', '/passive', '/norestart') -TimeoutSeconds 1800 -AllowedExitCodes @(0, 3010)
+		if ($InstallProcess.ExitCode -notin @(0, 3010)) { throw "$FileName returned exit code $($InstallProcess.ExitCode)" }
 
 		$Paths = @(
 			"$DownloadsFolder\$FileName",
@@ -1790,7 +1886,6 @@ function Install-DotNetRuntimeVersion
 
 <#
     .SYNOPSIS
-    Internal function Install-DotNetRuntimes.
 #>
 
 function Install-DotNetRuntimes
@@ -1830,4 +1925,3 @@ function Install-DotNetRuntimes
 		}
 	}
 }
-

@@ -246,11 +246,7 @@ function LockScreenRS1
     .SYNOPSIS
     Runs lock screen blur.
 
-    
-.DESCRIPTION
-    
-Supports lock screen blur handling inside Baseline.
-#>
+    #>
 function LockScreenBlur
 {
 	param
@@ -317,11 +313,7 @@ function LockScreenBlur
     .SYNOPSIS
     Runs network from lock screen.
 
-    
-.DESCRIPTION
-    
-Supports network from lock screen handling inside Baseline.
-#>
+    #>
 function NetworkFromLockScreen
 {
 	param
@@ -388,11 +380,7 @@ function NetworkFromLockScreen
     .SYNOPSIS
     Runs shutdown from lock screen.
 
-    
-.DESCRIPTION
-    
-Supports shutdown from lock screen handling inside Baseline.
-#>
+    #>
 function ShutdownFromLockScreen
 {
 	param
@@ -593,5 +581,13 @@ function BlockDomainPINLogon
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'BlockDomainPINLogon',
+    'LockScreen',
+    'LockScreenBlur',
+    'LockScreenCamera',
+    'LockScreenRS1',
+    'NetworkFromLockScreen',
+    'ShutdownFromLockScreen'
+)
+Export-ModuleMember -Function $ExportedFunctions

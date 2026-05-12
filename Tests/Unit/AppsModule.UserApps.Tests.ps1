@@ -55,9 +55,9 @@ Describe 'Get-BaselineApplicationsCatalog: user-added apps integration (#29 / sp
         $userAppsIndex = $script:AppsModuleContent.IndexOf("Path = '<UserApps>'")
         $userAppsIndex | Should -BeGreaterThan 0
 
-        # The catch must route through Write-DebugSwallowedException with a stable Source label.
+        # The catch must route through Write-SwallowedException with a stable Source label.
         $tail = $script:AppsModuleContent.Substring($userAppsIndex)
-        $tail | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''AppsModule\.Catalog\.UserAppsLoad'''
+        $tail | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''AppsModule\.Catalog\.UserAppsLoad'''
     }
 
     It 'normalizes $catalogFilesJson to an array before appending so single-file environments do not collapse' {

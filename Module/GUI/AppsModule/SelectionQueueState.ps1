@@ -1,8 +1,7 @@
-# AppsModule split file loaded by Module\GUI\AppsModule.ps1.
+﻿# AppsModule split file loaded by Module\GUI\AppsModule.ps1.
 
 <#
     .SYNOPSIS
-    Internal function Set-AppsActionControlsEnabled.
 #>
 
 function Set-AppsActionControlsEnabled
@@ -22,7 +21,7 @@ function Set-AppsActionControlsEnabled
 		}
 		catch
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-AppsActionControlsEnabled.ControlEnabled'
+			Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-AppsActionControlsEnabled.ControlEnabled'
 		}
 	}.GetNewClosure()
 
@@ -107,7 +106,6 @@ function Set-AppsActionControlsEnabled
 
 <#
     .SYNOPSIS
-    Internal function Initialize-AppsSelectionState.
 #>
 
 function Initialize-AppsSelectionState
@@ -135,7 +133,6 @@ function Initialize-AppsSelectionState
 
 <#
     .SYNOPSIS
-    Internal function Initialize-AppsQueuedActionState.
 #>
 
 function Initialize-AppsQueuedActionState
@@ -148,19 +145,23 @@ function Initialize-AppsQueuedActionState
 	[CmdletBinding()]
 	param ()
 
-	if (-not ($Script:AppsQueuedActions -is [System.Collections.Generic.Dictionary[string, string]]))
+	$appsQueuedActions = Get-Variable -Name 'AppsQueuedActions' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+	if (-not ($appsQueuedActions -is [System.Collections.Generic.Dictionary[string, string]]))
 	{
 		$Script:AppsQueuedActions = [System.Collections.Generic.Dictionary[string, string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 	}
-	if (-not ($Script:AppsQueuedActionControls -is [System.Collections.Generic.List[object]]))
+	$appsQueuedActionControls = Get-Variable -Name 'AppsQueuedActionControls' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+	if (-not ($appsQueuedActionControls -is [System.Collections.Generic.List[object]]))
 	{
 		$Script:AppsQueuedActionControls = [System.Collections.Generic.List[object]]::new()
 	}
-	if (-not ($Script:AppsQueuedActionControlMap -is [System.Collections.Generic.Dictionary[string, object]]))
+	$appsQueuedActionControlMap = Get-Variable -Name 'AppsQueuedActionControlMap' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+	if (-not ($appsQueuedActionControlMap -is [System.Collections.Generic.Dictionary[string, object]]))
 	{
 		$Script:AppsQueuedActionControlMap = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::OrdinalIgnoreCase)
 	}
-	if ($null -eq $Script:AppsQueuedActionUiUpdating)
+	$appsQueuedActionUiUpdating = Get-Variable -Name 'AppsQueuedActionUiUpdating' -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+	if ($null -eq $appsQueuedActionUiUpdating)
 	{
 		$Script:AppsQueuedActionUiUpdating = $false
 	}
@@ -168,7 +169,6 @@ function Initialize-AppsQueuedActionState
 
 <#
     .SYNOPSIS
-    Internal function Sync-AppsQueuedActionControls.
 #>
 
 function Sync-AppsQueuedActionControls
@@ -247,13 +247,13 @@ function Sync-AppsQueuedActionControls
 				{
 					$primaryQueued = ($primaryKind -and [string]$action -eq $primaryKind)
 					$primaryVariant = if ($primaryQueued) { 'Subtle' } else { 'Primary' }
-					try { Set-ButtonChrome -Button $primaryButton -Variant $primaryVariant -Compact } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Build-AppsViewCards.SetButtonChrome.Primary' }
+					try { Set-ButtonChrome -Button $primaryButton -Variant $primaryVariant -Compact } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Build-AppsViewCards.SetButtonChrome.Primary' }
 				}
 				if ($updateButton)
 				{
 					$updateQueued = ([string]$action -eq 'Update')
 					$updateVariant = if ($updateQueued) { 'Subtle' } else { 'Secondary' }
-					try { Set-ButtonChrome -Button $updateButton -Variant $updateVariant -Compact } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Build-AppsViewCards.SetButtonChrome.Update' }
+					try { Set-ButtonChrome -Button $updateButton -Variant $updateVariant -Compact } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Build-AppsViewCards.SetButtonChrome.Update' }
 				}
 				if ($badge -and $badgeText)
 				{
@@ -289,7 +289,6 @@ function Sync-AppsQueuedActionControls
 
 <#
     .SYNOPSIS
-    Internal function Get-QueuedAppsProfileActions.
 #>
 
 function Get-QueuedAppsProfileActions
@@ -335,7 +334,6 @@ function Get-QueuedAppsProfileActions
 
 <#
     .SYNOPSIS
-    Internal function Set-AppQueuedAction.
 #>
 
 function Set-AppQueuedAction
@@ -379,7 +377,6 @@ function Set-AppQueuedAction
 
 <#
     .SYNOPSIS
-    Internal function Get-AppQueuedAction.
 #>
 
 function Get-AppQueuedAction
@@ -410,7 +407,6 @@ function Get-AppQueuedAction
 
 <#
     .SYNOPSIS
-    Internal function Clear-AppsQueuedActions.
 #>
 
 function Clear-AppsQueuedActions
@@ -431,7 +427,6 @@ function Clear-AppsQueuedActions
 
 <#
     .SYNOPSIS
-    Internal function Get-SelectedAppsCatalogItems.
 #>
 
 function Get-SelectedAppsCatalogItems
@@ -470,13 +465,20 @@ function Get-SelectedAppsCatalogItems
 
 <#
     .SYNOPSIS
-    Internal function Update-AppsSelectionSummary.
 #>
 
 function Update-AppsSelectionSummary
 {
 	[CmdletBinding()]
 	param ()
+
+	foreach ($controlVariableName in @('TxtAppSelectionStatus', 'BtnInstallSelectedApps', 'BtnUninstallSelectedApps', 'BtnUpdateSelectedApps', 'BtnScanInstalledApps', 'BtnApplyQueuedActions', 'BtnClearQueuedActions'))
+	{
+		if (-not (Get-Variable -Name $controlVariableName -Scope Script -ErrorAction SilentlyContinue))
+		{
+			Set-Variable -Name $controlVariableName -Scope Script -Value $null
+		}
+	}
 
 	if (-not $Script:TxtAppSelectionStatus -and -not $Script:BtnInstallSelectedApps -and -not $Script:BtnUninstallSelectedApps -and -not $Script:BtnUpdateSelectedApps -and -not $Script:BtnScanInstalledApps -and -not $Script:BtnApplyQueuedActions -and -not $Script:BtnClearQueuedActions)
 	{
@@ -633,7 +635,6 @@ function Update-AppsSelectionSummary
 
 <#
     .SYNOPSIS
-    Internal function Set-AppSelectionState.
 #>
 
 function Set-AppSelectionState
@@ -667,7 +668,6 @@ function Set-AppSelectionState
 
 <#
     .SYNOPSIS
-    Internal function Clear-AppSelectionState.
 #>
 
 function Clear-AppSelectionState
@@ -690,7 +690,7 @@ function Clear-AppSelectionState
 		{
 			if ($selectionControl)
 			{
-				try { $selectionControl.IsChecked = $false } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Clear-AppSelectionState.SelectionControlIsCheckedFalse' }
+				try { $selectionControl.IsChecked = $false } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Clear-AppSelectionState.SelectionControlIsCheckedFalse' }
 			}
 		}
 	}
@@ -701,4 +701,3 @@ function Clear-AppSelectionState
 
 	Update-AppsSelectionSummary
 }
-

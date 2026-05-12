@@ -1,12 +1,13 @@
 <#
     .SYNOPSIS
-    Validates that documented enterprise surfaces still match code and test evidence.
+    Validates that selected documentation claims still match code and test evidence.
 
     .DESCRIPTION
     This maintainer-only check compares a curated set of documentation claims
     against the code paths and unit tests that prove those claims in Baseline.
     It is intentionally narrow and deterministic so documentation signoff fails
-    when an enterprise surface is described but not implemented or covered.
+    when a release, support, or remote-automation claim is described but not
+    implemented or covered.
 
     .EXAMPLE
     powershell -File .\Tools\Test-DocumentationConsistency.ps1
@@ -236,22 +237,22 @@ $checks = @(
         )
     },
     [pscustomobject]@{
-        Name = 'Remote orchestration evidence'
+        Name = 'Remote automation evidence'
         DocSources = @(
             [pscustomobject]@{
                 Path = 'README.md'
                 Patterns = @(
-                    'remote approval gates'
-                    'release status visibility'
-                    'GPO conflict reporting'
+                    'remote compliance checks'
+                    'remote apply workflows'
+                    'approval policies'
                 )
             },
             [pscustomobject]@{
-                Path = 'docs/Baseline_dev-Enterprise-Readiness-Assessment.md'
+                Path = 'docs/FAQ.md'
                 Patterns = @(
-                    'remote console'
-                    'saved approval policy'
-                    'per-target result reporting'
+                    'Remote Console'
+                    'approval-policy'
+                    'support bundle export'
                 )
             }
         )

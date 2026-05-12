@@ -1,10 +1,12 @@
-# ActionHandlers split file loaded by Module\GUI\ActionHandlers.ps1.
+﻿# ActionHandlers split file loaded by Module\GUI\ActionHandlers.ps1.
 
 	#region Theme toggle handler
 	Register-GuiEventHandler -Source $ChkTheme -EventName 'Checked' -Handler ({
+		if ($Script:ThemeUiUpdating) { return }
 		Invoke-CapturedFunction -Name 'Apply-BaselineThemePreference' -Parameters @{ Preference = 'Light' }
 	}) | Out-Null
 	Register-GuiEventHandler -Source $ChkTheme -EventName 'Unchecked' -Handler ({
+		if ($Script:ThemeUiUpdating) { return }
 		Invoke-CapturedFunction -Name 'Apply-BaselineThemePreference' -Parameters @{ Preference = 'Dark' }
 	}) | Out-Null
 	if ($NavModeTweaks)
@@ -13,6 +15,10 @@
 			if (Get-Command -Name 'Set-GuiUpdatesMode' -CommandType Function -ErrorAction SilentlyContinue)
 			{
 				Set-GuiUpdatesMode -Enable:$false
+			}
+			if (Get-Command -Name 'Set-GuiDeploymentMediaMode' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Set-GuiDeploymentMediaMode -Enable:$false
 			}
 			Set-GuiAppsMode -Enable:$false
 		}) | Out-Null
@@ -24,15 +30,37 @@
 			{
 				Set-GuiUpdatesMode -Enable:$false
 			}
+			if (Get-Command -Name 'Set-GuiDeploymentMediaMode' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Set-GuiDeploymentMediaMode -Enable:$false
+			}
 			Set-GuiAppsMode -Enable:$true
 		}) | Out-Null
 	}
 	if ($NavModeUpdates)
 	{
 		Register-GuiEventHandler -Source $NavModeUpdates -EventName 'Checked' -Handler ({
+			if (Get-Command -Name 'Set-GuiDeploymentMediaMode' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Set-GuiDeploymentMediaMode -Enable:$false
+			}
 			if (Get-Command -Name 'Set-GuiUpdatesMode' -CommandType Function -ErrorAction SilentlyContinue)
 			{
 				Set-GuiUpdatesMode -Enable:$true
+			}
+		}) | Out-Null
+	}
+	if ($NavModeDeploymentMedia)
+	{
+		Register-GuiEventHandler -Source $NavModeDeploymentMedia -EventName 'Checked' -Handler ({
+			if (Get-Command -Name 'Set-GuiUpdatesMode' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Set-GuiUpdatesMode -Enable:$false
+			}
+			Set-GuiAppsMode -Enable:$false
+			if (Get-Command -Name 'Set-GuiDeploymentMediaMode' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Set-GuiDeploymentMediaMode -Enable:$true
 			}
 		}) | Out-Null
 	}

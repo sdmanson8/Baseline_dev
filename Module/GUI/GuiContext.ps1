@@ -1,9 +1,8 @@
-# GUI context hashtable ($Script:Ctx) - groups $Script: variables by category.
+﻿# GUI context hashtable ($Script:Ctx) - groups $Script: variables by category.
 # Loaded first in Show-TweakGUI. Direct $Script: access still works everywhere.
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-GuiContext.
 	#>
 
 	function New-GuiContext
@@ -137,7 +136,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiContext.
 	#>
 
 	function Get-GuiContext
@@ -183,7 +181,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-GuiContext.
 	#>
 
 	function Set-GuiContext
@@ -233,7 +230,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Sync-GuiContextFromScriptState.
 	#>
 
 	function Sync-GuiContextFromScriptState
@@ -290,7 +286,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiMode.
 	#>
 
 	function Get-GuiMode
@@ -304,10 +299,6 @@
 		}
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Test-GuiModeActive
 	{
 		<# .SYNOPSIS Tests whether a specific GUI mode is active. #>
@@ -331,7 +322,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-GuiMode.
 	#>
 
 	function Set-GuiMode
@@ -371,7 +361,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiActivePreset.
 	#>
 
 	function Get-GuiActivePreset { return $Script:ActivePresetName }
@@ -379,22 +368,10 @@
 	# Test-GuiRunInProgress is defined at module scope in GUI.psm1 so Show-TweakGUI
 	# can capture it once for deferred WPF handlers and dispatcher callbacks.
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-GuiCurrentTheme { return $Script:CurrentTheme }
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-GuiCurrentThemeName { return $Script:CurrentThemeName }
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-GuiStatusToneColor
 	{
 		param (
@@ -415,7 +392,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Invoke-GuiDispatcherAction.
 	#>
 
 	function Invoke-GuiDispatcherAction
@@ -463,7 +439,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-GuiStatusText.
 	#>
 
 	function Set-GuiStatusText
@@ -503,32 +478,11 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiCurrentPrimaryTab.
 	#>
 
 	function Get-GuiCurrentPrimaryTab { return $Script:Ctx.UI.CurrentPrimaryTab }
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Set-GuiCurrentPrimaryTab { param($Tab) $Script:Ctx.UI.CurrentPrimaryTab = $Tab }
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-GuiLastStandardPrimaryTab { return $Script:Ctx.UI.LastStandardPrimaryTab }
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Set-GuiLastStandardPrimaryTab { param($Tab) $Script:Ctx.UI.LastStandardPrimaryTab = $Tab }
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-GuiCurrentStatusTone { return $Script:Ctx.Theme.CurrentTone }
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Set-GuiCurrentStatusTone { param([string]$Tone) $Script:Ctx.Theme.CurrentTone = $Tone }

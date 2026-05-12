@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 Describe 'HKCU registry value removals' {
     It 'routes direct HKCU value removals through Remove-RegistryValueSafe' {

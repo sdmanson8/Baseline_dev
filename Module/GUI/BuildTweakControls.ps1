@@ -1,4 +1,4 @@
-	$Script:Controls = @{}
+﻿	$Script:Controls = @{}
 	# Function-name -> manifest-index map for linked-toggle lookups in closures
 	$Script:FunctionToIndex = @{}
 	$Script:Ctx.Data.Controls = $Script:Controls
@@ -17,7 +17,7 @@
 		$isVisible = $true
 		if ($st.VisibleIf)
 		{
-			try { $isVisible = [bool](& $st.VisibleIf) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTweakControls.SeedControlVisibility.VisibleIf'; $isVisible = $false }
+			try { $isVisible = [bool](& $st.VisibleIf) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'BuildTweakControls.SeedControlVisibility.VisibleIf'; $isVisible = $false }
 		}
 			switch ($st.Type)
 			{
@@ -45,7 +45,6 @@
 
 		<#
 		    .SYNOPSIS
-		    Internal function Update-CurrentTabContent.
 		#>
 
 		function Update-CurrentTabContent
@@ -58,7 +57,25 @@
 			$__perf = Start-GuiPerfScope -Name 'UpdateCurrentTabContent' -Note ([string]$Script:CurrentPrimaryTab)
 			try
 			{
-			if ($Script:AppsModeActive) { return }
+			if ($Script:AppsModeActive -or $Script:DeploymentMediaModeActive)
+			{
+				$startupSplash = $Global:LoadingSplash
+				$startupSplashLive = $false
+				if (Get-Command -Name 'Test-GuiStartupSplashLive' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					$startupSplashLive = [bool](Test-GuiStartupSplashLive -Splash $startupSplash)
+				}
+				$startupSplashReady = [bool]($startupSplash -is [hashtable] -and $startupSplash.ContainsKey('GuiReady') -and [bool]$startupSplash.GuiReady)
+				if ($startupSplashLive -and -not $startupSplashReady)
+				{
+					$startupReadySignalScript = Get-Command -Name 'Invoke-GuiStartupReadySignal' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
+					if ($startupReadySignalScript)
+					{
+						& $startupReadySignalScript
+					}
+				}
+				return
+			}
 
 			if ($Script:UpdatesModeActive)
 			{
@@ -214,7 +231,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-SecondaryActionGroupStyle.
 	#>
 
 	function Set-SecondaryActionGroupStyle
@@ -228,10 +244,6 @@
 		$Script:SecondaryActionGroupBorder.Opacity = 0.85
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Set-StaticButtonStyle
 	{
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
@@ -270,7 +282,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-StaticControlTabOrder.
 	#>
 
 	function Set-StaticControlTabOrder

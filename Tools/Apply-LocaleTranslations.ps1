@@ -17,12 +17,11 @@ if (-not $file) { throw "Locale file not found: $LocaleName.json" }
 
 $translationsObject = Get-Content -LiteralPath $TranslationsJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
 
-$doc = [System.Text.Json.JsonDocument]::Parse((Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8))
+$localeObject = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
 $orderedLocale = [ordered]@{}
-foreach ($prop in $doc.RootElement.EnumerateObject()) {
-    $orderedLocale[$prop.Name] = [string]$prop.Value.GetString()
+foreach ($prop in $localeObject.PSObject.Properties) {
+    $orderedLocale[$prop.Name] = [string]$prop.Value
 }
-$doc.Dispose()
 
 $applied = 0
 $skipped = 0

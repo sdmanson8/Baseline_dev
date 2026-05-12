@@ -1,4 +1,4 @@
-# P5 rollback checkpoint: execution orchestration helpers are split into Module\GUI\ExecutionOrchestration\*.ps1.
+﻿# P5 rollback checkpoint: execution orchestration helpers are split into Module\GUI\ExecutionOrchestration\*.ps1.
 # Keep this explicit order so state and view helpers load before run orchestration entrypoints.
 $Script:ExecutionOrchestrationRoot = $PSScriptRoot
 $executionOrchestrationSplitRoot = Join-Path $Script:ExecutionOrchestrationRoot 'ExecutionOrchestration'

@@ -1,8 +1,13 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $modeStatePath = Join-Path $PSScriptRoot '../../Module/GUI/ModeState.ps1'
-    $script:ModeStateContent = Get-Content -LiteralPath $modeStatePath -Raw -Encoding UTF8
+    $script:ModeStateContent = Get-BaselineTestSourceText -Path $modeStatePath
 }
 
 Describe 'Mode state' {
@@ -13,7 +18,7 @@ Describe 'Mode state' {
         $script:ModeStateContent | Should -Match 'Save-GuiDefaultStartupModePreference -Mode \$nextStartupMode'
     }
 
-    It 'routes design-mode preference writes through Write-DebugSwallowedException' {
+    It 'routes design-mode preference writes through Write-SwallowedException' {
         $script:ModeStateContent | Should -Match "ModeState\.Set-DesignModeState\.SavePreference"
     }
 

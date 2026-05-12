@@ -2,7 +2,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Test-Windows11SmbDuplicateSidIssue.
 #>
 
 function Test-Windows11SmbDuplicateSidIssue
@@ -34,7 +33,6 @@ function Test-Windows11SmbDuplicateSidIssue
 
 <#
     .SYNOPSIS
-    Internal function Get-MinimumRecommendedMemoryCompressionRamGB.
 #>
 
 function Get-MinimumRecommendedMemoryCompressionRamGB
@@ -43,10 +41,6 @@ function Get-MinimumRecommendedMemoryCompressionRamGB
 	return 8
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Invoke-AdditionalServiceOptimizations
 {
 	<# .SYNOPSIS Disables Memory Compression and optional services (PeerDist, diagnosticshub, RemoteRegistry). #>

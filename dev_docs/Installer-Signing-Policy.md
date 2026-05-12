@@ -10,7 +10,7 @@ To run an upgrade or downgrade playbook against a preview (unsigned) artifact, a
 
 ```powershell
 $env:BASELINE_PREVIEW_UNSIGNED = '1'
-powershell -File .\Tools\Invoke-LifecyclePlaybook.ps1 -Operation Upgrade -InstallerPath .\dist\Baseline-setup-<version>.exe
+powershell -File .\Tools\Invoke-LifecyclePlaybook.ps1 -Operation Upgrade -InstallerPath .\dist\Baseline-setup-<version>-<channel>.exe
 ```
 
 Or pass `-AllowUnsignedPreview` directly to `Get-BaselineReleaseArtifactVerification` / `Assert-BaselineReleaseArtifactVerification`. The verification record is surfaced with `VerificationState = 'Preview'` so that audit, support-bundle, and remote-rollout records honestly reflect that the artifact was unsigned.
@@ -19,8 +19,9 @@ The signed-release policy below is the target state. It becomes mandatory the mo
 
 ## Scope
 
-- `Baseline-setup-<version>.exe`
-- `Baseline-<version>.zip`
+- `Baseline-setup-<version>-<channel>.exe`
+- `Baseline-<version>-stable.zip`
+- `Baseline-<version>-beta.zip`
 - any release payload that is promoted to an enterprise deployment channel
 
 ## Policy (applies once signing is in place / to any promoted release)
@@ -71,7 +72,7 @@ If the signature check fails, treat the artifact as untrusted and replace it wit
 
 The following sequence is the canonical verification path; it is also the sequence the lifecycle tooling expects:
 
-1. Compute the SHA-256 hash of the artifact and confirm it matches the published release manifest asset (`Baseline-<version>.zip.sha256.json`).
+1. Compute the SHA-256 hash of the artifact and confirm it matches the published release manifest asset (`Baseline-<version>-stable.zip.sha256.json` or `Baseline-<version>-beta.zip.sha256.json`).
 2. Run `signtool verify /pa /v /tw <artifact>`. The command must succeed with exit code 0.
 3. Inspect the signer chain and confirm the leaf certificate subject matches the approved release signer.
 4. Confirm the embedded version metadata matches the intended rollout target.

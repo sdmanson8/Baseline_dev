@@ -4,7 +4,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Get-AuditLogPath.
 #>
 
 function Get-AuditLogPath
@@ -18,10 +17,6 @@ function Get-AuditLogPath
 	return [System.IO.Path]::Combine($auditDir, 'audit.jsonl')
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Get-BaselineAuditRetentionDays
 {
 	<# .SYNOPSIS Returns the audit retention period in days. #>
@@ -45,7 +40,6 @@ function Get-BaselineAuditRetentionDays
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineAuditRetentionCutoff.
 #>
 
 function Get-BaselineAuditRetentionCutoff
@@ -57,10 +51,6 @@ function Get-BaselineAuditRetentionCutoff
 	return (Get-Date).AddDays(-1 * (Get-BaselineAuditRetentionDays))
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Invoke-BaselineAuditRetentionPolicy
 {
 	<# .SYNOPSIS Prunes audit log entries older than the retention cutoff. #>
@@ -77,7 +67,6 @@ function Invoke-BaselineAuditRetentionPolicy
 
 <#
     .SYNOPSIS
-    Internal function Write-AuditRecord.
 #>
 
 function Write-AuditRecord
@@ -132,16 +121,15 @@ function Write-AuditRecord
 	}
 	catch
 	{
-		if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'AuditTrail.Write-AuditRecord.InvokeRetentionPolicy'
+			Write-SwallowedException -ErrorRecord $_ -Source 'AuditTrail.Write-AuditRecord.InvokeRetentionPolicy' -Severity Warning
 		}
 	}
 }
 
 <#
     .SYNOPSIS
-    Internal function Get-AuditLog.
 #>
 
 function Get-AuditLog
@@ -206,7 +194,6 @@ function Get-AuditLog
 
 <#
     .SYNOPSIS
-    Internal function Export-AuditReport.
 #>
 
 function Export-AuditReport
@@ -349,7 +336,6 @@ function Export-AuditReport
 
 <#
     .SYNOPSIS
-    Internal function Clear-AuditLog.
 #>
 
 function Clear-AuditLog
@@ -394,7 +380,6 @@ function Clear-AuditLog
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineAuditRetentionPolicyThreshold.
 
     .DESCRIPTION
     Returns the minimum retention period (in days) required by enterprise policy.
@@ -420,7 +405,6 @@ function Get-BaselineAuditRetentionPolicyThreshold
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineAuditRetentionBelowPolicy.
 
     .DESCRIPTION
     Tests whether the current audit retention setting falls below the policy threshold.
@@ -440,7 +424,6 @@ function Test-BaselineAuditRetentionBelowPolicy
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineAuditRetentionPolicyWarning.
 
     .DESCRIPTION
     Returns a warning object if retention is below policy threshold, $null otherwise.
@@ -474,7 +457,6 @@ function Get-BaselineAuditRetentionPolicyWarning
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineAuditRetentionTaskExecution.
 
     .DESCRIPTION
     Verifies whether scheduled retention policy tasks are actually executing.
@@ -585,7 +567,6 @@ function Test-BaselineAuditRetentionTaskExecution
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineAuditRetentionReport.
 
     .DESCRIPTION
     Generates a comprehensive audit retention status report including policy compliance,

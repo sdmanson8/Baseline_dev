@@ -1,9 +1,8 @@
-# Audit Log Viewer: displays a scrollable timeline of audit log entries
+﻿# Audit Log Viewer: displays a scrollable timeline of audit log entries
 # with filtering and export/clear capabilities.
 
 <#
     .SYNOPSIS
-    Internal function Show-AuditLogDialog.
 #>
 
 function Show-AuditLogDialog
@@ -25,7 +24,7 @@ function Show-AuditLogDialog
 	$dlg.FontSize = $layout.FontSizeBody
 	$dlg.ShowInTaskbar = $false
 
-	try { if ($Form) { $dlg.Owner = $Form } } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AuditView.ShowAuditLogDialog.SetOwner' }
+	try { if ($Form) { $dlg.Owner = $Form } } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AuditView.ShowAuditLogDialog.SetOwner' }
 	$roundedParts = ConvertTo-RoundedWindow -Window $dlg -Theme $theme
 	[void](Set-GuiWindowChromeTheme -Window $dlg -UseDarkMode:($Script:CurrentThemeName -eq 'Dark'))
 

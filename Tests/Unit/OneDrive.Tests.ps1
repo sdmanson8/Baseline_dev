@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/OneDrive.psm1'
@@ -56,6 +56,9 @@ Describe 'OneDrive' {
                 [void]$script:removeItemCalls.Add($p)
             }
         }
+        function Remove-RegistryValueSafe {
+            param([string]$Path, [string[]]$Name)
+        }
         function Get-Package {
             param([string]$Name, [string]$ProviderName, [switch]$Force, [object]$ErrorAction, [object]$WarningAction)
             if ($null -eq $script:installedPackage) { return }
@@ -71,6 +74,10 @@ Describe 'OneDrive' {
         }
         function Get-ItemPropertyValue {
             param([string]$Path, [string]$Name, [object]$ErrorAction)
+            return $null
+        }
+        function Get-OneDriveSetupPath {
+            if ($script:setupPathExists) { return 'C:\Windows\System32\OneDriveSetup.exe' }
             return $null
         }
         function Test-Path {
@@ -89,6 +96,15 @@ Describe 'OneDrive' {
             [void]$script:startProcessCalls.Add([pscustomobject]@{
                 FilePath = $FilePath
                 ArgumentList = @($ArgumentList)
+            })
+            [pscustomobject]@{ ExitCode = 0 }
+        }
+        function Invoke-BaselineProcess {
+            param([string]$FilePath, [object[]]$ArgumentList, [int]$TimeoutSeconds)
+            [void]$script:startProcessCalls.Add([pscustomobject]@{
+                FilePath = $FilePath
+                ArgumentList = @($ArgumentList)
+                TimeoutSeconds = $TimeoutSeconds
             })
             [pscustomobject]@{ ExitCode = 0 }
         }
@@ -118,7 +134,7 @@ Describe 'OneDrive' {
     }
 
     AfterEach {
-        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogWarning','LogError','Set-Policy','Remove-ItemProperty','Remove-Item','Get-Package','Get-ItemProperty','Get-ItemPropertyValue','Test-Path','Stop-Process','Start-Process','Get-ChildItem','Unregister-ScheduledTask','Enable-ScheduledTask','Start-ScheduledTask','Get-ScheduledTask','Invoke-WebRequest','Start-Sleep','Get-Process')) {
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogWarning','LogError','Set-Policy','Remove-ItemProperty','Remove-Item','Remove-RegistryValueSafe','Get-Package','Get-ItemProperty','Get-ItemPropertyValue','Get-OneDriveSetupPath','Test-Path','Stop-Process','Start-Process','Invoke-BaselineProcess','Get-ChildItem','Unregister-ScheduledTask','Enable-ScheduledTask','Start-ScheduledTask','Get-ScheduledTask','Invoke-WebRequest','Start-Sleep','Get-Process')) {
             Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }
@@ -197,7 +213,7 @@ Describe 'OneDrive' {
 
         OneDrive -Install -AllUsers
 
-        @($script:startProcessCalls[0].ArgumentList) | Should -Contain '/silent /allusers'
+        @($script:startProcessCalls[0].ArgumentList) | Should -Be @('/silent', '/allusers')
     }
 
     It 'always clears the OneDrive sync policy before doing anything else' {

@@ -9,7 +9,7 @@
     command set.
 
     .EXAMPLE
-    powershell -File .\Tools\Invoke-LifecyclePlaybook.ps1 -Operation Upgrade -InstallerPath .\dist\Baseline-setup-4.0.0.exe
+    powershell -File .\Tools\Invoke-LifecyclePlaybook.ps1 -Operation Upgrade -InstallerPath .\dist\Baseline-setup-4.0.0-beta.exe
 
     .EXAMPLE
     powershell -File .\Tools\Invoke-LifecyclePlaybook.ps1 -Operation Rollback -RollbackProfilePath .\bundle\rollback.json -Execute

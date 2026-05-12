@@ -1,4 +1,4 @@
-# Reactive state container - tracks a handful of GUI properties and notifies
+﻿# Reactive state container - tracks a handful of GUI properties and notifies
 # registered callbacks on change. Dispatches to the UI thread when off-thread.
 #
 #   $state = New-ObservableState -Dispatcher $Form.Dispatcher -InitialValues @{ StatusText = '' }
@@ -7,7 +7,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ObservableState.
 	#>
 
 	function New-ObservableState

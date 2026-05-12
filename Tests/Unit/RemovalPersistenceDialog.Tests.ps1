@@ -11,9 +11,9 @@ BeforeAll {
     $script:ActionHandlersSplitRoot = Join-Path $script:RepoRoot 'Module/GUI/ActionHandlers'
     $script:GuiRegionPath = Join-Path $script:RepoRoot 'Module/Regions/GUI.psm1'
 
-    $script:DialogContent = Get-Content -LiteralPath $script:DialogPath -Raw -Encoding UTF8
-    $script:XamlContent = Get-Content -LiteralPath $script:XamlPath -Raw -Encoding UTF8
-    $script:WindowSetupContent = Get-Content -LiteralPath $script:WindowSetupPath -Raw -Encoding UTF8
+    $script:DialogContent = Get-BaselineTestSourceText -Path $script:DialogPath
+    $script:XamlContent = Get-BaselineTestSourceText -Path $script:XamlPath
+    $script:WindowSetupContent = Get-BaselineTestSourceText -Path $script:WindowSetupPath
     $script:ActionHandlersContent = Get-BaselineTestSourceText -Path @(
         $script:ActionHandlersPath
         (Join-Path $script:ActionHandlersSplitRoot 'ThemeNavigationHandlers.ps1')
@@ -21,7 +21,7 @@ BeforeAll {
         (Join-Path $script:ActionHandlersSplitRoot 'SystemScanFooterHandlers.ps1')
         (Join-Path $script:ActionHandlersSplitRoot 'MenuHandlers.ps1')
     )
-    $script:GuiRegionContent = Get-Content -LiteralPath $script:GuiRegionPath -Raw -Encoding UTF8
+    $script:GuiRegionContent = Get-BaselineTestSourceText -Path $script:GuiRegionPath
 }
 
 Describe 'Removal Persistence dialog: menu wiring' {
@@ -57,7 +57,7 @@ Describe 'Removal Persistence dialog: function definition' {
         $script:DialogContent | Should -Match '\$entries = @\(Get-BaselineRemovalPersistenceTasks\)'
     }
 
-    It 'wraps the enumerator in try/catch routed through Write-DebugSwallowedException' {
+    It 'wraps the enumerator in try/catch routed through Write-SwallowedException' {
         $script:DialogContent | Should -Match "Source 'RemovalPersistenceDialog\.Enumerate'"
     }
 

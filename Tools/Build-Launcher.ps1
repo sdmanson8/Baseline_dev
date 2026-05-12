@@ -49,7 +49,6 @@ if (-not (Test-Path -LiteralPath $builtExe -PathType Leaf))
 
 <#
     .SYNOPSIS
-    Internal function Get-PeMachine.
 #>
 
 function Get-PeMachine

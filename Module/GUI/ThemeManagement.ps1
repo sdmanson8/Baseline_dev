@@ -1,4 +1,4 @@
-# Theme palette definitions, fallback/repair, and brush conversion utilities
+﻿# Theme palette definitions, fallback/repair, and brush conversion utilities
 
 	$Script:DarkTheme = @{
 		WindowBg      = "#0E111A"
@@ -9,6 +9,7 @@
 		TabActiveBg   = "#262D40"
 		TabHoverBg    = "#202638"
 		BorderColor   = "#2430445A"
+		BorderStrong  = "#3C4A66"
 		TextPrimary   = "#F4F7FF"
 		TextSecondary = "#CDD6EA"
 		TextMuted     = "#A3ADC6"
@@ -65,74 +66,87 @@
 		StateAccentStrong = "#4FD1A5"
 		ProgressGreen      = "#35D07F"
 		ProgressGreenTrack = "#2A3146"
+		LogBg = "#1E2433"
+		LogDefault = "#F4F7FF"
+		LogInfo = "#7CB7FF"
+		LogSuccess = "#35D07F"
+		LogWarning = "#D6A84A"
+		LogError = "#FF6B8A"
 		SearchHighlightBg = "#FDE68A"
 		SearchHighlightText = "#111827"
 	}
 	$Script:LightTheme = @{
-		WindowBg      = "#F0F2F6"
-		HeaderBg      = "#E9EDF3"
-		PanelBg       = "#F0F2F6"
-		CardBg        = "#FBFCFE"
-		TabBg         = "#E8EDF5"
-		TabActiveBg   = "#1550AA"
-		TabHoverBg    = "#1A60C4"
-		BorderColor   = "#E6EAF0"
-		TextPrimary   = "#1F2937"
+		WindowBg      = "#F3F5F8"
+		HeaderBg      = "#F7F8FA"
+		PanelBg       = "#F3F5F8"
+		CardBg        = "#FFFFFF"
+		TabBg         = "#EEF2F7"
+		TabActiveBg   = "#2563EB"
+		TabHoverBg    = "#1D4ED8"
+		BorderColor   = "#D8DEE8"
+		BorderStrong  = "#B8C2D0"
+		TextPrimary   = "#111827"
 		TextSecondary = "#4B5563"
 		TextMuted     = "#5F6B7A"
 		TextDisabled  = "#6B7788"
-		AccentBlue    = "#1550AA"
-		AccentHover   = "#1A60C4"
-		AccentPress   = "#104090"
-		FocusRing     = "#0D63E0"
-		CautionBg     = "#F5D0D0"
-		CautionBorder = "#A02040"
-		CautionText   = "#A02040"
-		ImpactBadge   = "#A02040"
-		ImpactBadgeBg = "#F5D0D0"
-		LowRiskBadge     = "#2F8F6F"
-		LowRiskBadgeBg   = "#DFF3EC"
-		RiskMediumBadge   = "#7A5A00"
+		AccentBlue    = "#2563EB"
+		AccentHover   = "#1D4ED8"
+		AccentPress   = "#1E40AF"
+		FocusRing     = "#1D4ED8"
+		CautionBg     = "#FEE4E2"
+		CautionBorder = "#FDA29B"
+		CautionText   = "#B42318"
+		ImpactBadge   = "#B42318"
+		ImpactBadgeBg = "#FEE4E2"
+		LowRiskBadge     = "#1F7A4C"
+		LowRiskBadgeBg   = "#DDEDE5"
+		RiskMediumBadge   = "#9A6700"
 		RiskMediumBadgeBg = "#FFF3D0"
-		RiskHighBadge     = "#A02040"
-		RiskHighBadgeBg   = "#F5D0D0"
-		DestructiveSubtleBorder = "#33A02040"
-		DestructiveSubtleHoverBg = "#10A02040"
-		DestructiveSubtlePressBg = "#18A02040"
-		DestructiveBg = "#C0304E"
-		DestructiveHover = "#A02840"
-		SectionLabel  = "#1550AA"
-		ScrollBg          = "#E9EDF3"
+		RiskHighBadge     = "#B42318"
+		RiskHighBadgeBg   = "#FEE4E2"
+		DestructiveSubtleBorder = "#33B42318"
+		DestructiveSubtleHoverBg = "#10B42318"
+		DestructiveSubtlePressBg = "#18B42318"
+		DestructiveBg = "#B42318"
+		DestructiveHover = "#991B1B"
+		SectionLabel  = "#2563EB"
+		ScrollBg          = "#E8EDF4"
 		ScrollThumb       = "#B4B6C2"
 		ScrollThumbHover  = "#8D8FA0"
 		ScrollThumbActive = "#6C6E80"
-		ToggleOn      = "#B34FD1A5"
+		ToggleOn      = "#2563EB"
 		ToggleOff     = "#B02040"
-		StateEnabled  = "#B34FD1A5"
+		StateEnabled  = "#1F7A4C"
 		StateDisabled = "#8B95A6"
-		SearchBg      = "#FBFCFE"
-		SearchBorder  = "#D6DDE8"
+		SearchBg      = "#FFFFFF"
+		SearchBorder  = "#D8DEE8"
 		SearchPlaceholder = "#7A8494"
-		InputBg       = "#FBFCFE"
+		InputBg       = "#FFFFFF"
 		InputHoverBg  = "#F6F8FB"
-		CardBorder    = "#D4DBE7"
-		CardHoverBg   = "#F2F5FA"
-		SecondaryButtonBg = "#FBFCFE"
+		CardBorder    = "#D8DEE8"
+		CardHoverBg   = "#EEF2F7"
+		SecondaryButtonBg = "#FFFFFF"
 		SecondaryButtonHoverBg = "#F2F5FA"
 		SecondaryButtonPressBg = "#E9EEF6"
-		SecondaryButtonBorder = "#D6DDE8"
+		SecondaryButtonBorder = "#D8DEE8"
 		SecondaryButtonFg = "#263248"
-		PresetPanelBg = "#FBFCFE"
-		PresetPanelBorder = "#E6EAF0"
+		PresetPanelBg = "#FFFFFF"
+		PresetPanelBorder = "#D8DEE8"
 		StatusPillBg = "#EEF4FF"
 		StatusPillBorder = "#D7E5FF"
-		StatusPillText = "#0F4EA8"
-		ActiveTabBorder = "#1550AA"
-		ActiveTabIndicator = "#1550AA"
-		StateAccent = "#B34FD1A5"
-		StateAccentStrong = "#4FD1A5"
-		ProgressGreen      = "#6BBFA4"
-		ProgressGreenTrack = "#E1EEE9"
+		StatusPillText = "#1D4ED8"
+		ActiveTabBorder = "#2563EB"
+		ActiveTabIndicator = "#2563EB"
+		StateAccent = "#1F7A4C"
+		StateAccentStrong = "#1F7A4C"
+		ProgressGreen      = "#1F7A4C"
+		ProgressGreenTrack = "#DDEDE5"
+		LogBg = "#F7F8FA"
+		LogDefault = "#1F2937"
+		LogInfo = "#1D4ED8"
+		LogSuccess = "#1F7A4C"
+		LogWarning = "#9A6700"
+		LogError = "#B42318"
 		SearchHighlightBg = "#FDE68A"
 		SearchHighlightText = "#111827"
 	}
@@ -142,7 +156,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Write-GuiThemeFallbackWarning.
 	#>
 
 	function Write-GuiThemeFallbackWarning
@@ -179,7 +192,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiFallbackColor.
 	#>
 
 	function Get-GuiFallbackColor
@@ -201,7 +213,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Repair-GuiThemePalette.
 	#>
 
 	function Repair-GuiThemePalette
@@ -283,7 +294,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Resolve-GuiThemeResourcePath.
 	#>
 
 	function Resolve-GuiThemeResourcePath
@@ -307,7 +317,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Import-GuiThemeResourceDictionary.
 	#>
 
 	function Import-GuiThemeResourceDictionary
@@ -343,7 +352,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-GuiThemeResources.
 	#>
 
 	function Set-GuiThemeResources
@@ -377,7 +385,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function ConvertTo-GuiBrush.
 	#>
 
 	function ConvertTo-GuiBrush
@@ -429,7 +436,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-SafeBrushConverter.
 	#>
 
 	function New-SafeBrushConverter

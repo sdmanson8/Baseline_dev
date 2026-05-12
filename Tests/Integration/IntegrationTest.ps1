@@ -56,7 +56,6 @@ $script:Results  = [System.Collections.Generic.List[pscustomobject]]::new()
 # ---------------------------------------------------------------------------
 <#
     .SYNOPSIS
-    Internal function Write-TestResult.
 #>
 
 function Write-TestResult
@@ -93,7 +92,6 @@ function Write-TestResult
 
 <#
     .SYNOPSIS
-    Internal function Assert-IsAdministrator.
 #>
 
 function Assert-IsAdministrator
@@ -108,7 +106,6 @@ function Assert-IsAdministrator
 
 <#
     .SYNOPSIS
-    Internal function .
 #>
 function Assert-IsWindows
 {
@@ -123,7 +120,6 @@ function Assert-IsWindows
 # ---------------------------------------------------------------------------
 <#
     .SYNOPSIS
-    Internal function Import-BaselineModules.
 #>
 
 function Import-BaselineModules
@@ -147,7 +143,6 @@ function Import-BaselineModules
 # ---------------------------------------------------------------------------
 <#
     .SYNOPSIS
-    Internal function New-IntegrationRestorePoint.
 #>
 
 function New-IntegrationRestorePoint
@@ -176,7 +171,6 @@ function New-IntegrationRestorePoint
 # ---------------------------------------------------------------------------
 <#
     .SYNOPSIS
-    Internal function Get-RegistryValueSnapshot.
 #>
 
 function Get-RegistryValueSnapshot
@@ -223,7 +217,6 @@ function Get-RegistryValueSnapshot
 
 <#
     .SYNOPSIS
-    Internal function Restore-RegistryValueSnapshot.
 #>
 
 function Restore-RegistryValueSnapshot
@@ -253,7 +246,6 @@ function Restore-RegistryValueSnapshot
 
 <#
     .SYNOPSIS
-    Internal function Restore-RegistryValueSnapshots.
 #>
 
 function Restore-RegistryValueSnapshots
@@ -289,7 +281,6 @@ function Restore-RegistryValueSnapshots
 
 <#
     .SYNOPSIS
-    Internal function Get-CompositeRegistryValueEntry.
 #>
 
 function Get-CompositeRegistryValueEntry
@@ -333,7 +324,6 @@ function Get-CompositeRegistryValueEntry
 
 <#
     .SYNOPSIS
-    Internal function Test-RegistryValueMatches.
 #>
 
 function Test-RegistryValueMatches
@@ -408,7 +398,6 @@ function Test-RegistryValueMatches
 
 <#
     .SYNOPSIS
-    Internal function Get-GpuSchedulingSupportStatus.
 #>
 
 function Get-GpuSchedulingSupportStatus
@@ -445,7 +434,6 @@ function Get-GpuSchedulingSupportStatus
 # ---------------------------------------------------------------------------
 <#
     .SYNOPSIS
-    Internal function Invoke-RegistryTests.
 #>
 
 function Invoke-RegistryTests
@@ -607,7 +595,6 @@ function Invoke-RegistryTests
 # ---------------------------------------------------------------------------
 <#
     .SYNOPSIS
-    Internal function Invoke-ServiceTests.
 #>
 
 function Invoke-ServiceTests
@@ -685,7 +672,6 @@ function Invoke-ServiceTests
 # ---------------------------------------------------------------------------
 <#
     .SYNOPSIS
-    Internal function Invoke-PackageTests.
 #>
 
 function Invoke-PackageTests
@@ -738,7 +724,6 @@ function Invoke-PackageTests
 # ---------------------------------------------------------------------------
 <#
     .SYNOPSIS
-    Internal function Invoke-GroupPolicyTests.
 #>
 
 function Invoke-GroupPolicyTests
@@ -840,7 +825,6 @@ function Invoke-GroupPolicyTests
 # ---------------------------------------------------------------------------
 <#
     .SYNOPSIS
-    Internal function Invoke-GameModeTests.
 #>
 
 function Invoke-GameModeTests

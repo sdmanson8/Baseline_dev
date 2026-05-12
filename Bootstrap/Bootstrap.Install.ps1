@@ -3,7 +3,7 @@
     Run the verified Baseline installer payload.
 
     .DESCRIPTION
-    Runs from inside the verified release archive after Bootstrap.ps1 has
+    Runs from inside the verified release zip after Bootstrap.ps1 has
     downloaded the release zip, verified its SHA-256 manifest, and extracted
     the payload. This script locates the setup executable, verifies its hash
     against the same release manifest, runs the installer, and launches the
@@ -46,7 +46,47 @@ $setupHash = Assert-BootstrapReleaseAssetHash -ManifestPath $ManifestPath -Asset
 Write-Host "Verified SHA-256 for $([System.IO.Path]::GetFileName($setupExe)): $setupHash"
 
 Write-Host "Running installer $setupExe..."
-$setupProcess = Start-Process -FilePath $setupExe -Wait -PassThru
+$setupProcess = Start-Process -FilePath $setupExe -PassThru
+
+if (-not $setupProcess.WaitForExit([int][TimeSpan]::FromMinutes(30).TotalMilliseconds))
+{
+    try
+    {
+        $killTreeMethod = $setupProcess.GetType().GetMethod('Kill', [type[]]@([bool]))
+
+        if ($killTreeMethod)
+        {
+            [void]$killTreeMethod.Invoke($setupProcess, @($true))
+        }
+        else
+        {
+            $taskkill = [System.Diagnostics.Process]::new()
+            try
+            {
+                $taskkill.StartInfo.FileName = (Join-Path $env:SystemRoot 'System32\taskkill.exe')
+                $taskkill.StartInfo.Arguments = ('/PID {0} /T /F' -f $setupProcess.Id)
+                $taskkill.StartInfo.UseShellExecute = $false
+                $taskkill.StartInfo.CreateNoWindow = $true
+                [void]$taskkill.Start()
+                if (-not $taskkill.WaitForExit(5000))
+                {
+                    try { $taskkill.Kill() } catch { }
+                }
+            }
+            finally
+            {
+                try { $taskkill.Dispose() } catch { }
+            }
+        }
+    }
+    catch
+    {
+        try { $setupProcess.Kill() } catch { }
+    }
+
+    throw 'Baseline setup timed out after 30 minutes.'
+}
+
 if ($setupProcess.ExitCode -ne 0)
 {
     throw "Baseline installer exited with code $($setupProcess.ExitCode)."
@@ -55,8 +95,7 @@ if ($setupProcess.ExitCode -ne 0)
 $installedExe = Find-InstalledBaselineExecutable
 if (-not $installedExe)
 {
-    Write-Host "$Repository installed. Launch it from the Start Menu - no installed Baseline.exe found in the default locations."
-    return
+    throw "$Repository installer exited successfully, but no installed Baseline.exe was found in the default locations."
 }
 
 $previousPreset = $env:BASELINE_PRESET

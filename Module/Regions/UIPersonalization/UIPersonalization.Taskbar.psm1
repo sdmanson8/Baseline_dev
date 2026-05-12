@@ -1,17 +1,14 @@
 ﻿using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
+
 <#
 	.SYNOPSIS
 	Ensure taskbar registry path.
 
-	
-.DESCRIPTION
-	
-Supports taskbar registry path handling inside Baseline.
-#>
+	#>
 
-function Ensure-TaskbarRegistryPath
+function Ensure-UIPersonalizationTaskbarRegistryPath
 {
 	param
 	(
@@ -41,15 +38,15 @@ Applies Baseline's taskbar and shell placement settings in GUI and headless runs
 	Set the taskbar alignment to the center (default value)
 
 	.EXAMPLE
-	TaskbarAlignment -Center
+	Set-UIPersonalizationTaskbarAlignment -Center
 
 	.EXAMPLE
-	TaskbarAlignment -Left
+	Set-UIPersonalizationTaskbarAlignment -Left
 
 	.NOTES
 	Current user
 #>
-function TaskbarAlignment
+function Set-UIPersonalizationTaskbarAlignment
 {
 	param
 	(
@@ -78,7 +75,7 @@ function TaskbarAlignment
 			LogInfo "Setting the taskbar alignment to the Center"
 			try
 			{
-				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
+				Ensure-UIPersonalizationTaskbarRegistryPath -Path $taskbarAdvancedPath
 				Set-RegistryValueSafe -Path $taskbarAdvancedPath `
 					-Name "TaskbarAl" `
 					-Value 1 `
@@ -97,7 +94,7 @@ function TaskbarAlignment
 			LogInfo "Setting the taskbar alignment to the Left"
 			try
 			{
-				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
+				Ensure-UIPersonalizationTaskbarRegistryPath -Path $taskbarAdvancedPath
 				Set-RegistryValueSafe -Path $taskbarAdvancedPath `
 					-Name "TaskbarAl" `
 					-Value 0 `
@@ -129,15 +126,15 @@ Applies the Baseline behavior for the widgets icon on the taskbar.
 	Show the widgets icon on the taskbar (default value)
 
 	.EXAMPLE
-	TaskbarWidgets -Hide
+	Set-UIPersonalizationTaskbarWidgets -Hide
 
 	.EXAMPLE
-	TaskbarWidgets -Show
+	Set-UIPersonalizationTaskbarWidgets -Show
 
 	.NOTES
 	Current user
 #>
-function TaskbarWidgets
+function Set-UIPersonalizationTaskbarWidgets
 {
 	param
 	(
@@ -224,22 +221,22 @@ Applies the Baseline behavior for search on the taskbar.
 	Show the search box on the taskbar (default value)
 
 	.EXAMPLE
-	TaskbarSearch -Hide
+	Set-UIPersonalizationTaskbarSearch -Hide
 
 	.EXAMPLE
-	TaskbarSearch -SearchIcon
+	Set-UIPersonalizationTaskbarSearch -SearchIcon
 
 	.EXAMPLE
-	TaskbarSearch -SearchIconLabel
+	Set-UIPersonalizationTaskbarSearch -SearchIconLabel
 
 	.EXAMPLE
-	TaskbarSearch -SearchBox
+	Set-UIPersonalizationTaskbarSearch -SearchBox
 
 	.NOTES
 	Current user
 #>
 
-function TaskbarSearch
+function Set-UIPersonalizationTaskbarSearch
 {
 	param
 	(
@@ -291,7 +288,7 @@ function TaskbarSearch
 			LogInfo "Disabling the search on the taskbar"
 			try
 			{
-				Ensure-TaskbarRegistryPath -Path $searchPath
+				Ensure-UIPersonalizationTaskbarRegistryPath -Path $searchPath
 				Set-RegistryValueSafe -Path $searchPath `
 					-Name "SearchboxTaskbarMode" `
 					-Value 0 `
@@ -310,7 +307,7 @@ function TaskbarSearch
 			LogInfo "Enabling the search icon on the taskbar"
 			try
 			{
-				Ensure-TaskbarRegistryPath -Path $searchPath
+				Ensure-UIPersonalizationTaskbarRegistryPath -Path $searchPath
 				Set-RegistryValueSafe -Path $searchPath `
 					-Name "SearchboxTaskbarMode" `
 					-Value 1 `
@@ -329,7 +326,7 @@ function TaskbarSearch
 			LogInfo "Enabling the search icon label on the taskbar"
 			try
 			{
-				Ensure-TaskbarRegistryPath -Path $searchPath
+				Ensure-UIPersonalizationTaskbarRegistryPath -Path $searchPath
 				Set-RegistryValueSafe -Path $searchPath `
 					-Name "SearchboxTaskbarMode" `
 					-Value 3 `
@@ -348,7 +345,7 @@ function TaskbarSearch
 			LogInfo "Enabling the search box on the taskbar"
 			try
 			{
-				Ensure-TaskbarRegistryPath -Path $searchPath
+				Ensure-UIPersonalizationTaskbarRegistryPath -Path $searchPath
 				Set-RegistryValueSafe -Path $searchPath `
 					-Name "SearchboxTaskbarMode" `
 					-Value 2 `
@@ -380,15 +377,15 @@ Applies the Baseline behavior for search highlights.
 	Show search highlights (default value)
 
 	.EXAMPLE
-	SearchHighlights -Hide
+	Set-UIPersonalizationSearchHighlights -Hide
 
 	.EXAMPLE
-	SearchHighlights -Show
+	Set-UIPersonalizationSearchHighlights -Show
 
 	.NOTES
 	Current user
 #>
-function SearchHighlights
+function Set-UIPersonalizationSearchHighlights
 {
 	param
 	(
@@ -429,7 +426,7 @@ function SearchHighlights
 			}
 			else
 			{
-				Ensure-TaskbarRegistryPath -Path $searchSettingsPath
+				Ensure-UIPersonalizationTaskbarRegistryPath -Path $searchSettingsPath
 				Set-RegistryValueSafe -Path $searchSettingsPath `
 					-Name "IsDynamicSearchBoxEnabled" `
 					-Value 0 `
@@ -445,7 +442,7 @@ function SearchHighlights
 			# Enable "Ask Copilot" and "Find results in Web" icons in Windows Search in order to enable Search Highlights
 			Remove-RegistryValueSafe -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Search -Name BingSearchEnabled | Out-Null
 			Remove-RegistryValueSafe -Path HKCU:\Software\Policies\Microsoft\Windows\Explorer -Name DisableSearchBoxSuggestions | Out-Null
-			Ensure-TaskbarRegistryPath -Path $searchSettingsPath
+			Ensure-UIPersonalizationTaskbarRegistryPath -Path $searchSettingsPath
 			Set-RegistryValueSafe -Path $searchSettingsPath `
 				-Name "IsDynamicSearchBoxEnabled" `
 				-Value 1 `
@@ -471,15 +468,15 @@ Applies the Baseline behavior for task view button on the taskbar.
 	Show the Task View button on the taskbar (default value)
 
 	.EXAMPLE
-	TaskViewButton -Hide
+	Set-UIPersonalizationTaskViewButton -Hide
 
 	.EXAMPLE
-	TaskViewButton -Show
+	Set-UIPersonalizationTaskViewButton -Show
 
 	.NOTES
 	Current user
 #>
-function TaskViewButton
+function Set-UIPersonalizationTaskViewButton
 {
 	param
 	(
@@ -513,7 +510,7 @@ function TaskViewButton
 			LogInfo "Disabling the Task view button on the taskbar"
 			try
 			{
-				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
+				Ensure-UIPersonalizationTaskbarRegistryPath -Path $taskbarAdvancedPath
 				Set-RegistryValueSafe -Path $taskbarAdvancedPath `
 					-Name "ShowTaskViewButton" `
 					-Value 0 `
@@ -532,7 +529,7 @@ function TaskViewButton
 			LogInfo "Enabling the Task view button on the taskbar"
 			try
 			{
-				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
+				Ensure-UIPersonalizationTaskbarRegistryPath -Path $taskbarAdvancedPath
 				Set-RegistryValueSafe -Path $taskbarAdvancedPath `
 					-Name "ShowTaskViewButton" `
 					-Value 1 `
@@ -567,19 +564,19 @@ Applies the Baseline behavior for combine taskbar buttons and hide labels.
 	Combine taskbar buttons and never hide labels
 
 	.EXAMPLE
-	TaskbarCombine -Always
+	Set-UIPersonalizationTaskbarCombine -Always
 
 	.EXAMPLE
-	TaskbarCombine -Full
+	Set-UIPersonalizationTaskbarCombine -Full
 
 	.EXAMPLE
-	TaskbarCombine -Never
+	Set-UIPersonalizationTaskbarCombine -Never
 
 	.NOTES
 	Current user
 #>
 
-function TaskbarCombine
+function Set-UIPersonalizationTaskbarCombine
 {
 	param
 	(
@@ -620,7 +617,7 @@ function TaskbarCombine
 			LogInfo "Combine taskbar buttons and always hide labels"
 			try
 			{
-				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
+				Ensure-UIPersonalizationTaskbarRegistryPath -Path $taskbarAdvancedPath
 				Set-RegistryValueSafe -Path $taskbarAdvancedPath `
 					-Name "TaskbarGlomLevel" `
 					-Value 0 `
@@ -639,7 +636,7 @@ function TaskbarCombine
 			LogInfo "Combine taskbar buttons and hide labels when taskbar is full"
 			try
 			{
-				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
+				Ensure-UIPersonalizationTaskbarRegistryPath -Path $taskbarAdvancedPath
 				Set-RegistryValueSafe -Path $taskbarAdvancedPath `
 					-Name "TaskbarGlomLevel" `
 					-Value 1 `
@@ -658,7 +655,7 @@ function TaskbarCombine
 			LogInfo "Combine taskbar buttons and never hide labels"
 			try
 			{
-				Ensure-TaskbarRegistryPath -Path $taskbarAdvancedPath
+				Ensure-UIPersonalizationTaskbarRegistryPath -Path $taskbarAdvancedPath
 				Set-RegistryValueSafe -Path $taskbarAdvancedPath `
 					-Name "TaskbarGlomLevel" `
 					-Value 2 `
@@ -702,13 +699,13 @@ Applies the Baseline behavior for unpin shortcuts from the taskbar.
 	Unpin Microsoft 365 shortcut from the taskbar
 
 	.EXAMPLE
-	UnpinTaskbarShortcuts -Shortcuts Edge, Store, Outlook, Mail, Copilot, Microsoft365
+	Invoke-UIPersonalizationTaskbarShortcutUnpin -Shortcuts Edge, Store, Outlook, Mail, Copilot, Microsoft365
 
 	.NOTES
 	Current user
 #>
 
-function UnpinTaskbarShortcuts
+function Invoke-UIPersonalizationTaskbarShortcutUnpin
 {
 	[CmdletBinding()]
 	param
@@ -721,324 +718,38 @@ function UnpinTaskbarShortcuts
 
 	$TaskbarPinnedPath = Join-Path $env:AppData "Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 	$IsARM64 = ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") -or
-		($env:PROCESSOR_ARCHITEW6432 -eq "ARM64") -or
-		([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq [System.Runtime.InteropServices.Architecture]::Arm64)
+		($env:PROCESSOR_ARCHITEW6432 -eq "ARM64")
+	if (-not $IsARM64)
+	{
+		try
+		{
+			$runtimeInfoType = [type]::GetType('System.Runtime.InteropServices.RuntimeInformation')
+			$architectureType = [type]::GetType('System.Runtime.InteropServices.Architecture')
+			if ($runtimeInfoType -and $architectureType)
+			{
+				$osArchitecture = $runtimeInfoType.GetProperty('OSArchitecture').GetValue($null, $null)
+				$arm64Architecture = [System.Enum]::Parse($architectureType, 'Arm64')
+				$IsARM64 = ($osArchitecture -eq $arm64Architecture)
+			}
+		}
+		catch
+		{
+			Write-SwallowedException -ErrorRecord $_ -Source 'UIPersonalization.Taskbar.OSArchitecture' -Severity Debug
+		}
+	}
 	$IsWindows10 = [System.Environment]::OSVersion.Version.Build -lt 22000
 	# ARM64 and Windows 10 already needed the STA-runspace path (original condition).
-	# AMD64 Windows 11 also needs it â€” direct COM shell verb calls silently do nothing on Win11 x64.
+	# AMD64 Windows 11 also needs it because direct COM shell verb calls silently do nothing on Win11 x64.
 	$NeedsDeferredUnpin = $IsARM64 -or $IsWindows10 -or (-not $IsWindows10 -and -not $IsARM64)
 
 	<#
 	    .SYNOPSIS
 	    Gets taskbar pinned items.
 
-	    
-.DESCRIPTION
-	    
-Supports taskbar pinned items handling inside Baseline.
 	#>
 
-	function Get-TaskbarPinnedItems
-	{
-		if (-not (Test-Path -Path $TaskbarPinnedPath))
-		{
-			return @()
-		}
-
-		$TaskbarShell = (New-Object -ComObject Shell.Application).NameSpace($TaskbarPinnedPath)
-		if ($null -eq $TaskbarShell)
-		{
-			return @()
-		}
-
-		return @($TaskbarShell.Items())
-	}
-
-	<#
-	    .SYNOPSIS
-	    Gets taskbar pinned matches.
-
-	    
-.DESCRIPTION
-	    
-Supports taskbar pinned matches handling inside Baseline.
-	#>
-
-	function Get-TaskbarPinnedMatches
-	{
-		param
-		(
-			[Parameter(Mandatory = $true)]
-			[string[]]$Patterns
-		)
-
-		$NormalizedPatterns = @($Patterns | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-		if ($NormalizedPatterns.Count -eq 0)
-		{
-			return @()
-		}
-
-		return @(Get-TaskbarPinnedItems | Where-Object {
-			$ItemName = $_.Name
-			foreach ($Pattern in $NormalizedPatterns)
-			{
-				if ($ItemName -match $Pattern)
-				{
-					return $true
-				}
-			}
-
-			return $false
-		})
-	}
-
-	<#
-	    .SYNOPSIS
-	    Runs taskbar unpin.
-
-	    
-.DESCRIPTION
-	    
-Supports taskbar unpin handling inside Baseline.
-	#>
-
-	function Invoke-TaskbarUnpin
-	{
-		param
-		(
-			[Parameter(Mandatory = $true)]
-			$ShellItem
-		)
-
-		$verbCandidates = @($LocalizedString, 'Unpin from taskbar', 'Von Taskleiste losen', 'Desanclar de la barra de tareas') |
-			Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
-			Select-Object -Unique
-
-		$unpinVerb = $ShellItem.Verbs() | Where-Object {
-			$verbName = (($_.Name -replace '&', '').Trim())
-			($verbCandidates -contains $verbName) -or
-			($verbName -like '*Unpin*') -or
-			($verbName -like '*taskbar*')
-		} | Select-Object -First 1
-
-		if ($unpinVerb)
-		{
-			try
-			{
-				$unpinVerb.DoIt()
-				return $true
-			}
-			catch [System.UnauthorizedAccessException]
-			{
-				LogWarning "Taskbar unpin verb was denied for '$($ShellItem.Name)'."
-				return $false
-			}
-			catch
-			{
-				LogWarning "Taskbar unpin verb failed for '$($ShellItem.Name)': $($_.Exception.Message)"
-				return $false
-			}
-		}
-
-		return $false
-	}
-
-	<#
-	    .SYNOPSIS
-	    Removes taskbar pinned link.
-
-	    
-.DESCRIPTION
-	    
-Supports taskbar pinned link handling inside Baseline.
-	#>
-
-	function Remove-TaskbarPinnedLink
-	{
-		param
-		(
-			[Parameter(Mandatory = $true)]
-			$ShellItem
-		)
-
-		try
-		{
-			if ([string]::IsNullOrWhiteSpace($ShellItem.Path) -or -not (Test-Path -LiteralPath $ShellItem.Path))
-			{
-				return $false
-			}
-
-			Remove-Item -LiteralPath $ShellItem.Path -Force -ErrorAction Stop
-			LogInfo "Removed taskbar pinned shortcut file '$($ShellItem.Name)' as fallback."
-			return $true
-		}
-		catch
-		{
-			LogWarning "Taskbar shortcut fallback removal failed for '$($ShellItem.Name)': $($_.Exception.Message)"
-			return $false
-		}
-	}
-
-	<#
-	    .SYNOPSIS
-	    Runs taskbar unpin with fallback.
-
-	    
-.DESCRIPTION
-	    
-Supports taskbar unpin with fallback handling inside Baseline.
-	#>
-
-	function Invoke-TaskbarUnpinWithFallback
-	{
-		param
-		(
-			[Parameter(Mandatory = $true)]
-			$ShellItem
-		)
-
-		if (Invoke-TaskbarUnpin -ShellItem $ShellItem)
-		{
-			return $true
-		}
-
-		return (Remove-TaskbarPinnedLink -ShellItem $ShellItem)
-	}
-
-	<#
-	    .SYNOPSIS
-	    Removes taskbar pinned links by pattern.
-
-	    
-.DESCRIPTION
-	    
-Supports taskbar pinned links by pattern handling inside Baseline.
-	#>
-
-	function Remove-TaskbarPinnedLinksByPattern
-	{
-		param
-		(
-			[Parameter(Mandatory = $true)]
-			[string[]]$Patterns
-		)
-
-		if (-not (Test-Path -Path $TaskbarPinnedPath))
-		{
-			return $false
-		}
-
-		$RemovedAny = $false
-		$LinkFiles = Get-ChildItem -Path $TaskbarPinnedPath -Filter "*.lnk" -ErrorAction SilentlyContinue
-		foreach ($LinkFile in $LinkFiles)
-		{
-			$MatchesPattern = $false
-			foreach ($Pattern in $Patterns)
-			{
-				if ($LinkFile.Name -like $Pattern)
-				{
-					$MatchesPattern = $true
-					break
-				}
-			}
-
-			if (-not $MatchesPattern)
-			{
-				continue
-			}
-
-			try
-			{
-				Remove-Item -LiteralPath $LinkFile.FullName -Force -ErrorAction Stop
-				LogInfo "Removed taskbar pinned shortcut file '$($LinkFile.Name)' by filename fallback."
-				$RemovedAny = $true
-			}
-			catch
-			{
-				LogWarning "Filename fallback removal failed for '$($LinkFile.Name)': $($_.Exception.Message)"
-			}
-		}
-
-		return $RemovedAny
-	}
-
-	<#
-	    .SYNOPSIS
-	    Runs ARM64 shell unpin.
-
-	    
-.DESCRIPTION
-	    
-Supports ARM64 shell unpin handling inside Baseline.
-	#>
-
-	function Invoke-ARM64ShellUnpin
-	{
-		<#
-			.SYNOPSIS
-			ARM64 fallback: Unpin apps using COM shell verb in an in-process STA runspace with timeout.
-			On ARM64, direct COM calls can hang so we run them on a background thread.
-		#>
-		param
-		(
-			[Parameter(Mandatory = $true)]
-			[string[]]$AppNames,
-
-			[int]$TimeoutSeconds = 15
-		)
-
-		$Runspace = [runspacefactory]::CreateRunspace()
-		$Runspace.ApartmentState = "STA"
-		$Runspace.Open()
-
-		$PS = [powershell]::Create()
-		$PS.Runspace = $Runspace
-
-		$null = $PS.AddScript({
-			param ($Names, $PinnedPath)
-			$Shell = New-Object -ComObject Shell.Application
-			$AppsFolder = $Shell.NameSpace("shell:::{4234d49b-0245-4df3-b780-3893943456e1}")
-			$Pinned = $Shell.NameSpace($PinnedPath)
-
-			$VerbCandidates = @('Unpin from taskbar', 'Von Taskleiste losen', 'Desanclar de la barra de tareas',
-				'Detacher de la barre des taches', 'Rimuovi dalla barra delle applicazioni')
-
-			$Items = @()
-			if ($Pinned) { $Items += @($Pinned.Items()) }
-			if ($AppsFolder) { $Items += @($AppsFolder.Items()) }
-
-			foreach ($Name in $Names)
-			{
-				$MatchingItems = @($Items | Where-Object { $_.Name -match $Name })
-				foreach ($Item in $MatchingItems)
-				{
-					$UnpinVerb = $Item.Verbs() | Where-Object {
-						$VerbName = (($_.Name -replace '&', '').Trim())
-						($VerbCandidates -contains $VerbName) -or ($VerbName -match 'Unpin.*taskbar') -or ($VerbName -match 'taskbar.*unpin')
-					} | Select-Object -First 1
-
-					if ($UnpinVerb)
-					{
-						try { $UnpinVerb.DoIt() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UIPersonalization.Taskbar.UnpinTaskbarShortcuts.DoIt' }
-					}
-				}
-			}
-		}).AddArgument($AppNames).AddArgument($TaskbarPinnedPath)
-
-		$AsyncResult = $PS.BeginInvoke()
-
-		if (-not $AsyncResult.AsyncWaitHandle.WaitOne([TimeSpan]::FromSeconds($TimeoutSeconds)))
-		{
-			LogWarning "ARM64 shell unpin timed out after $TimeoutSeconds seconds."
-		}
-		else
-		{
-			try { $PS.EndInvoke($AsyncResult) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UIPersonalization.Taskbar.UnpinTaskbarShortcuts.EndInvoke' }
-		}
-
-		$PS.Dispose()
-		$Runspace.Dispose()
-	}
+			# P5 rollback checkpoint: Invoke-UIPersonalizationTaskbarShortcutUnpin part extracted to Module/Regions/UIPersonalization/Taskbar/Invoke-UIPersonalizationTaskbarShortcutUnpin/PinnedItemHelpers.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'Taskbar\Invoke-UIPersonalizationTaskbarShortcutUnpin\PinnedItemHelpers.ps1')
 
 	# Extract the localized "Unpin from taskbar" string from shell32.dll
 	$LocalizedString = [WinAPI.GetStrings]::GetString(5387)
@@ -1052,260 +763,13 @@ Supports ARM64 shell unpin handling inside Baseline.
 	# Always initialize the list; populated on ARM64 and Windows 10
 	$DeferredUnpinNames = [System.Collections.Generic.List[string]]::new()
 
-	foreach ($Shortcut in $Shortcuts)
-	{
-		switch ($Shortcut)
-		{
-			Mail
-			{
-				$MailPatterns = @('^Mail$', 'Mail and Calendar', 'Outlook \(new\)', 'Outlook for Windows')
-				$MailFallbackPatterns = @('Mail*.lnk', '*Outlook*.lnk')
-
-				if ($NeedsDeferredUnpin)
-				{
-					$null = Remove-TaskbarPinnedLinksByPattern -Patterns $MailFallbackPatterns
-					$DeferredUnpinNames.Add('^Mail$')
-					$DeferredUnpinNames.Add('Mail and Calendar')
-					$DeferredUnpinNames.Add('Outlook \(new\)')
-					$DeferredUnpinNames.Add('Outlook for Windows')
-				}
-				else
-				{
-					$MailItems = @(
-						Get-TaskbarPinnedMatches -Patterns $MailPatterns
-						$AppsFolder.Items() | Where-Object {
-							$_.Name -match 'Mail' -or
-							$_.Name -match 'Outlook \(new\)' -or
-							$_.Name -match 'Outlook for Windows'
-						}
-					) | Select-Object -Unique
-
-					if ($MailItems)
-					{
-						$MailItems | ForEach-Object {
-							if (-not (Invoke-TaskbarUnpinWithFallback -ShellItem $_))
-							{
-								$UnpinFailures++
-							}
-						}
-						$null = Remove-TaskbarPinnedLinksByPattern -Patterns $MailFallbackPatterns
-					}
-					else
-					{
-						LogInfo "Taskbar shortcut target 'Mail' was not found."
-						$UnpinMisses++
-						$null = Remove-TaskbarPinnedLinksByPattern -Patterns $MailFallbackPatterns
-					}
-				}
-			}
-			Edge
-			{
-				$EdgeFallbackPatterns = @('Microsoft Edge*.lnk', 'Edge*.lnk')
-
-				if ($NeedsDeferredUnpin)
-				{
-					$null = Remove-TaskbarPinnedLinksByPattern -Patterns $EdgeFallbackPatterns
-					$DeferredUnpinNames.Add('Microsoft Edge')
-				}
-				else
-				{
-					$EdgeItems = @(Get-TaskbarPinnedMatches -Patterns @('Microsoft Edge', '^Edge$'))
-					if ($EdgeItems)
-					{
-						$EdgeItems | ForEach-Object {
-							if (-not (Invoke-TaskbarUnpinWithFallback -ShellItem $_))
-							{
-								$UnpinFailures++
-							}
-						}
-						$null = Remove-TaskbarPinnedLinksByPattern -Patterns $EdgeFallbackPatterns
-					}
-					else
-					{
-						LogInfo "Taskbar shortcut target 'Edge' was not found."
-						$UnpinMisses++
-						$null = Remove-TaskbarPinnedLinksByPattern -Patterns $EdgeFallbackPatterns
-					}
-				}
-			}
-			Store
-			{
-				$StoreFallbackPatterns = @('Microsoft Store*.lnk', '*Store*.lnk')
-
-				if ($NeedsDeferredUnpin)
-				{
-					$null = Remove-TaskbarPinnedLinksByPattern -Patterns $StoreFallbackPatterns
-					$DeferredUnpinNames.Add('Microsoft Store')
-				}
-				else
-				{
-					$StoreItems = @(
-						Get-TaskbarPinnedMatches -Patterns @('Microsoft Store', '^Store$')
-						$AppsFolder.Items() | Where-Object -FilterScript {
-							$_.Name -eq "Microsoft Store" -or
-							$_.Name -eq "Store"
-						}
-					) | Select-Object -Unique
-					if ($StoreItems)
-					{
-						$StoreItems | ForEach-Object {
-							if (-not (Invoke-TaskbarUnpinWithFallback -ShellItem $_))
-							{
-								$UnpinFailures++
-							}
-						}
-						$null = Remove-TaskbarPinnedLinksByPattern -Patterns $StoreFallbackPatterns
-					}
-					else
-					{
-						LogInfo "Taskbar shortcut target 'Store' was not found."
-						$UnpinMisses++
-						$null = Remove-TaskbarPinnedLinksByPattern -Patterns $StoreFallbackPatterns
-					}
-				}
-			}
-			Outlook
-			{
-				$OutlookPatterns = @('Outlook', 'Mail and Calendar')
-				$OutlookFallbackPatterns = @('*Outlook*.lnk', 'Mail*.lnk', '*Office*.lnk')
-
-				if ($NeedsDeferredUnpin)
-				{
-					$null = Remove-TaskbarPinnedLinksByPattern -Patterns $OutlookFallbackPatterns
-					$DeferredUnpinNames.Add('Outlook')
-					$DeferredUnpinNames.Add('Mail and Calendar')
-				}
-				else
-				{
-					$OutlookItems = @(
-						Get-TaskbarPinnedMatches -Patterns $OutlookPatterns
-						$AppsFolder.Items() | Where-Object -FilterScript {
-							$_.Name -match 'Outlook' -or
-							$_.Name -eq 'Mail and Calendar'
-						}
-					) | Select-Object -Unique
-					if ($OutlookItems)
-					{
-						$OutlookItems | ForEach-Object {
-							if (-not (Invoke-TaskbarUnpinWithFallback -ShellItem $_))
-							{
-								$UnpinFailures++
-							}
-						}
-						$null = Remove-TaskbarPinnedLinksByPattern -Patterns $OutlookFallbackPatterns
-					}
-					else
-					{
-						LogInfo "Taskbar shortcut target 'Outlook' was not found."
-						$UnpinMisses++
-						$null = Remove-TaskbarPinnedLinksByPattern -Patterns $OutlookFallbackPatterns
-					}
-				}
-			}
-			Copilot
-			{
-				# Disable the dedicated Copilot taskbar button
-				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
-					-Name "ShowCopilotButton" `
-					-Value 0 `
-					-Type DWord
-
-				# Disable Copilot companion in taskbar search
-				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" `
-					-Name "TaskbarCompanion" `
-					-Value 0 `
-					-Type DWord
-
-				$CopilotPinPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins"
-
-				if (-not (Test-Path -Path $CopilotPinPath))
-				{
-					New-Item -Path $CopilotPinPath -Force | Out-Null
-				}
-
-				Set-RegistryValueSafe -Path $CopilotPinPath `
-					-Name "CopilotPWAPin" `
-					-Value 0 `
-					-Type DWord
-				Set-RegistryValueSafe -Path $CopilotPinPath `
-					-Name "RecallPin" `
-					-Value 0 `
-					-Type DWord
-
-				if ($NeedsDeferredUnpin)
-				{
-					$null = Remove-TaskbarPinnedLinksByPattern -Patterns @('*Copilot*.lnk', '*Recall*.lnk')
-					$DeferredUnpinNames.Add('Copilot')
-				}
-				else
-				{
-					$CopilotItems = @(
-						Get-TaskbarPinnedMatches -Patterns @('Copilot', 'Recall')
-						$AppsFolder.Items() | Where-Object -FilterScript {
-							$_.Name -match 'Copilot'
-						}
-					) | Select-Object -Unique
-					if ($CopilotItems)
-					{
-						$CopilotItems | ForEach-Object {
-							if (-not (Invoke-TaskbarUnpinWithFallback -ShellItem $_))
-							{
-								$UnpinFailures++
-							}
-						}
-					}
-					else
-					{
-						LogInfo "Taskbar shortcut target 'Copilot' was not found."
-						$UnpinMisses++
-					}
-				}
-			}
-			Microsoft365
-			{
-				$Microsoft365FallbackPatterns = @('*Microsoft 365*.lnk', '*Office*.lnk')
-
-				if ($NeedsDeferredUnpin)
-				{
-					$null = Remove-TaskbarPinnedLinksByPattern -Patterns $Microsoft365FallbackPatterns
-					$DeferredUnpinNames.Add('Microsoft 365')
-					$DeferredUnpinNames.Add('^Office$')
-				}
-				else
-				{
-					$Microsoft365Items = @(
-						Get-TaskbarPinnedMatches -Patterns @('Microsoft 365', 'Office')
-						$AppsFolder.Items() | Where-Object -FilterScript {
-							$_.Name -match "Microsoft 365" -or
-							$_.Name -match "Office"
-						}
-					) | Select-Object -Unique
-
-					if ($Microsoft365Items)
-					{
-						$Microsoft365Items | ForEach-Object {
-							if (-not (Invoke-TaskbarUnpinWithFallback -ShellItem $_))
-							{
-								$UnpinFailures++
-							}
-						}
-						$null = Remove-TaskbarPinnedLinksByPattern -Patterns $Microsoft365FallbackPatterns
-					}
-					else
-					{
-						LogInfo "Taskbar shortcut target 'Microsoft365' was not found."
-						$UnpinMisses++
-						$null = Remove-TaskbarPinnedLinksByPattern -Patterns $Microsoft365FallbackPatterns
-					}
-				}
-			}
-		}
-	}
+			# P5 rollback checkpoint: Invoke-UIPersonalizationTaskbarShortcutUnpin part extracted to Module/Regions/UIPersonalization/Taskbar/Invoke-UIPersonalizationTaskbarShortcutUnpin/ShortcutUnpinWorkflow.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'Taskbar\Invoke-UIPersonalizationTaskbarShortcutUnpin\ShortcutUnpinWorkflow.ps1')
 
 	# ARM64 and Windows 10: run COM unpin in a background STA runspace with timeout
 	if ($NeedsDeferredUnpin -and $DeferredUnpinNames.Count -gt 0)
 	{
-		Invoke-ARM64ShellUnpin -AppNames $DeferredUnpinNames.ToArray() -TimeoutSeconds 15
+		Invoke-UIPersonalizationARM64ShellUnpin -AppNames $DeferredUnpinNames.ToArray() -TimeoutSeconds 15
 	}
 
 	# Restart Explorer to apply taskbar changes
@@ -1313,7 +777,7 @@ Supports ARM64 shell unpin handling inside Baseline.
 	{
 		Stop-Process -Name "explorer" -Force -ErrorAction SilentlyContinue
 		Start-Sleep -Milliseconds 500
-		Start-Process "explorer.exe" -ErrorAction SilentlyContinue
+		[void](Invoke-UserLaunch -FilePath "explorer.exe" -Description "Explorer shell restart after taskbar unpin")
 	}
 	catch
 	{
@@ -1346,15 +810,15 @@ Applies the Baseline behavior for end task in taskbar by right click.
 	Disable end task in taskbar by right click (default value)
 
 	.EXAMPLE
-	TaskbarEndTask -Enable
+	Set-UIPersonalizationTaskbarEndTask -Enable
 
 	.EXAMPLE
-	TaskbarEndTask -Disable
+	Set-UIPersonalizationTaskbarEndTask -Disable
 
 	.NOTES
 	Current user
 #>
-function TaskbarEndTask
+function Set-UIPersonalizationTaskbarEndTask
 {
 	param
 	(
@@ -1387,7 +851,7 @@ function TaskbarEndTask
 			try
 			{
 				Set-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings" `
-					-Name "TaskbarEndTask" `
+					-Name "Set-UIPersonalizationTaskbarEndTask" `
 					-Value 1 `
 					-Type DWord
 				Write-ConsoleStatus -Status success
@@ -1404,9 +868,9 @@ function TaskbarEndTask
 			LogInfo "Disabling 'End task in taskbar by right click'"
 			try
 			{
-				if (Get-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings -Name TaskbarEndTask -ErrorAction SilentlyContinue)
+				if (Get-ItemProperty -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings -Name Set-UIPersonalizationTaskbarEndTask -ErrorAction SilentlyContinue)
 				{
-					Remove-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings" -Name "TaskbarEndTask"
+					Remove-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings" -Name "Set-UIPersonalizationTaskbarEndTask"
 				}
 				Write-ConsoleStatus -Status success
 			}
@@ -1679,7 +1143,7 @@ function BatteryPercentage
 	}
 	catch
 	{
-		Write-DebugSwallowedException -ErrorRecord $_ -Source 'UIPersonalization.Taskbar.BatteryPercentage.Detect'
+		Write-SwallowedException -ErrorRecord $_ -Source 'UIPersonalization.Taskbar.BatteryPercentage.Detect'
 	}
 
 	if (-not $hasBattery)
@@ -1728,5 +1192,19 @@ function BatteryPercentage
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'BatteryPercentage',
+    'Ensure-UIPersonalizationTaskbarRegistryPath',
+    'Set-UIPersonalizationSearchHighlights',
+    'Set-AltTabEdgeTabFilter',
+    'Set-SmallTaskbarIcons',
+    'Set-TaskbarAcrylicOpacity',
+    'Set-UIPersonalizationTaskbarAlignment',
+    'Set-UIPersonalizationTaskbarCombine',
+    'Set-UIPersonalizationTaskbarEndTask',
+    'Set-UIPersonalizationTaskbarSearch',
+    'Set-UIPersonalizationTaskbarWidgets',
+    'Set-UIPersonalizationTaskViewButton',
+    'Invoke-UIPersonalizationTaskbarShortcutUnpin'
+)
+Export-ModuleMember -Function $ExportedFunctions

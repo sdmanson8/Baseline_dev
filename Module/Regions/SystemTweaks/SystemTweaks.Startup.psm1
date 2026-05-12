@@ -6,13 +6,13 @@ Startup-folder / Run-key enumerator and per-entry enable / disable.
 Closes the tracked startup issue.
 Baseline already manages service startup type per-row and per-app autostart
 suppression for Windows-bundled apps, but had no general "manage which
-third-party apps run on boot" surface like Task Manager â†’ Startup. The original
+third-party apps run on boot" surface like Task Manager -> Startup. The original
 does not ship this either.
 
 This module provides the back-end enumerator and bit-flip primitives the
 Customizations tab and Startup Manager dialog use:
 
-  Get-BaselineStartupEntries     Enumerates HKLM\â€¦\Run / RunOnce, HKCU\â€¦\Run /
+  Get-BaselineStartupEntries     Enumerates HKLM\...\Run / RunOnce, HKCU\...\Run /
                                  RunOnce, the per-user and per-machine Startup
                                  folders' .lnk files, and merges in the
                                  StartupApproved status bytes (the same
@@ -27,7 +27,7 @@ Customizations tab and Startup Manager dialog use:
                                  into the matching StartupApproved value
                                  (Run, Run32, or StartupFolder). Toggling
                                  'On' writes 02 00 00 00 + zeros. The Run
-                                 entry itself is never deleted â€” Task Manager
+                                 entry itself is never deleted -- Task Manager
                                  behaviour, recoverable from the StartupApproved
                                  key alone, never destructive.
 

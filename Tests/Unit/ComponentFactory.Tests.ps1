@@ -1,9 +1,8 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     <#
         .SYNOPSIS
-        Internal function Get-UxLocalizedString.
     #>
 
     function Get-UxLocalizedString {

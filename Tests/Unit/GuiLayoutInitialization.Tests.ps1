@@ -1,11 +1,16 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $guiCommonPath = Join-Path $PSScriptRoot '../../Module/GUICommon.psm1'
     $guiCommonLayoutPath = Join-Path $PSScriptRoot '../../Module/GUICommon/Layout.ps1'
     $guiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
-    $guiCommonContent = (Get-Content -LiteralPath $guiCommonPath -Raw -Encoding UTF8) + "`n" + (Get-Content -LiteralPath $guiCommonLayoutPath -Raw -Encoding UTF8)
-    $guiContent = Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
+    $guiCommonContent = (Get-BaselineTestSourceText -Path $guiCommonPath) + "`n" + (Get-BaselineTestSourceText -Path $guiCommonLayoutPath)
+    $guiContent = Get-BaselineTestSourceText -Path $guiPath
 }
 
 Describe 'GUI layout sharing' {
@@ -15,8 +20,8 @@ Describe 'GUI layout sharing' {
     }
 
     It 'exports the shared GUI font-size resolver from GUICommon' {
-        $guiCommonContent | Should -Match 'function Get-GuiSafeFontSize'
-        $guiCommonContent | Should -Match "'Get-GuiSafeFontSize'"
+        $guiCommonContent | Should -Match 'function Get-GuiCommonSafeFontSize'
+        $guiCommonContent | Should -Match "'Get-GuiCommonSafeFontSize'"
     }
 
     It 'exposes a shared layout accessor from GUICommon' {

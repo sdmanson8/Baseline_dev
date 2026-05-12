@@ -1,9 +1,8 @@
-# Pre-flight validation checks that run before execution begins.
+﻿# Pre-flight validation checks that run before execution begins.
 # Catches system-level problems early instead of mid-run.
 
 <#
     .SYNOPSIS
-    Internal function New-PreflightCheckResult.
 #>
 
 function New-PreflightCheckResult
@@ -53,7 +52,6 @@ function New-PreflightCheckResult
 
 <#
     .SYNOPSIS
-    Internal function New-BaselineRiskCategory.
 
     .DESCRIPTION
     Builds a structured risk category record surfaced in preflight, preview,
@@ -102,7 +100,6 @@ function New-BaselineRiskCategory
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRiskCategoryList.
 
     .DESCRIPTION
     Translates raw preflight checks and rollout history into the structured
@@ -266,7 +263,6 @@ function Get-BaselineRiskCategoryList
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselinePartialSuccessRolloutRisk.
 
     .DESCRIPTION
     Inspects recent rollout outcomes and, when partial-success outcomes are
@@ -293,7 +289,7 @@ function Get-BaselinePartialSuccessRolloutRisk
     }
     catch
     {
-        Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreflightChecks.Get-BaselinePartialSuccessRolloutRisk.LoadOutcomes'
+        Write-SwallowedException -ErrorRecord $_ -Source 'PreflightChecks.Get-BaselinePartialSuccessRolloutRisk.LoadOutcomes'
         return $null
     }
 
@@ -339,7 +335,6 @@ function Get-BaselinePartialSuccessRolloutRisk
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRiskCategorySummaryText.
 
     .DESCRIPTION
     Produces a single-line summary suitable for status cards when one or
@@ -364,7 +359,6 @@ function Get-BaselineRiskCategorySummaryText
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselinePreflightContract.
 #>
 
 function Get-BaselinePreflightContract
@@ -488,7 +482,6 @@ function Get-BaselinePreflightContract
 
 <#
     .SYNOPSIS
-    Internal function Test-PreflightHostTaint.
 #>
 
 function Test-PreflightHostTaint
@@ -500,8 +493,8 @@ function Test-PreflightHostTaint
     }
 
     $level = if ($assessment.PSObject.Properties['Level']) { [string]$assessment.Level } else { 'None' }
-    $detected = if ($assessment.PSObject.Properties['Detected']) { @($assessment.Detected | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ }) } else { @() }
-    $advisoryUrls = if ($assessment.PSObject.Properties['AdvisoryUrls']) { @($assessment.AdvisoryUrls | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ }) } else { @() }
+    $detected = @(if ($assessment.PSObject.Properties['Detected']) { $assessment.Detected | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ } })
+    $advisoryUrls = @(if ($assessment.PSObject.Properties['AdvisoryUrls']) { $assessment.AdvisoryUrls | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ } })
     $backdoorFound = if ($assessment.PSObject.Properties['BackdoorFound']) { [bool]$assessment.BackdoorFound } else { $false }
     $detectedText = if ($detected.Count -gt 0) { $detected -join ', ' } else { 'none' }
 
@@ -548,7 +541,6 @@ function Test-PreflightHostTaint
 
 <#
     .SYNOPSIS
-    Internal function Test-PreflightAdminElevation.
 #>
 
 function Test-PreflightAdminElevation
@@ -573,7 +565,6 @@ function Test-PreflightAdminElevation
 
 <#
     .SYNOPSIS
-    Internal function Test-PreflightDiskSpace.
 #>
 
 function Test-PreflightDiskSpace
@@ -599,7 +590,6 @@ function Test-PreflightDiskSpace
 
 <#
     .SYNOPSIS
-    Internal function Test-PreflightVSS.
 #>
 
 function Test-PreflightVSS
@@ -625,7 +615,6 @@ function Test-PreflightVSS
 
 <#
     .SYNOPSIS
-    Internal function Test-PreflightEventLog.
 #>
 
 function Test-PreflightEventLog
@@ -647,7 +636,6 @@ function Test-PreflightEventLog
 
 <#
     .SYNOPSIS
-    Internal function Test-PreflightWMI.
 #>
 
 function Test-PreflightWMI
@@ -663,10 +651,6 @@ function Test-PreflightWMI
     }
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Test-PreflightSystemRestore
 {
     try
@@ -688,7 +672,7 @@ function Test-PreflightSystemRestore
             $srpStatus = Get-CimInstance -ClassName SystemRestoreConfig -Namespace 'root\default' -ErrorAction Stop
             if ($srpStatus -and $srpStatus.RPSessionInterval -eq 1) { $srpEnabled = $true }
         }
-        catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreflightChecks.TestPreflightSystemRestore.LoadSrpStatus'; $srpEnabled = $false }
+        catch { Write-SwallowedException -ErrorRecord $_ -Source 'PreflightChecks.TestPreflightSystemRestore.LoadSrpStatus'; $srpEnabled = $false }
 
         if ($srpEnabled)
         {
@@ -705,7 +689,6 @@ function Test-PreflightSystemRestore
 
 <#
     .SYNOPSIS
-    Internal function Test-PreflightManagedPolicyEnvironment.
 #>
 
 function Test-PreflightManagedPolicyEnvironment
@@ -719,7 +702,7 @@ function Test-PreflightManagedPolicyEnvironment
         }
         catch
         {
-            Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreflightChecks.TestPreflightManagedPolicyEnvironment.LoadDomainJoined'
+            Write-SwallowedException -ErrorRecord $_ -Source 'PreflightChecks.TestPreflightManagedPolicyEnvironment.LoadDomainJoined'
             $domainJoined = $false
         }
 
@@ -743,7 +726,7 @@ function Test-PreflightManagedPolicyEnvironment
                     [void]$activePolicies.Add($path)
                 }
             }
-            catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreflightChecks.TestPreflightManagedPolicyEnvironment.TestPathPolicy' }
+            catch { Write-SwallowedException -ErrorRecord $_ -Source 'PreflightChecks.TestPreflightManagedPolicyEnvironment.TestPathPolicy' }
         }
 
         if (-not $domainJoined -and $activePolicies.Count -eq 0)
@@ -780,7 +763,6 @@ function Test-PreflightManagedPolicyEnvironment
 
 <#
     .SYNOPSIS
-    Internal function Test-PreflightPendingReboot.
 #>
 
 function Test-PreflightPendingReboot
@@ -819,7 +801,6 @@ function Test-PreflightPendingReboot
 
 <#
     .SYNOPSIS
-    Internal function Test-PreflightWinRMReachability.
 #>
 
 function Test-PreflightWinRMReachability
@@ -881,7 +862,6 @@ function Test-PreflightWinRMReachability
 
 <#
     .SYNOPSIS
-    Internal function Test-PreflightRestorePointCreation.
 #>
 
 function Test-PreflightRestorePointCreation
@@ -909,7 +889,6 @@ function Test-PreflightRestorePointCreation
 
 <#
     .SYNOPSIS
-    Internal function Invoke-PreflightChecks.
 #>
 
 function Invoke-PreflightChecks
@@ -982,7 +961,6 @@ function Invoke-PreflightChecks
 
 <#
     .SYNOPSIS
-    Internal function Show-PreflightResultsDialog.
 #>
 
 function Show-PreflightResultsDialog

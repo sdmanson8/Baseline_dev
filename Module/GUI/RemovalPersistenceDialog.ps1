@@ -62,9 +62,9 @@ function Show-GuiRemovalPersistenceDialog
 	}
 	catch
 	{
-		if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemovalPersistenceDialog.Enumerate'
+			Write-SwallowedException -ErrorRecord $_ -Source 'RemovalPersistenceDialog.Enumerate'
 		}
 		$entries = @()
 	}
@@ -264,9 +264,9 @@ function Show-GuiRemovalPersistenceDialog
 				catch
 				{
 					$ok = $false
-					if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemovalPersistenceDialog.Unregister'
+						Write-SwallowedException -ErrorRecord $_ -Source 'RemovalPersistenceDialog.Unregister'
 					}
 				}
 				if (-not $ok)

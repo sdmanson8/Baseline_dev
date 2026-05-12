@@ -1,8 +1,13 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $filePath = Join-Path $PSScriptRoot '../../Module/GUI/SessionState.ps1'
-    $script:SessionStateContent = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8
+    $script:SessionStateContent = Get-BaselineTestSourceText -Path $filePath
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
         foreach ($fn in $functions) {
@@ -77,17 +82,15 @@ Describe 'First-run welcome state' {
 
         <#
             .SYNOPSIS
-            Internal function Get-GuiSettingsProfileDirectory.
         #>
 
-        function Get-GuiSettingsProfileDirectory {
+        function Get-BaselineGuiSettingsProfileDirectory {
             param ([string]$AppName = 'Baseline')
             return $script:TestGuiSettingsProfileDirectory
         }
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogWarning {
             param ([string]$Message)
@@ -96,7 +99,7 @@ Describe 'First-run welcome state' {
 
     AfterEach {
         Remove-Item -LiteralPath $script:TestGuiSettingsProfileDirectory -Recurse -Force -ErrorAction SilentlyContinue
-        Remove-Item Function:\Get-GuiSettingsProfileDirectory -ErrorAction SilentlyContinue
+        Remove-Item Function:\Get-BaselineGuiSettingsProfileDirectory -ErrorAction SilentlyContinue
         Remove-Item Function:\LogWarning -ErrorAction SilentlyContinue
     }
 
@@ -116,6 +119,11 @@ Describe 'First-run welcome state' {
 Describe 'GUI session snapshots' {
     BeforeEach {
         $script:CurrentThemeName = 'Dark'
+        $script:ThemePreference = $null
+        $script:ChkTheme = $null
+        $script:PrimaryTabs = $null
+        $script:SelectedLanguage = $null
+        $script:CurrentPrimaryTab = $null
         $script:SearchText = ''
         $script:AppsSearchText = ''
         $script:UIDensity = 'Compact'
@@ -131,16 +139,28 @@ Describe 'GUI session snapshots' {
         $script:AdvancedMode = $false
         $script:SafeMode = $false
         $script:GameMode = $false
+        $script:GameModeProfile = $null
+        $script:GameModeCorePlan = @()
+        $script:GameModePlan = @()
+        $script:GameModeDecisionOverrides = $null
+        $script:GameModeAdvancedSelections = $null
         $script:DesignMode = $true
         $script:AppsModeActive = $false
         $script:UpdatesModeActive = $false
+        $script:DeploymentMediaModeActive = $false
         $script:AutoScanOnLaunch = $true
         $script:RestoreLastSession = $false
+        $script:AutoCheckUpdates = $false
+        $script:UpdateCheckFrequency = 'Weekly'
+        $script:UpdateBranch = 'Beta'
+        $script:IncludePrereleaseUpdates = $true
         $script:RequireRunConfirmation = $false
         $script:PreviewBeforeRunDefault = $true
         $script:AppsAutoUpdate = $true
         $script:AppsSilentInstall = $false
         $script:LoggingEnabled = $false
+        $script:DebugLoggingEnabled = $true
+        $script:LogLevel = 'Debug'
         $script:ExperimentalFeatures = $true
         $script:RiskFilter = 'All'
         $script:CategoryFilter = 'All'
@@ -177,11 +197,17 @@ Describe 'GUI session snapshots' {
         $snapshot.UIDensity | Should -Be 'Compact'
         $snapshot.AutoScanOnLaunch | Should -Be $true
         $snapshot.RestoreLastSession | Should -Be $false
+        $snapshot.AutoCheckUpdates | Should -Be $false
+        $snapshot.UpdateCheckFrequency | Should -Be 'Weekly'
+        $snapshot.UpdateBranch | Should -Be 'Beta'
+        $snapshot.IncludePrereleaseUpdates | Should -Be $true
         $snapshot.RequireRunConfirmation | Should -Be $false
         $snapshot.PreviewBeforeRunDefault | Should -Be $true
         $snapshot.AppsAutoUpdate | Should -Be $true
         $snapshot.AppsSilentInstall | Should -Be $false
         $snapshot.LoggingEnabled | Should -Be $false
+        $snapshot.DebugLoggingEnabled | Should -Be $true
+        $snapshot.LogLevel | Should -Be 'Debug'
         $snapshot.ExperimentalFeatures | Should -Be $true
         $snapshot.DesignMode | Should -Be $true
         $snapshot.HideUnavailableItems | Should -Be $true
@@ -200,6 +226,13 @@ Describe 'GUI session snapshots' {
         $updatesSnapshot = Get-GuiSettingsSnapshot
 
         $updatesSnapshot.NavigationMode | Should -Be 'Updates'
+
+        $script:UpdatesModeActive = $false
+        $script:DeploymentMediaModeActive = $true
+
+        $deploymentMediaSnapshot = Get-GuiSettingsSnapshot
+
+        $deploymentMediaSnapshot.NavigationMode | Should -Be 'DeploymentMedia'
     }
 
     It 'captures Expert Mode from the canonical GUI mode context' {
@@ -246,6 +279,25 @@ Describe 'GUI session restore mode wiring' {
         $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''DefaultStartupMode'' -Value \$Script:DefaultStartupMode'
     }
 
+    It 'round-trips update behavior settings through session restore' {
+        $script:SessionStateContent | Should -Match 'AutoCheckUpdates = if \(\$null -ne \$Script:AutoCheckUpdates\)'
+        $script:SessionStateContent | Should -Match 'UpdateCheckFrequency = if \(\$Script:UpdateCheckFrequency\)'
+        $script:SessionStateContent | Should -Match 'UpdateBranch = if \(\$Script:UpdateBranch\)'
+        $script:SessionStateContent | Should -Match 'IncludePrereleaseUpdates = if \(\$null -ne \$Script:IncludePrereleaseUpdates\)'
+        $script:SessionStateContent | Should -Match '\$desiredAutoCheckUpdates = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''AutoCheckUpdates''\)\)'
+        $script:SessionStateContent | Should -Match '\$desiredUpdateCheckFrequency = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''UpdateCheckFrequency''\)'
+        $script:SessionStateContent | Should -Match '\$desiredUpdateBranch = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''UpdateBranch''\)'
+        $script:SessionStateContent | Should -Match '\$desiredIncludePrereleaseUpdates = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''IncludePrereleaseUpdates''\)\)'
+        $script:SessionStateContent | Should -Match '\$Script:AutoCheckUpdates = \$desiredAutoCheckUpdates'
+        $script:SessionStateContent | Should -Match '\$Script:UpdateCheckFrequency = \$desiredUpdateCheckFrequency'
+        $script:SessionStateContent | Should -Match '\$Script:UpdateBranch = \$desiredUpdateBranch'
+        $script:SessionStateContent | Should -Match '\$Script:IncludePrereleaseUpdates = \$desiredIncludePrereleaseUpdates'
+        $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''AutoCheckUpdates'' -Value \$desiredAutoCheckUpdates'
+        $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''UpdateCheckFrequency'' -Value \$desiredUpdateCheckFrequency'
+        $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''UpdateBranch'' -Value \$desiredUpdateBranch'
+        $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''IncludePrereleaseUpdates'' -Value \$desiredIncludePrereleaseUpdates'
+    }
+
     It 'restores Expert Mode banner visibility from the restored mode' {
         $script:SessionStateContent | Should -Match '\$ExpertModeBanner\.Visibility = if \(\$desiredAdvanced\)'
     }
@@ -273,5 +325,15 @@ Describe 'GUI session restore mode wiring' {
         $script:SessionStateContent | Should -Match '\$Script:HideUnavailableItems = \$desiredHideUnavailableItems'
         $script:SessionStateContent | Should -Match '\$ChkHideUnavailableItems\.IsChecked = \$desiredHideUnavailableItems'
         $script:SessionStateContent | Should -Match 'Set-HideUnavailableItemsState -HideUnavailableItems \$desiredHideUnavailableItems'
+    }
+
+    It 'restores log level and debug logging from the session snapshot' {
+        $script:SessionStateContent | Should -Match 'DebugLoggingEnabled = if \(\$null -ne \$Script:DebugLoggingEnabled\)'
+        $script:SessionStateContent | Should -Match 'LogLevel = if \(\$Script:LogLevel\)'
+        $script:SessionStateContent | Should -Match '\$desiredDebugLoggingEnabled = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''DebugLoggingEnabled''\)\)'
+        $script:SessionStateContent | Should -Match '\$desiredLogLevel = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''LogLevel''\)'
+        $script:SessionStateContent | Should -Match '\$Script:DebugLoggingEnabled = \$desiredDebugLoggingEnabled'
+        $script:SessionStateContent | Should -Match '\$Script:LogLevel = \$desiredLogLevel'
+        $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''LogLevel'' -Value \$desiredLogLevel'
     }
 }

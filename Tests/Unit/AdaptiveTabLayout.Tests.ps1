@@ -1,9 +1,14 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $xamlPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
     $buildPrimaryTabsPath = Join-Path $PSScriptRoot '../../Module/GUI/BuildPrimaryTabs.ps1'
-    $script:GuiContent = (Get-Content -LiteralPath $xamlPath -Raw -Encoding UTF8) + "`n" + (Get-Content -LiteralPath $buildPrimaryTabsPath -Raw -Encoding UTF8)
+    $script:GuiContent = (Get-BaselineTestSourceText -Path $xamlPath) + "`n" + (Get-BaselineTestSourceText -Path $buildPrimaryTabsPath)
 }
 
 Describe 'Adaptive primary tab layout' {
@@ -21,6 +26,6 @@ Describe 'Adaptive primary tab layout' {
         $script:GuiContent | Should -Match '\$PrimaryTabs\.Visibility = \[System\.Windows\.Visibility\]::Visible'
         $script:GuiContent | Should -Match '\$PrimaryTabDropdown\.Visibility = \[System\.Windows\.Visibility\]::Collapsed'
         $script:GuiContent | Should -Not -Match '\$windowWidth -lt 1000'
-        $script:GuiContent | Should -Not -Match "\$newMode = if .*'dropdown'.*'tabs'"
+        $script:GuiContent | Should -Not -Match '\$newMode = if .*''dropdown''.*''tabs'''
     }
 }

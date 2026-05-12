@@ -1,6 +1,5 @@
-		<#
+﻿		<#
 		    .SYNOPSIS
-		    Internal function Set-GUITheme.
 		#>
 
 		function Set-GUITheme
@@ -32,7 +31,7 @@
 		Set-Variable -Name 'BaselineUseDarkMode' -Value ($Script:CurrentThemeName -eq 'Dark') -Scope Global -Force
 		$env:BASELINE_THEME_NAME = $Script:CurrentThemeName
 		$env:BASELINE_USE_DARK_MODE = if ($Script:CurrentThemeName -eq 'Dark') { '1' } else { '0' }
-		try { $env:BASELINE_THEME_JSON = ($Theme | ConvertTo-Json -Compress -Depth 4) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplyTheme.SerializeThemeToEnv' }
+		try { $env:BASELINE_THEME_JSON = ($Theme | ConvertTo-Json -Compress -Depth 4) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplyTheme.SerializeThemeToEnv' }
 		$Script:BrushCache = @{}
 		$Script:SharedCardShadow = $null
 		$Script:CardHoverResources = $null
@@ -55,7 +54,7 @@
 		if ($BtnClose) { Set-WindowCaptionButtonStyle -Button $BtnClose -Variant 'Close' }
 		if (Get-Command -Name 'Update-GuiNavModeChrome' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			try { Update-GuiNavModeChrome } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplyTheme.Set-GUITheme.UpdateGuiNavModeChrome' }
+			try { Update-GuiNavModeChrome } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplyTheme.Set-GUITheme.UpdateGuiNavModeChrome' }
 		}
 		if ($Script:BtnUpdateAllApps) { Set-ButtonChrome -Button $Script:BtnUpdateAllApps -Variant 'Primary' -Compact }
 		if ($Script:BtnDownloadYes) { Set-ButtonChrome -Button $Script:BtnDownloadYes -Variant 'Primary' }
@@ -85,7 +84,7 @@
 			}
 			catch
 			{
-				Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplyTheme.Set-GUITheme.ReadStatusText'
+				Write-SwallowedException -ErrorRecord $_ -Source 'ApplyTheme.Set-GUITheme.ReadStatusText'
 			}
 		}
 		Set-GuiStatusText -Text $currentStatusText -Tone $(if ($Script:CurrentStatusTone) { [string]$Script:CurrentStatusTone } else { 'muted' })
@@ -117,6 +116,17 @@
 			$Script:AppsPackageManagerBanner.BorderBrush = $bc.ConvertFromString($Theme.CautionBorder)
 		}
 		if ($Script:TxtAppsPackageManagerBanner) { $Script:TxtAppsPackageManagerBanner.Foreground = $bc.ConvertFromString($Theme.CautionText) }
+		if ($Script:DeploymentMediaStatusBanner)
+		{
+			$Script:DeploymentMediaStatusBanner.Background = $bc.ConvertFromString($Theme.CautionBg)
+			$Script:DeploymentMediaStatusBanner.BorderBrush = $bc.ConvertFromString($Theme.CautionBorder)
+		}
+		if ($Script:TxtDeploymentMediaBuildStatus) { $Script:TxtDeploymentMediaBuildStatus.Foreground = $bc.ConvertFromString($Theme.CautionText) }
+		if ($Script:TxtDeploymentMediaSelectionStatus) { $Script:TxtDeploymentMediaSelectionStatus.Foreground = $bc.ConvertFromString($Theme.TextSecondary) }
+		if (Get-Command -Name 'Sync-GuiDeploymentMediaBuilderViewText' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			try { Sync-GuiDeploymentMediaBuilderViewText } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplyTheme.Set-GUITheme.SyncDeploymentMediaBuilderViewText' }
+		}
 		if ($Script:TxtAppSelectionStatus) { $Script:TxtAppSelectionStatus.Foreground = $bc.ConvertFromString($Theme.TextSecondary) }
 		if ($Script:TxtAppsProgressText) { $Script:TxtAppsProgressText.Foreground = $bc.ConvertFromString($Theme.TextSecondary) }
 		if ($Script:TxtOverlayTitle) { $Script:TxtOverlayTitle.Foreground = $bc.ConvertFromString($Theme.TextPrimary) }
@@ -153,6 +163,17 @@
 					Build-AppsViewCards
 				}
 			}
+			elseif ($Script:DeploymentMediaModeActive)
+			{
+				if (Get-Command -Name 'Initialize-GuiDeploymentMediaBuilderView' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Initialize-GuiDeploymentMediaBuilderView
+				}
+				if (Get-Command -Name 'Sync-GuiDeploymentMediaBuilderViewText' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Sync-GuiDeploymentMediaBuilderViewText
+				}
+			}
 			elseif ($null -ne $Script:CurrentPrimaryTab)
 			{
 				Build-TabContent -PrimaryTab $Script:CurrentPrimaryTab -SkipIdlePrebuild
@@ -167,7 +188,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-BaselineSystemThemePreference.
 	    Returns 'Light' or 'Dark' based on the Windows AppsUseLightTheme registry value.
 	#>
 	function Get-BaselineSystemThemePreference
@@ -178,18 +198,18 @@
 		try
 		{
 			$value = Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name 'AppsUseLightTheme' -ErrorAction Stop
+			if (-not $value.PSObject.Properties['AppsUseLightTheme']) { return 'Light' }
 			if ([int]$value.AppsUseLightTheme -eq 1) { return 'Light' }
 			return 'Dark'
 		}
 		catch
 		{
-			return 'Dark'
+			return 'Light'
 		}
 	}
 
 	<#
 	    .SYNOPSIS
-	    Internal function Resolve-BaselineThemePreference.
 	    Maps a theme preference ('Light', 'Dark', 'System') to a concrete theme name.
 	#>
 	function Resolve-BaselineThemePreference
@@ -199,15 +219,14 @@
 			[string]$Preference
 		)
 
-		$normalized = if ([string]::IsNullOrWhiteSpace($Preference)) { 'Dark' } else { [string]$Preference }
+		$normalized = if ([string]::IsNullOrWhiteSpace($Preference)) { 'System' } else { [string]$Preference }
 		if ($normalized -eq 'System') { return (Get-BaselineSystemThemePreference) }
 		if ($normalized -eq 'Light' -or $normalized -eq 'Dark') { return $normalized }
-		return 'Dark'
+		return (Get-BaselineSystemThemePreference)
 	}
 
 	<#
 	    .SYNOPSIS
-	    Internal function Apply-BaselineThemePreference.
 	    Records the user's preference ('Light', 'Dark', 'System') and applies the
 	    resolved concrete theme without losing the System preference.
 	#>
@@ -216,11 +235,13 @@
 		[CmdletBinding()]
 		param (
 			[Parameter(Mandatory)]
-			[string]$Preference
+			[string]$Preference,
+
+			[switch]$SkipContentRebuild
 		)
 
-		$normalized = if ([string]::IsNullOrWhiteSpace($Preference)) { 'Dark' } else { [string]$Preference }
-		if ($normalized -ne 'Light' -and $normalized -ne 'Dark' -and $normalized -ne 'System') { $normalized = 'Dark' }
+		$normalized = if ([string]::IsNullOrWhiteSpace($Preference)) { 'System' } else { [string]$Preference }
+		if ($normalized -ne 'Light' -and $normalized -ne 'Dark' -and $normalized -ne 'System') { $normalized = 'System' }
 
 		$Script:ThemePreference = $normalized
 		$resolved = Resolve-BaselineThemePreference -Preference $normalized
@@ -228,28 +249,31 @@
 		if ($ChkTheme)
 		{
 			$wantLight = ($resolved -eq 'Light')
-			# Setting IsChecked triggers the Checked/Unchecked handler which
-			# calls Set-GUITheme; the handler also overwrites $Script:ThemePreference,
-			# so re-record the preference immediately afterward.
+			$Script:ThemeUiUpdating = $true
+			try
+			{
+				$ChkTheme.IsChecked = $wantLight
+			}
+			finally
+			{
+				$Script:ThemeUiUpdating = $false
+			}
 			if ([bool]$ChkTheme.IsChecked -ne $wantLight)
 			{
 				$ChkTheme.IsChecked = $wantLight
 			}
-			else
-			{
-				if ($wantLight) { Set-GUITheme -Theme $Script:LightTheme }
-				else { Set-GUITheme -Theme $Script:DarkTheme }
-			}
+			if ($wantLight) { Set-GUITheme -Theme $Script:LightTheme -SkipContentRebuild:$SkipContentRebuild }
+			else { Set-GUITheme -Theme $Script:DarkTheme -SkipContentRebuild:$SkipContentRebuild }
 		}
 		else
 		{
-			if ($resolved -eq 'Light') { Set-GUITheme -Theme $Script:LightTheme }
-			else { Set-GUITheme -Theme $Script:DarkTheme }
+			if ($resolved -eq 'Light') { Set-GUITheme -Theme $Script:LightTheme -SkipContentRebuild:$SkipContentRebuild }
+			else { Set-GUITheme -Theme $Script:DarkTheme -SkipContentRebuild:$SkipContentRebuild }
 		}
 
 		$Script:ThemePreference = $normalized
 		if (Get-Command -Name 'Set-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			try { Set-BaselineUserPreference -Key 'Theme' -Value $normalized } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ApplyTheme.ApplyBaselineThemePreference.SavePreference' }
+			try { Set-BaselineUserPreference -Key 'Theme' -Value $normalized } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplyTheme.ApplyBaselineThemePreference.SavePreference' }
 		}
 	}

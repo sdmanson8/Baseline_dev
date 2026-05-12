@@ -1,8 +1,7 @@
-# PresetManagement split file loaded by Module\GUI\PresetManagement.ps1.
+﻿# PresetManagement split file loaded by Module\GUI\PresetManagement.ps1.
 
 	<#
 	    .SYNOPSIS
-	    Internal function Initialize-GuiSelectionStateStores.
 	#>
 
 	function Initialize-GuiSelectionStateStores
@@ -21,7 +20,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Copy-GuiExplicitSelectionDefinition.
 	#>
 
 	function Copy-GuiExplicitSelectionDefinition
@@ -131,7 +129,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiExplicitSelectionDefinition.
 	#>
 
 	function Get-GuiExplicitSelectionDefinition
@@ -144,10 +141,6 @@
 		return $Script:ExplicitPresetSelectionDefinitions[[string]$FunctionName]
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Set-GuiExplicitSelectionDefinition
 	{
 		param (
@@ -167,7 +160,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Remove-GuiExplicitSelectionDefinition.
 	#>
 
 	function Remove-GuiExplicitSelectionDefinition
@@ -183,7 +175,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiSelectionDefinitionFromCommands.
 	#>
 
 	function Get-GuiSelectionDefinitionFromCommands
@@ -434,7 +425,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-GuiPresetSelection.
 	#>
 
 	function Set-GuiPresetSelection
@@ -489,7 +479,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-GuiScenarioProfileSelection.
 	#>
 
 	function Set-GuiScenarioProfileSelection
@@ -544,7 +533,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-FilterSelections.
 	#>
 
 	function Set-FilterSelections
@@ -614,7 +602,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Clear-InvisibleSelectionState.
 	#>
 
 	function Clear-InvisibleSelectionState

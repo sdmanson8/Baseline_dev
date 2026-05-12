@@ -374,6 +374,79 @@ Describe 'Test-BaselineEntrySupportsExecution' {
     }
 }
 
+Describe 'Get-BaselineEntrySupportsExecutionReason' {
+    It 'returns the explicit reason when present' {
+        $entry = [pscustomobject]@{
+            SupportsExecution = $false
+            SupportsExecutionReason = 'Windows Terminal is not installed on this system.'
+        }
+
+        Get-BaselineEntrySupportsExecutionReason -Entry $entry | Should -Be 'Windows Terminal is not installed on this system.'
+    }
+
+    It 'returns $null when no reason is present' {
+        $entry = [pscustomobject]@{ SupportsExecution = $false }
+        Get-BaselineEntrySupportsExecutionReason -Entry $entry | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Get-BaselineEntryExecutionSupport' {
+    It 'preserves explicit SupportsExecution metadata' {
+        $entry = [pscustomobject]@{
+            Function = 'Any'
+            SupportsExecution = $false
+            SupportsExecutionReason = 'Explicit manifest reason.'
+        }
+
+        $result = Get-BaselineEntryExecutionSupport -Entry $entry
+        $result.SupportsExecution | Should -BeFalse
+        $result.Reason | Should -Be 'Explicit manifest reason.'
+    }
+
+    It 'marks package-backed entries unsupported when the required Appx package is missing' {
+        Mock Get-AppxPackage { $null } -ParameterFilter { $Name -eq 'MicrosoftWindows.Client.WebExperience' }
+
+        $result = Get-BaselineEntryExecutionSupport -Entry ([pscustomobject]@{
+            Function = 'TaskbarWidgets'
+        })
+
+        $result.SupportsExecution | Should -BeFalse
+        $result.Reason | Should -Match 'Web Experience Pack'
+    }
+
+    It 'marks Defender-backed entries unsupported when Defender is unavailable' {
+        Set-BaselineDefenderExecutionAvailability -Available $false
+        try {
+            $result = Get-BaselineEntryExecutionSupport -Entry ([pscustomobject]@{
+                Function = 'AppsSmartScreen'
+            })
+
+            $result.SupportsExecution | Should -BeFalse
+            $result.Reason | Should -Match 'Defender'
+        }
+        finally {
+            Reset-BaselineDefenderExecutionAvailability
+        }
+    }
+}
+
+Describe 'Update-BaselineManifestExecutionSupport' {
+    It 'stamps SupportsExecution metadata onto manifest entries' {
+        Mock Get-AppxPackage { $null } -ParameterFilter { $Name -eq 'MicrosoftWindows.Client.WebExperience' }
+
+        $manifest = [pscustomobject]@{
+            Entries = @(
+                [pscustomobject]@{ Function = 'TaskbarWidgets' }
+            )
+        }
+
+        $null = Update-BaselineManifestExecutionSupport -Manifest $manifest
+
+        $manifest.Entries[0].SupportsExecution | Should -BeFalse
+        $manifest.Entries[0].SupportsExecutionReason | Should -Match 'Web Experience Pack'
+    }
+}
+
 Describe 'Update-BaselineManifestAvailability' {
     It 'stamps Availability onto every entry of an Entries-shaped manifest' {
         $manifest = [pscustomobject]@{

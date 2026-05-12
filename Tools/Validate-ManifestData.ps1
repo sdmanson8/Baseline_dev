@@ -62,7 +62,6 @@ $gameModeReviewedCrossCategoryAllowlist = @(Get-GameModeReviewedCrossCategoryAll
 
 <#
     .SYNOPSIS
-    Internal function Test-PresetCommandIsRemovalOperation.
 #>
 
 function Test-PresetCommandIsRemovalOperation
@@ -123,7 +122,6 @@ function Test-PresetCommandIsRemovalOperation
 
 <#
     .SYNOPSIS
-    Internal function Test-ManifestEntryHasNonEmptyPropertyValue.
 #>
 
 function Test-ManifestEntryHasNonEmptyPropertyValue
@@ -149,7 +147,6 @@ function Test-ManifestEntryHasNonEmptyPropertyValue
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-NormalizedManifestParameterName.
 #>
 
 function ConvertTo-NormalizedManifestParameterName
@@ -172,7 +169,6 @@ function ConvertTo-NormalizedManifestParameterName
 
 <#
     .SYNOPSIS
-    Internal function Test-ManifestEntryHasReversibleToggleParameters.
 #>
 
 function Test-ManifestEntryHasReversibleToggleParameters
@@ -191,7 +187,6 @@ function Test-ManifestEntryHasReversibleToggleParameters
 
 <#
     .SYNOPSIS
-    Internal function Test-ManifestEntryHasReversibleChoiceDefaults.
 #>
 
 function Test-ManifestEntryHasReversibleChoiceDefaults
@@ -245,7 +240,6 @@ function Test-ManifestEntryHasReversibleChoiceDefaults
 
 <#
     .SYNOPSIS
-    Internal function Get-GameModeEntryScopeCategory.
 #>
 
 function Get-GameModeEntryScopeCategory
@@ -270,7 +264,6 @@ function Get-GameModeEntryScopeCategory
 
 <#
     .SYNOPSIS
-    Internal function Test-GameModeEntryReviewedForAllowlist.
 #>
 
 function Test-GameModeEntryReviewedForAllowlist
@@ -296,7 +289,6 @@ function Test-GameModeEntryReviewedForAllowlist
 
 <#
     .SYNOPSIS
-    Internal function Test-GameModeEntryHasEnabledDefaults.
 #>
 
 function Test-GameModeEntryHasEnabledDefaults
@@ -331,7 +323,6 @@ function Test-GameModeEntryHasEnabledDefaults
 
 <#
     .SYNOPSIS
-    Internal function Test-GameModeEntryEligibleForProfileDefaults.
 #>
 
 function Test-GameModeEntryEligibleForProfileDefaults

@@ -1,4 +1,4 @@
-# AddCustomAppDialog.ps1
+﻿# AddCustomAppDialog.ps1
 #
 # Themed WPF form for adding a user-defined external software entry.
 # Lets the user supply Name / SubCategory / WinGetId / ChocoId / Description,
@@ -315,9 +315,9 @@ function Show-GuiAddCustomAppDialog
 				$msg = "Failed to write user app file: $($_.Exception.Message)"
 				if ($errBlockRef) { $errBlockRef.Text = $msg }
 				if ($panelRef) { $panelRef.Visibility = 'Visible' }
-				if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 				{
-					Write-DebugSwallowedException -ErrorRecord $_ -Source 'AddCustomAppDialog.Save'
+					Write-SwallowedException -ErrorRecord $_ -Source 'AddCustomAppDialog.Save'
 				}
 			}
 		}.GetNewClosure())

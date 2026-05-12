@@ -15,11 +15,11 @@
 </p>
 
 <p align="center">
-  PowerShell-based Windows configuration with manifest-driven tweaks, GUI, audit trails, and headless automation.
+  PowerShell-based Windows configuration with a preview-first GUI, manifest-backed tweaks, rollback guidance, and headless automation.
 </p>
 
 <p align="center">
-  Baseline is a manifest-driven platform for applying, tracking, and reversing Windows configuration changes — with a full GUI, compliance drift detection, audit trails, snapshot/restore, and headless automation. Localization ships with 124 locale files at full key coverage; translation quality is AI-assisted and under active QA.
+  Baseline helps you review and apply Windows tuning, privacy, update, app, and hardening changes without running opaque script bundles. It shows what will change before execution, records what happened, and keeps presets honest about risk and recovery.
 </p>
 
 <p align="center">
@@ -33,11 +33,11 @@
 - [Overview](#overview)
 - [Supported platforms](#supported-platforms)
 - [Why Baseline is different](#why-baseline-is-different)
-- [Key features](#key-features)
 - [Presets](#presets)
+- [Key features](#key-features)
 - [Screenshots](#screenshots)
 - [Installation & trust](#installation--trust)
-- [Start Guide](#start-guide)
+- [Quick start](#quick-start)
 - [Repository layout](#repository-layout)
 - [Developer tooling](#developer-tooling)
 - [Quality & Validation](#quality--validation)
@@ -46,19 +46,18 @@
 
 ## Overview
 
-Baseline is a PowerShell-based utility for configuring, auditing, hardening, and tracking Windows 10 and Windows 11 installations.
+Baseline is a PowerShell-based utility for configuring, auditing, hardening, and tuning Windows 10 and Windows 11 installations.
 
 It includes:
 
-- a WPF desktop GUI with search, filters, risk labels, preset selection, and per-monitor DPI awareness
-- configuration tracking: compliance drift detection, system state snapshots, configuration profiles, and audit trails
-- pre-flight checks, plan summary, and visual diff view before any changes are applied
-- structured post-run results with per-tweak status, recovery hints, and filter pills
-- headless execution for scripted or repeatable runs, including scheduled automation and lifecycle playbooks
-- multi-machine targeting via PowerShell Remoting with WinRM preflight checks and per-target results
-- modular manifests for tweaks, metadata, and presets
-- logging, validation, and metadata tooling for maintainability
-- coverage across privacy, telemetry, security, Defender, UI, taskbar, Start menu, OneDrive, UWP apps, networking, gaming, and system behavior
+- a WPF desktop GUI with search, filters, risk labels, preset selection, and DPI-aware layout
+- Preview Run, pre-flight checks, and a plan summary before changes are applied
+- structured post-run results with per-tweak status and recovery hints
+- configuration profiles, snapshots, audit logs, and compliance checks for repeatable setups
+- headless execution for scripted runs, scheduled tasks, and exported profiles
+- optional remote execution over PowerShell Remoting for advanced users
+- manifest-backed tweak metadata, presets, and validation tooling
+- coverage across privacy, telemetry, security, Defender, UI, taskbar, Start menu, OneDrive, UWP apps, networking, gaming, updates, and system behavior
 
 ### Defender ASR note
 
@@ -90,14 +89,14 @@ The Take Ownership context-menu toggle is a shell convenience feature. On system
 
 ## Why Baseline is different
 
-Most Windows tweak tools are opaque script blocks with no metadata, no preview, and no way to track what changed. Baseline structures everything through manifests:
+Most Windows tweak tools are opaque script blocks with no metadata, no preview, and no useful record of what changed. Baseline keeps that information visible:
 
-- **Manifest-backed metadata** — every tweak carries risk labels, restart flags, reversibility metadata, and recovery guidance instead of living in opaque script blocks
-- **Preview-first execution** — pre-flight checks, plan summary, and visual diff before anything runs
-- **Configuration tracking** — compliance drift detection, system state snapshots, configuration profiles, and append-only audit trails
-- **Preset semantics** — four named presets with clear scope and honest warnings instead of a single "run everything" button
-- **Scenario modes** — purpose-built profiles for Game Mode, Workstation, Privacy, and Recovery that stay separate from the core preset ladder
-- **Headless support** — scheduled automation and logging for repeatable setups without the GUI
+- **Manifest-backed metadata** - every tweak carries risk labels, restart flags, reversibility metadata, and recovery guidance
+- **Preview-first execution** - pre-flight checks, plan summary, and visual diff before anything runs
+- **Configuration tracking** - system snapshots, configuration profiles, compliance checks, and audit logs
+- **Preset semantics** - four named presets with clear scope and honest warnings instead of a single "run everything" button
+- **Scenario modes** - Game Mode, Workstation, Privacy, and Recovery profiles stay separate from the core preset ladder
+- **Headless support** - repeatable runs without the GUI
 
 ## Presets
 
@@ -120,10 +119,10 @@ Balanced is the point where a restore point is a good idea. Advanced is the expe
 
 Baseline ships with four built-in presets:
 
-- **Minimal** — recommended first step in Safe Mode; smallest baseline of practical quality-of-life and maintenance tweaks
-- **Basic** — lower-risk usability, privacy, and cleanup recommendations
-- **Balanced** — broader privacy, performance, and system configuration changes
-- **Advanced** — expert tuning, debloat, and hardening for experienced users
+- **Minimal** - recommended first step in Safe Mode; smallest baseline of practical quality-of-life and maintenance tweaks
+- **Basic** - lower-risk usability, privacy, and cleanup recommendations
+- **Balanced** - broader privacy, performance, and system configuration changes
+- **Advanced** - expert tuning, debloat, and hardening for experienced users
 
 ## Warning philosophy
 
@@ -136,55 +135,14 @@ Baseline is intentionally opinionated about when it warns and when it stays cons
 
 ## Key features
 
-- **State tracking and compliance**
-  - system state snapshots (pre-run and post-run capture, export, import)
-  - portable configuration profiles (export your setup as JSON, reapply later)
-  - compliance drift detection with one-click "Fix Drift" remediation
-  - append-only audit trail with timeline view and HTML/Markdown export
-  - scheduled automation via Windows Scheduled Tasks
-  - multi-machine targeting via PowerShell Remoting with CLI and GUI workflows (Server remains best-effort)
-
-- **UX clarity and safety**
-  - automated pre-flight checks (admin, disk space, WMI, VSS, system restore)
-  - plan summary panel showing what will change before execution
-  - visual diff view (current state vs. planned post-run state)
-  - structured post-run results with status filter pills and recovery hints
-  - per-monitor DPI awareness for crisp rendering on high-DPI displays
-
-- **Preset-driven configuration**
-  - Minimal, Basic, Balanced, Advanced
-  - Safe Mode / Expert Mode gating
-
-- **GUI workflow**
-  - category tabs with icon headers
-  - quick search and multi-filter panel (risk, category, selected-only, gaming-related)
-  - risk and impact labels with inline details and rationale
-  - Light, Dark, and System theme with session persistence
-  - localization with runtime language switching
-
-- **Headless workflow**
-  - run individual functions directly
-  - automate repeatable configurations with presets
-  - dry-run mode for inspecting planned changes
-  - compliance checks with JSON profile input
-
-- **Manifest-driven design**
-  - tweak metadata stored in JSON (368 entries across 17 category files)
-  - preset definitions stored separately from implementation
-  - validation tooling for duplicate entries, missing metadata, and ownership mismatches
-
-- **Scenario modes**
-  - Game Mode with Casual, Competitive, Streaming, and Troubleshooting profiles
-  - Workstation, Privacy, and Recovery scenario workflows
-  - environment-aware recommendation text based on detected hardware and software
-  - profile-driven defaults that stay separate from the core preset ladder
-
-- **Operational tooling**
-  - file logging with thread-safe Named Mutex protection
-  - GUI log forwarding with color-coded viewer
-  - bootstrap/launcher support
-  - File -> Settings... dialog, GUI settings import/export, restore snapshot, and single-level undo
-  - helper modules for environment, registry, packages, maintenance, taskbar, and error handling
+- **Preview-first safety**: admin and environment checks, plan summary, visual diff, and clear post-run results before and after execution.
+- **Preset-driven configuration**: `Minimal`, `Basic`, `Balanced`, and `Advanced`, with Safe Mode / Expert Mode gating and explicit risk language.
+- **GUI workflow**: category tabs, search, filters, risk and impact labels, Light/Dark/System theme, runtime language switching, and Settings controls.
+- **Configuration tracking**: snapshots, exported profiles, audit logs, compliance checks, and direct recovery guidance where available.
+- **Headless workflow**: run presets, individual functions, dry runs, exported profiles, and compliance checks from the command line.
+- **Apps and updates**: manage supported apps through WinGet/Chocolatey-backed actions, Windows Update controls, and Baseline's own update-check settings.
+- **Scenario modes**: Game Mode plus Workstation, Privacy, and Recovery profiles for common use cases.
+- **Manifest-driven design**: tweak metadata and presets are stored in JSON, validated by tooling, and kept separate from implementation code.
 
 ## Screenshots
 
@@ -210,26 +168,49 @@ Windows 11 Non-Interactive
 
 ## Installation & trust
 
-Download `Baseline-<version>.zip` from the [GitHub Releases](https://github.com/sdmanson8/Baseline_dev/releases) page. The zip contains `Baseline-setup-<version>.exe`, which runs either as a per-machine installer or as a portable extract — you choose on the first wizard page.
+Download the channel-stamped release zip from the [GitHub Releases](https://github.com/sdmanson8/Baseline_dev/releases) page: `Baseline-<version>-stable.zip` for stable releases or `Baseline-<version>-beta.zip` for beta releases. The zip contains `Baseline-setup-<version>-<channel>.exe` such as `Baseline-setup-4.0.0-beta.exe`, which runs either as a per-machine installer or as a portable extract; you choose on the first wizard page.
 
-> **Baseline 4.x public preview releases ship unsigned.** Code signing (HSM-held certificate, timestamp authority) is planned but not in place yet. See [dev_docs/Installer-Signing-Policy.md](dev_docs/Installer-Signing-Policy.md) for the full posture and the `-AllowUnsignedPreview` / `BASELINE_PREVIEW_UNSIGNED` opt-in used by the lifecycle tooling.
+> **Baseline 4.x public preview releases ship unsigned.** Code signing (HSM-held certificate, timestamp authority) is planned but not in place yet. See [dev_docs/Installer-Signing-Policy.md](dev_docs/Installer-Signing-Policy.md) for the full posture and the `-AllowUnsignedPreview` / `BASELINE_PREVIEW_UNSIGNED` opt-in used by release tools.
 
 Because the installer is unsigned, Windows SmartScreen will show a **"Windows protected your PC"** dialog on first launch. To proceed:
 
 1. Click **More info**.
 2. Click **Run anyway**.
 
-If you want to verify the download before running it, compare its SHA-256 against the published release hash manifest asset (`Baseline-<version>.zip.sha256.json`) on the same GitHub Release:
+If you want to verify the download before running it, compare its SHA-256 against the matching published release hash manifest asset (`Baseline-<version>-stable.zip.sha256.json` or `Baseline-<version>-beta.zip.sha256.json`) on the same GitHub Release:
 
 ```powershell
-Get-FileHash .\Baseline-setup-<version>.exe -Algorithm SHA256
+Get-FileHash .\Baseline-<version>-<channel>.zip -Algorithm SHA256
 ```
 
 Once 4.x is promoted to a signed release channel, this section and the policy doc will be updated and `BASELINE_PREVIEW_UNSIGNED` will no longer be accepted.
 
-## Start Guide
+### Remote bootstrap (advanced)
 
-### Safe Mode beginner start guide
+For convenience, advanced users can download and install directly from GitHub:
+
+```powershell
+$bootstrap = Join-Path $env:TEMP 'Baseline.Bootstrap.ps1'
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/sdmanson8/Baseline_dev/main/Bootstrap/Bootstrap.ps1 -OutFile $bootstrap -UseBasicParsing
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $bootstrap
+```
+
+The bootstrap pulls the latest channel-stamped release zip from GitHub, downloads the matching `Baseline-<version>-<channel>.zip.sha256.json` manifest, verifies SHA-256 for the zip and the contained setup executable, and then runs the setup. After setup exits, if an installed `Baseline.exe` can be found it is launched (honoring `-Preset` / `BASELINE_PRESET`). If it cannot be found, launch Baseline from the Start Menu.
+
+> **Security note:** Do not execute remote bootstrap content directly from a pipeline. The release payload is hash-verified before execution, but the bootstrap entry script is not separately signature-validated or hash-pinned. For higher assurance, download the release assets manually from the Releases page, verify the published hash manifest yourself, and run `Baseline-setup-<version>-<channel>.exe` directly.
+
+To run a preset through the bootstrap flow, set `BASELINE_PRESET` first:
+
+```powershell
+$env:BASELINE_PRESET = 'Basic'
+$bootstrap = Join-Path $env:TEMP 'Baseline.Bootstrap.ps1'
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/sdmanson8/Baseline_dev/main/Bootstrap/Bootstrap.ps1 -OutFile $bootstrap -UseBasicParsing
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $bootstrap
+```
+
+## Quick start
+
+### Safe Mode beginner quick start
 
 1. Open Baseline
 2. Select `Minimal`
@@ -359,29 +340,19 @@ Exit codes are emitted from both the headless `-Functions` / `-ProfilePath` path
 .\Baseline.exe -TargetComputer SERVER01,SERVER02 -ComplianceCheck -ProfilePath .\my-profile.json
 ```
 
-### Managed remote workflow
+### Remote and managed deployment support
 
-Baseline remote targeting is GUI-capable for connected targets and includes the orchestration surface needed for pilot and preview deployment.
+Baseline supports advanced remote automation over WinRM / PowerShell Remoting:
 
-- supported today: CLI-based `-TargetComputer` runs over WinRM / PSSession with connectivity checks, preflight reachability checks, and per-machine results
-- supported today: the GUI exposes `Connect to Computer...` / `Disconnect`, remote compliance checks, remote apply runs, saved approval policies, and a remote console for connected-target operations
-- supported today: operator console safeguards cover allow/deny/confirm decisions, change windows, kill switch state, and live prompts for sensitive actions
-- supported today: remote approval gates, audit retention controls, support bundle export, incident reproduction pack generation, release status visibility, and GPO conflict reporting for deployment review
-- supported today: headless lifecycle verbs cover `Upgrade`, `Downgrade`, `Rollback`, `IncidentPack`, and `GpoConflictReport`
-- supported today: read-only mode blocks persistence, audit, and registry write helpers when `-ReadOnly` is active
-- managed-environment prerequisites still need explicit review: WinRM enablement, firewall access, credentials, Group Policy / domain restrictions, and audit requirements
+- remote compliance checks
+- remote apply workflows
+- approval policies
+- audit logging
+- rollback tooling
+- support bundle export
+- read-only review mode
 
-### Remote bootstrap (advanced)
-
-For convenience, you can download and install directly from GitHub:
-
-```powershell
-iwr https://raw.githubusercontent.com/sdmanson8/Baseline_dev/main/Bootstrap/Bootstrap.ps1 -UseBasicParsing | iex
-```
-
-The bootstrap pulls the latest release zip from GitHub, downloads the matching `Baseline-<version>.zip.sha256.json` manifest, verifies SHA-256 for both the zip and the extracted `Baseline-setup-<version>.exe`, and then runs the installer. After the installer exits, if an installed `Baseline.exe` can be found it is launched (honoring `-Preset` / `BASELINE_PRESET`). If it cannot be found, launch Baseline from the Start Menu.
-
-> **Security note:** This still uses pipe-to-IEX for the bootstrap script itself. The release payload is hash-verified before execution, but the bootstrap entry script is not separately signature-validated or hash-pinned. For higher assurance, download the release assets manually from the Releases page, verify the published hash manifest yourself, and run `Baseline-setup-<version>.exe` directly.
+Remote use is intended for advanced users who already control the target environment. Validate WinRM, firewall access, credentials, domain policy, and audit requirements before running against managed machines.
 
 ### Interactive session / tab completion
 
@@ -403,17 +374,6 @@ Baseline -GameModeProfile Competitive
 ```powershell
 Baseline -ScenarioProfile Privacy
 ```
-
-To run a preset through the raw bootstrap flow, set `BASELINE_PRESET` first:
-
-```powershell
-$env:BASELINE_PRESET = 'Basic'
-iwr https://raw.githubusercontent.com/sdmanson8/Baseline_dev/main/Bootstrap/Bootstrap.ps1 -UseBasicParsing | iex
-```
-
-The bootstrap flow downloads the release zip to `%USERPROFILE%\Downloads\Baseline-Bootstrap`, runs the bundled setup installer, then launches the installed `Baseline.exe`. When `BASELINE_PRESET` is present, the preset is forwarded into the noninteractive runner after install.
-
-Preview Run lets you inspect every change before it is applied. In Safe Mode, the GUI surfaces `Minimal`, `Apply Tweaks`, and `Undo Selection Change` as the beginner path. Standard mode keeps the existing `Basic`, `Run Tweaks`, and `Restore Snapshot` wording, while Expert Mode keeps `Run Tweaks` but also uses `Undo Selection Change`. Scenario-mode actions for Workstation, Privacy, and Recovery remain available alongside Import Settings and Export Settings. Post-run summaries can also export a rollback profile when direct undo commands are available. That rollback export is separate from `Undo Selection Change` and from restoring Windows defaults.
 
 ## Repository layout
 
@@ -481,44 +441,19 @@ powershell -File .\Tools\Test-PresetGeneration.ps1
 
 This generates fresh `Minimal`, `Basic`, and `Balanced` preset files and validates them against manifest policy. The same check runs in GitHub Actions alongside validation of the checked-in preset files.
 
-### Build a release zip
+### Build the release zip
 
 ```powershell
 powershell -File .\Tools\New-ReleasePackage.ps1
 ```
 
-This produces `Baseline-<version>.zip` plus `Baseline-<version>.zip.sha256.json` in `dist/`.
+This produces `Baseline-<version>-stable.zip` or `Baseline-<version>-beta.zip` plus the matching `.zip.sha256.json` in `dist/`. The zip contains `Baseline-setup-<version>-<channel>.exe`; the setup supports both install and portable modes.
 
-### Build installer packages (per-user and per-machine)
+### Advanced release and support tools
 
-```powershell
-powershell -File .\Tools\New-InstallerPackage.ps1
-```
+Maintainer-side tools also exist for release validation, installer checks, support bundles, and incident reproduction packs. They are useful for project maintenance and troubleshooting, but normal users do not need them for day-to-day Baseline use.
 
-This produces installer executables in `dist/` using the exact portable payload generated by `Tools/New-ReleasePackage.ps1`.
-
-### Lifecycle playbooks
-
-```powershell
-powershell -File .\Tools\Invoke-LifecyclePlaybook.ps1 -Operation Upgrade -InstallerPath .\dist\Baseline-setup-4.0.0.exe
-```
-```powershell
-powershell -File .\Tools\Invoke-LifecyclePlaybook.ps1 -Operation Rollback -RollbackProfilePath .\bundle\rollback.json -Execute
-```
-
-The lifecycle playbook tooling verifies the installer or rollback profile, emits a structured playbook, and can execute the requested upgrade, downgrade, or rollback workflow when `-Execute` is supplied.
-
-### Incident reproduction pack
-
-```powershell
-powershell -File .\Tools\New-IncidentReproductionPack.ps1 -SupportBundlePath .\Bundle.zip
-```
-
-This turns a Baseline support bundle into a repro pack with incident metadata, preflight findings, recent audit context, and a markdown summary you can hand to operators or support staff.
-
-### Installer signing policy
-
-The formal release-signing policy is documented in [dev_docs/Installer-Signing-Policy.md](dev_docs/Installer-Signing-Policy.md). It defines the artifact trust contract Baseline expects before upgrade, downgrade, or rollback promotion.
+The release-signing policy is documented in [dev_docs/Installer-Signing-Policy.md](dev_docs/Installer-Signing-Policy.md).
 
 ### Developer docs
 
@@ -531,7 +466,7 @@ The developer reference notes are in:
 
 ## Quality & Validation
 
-Baseline includes 29 dedicated test scripts covering:
+Baseline includes dedicated automated tests covering:
 
 - **Unit tests**: registry helpers, environment detection, preset resolution, error handling, game mode helpers, package management
 - **Contract tests**: manifest structure, tweak metadata, GUI function capture, observable state
@@ -539,16 +474,15 @@ Baseline includes 29 dedicated test scripts covering:
 - **Fixture tests**: execution summary with clean/partial/retryable/restore scenarios
 - **Integration tests**: end-to-end execution on supported Windows editions
 
-Automated CI runs on every push through GitHub Actions for structural validation and manifest checks. Desktop-specific tests (WPF rendering, service manipulation, package installation) require a local or self-hosted Windows VM — the tested matrix is documented in Tests/Integration/README.md.
+Automated CI runs on every push through GitHub Actions for structural validation and manifest checks. Desktop-specific tests (WPF rendering, service manipulation, package installation) require a local or self-hosted Windows VM - the tested matrix is documented in Tests/Integration/README.md.
 
-The maintainer validation suite also includes a documentation consistency check that verifies the enterprise claims in the docs still have matching code and test evidence.
+The maintainer validation suite also includes documentation consistency checks for release artifacts, support bundles, and remote workflow documentation.
 
 ## Known limitations
 
 - **Icon system**: The FluentSystemIcons UI architecture is built and the GUI loads it when available, with a safe fallback when the font cannot be resolved. Release Status now surfaces the icon-system state.
-- **Remote deployment**: Multi-machine targeting via `-TargetComputer` works, and the GUI can connect to a target, manage approvals, and run compliance / apply workflows against it.
-- **Managed remote workflow**: Baseline exposes the remote console, saved approval policies, release status visibility, version pinning, audit retention controls, support bundle export, and troubleshooting surfaces needed for connected-target operations.
-- **Managed deployment readiness**: Baseline includes WinRM preflight checks, structured CLI output, read-only enforcement gates, GPO conflict reporting, operator policy safeguards, and incident reproduction pack generation for managed deployments.
+- **Remote execution**: Multi-machine targeting via `-TargetComputer` works, and the GUI can connect to a target for remote compliance / apply workflows. Treat this as advanced automation, not a replacement for dedicated device-management tools.
+- **Managed devices**: Work, school, domain-enrolled, and MDM-managed machines may have policy conflicts that Baseline cannot override reliably.
 
 ## FAQ / troubleshooting
 
@@ -565,13 +499,6 @@ The maintainer validation suite also includes a documentation consistency check 
 - Create a restore point or backup before `Balanced`, `Advanced`, large app removal, or unfamiliar changes.
 - Managed, work, school, or domain-enrolled devices should be reviewed with the appropriate admin team before use.
 - Third-party security suites, OEM utilities, and heavily customized images can change outcomes and may require manual troubleshooting.
-
-## Notes
-
-- Baseline is intended for users who want explicit control over Windows behavior.
-- Some tweaks may require administrator rights.
-- Some tweaks may require a restart to fully apply.
-- Higher-risk and advanced changes should be reviewed carefully before use.
 
 ## License
 

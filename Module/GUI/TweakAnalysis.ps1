@@ -1,8 +1,7 @@
-# Pure logic functions for tweak analysis: removal detection, scenario signals, selection state
+﻿# Pure logic functions for tweak analysis: removal detection, scenario signals, selection state
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-TweakRemovalOperation.
 	#>
 
 	function Test-TweakRemovalOperation
@@ -33,7 +32,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-TweakPackageOperation.
 	#>
 
 	function Test-TweakPackageOperation
@@ -69,7 +67,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-TweakScenarioSignals.
 	#>
 
 	function Get-TweakScenarioSignals
@@ -151,7 +148,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-TweakIsSelected.
 	#>
 
 	function Test-TweakIsSelected
@@ -162,6 +158,13 @@
 		)
 
 		if (-not $Tweak) { return $false }
+		if (Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			if (-not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak))
+			{
+				return $false
+			}
+		}
 		$source = if ($StateSource) { $StateSource } else { $Tweak }
 		if (-not $source) { return $false }
 
@@ -237,7 +240,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiToggleGoalState.
 	#>
 
 	function Get-GuiToggleGoalState
@@ -256,7 +258,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiToggleDetectedState.
 	#>
 
 	function Get-GuiToggleDetectedState
@@ -282,7 +283,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiToggleDisplayState.
 	#>
 
 	function Get-GuiToggleDisplayState
@@ -336,7 +336,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-TweakIsRestorable.
 	#>
 
 	function Test-TweakIsRestorable
@@ -351,10 +350,6 @@
 		)
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Test-TweakIsGamingRelated
 	{
 		param ([object]$Tweak)
@@ -365,7 +360,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-TweakFocusGroup.
 	#>
 
 	function Get-TweakFocusGroup
@@ -401,7 +395,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-TweakInclusionReason.
 	#>
 
 	function Get-TweakInclusionReason
@@ -443,7 +436,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-TweakBlastRadiusText.
 	#>
 
 	function Get-TweakBlastRadiusText

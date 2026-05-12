@@ -1,4 +1,4 @@
-﻿# Shared language display catalog for the Baseline GUI.
+# Shared language display catalog for the Baseline GUI.
 # Returns the native/English display names for every supported locale and
 # builds a sortable entry list filtered against the localization directory
 # on disk. Consumed by BuildPrimaryTabs.ps1 (header language popup) and
@@ -15,18 +15,18 @@ function Get-GuiLanguageDisplayData
 
 	$Script:GuiLanguageDisplayDataCache = @{
 		'af'      = @{ Native = 'Afrikaans';           English = 'Afrikaans' }
-		'am'      = @{ Native = 'አማርኛ';               English = 'Amharic' }
-		'ar'      = @{ Native = 'العربية';              English = 'Arabic' }
-		'az'      = @{ Native = 'Azərbaycan';          English = 'Azerbaijani' }
-		'be'      = @{ Native = 'Беларуская';          English = 'Belarusian' }
-		'bg'      = @{ Native = 'Български';           English = 'Bulgarian' }
-		'bn'      = @{ Native = 'বাংলা';                English = 'Bengali' }
-		'bs'      = @{ Native = 'Bosanski';            English = 'Bosnian' }
-		'ca'      = @{ Native = 'Català';              English = 'Catalan' }
-		'cs'      = @{ Native = 'Čeština';             English = 'Czech' }
-		'da'      = @{ Native = 'Dansk';               English = 'Danish' }
-		'de'      = @{ Native = 'Deutsch';             English = 'German' }
-		'el'      = @{ Native = 'Ελληνικά';            English = 'Greek' }
+		'am'      = @{ Native = 'Amharic';               English = 'Amharic' }
+		'ar'      = @{ Native = 'Arabic';              English = 'Arabic' }
+		'az'      = @{ Native = 'Azerbaijani';          English = 'Azerbaijani' }
+		'be'      = @{ Native = 'Belarusian';          English = 'Belarusian' }
+		'bg'      = @{ Native = 'Bulgarian';           English = 'Bulgarian' }
+		'bn'      = @{ Native = 'Bengali';                English = 'Bengali' }
+		'bs'      = @{ Native = 'Bosnian';            English = 'Bosnian' }
+		'ca'      = @{ Native = 'Catalan';              English = 'Catalan' }
+		'cs'      = @{ Native = 'Czech';             English = 'Czech' }
+		'da'      = @{ Native = 'Danish';               English = 'Danish' }
+		'de'      = @{ Native = 'German';             English = 'German' }
+		'el'      = @{ Native = 'Greek';            English = 'Greek' }
 		'en'      = @{ Native = 'English';             English = 'English' }
 		'en-029'  = @{ Native = 'English (Caribbean)'; English = 'English (Caribbean)' }
 		'en-AE'   = @{ Native = 'English (United Arab Emirates)'; English = 'English (United Arab Emirates)' }
@@ -46,98 +46,98 @@ function Get-GuiLanguageDisplayData
 		'en-US'   = @{ Native = 'English (United States)'; English = 'English (United States)' }
 		'en-ZA'   = @{ Native = 'English (South Africa)'; English = 'English (South Africa)' }
 		'en-ZW'   = @{ Native = 'English (Zimbabwe)';    English = 'English (Zimbabwe)' }
-		'es'      = @{ Native = 'Español';             English = 'Spanish' }
-		'es-MX'   = @{ Native = 'Español (México)';    English = 'Spanish (Mexico)' }
-		'et'      = @{ Native = 'Eesti';               English = 'Estonian' }
-		'eu'      = @{ Native = 'Euskara';             English = 'Basque' }
-		'fa'      = @{ Native = 'فارسی';               English = 'Persian' }
-		'fi'      = @{ Native = 'Suomi';               English = 'Finnish' }
+		'es'      = @{ Native = 'Spanish';             English = 'Spanish' }
+		'es-MX'   = @{ Native = 'Spanish (Mexico)';    English = 'Spanish (Mexico)' }
+		'et'      = @{ Native = 'Estonian';               English = 'Estonian' }
+		'eu'      = @{ Native = 'Basque';             English = 'Basque' }
+		'fa'      = @{ Native = 'Persian';               English = 'Persian' }
+		'fi'      = @{ Native = 'Finnish';               English = 'Finnish' }
 		'fil'     = @{ Native = 'Filipino';            English = 'Filipino' }
-		'fr'      = @{ Native = 'Français';            English = 'French' }
-		'fr-CA'   = @{ Native = 'Français (Canada)';   English = 'French (Canada)' }
-		'ga'      = @{ Native = 'Gaeilge';             English = 'Irish' }
-		'gd'      = @{ Native = 'Gàidhlig';            English = 'Scottish Gaelic' }
-		'gl'      = @{ Native = 'Galego';              English = 'Galician' }
-		'gu'      = @{ Native = 'ગુજરાતી';              English = 'Gujarati' }
-		'he'      = @{ Native = 'עברית';               English = 'Hebrew' }
-		'hi'      = @{ Native = 'हिन्दी';                English = 'Hindi' }
-		'hr'      = @{ Native = 'Hrvatski';            English = 'Croatian' }
-		'hu'      = @{ Native = 'Magyar';              English = 'Hungarian' }
-		'hy'      = @{ Native = 'Հայերեն';             English = 'Armenian' }
-		'id'      = @{ Native = 'Bahasa Indonesia';    English = 'Indonesian' }
-		'is'      = @{ Native = 'Íslenska';            English = 'Icelandic' }
-		'it'      = @{ Native = 'Italiano';            English = 'Italian' }
-		'ja'      = @{ Native = '日本語';               English = 'Japanese' }
-		'ka'      = @{ Native = 'ქართული';             English = 'Georgian' }
-		'kk'      = @{ Native = 'Қазақ';               English = 'Kazakh' }
-		'km'      = @{ Native = 'ខ្មែរ';                 English = 'Khmer' }
-		'kn'      = @{ Native = 'ಕನ್ನಡ';                English = 'Kannada' }
-		'ko'      = @{ Native = '한국어';               English = 'Korean' }
-		'lo'      = @{ Native = 'ລາວ';                 English = 'Lao' }
-		'lt'      = @{ Native = 'Lietuvių';            English = 'Lithuanian' }
-		'lv'      = @{ Native = 'Latviešu';            English = 'Latvian' }
-		'mk'      = @{ Native = 'Македонски';          English = 'Macedonian' }
-		'ml'      = @{ Native = 'മലയാളം';              English = 'Malayalam' }
-		'mr'      = @{ Native = 'मराठी';                English = 'Marathi' }
-		'ms'      = @{ Native = 'Bahasa Melayu';       English = 'Malay' }
-		'mt'      = @{ Native = 'Malti';               English = 'Maltese' }
-		'nb'      = @{ Native = 'Norsk Bokmål';        English = 'Norwegian' }
-		'ne'      = @{ Native = 'नेपाली';               English = 'Nepali' }
-		'nl'      = @{ Native = 'Nederlands';          English = 'Dutch' }
-		'nl-BE'   = @{ Native = 'Nederlands (België)'; English = 'Dutch (Belgium)' }
-		'nn'      = @{ Native = 'Norsk Nynorsk';       English = 'Norwegian Nynorsk' }
-		'pa'      = @{ Native = 'ਪੰਜਾਬੀ';               English = 'Punjabi' }
-		'pl'      = @{ Native = 'Polski';              English = 'Polish' }
-		'pt'      = @{ Native = 'Português';           English = 'Portuguese' }
-		'pt-BR'   = @{ Native = 'Português (Brasil)';  English = 'Portuguese (Brazil)' }
-		'ro'      = @{ Native = 'Română';              English = 'Romanian' }
-		'ru'      = @{ Native = 'Русский';             English = 'Russian' }
-		'sk'      = @{ Native = 'Slovenčina';          English = 'Slovak' }
-		'sl'      = @{ Native = 'Slovenščina';         English = 'Slovenian' }
-		'sq'      = @{ Native = 'Shqip';               English = 'Albanian' }
-		'sr'      = @{ Native = 'Srpski';              English = 'Serbian' }
-		'sv'      = @{ Native = 'Svenska';             English = 'Swedish' }
-		'sw'      = @{ Native = 'Kiswahili';           English = 'Swahili' }
-		'ta'      = @{ Native = 'தமிழ்';                English = 'Tamil' }
-		'te'      = @{ Native = 'తెలుగు';               English = 'Telugu' }
-		'th'      = @{ Native = 'ไทย';                  English = 'Thai' }
-		'tr'      = @{ Native = 'Türkçe';              English = 'Turkish' }
-		'uk'      = @{ Native = 'Українська';          English = 'Ukrainian' }
-		'ur'      = @{ Native = 'اردو';                 English = 'Urdu' }
+		'fr'      = @{ Native = 'French';            English = 'French' }
+		'fr-CA'   = @{ Native = 'French (Canada)';   English = 'French (Canada)' }
+		'ga'      = @{ Native = 'Irish';             English = 'Irish' }
+		'gd'      = @{ Native = 'Scottish Gaelic';            English = 'Scottish Gaelic' }
+		'gl'      = @{ Native = 'Galician';              English = 'Galician' }
+		'gu'      = @{ Native = 'Gujarati';              English = 'Gujarati' }
+		'he'      = @{ Native = 'Hebrew';               English = 'Hebrew' }
+		'hi'      = @{ Native = 'Hindi';                English = 'Hindi' }
+		'hr'      = @{ Native = 'Croatian';            English = 'Croatian' }
+		'hu'      = @{ Native = 'Hungarian';              English = 'Hungarian' }
+		'hy'      = @{ Native = 'Armenian';             English = 'Armenian' }
+		'id'      = @{ Native = 'Indonesian';    English = 'Indonesian' }
+		'is'      = @{ Native = 'Icelandic';            English = 'Icelandic' }
+		'it'      = @{ Native = 'Italian';            English = 'Italian' }
+		'ja'      = @{ Native = 'Japanese';               English = 'Japanese' }
+		'ka'      = @{ Native = 'Georgian';             English = 'Georgian' }
+		'kk'      = @{ Native = 'Kazakh';               English = 'Kazakh' }
+		'km'      = @{ Native = 'Khmer';                 English = 'Khmer' }
+		'kn'      = @{ Native = 'Kannada';                English = 'Kannada' }
+		'ko'      = @{ Native = 'Korean';               English = 'Korean' }
+		'lo'      = @{ Native = 'Lao';                 English = 'Lao' }
+		'lt'      = @{ Native = 'Lithuanian';            English = 'Lithuanian' }
+		'lv'      = @{ Native = 'Latvian';            English = 'Latvian' }
+		'mk'      = @{ Native = 'Macedonian';          English = 'Macedonian' }
+		'ml'      = @{ Native = 'Malayalam';              English = 'Malayalam' }
+		'mr'      = @{ Native = 'Marathi';                English = 'Marathi' }
+		'ms'      = @{ Native = 'Malay';       English = 'Malay' }
+		'mt'      = @{ Native = 'Maltese';               English = 'Maltese' }
+		'nb'      = @{ Native = 'Norwegian';        English = 'Norwegian' }
+		'ne'      = @{ Native = 'Nepali';               English = 'Nepali' }
+		'nl'      = @{ Native = 'Dutch';          English = 'Dutch' }
+		'nl-BE'   = @{ Native = 'Dutch (Belgium)'; English = 'Dutch (Belgium)' }
+		'nn'      = @{ Native = 'Norwegian Nynorsk';       English = 'Norwegian Nynorsk' }
+		'pa'      = @{ Native = 'Punjabi';               English = 'Punjabi' }
+		'pl'      = @{ Native = 'Polish';              English = 'Polish' }
+		'pt'      = @{ Native = 'Portuguese';           English = 'Portuguese' }
+		'pt-BR'   = @{ Native = 'Portuguese (Brazil)';  English = 'Portuguese (Brazil)' }
+		'ro'      = @{ Native = 'Romanian';              English = 'Romanian' }
+		'ru'      = @{ Native = 'Russian';             English = 'Russian' }
+		'sk'      = @{ Native = 'Slovak';          English = 'Slovak' }
+		'sl'      = @{ Native = 'Slovenian';         English = 'Slovenian' }
+		'sq'      = @{ Native = 'Albanian';               English = 'Albanian' }
+		'sr'      = @{ Native = 'Serbian';              English = 'Serbian' }
+		'sv'      = @{ Native = 'Swedish';             English = 'Swedish' }
+		'sw'      = @{ Native = 'Swahili';           English = 'Swahili' }
+		'ta'      = @{ Native = 'Tamil';                English = 'Tamil' }
+		'te'      = @{ Native = 'Telugu';               English = 'Telugu' }
+		'th'      = @{ Native = 'Thai';                  English = 'Thai' }
+		'tr'      = @{ Native = 'Turkish';              English = 'Turkish' }
+		'uk'      = @{ Native = 'Ukrainian';          English = 'Ukrainian' }
+		'ur'      = @{ Native = 'Urdu';                 English = 'Urdu' }
 		'uz'      = @{ Native = "O'zbek";              English = 'Uzbek' }
-		'vi'      = @{ Native = 'Tiếng Việt';          English = 'Vietnamese' }
-		'zh-Hans' = @{ Native = '简体中文';              English = 'Chinese (Simplified)' }
-		'zh-Hant' = @{ Native = '繁體中文';              English = 'Chinese (Traditional)' }
-		'as'      = @{ Native = 'অসমীয়া';              English = 'Assamese' }
-		'bn-BD'   = @{ Native = 'বাংলা (বাংলাদেশ)';     English = 'Bengali (Bangladesh)' }
-		'ckb'     = @{ Native = 'کوردیی ناوەندی';       English = 'Central Kurdish' }
-		'cy'      = @{ Native = 'Cymraeg';             English = 'Welsh' }
+		'vi'      = @{ Native = 'Vietnamese';          English = 'Vietnamese' }
+		'zh-Hans' = @{ Native = 'Chinese (Simplified)';              English = 'Chinese (Simplified)' }
+		'zh-Hant' = @{ Native = 'Chinese (Traditional)';              English = 'Chinese (Traditional)' }
+		'as'      = @{ Native = 'Assamese';              English = 'Assamese' }
+		'bn-BD'   = @{ Native = 'Bengali (Bangladesh)';     English = 'Bengali (Bangladesh)' }
+		'ckb'     = @{ Native = 'Central Kurdish';       English = 'Central Kurdish' }
+		'cy'      = @{ Native = 'Welsh';             English = 'Welsh' }
 		'ha'      = @{ Native = 'Hausa';               English = 'Hausa' }
 		'ig'      = @{ Native = 'Igbo';                English = 'Igbo' }
-		'kok'     = @{ Native = 'कोंकणी';               English = 'Konkani' }
-		'ky'      = @{ Native = 'Кыргызча';            English = 'Kyrgyz' }
-		'lb'      = @{ Native = 'Lëtzebuergesch';      English = 'Luxembourgish' }
-		'mi'      = @{ Native = 'Te Reo Māori';        English = 'Māori' }
-		'mn'      = @{ Native = 'Монгол';              English = 'Mongolian' }
-		'nso'     = @{ Native = 'Sesotho sa Leboa';    English = 'Northern Sotho' }
-		'or'      = @{ Native = 'ଓଡ଼ିଆ';                English = 'Odia' }
-		'pa-Arab' = @{ Native = 'پنجابی';               English = 'Punjabi (Arabic)' }
-		'prs'     = @{ Native = 'دری';                  English = 'Dari' }
-		'ps'      = @{ Native = 'پښتو';                 English = 'Pashto' }
-		'qu'      = @{ Native = 'Runasimi';            English = 'Quechua' }
+		'kok'     = @{ Native = 'Konkani';               English = 'Konkani' }
+		'ky'      = @{ Native = 'Kyrgyz';            English = 'Kyrgyz' }
+		'lb'      = @{ Native = 'Luxembourgish';      English = 'Luxembourgish' }
+		'mi'      = @{ Native = 'Maori';        English = 'Maori' }
+		'mn'      = @{ Native = 'Mongolian';              English = 'Mongolian' }
+		'nso'     = @{ Native = 'Northern Sotho';    English = 'Northern Sotho' }
+		'or'      = @{ Native = 'Odia';                English = 'Odia' }
+		'pa-Arab' = @{ Native = 'Punjabi (Arabic)';               English = 'Punjabi (Arabic)' }
+		'prs'     = @{ Native = 'Dari';                  English = 'Dari' }
+		'ps'      = @{ Native = 'Pashto';                 English = 'Pashto' }
+		'qu'      = @{ Native = 'Quechua';            English = 'Quechua' }
 		'quc'     = @{ Native = "K'iche'";             English = "K'iche'" }
-		'rw'      = @{ Native = 'Ikinyarwanda';        English = 'Kinyarwanda' }
-		'sd'      = @{ Native = 'سنڌي';                 English = 'Sindhi' }
-		'si'      = @{ Native = 'සිංහල';                English = 'Sinhala' }
-		'sr-Cyrl' = @{ Native = 'Српски';              English = 'Serbian (Cyrillic)' }
-		'ti'      = @{ Native = 'ትግርኛ';                English = 'Tigrinya' }
-		'tk'      = @{ Native = 'Türkmen';             English = 'Turkmen' }
+		'rw'      = @{ Native = 'Kinyarwanda';        English = 'Kinyarwanda' }
+		'sd'      = @{ Native = 'Sindhi';                 English = 'Sindhi' }
+		'si'      = @{ Native = 'Sinhala';                English = 'Sinhala' }
+		'sr-Cyrl' = @{ Native = 'Serbian (Cyrillic)';              English = 'Serbian (Cyrillic)' }
+		'ti'      = @{ Native = 'Tigrinya';                English = 'Tigrinya' }
+		'tk'      = @{ Native = 'Turkmen';             English = 'Turkmen' }
 		'tn'      = @{ Native = 'Setswana';            English = 'Setswana' }
-		'tt'      = @{ Native = 'Татар';               English = 'Tatar' }
-		'ug'      = @{ Native = 'ئۇيغۇرچە';             English = 'Uyghur' }
+		'tt'      = @{ Native = 'Tatar';               English = 'Tatar' }
+		'ug'      = @{ Native = 'Uyghur';             English = 'Uyghur' }
 		'wo'      = @{ Native = 'Wolof';               English = 'Wolof' }
 		'xh'      = @{ Native = 'isiXhosa';            English = 'isiXhosa' }
-		'yo'      = @{ Native = 'Yorùbá';              English = 'Yoruba' }
+		'yo'      = @{ Native = 'Yoruba';              English = 'Yoruba' }
 		'zu'      = @{ Native = 'isiZulu';             English = 'isiZulu' }
 	}
 

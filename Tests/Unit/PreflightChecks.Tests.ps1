@@ -1,8 +1,13 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $script:PreflightChecksPath = Join-Path $PSScriptRoot '../../Module/GUI/PreflightChecks.ps1'
-    $script:PreflightChecksContent = Get-Content -LiteralPath $script:PreflightChecksPath -Raw -Encoding UTF8
+    $script:PreflightChecksContent = Get-BaselineTestSourceText -Path $script:PreflightChecksPath
     if (-not (Get-Command -Name 'Get-UxLocalizedString' -ErrorAction SilentlyContinue))
     {
         function Get-UxLocalizedString
@@ -255,7 +260,7 @@ Describe 'Preflight checks' {
         $script:PreflightChecksContent | Should -Match 'function Get-BaselinePartialSuccessRolloutRisk'
     }
 
-    It 'routes non-fatal preflight catches through Write-DebugSwallowedException and reads optional reboot values quietly' {
+    It 'routes non-fatal preflight catches through Write-SwallowedException and reads optional reboot values quietly' {
         $script:PreflightChecksContent | Should -Match 'PreflightChecks\.Get-BaselinePartialSuccessRolloutRisk\.LoadOutcomes'
         $script:PreflightChecksContent | Should -Match 'PreflightChecks\.TestPreflightManagedPolicyEnvironment\.LoadDomainJoined'
         $script:PreflightChecksContent | Should -Match 'PreflightChecks\.TestPreflightManagedPolicyEnvironment\.TestPathPolicy'

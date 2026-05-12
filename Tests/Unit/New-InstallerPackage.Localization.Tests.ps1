@@ -1,6 +1,11 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $filePath = Join-Path $PSScriptRoot '../../Tools/New-InstallerPackage.ps1'
     $script:RepoRoot = Split-Path -Path (Split-Path -Path $filePath -Parent) -Parent
     $script:OriginalBaselineLanguage = [System.Environment]::GetEnvironmentVariable('BASELINE_LANGUAGE', 'Process')
@@ -84,9 +89,9 @@ Describe 'Initialize-InstallerLocalizationWorkspace' {
             -RepoRoot $script:RepoRoot `
             -LocalizationRoot $script:LocalizationRoot | Out-Null
 
-        $englishJson = Get-Content -LiteralPath (Join-Path $workspaceRoot 'en.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-        $frenchJson = Get-Content -LiteralPath (Join-Path $workspaceRoot 'fr.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-        $germanJson = Get-Content -LiteralPath (Join-Path $workspaceRoot 'de.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        $englishJson = Get-BaselineTestSourceText -Path (Join-Path $workspaceRoot 'en.json') | ConvertFrom-Json
+        $frenchJson = Get-BaselineTestSourceText -Path (Join-Path $workspaceRoot 'fr.json') | ConvertFrom-Json
+        $germanJson = Get-BaselineTestSourceText -Path (Join-Path $workspaceRoot 'de.json') | ConvertFrom-Json
 
         $englishJson.'LangPage.Title' | Should -Be 'Choose Language'
         $frenchJson.'LangPage.Title' | Should -Be 'Choisir la langue'

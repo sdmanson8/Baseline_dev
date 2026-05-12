@@ -5,7 +5,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Set-BaselineCliOutputFormat.
 #>
 
 function Set-BaselineCliOutputFormat
@@ -25,7 +24,6 @@ function Set-BaselineCliOutputFormat
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineCliOutputFormat.
 #>
 
 function Get-BaselineCliOutputFormat
@@ -41,10 +39,6 @@ function Get-BaselineCliOutputFormat
 	return 'Text'
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Format-BaselineCliResult
 {
 	<#
@@ -107,7 +101,6 @@ function Format-BaselineCliResult
 
 <#
     .SYNOPSIS
-    Internal function Write-BaselineCliEvent.
 #>
 
 function Write-BaselineCliEvent

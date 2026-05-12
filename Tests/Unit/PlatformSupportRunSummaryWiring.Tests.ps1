@@ -1,8 +1,13 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $summaryPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionSummary.ps1'
-    $script:SummaryContent = Get-Content -LiteralPath $summaryPath -Raw -Encoding UTF8
+    $script:SummaryContent = Get-BaselineTestSourceText -Path $summaryPath
 }
 
 Describe 'PlatformSupport unavailable entries surface in run summary (P2 #18c)' {

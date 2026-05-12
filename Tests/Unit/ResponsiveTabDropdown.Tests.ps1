@@ -1,17 +1,22 @@
 ﻿Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $xamlPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
     $buildPrimaryTabsPath = Join-Path $PSScriptRoot '../../Module/GUI/BuildPrimaryTabs.ps1'
     $windowSetupPath = Join-Path $PSScriptRoot '../../Module/GUI/WindowSetup.ps1'
     $tabMgmtPath = Join-Path $PSScriptRoot '../../Module/GUI/TabManagement.ps1'
 
     $script:GuiContent = @(
-        Get-Content -LiteralPath $xamlPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $buildPrimaryTabsPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $windowSetupPath -Raw -Encoding UTF8
+        Get-BaselineTestSourceText -Path $xamlPath
+        Get-BaselineTestSourceText -Path $buildPrimaryTabsPath
+        Get-BaselineTestSourceText -Path $windowSetupPath
     ) -join "`n"
-    $script:TabMgmtContent = Get-Content -LiteralPath $tabMgmtPath -Raw -Encoding UTF8
+    $script:TabMgmtContent = Get-BaselineTestSourceText -Path $tabMgmtPath
 }
 
 # ─────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     # Extract functions from GuiContext.ps1 via AST - safe because ParseFile

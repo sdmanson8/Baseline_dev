@@ -1,8 +1,13 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $iconFactoryPath = Join-Path $PSScriptRoot '../../Module/GUI/IconFactory.ps1'
-    $script:IconFactoryContent = Get-Content -LiteralPath $iconFactoryPath -Raw -Encoding UTF8
+    $script:IconFactoryContent = Get-BaselineTestSourceText -Path $iconFactoryPath
 }
 
 Describe 'Icon factory font sizing' {

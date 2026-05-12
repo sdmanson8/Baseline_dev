@@ -878,11 +878,7 @@ function UseStoreOpenWith
 	.SYNOPSIS
 	Gets windows terminal settings path.
 
-	
-.DESCRIPTION
-	
-Supports windows terminal settings path handling inside Baseline.
-#>
+	#>
 function Get-WindowsTerminalSettingsPath
 {
 	param(
@@ -1030,7 +1026,7 @@ function OpenWindowsTerminalAdminContext
 			{
 				Remove-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Name "{9F156763-7844-4DC4-B2B1-901F640F5155}" | Out-Null
 				Remove-RegistryValueSafe -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" -Name "{9F156763-7844-4DC4-B2B1-901F640F5155}" | Out-Null
-				if ($Terminal.profiles.defaults.elevate)
+				if ($Terminal.profiles.defaults.PSObject.Properties['elevate'])
 				{
 					$Terminal.profiles.defaults.elevate = $true
 				}
@@ -1053,7 +1049,7 @@ function OpenWindowsTerminalAdminContext
 			LogInfo "Disabling opening Windows Terminal in context menu as administrator by default"
 			try
 			{
-				if ($Terminal.profiles.defaults.elevate)
+				if ($Terminal.profiles.defaults.PSObject.Properties['elevate'])
 				{
 					$Terminal.profiles.defaults.elevate = $false
 				}
@@ -1302,5 +1298,21 @@ function Set-FileExtensionsContextMenu
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'CABInstallContext',
+    'CompressedFolderNewContext',
+    'EditWithClipchampContext',
+    'EditWithPaintContext',
+    'EditWithPhotosContext',
+    'Get-WindowsTerminalSettingsPath',
+    'MSIExtractContext',
+    'MultipleInvokeContext',
+    'OpenWindowsTerminalAdminContext',
+    'OpenWindowsTerminalContext',
+    'PrintCMDContext',
+    'Set-FileExtensionsContextMenu',
+    'Set-TakeOwnershipContextMenu',
+    'TakeOwnershipContextMenu',
+    'UseStoreOpenWith'
+)
+Export-ModuleMember -Function $ExportedFunctions

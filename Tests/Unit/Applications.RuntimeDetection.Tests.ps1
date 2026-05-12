@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $script:runtimesPath = Join-Path $PSScriptRoot '../../Module/Data/AppsCategory/Runtimes.json'

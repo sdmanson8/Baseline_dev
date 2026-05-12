@@ -1,13 +1,18 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $systemDataPath = Join-Path $PSScriptRoot '../../Module/Data/System.json'
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/System/System.Updates.psm1'
-    $script:SystemData = Get-Content -LiteralPath $systemDataPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $script:SystemData = Get-BaselineTestSourceText -Path $systemDataPath | ConvertFrom-Json
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
-        if ($fn.Name -in @('StoreSearchResults', 'WindowsUpdate', 'DownloadUpdatesOverMeteredConnection', 'StoreAppAutoDownload', 'FeatureUpdateDeferral', 'QualityUpdateDeferral', 'UpdateNotificationLevel', 'WindowsUpdateDisableAll', 'WindowsUpdateSecurityOnlyMode', 'WindowsUpdatePause')) {
+        if ($fn.Name -in @('StoreSearchResults', 'WindowsUpdate', 'Convert-WindowsUpdateRepairRegistryPathForRegExe', 'Export-WindowsUpdateRepairRegistryKey', 'Remove-WindowsUpdateRepairRegistryKey', 'Get-WindowsUpdateRepairServiceIfPresent', 'Stop-WindowsUpdateRepairServiceIfPresent', 'Set-WindowsUpdateRepairServiceStartupIfPresent', 'Start-WindowsUpdateRepairServiceIfPresent', 'Remove-WindowsUpdateRepairItemIfPresent', 'Rename-WindowsUpdateRepairItemIfPresent', 'Remove-WindowsUpdateRepairRegistryValueIfPresent', 'Remove-WindowsUpdateRepairBitsTransfersIfPresent', 'DownloadUpdatesOverMeteredConnection', 'StoreAppAutoDownload', 'FeatureUpdateDeferral', 'QualityUpdateDeferral', 'UpdateNotificationLevel', 'WindowsUpdateDisableAll', 'WindowsUpdateSecurityOnlyMode', 'WindowsUpdatePause')) {
             Invoke-Expression $fn.Extent.Text
         }
     }
@@ -25,7 +30,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
 
         <#
             .SYNOPSIS
-            Internal function UpdateAutoDownload.
         #>
 
         function UpdateAutoDownload {
@@ -41,7 +45,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function UpdateDriver {
             param(
@@ -56,7 +59,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
 
         <#
             .SYNOPSIS
-            Internal function UpdateRestart.
         #>
 
         function UpdateRestart {
@@ -72,7 +74,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function FeatureUpdateDeferral {
             param(
@@ -87,7 +88,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
 
         <#
             .SYNOPSIS
-            Internal function QualityUpdateDeferral.
         #>
 
         function QualityUpdateDeferral {
@@ -105,7 +105,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Write-ConsoleStatus {
             param(
@@ -116,7 +115,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
 
         <#
             .SYNOPSIS
-            Internal function LogInfo.
         #>
 
         function LogInfo {
@@ -125,7 +123,6 @@ Describe 'WindowsUpdateSecurityOnlyMode' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogError {
             param([string]$Message)
@@ -174,7 +171,6 @@ Describe 'WindowsUpdatePause' {
 
         <#
             .SYNOPSIS
-            Internal function Write-ConsoleStatus.
         #>
 
         function Write-ConsoleStatus {
@@ -186,7 +182,6 @@ Describe 'WindowsUpdatePause' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogInfo {
             param([string]$Message)
@@ -195,7 +190,6 @@ Describe 'WindowsUpdatePause' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogError {
             param([string]$Message)
@@ -204,7 +198,6 @@ Describe 'WindowsUpdatePause' {
 
         <#
             .SYNOPSIS
-            Internal function Test-Path.
         #>
 
         function Test-Path {
@@ -214,7 +207,6 @@ Describe 'WindowsUpdatePause' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function New-Item {
             param(
@@ -228,7 +220,6 @@ Describe 'WindowsUpdatePause' {
 
         <#
             .SYNOPSIS
-            Internal function New-ItemProperty.
         #>
 
         function New-ItemProperty {
@@ -251,7 +242,6 @@ Describe 'WindowsUpdatePause' {
 
         <#
             .SYNOPSIS
-            Internal function Remove-ItemProperty.
         #>
 
         function Remove-ItemProperty {
@@ -324,6 +314,7 @@ Describe 'WindowsUpdateDisableAll' {
         $script:scheduledTaskPrincipals = [System.Collections.Generic.List[object]]::new()
         $script:registeredTasks = [System.Collections.Generic.List[object]]::new()
         $script:unregisteredTasks = [System.Collections.Generic.List[object]]::new()
+        $script:setContentCalls = [System.Collections.Generic.List[object]]::new()
 
         function Write-ConsoleStatus {
             param(
@@ -370,6 +361,21 @@ Describe 'WindowsUpdateDisableAll' {
                 Name = $Name
                 PropertyType = $PropertyType
                 Value = $Value
+            })
+        }
+
+        function Set-Content {
+            param(
+                [string]$LiteralPath,
+                [object]$Value,
+                [string]$Encoding,
+                [switch]$Force,
+                [object]$ErrorAction
+            )
+
+            [void]$script:setContentCalls.Add([pscustomobject]@{
+                LiteralPath = $LiteralPath
+                Value = [string]$Value
             })
         }
 
@@ -534,6 +540,7 @@ Describe 'WindowsUpdateDisableAll' {
         Remove-Item Function:\Test-Path -ErrorAction SilentlyContinue
         Remove-Item Function:\New-Item -ErrorAction SilentlyContinue
         Remove-Item Function:\New-ItemProperty -ErrorAction SilentlyContinue
+        Remove-Item Function:\Set-Content -ErrorAction SilentlyContinue
         Remove-Item Function:\Remove-ItemProperty -ErrorAction SilentlyContinue
         Remove-Item Function:\Stop-Service -ErrorAction SilentlyContinue
         Remove-Item Function:\Set-Service -ErrorAction SilentlyContinue
@@ -563,8 +570,11 @@ Describe 'WindowsUpdateDisableAll' {
         $script:registeredTasks[0].TaskName | Should -Be 'WindowsUpdateGuard'
         $script:registeredTasks[0].TaskPath | Should -Be '\Baseline\'
         $script:registeredTasks[0].Action.Execute | Should -Be 'powershell.exe'
-        $script:registeredTasks[0].Action.Argument | Should -Match 'NoAutoUpdate'
-        $script:registeredTasks[0].Action.Argument | Should -Match 'WaaSMedicSvc'
+        $script:registeredTasks[0].Action.Argument | Should -Match '-File'
+        $script:setContentCalls.Count | Should -Be 1
+        $script:setContentCalls[0].LiteralPath | Should -Match 'WindowsUpdateGuard\.ps1$'
+        $script:setContentCalls[0].Value | Should -Match 'NoAutoUpdate'
+        $script:setContentCalls[0].Value | Should -Match 'WaaSMedicSvc'
         $script:registeredTasks[0].Trigger.Count | Should -Be 2
         $script:registeredTasks[0].Principal.UserId | Should -Be 'NT AUTHORITY\SYSTEM'
     }
@@ -592,7 +602,6 @@ Describe 'UpdateNotificationLevel' {
 
         <#
             .SYNOPSIS
-            Internal function Write-ConsoleStatus.
         #>
 
         function Write-ConsoleStatus {
@@ -604,7 +613,6 @@ Describe 'UpdateNotificationLevel' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogInfo {
             param([string]$Message)
@@ -613,7 +621,6 @@ Describe 'UpdateNotificationLevel' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogError {
             param([string]$Message)
@@ -622,7 +629,6 @@ Describe 'UpdateNotificationLevel' {
 
         <#
             .SYNOPSIS
-            Internal function Test-Path.
         #>
 
         function Test-Path {
@@ -632,7 +638,6 @@ Describe 'UpdateNotificationLevel' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function New-Item {
             param(
@@ -646,7 +651,6 @@ Describe 'UpdateNotificationLevel' {
 
         <#
             .SYNOPSIS
-            Internal function New-ItemProperty.
         #>
 
         function New-ItemProperty {
@@ -669,7 +673,6 @@ Describe 'UpdateNotificationLevel' {
 
         <#
             .SYNOPSIS
-            Internal function Remove-ItemProperty.
         #>
 
         function Remove-ItemProperty {
@@ -761,7 +764,6 @@ Describe 'FeatureUpdateDeferral' {
 
         <#
             .SYNOPSIS
-            Internal function Write-ConsoleStatus.
         #>
 
         function Write-ConsoleStatus {
@@ -773,7 +775,6 @@ Describe 'FeatureUpdateDeferral' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogInfo {
             param([string]$Message)
@@ -782,7 +783,6 @@ Describe 'FeatureUpdateDeferral' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogError {
             param([string]$Message)
@@ -791,7 +791,6 @@ Describe 'FeatureUpdateDeferral' {
 
         <#
             .SYNOPSIS
-            Internal function Test-Path.
         #>
 
         function Test-Path {
@@ -801,7 +800,6 @@ Describe 'FeatureUpdateDeferral' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function New-Item {
             param(
@@ -815,7 +813,6 @@ Describe 'FeatureUpdateDeferral' {
 
         <#
             .SYNOPSIS
-            Internal function New-ItemProperty.
         #>
 
         function New-ItemProperty {
@@ -838,7 +835,6 @@ Describe 'FeatureUpdateDeferral' {
 
         <#
             .SYNOPSIS
-            Internal function Remove-ItemProperty.
         #>
 
         function Remove-ItemProperty {
@@ -898,7 +894,6 @@ Describe 'QualityUpdateDeferral' {
 
         <#
             .SYNOPSIS
-            Internal function Write-ConsoleStatus.
         #>
 
         function Write-ConsoleStatus {
@@ -910,7 +905,6 @@ Describe 'QualityUpdateDeferral' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogInfo {
             param([string]$Message)
@@ -919,7 +913,6 @@ Describe 'QualityUpdateDeferral' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogError {
             param([string]$Message)
@@ -928,7 +921,6 @@ Describe 'QualityUpdateDeferral' {
 
         <#
             .SYNOPSIS
-            Internal function Test-Path.
         #>
 
         function Test-Path {
@@ -938,7 +930,6 @@ Describe 'QualityUpdateDeferral' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function New-Item {
             param(
@@ -952,7 +943,6 @@ Describe 'QualityUpdateDeferral' {
 
         <#
             .SYNOPSIS
-            Internal function New-ItemProperty.
         #>
 
         function New-ItemProperty {
@@ -975,7 +965,6 @@ Describe 'QualityUpdateDeferral' {
 
         <#
             .SYNOPSIS
-            Internal function Remove-ItemProperty.
         #>
 
         function Remove-ItemProperty {
@@ -1052,7 +1041,6 @@ Describe 'DownloadUpdatesOverMeteredConnection' {
 
         <#
             .SYNOPSIS
-            Internal function Write-ConsoleStatus.
         #>
 
         function Write-ConsoleStatus {
@@ -1064,7 +1052,6 @@ Describe 'DownloadUpdatesOverMeteredConnection' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogInfo {
             param([string]$Message)
@@ -1073,7 +1060,6 @@ Describe 'DownloadUpdatesOverMeteredConnection' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogError {
             param([string]$Message)
@@ -1082,7 +1068,6 @@ Describe 'DownloadUpdatesOverMeteredConnection' {
 
         <#
             .SYNOPSIS
-            Internal function Test-Path.
         #>
 
         function Test-Path {
@@ -1092,7 +1077,6 @@ Describe 'DownloadUpdatesOverMeteredConnection' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function New-Item {
             param(
@@ -1106,7 +1090,6 @@ Describe 'DownloadUpdatesOverMeteredConnection' {
 
         <#
             .SYNOPSIS
-            Internal function New-ItemProperty.
         #>
 
         function New-ItemProperty {
@@ -1167,7 +1150,6 @@ Describe 'StoreAppAutoDownload' {
 
         <#
             .SYNOPSIS
-            Internal function Write-ConsoleStatus.
         #>
 
         function Write-ConsoleStatus {
@@ -1179,7 +1161,6 @@ Describe 'StoreAppAutoDownload' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogInfo {
             param([string]$Message)
@@ -1188,7 +1169,6 @@ Describe 'StoreAppAutoDownload' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogError {
             param([string]$Message)
@@ -1197,7 +1177,6 @@ Describe 'StoreAppAutoDownload' {
 
         <#
             .SYNOPSIS
-            Internal function Test-Path.
         #>
 
         function Test-Path {
@@ -1207,7 +1186,6 @@ Describe 'StoreAppAutoDownload' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function New-Item {
             param(
@@ -1221,7 +1199,6 @@ Describe 'StoreAppAutoDownload' {
 
         <#
             .SYNOPSIS
-            Internal function New-ItemProperty.
         #>
 
         function New-ItemProperty {
@@ -1283,7 +1260,6 @@ Describe 'StoreSearchResults' {
 
         <#
             .SYNOPSIS
-            Internal function Write-ConsoleStatus.
         #>
 
         function Write-ConsoleStatus {
@@ -1295,7 +1271,6 @@ Describe 'StoreSearchResults' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogInfo {
             param([string]$Message)
@@ -1304,7 +1279,6 @@ Describe 'StoreSearchResults' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogWarning {
             param([string]$Message)
@@ -1312,7 +1286,6 @@ Describe 'StoreSearchResults' {
 
         <#
             .SYNOPSIS
-            Internal function LogError.
         #>
 
         function LogError {
@@ -1322,7 +1295,6 @@ Describe 'StoreSearchResults' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Test-Path {
             param([string]$LiteralPath)
@@ -1331,7 +1303,6 @@ Describe 'StoreSearchResults' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function icacls {
             param(
@@ -1406,7 +1377,6 @@ Describe 'WindowsUpdate' {
 
         <#
             .SYNOPSIS
-            Internal function Write-ConsoleStatus.
         #>
 
         function Write-ConsoleStatus {
@@ -1425,7 +1395,6 @@ Describe 'WindowsUpdate' {
 
         <#
             .SYNOPSIS
-            Internal function LogInfo.
         #>
 
         function LogInfo {
@@ -1435,7 +1404,6 @@ Describe 'WindowsUpdate' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogWarning {
             param([string]$Message)
@@ -1444,33 +1412,65 @@ Describe 'WindowsUpdate' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogError {
             param([string]$Message)
             [void]$script:loggedErrorMessages.Add($Message)
         }
 
+        function LogDebug {
+            param([string]$Message)
+        }
+
+        function Test-Path {
+            param([string]$Path, [string]$LiteralPath)
+            $candidate = if (-not [string]::IsNullOrWhiteSpace($LiteralPath)) { $LiteralPath } else { $Path }
+            if ([string]::IsNullOrWhiteSpace($candidate)) { return $false }
+            if ($candidate -like '*.bak') { return $false }
+            if ($candidate -like '*\Application Data\Microsoft\Network\Downloader') { return $true }
+            if ($candidate -like '*\SoftwareDistribution\Download') { return $true }
+            if ($candidate -like '*\SoftwareDistribution\DataStore') { return $true }
+            if ($candidate -like '*\System32\Catroot2') { return $true }
+            if ($candidate -like '*\WindowsUpdate.log') { return $true }
+            if ($candidate -like 'HKLM:\*' -or $candidate -like 'HKCU:\*') { return $true }
+            return $false
+        }
+
         <#
             .SYNOPSIS
-            Internal function Stop-Service.
+        #>
+
+        function Get-Service {
+            [CmdletBinding(PositionalBinding = $false)]
+            param(
+                [string]$Name,
+                [Parameter(ValueFromRemainingArguments = $true)]
+                [object[]]$RemainingArguments
+            )
+
+            [pscustomobject]@{ Name = $Name }
+        }
+
+        <#
+            .SYNOPSIS
         #>
 
         function Stop-Service {
             [CmdletBinding(PositionalBinding = $false)]
             param(
                 [string]$Name,
+                [object]$InputObject,
                 [switch]$Force,
                 [Parameter(ValueFromRemainingArguments = $true)]
                 [object[]]$RemainingArguments
             )
 
-            [void]$script:stopServiceCalls.Add($Name)
+            $serviceName = if (-not [string]::IsNullOrWhiteSpace($Name)) { $Name } elseif ($InputObject -and $InputObject.PSObject.Properties['Name']) { [string]$InputObject.Name } else { '' }
+            [void]$script:stopServiceCalls.Add($serviceName)
         }
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Set-Service {
             [CmdletBinding(PositionalBinding = $false)]
@@ -1489,7 +1489,6 @@ Describe 'WindowsUpdate' {
 
         <#
             .SYNOPSIS
-            Internal function Start-Service.
         #>
 
         function Start-Service {
@@ -1505,12 +1504,12 @@ Describe 'WindowsUpdate' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Remove-Item {
             [CmdletBinding(PositionalBinding = $false)]
             param(
                 [string]$Path,
+                [string]$LiteralPath,
                 [switch]$Recurse,
                 [switch]$Force,
                 [Parameter(ValueFromRemainingArguments = $true)]
@@ -1525,13 +1524,62 @@ Describe 'WindowsUpdate' {
 
         <#
             .SYNOPSIS
-            Internal function Rename-Item.
+        #>
+
+        function Get-Item {
+            [CmdletBinding(PositionalBinding = $false)]
+            param(
+                [string]$Path,
+                [string]$LiteralPath,
+                [Parameter(ValueFromRemainingArguments = $true)]
+                [object[]]$RemainingArguments
+            )
+
+            $resolvedPath = if ([string]::IsNullOrEmpty($Path)) { $LiteralPath } else { $Path }
+            if ($resolvedPath -like 'HKLM:\*' -or $resolvedPath -like 'HKCU:\*')
+            {
+                $item = [pscustomobject]@{ Path = $resolvedPath }
+                $item | Add-Member -MemberType ScriptMethod -Name GetValueNames -Value {
+                    @(
+                        'AccountDomainSid', 'PingID', 'SusClientId',
+                        'ExcludeWUDriversInQualityUpdate', 'PreventDeviceMetadataFromNetwork',
+                        'DontPromptForWindowsUpdate', 'DontSearchWindowsUpdate',
+                        'DriverUpdateWizardWuSearchEnabled', 'NoAutoRebootWithLoggedOnUsers',
+                        'AUPowerManagement', 'BranchReadinessLevel',
+                        'DeferFeatureUpdatesPeriodInDays', 'DeferQualityUpdatesPeriodInDays'
+                    )
+                } -Force
+                return $item
+            }
+
+            [pscustomobject]@{ FullName = $resolvedPath }
+        }
+
+        <#
+            .SYNOPSIS
+        #>
+
+        function Get-ChildItem {
+            [CmdletBinding(PositionalBinding = $false)]
+            param(
+                [string]$LiteralPath,
+                [string]$Filter,
+                [Parameter(ValueFromRemainingArguments = $true)]
+                [object[]]$RemainingArguments
+            )
+
+            [pscustomobject]@{ FullName = (Join-Path $LiteralPath ($Filter -replace '\*', '0')) }
+        }
+
+        <#
+            .SYNOPSIS
         #>
 
         function Rename-Item {
             [CmdletBinding(PositionalBinding = $false)]
             param(
                 [string]$Path,
+                [string]$LiteralPath,
                 [string]$NewName,
                 [Parameter(ValueFromRemainingArguments = $true)]
                 [object[]]$RemainingArguments
@@ -1545,13 +1593,13 @@ Describe 'WindowsUpdate' {
 
         <#
             .SYNOPSIS
-            Internal function Remove-ItemProperty.
         #>
 
         function Remove-ItemProperty {
             [CmdletBinding(PositionalBinding = $false)]
             param(
                 [string]$Path,
+                [string]$LiteralPath,
                 [string]$Name,
                 [switch]$Force,
                 [Parameter(ValueFromRemainingArguments = $true)]
@@ -1566,7 +1614,6 @@ Describe 'WindowsUpdate' {
 
         <#
             .SYNOPSIS
-            Internal function Set-ItemProperty.
         #>
 
         function Set-ItemProperty {
@@ -1588,7 +1635,6 @@ Describe 'WindowsUpdate' {
 
         <#
             .SYNOPSIS
-            Internal function Start-Process.
         #>
 
         function Start-Process {
@@ -1609,9 +1655,26 @@ Describe 'WindowsUpdate' {
             })
         }
 
+        function Invoke-BaselineProcess {
+            [CmdletBinding(PositionalBinding = $false)]
+            param(
+                [string]$FilePath,
+                [object[]]$ArgumentList,
+                [int]$TimeoutSeconds,
+                [Parameter(ValueFromRemainingArguments = $true)]
+                [object[]]$RemainingArguments
+            )
+
+            [void]$script:startProcessCalls.Add([pscustomobject]@{
+                FilePath = $FilePath
+                ArgumentList = @($ArgumentList)
+                TimeoutSeconds = $TimeoutSeconds
+            })
+            [pscustomobject]@{ ExitCode = 0 }
+        }
+
         <#
             .SYNOPSIS
-            Internal function Get-BitsTransfer.
         #>
 
         function Get-BitsTransfer {
@@ -1632,7 +1695,6 @@ Describe 'WindowsUpdate' {
 
         <#
             .SYNOPSIS
-            Internal function Remove-BitsTransfer.
         #>
 
         function Remove-BitsTransfer {
@@ -1640,19 +1702,20 @@ Describe 'WindowsUpdate' {
             param(
                 [Parameter(ValueFromPipeline = $true)]
                 [object]$InputObject,
+                [object]$BitsJob,
                 [Parameter(ValueFromRemainingArguments = $true)]
                 [object[]]$RemainingArguments
             )
 
             process
             {
-                [void]$script:bitsTransferRemovals.Add($InputObject)
+                $targetJob = if ($null -ne $BitsJob) { $BitsJob } else { $InputObject }
+                [void]$script:bitsTransferRemovals.Add($targetJob)
             }
         }
 
         <#
             .SYNOPSIS
-            Internal function New-Object.
         #>
 
         function New-Object {
@@ -1678,14 +1741,20 @@ Describe 'WindowsUpdate' {
         Remove-Item Function:\LogInfo -ErrorAction SilentlyContinue
         Remove-Item Function:\LogWarning -ErrorAction SilentlyContinue
         Remove-Item Function:\LogError -ErrorAction SilentlyContinue
+        Remove-Item Function:\LogDebug -ErrorAction SilentlyContinue
+        Remove-Item Function:\Test-Path -ErrorAction SilentlyContinue
+        Remove-Item Function:\Get-Service -ErrorAction SilentlyContinue
         Remove-Item Function:\Stop-Service -ErrorAction SilentlyContinue
         Remove-Item Function:\Set-Service -ErrorAction SilentlyContinue
         Remove-Item Function:\Start-Service -ErrorAction SilentlyContinue
         Remove-Item Function:\Remove-Item -ErrorAction SilentlyContinue
+        Remove-Item Function:\Get-Item -ErrorAction SilentlyContinue
+        Remove-Item Function:\Get-ChildItem -ErrorAction SilentlyContinue
         Remove-Item Function:\Rename-Item -ErrorAction SilentlyContinue
         Remove-Item Function:\Remove-ItemProperty -ErrorAction SilentlyContinue
         Remove-Item Function:\Set-ItemProperty -ErrorAction SilentlyContinue
         Remove-Item Function:\Start-Process -ErrorAction SilentlyContinue
+        Remove-Item Function:\Invoke-BaselineProcess -ErrorAction SilentlyContinue
         Remove-Item Function:\Get-BitsTransfer -ErrorAction SilentlyContinue
         Remove-Item Function:\Remove-BitsTransfer -ErrorAction SilentlyContinue
         Remove-Item Function:\New-Object -ErrorAction SilentlyContinue
@@ -1702,8 +1771,9 @@ Describe 'WindowsUpdate' {
         $script:renameItemCalls.Count | Should -Be 1
         $script:renameItemCalls[0].NewName | Should -Be 'Download.bak'
         @($script:startProcessCalls | Where-Object FilePath -like '*regsvr32.exe') | Should -HaveCount 36
-        @($script:startProcessCalls | Where-Object FilePath -like '*cmd.exe') | Should -HaveCount 2
-        @($script:startProcessCalls | Where-Object FilePath -like '*secedit.exe') | Should -HaveCount 1
+        @($script:startProcessCalls | Where-Object FilePath -like '*cmd.exe') | Should -HaveCount 0
+        @($script:startProcessCalls | Where-Object FilePath -like '*secedit.exe') | Should -HaveCount 0
+        @($script:startProcessCalls | Where-Object FilePath -like '*gpupdate.exe') | Should -HaveCount 1
         @($script:startProcessCalls | Where-Object FilePath -like '*netsh.exe') | Should -HaveCount 3
         @($script:startProcessCalls | Where-Object FilePath -like '*wuauclt.exe') | Should -HaveCount 1
         $script:getBitsTransferCalls.Count | Should -Be 1
@@ -1720,11 +1790,14 @@ Describe 'WindowsUpdate' {
         $script:consoleActions[0] | Should -Be 'Repairing Windows Update (Aggressive)'
         $script:consoleStatuses[-1] | Should -Be 'success'
         @($script:renameItemCalls | ForEach-Object NewName) | Should -Be @('DataStore.bak', 'catroot2.bak', 'Download.bak')
-        @($script:startProcessCalls[0].ArgumentList) | Should -Be @('/c', 'chkdsk /scan /perf')
-        @($script:startProcessCalls[1].ArgumentList) | Should -Be @('/c', 'sfc /scannow')
-        @($script:startProcessCalls[2].ArgumentList) | Should -Be @('/c', 'dism /online /cleanup-image /restorehealth')
+        $script:startProcessCalls[0].FilePath | Should -BeLike '*chkdsk.exe'
+        @($script:startProcessCalls[0].ArgumentList) | Should -Be @('/scan', '/perf')
+        $script:startProcessCalls[1].FilePath | Should -BeLike '*sfc.exe'
+        @($script:startProcessCalls[1].ArgumentList) | Should -Be @('/scannow')
+        $script:startProcessCalls[2].FilePath | Should -BeLike '*dism.exe'
+        @($script:startProcessCalls[2].ArgumentList) | Should -Be @('/online', '/cleanup-image', '/restorehealth')
         @($script:startProcessCalls | Where-Object FilePath -like '*sc.exe') | Should -HaveCount 2
-        @($script:startProcessCalls | Where-Object FilePath -like '*cmd.exe') | Should -HaveCount 5
+        @($script:startProcessCalls | Where-Object FilePath -like '*cmd.exe') | Should -HaveCount 0
         @($script:startProcessCalls | Where-Object FilePath -like '*wuauclt.exe') | Should -HaveCount 1
         $script:getBitsTransferCalls.Count | Should -Be 1
         $script:bitsTransferRemovals.Count | Should -Be 1

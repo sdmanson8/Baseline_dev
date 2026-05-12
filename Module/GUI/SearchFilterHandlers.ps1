@@ -1,4 +1,4 @@
-	# Capture functions into $Script: variables so WPF event handler delegates can resolve them.
+﻿	# Capture functions into $Script: variables so WPF event handler delegates can resolve them.
 	$Script:SetSearchInputStyleScript = ${function:Set-SearchInputStyle}
 	$Script:SyncSearchInputChromeScript = ${function:Sync-GuiSearchInputChrome}
 	$Script:SetSafeModeStateScript = ${function:Set-SafeModeState}
@@ -41,7 +41,7 @@
 		foreach ($key in $keys)
 		{
 			try { & $Script:GuiState.Set $key $pending[$key] }
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SearchFilterHandlers.ApplyPendingFilter' }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'SearchFilterHandlers.ApplyPendingFilter' }
 		}
 		$pending.Clear()
 	})

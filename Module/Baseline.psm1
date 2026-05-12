@@ -23,9 +23,9 @@
 
 # Logging and helper functions are shared across all region modules, so we import them first to ensure they are available for use in the region modules.
 # Import shared modules used by all region modules
-Import-Module -Name "$PSScriptRoot\Logging.psm1" -Force -Global
-Import-Module -Name "$PSScriptRoot\SharedHelpers.psm1" -Force -Global
-Import-Module -Name "$PSScriptRoot\GUIExecution.psm1" -Force -Global
+Import-Module -Name "$PSScriptRoot\Logging.psm1" -Force -Global -DisableNameChecking -WarningAction SilentlyContinue
+Import-Module -Name "$PSScriptRoot\SharedHelpers.psm1" -Force -Global -DisableNameChecking -WarningAction SilentlyContinue
+Import-Module -Name "$PSScriptRoot\GUIExecution.psm1" -Force -Global -DisableNameChecking -WarningAction SilentlyContinue
 
 # Optional supply-chain hardening. When BASELINE_INTEGRITY_MODE is set to
 # Strict or Audit, every script file under Module/ is hashed and compared
@@ -82,7 +82,7 @@ foreach ($core in $coreFiles) {
     $corePath = Join-Path $RegionDir $core
     if (Test-Path -LiteralPath $corePath) {
         try {
-            Import-Module -Name $corePath -Force -Global -ErrorAction Stop
+            Import-Module -Name $corePath -Force -Global -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop
         }
         catch {
             LogError "Failed to import region module '$core': $($_.Exception.Message)"
@@ -96,7 +96,7 @@ Get-ChildItem -Path $RegionDir -Filter '*.psm1' -File |
     Sort-Object Name |
     ForEach-Object {
         try {
-            Import-Module -Name $_.FullName -Force -Global -ErrorAction Stop
+            Import-Module -Name $_.FullName -Force -Global -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop
         }
         catch {
             LogError "Failed to import region module '$($_.Name)': $($_.Exception.Message)"

@@ -15,7 +15,7 @@ function Test-GuiPerfTraceDebugEnabled
 	if (Get-Command -Name 'Get-BaselineDebugLogging' -CommandType Function -ErrorAction SilentlyContinue)
 	{
 		try { return [bool](Get-BaselineDebugLogging) }
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PerfTrace.TestGuiPerfTraceDebugEnabled.GetBaselineDebugLogging' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'PerfTrace.TestGuiPerfTraceDebugEnabled.GetBaselineDebugLogging' }
 	}
 
 	if (Test-Path -Path Variable:\Script:DebugLoggingEnabled)
@@ -69,7 +69,7 @@ function Initialize-GuiPerfTrace
 	}
 	catch
 	{
-		Write-DebugSwallowedException -ErrorRecord $_ -Source 'PerfTrace.InitializeGuiPerfTrace.WriteSessionHeader'
+		Write-SwallowedException -ErrorRecord $_ -Source 'PerfTrace.InitializeGuiPerfTrace.WriteSessionHeader'
 		$Script:GuiPerfEnabled = $false
 	}
 }
@@ -108,5 +108,5 @@ function Stop-GuiPerfScope
 		$line = "{0} {1,6} ms  {2}  {3}`r`n" -f (Get-Date).ToString('HH:mm:ss.fff'), $ms, $Scope.Name, $note
 		[System.IO.File]::AppendAllText($Script:GuiPerfLogPath, $line, [System.Text.Encoding]::UTF8)
 	}
-	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PerfTrace.StopGuiPerfScope.AppendLine' }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'PerfTrace.StopGuiPerfScope.AppendLine' }
 }

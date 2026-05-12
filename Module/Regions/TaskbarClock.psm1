@@ -160,5 +160,8 @@ function SecondsInSystemClock
 }
 
 #endregion Taskbar Clock
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'ClockInNotificationCenter',
+    'SecondsInSystemClock'
+)
+Export-ModuleMember -Function $ExportedFunctions

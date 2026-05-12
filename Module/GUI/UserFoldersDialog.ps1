@@ -1,4 +1,4 @@
-# UserFoldersDialog.ps1
+﻿# UserFoldersDialog.ps1
 #
 # Themed WPF dialog for relocating the default user folders (Desktop /
 # Documents / Downloads / Music / Pictures / Videos) with a browse picker
@@ -39,9 +39,9 @@ function Get-GuiUserFoldersEntries
 	}
 	catch
 	{
-		if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'UserFoldersDialog.Enumerate'
+			Write-SwallowedException -ErrorRecord $_ -Source 'UserFoldersDialog.Enumerate'
 		}
 		$entries = @()
 	}
@@ -395,9 +395,9 @@ function Show-GuiUserFoldersDialog
 						Folder = [string]$rowState.Folder
 						Error  = $_.Exception.Message
 					})
-					if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						Write-DebugSwallowedException -ErrorRecord $_ -Source 'UserFoldersDialog.Apply'
+						Write-SwallowedException -ErrorRecord $_ -Source 'UserFoldersDialog.Apply'
 					}
 					$rowState.StatusText.Text = ('Failed: {0}' -f $_.Exception.Message)
 					$rowState.StatusText.Foreground = $bc.ConvertFromString('#D13438')

@@ -1,8 +1,7 @@
-# ExecutionOrchestration split file loaded by Module\GUI\ExecutionOrchestration.ps1.
+﻿# ExecutionOrchestration split file loaded by Module\GUI\ExecutionOrchestration.ps1.
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ExecutionViewHeader.
 	#>
 
 	function New-ExecutionViewHeader
@@ -36,7 +35,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ExecutionViewProgressSection.
 	#>
 
 	function New-ExecutionViewProgressSection
@@ -99,6 +97,7 @@
 		{
 			$abortBtnHost = New-Object System.Windows.Controls.Border
 			$abortBtnHost.Padding = [System.Windows.Thickness]::new(0)
+			$abortBtnHost.Margin = [System.Windows.Thickness]::new(0, -6, 0, 0)
 			$abortBtnHost.HorizontalAlignment = 'Right'
 			$abortBtnHost.VerticalAlignment = 'Top'
 			[System.Windows.Controls.Grid]::SetColumn($abortBtnHost, 1)
@@ -106,8 +105,8 @@
 			$abortBtn = New-Object System.Windows.Controls.Button
 			$abortBtn.Content = Get-UxLocalizedString -Key 'GuiAbortButton' -Fallback 'Abort'
 			$abortBtn.MinWidth = $Script:GuiLayout.ButtonAbortMinWidth
-			$abortBtn.Height = $Script:GuiLayout.ButtonLargeHeight
-			$abortBtn.Padding = [System.Windows.Thickness]::new(18,8,18,8)
+			$abortBtn.Height = ([double]$Script:GuiLayout.ProgressBarHeight + 12)
+			$abortBtn.Padding = [System.Windows.Thickness]::new(16,4,16,4)
 			$abortBtn.HorizontalAlignment = 'Stretch'
 			$abortBtn.VerticalAlignment = 'Top'
 			$abortBtn.Cursor = [System.Windows.Input.Cursors]::Hand
@@ -129,7 +128,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ExecutionProgressBarTemplate.
 	#>
 
 	function New-ExecutionProgressBarTemplate
@@ -142,7 +140,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ExecutionViewLogBox.
 	#>
 
 	function New-ExecutionViewLogBox
@@ -155,10 +152,12 @@
 		$logBox.IsReadOnly = $true
 		$logBox.VerticalScrollBarVisibility = 'Auto'
 		$logBox.HorizontalScrollBarVisibility = 'Disabled'
-		$logBox.BorderThickness = [System.Windows.Thickness]::new(0)
+		$logBox.BorderThickness = [System.Windows.Thickness]::new(1)
 		$logBox.Padding = [System.Windows.Thickness]::new(12)
-		$logBox.Background = $BrushConverter.ConvertFromString($Script:CurrentTheme.CardBg)
+		$logBg = if ($Script:CurrentTheme -and $Script:CurrentTheme.ContainsKey('LogBg') -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.LogBg)) { [string]$Script:CurrentTheme.LogBg } else { [string]$Script:CurrentTheme.CardBg }
+		$logBox.Background = $BrushConverter.ConvertFromString($logBg)
 		$logBox.Foreground = $BrushConverter.ConvertFromString($Script:CurrentTheme.TextPrimary)
+		$logBox.BorderBrush = $BrushConverter.ConvertFromString($Script:CurrentTheme.CardBorder)
 		$logBox.FontFamily = New-Object System.Windows.Media.FontFamily('Consolas')
 		$logBox.FontSize = $Script:GuiLayout.FontSizeSubheading
 		$logBox.TabIndex = 1
@@ -172,7 +171,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Enter-ExecutionView.
 	#>
 
 	function Enter-ExecutionView
@@ -216,6 +214,7 @@
 		$Script:ExecutionProgressHost = $progressSection.ProgressHost
 		$Script:ExecutionProgressBar = $progressSection.ProgressBar
 		$Script:ExecutionProgressText = $progressSection.ProgressText
+		$Script:ExecutionLastProgressCompleted = -1
 		$Script:AbortRunButton = $progressSection.AbortButton
 		Reset-RunAbortState
 		$Script:ExecutionWorker = $null
@@ -247,7 +246,6 @@
 
 	    <#
 	        .SYNOPSIS
-	        Internal function Exit-ExecutionView.
 	    #>
 
 	    function Exit-ExecutionView
@@ -261,6 +259,7 @@
 	        $Script:ExecutionProgressBar = $null
 	        $Script:ExecutionProgressText = $null
 	        $Script:AbortRunButton = $null
+	        $Script:ExecutionLastProgressCompleted = -1
 	        $Script:ExecutionWorker = $null
         $Script:ExecutionRunspace = $null
         $Script:ExecutionRunPowerShell = $null
@@ -352,4 +351,3 @@
 
 		LogInfo (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionViewCompleted' -Fallback '[Exit-ExecutionView] COMPLETED - GUI restored')
     }
-

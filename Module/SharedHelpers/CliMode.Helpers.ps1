@@ -15,7 +15,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Resolve-BaselineCliIntent.
 #>
 
 function Resolve-BaselineCliIntent
@@ -139,7 +138,6 @@ function Resolve-BaselineCliIntent
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineHeadlessExitCode.
 #>
 
 function Get-BaselineHeadlessExitCode
@@ -224,7 +222,6 @@ function Get-BaselineHeadlessExitCode
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselinePresetCatalog.
 #>
 
 function Get-BaselinePresetCatalog
@@ -297,7 +294,6 @@ function Get-BaselinePresetCatalog
 
 <#
     .SYNOPSIS
-    Internal function Format-BaselinePresetCatalog.
 #>
 
 function Format-BaselinePresetCatalog
@@ -357,7 +353,6 @@ function Format-BaselinePresetCatalog
 
 <#
     .SYNOPSIS
-    Internal function Resolve-BaselineCliLogPath.
 #>
 
 function Resolve-BaselineCliLogPath

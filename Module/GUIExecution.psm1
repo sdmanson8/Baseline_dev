@@ -1,6 +1,7 @@
 using module .\Logging.psm1
 using module .\SharedHelpers.psm1
 
+
 <#
     .SYNOPSIS
     Internal GUI execution helper module for Baseline.
@@ -70,6 +71,8 @@ function Get-GuiExecutionOutcome
 	switch -Regex ($statusText)
 	{
 		'^(Failed)$' { return 'Failed' }
+		'^(Timed Out)$' { return 'Timed Out' }
+		'^(Timed Out / Unknown Final State)$' { return 'Timed Out / Unknown Final State' }
 		'^(Not Run)$' { return 'Not Run' }
 		'^(Not applicable)$' { return 'Not applicable' }
 		'^(Restart pending)$' { return 'Restart pending' }
@@ -192,6 +195,8 @@ function Get-GuiExecutionSummaryPayload
 	$successResults = @($decorated | Where-Object Outcome -eq 'Success' | ForEach-Object { $_.Result })
 	$restartPendingResults = @($decorated | Where-Object Outcome -eq 'Restart pending' | ForEach-Object { $_.Result })
 	$failedResults = @($decorated | Where-Object Outcome -eq 'Failed' | ForEach-Object { $_.Result })
+	$timedOutResults = @($decorated | Where-Object Outcome -eq 'Timed Out' | ForEach-Object { $_.Result })
+	$timedOutUnknownResults = @($decorated | Where-Object Outcome -eq 'Timed Out / Unknown Final State' | ForEach-Object { $_.Result })
 	$skippedResults = @($decorated | Where-Object Outcome -eq 'Skipped' | ForEach-Object { $_.Result })
 	$notApplicableResults = @($decorated | Where-Object Outcome -eq 'Not applicable' | ForEach-Object { $_.Result })
 	$notRunResults = @($decorated | Where-Object Outcome -eq 'Not Run' | ForEach-Object { $_.Result })
@@ -202,7 +207,9 @@ function Get-GuiExecutionSummaryPayload
 		SuccessCount = $successResults.Count
 		RestartPendingCount = $restartPendingResults.Count
 		AppliedCount = $appliedResults.Count
-		FailedCount = $failedResults.Count
+		FailedCount = ($failedResults.Count + $timedOutResults.Count + $timedOutUnknownResults.Count)
+		TimeoutCount = $timedOutResults.Count
+		TimeoutUnknownCount = $timedOutUnknownResults.Count
 		SkippedCount = $skippedResults.Count
 		NotApplicableCount = $notApplicableResults.Count
 		NotRunCount = $notRunResults.Count
@@ -224,6 +231,8 @@ function Get-GuiExecutionSummaryPayload
 			Success = $successResults.Count
 			RestartPending = $restartPendingResults.Count
 			Failed = $failedResults.Count
+			TimedOut = $timedOutResults.Count
+			TimedOutUnknown = $timedOutUnknownResults.Count
 			Skipped = $skippedResults.Count
 			NotApplicable = $notApplicableResults.Count
 			NotRun = $notRunResults.Count
@@ -332,9 +341,801 @@ function Resolve-GuiExecutionSupportsExecutionGate
 		}
 	}
 
+	$reason = if (Get-Command -Name 'Get-BaselineEntrySupportsExecutionReason' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Get-BaselineEntrySupportsExecutionReason -Entry $Entry
+	}
+	elseif ($Entry -is [System.Collections.IDictionary] -and $Entry.Contains('SupportsExecutionReason'))
+	{
+		$Entry['SupportsExecutionReason']
+	}
+	elseif ($null -ne $Entry -and $Entry.PSObject.Properties['SupportsExecutionReason'])
+	{
+		$Entry.SupportsExecutionReason
+	}
+	else
+	{
+		$null
+	}
+
 	return [pscustomobject]@{
 		Decision = if ($ForceUnsupported) { 'Force' } else { 'Block' }
-		Reason   = 'Execution not supported on this system.'
+		Reason   = if ([string]::IsNullOrWhiteSpace([string]$reason)) { 'Execution not supported on this system.' } else { [string]$reason }
+	}
+}
+
+<#
+    .SYNOPSIS
+    Gets a GUI execution entry field value.
+
+    .DESCRIPTION
+    Resolves a property from either a dictionary-backed or PSObject-backed
+    execution entry.
+#>
+function Get-GuiExecutionEntryFieldValue
+{
+	param (
+		[object]$Entry,
+		[string]$FieldName
+	)
+
+	if ($null -eq $Entry -or [string]::IsNullOrWhiteSpace($FieldName))
+	{
+		return $null
+	}
+
+	if ($Entry -is [System.Collections.IDictionary])
+	{
+		if ($Entry.Contains($FieldName))
+		{
+			return $Entry[$FieldName]
+		}
+
+		return $null
+	}
+
+	if ($Entry.PSObject -and $Entry.PSObject.Properties[$FieldName])
+	{
+		return $Entry.$FieldName
+	}
+
+	return $null
+}
+
+<#
+    .SYNOPSIS
+    Resolves the timeout for a GUI execution entry.
+
+    .DESCRIPTION
+    Applies the shared timeout defaults for tweak/app execution while allowing
+    manifest entries to override the timeout explicitly.
+#>
+function Get-GuiExecutionActionTimeoutSeconds
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[AllowNull()]
+		[object]$Entry,
+
+		[ValidateSet('Tweak', 'App', 'AppScan', 'PackageBootstrap')]
+		[string]$ExecutionClass = 'Tweak'
+	)
+
+	$manifestTimeout = Get-GuiExecutionEntryFieldValue -Entry $Entry -FieldName 'TimeoutSeconds'
+	if ($null -ne $manifestTimeout)
+	{
+		$parsedTimeout = 0
+		if ([int]::TryParse(([string]$manifestTimeout), [ref]$parsedTimeout) -and $parsedTimeout -gt 0)
+		{
+			return $parsedTimeout
+		}
+	}
+
+	if ($ExecutionClass -eq 'App')
+	{
+		return 900
+	}
+	if ($ExecutionClass -eq 'AppScan')
+	{
+		return 300
+	}
+	if ($ExecutionClass -eq 'PackageBootstrap')
+	{
+		return 900
+	}
+
+	$type = [string](Get-GuiExecutionEntryFieldValue -Entry $Entry -FieldName 'Type')
+	$risk = [string](Get-GuiExecutionEntryFieldValue -Entry $Entry -FieldName 'Risk')
+	$recoveryLevel = [string](Get-GuiExecutionEntryFieldValue -Entry $Entry -FieldName 'RecoveryLevel')
+	$compatibilitySensitivity = [string](Get-GuiExecutionEntryFieldValue -Entry $Entry -FieldName 'CompatibilitySensitivity')
+	$functionName = [string](Get-GuiExecutionEntryFieldValue -Entry $Entry -FieldName 'Function')
+	$name = [string](Get-GuiExecutionEntryFieldValue -Entry $Entry -FieldName 'Name')
+	$sourceRegion = [string](Get-GuiExecutionEntryFieldValue -Entry $Entry -FieldName 'SourceRegion')
+	$combinedIdentity = ("{0} {1} {2}" -f $functionName, $name, $sourceRegion).Trim()
+
+	if ($combinedIdentity -match '(?i)\b(sfc|dism|component repair|component store|repair)\b')
+	{
+		return 600
+	}
+
+	if ($functionName -in @('WindowsFeatures', 'WindowsCapabilities', 'UWPApps'))
+	{
+		return 300
+	}
+
+	if ($functionName -eq 'ScheduledTasks')
+	{
+		return 120
+	}
+
+	if ($type -eq 'Action')
+	{
+		return 180
+	}
+
+	if ($risk -eq 'High' -or $compatibilitySensitivity -eq 'High' -or ($recoveryLevel -and $recoveryLevel -ne 'Direct'))
+	{
+		return 180
+	}
+
+	return 60
+}
+
+<#
+    .SYNOPSIS
+    Tests whether a GUI execution entry is marked critical.
+#>
+function Test-GuiExecutionCriticalAction
+{
+	[CmdletBinding()]
+	param (
+		[AllowNull()]
+		[object]$Entry
+	)
+
+	$criticalValue = Get-GuiExecutionEntryFieldValue -Entry $Entry -FieldName 'Critical'
+	if ($null -eq $criticalValue)
+	{
+		return $false
+	}
+
+	return [bool]$criticalValue
+}
+
+<#
+    .SYNOPSIS
+    Creates an initialized GUI execution action host.
+
+    .DESCRIPTION
+    Creates a dedicated runspace that imports Baseline once and can then
+    execute bounded commands one at a time under timeout control.
+#>
+function New-GuiExecutionActionHost
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[string]$LoaderPath,
+
+		[Parameter(Mandatory)]
+		[string]$LocalizationDirectory,
+
+		[Parameter(Mandatory)]
+		[string]$UICulture,
+
+		[Parameter(Mandatory)]
+		[string]$LogFilePath,
+
+		[string]$LogMode,
+
+		[AllowNull()]
+		$LogQueue
+	)
+
+	$runspace = [runspacefactory]::CreateRunspace()
+	$runspace.ApartmentState = 'STA'
+	$runspace.ThreadOptions = 'ReuseThread'
+	$runspace.Open()
+	$runspace.SessionStateProxy.SetVariable('bgLoaderPath', $LoaderPath)
+	$runspace.SessionStateProxy.SetVariable('bgLocDir', $LocalizationDirectory)
+	$runspace.SessionStateProxy.SetVariable('bgUICulture', $UICulture)
+	$runspace.SessionStateProxy.SetVariable('bgLogFilePath', $LogFilePath)
+	$runspace.SessionStateProxy.SetVariable('bgLogMode', $LogMode)
+	$runspace.SessionStateProxy.SetVariable('bgGuiLogQueue', $LogQueue)
+
+	$initializer = [powershell]::Create().AddScript({
+		$Global:GUIMode = $true
+		$bgModuleRoot = Split-Path $bgLoaderPath -Parent
+		$bgJsonHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Json.Helpers.ps1'
+		$bgHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Localization.Helpers.ps1'
+		. $bgJsonHelperPath
+		. $bgHelperPath
+		$Global:Localization = Import-BaselineLocalization -BaseDirectory $bgLocDir -UICulture $bgUICulture
+		[void](Set-BaselineThreadCulture -UICulture $bgUICulture)
+		$Global:LogFilePath = $bgLogFilePath
+		Import-Module $bgLoaderPath -Force -Global -ErrorAction Stop
+		Set-LogFile -Path $bgLogFilePath
+		Set-LogMode -Mode $bgLogMode
+		if ($bgGuiLogQueue)
+		{
+			Set-Variable -Name 'GUIRunState' -Scope Global -Value $bgGuiLogQueue
+			Set-UILogHandler { param($entry) $bgGuiLogQueue.Enqueue($entry) }
+		}
+		else
+		{
+			Clear-UILogHandler
+		}
+
+		return $true
+	})
+	$initializer.Runspace = $runspace
+
+	try
+	{
+		$null = $initializer.Invoke()
+		if ($initializer.HadErrors)
+		{
+			$initError = $initializer.Streams.Error | Select-Object -First 1
+			if ($initError)
+			{
+				throw $initError
+			}
+
+			throw 'Failed to initialize the GUI execution action host.'
+		}
+	}
+	catch
+	{
+		try { $initializer.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.NewActionHost.DisposeInitializer' }
+		try { $runspace.Close() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.NewActionHost.CloseRunspace' }
+		try { $runspace.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.NewActionHost.DisposeRunspace' }
+		throw
+	}
+	finally
+	{
+		try { $initializer.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.NewActionHost.DisposeInitializerFinally' }
+	}
+
+	return [pscustomobject]@{
+		Runspace = $runspace
+	}
+}
+
+<#
+    .SYNOPSIS
+    Closes a GUI execution action host.
+#>
+function Close-GuiExecutionActionHost
+{
+	[CmdletBinding()]
+	param (
+		[AllowNull()]
+		$ActionHost
+	)
+
+	if (-not $ActionHost)
+	{
+		return
+	}
+
+	$runspace = if ($ActionHost.PSObject.Properties['Runspace']) { $ActionHost.Runspace } else { $null }
+	if (-not $runspace)
+	{
+		return
+	}
+
+	try { $runspace.Close() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.CloseActionHost.CloseRunspace' }
+	try { $runspace.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.CloseActionHost.DisposeRunspace' }
+}
+
+<#
+    .SYNOPSIS
+    Invokes a bounded command inside a GUI execution action host.
+#>
+function Invoke-GuiExecutionActionHostCommand
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		$ActionHost,
+
+		[Parameter(Mandatory)]
+		[string]$CommandName,
+
+		[hashtable]$CommandArguments = @{},
+
+		[Parameter(Mandatory)]
+		[int]$TimeoutSeconds,
+
+		[hashtable]$RunState = $null
+	)
+
+	$powerShell = [powershell]::Create().AddScript({
+		param (
+			[string]$InvocationCommandName,
+			[hashtable]$InvocationCommandArguments
+		)
+
+		$errorBaseline = if ($Global:Error) { $Global:Error.Count } else { 0 }
+		$resolvedCommand = Get-Command -Name $InvocationCommandName -ErrorAction Stop | Select-Object -First 1
+		if ($InvocationCommandArguments -and $InvocationCommandArguments.Count -gt 0)
+		{
+			& $resolvedCommand @InvocationCommandArguments
+		}
+		else
+		{
+			& $resolvedCommand
+		}
+
+		$newErrors = @(Get-NewUnhandledErrorRecords -BaselineCount $errorBaseline)
+		if ($newErrors.Count -gt 0)
+		{
+			throw $newErrors[0]
+		}
+	}).AddArgument($CommandName).AddArgument($CommandArguments)
+	$powerShell.Runspace = $ActionHost.Runspace
+
+	$startedAt = Get-Date
+	$asyncResult = $null
+	$timedOut = $false
+	$aborted = $false
+	$stopIssued = $false
+
+	try
+	{
+		$asyncResult = $powerShell.BeginInvoke()
+		while (-not $asyncResult.AsyncWaitHandle.WaitOne(250))
+		{
+			if ($RunState -and [bool]$RunState['AbortRequested'])
+			{
+				$aborted = $true
+				try { $powerShell.Stop() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.ActionHostCommand.AbortStop' }
+				$stopIssued = $true
+				break
+			}
+
+			if (((Get-Date) - $startedAt).TotalSeconds -ge [double]$TimeoutSeconds)
+			{
+				$timedOut = $true
+				try { $powerShell.Stop() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.ActionHostCommand.TimeoutStop' }
+				$stopIssued = $true
+				break
+			}
+		}
+
+		if ($timedOut -or $aborted)
+		{
+			if ($asyncResult -and -not $asyncResult.IsCompleted)
+			{
+				try { $asyncResult.AsyncWaitHandle.WaitOne(1000) | Out-Null } catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.ActionHostCommand.StopWait' }
+			}
+
+			return [pscustomobject]@{
+				Succeeded         = $false
+				TimedOut          = $timedOut
+				Aborted           = $aborted
+				ErrorMessage      = $null
+				ErrorTypeName     = $null
+				Output            = @()
+				StartedAt         = $startedAt
+				EndedAt           = Get-Date
+				DurationSeconds   = [math]::Round(((Get-Date) - $startedAt).TotalSeconds, 3)
+				CommandName       = $CommandName
+				HostRequiresReset = $stopIssued
+			}
+		}
+
+		$results = @($powerShell.EndInvoke($asyncResult))
+		return [pscustomobject]@{
+			Succeeded         = $true
+			TimedOut          = $false
+			Aborted           = $false
+			ErrorMessage      = $null
+			ErrorTypeName     = $null
+			Output            = @($results)
+			StartedAt         = $startedAt
+			EndedAt           = Get-Date
+			DurationSeconds   = [math]::Round(((Get-Date) - $startedAt).TotalSeconds, 3)
+			CommandName       = $CommandName
+			HostRequiresReset = $false
+		}
+	}
+	catch
+	{
+		return [pscustomobject]@{
+			Succeeded         = $false
+			TimedOut          = $false
+			Aborted           = $aborted
+			ErrorMessage      = if ([string]::IsNullOrWhiteSpace([string]$_.Exception.Message)) { 'Execution failed.' } else { [string]$_.Exception.Message }
+			ErrorTypeName     = if ($_.Exception) { [string]$_.Exception.GetType().FullName } else { $null }
+			Output            = @()
+			StartedAt         = $startedAt
+			EndedAt           = Get-Date
+			DurationSeconds   = [math]::Round(((Get-Date) - $startedAt).TotalSeconds, 3)
+			CommandName       = $CommandName
+			HostRequiresReset = $stopIssued
+		}
+	}
+	finally
+	{
+		try { $powerShell.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.ActionHostCommand.DisposePowerShell' }
+	}
+}
+
+<#
+    .SYNOPSIS
+    Tests whether an execution invocation ended in a timeout.
+#>
+function Test-GuiExecutionInvocationTimedOut
+{
+	param (
+		[AllowNull()]
+		$InvocationResult
+	)
+
+	if (-not $InvocationResult)
+	{
+		return $false
+	}
+
+	if ((Test-GuiObjectField -Object $InvocationResult -FieldName 'TimedOut') -and [bool]$InvocationResult.TimedOut)
+	{
+		return $true
+	}
+
+	if ((Test-GuiObjectField -Object $InvocationResult -FieldName 'ErrorTypeName') -and [string]$InvocationResult.ErrorTypeName -eq 'System.TimeoutException')
+	{
+		return $true
+	}
+
+	return $false
+}
+
+<#
+    .SYNOPSIS
+    Gets the display verb for an app execution action.
+#>
+function Get-GuiExecutionAppActionVerb
+{
+	param (
+		[string]$Action
+	)
+
+	switch ([string]$Action)
+	{
+		'Install' { return 'Install' }
+		'Uninstall' { return 'Uninstall' }
+		'Update' { return 'Update' }
+		'UpdateAll' { return 'Update' }
+		default { return 'Run' }
+	}
+}
+
+<#
+    .SYNOPSIS
+    Creates a structured app execution result entry.
+#>
+function New-GuiExecutionAppBatchEntry
+{
+	[CmdletBinding()]
+	param (
+		[AllowNull()]
+		[object]$Route,
+
+		[string]$Error = $null
+	)
+
+	if (-not $Route)
+	{
+		return $null
+	}
+
+	$entry = [ordered]@{
+		SelectionKey   = if ((Test-GuiObjectField -Object $Route -FieldName 'SelectionKey')) { [string]$Route.SelectionKey } else { $null }
+		WinGetId       = if ((Test-GuiObjectField -Object $Route -FieldName 'WinGetId')) { [string]$Route.WinGetId } else { $null }
+		ChocoId        = if ((Test-GuiObjectField -Object $Route -FieldName 'ChocoId')) { [string]$Route.ChocoId } else { $null }
+		Name           = if ((Test-GuiObjectField -Object $Route -FieldName 'DisplayName')) { [string]$Route.DisplayName } else { $null }
+		EntityType     = if ((Test-GuiObjectField -Object $Route -FieldName 'EntityType')) { [string]$Route.EntityType } else { $null }
+		Route          = if ((Test-GuiObjectField -Object $Route -FieldName 'Route')) { [string]$Route.Route } else { $null }
+		SelectedSource = if ((Test-GuiObjectField -Object $Route -FieldName 'SelectedSource')) { [string]$Route.SelectedSource } else { $null }
+		PackageId      = if ((Test-GuiObjectField -Object $Route -FieldName 'PackageId')) { [string]$Route.PackageId } else { $null }
+	}
+
+	if (-not [string]::IsNullOrWhiteSpace($Error))
+	{
+		$entry['Error'] = [string]$Error
+	}
+
+	return [pscustomobject]$entry
+}
+
+<#
+    .SYNOPSIS
+    Builds a structured batch result for app execution.
+#>
+function New-GuiExecutionAppBatchResult
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[string]$Action,
+
+		[object[]]$SuccessfulApps = @(),
+
+		[object[]]$FailedApps = @()
+	)
+
+	$successfulApps = @($SuccessfulApps | Where-Object { $_ })
+	$failedApps = @($FailedApps | Where-Object { $_ })
+	$processedCount = $successfulApps.Count + $failedApps.Count
+	if ($processedCount -eq 0)
+	{
+		$message = Get-BaselineLocalizedString -Key 'Progress_NoSelection' -Fallback 'No applications were selected.'
+		LogWarning $message
+		return [pscustomobject]@{
+			Action         = $Action
+			TotalCount     = 0
+			SuccessCount   = 0
+			FailureCount   = 0
+			Outcome        = 'Failed'
+			Message        = $message
+			SuccessfulApps = @()
+			FailedApps     = @()
+		}
+	}
+
+	$pastTense = switch ($Action)
+	{
+		'Install'   { 'installed' }
+		'Uninstall' { 'uninstalled' }
+		'Update'    { 'updated' }
+		default     { 'processed' }
+	}
+
+	if ($failedApps.Count -gt 0 -and $successfulApps.Count -gt 0)
+	{
+		$message = Get-BaselineLocalizedString -Key 'Progress_BatchPartial' -Fallback 'Partially {0} {1} selected app(s): {2} succeeded, {3} failed.' -FormatArgs @($pastTense, $processedCount, $successfulApps.Count, $failedApps.Count)
+		LogWarning $message
+		$outcome = 'Partial'
+	}
+	elseif ($failedApps.Count -gt 0)
+	{
+		$message = Get-BaselineLocalizedString -Key 'Progress_BatchFailed' -Fallback 'Failed to {0} {1} selected app(s).' -FormatArgs @($pastTense, $processedCount)
+		LogError $message
+		$outcome = 'Failed'
+	}
+	else
+	{
+		$message = Get-BaselineLocalizedString -Key 'Progress_BatchSuccess' -Fallback 'Successfully {0} {1} selected app(s).' -FormatArgs @($pastTense, $successfulApps.Count)
+		LogInfo $message
+		$outcome = 'Success'
+	}
+
+	return [pscustomobject]@{
+		Action         = $Action
+		TotalCount     = $processedCount
+		SuccessCount   = $successfulApps.Count
+		FailureCount   = $failedApps.Count
+		Outcome        = $outcome
+		Message        = $message
+		SuccessfulApps = @($successfulApps)
+		FailedApps     = @($failedApps)
+	}
+}
+
+<#
+    .SYNOPSIS
+    Writes a structured execution timeout record to the log.
+#>
+function Write-GuiExecutionTimeoutRecord
+{
+	[CmdletBinding()]
+	param (
+		[string]$ActionId,
+		[string]$ActionName,
+		[string]$ActionType,
+		[int]$TimeoutSeconds,
+		[datetime]$StartedAt,
+		[datetime]$EndedAt,
+		[string]$CommandName,
+		[int]$ExitCode = [int]::MinValue,
+		[bool]$VerificationAttempted = $false,
+		[string]$VerificationResult = $null,
+		[bool]$Continued = $true,
+		[bool]$Aborted = $false,
+		[string]$Result = 'Timed Out',
+		[string]$Message = $null
+	)
+
+	$record = [ordered]@{
+		id                    = $ActionId
+		name                  = $ActionName
+		type                  = $ActionType
+		timeoutSeconds        = $TimeoutSeconds
+		result                = $Result
+		startTime             = $StartedAt.ToString('o')
+		endTime               = $EndedAt.ToString('o')
+		command               = $CommandName
+		verificationAttempted = $VerificationAttempted
+		verificationResult    = $VerificationResult
+		continued             = $Continued
+		aborted               = $Aborted
+	}
+
+	if ($ExitCode -ne [int]::MinValue)
+	{
+		$record.exitCode = $ExitCode
+	}
+	if (-not [string]::IsNullOrWhiteSpace($Message))
+	{
+		$record.message = $Message
+	}
+
+	LogWarning ("Execution timeout: {0}" -f ($record | ConvertTo-Json -Compress -Depth 5))
+}
+
+<#
+    .SYNOPSIS
+    Verifies an app action after a timeout.
+
+    .DESCRIPTION
+    Performs a lightweight package-manager-backed verification so installs,
+    updates, and removals can resolve to a real final state after the timeout
+    window expires.
+#>
+function Resolve-GuiAppTimeoutVerification
+{
+	[CmdletBinding(DefaultParameterSetName = 'Application')]
+	param (
+		[Parameter(Mandatory)]
+		[ValidateSet('Install', 'Uninstall', 'Update')]
+		[string]$Action,
+
+		[Parameter(Mandatory = $true, ParameterSetName = 'Application')]
+		[AllowNull()]
+		[object]$Application,
+
+		[Parameter(Mandatory = $false, ParameterSetName = 'Legacy')]
+		[string]$WinGetId,
+
+		[Parameter(Mandatory = $false, ParameterSetName = 'Legacy')]
+		[string]$ChocoId,
+
+		[Parameter(Mandatory = $false, ParameterSetName = 'Legacy')]
+		[string]$DisplayName,
+
+		[string]$PreferredSource = $null,
+
+		[object]$PackageManagerAvailabilityState = $null,
+
+		[int]$TimeoutSeconds = 300
+	)
+
+	$verificationApp = $Application
+	if ($PSCmdlet.ParameterSetName -eq 'Legacy')
+	{
+		$verificationApp = [pscustomobject]@{
+			Name = $DisplayName
+			WinGetId = $WinGetId
+			ChocoId = $ChocoId
+			SupportsExecution = $true
+		}
+	}
+
+	if (-not $verificationApp)
+	{
+		return [pscustomobject]@{
+			VerificationAttempted = $false
+			VerificationResult = 'Unavailable'
+			ResolvedStatus = 'Timed Out / Unknown Final State'
+			Succeeded = $false
+			Message = 'No application metadata was available for timeout verification.'
+		}
+	}
+
+	$route = Resolve-ApplicationExecutionRoute -Application $verificationApp -PreferredSource $PreferredSource -PackageManagerAvailabilityState $PackageManagerAvailabilityState -Action $Action
+	if ($route.Route -eq 'unsupported' -or [string]::IsNullOrWhiteSpace([string]$route.PackageId))
+	{
+		return [pscustomobject]@{
+			VerificationAttempted = $false
+			VerificationResult = 'Unavailable'
+			ResolvedStatus = 'Timed Out / Unknown Final State'
+			Succeeded = $false
+			Message = 'Timeout verification is not available for this application route.'
+		}
+	}
+
+	try
+	{
+		switch ($Action)
+		{
+			'Install'
+			{
+				if ($route.Route -eq 'winget')
+				{
+					$installedCache = Get-InstalledAppCache -TimeoutSeconds $TimeoutSeconds
+					$isInstalled = $installedCache.ContainsKey([string]$route.PackageId)
+				}
+				elseif ($route.Route -eq 'choco')
+				{
+					$installedCache = Get-InstalledChocolateyAppCache -TimeoutSeconds $TimeoutSeconds
+					$isInstalled = $installedCache.ContainsKey([string]$route.PackageId)
+				}
+				else
+				{
+					$isInstalled = $false
+				}
+
+				return [pscustomobject]@{
+					VerificationAttempted = $true
+					VerificationResult = $(if ($isInstalled) { 'Installed' } else { 'NotInstalled' })
+					ResolvedStatus = $(if ($isInstalled) { 'Success' } else { 'Timed Out / Unknown Final State' })
+					Succeeded = [bool]$isInstalled
+					Message = $(if ($isInstalled) { 'Installed after timeout.' } else { 'Baseline could not verify that the app installed after the timeout.' })
+				}
+			}
+			'Uninstall'
+			{
+				if ($route.Route -eq 'winget')
+				{
+					$installedCache = Get-InstalledAppCache -TimeoutSeconds $TimeoutSeconds
+					$isRemoved = -not $installedCache.ContainsKey([string]$route.PackageId)
+				}
+				elseif ($route.Route -eq 'choco')
+				{
+					$installedCache = Get-InstalledChocolateyAppCache -TimeoutSeconds $TimeoutSeconds
+					$isRemoved = -not $installedCache.ContainsKey([string]$route.PackageId)
+				}
+				else
+				{
+					$isRemoved = $false
+				}
+
+				return [pscustomobject]@{
+					VerificationAttempted = $true
+					VerificationResult = $(if ($isRemoved) { 'Removed' } else { 'StillInstalled' })
+					ResolvedStatus = $(if ($isRemoved) { 'Already Removed' } else { 'Timed Out / Unknown Final State' })
+					Succeeded = [bool]$isRemoved
+					Message = $(if ($isRemoved) { 'Removed after timeout.' } else { 'Baseline could not verify that the app was removed after the timeout.' })
+				}
+			}
+			'Update'
+			{
+				if ($route.Route -eq 'winget')
+				{
+					$updateCache = Get-AvailableAppUpdateCache -TimeoutSeconds $TimeoutSeconds
+					$isUpdated = -not $updateCache.ContainsKey([string]$route.PackageId)
+				}
+				elseif ($route.Route -eq 'choco')
+				{
+					$updateCache = Get-AvailableChocolateyUpdateCache -TimeoutSeconds $TimeoutSeconds
+					$isUpdated = -not $updateCache.ContainsKey([string]$route.PackageId)
+				}
+				else
+				{
+					$isUpdated = $false
+				}
+
+				return [pscustomobject]@{
+					VerificationAttempted = $true
+					VerificationResult = $(if ($isUpdated) { 'Updated' } else { 'UpdateStillAvailable' })
+					ResolvedStatus = $(if ($isUpdated) { 'Updated' } else { 'Timed Out / Unknown Final State' })
+					Succeeded = [bool]$isUpdated
+					Message = $(if ($isUpdated) { 'Updated after timeout.' } else { 'Baseline could not verify that the update completed after the timeout.' })
+				}
+			}
+		}
+	}
+	catch
+	{
+		return [pscustomobject]@{
+			VerificationAttempted = $true
+			VerificationResult = if ([string]::IsNullOrWhiteSpace([string]$_.Exception.Message)) { 'Failed' } else { [string]$_.Exception.Message }
+			ResolvedStatus = 'Timed Out / Unknown Final State'
+			Succeeded = $false
+			Message = 'Timeout verification failed before Baseline could confirm the final state.'
+		}
 	}
 }
 
@@ -389,330 +1190,8 @@ function Start-GuiExecutionWorker
 	$bgRunspace.SessionStateProxy.SetVariable('bgForceUnsupported', [bool]$ForceUnsupported)
 	$bgRunspace.SessionStateProxy.SetVariable('GUIRunState', $RunState['LogQueue'])
 
-	$worker = [powershell]::Create().AddScript({
-		try
-		{
-			$Global:GUIMode = $true
-			$Script:RunState = $runState
-
-			# Load JSON and localization helpers in the background runspace before importing the execution module.
-			$bgModuleRoot = Split-Path $bgLoaderPath -Parent
-			$bgJsonHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Json.Helpers.ps1'
-			$bgHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Localization.Helpers.ps1'
-			. $bgJsonHelperPath
-			. $bgHelperPath
-			$Global:Localization = Import-BaselineLocalization -BaseDirectory $bgLocDir -UICulture $bgUICulture
-			[void](Set-BaselineThreadCulture -UICulture $bgUICulture)
-
-			# Module import must be side-effect-free (no Write-Host, no state mutation)
-			# because this runs in a fresh background runspace.
-			try
-			{
-				Import-Module $bgLoaderPath -Force -Global -ErrorAction Stop
-			}
-			catch
-			{
-				$importError = $_.Exception.Message
-				$Script:RunState['LogQueue'].Enqueue([PSCustomObject]@{
-					Kind = 'LogWarning'
-					Message = "Background module import failed: $importError"
-				})
-				throw
-			}
-
-			$global:LogFilePath = $bgLogFilePath
-			Set-LogFile -Path $bgLogFilePath
-			Set-LogMode -Mode $bgLogMode
-			Set-UILogHandler { param($entry) $Script:RunState['LogQueue'].Enqueue($entry) }
-
-			$missingFunctions = @(
-				$tweakList |
-					ForEach-Object { $_.Function } |
-					Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
-					Select-Object -Unique |
-					Where-Object { -not (Get-Command -Name $_ -ErrorAction SilentlyContinue) }
-			)
-			if ($missingFunctions.Count -gt 0)
-			{
-				$loadedModules = @(Get-Module | Select-Object -ExpandProperty Name) -join ', '
-				throw ("Required tweak functions were not loaded: {0}`nLoaded modules: {1}" -f ($missingFunctions -join ', '), $loadedModules)
-			}
-
-			$stepIndex = 0
-			$stepTotal = $tweakList.Count
-			foreach ($tweak in $tweakList)
-			{
-				while ($Script:RunState['Paused'] -and -not $Script:RunState['AbortRequested'])
-				{
-					Start-Sleep -Milliseconds 250
-				}
-
-				if ($Script:RunState['AbortRequested'])
-				{
-					$Script:RunState['AbortedRun'] = $true
-					break
-				}
-
-				$stepIndex++
-				$Global:CurrentTweakName = $tweak.Name
-				$Script:RunState['CurrentTweak'] = $tweak.Name
-				$Script:RunState['LogQueue'].Enqueue([PSCustomObject]@{
-					Kind = '_TweakStarted'
-					Key = $tweak.Key
-					Name = $tweak.Name
-					StepIndex = $stepIndex
-					StepTotal = $stepTotal
-				})
-
-				$tweakErrorBaseline = if ($Global:Error) { $Global:Error.Count } else { 0 }
-				$tweakErrorMessage = $null
-				$tweakFailed = $false
-
-				$availabilityGate = Resolve-GuiExecutionAvailabilityGate -Entry $tweak -ForceUnsupported:$bgForceUnsupported
-				if ($availabilityGate.Decision -eq 'Block')
-				{
-					$skipDetail = if ([string]::IsNullOrWhiteSpace($availabilityGate.Reason)) { 'Not available on this system.' } else { $availabilityGate.Reason }
-					LogInfo (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionSkippedNotApplicable' -Fallback 'Skipped - not available on this system: {0} - {1}' -FormatArgs @([string]$tweak.Function, $skipDetail))
-					$Script:RunState['SkippedTweaks'][[string]$tweak.Key] = $skipDetail
-					$completedCount = Update-GuiRunStateCounter -RunState $Script:RunState -Key 'CompletedCount'
-					$Script:RunState['LogQueue'].Enqueue([PSCustomObject]@{
-						Kind = '_TweakCompleted'
-						Key = $tweak.Key
-						Name = $tweak.Name
-						Status = 'skipped'
-						Message = $skipDetail
-						Count = $completedCount
-						StepIndex = $stepIndex
-						StepTotal = $stepTotal
-					})
-					continue
-				}
-				if ($availabilityGate.Decision -eq 'Force')
-				{
-					LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionForceUnsupportedAvailability' -Fallback 'Forcing execution of unavailable entry: {0} - {1}' -FormatArgs @([string]$tweak.Function, $availabilityGate.Reason))
-				}
-
-				$supportsExecutionGate = Resolve-GuiExecutionSupportsExecutionGate -Entry $tweak -ForceUnsupported:$bgForceUnsupported
-				if ($supportsExecutionGate.Decision -eq 'Block')
-				{
-					$skipDetail = if ([string]::IsNullOrWhiteSpace($supportsExecutionGate.Reason)) { 'Execution not supported on this system.' } else { $supportsExecutionGate.Reason }
-					LogInfo (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionSkippedNotExecutable' -Fallback 'Skipped - execution not supported on this system: {0}' -FormatArgs @([string]$tweak.Function))
-					$Script:RunState['SkippedTweaks'][[string]$tweak.Key] = $skipDetail
-					$null = Update-GuiRunStateCounter -RunState $Script:RunState -Key 'NotExecutableCount'
-					$completedCount = Update-GuiRunStateCounter -RunState $Script:RunState -Key 'CompletedCount'
-					$Script:RunState['LogQueue'].Enqueue([PSCustomObject]@{
-						Kind = '_TweakCompleted'
-						Key = $tweak.Key
-						Name = $tweak.Name
-						Status = 'skipped'
-						Message = $skipDetail
-						Count = $completedCount
-						StepIndex = $stepIndex
-						StepTotal = $stepTotal
-					})
-					continue
-				}
-				if ($supportsExecutionGate.Decision -eq 'Force')
-				{
-					LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionForceUnsupportedExecution' -Fallback 'Forcing execution of non-executable entry: {0} - {1}' -FormatArgs @([string]$tweak.Function, $supportsExecutionGate.Reason))
-				}
-
-				try
-				{
-					$tweakCommand = Get-Command -Name $tweak.Function -ErrorAction SilentlyContinue
-					if (-not $tweakCommand)
-					{
-						throw "The tweak function '$($tweak.Function)' is not available in the current session."
-					}
-
-					switch ($tweak.Type)
-					{
-						'Toggle'
-						{
-							$toggleParam = if (-not [string]::IsNullOrWhiteSpace([string]$tweak.ToggleParam)) { [string]$tweak.ToggleParam } else { [string]$tweak.OnParam }
-							if ([string]::IsNullOrWhiteSpace($toggleParam))
-							{
-								throw "The toggle selection for '$($tweak.Function)' did not include a parameter to execute."
-							}
-							$splat = @{ $toggleParam = $true }
-							& $tweakCommand @splat
-						}
-						'Date'
-						{
-							$enableParam = if (-not [string]::IsNullOrWhiteSpace([string]$tweak.OnParam)) { [string]$tweak.OnParam } else { 'Enable' }
-							$disableParam = if (-not [string]::IsNullOrWhiteSpace([string]$tweak.OffParam)) { [string]$tweak.OffParam } else { 'Disable' }
-							if ($tweak.Run)
-							{
-								$dateParamName = if (-not [string]::IsNullOrWhiteSpace([string]$tweak.DateParam)) { [string]$tweak.DateParam } else { 'StartDate' }
-								$dateValue = if ((Test-GuiObjectField -Object $tweak -FieldName 'DateValue') -and -not [string]::IsNullOrWhiteSpace([string]$tweak.DateValue))
-								{
-									[string]$tweak.DateValue
-								}
-								elseif ((Test-GuiObjectField -Object $tweak -FieldName 'Value') -and -not [string]::IsNullOrWhiteSpace([string]$tweak.Value))
-								{
-									[string]$tweak.Value
-								}
-								else
-								{
-									$null
-								}
-
-								if ([string]::IsNullOrWhiteSpace($dateValue))
-								{
-									throw "The date selection for '$($tweak.Function)' did not include a date to execute."
-								}
-
-								$splat = @{}
-								$splat[$enableParam] = $true
-								$splat[$dateParamName] = $dateValue
-								if ($tweak.ExtraArgs)
-								{
-									$tweak.ExtraArgs.GetEnumerator() | ForEach-Object { $splat[[string]$_.Key] = $_.Value }
-								}
-								& $tweakCommand @splat
-							}
-							else
-							{
-								$splat = @{}
-								$splat[$disableParam] = $true
-								if ($tweak.ExtraArgs)
-								{
-									$tweak.ExtraArgs.GetEnumerator() | ForEach-Object { $splat[[string]$_.Key] = $_.Value }
-								}
-								& $tweakCommand @splat
-							}
-						}
-						'Choice'
-						{
-							$choiceParam = [string]$tweak.Value
-							if ([string]::IsNullOrWhiteSpace($choiceParam))
-							{
-								throw "The choice selection for '$($tweak.Function)' did not include a parameter to execute."
-							}
-							$splat = @{ $choiceParam = $true }
-							if ($tweak.ExtraArgs)
-							{
-								$tweak.ExtraArgs.GetEnumerator() | ForEach-Object { $splat[[string]$_.Key] = $_.Value }
-							}
-							& $tweakCommand @splat
-						}
-						'Action'
-						{
-							if ($tweak.ExtraArgs)
-							{
-								$argSplat = $tweak.ExtraArgs
-								& $tweakCommand @argSplat
-							}
-							else
-							{
-								& $tweakCommand
-							}
-						}
-					}
-				}
-				catch
-				{
-					$tweakFailed = $true
-					$tweakErrorMessage = $_.Exception.Message
-				}
-
-				if (-not $tweakFailed)
-				{
-					$newErrors = @(Get-NewUnhandledErrorRecords -BaselineCount $tweakErrorBaseline)
-					if ($newErrors.Count -gt 0)
-					{
-						$tweakFailed = $true
-						$tweakErrorMessage = $newErrors[0].Exception.Message
-					}
-				}
-
-				$Global:CurrentTweakName = $null
-
-				if (-not $tweakFailed)
-				{
-					$Script:RunState['AppliedFunctions'].Add($tweak.Function)
-					$completedCount = Update-GuiRunStateCounter -RunState $Script:RunState -Key 'CompletedCount'
-					$Script:RunState['LogQueue'].Enqueue([PSCustomObject]@{
-						Kind = '_TweakCompleted'
-						Key = $tweak.Key
-						Name = $tweak.Name
-						Status = 'success'
-						Count = $completedCount
-						StepIndex = $stepIndex
-						StepTotal = $stepTotal
-					})
-				}
-				else
-				{
-					$Script:RunState['LogQueue'].Enqueue([PSCustomObject]@{
-						Kind = '_TweakFailed'
-						Key = $tweak.Key
-						Name = $tweak.Name
-						Error = $tweakErrorMessage
-						StepIndex = $stepIndex
-						StepTotal = $stepTotal
-					})
-					$null = Update-GuiRunStateCounter -RunState $Script:RunState -Key 'ErrorCount'
-					$completedCount = Update-GuiRunStateCounter -RunState $Script:RunState -Key 'CompletedCount'
-					$Script:RunState['LogQueue'].Enqueue([PSCustomObject]@{
-						Kind = '_TweakCompleted'
-						Key = $tweak.Key
-						Name = $tweak.Name
-						Status = 'failed'
-						Count = $completedCount
-						StepIndex = $stepIndex
-						StepTotal = $stepTotal
-					})
-				}
-			}
-
-			if (-not $Script:RunState['AbortedRun'])
-			{
-				PostActions
-				Errors
-			}
-			else
-			{
-				LogWarning (Get-BaselineBilingualString -Key 'GuiLogExecutionAbortedByUser' -Fallback '{0} execution aborted by user before all selected tweaks finished.' -FormatArgs @($executionMode))
-			}
-
-			Stop-Foreground
-		}
-		catch
-		{
-			$fatalMessage = if ([string]::IsNullOrWhiteSpace([string]$_.Exception.Message)) { 'Unexpected fatal run error.' } else { [string]$_.Exception.Message }
-			$diagnosticLines = [System.Collections.Generic.List[string]]::new()
-			if ($Script:RunState -and -not [string]::IsNullOrWhiteSpace([string]$Script:RunState['CurrentTweak']))
-			{
-				[void]$diagnosticLines.Add(("Current tweak: {0}" -f [string]$Script:RunState['CurrentTweak']))
-			}
-			if ($_.Exception)
-			{
-				[void]$diagnosticLines.Add(("Exception type: {0}" -f $_.Exception.GetType().FullName))
-			}
-			if ($_.InvocationInfo -and -not [string]::IsNullOrWhiteSpace([string]$_.InvocationInfo.PositionMessage))
-			{
-				[void]$diagnosticLines.Add('Invocation:')
-				[void]$diagnosticLines.Add([string]$_.InvocationInfo.PositionMessage.Trim())
-			}
-			if (-not [string]::IsNullOrWhiteSpace([string]$_.ScriptStackTrace))
-			{
-				[void]$diagnosticLines.Add('Script stack trace:')
-				[void]$diagnosticLines.Add([string]$_.ScriptStackTrace.Trim())
-			}
-
-			$Script:RunState['LogQueue'].Enqueue([PSCustomObject]@{
-				Kind = '_RunError'
-				Error = $fatalMessage
-				Diagnostic = ($diagnosticLines -join "`n")
-			})
-		}
-		finally
-		{
-			Clear-LogMode
-			$Script:RunState['Done'] = $true
-		}
-	})
+			# P5 rollback checkpoint: Start-GuiExecutionWorker part extracted to Module/GUIExecution/Start-GuiExecutionWorker/Start-GuiExecutionWorker.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'GUIExecution\Start-GuiExecutionWorker\Start-GuiExecutionWorker.ps1')
 
 	$worker.Runspace = $bgRunspace
 	$asyncResult = $worker.BeginInvoke()
@@ -816,206 +1295,8 @@ function Start-GuiAppExecutionWorker
 	$bgRunspace.SessionStateProxy.SetVariable('preferredSource', $PreferredSource)
 	$bgRunspace.SessionStateProxy.SetVariable('packageManagerAvailabilityState', $PackageManagerAvailabilityState)
 
-	$worker = [powershell]::Create().AddScript({
-		$bgTracePath = Join-Path $env:TEMP 'Baseline-AppWorker-trace.txt'
-        <#
-            .SYNOPSIS
-            Writes a line to the GUI background worker trace log.
-
-            .DESCRIPTION
-            Appends a timestamped message to the temporary trace file used while diagnosing background application worker startup and import failures.
-        #>
-        function Write-BgTrace
-        {
-            param([string]$Message)
-            try
-            {
-                "$([DateTime]::UtcNow.ToString('o'))`t$Message" | Out-File -FilePath $bgTracePath -Append -Encoding UTF8 -Force
-            }
-            catch
-            {
-                Write-Warning ("GUIExecution worker trace write failed: " + $_.Exception.Message)
-            }
-        }
-		Write-BgTrace "--- worker start ---"
-		try
-		{
-			$Global:GUIMode = $true
-			$Script:RunState = $runState
-			Write-BgTrace "GUIMode set, RunState assigned"
-
-			$bgModuleRoot = Split-Path -Parent (Split-Path -Parent $bgLoaderPath)
-			$bgHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Localization.Helpers.ps1'
-			$bgJsonHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Json.Helpers.ps1'
-			Write-BgTrace ("bgLoaderPath={0}" -f $bgLoaderPath)
-			Write-BgTrace ("bgModuleRoot={0}" -f $bgModuleRoot)
-			Write-BgTrace ("bgHelperPath={0} exists={1}" -f $bgHelperPath, (Test-Path $bgHelperPath))
-			Write-BgTrace ("bgJsonHelperPath={0} exists={1}" -f $bgJsonHelperPath, (Test-Path $bgJsonHelperPath))
-			# Import-BaselineLocalization calls ConvertFrom-BaselineJson, which
-			# lives in Json.Helpers.ps1. It must be dot-sourced FIRST, otherwise
-			# the worker dies with "CommandNotFoundException: ConvertFrom-BaselineJson"
-			# before reaching Invoke-ApplicationAction.
-			. $bgJsonHelperPath
-			Write-BgTrace "dot-sourced Json.Helpers"
-			. $bgHelperPath
-			Write-BgTrace "dot-sourced Localization.Helpers"
-			$Global:Localization = Import-BaselineLocalization -BaseDirectory $bgLocDir -UICulture $bgUICulture
-			Write-BgTrace "Import-BaselineLocalization done"
-			[void](Set-BaselineThreadCulture -UICulture $bgUICulture)
-			Write-BgTrace "Set-BaselineThreadCulture done"
-
-			# Module import must be side-effect-free (no Write-Host, no state mutation)
-			# because this runs in a fresh background runspace.
-			try
-			{
-				Write-BgTrace "Import-Module Applications.psm1 START"
-				Import-Module $bgLoaderPath -Force -Global -ErrorAction Stop
-				Write-BgTrace "Import-Module Applications.psm1 DONE"
-			}
-			catch
-			{
-				$importError = $_.Exception.Message
-				Write-BgTrace ("Import-Module FAILED: {0}" -f $importError)
-				if ($Script:RunState -and $Script:RunState['LogQueue'])
-				{
-					$Script:RunState['LogQueue'].Enqueue([PSCustomObject]@{
-						Kind = 'LogWarning'
-						Message = "Background app module import failed: $importError"
-					})
-				}
-				throw
-			}
-
-			$global:LogFilePath = $bgLogFilePath
-			Set-LogFile -Path $bgLogFilePath
-			Set-LogMode -Mode $bgLogMode
-			if ($Script:RunState -and $Script:RunState['LogQueue'])
-			{
-				Set-UILogHandler { param($entry) $Script:RunState['LogQueue'].Enqueue($entry) }
-			}
-			else
-			{
-				Clear-UILogHandler
-			}
-			Write-BgTrace ("Log plumbing configured. runAction={0} winget={1} choco={2} displayName={3} appPresent={4} selCount={5}" -f $runAction, $packageId, $chocolateyId, $displayName, ($null -ne $application), @($selectedApps).Count)
-
-			if ($selectedApps -and @($selectedApps).Count -gt 0 -and $runAction -in @('Install', 'Uninstall', 'Update'))
-			{
-				$appBatchResult = Invoke-AppBatchAction -Action $runAction -Applications $selectedApps -PreferredSource $preferredSource -PackageManagerAvailabilityState $packageManagerAvailabilityState
-				if ($Script:RunState)
-				{
-					$Script:RunState['AppResult'] = $appBatchResult
-					if ($appBatchResult -and (Test-GuiObjectField -Object $appBatchResult -FieldName 'Outcome'))
-					{
-						$Script:RunState['AppOutcome'] = [string]$appBatchResult.Outcome
-					}
-					if ($appBatchResult -and (Test-GuiObjectField -Object $appBatchResult -FieldName 'Message'))
-					{
-						$Script:RunState['AppMessage'] = [string]$appBatchResult.Message
-					}
-				}
-			}
-			elseif ($application -and $runAction -in @('Install', 'Uninstall', 'Update'))
-			{
-				Write-BgTrace "Invoke-ApplicationAction START"
-				Invoke-ApplicationAction -Action $runAction -Application $application -PreferredSource $preferredSource -PackageManagerAvailabilityState $packageManagerAvailabilityState
-				Write-BgTrace "Invoke-ApplicationAction DONE"
-			}
-			else
-			{
-				switch ($runAction)
-				{
-					'Install'   { AppInstall -Install -WinGetId $packageId -ChocoId $chocolateyId -DisplayName $displayName -PreferredSource $preferredSource -PackageManagerAvailabilityState $packageManagerAvailabilityState }
-					'Uninstall' { AppInstall -Uninstall -WinGetId $packageId -ChocoId $chocolateyId -DisplayName $displayName -PreferredSource $preferredSource -PackageManagerAvailabilityState $packageManagerAvailabilityState }
-					'Update'    { AppUpdate -WinGetId $packageId -ChocoId $chocolateyId -DisplayName $displayName -PreferredSource $preferredSource -PackageManagerAvailabilityState $packageManagerAvailabilityState }
-						'UpdateAll' { AppUpdate -All -PackageManagerAvailabilityState $packageManagerAvailabilityState }
-					default
-					{
-						throw "Unsupported app action '$runAction'."
-					}
-				}
-			}
-
-			if ($Script:RunState -and [string]::IsNullOrWhiteSpace([string]$Script:RunState['AppOutcome']))
-			{
-				$Script:RunState['AppOutcome'] = 'Success'
-			}
-		}
-		catch
-		{
-			Write-BgTrace ("FATAL CATCH: type={0} msg={1}" -f $_.Exception.GetType().FullName, $_.Exception.Message)
-			if ($_.ScriptStackTrace) { Write-BgTrace ("ScriptStackTrace: {0}" -f [string]$_.ScriptStackTrace) }
-			if ($_.InvocationInfo -and $_.InvocationInfo.PositionMessage) { Write-BgTrace ("PositionMessage: {0}" -f [string]$_.InvocationInfo.PositionMessage) }
-			if ($Script:RunState -and [string]::IsNullOrWhiteSpace([string]$Script:RunState['AppOutcome']))
-			{
-				$Script:RunState['AppOutcome'] = 'Failed'
-			}
-			$fatalMessage = if ([string]::IsNullOrWhiteSpace([string]$_.Exception.Message)) { 'Unexpected fatal app run error.' } else { [string]$_.Exception.Message }
-			$diagnosticLines = [System.Collections.Generic.List[string]]::new()
-			if ($Script:RunState -and -not [string]::IsNullOrWhiteSpace([string]$runAction))
-			{
-				[void]$diagnosticLines.Add(("Action: {0}" -f [string]$runAction))
-			}
-			if ($Script:RunState -and -not [string]::IsNullOrWhiteSpace([string]$packageId))
-			{
-				[void]$diagnosticLines.Add(("WinGet ID: {0}" -f [string]$packageId))
-			}
-			if ($Script:RunState -and -not [string]::IsNullOrWhiteSpace([string]$chocolateyId))
-			{
-				[void]$diagnosticLines.Add(("Chocolatey ID: {0}" -f [string]$chocolateyId))
-			}
-			if ($Script:RunState -and -not [string]::IsNullOrWhiteSpace([string]$displayName))
-			{
-				[void]$diagnosticLines.Add(("Display name: {0}" -f [string]$displayName))
-			}
-			if ($Script:RunState -and $application)
-			{
-				if ($application.PSObject.Properties['EntityType'] -and -not [string]::IsNullOrWhiteSpace([string]$application.EntityType))
-				{
-					[void]$diagnosticLines.Add(("Entity type: {0}" -f [string]$application.EntityType))
-				}
-				if ($application.PSObject.Properties['Name'] -and -not [string]::IsNullOrWhiteSpace([string]$application.Name))
-				{
-					[void]$diagnosticLines.Add(("Application: {0}" -f [string]$application.Name))
-				}
-			}
-			if ($Script:RunState -and $selectedApps)
-			{
-				[void]$diagnosticLines.Add(("Selected apps: {0}" -f @($selectedApps).Count))
-			}
-			if ($_.Exception)
-			{
-				[void]$diagnosticLines.Add(("Exception type: {0}" -f $_.Exception.GetType().FullName))
-			}
-			if ($_.InvocationInfo -and -not [string]::IsNullOrWhiteSpace([string]$_.InvocationInfo.PositionMessage))
-			{
-				[void]$diagnosticLines.Add('Invocation:')
-				[void]$diagnosticLines.Add([string]$_.InvocationInfo.PositionMessage.Trim())
-			}
-			if (-not [string]::IsNullOrWhiteSpace([string]$_.ScriptStackTrace))
-			{
-				[void]$diagnosticLines.Add('Script stack trace:')
-				[void]$diagnosticLines.Add([string]$_.ScriptStackTrace.Trim())
-			}
-			if ($Script:RunState -and $Script:RunState['LogQueue'])
-			{
-				$Script:RunState['LogQueue'].Enqueue([PSCustomObject]@{
-					Kind = '_RunError'
-					Error = $fatalMessage
-					Diagnostic = ($diagnosticLines -join "`n")
-				})
-			}
-			throw
-		}
-		finally
-		{
-			Clear-LogMode
-			if ($Script:RunState)
-			{
-				$Script:RunState['Done'] = $true
-			}
-		}
-	}.GetNewClosure())
+			# P5 rollback checkpoint: Start-GuiAppExecutionWorker part extracted to Module/GUIExecution/Start-GuiAppExecutionWorker/Start-GuiAppExecutionWorker.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'GUIExecution\Start-GuiAppExecutionWorker\Start-GuiAppExecutionWorker.ps1')
 
 	$worker.Runspace = $bgRunspace
 	$asyncResult = $worker.BeginInvoke()
@@ -1284,11 +1565,19 @@ function Complete-GuiExecutionWorker
 Export-ModuleMember -Function @(
 	'Update-GuiRunStateCounter'
 	'Get-GuiExecutionOutcome'
+	'Get-GuiExecutionActionTimeoutSeconds'
 	'Test-GuiExecutionAppliedOutcome'
+	'Test-GuiExecutionCriticalAction'
+	'Test-GuiExecutionInvocationTimedOut'
 	'New-GuiExecutionAppliedTweakMetadata'
+	'New-GuiExecutionAppBatchEntry'
+	'New-GuiExecutionAppBatchResult'
 	'Get-GuiExecutionSummaryPayload'
 	'Resolve-GuiExecutionAvailabilityGate'
 	'Resolve-GuiExecutionSupportsExecutionGate'
+	'New-GuiExecutionActionHost'
+	'Close-GuiExecutionActionHost'
+	'Invoke-GuiExecutionActionHostCommand'
 	'Start-GuiExecutionWorker'
 	'Start-GuiAppExecutionWorker'
 	'Request-GuiExecutionWorkerStop'

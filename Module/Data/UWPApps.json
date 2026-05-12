@@ -342,6 +342,7 @@
       "DisplayOptions": null,
       "Default": "Uninstall",
       "WinDefault": "Install",
+      "TimeoutSeconds": 1800,
       "Description": "Bulk install or uninstall selected Windows Store apps",
       "Detail": "Opens a selection dialog to remove or restore selected Windows Store apps. This is package management rather than a simple toggle, and some removals cannot be reversed automatically.",
       "Caution": true,

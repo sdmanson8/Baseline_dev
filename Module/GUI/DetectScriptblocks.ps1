@@ -1,4 +1,4 @@
-#region Detect & Visibility Scriptblocks
+﻿#region Detect & Visibility Scriptblocks
 # Detect scriptblocks keyed by Function name (cannot be stored in JSON).
 # Used by system-scan to determine current on/off state of a tweak.
 
@@ -230,7 +230,7 @@ $Script:DetectScriptblocks = @{
 			}
 			catch
 			{
-				Write-DebugSwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.BlockStoreSearchResults.LoadIdentitySid'
+				Write-SwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.BlockStoreSearchResults.LoadIdentitySid'
 				$identitySid = $rule.IdentityReference.Value
 			}
 
@@ -358,7 +358,7 @@ $Script:DetectScriptblocks = @{
 			}
 			catch
 			{
-				Write-DebugSwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.RegistryBackup.LoadAutoRegBackupTask'
+				Write-SwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.RegistryBackup.LoadAutoRegBackupTask'
 				$autoRegBackupTask = $false
 			}
 		($periodicBackupEnabled -and $autoRegBackupTask)

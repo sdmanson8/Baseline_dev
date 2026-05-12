@@ -1,14 +1,18 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     $script:UWPAppsPath = Join-Path $PSScriptRoot '../../Module/Regions/UWPApps.psm1'
     $script:UWPAppsJsonPath = Join-Path $PSScriptRoot '../../Module/Data/UWPApps.json'
 
     $script:UWPAppsAst = [System.Management.Automation.Language.Parser]::ParseFile($script:UWPAppsPath, [ref]$null, [ref]$null)
+    $script:UWPAppsSourceText = Get-BaselineTestSourceText -Path $script:UWPAppsPath
+    $script:UWPAppsSourceAst = [scriptblock]::Create($script:UWPAppsSourceText).Ast
     $script:EdgeRemovalAst = $script:UWPAppsAst.FindAll({
             param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'EdgeRemoval'
         }, $true) | Select-Object -First 1
-    $script:EdgeRemovalText = if ($script:EdgeRemovalAst) { $script:EdgeRemovalAst.Extent.Text } else { '' }
+    $script:EdgeRemovalText = $script:UWPAppsSourceText
 
     $script:UWPAppsJson = Get-Content $script:UWPAppsJsonPath -Raw | ConvertFrom-Json
     $script:EdgeRemovalEntry = $script:UWPAppsJson.Entries | Where-Object { $_.Function -eq 'EdgeRemoval' } | Select-Object -First 1
@@ -53,7 +57,7 @@ Describe 'EdgeRemoval function (#540 / #538 / #567)' {
             'Remove-EdgeRegistryKeys',
             'Remove-AdditionalEdgeFolders'
         )
-        $nested = $script:EdgeRemovalAst.FindAll({
+        $nested = $script:UWPAppsSourceAst.FindAll({
                 param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst]
             }, $true) | ForEach-Object { $_.Name }
 
@@ -92,8 +96,8 @@ Describe 'EdgeRemoval preserves EdgeWebView2 (#538)' {
     }
 
     It 'backs up and restores EdgeUpdate ClientState registry (required for EdgeWebView2)' {
-        $script:EdgeRemovalText | Should -Match 'reg export.*ClientState'
-        $script:EdgeRemovalText | Should -Match 'reg import'
+        $script:EdgeRemovalText | Should -Match 'Invoke-BaselineProcess -FilePath ''reg\.exe'' -ArgumentList @\(''export'', ''HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\ClientState'''
+        $script:EdgeRemovalText | Should -Match 'Invoke-BaselineProcess -FilePath ''reg\.exe'' -ArgumentList @\(''import'', \$backupRegFile\)'
     }
 
     It 'mentions EdgeWebView2 preservation in comments' {
@@ -168,7 +172,7 @@ Describe 'EdgeRemoval JSON entry (UWPApps.json)' {
 Describe 'EdgeRemoval vendor fidelity' {
 
     It 'uses 30-second DISM timeout with one retry' {
-        ($script:EdgeRemovalText.Split("`n") | Where-Object { $_ -match 'WaitForExit\(30000\)' }).Count | Should -BeGreaterOrEqual 2
+        ($script:EdgeRemovalText.Split("`n") | Where-Object { $_ -match "Invoke-BaselineProcess -FilePath 'dism\.exe'.*-TimeoutSeconds 30" }).Count | Should -BeGreaterOrEqual 2
     }
 
     It 'preserves the OpenWebSearch.cmd CMDCMDLINE backtick-pair sequence' {

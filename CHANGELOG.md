@@ -13,19 +13,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Version bumped from 3.1.0-beta to 4.0.0-beta across module manifest, entry scripts, and asset scripts.
 - Unified process exit codes across headless and GUI paths via `Get-BaselineHeadlessExitCode`.
 - Restructured the main GUI navigation into a top menu bar with `File`, `Actions`, `View`, `Tools`, and `Help` sections.
-- Expanded Windows parity coverage across System, Privacy, Explorer, Taskbar, Start Menu, Notifications, and Appearance.
 - Refined localization QA and polished visible copy in Gaelic, Amharic, Icelandic, Gujarati, and Swedish.
 - Popup pickers for UWP Apps, Windows Features, and Scheduled Tasks now show realtime progress.
 - Shared popup chrome now repaints live when Light or Dark mode is toggled.
 - Delivery Optimization now writes `DODownloadMode = 99` for the disabled state.
 - Feature update deferral and quality update deferral now live in the existing updates module.
-- Release contract is now enforced end-to-end.
-- Taskbar Widgets tweak no longer executes registry or policy mutations after its skip branch.
-- GPU Hardware-Accelerated Scheduling detection now uses `Test-IsVirtualMachine`.
-- `Tools/New-ReleasePackage.ps1` now respects `-WhatIf`.
-- Normalized imported module function help.
-- Split the P5 monolith targets into explicit loader parents and ordered helper files.
-- Moved release installation into a verified archive handoff.
+- Take Ownership ASR copy refresh now uses the updated packaged source.
+- Help menu entries were renamed and expanded.
+- The log file is deleted and recreated on each launch.
+- Application catalog and execution were overhauled:
+  - Split the app catalog into `Module/Data/AppsCategory/*.json`.
+  - Normalized app entries with `EntityType` and `SupportsExecution`.
+  - Added shared package-ID candidate resolution.
+  - Added separate WinGet and Chocolatey caches.
+  - Reworked install, uninstall, update, and batch actions.
+  - Preserved the card-based Apps UI.
+- Apps & Software no longer shows a passive progress strip; the Apps progress bar is reserved for install, uninstall, and update execution. Tweak runs continue to use the shared execution progress bar.
 
 ---
 
@@ -34,7 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Microsoft Edge removal.
 - Custom power plan and Hybrid Sleep toggle.
 - Window position persistence.
-- Take Ownership ASR copy refresh.
+- Expanded Windows parity coverage across System, Privacy, Explorer, Taskbar, Start Menu, Notifications, and Appearance.
 - `windows_hardening.cmd` parity sweep:
   - LOLBin outbound firewall ruleset toggle.
   - Mount Manager hardening.
@@ -48,18 +51,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - SSH and WinRM-over-HTTPS reachability probes.
 - Browser enterprise policies back-end.
 - Authentication / domain hardening back-end.
-- Browser and auth hardening unit tests.
 - OS Hardening protection actions from `windows_hardening.cmd`.
 - OS Hardening Tweaks GUI surface.
-- Bootstrap release-integrity tests.
-- Environment helper tests.
-- Taskbar skip-path tests.
 - Managed remote workflow hardening.
 - Expanded headless lifecycle dispatcher.
 - Desktop-session CI on `windows-2022`.
 - Installer signing policy.
-- Help menu entries renamed and expanded.
-- Safe Mode, duplicate action, theme, and localization coverage.
 - `-ApplyProfile` CLI flag.
 - Per-app queued-action system.
 - `BtnApplyQueuedActions` and `BtnClearQueuedActions` handler wiring.
@@ -72,43 +69,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Improved existing Windows Update features:
   - Added Windows Update notification level selector.
   - Added Windows Update repair flow.
-  - Added focused execution tests.
   - Added metered-connection and Microsoft Store auto-download controls.
   - Added `Updates` tab entries for `Security Updates Only Mode` and `Pause Windows Updates`.
-- Log file is now deleted and recreated on each launch.
 - Auto-update on launch.
+- Update check state tracking for `Last checked` and `Status` values, including `Up to date`, `Update available`, `Failed`, `Skipped (offline)`, and `Disabled`.
 - Comprehensive localization coverage across the GUI.
 - 124 locale files now carry full key coverage.
 - Added 79 new languages.
 - Completed Apps view localization and chrome coverage.
-- Application catalog and execution overhaul:
-  - Split the app catalog into `Module/Data/AppsCategory/*.json`.
-  - Normalized app entries with `EntityType` and `SupportsExecution`.
-  - Added shared package-ID candidate resolution.
-  - Added separate WinGet and Chocolatey caches.
-  - Reworked install, uninstall, update, and batch actions.
-  - Preserved the card-based Apps UI.
-- The themed Readme viewer now repaints correctly on open and live theme toggle.
+- Settings -> General -> Updates controls for Baseline auto-check behavior, check frequency, pre-release inclusion, last checked, current version, status, and Check Now.
 
 ---
 
 ## Fixed
 
-- Restored the full Pester regression suite to green.
 - Remote-target helper module import no longer fails under `Set-StrictMode`.
 - GUI footer and style refresh now keep the Export First-Logon Command button synchronized.
-- Non-fatal GUI dialog and theme fallbacks now route through `Write-DebugSwallowedException`.
 - GUI theme preference now round-trips Light, Dark, and System through Settings and session restore, and Safe/Expert header toggles keep `DefaultStartupMode` in sync with the active mode.
 - Aborted GUI runs no longer silently report exit code `0` / `clean`.
-- Restored the completed HKCU safe-registry sweep.
 - GUI composition and menu localization now stay aligned after runtime refreshes.
 - Localization schema metadata now matches the current `en-US` key set.
 - Launcher elevation metadata now requests administrator rights.
 - Manifest validation data now matches current region ownership and recovery classifications.
 - Test report export now resolves the repository root from the live invocation directory.
 - Language switching no longer throws in deferred WPF dispatcher callbacks.
-- Execution orchestration no longer throws when a `DispatcherTimer` tick fires after cleanup.
-- Updated matching unit tests, including StartMenuApps, System, and System.FileAssociations paths.
+- Taskbar Widgets tweak no longer executes registry or policy mutations after its skip branch.
+- GPU Hardware-Accelerated Scheduling detection now uses `Test-IsVirtualMachine`.
+- `Tools/New-ReleasePackage.ps1` now respects `-WhatIf`.
+- The startup splash no longer appears as a separate taskbar thumbnail while Baseline is launching.
 ---
 
 ## 3.1.0-beta | 2026-04-26
@@ -223,7 +211,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   - Per-monitor DPI awareness via SetProcessDpiAwarenessContext P/Invoke (user32.dll) with SetProcessDpiAwareness fallback (shcore.dll)
   - SHA-256 checksum validation for all remote downloads (C++ Redistributables, .NET runtimes)
   - DWM window chrome interop for native dark/light title bar and Win11 rounded corners
-  - AST-based command parsing replacing all Invoke-Expression usage
+- AST-based command parsing replacing dynamic expression execution
 
 - **Testing & Validation**
   - Headless GUI composition/contract tests for dialog creation paths
@@ -241,7 +229,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - **Codebase Audit Remediation**
   - Resolved public positioning contradiction between README and release strategy
-  - Cleaned launch trust surface: local launch primary, iwr|iex demoted to advanced
+  - Cleaned launch trust surface: local launch primary, downloaded-file bootstrap documented as advanced
   - Added historical context note to changelog
   - Automated GUI test layer added: 6 test categories
   - Desktop integration matrix run and documented: Win10 + Win11 validated
@@ -249,7 +237,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   - Large module extraction: 14 sub-modules extracted from System, UIPersonalization, PrivacyTelemetry, SystemTweaks, Defender
   - Runtime Write-Host audit across 10 files
   - ExecutionPolicy Bypass audit across 6 files with documentation
-  - Invoke-Expression/iex audit with safety comments
+  - Remote expression execution audit with safety comments
   - Quality & Validation section added to README
   - Release/documentation pack labeled and separated
 
@@ -264,7 +252,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - GUI localization no longer falls back to English when a non-English language is selected; hashtable-backed localization lookups now resolve correctly across the live interface
 - Restored sessions and startup initialization now reapply the selected language to active controls instead of leaving existing GUI content in English
 - Light theme no longer makes the custom minimize, maximize, and close buttons effectively disappear; caption buttons now restyle with the active title-bar theme
-- Zero remaining Invoke-Expression usage in production code (AST-based parsing throughout)
+- Zero remaining dynamic expression execution in production code (AST-based parsing throughout)
 - Eliminated false `failed!` outcomes on edge cases where registry values were never created
 - Eliminated mid-run interactive dialogs blocking batch execution
 - Logging no longer silently broken after module force-import in background runspace

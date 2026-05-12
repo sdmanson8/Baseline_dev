@@ -447,7 +447,7 @@ function Install-BaselineWslDistribution
 		}
 		else
 		{
-			$proc = Start-Process -FilePath $WslExePath -ArgumentList $argumentList -PassThru -Wait -ErrorAction Stop
+			$proc = Invoke-BaselineProcess -FilePath $WslExePath -ArgumentList $argumentList -TimeoutSeconds 900
 			if ($proc -and $proc.PSObject.Properties.Name -contains 'ExitCode')
 			{
 				$exitCode = [int]$proc.ExitCode

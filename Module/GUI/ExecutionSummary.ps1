@@ -1,8 +1,7 @@
-# Execution summary classification, insights, retry policy, and dialog cards
+﻿# Execution summary classification, insights, retry policy, and dialog cards
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ExecutionSummaryRecord.
 	#>
 
 	function New-ExecutionSummaryRecord
@@ -63,7 +62,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Initialize-ExecutionSummary.
 	#>
 
 	function Initialize-ExecutionSummary
@@ -86,7 +84,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ExecutionSummaryClassification.
 	#>
 
 	function Get-ExecutionSummaryClassification
@@ -154,6 +151,24 @@
 				$classification.FailureCode = 'restart_required'
 				$classification.IsRecoverable = $true
 				$classification.RecoveryHint = 'Restart Windows, then retry if the tweak still needs to settle.'
+				return [pscustomobject]$classification
+			}
+			'^(Timed Out)$'
+			{
+				$classification.OutcomeState = 'Timed Out'
+				$classification.OutcomeReason = 'Baseline stopped waiting after the timeout expired and moved on to the next item.'
+				$classification.FailureCategory = 'Timed out'
+				$classification.FailureCode = 'timed_out'
+				$classification.RecoveryHint = 'Open the detailed log and confirm the current end state before rerunning this item.'
+				return [pscustomobject]$classification
+			}
+			'^(Timed Out / Unknown Final State)$'
+			{
+				$classification.OutcomeState = 'Timed Out / Unknown Final State'
+				$classification.OutcomeReason = 'Baseline stopped waiting after the timeout expired and could not verify the final state.'
+				$classification.FailureCategory = 'Timed out / unknown final state'
+				$classification.FailureCode = 'timed_out_unknown_final_state'
+				$classification.RecoveryHint = 'Open the detailed log and confirm whether the action or installer is still running before retrying.'
 				return [pscustomobject]$classification
 			}
 			'^(Not Run)$'
@@ -320,7 +335,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-RestoreDefaultsOutcomeText.
 	#>
 
 	function Get-RestoreDefaultsOutcomeText
@@ -351,6 +365,8 @@
 			'not_supported_restore'      { return 'This item is not supported by in-app restore.' }
 			'skipped_by_policy'          { return 'This item is not supported by in-app restore.' }
 			'restart_required'           { return 'Restored to Windows default. Restart required to finish.' }
+			'timed_out'                 { return 'Restore timed out. Review the log and confirm the current end state before retrying.' }
+			'timed_out_unknown_final_state' { return 'Restore timed out and Baseline could not verify the final state.' }
 			'cancelled_by_operator'      { return 'Did not run because the restore was cancelled by the operator.' }
 			'not_run'                    { return 'Did not run because the restore stopped early.' }
 			'general_failure'            {
@@ -373,6 +389,8 @@
 		{
 			'^(Success)$'                              { return 'Restored to Windows default.' }
 			'^(Restart pending)$'                      { return 'Restored to Windows default. Restart required to finish.' }
+			'^(Timed Out)$'                            { return 'Restore timed out. Review the log and confirm the current end state before retrying.' }
+			'^(Timed Out / Unknown Final State)$'      { return 'Restore timed out and Baseline could not verify the final state.' }
 			'^(Cancelled)$'                            { return 'Did not run because the restore was cancelled by the operator.' }
 			'^(Already at Windows default|Already in desired state)$' { return 'Already at Windows default.' }
 			'^(Not applicable on this system)$'        { return 'Not applicable on this PC or this version of Windows.' }
@@ -396,7 +414,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ExecutionRetryPolicy.
 	#>
 
 	function Get-ExecutionRetryPolicy
@@ -531,7 +548,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-ExecutionSummaryPackageOperationRecord.
 	#>
 
 	function Test-ExecutionSummaryPackageOperationRecord
@@ -551,7 +567,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ExecutionSummaryInsights.
 	#>
 
 	function Get-ExecutionSummaryInsights
@@ -570,16 +585,17 @@
 		$policySkippedResults = @($results | Where-Object { [string]$_.OutcomeState -in @('Skipped by preset or selection', 'Not supported by in-app restore') })
 		$packageOperationResults = @($results | Where-Object { Test-ExecutionSummaryPackageOperationRecord -Record $_ })
 		$recoverableFailedResults = @($results | Where-Object {
-			[string]$_.Status -eq 'Failed' -and
+			([string]$_.Status -eq 'Failed' -or [string]$_.Status -eq 'Timed Out' -or [string]$_.Status -eq 'Timed Out / Unknown Final State') -and
 			(Test-GuiObjectField -Object $_ -FieldName 'IsRecoverable') -and
 			[bool]$_.IsRecoverable
 		})
 		$manualFailedResults = @($results | Where-Object {
-			[string]$_.Status -eq 'Failed' -and
+			([string]$_.Status -eq 'Failed' -or [string]$_.Status -eq 'Timed Out' -or [string]$_.Status -eq 'Timed Out / Unknown Final State') -and
 			-not ((Test-GuiObjectField -Object $_ -FieldName 'IsRecoverable') -and [bool]$_.IsRecoverable)
 		})
+		$timedOutResults = @($results | Where-Object { [string]$_.Status -eq 'Timed Out' -or [string]$_.Status -eq 'Timed Out / Unknown Final State' })
 		$notRunResults = @($results | Where-Object { [string]$_.Status -eq 'Not Run' })
-		$failedPackageResults = @($packageOperationResults | Where-Object { [string]$_.Status -eq 'Failed' })
+		$failedPackageResults = @($packageOperationResults | Where-Object { [string]$_.Status -in @('Failed', 'Timed Out', 'Timed Out / Unknown Final State') })
 		$partialSuccessResults = @($results | Where-Object {
 			(Test-GuiObjectField -Object $_ -FieldName 'FailureCode') -and
 			[string]$_.FailureCode -eq 'partial_success'
@@ -596,7 +612,7 @@
 		$cancelledResults = @($results | Where-Object { [string]$_.Status -eq 'Cancelled' })
 
 		$needsLogReview = $false
-		if (-not [string]::IsNullOrWhiteSpace($FatalError) -or $notRunResults.Count -gt 0 -or $manualFailedResults.Count -gt 0 -or $partialSuccessResults.Count -gt 0 -or $generalFailureResults.Count -gt 0)
+		if (-not [string]::IsNullOrWhiteSpace($FatalError) -or $notRunResults.Count -gt 0 -or $manualFailedResults.Count -gt 0 -or $timedOutResults.Count -gt 0 -or $partialSuccessResults.Count -gt 0 -or $generalFailureResults.Count -gt 0)
 		{
 			$needsLogReview = $true
 		}
@@ -616,6 +632,10 @@
 			{
 				$reviewLogHint = 'Open the detailed log if you need the exact registry path, package, or helper step that still needs manual correction.'
 			}
+			elseif ($timedOutResults.Count -gt 0)
+			{
+				$reviewLogHint = 'Open the detailed log if you need to confirm the final state of items that timed out before Baseline moved on.'
+			}
 			elseif ($partialSuccessResults.Count -gt 0)
 			{
 				$reviewLogHint = 'Open the detailed log if you need the specific sub-step that only completed partially.'
@@ -634,6 +654,7 @@
 			PackageFailedCount = $failedPackageResults.Count
 			RecoverableFailedCount = $recoverableFailedResults.Count
 			ManualFailedCount = $manualFailedResults.Count
+			TimeoutCount = $timedOutResults.Count
 			NotRunCount = $notRunResults.Count
 			CancelledCount = $cancelledResults.Count
 			BlockedCount = $blockedResults.Count
@@ -646,7 +667,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ExecutionSummaryCountsText.
 	#>
 
 	function Get-ExecutionSummaryCountsText
@@ -677,6 +697,7 @@
 		if ($Insights.RecoverableFailedCount -gt 0) { $parts += "Retry offered: $($Insights.RecoverableFailedCount)" }
 		if ($Insights.ManualFailedCount -gt 0) { $parts += "Manual review: $($Insights.ManualFailedCount)" }
 		if ($Insights.PartialSuccessCount -gt 0) { $parts += "Partial success: $($Insights.PartialSuccessCount)" }
+		if ($Insights.TimeoutCount -gt 0) { $parts += "Timed out: $($Insights.TimeoutCount)" }
 		if ($Insights.BlockedCount -gt 0) { $parts += "Blocked: $($Insights.BlockedCount)" }
 		if ($SummaryPayload.NotRunCount -gt 0) { $parts += "Not run: $($SummaryPayload.NotRunCount)" }
 		if ($Insights.CancelledCount -gt 0) { $parts += "Cancelled: $($Insights.CancelledCount)" }
@@ -685,7 +706,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ExecutionSummaryNextStepsText.
 	#>
 
 	function Get-ExecutionSummaryNextStepsText
@@ -721,6 +741,10 @@
 				"$($Insights.ManualFailedCount) item$(if ($Insights.ManualFailedCount -eq 1) { '' } else { 's' }) still need manual review before retrying."
 			}
 			[void]$steps.Add($manualText)
+		}
+		if ($Insights.TimeoutCount -gt 0)
+		{
+			[void]$steps.Add("$($Insights.TimeoutCount) item$(if ($Insights.TimeoutCount -eq 1) { '' } else { 's' }) timed out before Baseline moved on. Confirm the final state in the detailed log before rerunning them.")
 		}
 		if ($Insights.PackageFailedCount -gt 0)
 		{
@@ -768,7 +792,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ExecutionSummaryDialogCards.
 	#>
 
 	function Get-ExecutionSummaryDialogCards
@@ -907,6 +930,15 @@
 				Tone = 'Caution'
 			}
 		}
+		if ($Insights.TimeoutCount -gt 0)
+		{
+			$cards += [pscustomobject]@{
+				Label = 'Timed Out'
+				Value = $Insights.TimeoutCount
+				Detail = 'Review final state before rerunning'
+				Tone = 'Caution'
+			}
+		}
 		if ($Insights.CancelledCount -gt 0)
 		{
 			$cards += [pscustomobject]@{
@@ -922,7 +954,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-ExecutionSummaryClassification.
 	#>
 
 	function Update-ExecutionSummaryClassification
@@ -965,7 +996,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ExecutionResultLiveLogEntry.
 	#>
 
 	function Get-ExecutionResultLiveLogEntry
@@ -984,6 +1014,18 @@
 			return $null
 		}
 
+		$selectionText = if ((Test-GuiObjectField -Object $Record -FieldName 'Selection')) { [string]$Record.Selection } elseif ((Test-GuiObjectField -Object $Record -FieldName 'ToggleParam')) { [string]$Record.ToggleParam } else { $null }
+		$cleanSelection = if ([string]::IsNullOrWhiteSpace($selectionText)) { $null } else { ($selectionText -replace '[\x00-\x08\x0B\x0C\x0E-\x1F]', '').Trim() }
+		$displayName = $cleanName
+		if (-not [string]::IsNullOrWhiteSpace($cleanSelection))
+		{
+			$escapedSelection = [regex]::Escape($cleanSelection)
+			if ($cleanName -notmatch ("^(?i){0}\b" -f $escapedSelection))
+			{
+				$displayName = "{0} {1}" -f $cleanSelection, $cleanName
+			}
+		}
+
 		$statusText = if ((Test-GuiObjectField -Object $Record -FieldName 'Status')) { [string]$Record.Status } else { '' }
 		$outcomeText = if ((Test-GuiObjectField -Object $Record -FieldName 'OutcomeState')) { [string]$Record.OutcomeState } else { '' }
 		$detailText = if ((Test-GuiObjectField -Object $Record -FieldName 'Detail')) { [string]$Record.Detail } else { $null }
@@ -994,6 +1036,7 @@
 		$successLabel = Get-UxLocalizedString -Key 'GuiResultSuccess' -Fallback 'success'
 		$failedLabel = Get-UxLocalizedString -Key 'GuiResultFailed' -Fallback 'failed'
 		$skippedLabel = Get-UxLocalizedString -Key 'GuiResultSkipped' -Fallback 'skipped'
+		$timedOutLabel = 'timed out'
 		$resultLabel = $successLabel
 		$logLevel = 'SUCCESS'
 		$includeReason = $false
@@ -1004,6 +1047,13 @@
 			{
 				$resultLabel = $failedLabel
 				$logLevel = 'ERROR'
+				$includeReason = $true
+				break
+			}
+			'^(Timed Out|Timed Out / Unknown Final State)$'
+			{
+				$resultLabel = $timedOutLabel
+				$logLevel = 'WARNING'
 				$includeReason = $true
 				break
 			}
@@ -1056,6 +1106,13 @@
 						$includeReason = $true
 						break
 					}
+					'^(Timed Out|Timed Out / Unknown Final State)$'
+					{
+						$resultLabel = $timedOutLabel
+						$logLevel = 'WARNING'
+						$includeReason = $true
+						break
+					}
 					'^(Not run|Not applicable on this system|Already in desired state|Already at Windows default|Skipped by preset or selection|Not supported by in-app restore)$'
 					{
 						$resultLabel = $skippedLabel
@@ -1069,11 +1126,11 @@
 
 		$messageText = if ($includeReason -and -not [string]::IsNullOrWhiteSpace($reasonText))
 		{
-			"{0} - {1} ({2})" -f $cleanName, $resultLabel, $reasonText
+			"{0} - {1} ({2})" -f $displayName, $resultLabel, $reasonText
 		}
 		else
 		{
-			"{0} - {1}" -f $cleanName, $resultLabel
+			"{0} - {1}" -f $displayName, $resultLabel
 		}
 
 		return [pscustomobject]@{
@@ -1084,7 +1141,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-ExecutionSummaryStatus.
 	#>
 
 	function Set-ExecutionSummaryStatus
@@ -1118,7 +1174,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Complete-ExecutionSummary.
 	#>
 
 	function Complete-ExecutionSummary
@@ -1155,7 +1210,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ExecutionSummaryResults.
 	#>
 
 	function Get-ExecutionSummaryResults
@@ -1163,10 +1217,6 @@
 		return @($Script:ExecutionSummaryRecords | Sort-Object Order)
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Write-ExecutionSummaryToLog
 	{
 		param (
@@ -1244,7 +1294,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Sync-DefaultsControlsFromExecutionSummary.
 	#>
 
 	function Sync-DefaultsControlsFromExecutionSummary

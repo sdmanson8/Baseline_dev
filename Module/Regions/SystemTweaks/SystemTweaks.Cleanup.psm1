@@ -26,123 +26,12 @@ function DiskCleanup
 	$ScriptPath = Join-Path $PSScriptRoot "diskcleanup.ps1"
 	$ScriptPath = [System.IO.Path]::GetFullPath($ScriptPath)
 
-	Start-Process powershell.exe `
-		-ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`"" `
-		-WindowStyle Hidden | Out-Null
-}
-
-<#
-.SYNOPSIS
-Apply additional service-related optimizations from the legacy performance preset.
-
-
-
-.DESCRIPTION
-
-Applies the Baseline behavior for apply additional service-related optimizations from the legacy performance preset..
-.EXAMPLE
-Invoke-AdditionalServiceOptimizations
-
-.NOTES
-Current user
-#>
-function Invoke-AdditionalServiceOptimizations
-{
-	Write-ConsoleStatus -Action "Applying additional service optimizations"
-	LogInfo "Applying additional service optimizations"
-
-	$hadIssue = $false
-	$memoryCompressionState = $null
-
-	try
-	{
-		$memoryCompressionState = Get-MMAgent -ErrorAction Stop
-	}
-	catch
-	{
-		$memoryCompressionState = $null
-	}
-
-	if ($memoryCompressionState -and -not $memoryCompressionState.MemoryCompression)
-	{
-		LogInfo "Memory Compression already disabled"
-	}
-	else
-	{
-		try
-		{
-			Disable-MMAgent -mc -ErrorAction Stop | Out-Null
-
-			$updatedMemoryCompressionState = Get-MMAgent -ErrorAction SilentlyContinue
-			if ($updatedMemoryCompressionState -and -not $updatedMemoryCompressionState.MemoryCompression)
-			{
-				LogInfo "Disabled Memory Compression"
-			}
-			else
-			{
-				LogInfo "Requested Memory Compression disable"
-			}
-		}
-		catch
-		{
-			$updatedMemoryCompressionState = Get-MMAgent -ErrorAction SilentlyContinue
-			if ($updatedMemoryCompressionState -and -not $updatedMemoryCompressionState.MemoryCompression)
-			{
-				LogInfo "Memory Compression already disabled"
-			}
-			else
-			{
-				$hadIssue = $true
-				LogWarning "Failed to disable Memory Compression: $($_.Exception.Message)"
-			}
-		}
-	}
-
-	$extraServices = @(
-		"PeerDistSvc",
-		"diagnosticshub.standardcollector.service",
-		"RemoteRegistry"
-	)
-
-	foreach ($serviceName in $extraServices)
-	{
-		try
-		{
-			$service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
-
-			if ($service)
-			{
-				Set-Service -Name $serviceName -StartupType Disabled -ErrorAction Stop
-				Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue
-			}
-			else
-			{
-				$registryPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$serviceName"
-				if (Test-Path -Path $registryPath)
-				{
-					Set-ItemProperty -LiteralPath $registryPath -Name "Start" -Type DWord -Value 4 -Force -ErrorAction Stop | Out-Null
-				}
-				else
-				{
-					LogWarning "Service $serviceName not found"
-				}
-			}
-		}
-		catch
-		{
-			$hadIssue = $true
-			LogWarning "Failed to disable $serviceName : $($_.Exception.Message)"
-		}
-	}
-
-	if ($hadIssue)
-	{
-		Write-ConsoleStatus -Status warning
-	}
-	else
-	{
-		Write-ConsoleStatus -Status success
-	}
+	$null = Invoke-BaselineProcess `
+		-FilePath 'powershell.exe' `
+		-ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ScriptPath) `
+		-TimeoutSeconds 7200
+	LogInfo "Disk cleanup child script completed"
+	Write-ConsoleStatus -Status success
 }
 
 <#
@@ -398,6 +287,7 @@ function Get-CleanupStats
 			if (Test-Path $item.Path)
 			{
 				$size = (Get-ChildItem -Path $item.Path -Recurse -Force -ErrorAction SilentlyContinue |
+					Where-Object { -not $_.PSIsContainer } |
 					Measure-Object -Property Length -Sum).Sum
 
 				$count = (Get-ChildItem -Path $item.Path -Recurse -Force -ErrorAction SilentlyContinue |
@@ -431,5 +321,9 @@ function Get-CleanupStats
 	}
 	Write-Host "`n"
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'DiskCleanup',
+    'Get-CleanupStats',
+    'Invoke-CleanupOperation'
+)
+Export-ModuleMember -Function $ExportedFunctions

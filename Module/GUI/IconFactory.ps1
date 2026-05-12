@@ -1,6 +1,5 @@
-<#
+﻿<#
     .SYNOPSIS
-    Internal function Initialize-GuiIconSystem.
 #>
 
 function Initialize-GuiIconSystem
@@ -45,7 +44,6 @@ function Initialize-GuiIconSystem
 
 <#
     .SYNOPSIS
-    Internal function Test-GuiIconsAvailable.
 #>
 
 function Test-GuiIconsAvailable
@@ -57,10 +55,6 @@ function Test-GuiIconsAvailable
     return ($Script:GuiIconEnabled -and $null -ne $Script:GuiIconFontFamily)
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Test-GuiPositiveFontSize
 {
     <# .SYNOPSIS Returns true when a font size is a finite positive value. #>
@@ -78,7 +72,6 @@ function Test-GuiPositiveFontSize
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiStatusBrushByKind.
 #>
 
 function Get-GuiStatusBrushByKind
@@ -111,7 +104,6 @@ function Get-GuiStatusBrushByKind
 
 <#
     .SYNOPSIS
-    Internal function Resolve-GuiBrushInput.
 #>
 
 function Resolve-GuiBrushInput
@@ -157,7 +149,6 @@ function Resolve-GuiBrushInput
 
 <#
     .SYNOPSIS
-    Internal function New-GuiIconTextBlock.
 #>
 
 function New-GuiIconTextBlock
@@ -216,7 +207,6 @@ function New-GuiIconTextBlock
 
 <#
     .SYNOPSIS
-    Internal function New-GuiLabeledIconContent.
 #>
 
 function New-GuiLabeledIconContent
@@ -294,7 +284,6 @@ function New-GuiLabeledIconContent
 
 <#
     .SYNOPSIS
-    Internal function Set-GuiButtonIconContent.
 #>
 
 function Set-GuiButtonIconContent
@@ -340,7 +329,6 @@ function Set-GuiButtonIconContent
 
 <#
     .SYNOPSIS
-    Internal function New-GuiStatusIconLabel.
 #>
 
 function New-GuiStatusIconLabel
@@ -382,7 +370,6 @@ function New-GuiStatusIconLabel
 
 <#
     .SYNOPSIS
-    Internal function Set-GuiTabHeaderWithIcon.
 #>
 
 function Set-GuiTabHeaderWithIcon
@@ -408,7 +395,6 @@ function Set-GuiTabHeaderWithIcon
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiPrimaryTabIconName.
 #>
 
 function Get-GuiPrimaryTabIconName
@@ -438,7 +424,6 @@ function Get-GuiPrimaryTabIconName
 
 <#
     .SYNOPSIS
-    Internal function Set-TextOrIconContent.
 #>
 
 function Set-TextOrIconContent
@@ -481,7 +466,6 @@ function Set-TextOrIconContent
 
 <#
     .SYNOPSIS
-    Internal function New-GamingGroupHeader.
 #>
 
 function New-GamingGroupHeader
@@ -513,7 +497,6 @@ function New-GamingGroupHeader
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiPresetIconName.
 #>
 
 function Get-GuiPresetIconName
@@ -537,7 +520,6 @@ function Get-GuiPresetIconName
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiPreflightIconGlyph.
 #>
 
 function Get-GuiPreflightIconGlyph
@@ -560,7 +542,6 @@ function Get-GuiPreflightIconGlyph
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiSummaryCardIconName.
 #>
 
 function Get-GuiSummaryCardIconName

@@ -1,4 +1,4 @@
-<#
+﻿<#
     Computes exact-English leak counts per non-English-variant locale.
     Writes a JSON report with per-locale leak counts plus exempt breakdown.
 #>

@@ -8,7 +8,6 @@
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-StateCaptureComparableText.
 #>
 
 function ConvertTo-StateCaptureComparableText
@@ -48,7 +47,6 @@ function ConvertTo-StateCaptureComparableText
 
 <#
     .SYNOPSIS
-    Internal function Get-TweakCurrentStateValue.
 #>
 
 function Get-TweakCurrentStateValue
@@ -93,7 +91,6 @@ function Get-TweakCurrentStateValue
 
 <#
     .SYNOPSIS
-    Internal function New-SystemStateSnapshot.
 #>
 
 function New-SystemStateSnapshot
@@ -176,7 +173,6 @@ function New-SystemStateSnapshot
 
 <#
     .SYNOPSIS
-    Internal function Compare-SystemStateSnapshots.
 #>
 
 function Compare-SystemStateSnapshots
@@ -279,7 +275,6 @@ function Compare-SystemStateSnapshots
 
 <#
     .SYNOPSIS
-    Internal function Export-SystemStateSnapshot.
 #>
 
 function Export-SystemStateSnapshot
@@ -307,7 +302,6 @@ function Export-SystemStateSnapshot
 
 <#
     .SYNOPSIS
-    Internal function Import-SystemStateSnapshot.
 #>
 
 function Import-SystemStateSnapshot
@@ -347,7 +341,6 @@ function Import-SystemStateSnapshot
 
 <#
     .SYNOPSIS
-    Internal function Limit-SnapshotDirectory.
 #>
 
 function Limit-SnapshotDirectory
@@ -384,7 +377,6 @@ function Limit-SnapshotDirectory
 
 <#
     .SYNOPSIS
-    Internal function Get-TweakPlannedStateValue.
 #>
 
 function Get-TweakPlannedStateValue

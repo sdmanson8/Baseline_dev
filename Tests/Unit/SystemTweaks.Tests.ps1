@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/SystemTweaks.psm1'
@@ -33,7 +33,6 @@ Describe 'LanmanWorkstationGuestAuthPolicy' {
 
         <#
             .SYNOPSIS
-            Internal function Write-ConsoleStatus.
         #>
 
         function Write-ConsoleStatus {
@@ -45,7 +44,6 @@ Describe 'LanmanWorkstationGuestAuthPolicy' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogInfo {
             param([string]$Message)
@@ -54,7 +52,6 @@ Describe 'LanmanWorkstationGuestAuthPolicy' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogError {
             param([string]$Message)
@@ -62,7 +59,6 @@ Describe 'LanmanWorkstationGuestAuthPolicy' {
 
         <#
             .SYNOPSIS
-            Internal function Set-Policy.
         #>
 
         function Set-Policy {

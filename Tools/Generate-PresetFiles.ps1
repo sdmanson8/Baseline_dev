@@ -99,7 +99,6 @@ $balancedAllowedTiers = @('Minimal', 'Safe', 'Basic', 'Balanced')
 
 <#
     .SYNOPSIS
-    Internal function Expand-ManifestRecords.
 #>
 
 function Expand-ManifestRecords
@@ -140,7 +139,6 @@ $manifest = @(Expand-ManifestRecords -Value (Import-TweakManifestFromData))
 
 <#
     .SYNOPSIS
-    Internal function Test-TweakField.
 #>
 
 function Test-TweakField
@@ -165,7 +163,6 @@ function Test-TweakField
 
 <#
     .SYNOPSIS
-    Internal function Get-TweakFieldValue.
 #>
 
 function Get-TweakFieldValue
@@ -190,7 +187,6 @@ function Get-TweakFieldValue
 
 <#
     .SYNOPSIS
-    Internal function Get-PresetCommandLine.
 #>
 
 function Get-PresetCommandLine
@@ -204,7 +200,6 @@ function Get-PresetCommandLine
 
 	<#
 	    .SYNOPSIS
-	    Internal function .
 	#>
 	function ConvertTo-PresetParameterName
 	{
@@ -226,7 +221,6 @@ function Get-PresetCommandLine
 
 	<#
 	    .SYNOPSIS
-	    Internal function ConvertTo-PresetArgumentText.
 	#>
 
 	function ConvertTo-PresetArgumentText
@@ -265,7 +259,6 @@ function Get-PresetCommandLine
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-PresetExtraArgumentFragments.
 	#>
 
 	function Get-PresetExtraArgumentFragments
@@ -406,7 +399,6 @@ function Get-PresetCommandLine
 
 <#
     .SYNOPSIS
-    Internal function Test-PresetEntryIncluded.
 #>
 
 function Test-PresetEntryIncluded

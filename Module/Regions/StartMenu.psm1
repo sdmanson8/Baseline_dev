@@ -734,5 +734,14 @@ function Set-StartMenuMostUsed
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'BingSearch',
+    'Set-StartMenuMostUsed',
+    'Set-StartMenuRecentlyAdded',
+    'StartAccountNotifications',
+    'StartLayout',
+    'StartRecommendationsTips',
+    'StartRecommendedSection',
+    'WebSearch'
+)
+Export-ModuleMember -Function $ExportedFunctions

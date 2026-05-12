@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $script:HelperPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Compliance.Helpers.ps1'

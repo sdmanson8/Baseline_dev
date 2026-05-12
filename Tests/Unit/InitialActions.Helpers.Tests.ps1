@@ -1,6 +1,10 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
     $filePath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/InitialActions.Helpers.ps1'
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
@@ -445,7 +449,7 @@ Describe 'Resolve-BaselineHostTaintAssessment' {
 
 Describe 'InitialActions hosts-cleanup wiring' {
     BeforeAll {
-        $script:initialActionsContent = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/InitialActions.psm1')
+        $script:initialActionsContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/InitialActions.psm1')
     }
 
     It 'invokes Resolve-BaselineHostsCleanupPolicy in the hosts-cleanup branch' {
@@ -467,7 +471,7 @@ Describe 'InitialActions hosts-cleanup wiring' {
 
 Describe 'InitialActions host-taint wiring' {
     BeforeAll {
-        $script:initialActionsContent = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/InitialActions.psm1')
+        $script:initialActionsContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/InitialActions.psm1')
     }
 
     It 'collects detected tweakers into a list' {

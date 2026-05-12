@@ -1,4 +1,4 @@
-# Preview run list builders, selection summaries, and preview narrative generation
+﻿# Preview run list builders, selection summaries, and preview narrative generation
 
 <#
     .SYNOPSIS
@@ -97,8 +97,8 @@
 			$TweakManifest = $null,
 			$Controls = $null
 		)
-		$resolvedManifest = if ($null -ne $TweakManifest) { $TweakManifest } else { $Script:TweakManifest }
-		$resolvedControls = if ($null -ne $Controls) { $Controls } else { $Script:Controls }
+		$resolvedManifest = @(if ($null -ne $TweakManifest) { $TweakManifest } else { $Script:TweakManifest })
+		$resolvedControls = @(if ($null -ne $Controls) { $Controls } else { $Script:Controls })
 
 		$selectedTweaks = [System.Collections.Generic.List[hashtable]]::new()
 
@@ -106,6 +106,17 @@
 		{
 			$rt = $resolvedManifest[$ri]
 			$rctl = $resolvedControls[$ri]
+			if (Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				if (-not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $rt))
+				{
+					if (Get-Command -Name 'Remove-GuiExplicitSelectionDefinition' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						Remove-GuiExplicitSelectionDefinition -FunctionName ([string]$rt.Function)
+					}
+					continue
+				}
+			}
 			if (-not $rctl -or -not $rctl.IsEnabled) { continue }
 
 			switch ($rt.Type)
@@ -461,7 +472,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-WindowsDefaultRunList.
 	#>
 	function Get-WindowsDefaultRunList
 	{
@@ -726,7 +736,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-CategoryDefaultRunList.
 	#>
 	function Get-CategoryDefaultRunList
 	{
@@ -757,7 +766,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-TweakSelectionSummary.
 	#>
 	function Get-TweakSelectionSummary
 	{
@@ -890,7 +898,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-PreviewRiskCategoryLines.
 
 	    .DESCRIPTION
 	    Builds preview summary lines that surface active risk categories
@@ -956,7 +963,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-SelectedTweakPreview.
 	#>
 	function Show-SelectedTweakPreview
 	{
@@ -991,7 +997,7 @@
 			if ($Script:Form) { $previousCursor = $Script:Form.Cursor; $Script:Form.Cursor = [System.Windows.Input.Cursors]::Wait }
 			[System.Windows.Input.Mouse]::UpdateCursor()
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreviewBuilders.Show-SelectedTweakPreview.SetWaitCursor' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'PreviewBuilders.Show-SelectedTweakPreview.SetWaitCursor' }
 
 		# Track this preview run in session statistics
 		Add-SessionStatistic -Name 'PreviewRunCount'
@@ -1057,7 +1063,7 @@
 			if ($Script:Form) { $Script:Form.Cursor = $previousCursor }
 			[System.Windows.Input.Mouse]::UpdateCursor()
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PreviewBuilders.Show-SelectedTweakPreview.RestoreCursor' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'PreviewBuilders.Show-SelectedTweakPreview.RestoreCursor' }
 
 		$previewDialogResult = $null
 		do
@@ -1091,7 +1097,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-LocalizedPreviewResults.
 	#>
 	function Get-LocalizedPreviewResults
 	{
@@ -1138,7 +1143,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Confirm-HighRiskTweakRun.
 	#>
 	function Confirm-HighRiskTweakRun
 	{
@@ -1303,7 +1307,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ExecutionPreviewResults.
 	#>
 	function Get-ExecutionPreviewResults
 	{
@@ -1311,7 +1314,6 @@
 
 		<#
 		    .SYNOPSIS
-		    Internal function Get-TweakPreviewNarrative.
 		#>
 		function Get-TweakPreviewNarrative
 		{
@@ -1554,7 +1556,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Write-ExecutionPreviewToLog.
 	#>
 	function Write-ExecutionPreviewToLog
 	{

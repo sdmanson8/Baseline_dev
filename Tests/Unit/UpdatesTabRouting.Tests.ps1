@@ -1,7 +1,12 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
-    $script:GuiContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1') -Raw -Encoding UTF8
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
+    $script:GuiContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1')
 }
 
 Describe 'Updates tab routing' {

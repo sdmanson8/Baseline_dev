@@ -838,11 +838,7 @@ function DNSoverHTTPS
 	    .SYNOPSIS
 	    Gets DNS over HTTPS adapter targets.
 
-	    
-.DESCRIPTION
-	    
-Supports DNS over HTTPS adapter targets handling inside Baseline.
-	#>
+	    	#>
 
 	function Get-DnsOverHttpsAdapterTargets
 	{
@@ -864,11 +860,7 @@ Supports DNS over HTTPS adapter targets handling inside Baseline.
 	    .SYNOPSIS
 	    Gets DNS over HTTPS server configuration.
 
-	    
-.DESCRIPTION
-	    
-Supports DNS over HTTPS server configuration handling inside Baseline.
-	#>
+	    	#>
 
 	function Get-DnsOverHttpsServerConfiguration
 	{
@@ -894,11 +886,7 @@ Supports DNS over HTTPS server configuration handling inside Baseline.
 	    .SYNOPSIS
 	    Sets DNS over HTTPS interface registry values.
 
-	    
-.DESCRIPTION
-	    
-Supports DNS over HTTPS interface registry values handling inside Baseline.
-	#>
+	    	#>
 
 	function Set-DnsOverHttpsInterfaceRegistryValues
 	{
@@ -1104,5 +1092,17 @@ function DownloadBlocking
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'AccountProtectionWarn',
+    'AppsSmartScreen',
+    'DefenderCloud',
+    'DefenderSandbox',
+    'DefenderScanCPULimit',
+    'DefenderSignatureUpdateInterval',
+    'DefenderTrayIcon',
+    'DismissMSAccount',
+    'DismissSmartScreenFilter',
+    'DNSoverHTTPS',
+    'DownloadBlocking'
+)
+Export-ModuleMember -Function $ExportedFunctions

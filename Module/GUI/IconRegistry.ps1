@@ -1,6 +1,5 @@
-<#
+﻿<#
     .SYNOPSIS
-    Internal function Get-GuiIconFontPath.
 #>
 
 function Get-GuiIconFontPath
@@ -54,7 +53,6 @@ function Get-GuiIconFontPath
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiIconFontFamilyName.
 #>
 
 function Get-GuiIconFontFamilyName
@@ -66,10 +64,6 @@ function Get-GuiIconFontFamilyName
     return 'Fluent System Icons'
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function ConvertTo-GuiIconGlyph
 {
     <# .SYNOPSIS Converts a Unicode scalar value into a glyph string for WPF text rendering. #>
@@ -94,7 +88,6 @@ function ConvertTo-GuiIconGlyph
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiIconGlyph.
 #>
 
 function Get-GuiIconGlyph
@@ -213,7 +206,6 @@ function Get-GuiIconGlyph
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiApplicationIconName.
 #>
 
 function Get-GuiApplicationIconName

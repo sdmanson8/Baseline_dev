@@ -1,8 +1,8 @@
+
 # Dialog helper split file loaded by Module\GUI\DialogHelpers.ps1.
 
 	<#
 	    .SYNOPSIS
-	    Internal function Resolve-BaselineChangelogPath.
 	#>
 
 	function Resolve-BaselineChangelogPath
@@ -16,7 +16,7 @@
 			{
 				[void]$candidates.Add((Join-Path -Path (Split-Path -Path $launcherPath -Parent) -ChildPath 'CHANGELOG.md'))
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineChangelogPath.AddLauncherCandidate' }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineChangelogPath.AddLauncherCandidate' }
 		}
 
 		try
@@ -27,7 +27,7 @@
 				[void]$candidates.Add((Join-Path -Path $appBaseDirectory -ChildPath 'CHANGELOG.md'))
 			}
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineChangelogPath.AddAppBaseCandidate' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineChangelogPath.AddAppBaseCandidate' }
 
 		if (-not [string]::IsNullOrWhiteSpace([string]$Script:GuiModuleBasePath))
 		{
@@ -35,7 +35,7 @@
 			{
 				[void]$candidates.Add((Join-Path -Path (Split-Path -Path $Script:GuiModuleBasePath -Parent) -ChildPath 'CHANGELOG.md'))
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineChangelogPath.AddModuleCandidate' }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineChangelogPath.AddModuleCandidate' }
 		}
 
 		if (-not [string]::IsNullOrWhiteSpace([string]$Script:DialogHelpersRoot))
@@ -48,7 +48,7 @@
 					[void]$candidates.Add((Join-Path -Path $dialogHelpersRoot -ChildPath 'CHANGELOG.md'))
 				}
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineChangelogPath.AddDialogHelpersRootCandidate' }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineChangelogPath.AddDialogHelpersRootCandidate' }
 		}
 
 		try
@@ -59,7 +59,7 @@
 				[void]$candidates.Add((Join-Path -Path $currentDirectory -ChildPath 'CHANGELOG.md'))
 			}
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineChangelogPath.AddCurrentDirectoryCandidate' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineChangelogPath.AddCurrentDirectoryCandidate' }
 
 		foreach ($candidate in @($candidates | Select-Object -Unique))
 		{
@@ -75,7 +75,7 @@
 					return [System.IO.Path]::GetFullPath($candidate)
 				}
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineChangelogPath.TestCandidatePath' }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineChangelogPath.TestCandidatePath' }
 		}
 
 		return ($candidates | Select-Object -First 1)
@@ -83,7 +83,98 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Resolve-BaselineReadmePath.
+	#>
+
+	function Resolve-BaselineChangelogVersionLabel
+	{
+		[CmdletBinding()]
+		param (
+			[string]$DisplayVersion
+		)
+
+		if ([string]::IsNullOrWhiteSpace([string]$DisplayVersion))
+		{
+			return $null
+		}
+
+		$match = [regex]::Match([string]$DisplayVersion, 'v?(\d+\.\d+\.\d+(?:-[A-Za-z0-9][A-Za-z0-9.-]*)?)(?:\s*\(([^)]+)\))?')
+		if (-not $match.Success)
+		{
+			return $null
+		}
+
+		$baseVersion = $match.Groups[1].Value.Trim()
+		if ($match.Groups[2].Success -and -not [string]::IsNullOrWhiteSpace($match.Groups[2].Value))
+		{
+			return ('v{0}-{1}' -f $baseVersion, $match.Groups[2].Value.Trim())
+		}
+
+		return ('v{0}' -f $baseVersion)
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Select-BaselineChangelogVersionSection
+	{
+		[CmdletBinding()]
+		param (
+			[string]$Raw,
+			[string]$Version
+		)
+
+		if ([string]::IsNullOrWhiteSpace($Raw) -or [string]::IsNullOrWhiteSpace($Version))
+		{
+			return $Raw
+		}
+
+		$versionLabel = Resolve-BaselineChangelogVersionLabel -DisplayVersion $Version
+		if ([string]::IsNullOrWhiteSpace([string]$versionLabel))
+		{
+			return $Raw
+		}
+
+		$targetVersion = $versionLabel.TrimStart('v', 'V')
+		$releaseHeadingPattern = '^\s{0,3}#{1,2}\s+v?(\d+\.\d+\.\d+(?:-[A-Za-z0-9][A-Za-z0-9.-]*)?)(?:\s*\|.*)?\s*$'
+		$lines = $Raw -split "`r?`n"
+		$startIdx = -1
+
+		for ($i = 0; $i -lt $lines.Length; $i++)
+		{
+			$headingMatch = [regex]::Match($lines[$i], $releaseHeadingPattern)
+			if ($headingMatch.Success -and [string]::Equals($headingMatch.Groups[1].Value, $targetVersion, [System.StringComparison]::OrdinalIgnoreCase))
+			{
+				$startIdx = $i
+				break
+			}
+		}
+
+		if ($startIdx -lt 0)
+		{
+			return ('No changelog entry found for v{0}.' -f $targetVersion)
+		}
+
+		$endIdx = $lines.Length - 1
+		for ($j = $startIdx + 1; $j -lt $lines.Length; $j++)
+		{
+			if ([regex]::IsMatch($lines[$j], $releaseHeadingPattern))
+			{
+				$endIdx = $j - 1
+				break
+			}
+		}
+
+		while ($endIdx -gt $startIdx -and ($lines[$endIdx].Trim() -eq '---' -or [string]::IsNullOrWhiteSpace($lines[$endIdx])))
+		{
+			$endIdx--
+		}
+
+		return ($lines[$startIdx..$endIdx] -join "`r`n")
+	}
+
+	<#
+	    .SYNOPSIS
 	#>
 
 	function Resolve-BaselineReadmePath
@@ -97,7 +188,7 @@
 			{
 				[void]$candidates.Add((Join-Path -Path (Split-Path -Path $launcherPath -Parent) -ChildPath 'README.md'))
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineReadmePath.AddLauncherCandidate' }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineReadmePath.AddLauncherCandidate' }
 		}
 
 		try
@@ -108,7 +199,7 @@
 				[void]$candidates.Add((Join-Path -Path $appBaseDirectory -ChildPath 'README.md'))
 			}
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineReadmePath.AddAppBaseCandidate' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineReadmePath.AddAppBaseCandidate' }
 
 		if (-not [string]::IsNullOrWhiteSpace([string]$Script:GuiModuleBasePath))
 		{
@@ -116,7 +207,7 @@
 			{
 				[void]$candidates.Add((Join-Path -Path (Split-Path -Path $Script:GuiModuleBasePath -Parent) -ChildPath 'README.md'))
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineReadmePath.AddModuleCandidate' }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineReadmePath.AddModuleCandidate' }
 		}
 
 		if (-not [string]::IsNullOrWhiteSpace([string]$Script:DialogHelpersRoot))
@@ -129,7 +220,7 @@
 					[void]$candidates.Add((Join-Path -Path $dialogHelpersRoot -ChildPath 'README.md'))
 				}
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineReadmePath.AddDialogHelpersRootCandidate' }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineReadmePath.AddDialogHelpersRootCandidate' }
 		}
 
 		try
@@ -140,7 +231,7 @@
 				[void]$candidates.Add((Join-Path -Path $currentDirectory -ChildPath 'README.md'))
 			}
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineReadmePath.AddCurrentDirectoryCandidate' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineReadmePath.AddCurrentDirectoryCandidate' }
 
 		foreach ($candidate in @($candidates | Select-Object -Unique))
 		{
@@ -156,7 +247,7 @@
 					return [System.IO.Path]::GetFullPath($candidate)
 				}
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineReadmePath.TestCandidatePath' }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Resolve-BaselineReadmePath.TestCandidatePath' }
 		}
 
 		return ($candidates | Select-Object -First 1)
@@ -164,7 +255,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-GuiTroubleshootingGuideDialog.
 	#>
 
 	function Show-GuiTroubleshootingGuideDialog
@@ -341,7 +431,7 @@
 						$Script:MenuToolsExportSupportBundle.RaiseEvent($eventArgs)
 					}
 				}
-				catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiTroubleshootingGuideDialog.RaiseExportSupportBundleClick' }
+				catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiTroubleshootingGuideDialog.RaiseExportSupportBundleClick' }
 			}.GetNewClosure())
 		}
 
@@ -389,7 +479,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-GuiFaqDialog.
 	#>
 
 	function Show-GuiFaqDialog
@@ -578,7 +667,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-HelpDialog.
 	#>
 
 	function Show-HelpDialog
@@ -759,224 +847,8 @@
 		$btnClose.IsDefault = $true
 		$btnClose.IsCancel = $true
 
-		if ($btnDownloadBaseline)
-		{
-			# "Check for Update" has been moved to the Help menu. Hide the in-dialog button.
-			$btnDownloadBaseline.Visibility = [System.Windows.Visibility]::Collapsed
-			$btnDownloadBaseline.Content = $downloadLabel
-			Set-ButtonChrome -Button $btnDownloadBaseline -Variant 'Primary' -Compact
-			Register-GuiEventHandler -Source $btnDownloadBaseline -EventName 'Click' -Handler ({
-				$btnDownloadBaseline.IsEnabled = $false
-				$btnDownloadBaseline.Content = $downloadingLabel
-				$btnClose.IsEnabled = $false
-
-				if ($downloadProgressPanel)
-				{
-					$downloadProgressPanel.Visibility = [System.Windows.Visibility]::Visible
-				}
-				if ($downloadProgressBar)
-				{
-					$downloadProgressBar.Value = 0
-				}
-				if ($txtDownloadProgressPct)
-				{
-					$txtDownloadProgressPct.Text = '0%'
-				}
-				if ($txtDownloadProgressLabel)
-				{
-					$txtDownloadProgressLabel.Text = $downloadPreparingLabel
-				}
-
-				try
-				{
-					$destinationPath = Join-Path (Join-Path ([System.Environment]::GetFolderPath('UserProfile')) 'Downloads\Baseline') 'Baseline.exe'
-					$destinationDirectory = Split-Path -Path $destinationPath -Parent
-					if (-not (Test-Path -LiteralPath $destinationDirectory))
-					{
-						New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
-					}
-
-					if (Test-Path -LiteralPath $destinationPath)
-					{
-						Remove-Item -LiteralPath $destinationPath -Force -ErrorAction SilentlyContinue
-					}
-
-					$releaseAsset = Get-BaselineLatestReleaseAssetUrl -Owner 'sdmanson8' -Repository 'Baseline' -AssetName 'Baseline.exe'
-					$expectedBytes = if ($releaseAsset.PSObject.Properties['SizeBytes']) { [long]$releaseAsset.SizeBytes } else { 0L }
-
-					$writePackageHelperWarningDefinition = (Get-Command -Name 'Write-PackageHelperWarning' -CommandType Function -ErrorAction Stop).Definition
-					$setDownloadSecurityProtocolDefinition = (Get-Command -Name 'Set-DownloadSecurityProtocol' -CommandType Function -ErrorAction Stop).Definition
-					$invokeDownloadFileDefinition = (Get-Command -Name 'Invoke-DownloadFile' -CommandType Function -ErrorAction Stop).Definition
-					$downloadScript = @(
-						$writePackageHelperWarningDefinition
-						$setDownloadSecurityProtocolDefinition
-						$invokeDownloadFileDefinition
-						'param([string]$dlUri, [string]$dlPath)'
-						'Invoke-DownloadFile -Uri $dlUri -OutFile $dlPath'
-					) -join [System.Environment]::NewLine
-
-					$runspace = [runspacefactory]::CreateRunspace()
-					$runspace.Open()
-					$downloadPowerShell = [powershell]::Create()
-					$downloadPowerShell.Runspace = $runspace
-					$null = $downloadPowerShell.AddScript($downloadScript).AddArgument([string]$releaseAsset.DownloadUrl).AddArgument([string]$destinationPath)
-					$downloadHandle = $downloadPowerShell.BeginInvoke()
-
-					$downloadTimer = [System.Windows.Threading.DispatcherTimer]::new()
-					$downloadTimer.Interval = [System.TimeSpan]::FromMilliseconds(250)
-					$downloadTimer.Add_Tick({
-						if (Test-Path -LiteralPath $destinationPath)
-						{
-							$currentBytes = (Get-Item -LiteralPath $destinationPath).Length
-							$pct = 0
-							if ($expectedBytes -gt 0)
-							{
-								$pct = [int][Math]::Min(100, [Math]::Round(($currentBytes / $expectedBytes) * 100))
-							}
-
-							if ($downloadProgressBar)
-							{
-								$downloadProgressBar.Value = $pct
-							}
-							if ($txtDownloadProgressPct)
-							{
-								$txtDownloadProgressPct.Text = "$pct%"
-							}
-
-							if ($txtDownloadProgressLabel)
-							{
-								if ($expectedBytes -gt 0)
-								{
-									$currentMB = [Math]::Round($currentBytes / 1MB, 1)
-									$totalMB = [Math]::Round($expectedBytes / 1MB, 1)
-									$txtDownloadProgressLabel.Text = "${downloadProgressLabel} ($currentMB MB / $totalMB MB)"
-								}
-								else
-								{
-									$currentMB = [Math]::Round($currentBytes / 1MB, 1)
-									$txtDownloadProgressLabel.Text = "${downloadProgressLabel} ($currentMB MB)"
-								}
-							}
-						}
-
-						if ($downloadHandle.IsCompleted)
-						{
-							$downloadTimer.Stop()
-							try
-							{
-								$downloadPowerShell.EndInvoke($downloadHandle) | Out-Null
-								if ($downloadProgressBar)
-								{
-									$downloadProgressBar.Value = 100
-								}
-								if ($txtDownloadProgressPct)
-								{
-									$txtDownloadProgressPct.Text = '100%'
-								}
-								if ($txtDownloadProgressLabel)
-								{
-									$txtDownloadProgressLabel.Text = $downloadCompleteLabel
-								}
-
-								$downloadMessage = (& $getBaselineBilingualString -Key 'GuiDownloadBaselineCompletedMessage' -Fallback 'Saved {0} ({1}) to:`n`n{2}' -FormatArgs @($releaseAsset.AssetName, $releaseAsset.TagName, $destinationPath))
-								Show-ThemedDialog -Title $downloadCompletedTitle -Message $downloadMessage -Buttons @($okLabel) -AccentButton $okLabel
-							}
-							catch
-							{
-								if ($downloadProgressBar)
-								{
-									$downloadProgressBar.Value = 0
-								}
-								if ($txtDownloadProgressPct)
-								{
-									$txtDownloadProgressPct.Text = $downloadFailedLabel
-								}
-								if ($txtDownloadProgressLabel)
-								{
-									$txtDownloadProgressLabel.Text = $downloadFailedLabel
-								}
-
-								$downloadErrorMessage = (& $getBaselineBilingualString -Key 'GuiDownloadBaselineFailedMessage' -Fallback 'Failed to download the latest Baseline.exe release asset.`n`n{0}' -FormatArgs @($_.Exception.Message))
-								Show-ThemedDialog -Title $downloadFailedTitle -Message $downloadErrorMessage -Buttons @($okLabel) -AccentButton $okLabel
-							}
-							finally
-							{
-								$downloadPowerShell.Dispose()
-								$runspace.Dispose()
-								$btnDownloadBaseline.IsEnabled = $true
-								$btnClose.IsEnabled = $true
-								$btnDownloadBaseline.Content = $downloadLabel
-							}
-						}
-					}.GetNewClosure())
-					$downloadTimer.Start()
-				}
-				catch
-				{
-					$downloadErrorMessage = (& $getBaselineBilingualString -Key 'GuiDownloadBaselineFailedMessage' -Fallback 'Failed to download the latest Baseline.exe release asset.`n`n{0}' -FormatArgs @($_.Exception.Message))
-					Show-ThemedDialog -Title $downloadFailedTitle -Message $downloadErrorMessage -Buttons @($okLabel) -AccentButton $okLabel
-					$btnDownloadBaseline.IsEnabled = $true
-					$btnClose.IsEnabled = $true
-					$btnDownloadBaseline.Content = $downloadLabel
-				}
-			}.GetNewClosure())
-			if ($StartUpdateCheck)
-			{
-				$dlg.Add_ContentRendered({
-					try
-					{
-						$btnDownloadBaseline.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent, $btnDownloadBaseline))
-					}
-					catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiReleaseStatusDialog.RaiseDownloadBaselineClick' }
-				}.GetNewClosure())
-			}
-		}
-
-		foreach ($sectionTitle in $sections.Keys)
-		{
-			$heading = [System.Windows.Controls.TextBlock]::new()
-			$heading.Text = $sectionTitle
-			$heading.FontSize = $Script:GuiLayout.FontSizeSubheading
-			$heading.FontWeight = [System.Windows.FontWeights]::SemiBold
-			$heading.Foreground = $bc.ConvertFromString($theme.AccentBlue)
-			$heading.Margin = [System.Windows.Thickness]::new(0, 12, 0, 4)
-			[void]($panel.Children.Add($heading))
-			$sep = [System.Windows.Controls.Separator]::new()
-			$sep.Background = $bc.ConvertFromString($theme.BorderColor)
-			$sep.Margin = [System.Windows.Thickness]::new(0, 0, 0, 6)
-			[void]($panel.Children.Add($sep))
-			foreach ($line in $sections[$sectionTitle])
-			{
-				$row = [System.Windows.Controls.Grid]::new()
-				$col1 = [System.Windows.Controls.ColumnDefinition]::new()
-				$col1.Width = [System.Windows.GridLength]::Auto
-				$col2 = [System.Windows.Controls.ColumnDefinition]::new()
-				$col2.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
-				[void]($row.ColumnDefinitions.Add($col1))
-				[void]($row.ColumnDefinitions.Add($col2))
-				$row.Margin = [System.Windows.Thickness]::new(0, 0, 0, 4)
-
-				$bullet = [System.Windows.Controls.TextBlock]::new()
-				$bullet.Text = [char]0x2022
-				$bullet.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI')
-				$bullet.FontSize = $Script:GuiLayout.FontSizeSubheading
-				$bullet.Foreground = $bc.ConvertFromString($theme.AccentBlue)
-				$bullet.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
-				$bullet.Margin = [System.Windows.Thickness]::new(0, 0, 6, 0)
-				[System.Windows.Controls.Grid]::SetColumn($bullet, 0)
-
-				$text = [System.Windows.Controls.TextBlock]::new()
-				$text.Text = $line
-				$text.FontSize = $Script:GuiLayout.FontSizeSubheading
-				$text.Foreground = $bc.ConvertFromString($theme.TextSecondary)
-				$text.TextWrapping = [System.Windows.TextWrapping]::Wrap
-				[System.Windows.Controls.Grid]::SetColumn($text, 1)
-
-				[void]($row.Children.Add($bullet))
-				[void]($row.Children.Add($text))
-				[void]($panel.Children.Add($row))
-			}
-		}
+				# P5 rollback checkpoint: Show-HelpDialog part extracted to Module/GUI/DialogHelpers/ContentDialogs/Show-HelpDialog/Show-HelpDialog.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'ContentDialogs\Show-HelpDialog\Show-HelpDialog.ps1')
 
 		Register-GuiEventHandler -Source $btnClose -EventName 'Click' -Handler { $dlg.Close() }
 		Register-GuiEventHandler -Source $dlg -EventName 'KeyDown' -Handler {
@@ -989,7 +861,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-FirstRunWelcomeDialog.
 	#>
 
 	function Show-FirstRunWelcomeDialog
@@ -1054,7 +925,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-LogDialog.
 	#>
 
 	function Show-LogDialog
@@ -1257,15 +1127,20 @@
 		$btnClose.IsCancel = $true
 
 		$txtLogPath.Text = $LogPath
+		$logBg = if ($theme.ContainsKey('LogBg') -and -not [string]::IsNullOrWhiteSpace([string]$theme.LogBg)) { [string]$theme.LogBg } else { [string]$theme.SearchBg }
+		if ($logScroll)
+		{
+			$logScroll.Background = $bc.ConvertFromString($logBg)
+		}
 
 		$colorRules = @(
-			@{ Pattern = '- success[!]?$';          Color = $theme.LowRiskBadge    }
-			@{ Pattern = '- failed[!]?$';           Color = $theme.RiskHighBadge   }
-			@{ Pattern = '- skipped[.]?$';          Color = $theme.RiskMediumBadge }
-			@{ Pattern = '- already applied[.]?$';  Color = $theme.AccentBlue      }
-			@{ Pattern = '\bERROR\b|\bFAIL\b';      Color = $theme.RiskHighBadge   }
-			@{ Pattern = '\bWARN\b|\bWARNING\b';    Color = $theme.RiskMediumBadge }
-			@{ Pattern = '^={3}';                   Color = $theme.AccentBlue      }
+			@{ Pattern = '- success[!]?$';          Color = $(if ($theme.ContainsKey('LogSuccess')) { $theme.LogSuccess } else { $theme.LowRiskBadge }) }
+			@{ Pattern = '- failed[!]?$';           Color = $(if ($theme.ContainsKey('LogError')) { $theme.LogError } else { $theme.RiskHighBadge }) }
+			@{ Pattern = '- skipped[.]?$';          Color = $(if ($theme.ContainsKey('LogWarning')) { $theme.LogWarning } else { $theme.RiskMediumBadge }) }
+			@{ Pattern = '- already applied[.]?$';  Color = $(if ($theme.ContainsKey('LogInfo')) { $theme.LogInfo } else { $theme.AccentBlue }) }
+			@{ Pattern = '\bERROR\b|\bFAIL\b';      Color = $(if ($theme.ContainsKey('LogError')) { $theme.LogError } else { $theme.RiskHighBadge }) }
+			@{ Pattern = '\bWARN\b|\bWARNING\b';    Color = $(if ($theme.ContainsKey('LogWarning')) { $theme.LogWarning } else { $theme.RiskMediumBadge }) }
+			@{ Pattern = '^={3}';                   Color = $(if ($theme.ContainsKey('LogInfo')) { $theme.LogInfo } else { $theme.AccentBlue }) }
 		)
 		$getLogSeverity = {
 			param([string]$Line)
@@ -1412,7 +1287,7 @@
 		Register-GuiEventHandler -Source $btnExternal -EventName 'Click' -Handler ({
 			if ($LogPath -and (Test-Path -LiteralPath $LogPath -ErrorAction SilentlyContinue))
 			{
-				Start-Process -FilePath 'notepad.exe' -ArgumentList $LogPath -ErrorAction SilentlyContinue
+				[void](Invoke-UserLaunch -FilePath 'notepad.exe' -ArgumentList @($LogPath) -Description 'Baseline log file')
 			}
 		}.GetNewClosure())
 		Register-GuiEventHandler -Source $dlg -EventName 'KeyDown' -Handler {
@@ -1425,7 +1300,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-ChangelogDialog.
 	#>
 
 	function Show-ChangelogDialog
@@ -1544,7 +1418,7 @@
 		}
 		catch
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Show-ChangelogDialog.SetGuiWindowChromeTheme'
+			Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Show-ChangelogDialog.SetGuiWindowChromeTheme'
 		}
 
 		$dlgTitleBar = $dlg.FindName('DlgTitleBar')
@@ -1581,22 +1455,10 @@
 				if ($versionCmd)
 				{
 					$displayVersion = & $versionCmd
-					if (-not [string]::IsNullOrWhiteSpace([string]$displayVersion))
-					{
-						$m = [regex]::Match([string]$displayVersion, 'v?(\d+\.\d+\.\d+)(?:\s*\(([^)]+)\))?')
-						if ($m.Success)
-						{
-							$base = $m.Groups[1].Value
-							if ($m.Groups[2].Success -and -not [string]::IsNullOrWhiteSpace($m.Groups[2].Value))
-							{
-								return ('{0}-{1}' -f $base, $m.Groups[2].Value.Trim())
-							}
-							return $base
-						}
-					}
+					return (Resolve-BaselineChangelogVersionLabel -DisplayVersion ([string]$displayVersion))
 				}
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Show-ChangelogDialog.ResolveCurrentChangelogVersion' }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Show-ChangelogDialog.ResolveCurrentChangelogVersion' }
 			return $null
 		}
 
@@ -1605,30 +1467,7 @@
 				[string]$Raw,
 				[string]$Version
 			)
-			if ([string]::IsNullOrWhiteSpace($Raw) -or [string]::IsNullOrWhiteSpace($Version))
-			{
-				return $Raw
-			}
-			$lines = $Raw -split "`r?`n"
-			$escaped = [regex]::Escape($Version)
-			$startPattern = '^##\s+' + $escaped + '(?=\s|\||$)'
-			$nextPattern = '^##\s+'
-			$startIdx = -1
-			for ($i = 0; $i -lt $lines.Length; $i++)
-			{
-				if ($lines[$i] -match $startPattern) { $startIdx = $i; break }
-			}
-			if ($startIdx -lt 0) { return $Raw }
-			$endIdx = $lines.Length - 1
-			for ($j = $startIdx + 1; $j -lt $lines.Length; $j++)
-			{
-				if ($lines[$j] -match $nextPattern) { $endIdx = $j - 1; break }
-			}
-			while ($endIdx -gt $startIdx -and ($lines[$endIdx].Trim() -eq '---' -or [string]::IsNullOrWhiteSpace($lines[$endIdx])))
-			{
-				$endIdx--
-			}
-			return ($lines[$startIdx..$endIdx] -join "`r`n")
+			return (Select-BaselineChangelogVersionSection -Raw $Raw -Version $Version)
 		}
 
 		$loadChangelogContent = {
@@ -1691,7 +1530,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-ReadmeDialog.
 	#>
 
 	function Show-ReadmeDialog
@@ -1704,7 +1542,7 @@
 		$bc = New-SafeBrushConverter -Context 'DialogHelpers-ReadmeViewer'
 		$scrollBarStyleXaml = Get-BaselineScrollBarStyleXaml -Theme $theme
 		$readmeTitle = Get-UxLocalizedString -Key 'GuiMenuHelpReadme' -Fallback 'Readme'
-		$readmeFontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+		$readmeFontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 		$refreshLabel = Get-UxLocalizedString -Key 'GuiRefreshButton' -Fallback 'Refresh'
 		$closeLabel = Get-UxLocalizedString -Key 'GuiCloseButton' -Fallback 'Close'
 		$missingMessage = Get-UxLocalizedString -Key 'GuiMenuHelpReadmeMissing' -Fallback 'README.md file not found.'
@@ -1952,7 +1790,7 @@
 					$block.Foreground = $foregroundBrush
 					$block.Opacity    = 1.0
 				}
-				catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Show-ReadmeDialog.ApplyBlockFormatting' }
+				catch { Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.Show-ReadmeDialog.ApplyBlockFormatting' }
 			}
 		}.GetNewClosure()
 
@@ -2003,197 +1841,8 @@
 
 		$webView2Ready = $false
 		$readmeWebView = $null
-		try
-		{
-			$webView2RuntimeLoaded = Test-BaselineWebView2RuntimeReady
-			if (-not $webView2RuntimeLoaded)
-			{
-				[void](Initialize-BaselineWebView2Runtime)
-			}
-			if (Test-BaselineWebView2RuntimeReady -and $readmeWebHost)
-			{
-				$readmeWebView = New-Object Microsoft.Web.WebView2.WinForms.WebView2
-				$readmeWebView.Dock = [System.Windows.Forms.DockStyle]::Fill
-				$readmeWebHost.Child = $readmeWebView
-				$null = $readmeWebView.EnsureCoreWebView2Async().GetAwaiter().GetResult()
-				$webView2Ready = $true
-
-				$readmeWebView.CoreWebView2.add_NavigationStarting({
-					param($navSender, $navArgs)
-					$null = $navSender
-					try
-					{
-						$navUri = [string]$navArgs.Uri
-						if ([string]::IsNullOrWhiteSpace($navUri)) { return }
-						if ($navUri.StartsWith('about:', [System.StringComparison]::OrdinalIgnoreCase) -or $navUri.StartsWith('data:', [System.StringComparison]::OrdinalIgnoreCase)) { return }
-						if ($navUri.StartsWith('http://', [System.StringComparison]::OrdinalIgnoreCase) -or $navUri.StartsWith('https://', [System.StringComparison]::OrdinalIgnoreCase) -or $navUri.StartsWith('mailto:', [System.StringComparison]::OrdinalIgnoreCase))
-						{
-							$navArgs.Cancel = $true
-							try { [System.Diagnostics.Process]::Start($navUri) | Out-Null } catch { }
-						}
-						elseif ($navUri.StartsWith('file://', [System.StringComparison]::OrdinalIgnoreCase))
-						{
-							$navArgs.Cancel = $true
-							try
-							{
-								$localPath = [System.Uri]::new($navUri).LocalPath
-								[System.Diagnostics.Process]::Start($localPath) | Out-Null
-							}
-							catch { }
-						}
-					}
-					catch { }
-				})
-			}
-		}
-		catch
-		{
-			$webView2Ready = $false
-			$readmeWebView = $null
-		}
-
-		$showReadmeAsWebView = {
-			param([string]$Html)
-
-			if ($webView2Ready -and $readmeWebView)
-			{
-				$readmeFlowViewer.Document = $null
-				$readmeFlowViewer.Visibility = [System.Windows.Visibility]::Collapsed
-				$readmeWebHost.Visibility = [System.Windows.Visibility]::Visible
-				$readmeWebView.NavigateToString($Html)
-				return $true
-			}
-
-			return $false
-		}.GetNewClosure()
-
-		$wireFlowDocumentNavigation = {
-			param(
-				[Parameter(Mandatory = $true)]
-				$Result,
-
-				[string]$ReadmeDirectory
-			)
-
-			if (-not $Result) { return }
-			$anchorMap = $Result.AnchorMap
-			$localReadmeDir = [string]$ReadmeDirectory
-
-			foreach ($hyperlink in $Result.Hyperlinks)
-			{
-				$hyperlink.add_RequestNavigate({
-					param($linkSender, $linkArgs)
-					try
-					{
-						$linkUri = if ($linkArgs -and $linkArgs.Uri) { $linkArgs.Uri } else { $linkSender.NavigateUri }
-						if (-not $linkUri) { return }
-						if ($linkArgs) { $linkArgs.Handled = $true }
-						$uriText = [string]$linkUri.OriginalString
-						if ([string]::IsNullOrWhiteSpace($uriText)) { return }
-
-						if ($uriText.StartsWith('#'))
-						{
-							$fragment = $uriText.Substring(1)
-							if ($anchorMap -and $anchorMap.ContainsKey($fragment))
-							{
-								$target = $anchorMap[$fragment]
-								try { $target.BringIntoView() } catch { }
-							}
-						}
-						elseif ($linkUri.IsAbsoluteUri)
-						{
-							$scheme = [string]$linkUri.Scheme
-							if ($scheme -eq 'http' -or $scheme -eq 'https' -or $scheme -eq 'mailto')
-							{
-								try { [System.Diagnostics.Process]::Start($linkUri.AbsoluteUri) | Out-Null } catch { }
-							}
-							elseif ($scheme -eq 'file')
-							{
-								try { [System.Diagnostics.Process]::Start($linkUri.LocalPath) | Out-Null } catch { }
-							}
-						}
-						else
-						{
-							$resolved = $uriText
-							if (-not [string]::IsNullOrWhiteSpace($localReadmeDir))
-							{
-								try { $resolved = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($localReadmeDir, $uriText)) } catch { $resolved = $uriText }
-							}
-							if (Test-Path -LiteralPath $resolved -ErrorAction SilentlyContinue)
-							{
-								try { [System.Diagnostics.Process]::Start($resolved) | Out-Null } catch { }
-							}
-						}
-					}
-					catch { }
-				}.GetNewClosure())
-			}
-		}.GetNewClosure()
-
-		$loadReadmeContent = {
-			param([hashtable]$ThemeOverride = $null)
-
-			$activeTheme = & $getReadmeTheme -ThemeOverride $ThemeOverride
-			& $applyReadmeDialogTheme -ThemeOverride $activeTheme
-
-			$resolvedPath = if ([string]::IsNullOrWhiteSpace([string]$ReadmePath)) { & $resolveReadmePathScript } else { $ReadmePath }
-			$txtReadmePath.Text = if ([string]::IsNullOrWhiteSpace([string]$resolvedPath)) { '' } else { $resolvedPath }
-
-			if ([string]::IsNullOrWhiteSpace([string]$resolvedPath) -or -not (Test-Path -LiteralPath $resolvedPath -PathType Leaf -ErrorAction SilentlyContinue))
-			{
-				$message = if ([string]::IsNullOrWhiteSpace([string]$resolvedPath))
-				{
-					$missingMessage
-				}
-				else
-				{
-					"{0}`r`n`r`n{1}" -f $missingMessage, $resolvedPath
-				}
-				& $showReadmeAsText -Content $message -ForegroundHex $activeTheme.RiskHighBadge -ThemeOverride $activeTheme
-				return
-			}
-
-			try
-			{
-				$resolvedFullPath = [System.IO.Path]::GetFullPath($resolvedPath)
-				$txtReadmePath.Text = $resolvedFullPath
-				$markdownText = [System.IO.File]::ReadAllText($resolvedFullPath)
-				$html = ConvertFrom-BaselineMarkdownToHtml `
-					-Markdown $markdownText `
-					-BackgroundColor $activeTheme.SearchBg `
-					-ForegroundColor $activeTheme.TextPrimary `
-					-MutedForegroundColor $activeTheme.TextMuted `
-					-LinkColor $activeTheme.AccentBlue `
-					-CodeBackgroundColor $activeTheme.HeaderBg
-
-				if (-not (& $showReadmeAsWebView -Html $html))
-				{
-					$flowDocument = $null
-					$anchoredResult = $null
-					if (Test-BaselineMarkdownRuntimeReady)
-					{
-						try { $anchoredResult = ConvertFrom-BaselineMarkdownToAnchoredFlowDocument -Markdown $markdownText }
-						catch { $anchoredResult = $null }
-						if ($anchoredResult) { $flowDocument = $anchoredResult.Document }
-					}
-
-					if ($flowDocument)
-					{
-						$readmeDirectory = [System.IO.Path]::GetDirectoryName($resolvedFullPath)
-						if ($anchoredResult) { & $wireFlowDocumentNavigation -Result $anchoredResult -ReadmeDirectory $readmeDirectory }
-						& $showReadmeAsFlowDocument -Document $flowDocument -ThemeOverride $activeTheme
-					}
-					else
-					{
-						& $showReadmeAsText -Content $markdownText -ForegroundHex $activeTheme.TextSecondary -ThemeOverride $activeTheme
-					}
-				}
-			}
-			catch
-			{
-				& $showReadmeAsText -Content ("Failed to read README.`r`n`r`n{0}" -f $_.Exception.Message) -ForegroundHex $activeTheme.RiskHighBadge -ThemeOverride $activeTheme
-			}
-		}.GetNewClosure()
+				# P5 rollback checkpoint: Show-ReadmeDialog part extracted to Module/GUI/DialogHelpers/ContentDialogs/Show-ReadmeDialog/Show-ReadmeDialog.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'ContentDialogs\Show-ReadmeDialog\Show-ReadmeDialog.ps1')
 
 		$readmeThemeCallback = {
 			param(
@@ -2225,7 +1874,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-GuidedSetupWizard.
 	#>
 
 	function Show-GuidedSetupWizard

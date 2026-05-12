@@ -1,4 +1,4 @@
-﻿	$Script:CurrentPrimaryTab = $null
+	$Script:CurrentPrimaryTab = $null
 	$Script:SubTabControls = @{}
 
 
@@ -7,7 +7,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Add-TabSectionsToPanel.
 	#>
 
 	function Add-TabSectionsToPanel
@@ -107,7 +106,7 @@
 						{
 							$rowCounter = 0
 							try { $dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, [System.Action]{}) }
-							catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.AddRow.DispatcherYield' }
+							catch { Write-SwallowedException -ErrorRecord $_ -Source 'BuildTabContent.AddRow.DispatcherYield' }
 						}
 					}
 				}
@@ -143,7 +142,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Save-TabContentCacheEntry.
 	#>
 
 	function Save-TabContentCacheEntry
@@ -184,11 +182,35 @@
 			[object]$Splash = $Global:LoadingSplash
 		)
 
-		try
+	try
+	{
+		$startupSplashAbortRequested = $false
+		if ($Splash -is [hashtable])
 		{
-			# Signal GuiReady NOW — the foreground tab is built and the GUI is
-			# interactive. The background pre-builds below run silently after
-			# the splash closes; the user shouldn't wait ~55 s for every tab
+			if (Get-Command -Name 'Test-GuiStartupSplashAbortRequested' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				$startupSplashAbortRequested = [bool](Test-GuiStartupSplashAbortRequested -Splash $Splash)
+			}
+			elseif ($Splash.ContainsKey('AbortRequested') -and [bool]$Splash.AbortRequested) { $startupSplashAbortRequested = $true }
+			elseif ($Splash.ContainsKey('UserClosed') -and [bool]$Splash.UserClosed) { $startupSplashAbortRequested = $true }
+			elseif ($Splash.ContainsKey('GuiReady') -and [bool]$Splash.GuiReady) { $startupSplashAbortRequested = $false }
+			elseif ($Splash.ContainsKey('ProgrammaticClose') -and [bool]$Splash.ProgrammaticClose) { $startupSplashAbortRequested = $false }
+			elseif ($Splash.ContainsKey('IsAlive') -and $Splash.ContainsKey('WasRendered') -and [bool]$Splash.WasRendered -and (-not [bool]$Splash.IsAlive)) { $startupSplashAbortRequested = $true }
+		}
+		if ($startupSplashAbortRequested)
+		{
+			if (Get-Command -Name 'Stop-GuiStartupSplashAbortProcess' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Stop-GuiStartupSplashAbortProcess -Message 'BuildTabContent aborted before GuiReady because startup splash was closed'
+			}
+			[System.Environment]::Exit(0)
+			try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch { }
+			return
+		}
+
+		# Signal GuiReady NOW - the foreground tab is built and the GUI is
+		# interactive. The background pre-builds below run silently after
+		# the splash closes; the user shouldn't wait ~55 s for every tab
 			# to finish building before they can use the app.
 			if ($Splash -and $Splash -is [hashtable])
 			{
@@ -208,36 +230,35 @@
 				{
 					$MainForm.WindowState = [System.Windows.WindowState]::Normal
 				}
-				[void]$MainForm.Activate()
 			}
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.UpdateView.SignalGuiReady' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'BuildTabContent.UpdateView.SignalGuiReady' }
 	}
 
-	# Helper for Dispatcher.BeginInvoke tab pre-builds. Uses [scriptblock]::Create()
-	# to embed $Tag as a string literal — PowerShell scriptblocks use dynamic scoping
-	# so function parameters do not survive past the function return. The block is then
-	# re-bound to this module so $Script: variables and sibling functions
-	# (Build-TabContent, Test-GuiRunInProgress, etc.) remain resolvable.
+	# Helper for Dispatcher.BeginInvoke tab pre-builds. The returned closure keeps
+	# the requested tab tag while the module-bound scriptblock keeps sibling GUI
+	# functions and $Script: state resolvable.
 	<#
 	    .SYNOPSIS
-	    Internal function New-TabPreBuildAction.
 	#>
 
 	function New-TabPreBuildAction
 	{
 		param ([string]$Tag)
-		$safe = $Tag -replace "'", "''"
-		$sb = [scriptblock]::Create(@"
-try
-{
-	if (-not (Test-GuiRunInProgress) -and -not (`$Script:TabContentCache -and `$Script:TabContentCache.ContainsKey('$safe')))
-	{
-		Build-TabContent -PrimaryTab '$safe' -BackgroundBuild
-	}
-}
-catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Exception.Message }
-"@)
+		$capturedTag = $Tag
+		$sb = {
+			try
+			{
+				if (-not (Test-GuiRunInProgress) -and -not ($Script:TabContentCache -and $Script:TabContentCache.ContainsKey($capturedTag)))
+				{
+					Build-TabContent -PrimaryTab $capturedTag -BackgroundBuild
+				}
+			}
+			catch
+			{
+				Write-GuiRuntimeWarning -Context ('TabPreBuild:{0}' -f $capturedTag) -Message $_.Exception.Message
+			}
+		}.GetNewClosure()
 		$mod = $ExecutionContext.SessionState.Module
 		if ($mod) { $sb = $mod.NewBoundScriptBlock($sb) }
 		return $sb
@@ -245,7 +266,6 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 
 	<#
 	    .SYNOPSIS
-	    Internal function Build-TabContent.
 	#>
 
 	function Build-TabContent
@@ -262,7 +282,7 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 			$Script:PresetStatusBadge = $null
 			if (Get-Command -Name 'Update-PrimaryTabHeaders' -CommandType Function -ErrorAction SilentlyContinue)
 			{
-				try { Update-PrimaryTabHeaders } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.Update-PrimaryTabHeaders' }
+				try { Update-PrimaryTabHeaders } catch { Write-SwallowedException -ErrorRecord $_ -Source 'BuildTabContent.Update-PrimaryTabHeaders' }
 			}
 			if (Restore-CachedTabContent -PrimaryTab $PrimaryTab)
 			{
@@ -420,13 +440,13 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 				$panelSuspended = $true
 			}
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.MainPanel.BeginInit' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'BuildTabContent.MainPanel.BeginInit' }
 
 		Add-TabSectionsToPanel -BuildContext $buildContext -CooperativeYield:$BackgroundBuild
 
 		if ($panelSuspended)
 		{
-			try { $buildContext.MainPanel.EndInit() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.MainPanel.EndInit' }
+			try { $buildContext.MainPanel.EndInit() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'BuildTabContent.MainPanel.EndInit' }
 		}
 
 		try
@@ -490,7 +510,7 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 				if ($Script:TweakManifest -and -not $Script:StartupOrchestratorRan)
 				{
 					$invokeBaselineStartupOrchestratorScript = Get-GuiFunctionCapture -Name 'Invoke-BaselineStartupOrchestrator'
-					# Stash the dispatcher in a script-scoped slot — the
+					# Stash the dispatcher in a script-scoped slot - the
 					# orchestrator scriptblock is invoked later from the
 					# dispatcher's stripped session state, where local
 					# function parameters like $PrimaryTabs aren't visible.
@@ -505,7 +525,7 @@ catch { Write-GuiRuntimeWarning -Context 'TabPreBuild:$safe' -Message `$_.Except
 								& $invokeBaselineStartupOrchestratorScript -TweakManifest $Script:TweakManifest -ModuleRoot $mr -BaselineVersion ([string]$Script:CurrentBaselineVersion) -Dispatcher $Script:StartupOrchestratorDispatcher
 							}
 						}
-						catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'BuildTabContent.UpdateView.StartupOrchestrator' }
+						catch { Write-SwallowedException -ErrorRecord $_ -Source 'BuildTabContent.UpdateView.StartupOrchestrator' }
 					}
 					$mod = $ExecutionContext.SessionState.Module
 					if ($mod) { $orchestratorBody = $mod.NewBoundScriptBlock($orchestratorBody) }

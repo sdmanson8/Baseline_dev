@@ -1,4 +1,4 @@
-# Preset button builders, selection state, policy checks, and tab-level preset application
+﻿# Preset button builders, selection state, policy checks, and tab-level preset application
 
 # P5 rollback checkpoint: preset helpers are split into Module\GUI\PresetManagement\*.ps1.
 # Keep this explicit order so metadata and path helpers load before selection-state helpers.
@@ -10,7 +10,6 @@ $presetManagementSplitRoot = Join-Path $Script:PresetManagementRoot 'PresetManag
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-PresetButton.
 	#>
 
 	function New-PresetButton
@@ -34,7 +33,6 @@ $presetManagementSplitRoot = Join-Path $Script:PresetManagementRoot 'PresetManag
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-PresetButtonContent.
 	#>
 
 	function New-PresetButtonContent
@@ -74,7 +72,6 @@ $presetManagementSplitRoot = Join-Path $Script:PresetManagementRoot 'PresetManag
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-WhyThisMattersButton.
 	#>
 
 	function New-WhyThisMattersButton
@@ -184,7 +181,6 @@ $presetManagementSplitRoot = Join-Path $Script:PresetManagementRoot 'PresetManag
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-WhyThisMattersBlock.
 	#>
 
 	function New-WhyThisMattersBlock

@@ -2,7 +2,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Get-AdvancedStartupDesktopDirectory.
 #>
 
 function Get-AdvancedStartupDesktopDirectory
@@ -18,10 +17,6 @@ function Get-AdvancedStartupDesktopDirectory
 	}
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Get-AdvancedStartupDownloadsDirectory
 {
 	<# .SYNOPSIS Returns the Downloads folder path via Shell API or fallback. #>
@@ -43,7 +38,6 @@ function Get-AdvancedStartupDownloadsDirectory
 
 <#
     .SYNOPSIS
-    Internal function Get-AdvancedStartupAssetPath.
 #>
 
 function Get-AdvancedStartupAssetPath
@@ -74,7 +68,6 @@ function Get-AdvancedStartupAssetPath
 
 <#
     .SYNOPSIS
-    Internal function Get-AdvancedStartupIconLocation.
 #>
 
 function Get-AdvancedStartupIconLocation
@@ -129,7 +122,6 @@ function Get-AdvancedStartupIconLocation
 
 <#
     .SYNOPSIS
-    Internal function Enable-AdvancedStartupWindowsRecoveryEnvironment.
 #>
 
 function Enable-AdvancedStartupWindowsRecoveryEnvironment
@@ -156,7 +148,6 @@ function Enable-AdvancedStartupWindowsRecoveryEnvironment
 
 <#
     .SYNOPSIS
-    Internal function Get-AdvancedStartupCommandPath.
 #>
 
 function Get-AdvancedStartupCommandPath
@@ -190,7 +181,6 @@ function Get-AdvancedStartupCommandPath
 
 <#
     .SYNOPSIS
-    Internal function Set-AdvancedStartupCommandFile.
 #>
 
 function Set-AdvancedStartupCommandFile
@@ -210,24 +200,29 @@ function Set-AdvancedStartupCommandFile
 
 <#
     .SYNOPSIS
-    Internal function Get-AdvancedStartupShortcutArguments.
 #>
 
 function Get-AdvancedStartupShortcutArguments
 {
-	<# .SYNOPSIS Generates Base64-encoded PowerShell arguments for an elevated recovery shortcut. #>
+	<# .SYNOPSIS Generates PowerShell file arguments for an elevated recovery shortcut. #>
 	param(
 		[Parameter(Mandatory = $true)]
 		[string]$CommandPath
 	)
 
 	$safeCommandPath = $CommandPath.Replace("'", "''")
+	$launcherPath = [System.IO.Path]::ChangeExtension($CommandPath, '.ps1')
+	$launcherDirectory = Split-Path -Path $launcherPath -Parent
+	if (-not [string]::IsNullOrWhiteSpace($launcherDirectory) -and -not (Test-Path -LiteralPath $launcherDirectory))
+	{
+		New-Item -Path $launcherDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
+	}
 	$launcherScript = @"
 `$shell = New-Object -ComObject Shell.Application
 `$shell.ShellExecute('$safeCommandPath', '', '', 'runas', 0)
 "@
 
-	$encodedLauncherScript = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($launcherScript))
-	return "-NoProfile -WindowStyle Hidden -EncodedCommand $encodedLauncherScript"
+	Set-Content -LiteralPath $launcherPath -Value $launcherScript -Encoding UTF8 -Force -ErrorAction Stop
+	return "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$launcherPath`""
 }
 

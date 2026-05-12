@@ -1,4 +1,4 @@
-using module ..\Logging.psm1
+﻿using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 #region Production System Optimizations
@@ -7,11 +7,7 @@ using module ..\SharedHelpers.psm1
     .SYNOPSIS
     Gets optimization scratch directory.
 
-    
-.DESCRIPTION
-    
-Supports optimization scratch directory handling inside Baseline.
-#>
+    #>
 
 function Get-OptimizationScratchDirectory
 {
@@ -28,11 +24,7 @@ function Get-OptimizationScratchDirectory
     .SYNOPSIS
     Gets optimization asset path.
 
-    
-.DESCRIPTION
-    
-Supports optimization asset path handling inside Baseline.
-#>
+    #>
 function Get-OptimizationAssetPath
 {
 	param(
@@ -61,11 +53,7 @@ function Get-OptimizationAssetPath
     .SYNOPSIS
     Imports legacy registry asset.
 
-    
-.DESCRIPTION
-    
-Supports legacy registry asset handling inside Baseline.
-#>
+    #>
 
 function Import-LegacyRegistryAsset
 {
@@ -102,7 +90,7 @@ function Import-LegacyRegistryAsset
 			throw "Required asset not found locally: $FileName"
 		}
 
-		Start-Process -FilePath 'regedit.exe' -ArgumentList @('/S', $targetPath) -Wait -WindowStyle Hidden -ErrorAction Stop
+		$null = Invoke-BaselineProcess -FilePath 'regedit.exe' -ArgumentList @('/S', $targetPath) -TimeoutSeconds 300
 		LogInfo "Imported $Description"
 	}
 	finally

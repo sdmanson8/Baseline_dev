@@ -67,7 +67,6 @@ $report = [ordered]@{
 # ── Helper: run a script and capture exit code ──
 <#
     .SYNOPSIS
-    Internal function Invoke-TestLayer.
 #>
 
 function Invoke-TestLayer
@@ -140,7 +139,6 @@ function Invoke-TestLayer
 # ── Helper: run Pester and capture results ──
 <#
     .SYNOPSIS
-    Internal function Invoke-PesterLayer.
 #>
 
 function Invoke-PesterLayer
@@ -210,7 +208,6 @@ function Invoke-PesterLayer
 
 <#
     .SYNOPSIS
-    Internal function Test-TestLayerFailureState.
 #>
 
 function Test-TestLayerFailureState

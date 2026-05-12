@@ -1,4 +1,4 @@
-# GUI density preferences and layout tokens.
+﻿# GUI density preferences and layout tokens.
 
 function Normalize-BaselineUiDensity
 {

@@ -1,9 +1,8 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     <#
         .SYNOPSIS
-        Internal function Test-GuiObjectField.
     #>
 
     function Test-GuiObjectField { param([object]$Object, [string]$FieldName) if ($null -eq $Object) { return $false }; if ($Object -is [System.Collections.IDictionary]) { return $Object.Contains($FieldName) }; return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName]) }
@@ -29,7 +28,6 @@ Describe 'Get-GuiFunctionCapture' {
 
         <#
             .SYNOPSIS
-            Internal function Get-TestGuiGreeting.
         #>
 
         function Get-TestGuiGreeting {
@@ -47,7 +45,6 @@ Describe 'Get-GuiFunctionCapture' {
         $module = New-Module -Name $moduleName -ScriptBlock {
             <#
                 .SYNOPSIS
-                Internal function .
             #>
             function Invoke-PrivateDependency {
                 param([string]$Name)
@@ -56,7 +53,6 @@ Describe 'Get-GuiFunctionCapture' {
 
             <#
                 .SYNOPSIS
-                Internal function Invoke-ExportedDependency.
             #>
 
             function Invoke-ExportedDependency {

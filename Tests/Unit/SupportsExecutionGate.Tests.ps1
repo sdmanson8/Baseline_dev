@@ -1,13 +1,18 @@
 ﻿Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $modulePath = Join-Path $PSScriptRoot '../../Module/GUIExecution.psm1'
     Import-Module $modulePath -Force
 
     $sharedPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers.psm1'
     Import-Module $sharedPath -Force
 
-    $script:ExecutionContent = Get-Content -LiteralPath $modulePath -Raw -Encoding UTF8
+    $script:ExecutionContent = Get-BaselineTestSourceText -Path $modulePath
 }
 
 # These four cases mirror the spec wording in todo.md (OS Support Matrix →
@@ -32,6 +37,18 @@ Describe 'Resolve-GuiExecutionSupportsExecutionGate' {
         $r = Resolve-GuiExecutionSupportsExecutionGate -Entry $entry
         $r.Decision | Should -Be 'Block'
         $r.Reason | Should -Match 'Execution not supported'
+    }
+
+    It 'returns the entry-specific reason when SupportsExecutionReason is present' {
+        $entry = [pscustomobject]@{
+            Name = 'Widgets'
+            Function = 'TaskbarWidgets'
+            SupportsExecution = $false
+            SupportsExecutionReason = 'Widgets requires the Windows Web Experience Pack to be installed.'
+        }
+        $r = Resolve-GuiExecutionSupportsExecutionGate -Entry $entry
+        $r.Decision | Should -Be 'Block'
+        $r.Reason | Should -Match 'Web Experience Pack'
     }
 
     It 'returns Force when SupportsExecution is $false and ForceUnsupported is set' {

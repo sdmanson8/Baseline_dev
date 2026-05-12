@@ -960,15 +960,15 @@ Applies the Baseline behavior for the Meet Now icon in the notification area.
 	Show the Meet Now icon in the notification area (default value)
 
 	.EXAMPLE
-	MeetNow -Hide
+	Set-UIPersonalizationMeetNowIcon -Hide
 
 	.EXAMPLE
-	MeetNow -Show
+	Set-UIPersonalizationMeetNowIcon -Show
 
 	.NOTES
 	Current user only
 #>
-function MeetNow
+function Set-UIPersonalizationMeetNowIcon
 {
 	param
 	(
@@ -1055,10 +1055,10 @@ Applies the Baseline behavior for news and Interests.
 	Enable "News and Interests" on the taskbar (default value)
 
 	.EXAMPLE
-	NewsInterests -Disable
+	Set-UIPersonalizationNewsInterestsIcon -Disable
 
 	.EXAMPLE
-	NewsInterests -Enable
+	Set-UIPersonalizationNewsInterestsIcon -Enable
 
 	.NOTES
 	https://forums.mydigitallife.net/threads/taskbarda-widgets-registry-change-is-now-blocked.88547/#post-1848877
@@ -1067,7 +1067,7 @@ Applies the Baseline behavior for news and Interests.
 	Current user
 #>
 
-function NewsInterests
+function Set-UIPersonalizationNewsInterestsIcon
 {
 	param
 	(
@@ -1200,5 +1200,19 @@ public static extern int HashData(byte[] pbData, int cbData, byte[] piet, int ou
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'Set-UIPersonalizationMeetNowIcon',
+    'Set-UIPersonalizationNewsInterestsIcon',
+    'ShareMenu',
+    'SharingWizard',
+    'ShortcutArrow',
+    'ShortcutsSuffix',
+    'SnapAssist',
+    'SyncNotifications',
+    'ThisPC',
+    'ThumbnailCache',
+    'Thumbnails',
+    'ThumbsDBOnNetwork',
+    'WindowsColorMode'
+)
+Export-ModuleMember -Function $ExportedFunctions

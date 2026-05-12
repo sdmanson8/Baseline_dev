@@ -1,8 +1,7 @@
-# Tweak visualization helpers: visual metadata, chip panels, section headers, caution sections, execution log, file-save dialog
+﻿# Tweak visualization helpers: visual metadata, chip panels, section headers, caution sections, execution log, file-save dialog
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-TweakVisualMetadata.
 	#>
 
 	function Get-TweakVisualMetadata
@@ -340,7 +339,6 @@
 
 		<#
 		    .SYNOPSIS
-		    Internal function New-TweakMetadataChipPanel.
 		#>
 
 		function New-TweakMetadataChipPanel
@@ -479,7 +477,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-SectionHeader.
 	#>
 
 	function New-SectionHeader
@@ -495,10 +492,6 @@
 		return $lbl
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function New-SearchResultsSummary
 	{
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
@@ -556,17 +549,15 @@
 		# "Clear" button to dismiss search results inline.
 		$clearBtn = New-Object System.Windows.Controls.Button
 		$clearBtnText = Get-UxLocalizedString -Key 'GuiBtnClearSearch' -Fallback 'Clear'
-		$clearIconContent = if (Get-Command -Name 'New-GuiLabeledIconContent' -CommandType Function -ErrorAction SilentlyContinue) { New-GuiLabeledIconContent -IconName 'Clear' -Text $clearBtnText -IconSize 14 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback } else { $null }
-		$clearBtn.Content = if ($clearIconContent) { $clearIconContent } else { $clearBtnText }
 		$clearBtn.FontSize = 12
 		$clearBtn.FontWeight = [System.Windows.FontWeights]::SemiBold
-		$clearBtn.Foreground = $bc.ConvertFromString($accentBlue)
-		$clearBtn.Background = $bc.ConvertFromString('#FFFFFF')
-		$clearBtn.BorderThickness = [System.Windows.Thickness]::new(0)
 		$clearBtn.Padding = [System.Windows.Thickness]::new(14, 5, 14, 5)
 		$clearBtn.Margin = [System.Windows.Thickness]::new(12, 0, 0, 0)
 		$clearBtn.Cursor = [System.Windows.Input.Cursors]::Hand
 		$clearBtn.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+		Set-ButtonChrome -Button $clearBtn -Variant 'Subtle' -Compact
+		$clearIconContent = if (Get-Command -Name 'New-GuiLabeledIconContent' -CommandType Function -ErrorAction SilentlyContinue) { New-GuiLabeledIconContent -IconName 'Clear' -Text $clearBtnText -IconSize 14 -Gap 6 -TextFontSize 12 -Foreground $clearBtn.Foreground -AllowTextOnlyFallback } else { $null }
+		$clearBtn.Content = if ($clearIconContent) { $clearIconContent } else { $clearBtnText }
 		[System.Windows.Controls.Grid]::SetColumn($clearBtn, 1)
 
 		# When clicked, clear the search text box to dismiss the inline results.
@@ -583,7 +574,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-CautionSection.
 	#>
 
 	function New-CautionSection
@@ -686,7 +676,6 @@
 
 		<#
 		    .SYNOPSIS
-		    Internal function Add-ExecutionLogLine.
 		#>
 
 		function Add-ExecutionLogLine
@@ -700,6 +689,19 @@
 
 		$bc = New-SafeBrushConverter -Context 'Add-ExecutionLogLine'
 		$timestamp = Get-Date -Format 'HH:mm:ss'
+		$getLogColor = {
+			param (
+				[string]$ColorName,
+				[string]$FallbackColor
+			)
+
+			if ($Script:CurrentTheme -and $Script:CurrentTheme.ContainsKey($ColorName) -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme[$ColorName]))
+			{
+				return [string]$Script:CurrentTheme[$ColorName]
+			}
+
+			return $FallbackColor
+		}.GetNewClosure()
 
 		$para = New-Object System.Windows.Documents.Paragraph
 		$para.Margin = [System.Windows.Thickness]::new(0, 0, 0, 2)
@@ -728,10 +730,10 @@
 			$iconRun.FontSize = 12
 			$logIconColor = switch ($Level.ToUpperInvariant())
 			{
-				'ERROR'   { $Script:CurrentTheme.CautionText }
-				'WARNING' { $Script:CurrentTheme.RiskMediumBadge }
-				'SUCCESS' { $Script:CurrentTheme.LowRiskBadge }
-				default   { $Script:CurrentTheme.TextMuted }
+				'ERROR'   { & $getLogColor -ColorName 'LogError' -FallbackColor $Script:CurrentTheme.CautionText }
+				'WARNING' { & $getLogColor -ColorName 'LogWarning' -FallbackColor $Script:CurrentTheme.RiskMediumBadge }
+				'SUCCESS' { & $getLogColor -ColorName 'LogSuccess' -FallbackColor $Script:CurrentTheme.LowRiskBadge }
+				default   { & $getLogColor -ColorName 'LogInfo' -FallbackColor $Script:CurrentTheme.TextMuted }
 			}
 			$iconRun.Foreground = $bc.ConvertFromString($logIconColor)
 			[void]($para.Inlines.Add($iconRun))
@@ -744,9 +746,11 @@
 		$contentRun.Text = $Text
 		$contentColor = switch ($Level.ToUpperInvariant())
 		{
-			'ERROR'   { $Script:CurrentTheme.CautionText }
-			'WARNING' { $Script:CurrentTheme.RiskMediumBadge }
-			default   { $Script:CurrentTheme.TextPrimary }
+			'ERROR'   { & $getLogColor -ColorName 'LogError' -FallbackColor $Script:CurrentTheme.CautionText }
+			'WARNING' { & $getLogColor -ColorName 'LogWarning' -FallbackColor $Script:CurrentTheme.RiskMediumBadge }
+			'SUCCESS' { & $getLogColor -ColorName 'LogSuccess' -FallbackColor $Script:CurrentTheme.LowRiskBadge }
+			'INFO'    { & $getLogColor -ColorName 'LogInfo' -FallbackColor $Script:CurrentTheme.AccentBlue }
+			default   { & $getLogColor -ColorName 'LogDefault' -FallbackColor $Script:CurrentTheme.TextPrimary }
 		}
 		$contentRun.Foreground = $bc.ConvertFromString($contentColor)
 		[void]($para.Inlines.Add($contentRun))
@@ -763,7 +767,6 @@
 
 		<#
 		    .SYNOPSIS
-		    Internal function Test-ExecutionSkipMessage.
 		#>
 
 		function Test-ExecutionSkipMessage
@@ -777,10 +780,6 @@
 			return ($Message -match '(?i)\bskipping\b|\bskipped\b|\bnot applicable\b|\bnot supported\b|\bunsupported\b')
 		}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Show-GuiFileSaveDialog
 	{
 		param (
@@ -814,7 +813,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-GuiFolderPickerDialog.
 	#>
 	function Show-GuiFolderPickerDialog
 	{
@@ -840,17 +838,15 @@
 			$folderDialog.SelectedPath = $InitialDirectory
 		}
 
-		$focus = New-Object -TypeName System.Windows.Forms.Form -Property @{ TopMost = $true }
 		try
 		{
-			if ($folderDialog.ShowDialog($focus) -eq [System.Windows.Forms.DialogResult]::OK)
+			if ($folderDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK)
 			{
 				return $folderDialog.SelectedPath
 			}
 		}
 		finally
 		{
-			if ($focus) { $focus.Dispose() }
 			if ($folderDialog) { $folderDialog.Dispose() }
 		}
 

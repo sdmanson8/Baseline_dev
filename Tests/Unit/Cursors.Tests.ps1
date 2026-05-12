@@ -1,8 +1,13 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/Cursors.psm1'
-    $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
+    $script:CompilerParameters = $null
+
+    $sourceText = Get-BaselineTestSourceText -Path $filePath
+    $ast = [System.Management.Automation.Language.Parser]::ParseInput($sourceText, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
         Invoke-Expression $fn.Extent.Text

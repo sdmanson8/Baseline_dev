@@ -2063,5 +2063,30 @@ function Set-RemoteAssistance
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'ActivityHistory',
+    'AdvertisingID',
+    'AutoRebootOnCrash',
+    'BitLockerAutoEncryption',
+    'Camera',
+    'ClipboardHistory',
+    'CloudContentSearch',
+    'DeviceSearchHistory',
+    'FastStartup',
+    'FeedbackFrequency',
+    'InkingAndTypingPersonalization',
+    'LanguageListAccess',
+    'LocationService',
+    'LockWidgets',
+    'MapUpdates',
+    'NarratorOnlineServices',
+    'NarratorScriptingSupport',
+    'OnlineSpeechRecognition',
+    'Sensors',
+    'Set-RemoteAssistance',
+    'SleepTimeout',
+    'UpdateDriver',
+    'UpdateRestart',
+    'WorkplaceJoinMessages'
+)
+Export-ModuleMember -Function $ExportedFunctions

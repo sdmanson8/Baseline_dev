@@ -51,7 +51,7 @@ function Get-NewBadgeAddedInVersionsMap
 			if ($version) { $Script:NewBadgeAddedInVersions[[string]$prop.Name] = $version }
 		}
 	}
-	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'NewBadgeService.PopulateAddedInVersions' }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'NewBadgeService.PopulateAddedInVersions' }
 	return $Script:NewBadgeAddedInVersions
 }
 

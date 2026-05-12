@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $script:ModulePath = Join-Path $PSScriptRoot '../../Module/SharedHelpers.psm1'
@@ -26,7 +26,7 @@ Describe 'SharedHelpers helper module inventory' {
 
         $helperModules = @(Get-Module 'Baseline.SharedHelpers.*')
 
-        $helperModules.Count | Should -Be 41
+        $helperModules.Count | Should -Be 43
         $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.Manifest'
         $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.GameMode'
         $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.SingleInstance'
@@ -36,6 +36,8 @@ Describe 'SharedHelpers helper module inventory' {
         $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.NetworkHardening'
         $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.BrowserPolicies'
         $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.Json'
+        $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.Process'
+        $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.CliMode'
         $helperModules.Name | Should -Contain 'Baseline.SharedHelpers.WindowsUpdate'
     }
 
@@ -49,6 +51,7 @@ Describe 'SharedHelpers helper module inventory' {
         $initialActionsModule = Get-Module 'Baseline.SharedHelpers.InitialActions'
         $windowsUpdateModule = Get-Module 'Baseline.SharedHelpers.WindowsUpdate'
         $schedulerModule = Get-Module 'Baseline.SharedHelpers.Scheduler'
+        $cliModeModule = Get-Module 'Baseline.SharedHelpers.CliMode'
 
         $manifestModule.ExportedCommands.Keys | Should -Contain 'Get-TweakManifestEntryValue'
         $manifestModule.ExportedCommands.Keys | Should -Contain 'Import-TweakManifestFromData'
@@ -70,11 +73,13 @@ Describe 'SharedHelpers helper module inventory' {
         $windowsUpdateModule.ExportedCommands.Keys | Should -Contain 'Invoke-BaselineWindowsUpdateScheduledRun'
         $windowsUpdateModule.ExportedCommands.Keys | Should -Contain 'Get-WindowsUpdateHistory'
         $schedulerModule.ExportedCommands.Keys | Should -Contain 'Register-BaselineWindowsUpdateScheduledRun'
+        $cliModeModule.ExportedCommands.Keys | Should -Contain 'Get-BaselinePresetCatalog'
+        $cliModeModule.ExportedCommands.Keys | Should -Contain 'Format-BaselinePresetCatalog'
     }
 
     It 'removes helper slice modules when SharedHelpers is unloaded' {
         Import-Module $script:ModulePath -Force
-        @(Get-Module 'Baseline.SharedHelpers.*').Count | Should -Be 41
+        @(Get-Module 'Baseline.SharedHelpers.*').Count | Should -Be 43
 
         Remove-Module SharedHelpers -Force
 

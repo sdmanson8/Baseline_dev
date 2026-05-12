@@ -1,6 +1,11 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $script:RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
     $script:GuiRegionPath = Join-Path $script:RepoRoot 'Module/Regions/GUI.psm1'
     $script:BuildPrimaryTabsPath = Join-Path $script:RepoRoot 'Module/GUI/BuildPrimaryTabs.ps1'
@@ -9,12 +14,12 @@ BeforeAll {
     $script:IconFactoryPath = Join-Path $script:RepoRoot 'Module/GUI/IconFactory.ps1'
     $script:StartupDialogPath = Join-Path $script:RepoRoot 'Module/GUI/StartupManagerDialog.ps1'
 
-    $script:GuiRegionContent = Get-Content -LiteralPath $script:GuiRegionPath -Raw -Encoding UTF8
-    $script:BuildPrimaryTabsContent = Get-Content -LiteralPath $script:BuildPrimaryTabsPath -Raw -Encoding UTF8
-    $script:TabManagementContent = Get-Content -LiteralPath $script:TabManagementPath -Raw -Encoding UTF8
-    $script:BuildTabContentContent = Get-Content -LiteralPath $script:BuildTabContentPath -Raw -Encoding UTF8
-    $script:IconFactoryContent = Get-Content -LiteralPath $script:IconFactoryPath -Raw -Encoding UTF8
-    $script:StartupDialogContent = Get-Content -LiteralPath $script:StartupDialogPath -Raw -Encoding UTF8
+    $script:GuiRegionContent = Get-BaselineTestSourceText -Path $script:GuiRegionPath
+    $script:BuildPrimaryTabsContent = Get-BaselineTestSourceText -Path $script:BuildPrimaryTabsPath
+    $script:TabManagementContent = Get-BaselineTestSourceText -Path $script:TabManagementPath
+    $script:BuildTabContentContent = Get-BaselineTestSourceText -Path $script:BuildTabContentPath
+    $script:IconFactoryContent = Get-BaselineTestSourceText -Path $script:IconFactoryPath
+    $script:StartupDialogContent = Get-BaselineTestSourceText -Path $script:StartupDialogPath
 }
 
 Describe 'Customizations tab wiring' {
@@ -50,11 +55,11 @@ Describe 'Customizations tab wiring' {
         $script:StartupDialogContent | Should -Match 'Invoke-GuiCustomizationsWslInstallAction'
     }
 
-    It 'routes adaptive tab layout bring-into-view failures through Write-DebugSwallowedException' {
+    It 'routes adaptive tab layout bring-into-view failures through Write-SwallowedException' {
         $script:BuildPrimaryTabsContent | Should -Match "BuildPrimaryTabs\.AdaptiveTabLayout\.BringIntoView"
     }
 
-    It 'routes Customizations startup-entry counting failures through Write-DebugSwallowedException' {
+    It 'routes Customizations startup-entry counting failures through Write-SwallowedException' {
         $script:TabManagementContent | Should -Match "TabManagement\.Get-PrimaryTabItemHeaderText\.CustomizationsStartupEntries"
     }
 }

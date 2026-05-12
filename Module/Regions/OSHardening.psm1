@@ -6,7 +6,7 @@ if (Test-Path $subModuleRoot)
 {
     foreach ($subModule in (Get-ChildItem -Path $subModuleRoot -Filter '*.psm1' -File))
     {
-        Import-Module $subModule.FullName -Force -Global
+        Import-Module $subModule.FullName -Force -Global -DisableNameChecking -WarningAction SilentlyContinue
     }
 }
 
@@ -26,5 +26,6 @@ if (Test-Path $subModuleRoot)
 # Future: capture pre-change registry snapshots per-function for targeted rollback.
 
 #endregion OS Hardening
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+)
+Export-ModuleMember -Function $ExportedFunctions

@@ -59,11 +59,7 @@ $Script:BaselineCleanupVolumeCaches = @(
 	.SYNOPSIS
 	Creates baseline maintenance task scripts.
 
-	
-.DESCRIPTION
-	
-Supports baseline maintenance task scripts handling inside Baseline.
-#>
+	#>
 
 function New-BaselineMaintenanceTaskScripts
 {
@@ -114,11 +110,7 @@ function New-BaselineMaintenanceTaskScripts
 	.SYNOPSIS
 	Creates baseline maintenance task principal.
 
-	
-.DESCRIPTION
-	
-Supports baseline maintenance task principal handling inside Baseline.
-#>
+	#>
 
 function New-BaselineMaintenanceTaskPrincipal
 {
@@ -150,11 +142,7 @@ function New-BaselineMaintenanceTaskPrincipal
 	.SYNOPSIS
 	Sets baseline cleanup volume cache flags.
 
-	
-.DESCRIPTION
-	
-Supports baseline cleanup volume cache flags handling inside Baseline.
-#>
+	#>
 
 function Set-BaselineCleanupVolumeCacheFlags
 {
@@ -192,11 +180,7 @@ function Set-BaselineCleanupVolumeCacheFlags
 	.SYNOPSIS
 	Clears baseline cleanup volume cache flags.
 
-	
-.DESCRIPTION
-	
-Supports baseline cleanup volume cache flags handling inside Baseline.
-#>
+	#>
 
 function Clear-BaselineCleanupVolumeCacheFlags
 {
@@ -218,11 +202,7 @@ function Clear-BaselineCleanupVolumeCacheFlags
 	.SYNOPSIS
 	Gets baseline cleanup task script.
 
-	
-.DESCRIPTION
-	
-Supports baseline cleanup task script handling inside Baseline.
-#>
+	#>
 
 function Get-BaselineCleanupTaskScript
 {
@@ -277,11 +257,7 @@ $Process.Start() | Out-Null
 	.SYNOPSIS
 	Gets baseline cleanup notification task script.
 
-	
-.DESCRIPTION
-	
-Supports baseline cleanup notification task script handling inside Baseline.
-#>
+	#>
 
 function Get-BaselineCleanupNotificationTaskScript
 {
@@ -350,11 +326,7 @@ $escapedXml
 	.SYNOPSIS
 	Registers baseline maintenance task.
 
-	
-.DESCRIPTION
-	
-Supports baseline maintenance task handling inside Baseline.
-#>
+	#>
 
 function Register-BaselineMaintenanceTask
 {
@@ -426,11 +398,7 @@ function Register-BaselineMaintenanceTask
 	.SYNOPSIS
 	Checks baseline maintenance tasks remaining.
 
-	
-.DESCRIPTION
-	
-Supports baseline maintenance tasks remaining handling inside Baseline.
-#>
+	#>
 
 function Test-BaselineMaintenanceTasksRemaining
 {
@@ -458,11 +426,7 @@ function Test-BaselineMaintenanceTasksRemaining
 	.SYNOPSIS
 	Gets baseline software distribution task script.
 
-	
-.DESCRIPTION
-	
-Supports baseline software distribution task script handling inside Baseline.
-#>
+	#>
 
 function Get-BaselineSoftwareDistributionTaskScript
 {
@@ -536,11 +500,7 @@ $escapedXml
 	.SYNOPSIS
 	Gets baseline temp task script.
 
-	
-.DESCRIPTION
-	
-Supports baseline temp task script handling inside Baseline.
-#>
+	#>
 
 function Get-BaselineTempTaskScript
 {
@@ -637,11 +597,7 @@ $escapedXml
 	.SYNOPSIS
 	Runs baseline software distribution flush.
 
-	
-.DESCRIPTION
-	
-Supports baseline software distribution flush handling inside Baseline.
-#>
+	#>
 
 function Invoke-BaselineSoftwareDistributionFlush
 {
@@ -706,6 +662,7 @@ function Invoke-BaselineSoftwareDistributionFlush
 	try
 	{
 		$bytes = (Get-ChildItem -LiteralPath $Script:BaselineSoftwareDistributionDownloadPath -Recurse -Force -ErrorAction SilentlyContinue |
+			Where-Object { -not $_.PSIsContainer } |
 			Measure-Object -Property Length -Sum).Sum
 		if ($null -eq $bytes) { $bytes = 0L }
 	}
@@ -726,11 +683,7 @@ function Invoke-BaselineSoftwareDistributionFlush
 	.SYNOPSIS
 	Gets baseline temp purge paths.
 
-	
-.DESCRIPTION
-	
-Supports baseline temp purge paths handling inside Baseline.
-#>
+	#>
 
 function Get-BaselineTempPurgePaths
 {
@@ -766,11 +719,7 @@ function Get-BaselineTempPurgePaths
 	.SYNOPSIS
 	Runs baseline temp folder purge.
 
-	
-.DESCRIPTION
-	
-Supports baseline temp folder purge handling inside Baseline.
-#>
+	#>
 
 function Invoke-BaselineTempFolderPurge
 {
@@ -843,6 +792,7 @@ function Invoke-BaselineTempFolderPurge
 		try
 		{
 			$size = (Get-ChildItem -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue |
+				Where-Object { -not $_.PSIsContainer } |
 				Measure-Object -Property Length -Sum).Sum
 			if ($null -ne $size) { $bytesFreed += [long]$size }
 
@@ -866,11 +816,7 @@ function Invoke-BaselineTempFolderPurge
 	.SYNOPSIS
 	Runs cleanup task.
 
-	
-.DESCRIPTION
-	
-Supports cleanup task handling inside Baseline.
-#>
+	#>
 
 function CleanupTask
 {
@@ -928,7 +874,10 @@ function CleanupTask
 			$cleanupTaskDescription = Get-BaselineLocalizedString -Key 'CleanupTaskDescription' -Fallback 'Cleaning up Windows unused files and updates using built-in Disk cleanup app. Scheduled task can be run only if user "{0}" logged into the system.' -FormatArgs @($env:USERNAME)
 			$notificationDescription = Get-BaselineLocalizedString -Key 'CleanupNotificationTaskDescription' -Fallback 'Pop-up notification reminder about cleaning up Windows unused files and updates. Scheduled task can be run only if user "{0}" logged into the system.' -FormatArgs @($env:USERNAME)
 
-			$protocolCommand = ('powershell.exe -Command "& {{Start-ScheduledTask -TaskPath ''\{0}\'' -TaskName ''{1}''}}"' -f $Script:BaselineMaintenanceTaskPath, $Script:BaselineCleanupTaskName)
+			$protocolTaskPath = "\$Script:BaselineMaintenanceTaskPath\"
+			$protocolScript = "Start-ScheduledTask -TaskPath '$protocolTaskPath' -TaskName '$Script:BaselineCleanupTaskName'"
+			$protocolArtifacts = New-BaselineMaintenanceTaskScripts -BaseName 'Windows_Cleanup_Protocol' -PowerShellContent $protocolScript
+			$protocolCommand = ('powershell.exe -ExecutionPolicy Bypass -NoProfile -NoLogo -WindowStyle Hidden -File "{0}"' -f $protocolArtifacts.Ps1Path)
 
 			Register-BaselineToastApp `
 				-AppId $Script:BaselineCleanupAppId `
@@ -991,7 +940,7 @@ function CleanupTask
 				Unregister-BaselineToastApp -AppId $Script:BaselineCleanupAppId -ProtocolName $Script:BaselineCleanupProtocolName
 			}
 
-			foreach ($baseName in @('Windows_Cleanup', 'Windows_Cleanup_Notification'))
+			foreach ($baseName in @('Windows_Cleanup', 'Windows_Cleanup_Notification', 'Windows_Cleanup_Protocol'))
 			{
 				foreach ($ext in @('.ps1', '.vbs'))
 				{
@@ -1015,11 +964,7 @@ function CleanupTask
 	.SYNOPSIS
 	Runs software distribution task.
 
-	
-.DESCRIPTION
-	
-Supports software distribution task handling inside Baseline.
-#>
+	#>
 
 function SoftwareDistributionTask
 {
@@ -1128,11 +1073,7 @@ function SoftwareDistributionTask
 	.SYNOPSIS
 	Runs temp task.
 
-	
-.DESCRIPTION
-	
-Supports temp task handling inside Baseline.
-#>
+	#>
 
 function TempTask
 {
@@ -1233,5 +1174,22 @@ function TempTask
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'CleanupTask',
+    'Clear-BaselineCleanupVolumeCacheFlags',
+    'Get-BaselineCleanupNotificationTaskScript',
+    'Get-BaselineCleanupTaskScript',
+    'Get-BaselineSoftwareDistributionTaskScript',
+    'Get-BaselineTempPurgePaths',
+    'Get-BaselineTempTaskScript',
+    'Invoke-BaselineSoftwareDistributionFlush',
+    'Invoke-BaselineTempFolderPurge',
+    'New-BaselineMaintenanceTaskPrincipal',
+    'New-BaselineMaintenanceTaskScripts',
+    'Register-BaselineMaintenanceTask',
+    'Set-BaselineCleanupVolumeCacheFlags',
+    'SoftwareDistributionTask',
+    'TempTask',
+    'Test-BaselineMaintenanceTasksRemaining'
+)
+Export-ModuleMember -Function $ExportedFunctions

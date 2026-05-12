@@ -1,4 +1,4 @@
-# End-to-end scenario: remote dry-run with a fake transport.
+﻿# End-to-end scenario: remote dry-run with a fake transport.
 #
 # Verifies the multi-target preview default and structured CLI output paths
 # without touching real WinRM. The transport is replaced with a stub that
@@ -15,7 +15,6 @@ BeforeAll {
     {
         <#
             .SYNOPSIS
-            Internal function Global.
         #>
 
         function Global:Get-UxLocalizedString { param([string]$Key, [string]$Fallback = $Key) return $Fallback }

@@ -1,8 +1,8 @@
+﻿
 # Dialog helper split file loaded by Module\GUI\DialogHelpers.ps1.
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-GuiRemoteConsoleDialog.
 	#>
 
 	function Show-GuiRemoteConsoleDialog
@@ -19,6 +19,7 @@
 		$closeLabel = Get-UxLocalizedString -Key 'GuiCloseButton' -Fallback 'Close'
 		$refreshLabel = Get-UxLocalizedString -Key 'GuiRefreshButton' -Fallback 'Refresh'
 		$preflightLabel = Get-UxLocalizedString -Key 'GuiPlanPreflightChecks' -Fallback 'Preflight'
+		$scrollBarStyleXaml = Get-BaselineScrollBarStyleXaml -Theme $theme
 
 		[xml]$xaml = @"
 <Window
@@ -34,6 +35,9 @@
 	Background="Transparent"
 	WindowStyle="None"
 	AllowsTransparency="True">
+	<Window.Resources>
+$scrollBarStyleXaml
+	</Window.Resources>
 	<Border Name="RootBorder" CornerRadius="8">
 		<Grid>
 			<Grid.RowDefinitions>
@@ -63,7 +67,7 @@
 				</StackPanel>
 			</Border>
 
-			<ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="20,18,20,18">
+			<ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Padding="20,18,20,18">
 				<Grid>
 					<Grid.RowDefinitions>
 						<RowDefinition Height="Auto"/>
@@ -193,7 +197,7 @@
 			catch
 			{
 				$canShowDialog = $false
-				Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiRemoteConsoleDialog.ResolveErrorDialog'
+				Write-SwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiRemoteConsoleDialog.ResolveErrorDialog'
 			}
 
 			if ($canShowDialog)
@@ -275,277 +279,8 @@
 			}
 		}.GetNewClosure())
 
-		$ctxIncidentPack.Add_Click({
-			$selected = $lstRecentRemoteRuns.SelectedItem
-			if ($selected -and (Test-GuiObjectField -Object $selected -FieldName 'BundlePath') -and -not [string]::IsNullOrWhiteSpace($selected.BundlePath))
-			{
-				try
-				{
-					$incidentPackCmd = Get-GuiRuntimeCommand -Name 'New-IncidentReproductionPack' -CommandType 'Function'
-					if ($incidentPackCmd)
-					{
-						& $incidentPackCmd -SupportBundlePath $selected.BundlePath
-					}
-				}
-				catch
-				{
-					& $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to generate incident reproduction pack.`n`n{0}" -f $_.Exception.Message)
-				}
-			}
-		}.GetNewClosure())
-
-		$ctxExportDeepLinkedBundle.Add_Click({
-			$selected = $lstRecentRemoteRuns.SelectedItem
-			if (-not $selected) { return }
-			if (-not (Test-GuiObjectField -Object $selected -FieldName 'RunId') -or [string]::IsNullOrWhiteSpace([string]$selected.RunId)) { return }
-			if (-not (Test-GuiObjectField -Object $selected -FieldName 'FailedCount') -or [int]$selected.FailedCount -le 0) { return }
-			if (-not $exportSupportBundleCommand -or -not $showGuiFileSaveDialogCommand)
-			{
-				& $showRemoteConsoleError -Title 'Remote Console' -Message 'Support bundle export is unavailable in this runtime.'
-				return
-			}
-
-			try
-			{
-				$defaultFileName = 'Baseline-SupportBundle-{0}-{1}.zip' -f ((Get-Date -Format 'yyyyMMdd-HHmmss')), ([string]$selected.ComputerName -replace '[^A-Za-z0-9._-]', '_')
-				$savePath = & $showGuiFileSaveDialogCommand -Title 'Export Deep-Linked Support Bundle' -Filter 'ZIP Files (*.zip)|*.zip|All Files (*.*)|*.*' -DefaultExtension 'zip' -FileName $defaultFileName
-				if ([string]::IsNullOrWhiteSpace($savePath)) { return }
-
-				$sessionSnapshot = $null
-				try { if ($getGuiSettingsSnapshotCommand) { $sessionSnapshot = & $getGuiSettingsSnapshotCommand } } catch { $sessionSnapshot = $null; Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiRemoteConsoleDialog.LoadSessionSnapshot' }
-				$sessionStatePath = Join-Path ([System.IO.Path]::GetTempPath()) ('BaselineSupportBundleSession_{0}.json' -f [guid]::NewGuid().ToString('N'))
-				try
-				{
-					$sessionPayload = [ordered]@{
-						Schema = 'Baseline.GuiSession'
-						SchemaVersion = 1
-						SavedAt = (Get-Date).ToString('o')
-						State = $sessionSnapshot
-					}
-					($sessionPayload | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $sessionStatePath -Encoding UTF8 -Force
-
-					$systemSnapshot = $null
-					try { $systemSnapshot = New-SystemStateSnapshot -Manifest $Script:TweakManifest } catch { $systemSnapshot = $null; Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiRemoteConsoleDialog.LoadSystemSnapshot' }
-
-					$connectivityResults = @()
-					try
-					{
-						$ctx = Invoke-CapturedFunction -Name 'Get-GuiRemoteTargetContext'
-						if ($ctx -and (Test-GuiObjectField -Object $ctx -FieldName 'LastConnectivityResults'))
-						{
-							$connectivityResults = @($ctx.LastConnectivityResults)
-						}
-					}
-					catch
-					{
-						$connectivityResults = @()
-						Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiRemoteConsoleDialog.LoadConnectivityResults'
-					}
-
-					$result = & $exportSupportBundleCommand -OutputPath $savePath -ProfilePath $sessionStatePath -SystemSnapshot $systemSnapshot -Manifest $Script:TweakManifest -IncludeAuditLog -IncludeTestReport -ConnectivityResults $connectivityResults -DeepLinkRunId @([string]$selected.RunId) -DeepLinkComputerName @([string]$selected.ComputerName) -DeepLinkOperation @([string]$selected.Operation)
-					LogInfo ("Exported deep-linked support bundle to {0}" -f $result.OutputPath)
-					try { [System.Diagnostics.Process]::Start('explorer.exe', "/select,`"$($result.OutputPath)`"") | Out-Null } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiRemoteConsoleDialog.StartExplorer' }
-				}
-				finally
-				{
-					if (Test-Path -LiteralPath $sessionStatePath)
-					{
-						try { Remove-Item -LiteralPath $sessionStatePath -Force -ErrorAction SilentlyContinue } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DialogHelpers.ShowGuiRemoteConsoleDialog.RemoveSessionStatePath' }
-					}
-				}
-			}
-			catch
-			{
-				& $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to export deep-linked support bundle.`n`n{0}" -f $_.Exception.Message)
-			}
-		}.GetNewClosure())
-
-		$ctxRetryFailed.Add_Click({
-			$selected = $lstRecentRemoteRuns.SelectedItem
-			if ($selected -and (Test-GuiObjectField -Object $selected -FieldName 'FailedCount') -and $selected.FailedCount -gt 0)
-			{
-				$targets = if (Test-GuiObjectField -Object $selected -FieldName 'FailedTargets') { @($selected.FailedTargets) } else { @() }
-				if ($targets.Count -gt 0)
-				{
-					try
-					{
-						$ctx = Invoke-CapturedFunction -Name 'Get-GuiRemoteTargetContext'
-						$cred = if ($ctx) { $ctx.Credential } else { $null }
-						$null = Invoke-CapturedFunction -Name 'Set-GuiRemoteTargetContext' -Parameters @{
-							ComputerName = $targets
-							Credential = $cred
-							StatusMessage = 'Context updated to retry failed targets.'
-						}
-						& $refreshConsole
-					}
-					catch
-					{
-						& $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to stage retry targets.`n`n{0}" -f $_.Exception.Message)
-					}
-				}
-				else
-				{
-					& $showRemoteConsoleError -Title 'Remote Console' -Message "Failed target list not available in this summary."
-				}
-			}
-		}.GetNewClosure())
-
-		$ctxExportFailed.Add_Click({
-			$selected = $lstRecentRemoteRuns.SelectedItem
-			if ($selected -and (Test-GuiObjectField -Object $selected -FieldName 'FailedCount') -and $selected.FailedCount -gt 0)
-			{
-				$targets = if (Test-GuiObjectField -Object $selected -FieldName 'FailedTargets') { @($selected.FailedTargets) } else { @() }
-				if ($targets.Count -gt 0)
-				{
-					$dialog = New-Object Microsoft.Win32.SaveFileDialog
-					$dialog.Title = 'Export Failed Targets'
-					$dialog.Filter = 'Text Files (*.txt)|*.txt|All Files (*.*)|*.*'
-					$dialog.DefaultExt = 'txt'
-					$dialog.FileName = ('FailedTargets-{0}.txt' -f $selected.Timestamp.ToString('yyyyMMdd-HHmmss'))
-					if ($dialog.ShowDialog($dlg) -eq $true)
-					{
-						try { [System.IO.File]::WriteAllLines($dialog.FileName, $targets) } catch { & $showRemoteConsoleError -Title 'Export Failed' -Message ("Failed to write file.`n`n{0}" -f $_.Exception.Message) }
-					}
-				}
-				else { & $showRemoteConsoleError -Title 'Remote Console' -Message "Failed target list not available in this summary." }
-			}
-		}.GetNewClosure())
-
-		$refreshConsole = {
-			$context = $null
-			try { $context = Invoke-CapturedFunction -Name 'Get-GuiRemoteTargetContext' } catch { $context = $null }
-			$sessions = @()
-			try { $sessions = @((Invoke-CapturedFunction -Name 'Get-BaselineRemoteSessionSummary')) } catch { $sessions = @() }
-			$recentRuns = @()
-			try
-			{
-				if ($getRemoteRunSummariesCommand)
-				{
-					$recentRuns = @((Invoke-CapturedFunction -Name 'Get-BaselineRemoteRunSummaries' -Parameters @{ MaxRecords = 5 }))
-				}
-				elseif (Get-GuiFunctionCapture -Name 'Get-BaselineRemoteOrchestrationDetails')
-				{
-					$recentRuns = @((Invoke-CapturedFunction -Name 'Get-BaselineRemoteOrchestrationDetails' -Parameters @{ MaxRecords = 5 }))
-				}
-				else
-				{
-					$recentRuns = @((Invoke-CapturedFunction -Name 'Get-BaselineRemoteOrchestrationSummary' -Parameters @{ MaxRecords = 5 }))
-				}
-			}
-			catch
-			{
-				$recentRuns = @()
-			}
-
-			$recentRunRows = @()
-			if ($recentRuns.Count -gt 0)
-			{
-				$recentRunRows = @($recentRuns | ForEach-Object {
-					$timestamp = $null
-					try { $timestamp = [datetime]::Parse([string]$_.Timestamp) } catch { $timestamp = [datetime]::UtcNow }
-					$succeededCount = if ($_.PSObject.Properties['SucceededCount']) { [int]$_.SucceededCount } else { 0 }
-					$failedCount = if ($_.PSObject.Properties['FailedCount']) { [int]$_.FailedCount } else { 0 }
-					$skippedCount = if ($_.PSObject.Properties['SkippedCount']) { [int]$_.SkippedCount } else { 0 }
-					$retryingCount = if ($_.PSObject.Properties['RetryingCount']) { [int]$_.RetryingCount } else { 0 }
-					$cancelledCount = if ($_.PSObject.Properties['CancelledCount']) { [int]$_.CancelledCount } else { 0 }
-					$attempts = if ($_.PSObject.Properties['TotalAttempts']) { [int]$_.TotalAttempts } else { 0 }
-					$retries = if ($_.PSObject.Properties['TotalRetries']) { [int]$_.TotalRetries } else { 0 }
-
-					[pscustomobject]@{
-						Timestamp      = $timestamp
-						Operation      = if ($_.PSObject.Properties['Operation']) { [string]$_.Operation } else { 'Remote' }
-						TerminalState  = if ($_.PSObject.Properties['TerminalState']) { [string]$_.TerminalState } else { 'Unknown' }
-						TargetCount    = if ($_.PSObject.Properties['TargetCount']) { [int]$_.TargetCount } else { 0 }
-						FailedCount    = $failedCount
-						FailedTargets  = if ($_.PSObject.Properties['FailedTargets']) { @($_.FailedTargets) } else { @() }
-						CountsSummary  = ('Success={0}, Failed={1}, Skipped={2}, Retrying={3}, Cancelled={4}, Attempts={5}, Retries={6}' -f $succeededCount, $failedCount, $skippedCount, $retryingCount, $cancelledCount, $attempts, $retries)
-						Summary        = if ($_.PSObject.Properties['Summary']) { [string]$_.Summary } else { ('{0} | {1} | Run {2}' -f $timestamp.ToString('yyyy-MM-dd HH:mm:ss'), (if ($_.PSObject.Properties['Operation']) { [string]$_.Operation } else { 'Remote' }), (if ($_.PSObject.Properties['RunId']) { [string]$_.RunId } else { 'n/a' })) }
-						LogPath        = if ($_.PSObject.Properties['LogPath']) { [string]$_.LogPath } else { $null }
-						BundlePath     = if ($_.PSObject.Properties['BundlePath']) { [string]$_.BundlePath } else { $null }
-					}
-				})
-			}
-
-			if ($txtFilterRuns -and -not [string]::IsNullOrWhiteSpace($txtFilterRuns.Text))
-			{
-				$filter = $txtFilterRuns.Text
-				$recentRunRows = @($recentRunRows | Where-Object {
-					$_.Operation -match $filter -or
-					$_.TerminalState -match $filter -or
-					$_.Summary -match $filter
-				})
-			}
-
-			if ($txtConnectedTargets)
-			{
-				if ($context -and $context.Connected -and $context.TargetComputers.Count -gt 0)
-				{
-					$txtConnectedTargets.Text = ('Connected targets: {0}' -f ($context.TargetComputers -join ', '))
-				}
-				else
-				{
-					$txtConnectedTargets.Text = 'Connected targets: none'
-				}
-			}
-
-			if ($txtApprovedTargets)
-			{
-				if ($context -and $context.ApprovedTargetComputers -and $context.ApprovedTargetComputers.Count -gt 0)
-				{
-					$txtApprovedTargets.Text = ('Approved targets: {0}' -f ($context.ApprovedTargetComputers -join ', '))
-				}
-				else
-				{
-					$txtApprovedTargets.Text = 'Approved targets: none'
-				}
-			}
-
-			if ($txtConnectedAt)
-			{
-				$txtConnectedAt.Text = if ($context -and $context.ConnectedAt) { ('Connected at (UTC): {0}' -f $context.ConnectedAt) } else { 'Connected at (UTC): n/a' }
-			}
-
-			if ($txtApprovalMessage)
-			{
-				$txtApprovalMessage.Text = if ($context -and $context.ApprovalMessage) { ('Approval message: {0}' -f $context.ApprovalMessage) } else { 'Approval message: n/a' }
-			}
-
-			if ($txtCachedSessions)
-			{
-				if ($sessions.Count -gt 0)
-				{
-					$txtCachedSessions.Text = ('Cached sessions: {0}' -f (($sessions | ForEach-Object { '{0} [{1}]' -f $_.ComputerName, $_.State }) -join '; '))
-				}
-				else
-				{
-					$txtCachedSessions.Text = 'Cached sessions: none'
-				}
-			}
-
-			if ($lstRecentRemoteRuns)
-			{
-				$lstRecentRemoteRuns.ItemsSource = $recentRunRows
-				if ($recentRunRows.Count -eq 0)
-				{
-					$lstRecentRemoteRuns.IsEnabled = $false
-				}
-				else
-				{
-					$lstRecentRemoteRuns.IsEnabled = $true
-				}
-			}
-
-			if ($txtConsoleHint)
-			{
-				$txtConsoleHint.Text = 'Use the controls below to connect, approve, save policy, and load policy for the current remote context.'
-			}
-
-			if ($btnDisconnect) { $btnDisconnect.IsEnabled = [bool]($context -and $context.Connected -and $context.TargetComputers.Count -gt 0) }
-			if ($btnApprove) { $btnApprove.IsEnabled = [bool]($context -and $context.Connected -and $context.TargetComputers.Count -gt 0) }
-			if ($btnSavePolicy) { $btnSavePolicy.IsEnabled = [bool]($context -and $context.Connected -and $context.TargetComputers.Count -gt 0 -and $context.ApprovedTargetComputers.Count -gt 0) }
-			if ($btnLoadPolicy) { $btnLoadPolicy.IsEnabled = [bool]($context -and $context.Connected -and $context.TargetComputers.Count -gt 0) }
-			if ($btnPreflight) { $btnPreflight.IsEnabled = [bool]($context -and $context.Connected -and $context.TargetComputers.Count -gt 0) }
-		}.GetNewClosure()
+				# P5 rollback checkpoint: Show-GuiRemoteConsoleDialog part extracted to Module/GUI/DialogHelpers/RemoteDialogs/Show-GuiRemoteConsoleDialog/IncidentReproductionPackContextMenu.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'RemoteDialogs\Show-GuiRemoteConsoleDialog\IncidentReproductionPackContextMenu.ps1')
 
 		if ($dlgTitleBar) { $dlgTitleBar.Add_MouseLeftButtonDown({ $dlg.DragMove() }.GetNewClosure()) }
 		if ($btnDlgClose) { $btnDlgClose.Add_Click({ $dlg.Close() }.GetNewClosure()) }
@@ -565,215 +300,8 @@
 				& $refreshConsole
 			}.GetNewClosure())
 		}
-		if ($btnConnect)
-		{
-			$btnConnect.Content = (Get-UxLocalizedString -Key 'GuiRemoteConnectTitle' -Fallback 'Connect to Computer')
-			Set-ButtonChrome -Button $btnConnect -Variant 'Secondary' -Compact
-			$btnConnect.Add_Click({
-				try
-				{
-					$request = Invoke-CapturedFunction -Name 'Prompt-GuiRemoteTargetConnection'
-					if (-not $request) { return }
-					$null = Invoke-CapturedFunction -Name 'Set-GuiRemoteTargetContext' -Parameters @{
-						ComputerName = $request.ComputerName
-						Credential = $request.Credential
-						StatusMessage = 'Remote target connected.'
-					}
-					& $refreshConsole
-				}
-				catch
-				{
-					& $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to connect to remote target.`n`n{0}" -f $_.Exception.Message)
-				}
-			}.GetNewClosure())
-		}
-		if ($btnDisconnect)
-		{
-			$btnDisconnect.Content = (Get-UxLocalizedString -Key 'GuiRemoteDisconnectTitle' -Fallback 'Disconnect')
-			Set-ButtonChrome -Button $btnDisconnect -Variant 'Secondary' -Compact
-			$btnDisconnect.Add_Click({
-				try
-				{
-					$null = Invoke-CapturedFunction -Name 'Clear-GuiRemoteTargetContext'
-					& $refreshConsole
-				}
-				catch
-				{
-					& $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to disconnect remote target.`n`n{0}" -f $_.Exception.Message)
-				}
-			}.GetNewClosure())
-		}
-		if ($btnApprove)
-		{
-			$btnApprove.Content = (Get-UxLocalizedString -Key 'GuiMenuToolsApproveRemoteTargets' -Fallback 'Approve Target List...')
-			Set-ButtonChrome -Button $btnApprove -Variant 'Secondary' -Compact
-			$btnApprove.Add_Click({
-				try
-				{
-					$context = Invoke-CapturedFunction -Name 'Get-GuiRemoteTargetContext'
-					if (-not $context -or -not $context.Connected -or $context.TargetComputers.Count -eq 0) { return }
-					$targets = @($context.TargetComputers)
-					$null = Invoke-CapturedFunction -Name 'Set-GuiRemoteTargetApprovalList' -Parameters @{
-						ComputerName = $targets
-						ApprovalMessage = 'Remote target list approved from Remote Console.'
-					}
-					& $refreshConsole
-				}
-				catch
-				{
-					& $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to approve target list.`n`n{0}" -f $_.Exception.Message)
-				}
-			}.GetNewClosure())
-		}
-		if ($btnSavePolicy)
-		{
-			$btnSavePolicy.Content = (Get-UxLocalizedString -Key 'GuiMenuToolsSaveRemoteApprovalPolicy' -Fallback 'Save Remote Approval Policy...')
-			Set-ButtonChrome -Button $btnSavePolicy -Variant 'Secondary' -Compact
-			if (-not $exportRemoteTargetApprovalPolicyCommand) { $btnSavePolicy.IsEnabled = $false }
-			$btnSavePolicy.Add_Click({
-				if (-not $exportRemoteTargetApprovalPolicyCommand)
-				{
-					& $showRemoteConsoleError -Title 'Remote Console' -Message 'Remote approval policy export is unavailable in this runtime.'
-					return
-				}
-				try { $null = Invoke-CapturedFunction -Name 'Export-GuiRemoteTargetApprovalPolicy' } catch { & $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to save remote approval policy.`n`n{0}" -f $_.Exception.Message) }
-			}.GetNewClosure())
-		}
-		if ($btnLoadPolicy)
-		{
-			$btnLoadPolicy.Content = (Get-UxLocalizedString -Key 'GuiMenuToolsLoadRemoteApprovalPolicy' -Fallback 'Load Remote Approval Policy...')
-			Set-ButtonChrome -Button $btnLoadPolicy -Variant 'Secondary' -Compact
-			if (-not $importRemoteTargetApprovalPolicyCommand) { $btnLoadPolicy.IsEnabled = $false }
-			$btnLoadPolicy.Add_Click({
-				if (-not $importRemoteTargetApprovalPolicyCommand)
-				{
-					& $showRemoteConsoleError -Title 'Remote Console' -Message 'Remote approval policy import is unavailable in this runtime.'
-					return
-				}
-				try { $null = Invoke-CapturedFunction -Name 'Import-GuiRemoteTargetApprovalPolicy'; & $refreshConsole } catch { & $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to load remote approval policy.`n`n{0}" -f $_.Exception.Message) }
-			}.GetNewClosure())
-		}
-		if ($btnPreflight)
-		{
-			$btnPreflight.Content = $preflightLabel
-			Set-ButtonChrome -Button $btnPreflight -Variant 'Secondary' -Compact
-			$btnPreflight.Add_Click({
-				try
-				{
-					$context = Invoke-CapturedFunction -Name 'Get-GuiRemoteTargetContext'
-					if (-not $context -or -not $context.Connected -or $context.TargetComputers.Count -eq 0) { return }
-					if (-not (Get-GuiFunctionCapture -Name 'Invoke-PreflightChecks')) { throw 'Preflight helper is not available.' }
-
-					$results = Invoke-CapturedFunction -Name 'Invoke-PreflightChecks' -Parameters @{
-						RemoteTargets = @($context.TargetComputers)
-					}
-					$lines = [System.Collections.Generic.List[string]]::new()
-					[void]$lines.Add('Remote preflight results:')
-					if ($results -and $results.SupportedEnvironmentClassification -and $results.SupportedEnvironmentClassification.Summary)
-					{
-						[void]$lines.Add($results.SupportedEnvironmentClassification.Summary)
-					}
-					if ($results -and $results.WinRMReachability -and $results.WinRMReachability.Summary)
-					{
-						[void]$lines.Add(('WinRM reachability: {0}' -f $results.WinRMReachability.Summary))
-					}
-					if ($results -and $results.Credentials -and $results.Credentials.Summary)
-					{
-						[void]$lines.Add(('Credentials: {0}' -f $results.Credentials.Summary))
-					}
-					if ($results -and $results.PolicyConflictSignals -and $results.PolicyConflictSignals.Summary)
-					{
-						[void]$lines.Add(('Policy signals: {0}' -f $results.PolicyConflictSignals.Summary))
-					}
-
-					$remoteCategories = @()
-					if ($results -and $results.PSObject.Properties['RiskCategories'] -and $results.RiskCategories)
-					{
-						$remoteCategories = @($results.RiskCategories | Where-Object { $_ -and [string]$_.Status -ne 'Passed' })
-					}
-					elseif ($results -and $results.PolicyConflictSignals -and $results.PolicyConflictSignals.PSObject.Properties['Categories'])
-					{
-						$remoteCategories = @($results.PolicyConflictSignals.Categories | Where-Object { $_ -and [string]$_.Status -ne 'Passed' })
-					}
-					if ($remoteCategories.Count -gt 0)
-					{
-						[void]$lines.Add(' ')
-						[void]$lines.Add('Risk categories:')
-						foreach ($cat in $remoteCategories)
-						{
-							$statusMark = if ([string]$cat.Status -eq 'Failed') { '!' } else { '*' }
-							[void]$lines.Add(('{0} {1} ({2}): {3}' -f $statusMark, $cat.Name, $cat.Status, $cat.Summary))
-							if ($cat.RemediationActions -and @($cat.RemediationActions).Count -gt 0)
-							{
-								foreach ($action in $cat.RemediationActions)
-								{
-									if (-not [string]::IsNullOrWhiteSpace([string]$action))
-									{
-										[void]$lines.Add(('    -> {0}' -f [string]$action))
-									}
-								}
-							}
-							if (-not [string]::IsNullOrWhiteSpace([string]$cat.DocumentationPath))
-							{
-								[void]$lines.Add(('    Remediation guide: {0}' -f [string]$cat.DocumentationPath))
-							}
-							if (-not [string]::IsNullOrWhiteSpace([string]$cat.LogHint))
-							{
-								[void]$lines.Add(('    Logs: {0}' -f [string]$cat.LogHint))
-							}
-						}
-					}
-
-					[void]$lines.Add(' ')
-					[void]$lines.Add('Checks:')
-					foreach ($result in @($results.AllResults))
-					{
-						if (-not $result) { continue }
-						$line = '{0} -> {1}: {2}' -f $result.Name, $result.Status, $result.Message
-						if ($result.PSObject.Properties['Key'] -and -not [string]::IsNullOrWhiteSpace([string]$result.Key))
-						{
-							$line += " | Key: $($result.Key)"
-						}
-						if ($result.PSObject.Properties['Category'] -and -not [string]::IsNullOrWhiteSpace([string]$result.Category))
-						{
-							$line += " | Category: $($result.Category)"
-						}
-						if ($result.PSObject.Properties['RemediationActions'] -and $result.RemediationActions)
-						{
-							$actions = @($result.RemediationActions)
-							if ($actions.Count -gt 0)
-							{
-								$line += " | Remediation: $($actions -join '; ')"
-							}
-						}
-						[void]$lines.Add($line)
-
-						if ($result.PSObject.Properties['Details'] -and $result.Details)
-						{
-							if ($result.Details -is [System.Collections.IDictionary])
-							{
-								foreach ($detailKey in @($result.Details.Keys | Sort-Object))
-								{
-									[void]$lines.Add(('  - {0}: {1}' -f $detailKey, $result.Details[$detailKey]))
-								}
-							}
-							elseif ($result.Details.PSObject.Properties.Count -gt 0)
-							{
-								foreach ($detailProp in @($result.Details.PSObject.Properties | Sort-Object Name))
-								{
-									[void]$lines.Add(('  - {0}: {1}' -f $detailProp.Name, $detailProp.Value))
-								}
-							}
-						}
-					}
-					[void](Show-ThemedDialog -Title 'Remote Console Preflight' -Message ($lines -join [Environment]::NewLine) -Buttons @('OK') -AccentButton 'OK')
-				}
-				catch
-				{
-					& $showRemoteConsoleError -Title 'Remote Console Preflight' -Message ("Failed to run remote preflight.`n`n{0}" -f $_.Exception.Message)
-				}
-			}.GetNewClosure())
-		}
+				# P5 rollback checkpoint: Show-GuiRemoteConsoleDialog part extracted to Module/GUI/DialogHelpers/RemoteDialogs/Show-GuiRemoteConsoleDialog/RemoteConnectionButton.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'RemoteDialogs\Show-GuiRemoteConsoleDialog\RemoteConnectionButton.ps1')
 
 		$dlg.Add_ContentRendered({
 			& $refreshConsole

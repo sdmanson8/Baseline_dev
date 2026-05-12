@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
@@ -60,6 +60,9 @@ Describe 'Settings dialog wiring' {
 
     It 'themes settings input controls through the shared surface tokens' {
         $script:SettingsDialogContent | Should -Match '\$surfaceControl = if \(\$theme\.InputBg\)'
+        $script:SettingsDialogContent | Should -Match '\$controlBorder = if \(\$theme\.BorderStrong\)'
+        $script:SettingsDialogContent | Should -Match '\$scrollBarStyleXaml = Get-BaselineScrollBarStyleXaml -Theme \$theme'
+        $script:SettingsDialogContent | Should -Match '\$scrollBarStyleXaml'
         $script:SettingsDialogContent | Should -Match '<SolidColorBrush x:Key="\{x:Static SystemColors\.WindowBrushKey\}" Color="\$surfaceControl"/>'
         $script:SettingsDialogContent | Should -Match '<SolidColorBrush x:Key="\{x:Static SystemColors\.ControlTextBrushKey\}" Color="\$textPrimary"/>'
         $script:SettingsDialogContent | Should -Match '(?s)<Style TargetType="ComboBox" x:Key="SettingsCombo">.*<Setter Property="Background" Value="\$surfaceControl"/>.*<Setter Property="Foreground" Value="\$textPrimary"/>.*<Setter Property="BorderBrush" Value="\$controlBorder"/>.*<Setter Property="OverridesDefaultStyle" Value="True"/>.*<Setter Property="ItemContainerStyle" Value="\{StaticResource SettingsComboItem\}"/>.*<ControlTemplate TargetType="\{x:Type ComboBox\}">.*<ToggleButton x:Name="DropDownToggle".*IsChecked="\{Binding IsDropDownOpen, RelativeSource=\{RelativeSource TemplatedParent\}, Mode=TwoWay\}".*<Popup x:Name="Popup"'
@@ -69,8 +72,11 @@ Describe 'Settings dialog wiring' {
         $script:SettingsDialogContent | Should -Match '\$control\.Resources\[\[System\.Windows\.SystemColors\]::WindowBrushKey\] = \$settingsInputBgBrush'
         $script:SettingsDialogContent | Should -Match '\$control\.Resources\[\[System\.Windows\.SystemColors\]::ControlTextBrushKey\] = \$settingsTextPrimaryBrush'
         $script:SettingsDialogContent | Should -Match '\$control\.OverridesDefaultStyle = \$true'
+        $script:SettingsDialogContent | Should -Match '(?s)<Style TargetType="\{x:Type ComboBoxItem\}" x:Key="SettingsComboItem">.*TextElement\.Foreground="\{TemplateBinding Foreground\}"'
+        $script:SettingsDialogContent | Should -Match '(?s)<ContentPresenter x:Name="ContentSite".*TextElement\.Foreground="\{TemplateBinding Foreground\}"'
         $script:SettingsDialogContent | Should -Not -Match 'Set-ChoiceComboStyle -Combo \$control'
         $script:SettingsDialogContent | Should -Match '& \$applySettingsComboItemTheme \$ci'
+        $script:SettingsDialogContent | Should -Match 'HorizontalScrollBarVisibility="Auto"'
         $script:SettingsDialogContent | Should -Not -Match 'Background="#FFFFFF"|Foreground="#1A1C2E"|BorderBrush="#A7B0C0"|CaretBrush="#1A1C2E"|#CCE4F7|#EDF2FA'
     }
 
@@ -93,6 +99,13 @@ Describe 'Settings dialog wiring' {
         $script:SettingsDialogContent | Should -Not -Match 'Name="TxtLogFilePath"'
     }
 
+    It 'routes settings message dialogs through the owner-aware themed dialog helper' {
+        $script:SettingsDialogContent | Should -Match '\$settingsShowThemedDialog = \{'
+        $script:SettingsDialogContent | Should -Match 'GUICommon\\Show-GuiCommonThemedDialog'
+        $script:SettingsDialogContent | Should -Match '\$showThemedDialog = \$settingsShowThemedDialog'
+        $script:SettingsDialogContent | Should -Not -Match '(?m)(?<!GUICommon\\)Show-(?:GuiCommon)?ThemedDialog -Title'
+    }
+
     It 'persists custom log folders and applies them to the active logger' {
         $script:MenuHandlersContent | Should -Match "Get-BaselineUserPreference -Key 'LogFileDirectory'"
         $script:MenuHandlersContent | Should -Match "Set-BaselineUserPreference -Key 'LogFileDirectory'"
@@ -109,6 +122,17 @@ Describe 'Settings dialog wiring' {
         $script:WindowSetupContent | Should -Match 'Set-BaselineDebugLogging -Enabled \(\[bool\]\$Script:DebugLoggingEnabled\)'
         $script:WindowSetupContent | Should -Match 'Set-GuiPerfTraceState -Enabled \(\[bool\]\$Script:DebugLoggingEnabled\)'
         $script:MenuHandlersContent | Should -Match 'Set-GuiPerfTraceState -Enabled \$debugWanted'
+    }
+
+    It 'defaults log level to All and persists the selected value' {
+        $script:SettingsDialogContent | Should -Match '\$settingsLogLevelAll = Get-UxLocalizedString -Key ''GuiRiskAll'' -Fallback ''All'''
+        $script:SettingsDialogContent | Should -Match '& \$addComboItem \$cmbLogLevel \$settingsLogLevelAll ''All'''
+        $script:SettingsDialogContent | Should -Match '\$selectedLogLevel = if \(\$Current\.ContainsKey\(''LogLevel''\).*else \{ ''All'' \}'
+        $script:SettingsDialogContent | Should -Match 'LogLevel = \[string\]\(& \$getTag \$cmbLogLevel ''All''\)'
+        $script:MenuHandlersContent | Should -Match 'Get-BaselineUserPreference -Key ''LogLevel'' -Default \$runtimeLogLevel'
+        $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''LogLevel'' -Value \$logLevelWanted'
+        $script:WindowSetupContent | Should -Match '\$Script:LogLevel = ''All'''
+        $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''LogLevel'' -Default ''All'''
     }
 
     It 'persists package source preference and reopens settings from stored state' {
@@ -139,6 +163,59 @@ Describe 'Settings dialog wiring' {
         $script:WindowSetupContent | Should -Match '\$Script:AutoScanOnLaunch = \$false'
         $script:WindowSetupContent | Should -Match '\$Script:ScanEnabled = \$false'
         $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''AutoScanOnLaunch'' -Default \$false'
+    }
+
+    It 'persists run confirmation preference and reloads it on startup' {
+        $script:SettingsDialogContent | Should -Match 'Name="ChkRequireRunConfirmation"'
+        $script:MenuHandlersContent | Should -Match '\$requireRunConfirmationWanted = \[bool\]\$result\.RequireRunConfirmation'
+        $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''RequireRunConfirmation'' -Value \$requireRunConfirmationWanted'
+        $script:WindowSetupContent | Should -Match '\$Script:RequireRunConfirmation = \$true'
+        $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''RequireRunConfirmation'' -Default \$true'
+    }
+
+    It 'exposes update behavior controls and persists them through settings' {
+        $script:SettingsDialogContent | Should -Match 'Name="ChkAutoCheckUpdates"'
+        $script:SettingsDialogContent | Should -Match 'Name="CmbUpdateFrequency"'
+        $script:SettingsDialogContent | Should -Match 'Name="CmbUpdateBranch"'
+        $script:SettingsDialogContent | Should -Match 'Name="ChkIncludePrereleaseUpdates"'
+        $script:SettingsDialogContent | Should -Match 'Name="TxtUpdatesAutomationHelper"'
+        $script:SettingsDialogContent | Should -Match 'Name="TxtUpdateLastCheckedValue"'
+        $script:SettingsDialogContent | Should -Match 'Name="TxtUpdateBranchValue"'
+        $script:SettingsDialogContent | Should -Match 'Name="TxtUpdateStatusValue"'
+        $script:SettingsDialogContent | Should -Match 'Name="TxtUpdateCurrentVersionValue"'
+        $script:SettingsDialogContent | Should -Match 'Name="BtnSettingsCheckNow"'
+        $script:SettingsDialogContent | Should -Match 'Invoke-BaselineUpdateCheck -CurrentVersion \$currentVersionText -UpdateBranch \$updateBranch -IncludePrerelease:\$includePrerelease'
+        $script:SettingsDialogContent | Should -Match 'GuiSettingsCurrentBranchLabel'
+        $script:SettingsDialogContent | Should -Match "Fallback 'Update channel'"
+        $script:SettingsDialogContent | Should -Match "Fallback 'Current channel'"
+        $script:SettingsDialogContent | Should -Match "Fallback 'Stable'"
+        $script:SettingsDialogContent | Should -Match "Fallback 'Beta'"
+        $script:SettingsDialogContent | Should -Match '\$selectedUpdateBranch = \$defaultUpdateBranch'
+        $script:SettingsDialogContent | Should -Match '\$refreshUpdateAutomationControls = \{'
+        $script:SettingsDialogContent | Should -Match '\$control\.IsEnabled = \$automationEnabled'
+        $script:SettingsDialogContent | Should -Match 'Used when automatic update checks are enabled\.'
+        $script:SettingsDialogContent | Should -Match 'Name="BtnSettingsCheckNow" Content="\$settingsCheckNowLabel" Width="120" Height="30" Margin="0,8,0,0"'
+        $script:SettingsDialogContent | Should -Not -Match 'Stable - https://github\.com/sdmanson8/Baseline'
+        $script:SettingsDialogContent | Should -Not -Match 'Beta - https://github\.com/sdmanson8/Baseline_dev'
+        $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''AutoCheckUpdates'' -Value \$autoCheckUpdatesWanted'
+        $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''UpdateCheckFrequency'' -Value \$updateCheckFrequencyWanted'
+        $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''UpdateBranch'' -Value \$updateBranchWanted'
+        $script:MenuHandlersContent | Should -Match "Fallback 'Change Update Channel'"
+        $script:MenuHandlersContent | Should -Match 'Switch update channel from \{0\} to \{1\}\?'
+        $script:MenuHandlersContent | Should -Match 'Switching channels may change which releases Baseline offers in future update checks\.'
+        $script:MenuHandlersContent | Should -Match "Fallback 'Continue'"
+        $script:MenuHandlersContent | Should -Match "Fallback 'Switch On Next Release'"
+        $script:MenuHandlersContent | Should -Match '\$branchCancelLabel = Get-UxLocalizedString -Key ''GuiCancelButton'''
+        $script:MenuHandlersContent | Should -Match '-Buttons @\(\$branchCancelLabel, \$branchNextReleaseLabel, \$branchChangeNowLabel\)'
+        $script:MenuHandlersContent | Should -Match '\$previousUpdateBranch = \$defaultUpdateBranch'
+        $script:MenuHandlersContent | Should -Match '\$runUpdateBranchCheckNow = \[string\]::Equals'
+        $script:MenuHandlersContent | Should -Match '\$deferUpdateBranchSwitch = \[string\]::Equals'
+        $script:MenuHandlersContent | Should -Match '-not \(\$runUpdateBranchCheckNow -or \$deferUpdateBranchSwitch\)'
+        $script:MenuHandlersContent | Should -Match '& \$updateCheckCommand'
+        $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''IncludePrereleaseUpdates'' -Value \$includePrereleaseWanted'
+        $script:WindowSetupContent | Should -Match '\$Script:AutoCheckUpdates = \$true'
+        $script:WindowSetupContent | Should -Match '\$Script:UpdateCheckFrequency = ''Startup'''
+        $script:WindowSetupContent | Should -Match 'Get-BaselineDefaultUpdateBranch'
     }
 
     It 'adds Advanced storage and cache controls with safe clear defaults' {
@@ -172,6 +249,19 @@ Describe 'Settings dialog wiring' {
             'GuiSettingsLanguageLabel',
             'GuiSettingsAutoScanOnLaunchLabel',
             'GuiSettingsHideUnavailableLabel',
+            'GuiSettingsUpdatesSection',
+            'GuiSettingsAutoCheckUpdatesLabel',
+            'GuiSettingsUpdateFrequencyLabel',
+            'GuiSettingsUpdateBranchLabel',
+            'GuiSettingsCurrentBranchLabel',
+            'GuiSettingsOptionUpdateBranchStable',
+            'GuiSettingsOptionUpdateBranchBeta',
+            'GuiSettingsIncludePrereleaseLabel',
+            'GuiSettingsLastCheckedLabel',
+            'GuiSettingsCurrentVersionLabel',
+            'GuiSettingsUpdateStatusLabel',
+            'GuiSettingsCheckNowLabel',
+            'GuiSettingsUpdatesAutomationHelper',
             'GuiSettingsUiDensityLabel',
             'GuiSettingsPackageSourceLabel',
             'GuiSettingsLoggingEnabledLabel',

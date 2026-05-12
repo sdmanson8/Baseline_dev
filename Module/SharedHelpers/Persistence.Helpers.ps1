@@ -5,7 +5,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineDataDirectory.
 #>
 
 function Get-BaselineDataDirectory
@@ -36,7 +35,6 @@ function Get-BaselineDataDirectory
 
 <#
     .SYNOPSIS
-    Internal function Write-BaselineDocument.
 #>
 
 function Write-BaselineDocument
@@ -75,9 +73,9 @@ function Write-BaselineDocument
 		}
 		catch
 		{
-			if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 			{
-				Write-DebugSwallowedException -ErrorRecord $_ -Source 'Persistence.Write-BaselineDocument.BaselineVersion'
+				Write-SwallowedException -ErrorRecord $_ -Source 'Persistence.Write-BaselineDocument.BaselineVersion' -Severity Debug
 			}
 			else
 			{
@@ -108,7 +106,6 @@ function Write-BaselineDocument
 
 <#
     .SYNOPSIS
-    Internal function Read-BaselineDocument.
 #>
 
 function Read-BaselineDocument
@@ -154,7 +151,6 @@ function Read-BaselineDocument
 
 <#
     .SYNOPSIS
-    Internal function Add-BaselineAuditRecord.
 #>
 
 function Add-BaselineAuditRecord
@@ -229,7 +225,6 @@ function Add-BaselineAuditRecord
 
 <#
     .SYNOPSIS
-    Internal function Read-BaselineAuditLog.
 #>
 
 function Read-BaselineAuditLog
@@ -296,7 +291,6 @@ function Read-BaselineAuditLog
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineDocumentSchema.
 #>
 
 function Test-BaselineDocumentSchema

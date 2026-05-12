@@ -1,8 +1,7 @@
-# Tab content building, caching, scroll offset persistence, and grouped tweak resolution
+﻿# Tab content building, caching, scroll offset persistence, and grouped tweak resolution
 
 	<#
 	    .SYNOPSIS
-	    Internal function Save-CurrentTabScrollOffset.
 	#>
 
 	function Save-CurrentTabScrollOffset
@@ -13,10 +12,6 @@
 		$Script:TabScrollOffsets[$Script:CurrentPrimaryTab] = [double]$ContentScroll.VerticalOffset
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Restore-CurrentTabScrollOffset
 	{
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
@@ -24,13 +19,12 @@
 		if (-not $ContentScroll -or [string]::IsNullOrWhiteSpace($TabKey)) { return }
 		$offset = if ($Script:TabScrollOffsets.ContainsKey($TabKey)) { [double]$Script:TabScrollOffsets[$TabKey] } else { 0 }
 		$null = Invoke-GuiDispatcherAction -Dispatcher $ContentScroll.Dispatcher -PriorityUsage 'RenderRefresh' -Action {
-			try { $ContentScroll.ScrollToVerticalOffset($offset) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ContentManagement.ScrollToVerticalOffset' }
+			try { $ContentScroll.ScrollToVerticalOffset($offset) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ContentManagement.ScrollToVerticalOffset' }
 		}
 	}
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-MainContentPanelWidth.
 	#>
 
 	function Update-MainContentPanelWidth
@@ -51,7 +45,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Clear-TabContentCache.
 	#>
 
 	function Clear-TabContentCache
@@ -91,7 +84,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Sync-GuiControlState.
 	#>
 
 	function Sync-GuiControlState
@@ -133,7 +125,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Restore-CachedTabContent.
 	#>
 
 	function Restore-CachedTabContent
@@ -203,7 +194,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-TabContentMainPanel.
 	#>
 
 	function New-TabContentMainPanel
@@ -218,10 +208,6 @@
 		return $mainPanel
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-TabContentGroupedTweaks
 	{
 		param (
@@ -290,7 +276,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-TabContentBuildContext.
 	#>
 
 	function New-TabContentBuildContext

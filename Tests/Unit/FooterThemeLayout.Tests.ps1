@@ -1,6 +1,11 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $stylePath = Join-Path $PSScriptRoot '../../Module/GUI/StyleManagement.ps1'
     $guiPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
     $xamlPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
@@ -10,16 +15,16 @@ BeforeAll {
     $themeManagementPath = Join-Path $PSScriptRoot '../../Module/GUI/ThemeManagement.ps1'
     $systemScanFooterHandlersPath = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers/SystemScanFooterHandlers.ps1'
 
-    $script:StyleContent = Get-Content -LiteralPath $stylePath -Raw -Encoding UTF8
-    $script:ThemeContent = Get-Content -LiteralPath $themeManagementPath -Raw -Encoding UTF8
-    $script:WindowSetupContent = Get-Content -LiteralPath $windowSetupPath -Raw -Encoding UTF8
+    $script:StyleContent = Get-BaselineTestSourceText -Path $stylePath
+    $script:ThemeContent = Get-BaselineTestSourceText -Path $themeManagementPath
+    $script:WindowSetupContent = Get-BaselineTestSourceText -Path $windowSetupPath
     $script:GuiContent = @(
-        Get-Content -LiteralPath $xamlPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $applyThemePath -Raw -Encoding UTF8
+        Get-BaselineTestSourceText -Path $xamlPath
+        Get-BaselineTestSourceText -Path $guiPath
+        Get-BaselineTestSourceText -Path $applyThemePath
         $script:WindowSetupContent
-        Get-Content -LiteralPath $buildTweakControlsPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $systemScanFooterHandlersPath -Raw -Encoding UTF8
+        Get-BaselineTestSourceText -Path $buildTweakControlsPath
+        Get-BaselineTestSourceText -Path $systemScanFooterHandlersPath
     ) -join "`n"
 }
 
@@ -42,14 +47,14 @@ Describe 'Footer and theme toggle layout' {
         $script:StyleContent | Should -Match 'Set-HeaderToggleStyle -CheckBox \$ChkTheme -Palette Theme'
     }
 
-    It 'routes seeded visible-if failures through Write-DebugSwallowedException' {
+    It 'routes seeded visible-if failures through Write-SwallowedException' {
         $script:GuiContent | Should -Match "BuildTweakControls\.SeedControlVisibility\.VisibleIf"
     }
 
     It 'gives the footer a two-row action and status layout' {
         $script:GuiContent | Should -Match '<Border Name="BottomBorder"[^>]+Grid.Row="6"[^>]+Padding="10,14,10,8"[^>]+BorderThickness="0,1,0,0"'
         $script:GuiContent | Should -Match '<StackPanel Name="ActionButtonBar" Grid.Column="0"\s+Orientation="Vertical" VerticalAlignment="Top" HorizontalAlignment="Stretch"\s+ClipToBounds="True"'
-        $script:GuiContent | Should -Match '<TextBlock Name="RunPathContextLabel" Grid.Column="2"'
+        $script:GuiContent | Should -Match '<TextBlock Name="RunPathContextLabel" Grid.Column="1"'
     }
 
     It 'keeps secondary footer actions inside the left footer column' {
@@ -62,9 +67,9 @@ Describe 'Footer and theme toggle layout' {
         $script:ThemeContent | Should -Match 'CardBg\s+= "#1E2433"'
         $script:ThemeContent | Should -Match 'CardBorder\s+= "#354057"'
         $script:ThemeContent | Should -Match 'CardHoverBg\s+= "#252D40"'
-        $script:ThemeContent | Should -Match 'CardBg\s+= "#FBFCFE"'
-        $script:ThemeContent | Should -Match 'CardBorder\s+= "#D4DBE7"'
-        $script:ThemeContent | Should -Match 'CardHoverBg\s+= "#F2F5FA"'
+        $script:ThemeContent | Should -Match 'CardBg\s+= "#FFFFFF"'
+        $script:ThemeContent | Should -Match 'CardBorder\s+= "#D8DEE8"'
+        $script:ThemeContent | Should -Match 'CardHoverBg\s+= "#EEF2F7"'
         $script:ThemeContent | Should -Match 'PresetPanelBg\s+= "#1E2433"'
         $script:ThemeContent | Should -Match 'StatusPillBg\s+= "#202638"'
         $script:GuiContent | Should -Match '\$BottomBorder\.Background = \$bc\.ConvertFromString\(\$Theme\.PanelBg\)'
@@ -83,8 +88,8 @@ Describe 'Footer and theme toggle layout' {
     }
 
     It 'uses green only as a state accent instead of primary interaction chrome' {
-        $script:ThemeContent | Should -Match 'StateAccent\s+= "#B34FD1A5"'
-        $script:ThemeContent | Should -Match 'StateAccentStrong\s+= "#4FD1A5"'
+        $script:ThemeContent | Should -Match 'StateAccent\s+= "#1F7A4C"'
+        $script:ThemeContent | Should -Match 'StateAccentStrong\s+= "#1F7A4C"'
         $selectionBlock = [regex]::Match($script:StyleContent, "(?s)'Selection'\s*\{(?<Body>.*?)\n\t\t\t\}")
         $selectionBlock.Success | Should -BeTrue
         $selectionBlock.Groups['Body'].Value | Should -Match 'AccentBlue'
@@ -95,8 +100,8 @@ Describe 'Footer and theme toggle layout' {
     It 'uses full subtle card borders in light theme instead of relying on shadows' {
         $tweakRowFactoryPath = Join-Path $PSScriptRoot '../../Module/GUI/TweakRowFactory.ps1'
         $metadataDetailsPath = Join-Path $PSScriptRoot '../../Module/GUI/TweakRowFactory/MetadataDetails.ps1'
-        $rowFactoryContent = Get-Content -LiteralPath $tweakRowFactoryPath -Raw -Encoding UTF8
-        $metadataContent = Get-Content -LiteralPath $metadataDetailsPath -Raw -Encoding UTF8
+        $rowFactoryContent = Get-BaselineTestSourceText -Path $tweakRowFactoryPath
+        $metadataContent = Get-BaselineTestSourceText -Path $metadataDetailsPath
 
         $rowFactoryContent | Should -Match 'CardBorder\s+= \[System\.Windows\.Thickness\]::new\(1\)'
         $rowFactoryContent | Should -Match 'CardBorderFocus\s+= \[System\.Windows\.Thickness\]::new\(2\)'
@@ -106,7 +111,7 @@ Describe 'Footer and theme toggle layout' {
 
     It 'uses the muted progress palette for shared progress bars' {
         $progressChromePath = Join-Path $PSScriptRoot '../../Module/GUI/AppsModule/ProgressNavChrome.ps1'
-        $progressChromeContent = Get-Content -LiteralPath $progressChromePath -Raw -Encoding UTF8
+        $progressChromeContent = Get-BaselineTestSourceText -Path $progressChromePath
 
         $progressChromeContent | Should -Match 'ProgressGreen'
         $progressChromeContent | Should -Match 'ProgressGreenTrack'

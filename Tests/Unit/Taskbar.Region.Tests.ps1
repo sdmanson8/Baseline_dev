@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/Taskbar.psm1'
@@ -62,6 +62,11 @@ Describe 'Taskbar.psm1 region' {
             param([string[]]$Path, [string[]]$Name, [switch]$Force)
             [void]$script:removeItemPropertyCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name })
         }
+        function Remove-RegistryValueSafe {
+            [CmdletBinding()]
+            param([string[]]$Path, [string[]]$Name)
+            [void]$script:removeItemPropertyCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name })
+        }
         function Get-ItemPropertyValue {
             [CmdletBinding()]
             param([string]$Path, [string]$Name)
@@ -78,8 +83,20 @@ Describe 'Taskbar.psm1 region' {
             return $null
         }
         function Invoke-UCPDBypassed {
-            param([scriptblock]$ScriptBlock)
-            [void]$script:ucpdScriptBlocks.Add($ScriptBlock.ToString())
+            [CmdletBinding(DefaultParameterSetName = 'ScriptText')]
+            param(
+                [Parameter(Mandatory = $true, ParameterSetName = 'ScriptText')]
+                [string]$ScriptText,
+
+                [Parameter(Mandatory = $true, ParameterSetName = 'ScriptBlock')]
+                [scriptblock]$ScriptBlock
+            )
+
+            if ($PSCmdlet.ParameterSetName -eq 'ScriptBlock') {
+                $ScriptText = $ScriptBlock.ToString()
+            }
+
+            [void]$script:ucpdScriptBlocks.Add($ScriptText)
         }
         function Get-Package {
             param([string]$Name, [string]$ProviderName)
@@ -96,7 +113,7 @@ Describe 'Taskbar.psm1 region' {
     }
 
     AfterEach {
-        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogWarning','LogError','Test-Path','New-Item','New-ItemProperty','Set-RegistryValueSafe','Remove-ItemProperty','Get-ItemPropertyValue','Set-Policy','Get-AppxPackage','Invoke-UCPDBypassed','Get-Package','Set-NewsInterestsTaskbarViewMode','Remove-HandledErrorRecord','Get-TweakSkipLabel')) {
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogWarning','LogError','Test-Path','New-Item','New-ItemProperty','Set-RegistryValueSafe','Remove-ItemProperty','Remove-RegistryValueSafe','Get-ItemPropertyValue','Set-Policy','Get-AppxPackage','Invoke-UCPDBypassed','Get-Package','Set-NewsInterestsTaskbarViewMode','Remove-HandledErrorRecord','Get-TweakSkipLabel')) {
             Microsoft.PowerShell.Management\Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }

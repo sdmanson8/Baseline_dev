@@ -1,4 +1,4 @@
-using module ..\..\Logging.psm1
+﻿using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
 <#
@@ -96,11 +96,7 @@ function Set-OptionalFeatureBundleState
     .SYNOPSIS
     Runs legacy media bundle.
 
-    
-.DESCRIPTION
-    
-Supports legacy media bundle handling inside Baseline.
-#>
+    #>
 
 function LegacyMediaBundle
 {
@@ -133,11 +129,7 @@ function LegacyMediaBundle
     .SYNOPSIS
     Runs NFS bundle.
 
-    
-.DESCRIPTION
-    
-Supports NFS bundle handling inside Baseline.
-#>
+    #>
 
 function NfsBundle
 {
@@ -176,11 +168,7 @@ function NfsBundle
     .SYNOPSIS
     Runs hyper v management tools.
 
-    
-.DESCRIPTION
-    
-Supports hyper v management tools handling inside Baseline.
-#>
+    #>
 
 function HyperVManagementTools
 {

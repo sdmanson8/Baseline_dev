@@ -3,7 +3,6 @@
 BeforeAll {
     <#
         .SYNOPSIS
-        Internal function Test-GuiObjectField.
     #>
 
     function Test-GuiObjectField { param([object]$Object, [string]$FieldName) if ($null -eq $Object) { return $false }; if ($Object -is [System.Collections.IDictionary]) { return $Object.Contains($FieldName) }; return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName]) }
@@ -40,7 +39,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function Get-SelectedTweakRunList.
     #>
 
     function Get-SelectedTweakRunList {
@@ -49,7 +47,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function Get-ManifestEntryByFunction {
         param (
@@ -62,7 +59,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function Get-GameModePlan {
         return @($script:GameModePlan)
@@ -70,7 +66,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function Update-GameModeStatusText.
     #>
 
     function Update-GameModeStatusText {
@@ -103,7 +98,6 @@ Describe 'Game Mode plan merge' {
         $script:SyncGameModeContextStateScript = {}
         <#
             .SYNOPSIS
-            Internal function Get-UxLocalizedString.
         #>
 
         function Get-UxLocalizedString {
@@ -255,7 +249,6 @@ Describe 'Set-GameModeProfile' {
 
         <#
             .SYNOPSIS
-            Internal function Import-GameModeAdvancedData.
         #>
 
         function Import-GameModeAdvancedData {
@@ -264,7 +257,6 @@ Describe 'Set-GameModeProfile' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Get-UxLocalizedString {
             param (
@@ -277,7 +269,6 @@ Describe 'Set-GameModeProfile' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogInfo {
             param ([string]$Message)
@@ -285,7 +276,6 @@ Describe 'Set-GameModeProfile' {
 
         <#
             .SYNOPSIS
-            Internal function Get-GameModeDecisionOverridesText.
         #>
 
         function Get-GameModeDecisionOverridesText {

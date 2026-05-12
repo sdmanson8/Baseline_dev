@@ -1,8 +1,7 @@
-# PresetManagement split file loaded by Module\GUI\PresetManagement.ps1.
+﻿# PresetManagement split file loaded by Module\GUI\PresetManagement.ps1.
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-PrimaryTabManifestIndexes.
 	#>
 
 	function Get-PrimaryTabManifestIndexes
@@ -25,7 +24,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-PresetTierRank.
 	#>
 
 	function Get-PresetTierRank
@@ -47,7 +45,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiPresetPolicyIssues.
 	#>
 
 	function Get-GuiPresetPolicyIssues
@@ -193,7 +190,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function ConvertTo-GuiPresetName.
 	#>
 
 	function ConvertTo-GuiPresetName
@@ -213,7 +209,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiPresetNumericRangeArgumentText.
 	#>
 
 	function Get-GuiPresetNumericRangeArgumentText
@@ -310,7 +305,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-TweakMatchesPresetTier.
 	#>
 
 	function Test-TweakMatchesPresetTier

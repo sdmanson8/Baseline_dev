@@ -1,13 +1,18 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $filePath = Join-Path $PSScriptRoot '../../Module/Logging.psm1'
-    $script:LoggingContent = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8
+    $script:LoggingContent = Get-BaselineTestSourceText -Path $filePath
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
 
     foreach ($fn in $functions) {
-        if ($fn.Name -in @('Add-PendingLogMessage', 'Restore-PendingLogMessages', 'Write-PendingLogMessagesToFile', 'Write-LogMessage', 'Get-BaselineRunId', 'Get-BaselineRunIdShort', 'Set-BaselineRunId', 'New-BaselineSessionLogPath', 'Reset-LogStatistics', 'Set-LogFile')) {
+        if ($fn.Name -in @('Add-PendingLogMessage', 'Restore-PendingLogMessages', 'Write-PendingLogMessagesToFile', 'Write-LogMessage', 'Get-BaselineRunId', 'Get-BaselineRunIdShort', 'Set-BaselineRunId', 'New-BaselineSessionLogPath', 'Reset-LogStatistics', 'Set-LogFile', 'Get-BaselineCurrentOperationScope', 'Start-BaselineOperationScope', 'Set-BaselineOperationFailed', 'Stop-BaselineOperationScope', 'Format-BaselineErrorForLog', 'Write-BaselineError', 'Write-ConsoleStatus')) {
             Invoke-Expression $fn.Extent.Text
         }
     }
@@ -54,6 +59,51 @@ BeforeAll {
     }
 }
 
+Describe 'Operation failure scopes' {
+    BeforeEach {
+        $script:OperationScopeStack = [System.Collections.Generic.List[object]]::new()
+        $script:ConsoleStatusContext = $null
+        $script:CapturedUiEntries = [System.Collections.Generic.List[object]]::new()
+        Mock Write-LogMessage {}
+
+        function Send-UILogEntry {
+            param([psobject]$Entry)
+            [void]$script:CapturedUiEntries.Add($Entry)
+            return $true
+        }
+
+        function Write-Host { param([object]$Object, [switch]$NoNewline, [string]$ForegroundColor) }
+    }
+
+    AfterEach {
+        Remove-Item Function:\Send-UILogEntry -ErrorAction SilentlyContinue
+        Remove-Item Function:\Write-Host -ErrorAction SilentlyContinue
+    }
+
+    It 'marks the current operation failed when Write-BaselineError is called' {
+        $scope = Start-BaselineOperationScope -Name 'Unit operation'
+
+        Write-BaselineError -Message 'operation failed'
+        $result = Stop-BaselineOperationScope -Scope $scope
+
+        $result.Failed | Should -BeTrue
+        @($result.FailureReasons).Count | Should -Be 1
+        Should -Invoke Write-LogMessage -Times 1 -ParameterFilter {
+            $Level -eq 'ERROR'
+        }
+    }
+
+    It 'does not report success for a console action whose scope was marked failed' {
+        Write-ConsoleStatus -Action 'Scoped action'
+        Write-BaselineError -Message 'inner failure'
+        Write-ConsoleStatus -Status success
+
+        $statusEntry = @($script:CapturedUiEntries | Where-Object { $_.Kind -eq 'ConsoleStatus' }) | Select-Object -Last 1
+        $statusEntry.Status | Should -Be 'failed'
+        $script:OperationScopeStack.Count | Should -Be 0
+    }
+}
+
 Describe 'New-BaselineSessionLogPath' {
     It 'creates a date folder and timestamped log filename' {
         $root = Join-Path $TestDrive 'logs'
@@ -75,6 +125,9 @@ Describe 'New-BaselineSessionLogPath' {
 
 Describe 'Set-LogFile' {
     It 'creates the nested session directory and log header' {
+        $script:DebugLoggingEnabled = $false
+        $script:RunId = $null
+        $script:RunIdShort = $null
         $root = Join-Path $TestDrive 'logs'
         $sessionStart = [datetime]::ParseExact('2026-04-27 09:15:33.123', 'yyyy-MM-dd HH:mm:ss.fff', [System.Globalization.CultureInfo]::InvariantCulture)
         $path = New-BaselineSessionLogPath -LogDirectory $root -OsName 'Windows 11' -SessionStart $sessionStart
@@ -184,7 +237,7 @@ Describe 'Write-LogMessage backlog handling' {
         $script:PendingLogMessages.Count | Should -Be 1
     }
 
-    It 'routes log mutex release failures through Write-DebugSwallowedException' {
-        $script:LoggingContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Logging\.Write\.WriteLogMessage\.ReleaseMutex'''
+    It 'routes log mutex release failures through Write-SwallowedException with Debug severity' {
+        $script:LoggingContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''Logging\.Write\.WriteLogMessage\.ReleaseMutex'' -Severity Debug'
     }
 }

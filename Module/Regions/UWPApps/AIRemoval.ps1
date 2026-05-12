@@ -69,6 +69,7 @@ param(
     [string]$LogFilePath
 )
 
+
 if ($nonInteractive) {
     if (!($AllOptions) -and (!$Options -or $Options.Count -eq 0)) {
         throw 'Non-Interactive mode was supplied without any options -  Please use -Options or -AllOptions when using Non-Interactive Mode'
@@ -140,7 +141,7 @@ try {
     }
 }
 catch {
-    # Silently skip — background runspaces do not support WindowTitle
+    # Silently skip - background runspaces do not support WindowTitle
 }
 
 # Require the classic Windows PowerShell 5.1 host.
@@ -172,28 +173,43 @@ if (-not $runningWindowsPowerShell51) {
     exit 1
 }
 
-$RemoteAIRemovalScriptUrl = 'https://raw.githubusercontent.com/sdmanson8/Baseline/main/Module/Regions/UWPApps/AIRemoval.ps1'
-$RemoteAIRemovalPackageBaseUrl = 'https://raw.githubusercontent.com/sdmanson8/Baseline/main/Assets/AIRemovalPackage'
-
 # Relaunch as administrator before making system changes.
 If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
-    #leave out the trailing " to add supplied params first 
-    # ExecutionPolicy Bypass: required for child process elevation — the relaunched admin process must bypass policy to execute the remote script
-    $arglist = "-NoProfile -ExecutionPolicy Bypass -C `"& ([scriptblock]::Create((irm '$RemoteAIRemovalScriptUrl')))"
-    #pass the correct params if supplied
+    $localAIRemovalScript = if ($PSCommandPath)
+    {
+        $PSCommandPath
+    }
+    else
+    {
+        Join-Path -Path $PSScriptRoot -ChildPath 'AIRemoval.ps1'
+    }
+
+    if (-not (Test-Path -LiteralPath $localAIRemovalScript -PathType Leaf))
+    {
+        throw "AIRemoval local script was not found: $localAIRemovalScript"
+    }
+
+    $arguments = @(
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        $localAIRemovalScript
+    )
+
     if ($nonInteractive) {
-        $arglist = $arglist + ' -nonInteractive'
+        $arguments += '-nonInteractive'
 
         if ($AllOptions) {
-            $arglist = $arglist + ' -AllOptions'
+            $arguments += '-AllOptions'
         }
 
         if ($revertMode) {
-            $arglist = $arglist + ' -revertMode'
+            $arguments += '-revertMode'
         }
 
         if ($backupMode) {
-            $arglist = $arglist + ' -backupMode'
+            $arguments += '-backupMode'
         }
 
 
@@ -201,20 +217,19 @@ If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
             #if options and alloptions is supplied just do all options
             if ($AllOptions) {
                 #double check arglist has all options (should already have it)
-                if (!($arglist -like '*-AllOptions*')) {
-                    $arglist = $arglist + ' -AllOptions'
+                if ($arguments -notcontains '-AllOptions') {
+                    $arguments += '-AllOptions'
                 }
             }
             else {
-                $arglist = $arglist + " -Options $Options"
+                $arguments += '-Options'
+                $arguments += ($Options -join ',')
             }
         }
     }
 
-    #add the trailing quote 
-    $arglist = $arglist + '"'
-    Start-Process PowerShell.exe -ArgumentList $arglist -Verb RunAs
-    Exit	
+    Start-Process -FilePath 'powershell.exe' -ArgumentList $arguments -Verb RunAs
+    return
 }
 
 Add-Type -AssemblyName PresentationFramework
@@ -233,152 +248,62 @@ function RunTrusted {
         [string]$logFile
         ) 
 
-    <#
-        .SYNOPSIS
-        Runs run as ti.
-    #>
-    function RunAsTI {
-        param(
-            [Parameter(Position = 0)]$cmd, 
-            [Parameter(ValueFromRemainingArguments)]$xargs
-        )
+    $psexe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    if (-not (Test-Path -LiteralPath $psexe -PathType Leaf)) {
+        $psexe = 'powershell.exe'
+    }
 
-        $Ex = $xargs -contains '-Exit'
-        $xargs = $xargs | Where-Object { $_ -ne '-Exit' }
-        $wi = [Security.Principal.WindowsIdentity]::GetCurrent()
-        $id = 'RunAsTI'
-        $key = "Registry::HKU\$($wi.User.Value)\Volatile Environment"
-        $arg = ''
-        #$rs = $false
-        $csf = Get-PSCallStack | Where-Object { $_.ScriptName -and $_.ScriptName -like '*.ps1' } | Select-Object -l 1
-        $cs = if ($csf) { $csf.ScriptName } else { $null }
-
-        if (!$cmd) {
-            if ((whoami /groups) -like '*S-1-16-16384*') { return }
-
-            #$rs = $true
-            $arr = [Environment]::GetCommandLineArgs()
-            $i = [array]::IndexOf($arr, '-File')
-            if ($i -lt 0) { 
-                $i = [array]::IndexOf($arr, '-f') 
-            }
-
-            if ($i -ge 0 -and ($i + 1) -lt $arr.Count) { 
-                if (!$cs) { 
-                    $cs = $arr[$i + 1] 
-                } 
-
-                if (($i + 2) -lt $arr.Count) { 
-                    $arg = ($arr[($i + 2)..($arr.Count - 1)] | ForEach-Object { "`"$($_-replace'"','""')`"" }) -join ' ' 
-                } 
-            }
-            else {
-                $cp = if ($csf) { $csf.InvocationInfo.BoundParameters } else { Get-Variable PSBoundParameters -sc 1 -va -ea 0 } 
-
-                $ca = if ($csf) { $csf.InvocationInfo.UnboundArguments } else { Get-Variable args -sc 1 -va -ea 0 }
-
-                if ($null -eq $cp) { 
-                    $cp = @{} 
-                }
-                if ($null -eq $ca) { 
-                    $ca = @() 
-                }
-
-                $arg = (@($cp.GetEnumerator() | ForEach-Object { if (($_.Value -is [switch] -and $_.Value.IsPresent) -or ($_.Value -eq $true)) { "-$($_.Key)" }elseif ($_.Value -isnot [switch] -and $_.Value -ne $true -and $_.Value -ne $false) { "-$($_.Key) `"$($_.Value-replace'"','""')`"" } }) + @($ca | ForEach-Object { "`"$($_-replace'"','""')`"" })) -join ' '
-            }
-
-            if ($cs) { 
-                $cmd = 'powershell'
-                $arg = "-nop -ep bypass -f `"$cs`" $arg" 
-            }
-            else { 
-                $cmd = 'powershell'
-                $arg = '-nop -ep bypass' 
-            }
-        }
-        elseif ($xargs) { 
-            $arg = $xargs -join ' ' 
-        } 
-
-        $V = ''
-        'cmd', 'arg', 'id', 'key' | ForEach-Object { $V += "`n`$$_='$($(Get-Variable $_ -val)-replace"'","''")';" }
-
-        Set-ItemProperty $key $id $($V, @'
- $I=[int32];$M=$I.module.gettype("System.Runtime.Interop`Services.Mar`shal");$P=$I.module.gettype("System.Int`Ptr");$S=[string]
- $D=@();$T=@();$DM=[AppDomain]::CurrentDomain."DefineDynami`cAssembly"(1,1)."DefineDynami`cModule"(1);$Z=[uintptr]::size
- 0..5|%{$D+=$DM."Defin`eType"("AveYo_$_",1179913,[ValueType])};$D+=[uintptr];4..6|%{$D+=$D[$_]."MakeByR`efType"()}
- $F='kernel','advapi','advapi',($S,$S,$I,$I,$I,$I,$I,$S,$D[7],$D[8]),([uintptr],$S,$I,$I,$D[9]),([uintptr],$S,$I,$I,[byte[]],$I)
- 0..2|%{$9=$D[0]."DefinePInvok`eMethod"(('CreateProcess','RegOpenKeyEx','RegSetValueEx')[$_],$F[$_]+'32',8214,1,$S,$F[$_+3],1,4)}
- $DF=($P,$I,$P),($I,$I,$I,$I,$P,$D[1]),($I,$S,$S,$S,$I,$I,$I,$I,$I,$I,$I,$I,[int16],[int16],$P,$P,$P,$P),($D[3],$P),($P,$P,$I,$I)
- 1..5|%{$k=$_;$n=1;$DF[$_-1]|%{$9=$D[$k]."Defin`eField"('f'+$n++,$_,6)}};0..5|%{$T+=$D[$_]."Creat`eType"()}
- 0..5|%{nv "A$_" ([Activator]::CreateInstance($T[$_])) -fo};function F($1,$2){$T[0]."G`etMethod"($1).invoke(0,$2)}
- $TI=(whoami /groups)-like'*S-1-16-16384*';$As=0
- if(!$TI){'TrustedInstaller','lsass','winlogon'|%{if(!$As){$9=sc.exe start $_;$As=@(gps -name $_ -ea 0|%{$_})[0]}}
- <#
-     .SYNOPSIS
-     Invokes a reflected method.
-
-     .DESCRIPTION
-     Supports method invocation inside the trusted registry writer.
- #>
-
- function M($1,$2,$3){$M."G`etMethod"($1,[type[]]$2).invoke(0,$3)};$H=@();$Z,(4*$Z+16)|%{$H+=M "AllocHG`lobal" $I $_}
- M "WriteInt`Ptr" ($P,$P) ($H[0],$As.Handle);$A1.f1=131072;$A1.f2=$Z;$A1.f3=$H[0];$A2.f1=1;$A2.f2=1;$A2.f3=1;$A2.f4=1
- $A2.f6=$A1;$A3.f1=10*$Z+32;$A4.f1=$A3;$A4.f2=$H[1];M "StructureTo`Ptr" ($D[2],$P,[boolean]) (($A2-as$D[2]),$A4.f2,$false)
- $Run=@($null,"powershell -win hidden -nop -c iex `$env:R; # $id",0,0,0,0x0E080600,0,$null,($A4-as$T[4]),($A5-as$T[5]))
- F 'CreateProcess' $Run;return};$env:R='';rp $key $id -force;$priv=[diagnostics.process]."GetM`ember"('SetPrivilege',42)[0]
- 'SeSecurityPrivilege','SeTakeOwnershipPrivilege','SeBackupPrivilege','SeRestorePrivilege'|%{$priv.Invoke($null,@("$_",2))}
- $HKU=[uintptr][uint32]2147483651;$NT='S-1-5-18';$reg=($HKU,$NT,8,2,($HKU-as$D[9]));F 'RegOpenKeyEx' $reg;$LNK=$reg[4]
- <#
-      .SYNOPSIS
-      Updates the AppID registry link.
-
-      .DESCRIPTION
-      Supports temporary AppID registry link handling inside the trusted registry writer.
- #>
- function L($1,$2,$3){sp 'HKLM\Software\Classes\AppID\{CDCBCFCA-3CDC-436f-A4E2-0E02075250C2}' 'RunAs' $3
-  $b=[Text.Encoding]::Unicode.GetBytes("\Registry\User\$1");F 'RegSetValueEx' @($2,'SymbolicLinkValue',0,6,[byte[]]$b,$b.Length)}
- L ($key-split'\\')[1] $LNK '';$R=[diagnostics.process]::start($cmd,$arg);if($R){$R.WaitForExit()};L '.Default' $LNK 'Interactive User'
-'@) -type 7
-
-        $a = "-win hidden -nop -c `n$V `$env:R=(gi `$key -ea 0).getvalue(`$id)-join''; iex `$env:R"
-        if ($Ex) { 
-            $wshell = New-Object -ComObject WScript.Shell
-            $exe = 'powershell.exe'
-            $wshell.Run("$exe $a", 0, $false) >$null
-        }
-        else { 
-            $wshell = New-Object -ComObject WScript.Shell
-            $exe = 'powershell.exe'
-            $wshell.Run("$exe $a", 0, $true) >$null # true to -wait
-        } 
-
-        # if ($rs -or $Ex) { exit }
-    } 
-    # lean & mean snippet by AveYo; refined by RapidOS [haslate]
-
-    $psexe = 'PowerShell.exe'
     $loggingModulePath = [System.IO.Path]::GetFullPath((Join-Path $ModuleRoot "Logging.psm1"))
 
     # If log file not provided, use current
-    if (!$logFile -and (Get-LogFilePath)) {
-        $logFile = Get-LogFilePath
+    if (!$logFile -and (Get-AIRemovalLogFilePath)) {
+        $logFile = Get-AIRemovalLogFilePath
     }
     
+    $trustedScriptDirectory = Join-Path $env:ProgramData 'Baseline\AIRemoval'
+    New-Item -Path $trustedScriptDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
+    $trustedOperationId = [guid]::NewGuid().ToString('N')
+    $trustedScriptPath = Join-Path $trustedScriptDirectory ('TrustedInstaller-{0}.ps1' -f $trustedOperationId)
+    $trustedMarkerPath = Join-Path $trustedScriptDirectory ('TrustedInstaller-{0}.complete.json' -f $trustedOperationId)
+    $trustedErrorPath = Join-Path $trustedScriptDirectory ('TrustedInstaller-{0}.error.json' -f $trustedOperationId)
+
     # Pass log file to the new process
     if ($logFile) {
+        $escapedLogFile = $logFile -replace "'", "''"
+        $escapedLoggingModulePath = $loggingModulePath -replace "'", "''"
         $command = @"
-`$env:AIREMOVAL_LOG = '$logFile'
-Import-Module '$loggingModulePath' -Force
+`$env:AIREMOVAL_LOG = '$escapedLogFile'
+Import-Module '$escapedLoggingModulePath' -Force
 Set-LogFile -Path `$env:AIREMOVAL_LOG
 $command
 "@
     }
-    
-    # Convert to base64
-    $bytes = [System.Text.Encoding]::Unicode.GetBytes($command)
-    $base64Command = [Convert]::ToBase64String($bytes)
 
+    $escapedTrustedMarkerPath = $trustedMarkerPath -replace "'", "''"
+    $escapedTrustedErrorPath = $trustedErrorPath -replace "'", "''"
+    $trustedPayload = $command
+    $command = @"
+try {
+$trustedPayload
+    `$trustedExitCode = if (`$null -ne `$global:LASTEXITCODE) { [int]`$global:LASTEXITCODE } else { 0 }
+    [pscustomobject]@{
+        Completed = `$true
+        ExitCode = `$trustedExitCode
+        TimestampUtc = [DateTime]::UtcNow.ToString('o')
+    } | ConvertTo-Json -Compress | Set-Content -LiteralPath '$escapedTrustedMarkerPath' -Encoding UTF8 -Force
+    if (`$trustedExitCode -ne 0) { exit `$trustedExitCode }
+}
+catch {
+    [pscustomobject]@{
+        Completed = `$false
+        Message = `$_.Exception.Message
+        Type = `$_.Exception.GetType().FullName
+        TimestampUtc = [DateTime]::UtcNow.ToString('o')
+    } | ConvertTo-Json -Compress | Set-Content -LiteralPath '$escapedTrustedErrorPath' -Encoding UTF8 -Force
+    exit 1
+}
+"@
+    Set-Content -LiteralPath $trustedScriptPath -Value $command -Encoding UTF8 -Force -ErrorAction Stop
 
     $trustedInstallerService = Get-Service -Name TrustedInstaller -ErrorAction SilentlyContinue
     if ($trustedInstallerService -and $trustedInstallerService.Status -ne [System.ServiceProcess.ServiceControllerStatus]::Stopped) {
@@ -386,43 +311,198 @@ $command
             Stop-Service -Name TrustedInstaller -Force -ErrorAction Stop -WarningAction SilentlyContinue | Out-Null
         }
         catch {
-            taskkill /im trustedinstaller.exe /f >$null 2>&1
-            Remove-HandledErrorRecord -ErrorRecord $_
+            $stopError = $_
+            try
+            {
+                $null = Invoke-BaselineProcess -FilePath 'taskkill.exe' -ArgumentList @('/im', 'trustedinstaller.exe', '/f') -TimeoutSeconds 60 -AllowedExitCodes @(0, 128)
+            }
+            catch
+            {
+                if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+                {
+                    Write-SwallowedException -ErrorRecord $_ -Source 'AIRemoval.StopTrustedInstaller.Taskkill' -Severity Warning
+                }
+            }
+            Remove-HandledErrorRecord -ErrorRecord $stopError
         }
-    }
-    
-    # trusted installer proc not found (128) or access denied (1)
-    if ($LASTEXITCODE -eq 128 -or $LASTEXITCODE -eq 1) {
-       # LogWarning 'Failed to stop TrustedInstaller.exe -  Using fallback method!'
-        RunAsTI $psexe "-win hidden -encodedcommand $base64Command"
-        Start-Sleep 1
-        return 
     }
 
-    #get bin path to revert later
-    $service = Get-CimInstance -ClassName Win32_Service -Filter "Name='TrustedInstaller'"
-    $DefaultBinPath = $service.PathName
-    #make sure path is valid and the correct location
-    $trustedInstallerPath = "$env:SystemRoot\servicing\TrustedInstaller.exe"
-    if ($DefaultBinPath -ne $trustedInstallerPath) {
-        $DefaultBinPath = $trustedInstallerPath
-    }
-    #change bin to command
-    sc.exe config TrustedInstaller binPath= "cmd.exe /c $psexe -encodedcommand $base64Command" | Out-Null
-    #run the command
-    sc.exe start TrustedInstaller | Out-Null
-    #set bin back to default
-    sc.exe config TrustedInstaller binpath= "`"$DefaultBinPath`"" | Out-Null
-    $trustedInstallerService = Get-Service -Name TrustedInstaller -ErrorAction SilentlyContinue
-    if ($trustedInstallerService -and $trustedInstallerService.Status -ne [System.ServiceProcess.ServiceControllerStatus]::Stopped) {
-        try {
-            Stop-Service -Name TrustedInstaller -Force -ErrorAction Stop -WarningAction SilentlyContinue | Out-Null
+    $originalTrustedInstallerBinPath = $null
+    $defaultTrustedInstallerBinPath = Join-Path $env:SystemRoot 'servicing\TrustedInstaller.exe'
+    $trustedFailure = $null
+    $restoreFailure = $null
+
+    try
+    {
+        $service = Get-CimInstance -ClassName Win32_Service -Filter "Name='TrustedInstaller'"
+        if ($service -and -not [string]::IsNullOrWhiteSpace([string]$service.PathName)) {
+            $originalTrustedInstallerBinPath = [string]$service.PathName
         }
-        catch {
-            taskkill /im trustedinstaller.exe /f >$null 2>&1
-            Remove-HandledErrorRecord -ErrorRecord $_
+        else {
+            $originalTrustedInstallerBinPath = $defaultTrustedInstallerBinPath
+        }
+
+        $trustedCommand = 'cmd.exe /c "{0}" -NoProfile -ExecutionPolicy Bypass -File "{1}"' -f $psexe, $trustedScriptPath
+
+        LogInfo 'Temporarily changing TrustedInstaller service command to run AIRemoval privileged cleanup.'
+        $null = Invoke-BaselineProcess -FilePath 'sc.exe' -ArgumentList @('config', 'TrustedInstaller', 'binPath=', $trustedCommand) -TimeoutSeconds 60
+        $null = Invoke-BaselineProcess -FilePath 'sc.exe' -ArgumentList @('start', 'TrustedInstaller') -TimeoutSeconds 120
+        $trustedDeadline = [DateTime]::UtcNow.AddMinutes(20)
+        while ((-not (Test-Path -LiteralPath $trustedMarkerPath -PathType Leaf)) -and
+               (-not (Test-Path -LiteralPath $trustedErrorPath -PathType Leaf)) -and
+               [DateTime]::UtcNow -lt $trustedDeadline)
+        {
+            Start-Sleep -Milliseconds 500
+        }
+
+        if (Test-Path -LiteralPath $trustedErrorPath -PathType Leaf)
+        {
+            $trustedError = Get-Content -LiteralPath $trustedErrorPath -Raw -ErrorAction Stop
+            throw "TrustedInstaller AIRemoval command failed: $trustedError"
+        }
+
+        if (-not (Test-Path -LiteralPath $trustedMarkerPath -PathType Leaf))
+        {
+            throw "TrustedInstaller AIRemoval command did not report completion within the 20 minute timeout."
+        }
+
+        $trustedResult = Get-Content -LiteralPath $trustedMarkerPath -Raw -ErrorAction Stop | ConvertFrom-Json
+        if ($null -eq $trustedResult -or -not $trustedResult.Completed)
+        {
+            throw "TrustedInstaller AIRemoval command did not produce a valid completion marker."
+        }
+        if ([int]$trustedResult.ExitCode -ne 0)
+        {
+            throw "TrustedInstaller AIRemoval command returned exit code $([int]$trustedResult.ExitCode)."
         }
     }
+    catch
+    {
+        $trustedFailure = $_
+    }
+    finally
+    {
+        if (-not [string]::IsNullOrWhiteSpace($originalTrustedInstallerBinPath))
+        {
+            try
+            {
+                LogInfo 'Restoring TrustedInstaller service command after AIRemoval privileged cleanup.'
+                $null = Invoke-BaselineProcess -FilePath 'sc.exe' -ArgumentList @('config', 'TrustedInstaller', 'binPath=', $originalTrustedInstallerBinPath) -TimeoutSeconds 60
+            }
+            catch
+            {
+                if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+                {
+                    Write-SwallowedException -ErrorRecord $_ -Source 'AIRemoval.RestoreTrustedInstaller' -Severity Error
+                }
+                $restoreFailure = $_
+            }
+        }
+
+        $trustedInstallerService = Get-Service -Name TrustedInstaller -ErrorAction SilentlyContinue
+        if ($trustedInstallerService -and $trustedInstallerService.Status -ne [System.ServiceProcess.ServiceControllerStatus]::Stopped) {
+            try {
+                Stop-Service -Name TrustedInstaller -Force -ErrorAction Stop -WarningAction SilentlyContinue | Out-Null
+            }
+            catch {
+                $stopError = $_
+                try
+                {
+                    $null = Invoke-BaselineProcess -FilePath 'taskkill.exe' -ArgumentList @('/im', 'trustedinstaller.exe', '/f') -TimeoutSeconds 60 -AllowedExitCodes @(0, 128)
+                }
+                catch
+                {
+                    if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+                    {
+                        Write-SwallowedException -ErrorRecord $_ -Source 'AIRemoval.FinalStopTrustedInstaller.Taskkill' -Severity Warning
+                    }
+                }
+                Remove-HandledErrorRecord -ErrorRecord $stopError
+            }
+        }
+        Remove-Item -LiteralPath $trustedScriptPath -Force -ErrorAction SilentlyContinue | Out-Null
+        Remove-Item -LiteralPath $trustedMarkerPath -Force -ErrorAction SilentlyContinue | Out-Null
+        Remove-Item -LiteralPath $trustedErrorPath -Force -ErrorAction SilentlyContinue | Out-Null
+    }
+
+    if ($restoreFailure)
+    {
+        throw [System.InvalidOperationException]::new('Failed to restore the TrustedInstaller service command after AIRemoval privileged cleanup.', $restoreFailure.Exception)
+    }
+    if ($trustedFailure)
+    {
+        throw $trustedFailure.Exception
+    }
+}
+
+function Invoke-AIRemovalNativeProcess {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+
+        [object[]]$ArgumentList = @(),
+
+        [int]$TimeoutSeconds = 120,
+
+        [int[]]$AllowedExitCodes = @(0)
+    )
+
+    return Invoke-BaselineProcess -FilePath $FilePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -AllowedExitCodes $AllowedExitCodes
+}
+
+function Invoke-AIRemovalTakeOwnership {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [switch]$Recurse
+    )
+
+    $arguments = @('/f', $Path)
+    if ($Recurse) {
+        $arguments += @('/r', '/d', 'Y')
+    }
+
+    $null = Invoke-AIRemovalNativeProcess -FilePath 'takeown.exe' -ArgumentList $arguments -TimeoutSeconds 120
+}
+
+function Grant-AIRemovalAdministratorsFullControl {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $null = Invoke-AIRemovalNativeProcess -FilePath 'icacls.exe' -ArgumentList @($Path, '/grant', '*S-1-5-32-544:F', '/t') -TimeoutSeconds 120
+}
+
+function Invoke-AIRemovalReg {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object[]]$ArgumentList,
+
+        [int[]]$AllowedExitCodes = @(0),
+
+        [int]$TimeoutSeconds = 120,
+
+        [switch]$CaptureOutput
+    )
+
+    return Invoke-BaselineProcess -FilePath 'reg.exe' -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -AllowedExitCodes $AllowedExitCodes -CaptureOutput:$CaptureOutput
+}
+
+function Invoke-AIRemovalDism {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object[]]$ArgumentList,
+
+        [int[]]$AllowedExitCodes = @(0),
+
+        [int]$TimeoutSeconds = 1800,
+
+        [switch]$CaptureOutput
+    )
+
+    return Invoke-BaselineProcess -FilePath 'dism.exe' -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -AllowedExitCodes $AllowedExitCodes -CaptureOutput:$CaptureOutput
 }
 
 #=====================================================================================
@@ -479,11 +559,14 @@ function Write-AIRemovalSwallowedException {
         [System.Management.Automation.ErrorRecord]$ErrorRecord,
 
         [Parameter(Mandatory)]
-        [string]$Source
+        [string]$Source,
+
+        [ValidateSet('Debug', 'Warning', 'Error')]
+        [string]$Severity = 'Debug'
     )
 
-    if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue) {
-        Write-DebugSwallowedException -ErrorRecord $ErrorRecord -Source $Source
+    if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) {
+        Write-SwallowedException -ErrorRecord $ErrorRecord -Source $Source -Severity $Severity
         return
     }
 
@@ -496,7 +579,7 @@ function Write-AIRemovalSwallowedException {
     Gets log file path.
 #>
 
-function Get-LogFilePath {
+function Get-AIRemovalLogFilePath {
     return $script:ActiveLogFilePath
 }
 
@@ -505,7 +588,7 @@ function Get-LogFilePath {
     .SYNOPSIS
     Writes file safely.
 #>
-function Write-FileSafely {
+function Write-AIRemovalFileSafely {
     param(
         [string]$Path,
         [string]$Value,
@@ -554,7 +637,7 @@ $Global:tempDir = ([System.IO.Path]::GetTempPath())
     Runs create restore point.
 #>
 
-function CreateRestorePoint {
+function New-AIRemovalRestorePoint {
     param(
         [switch]$nonInteractive
     )
@@ -600,20 +683,6 @@ function CreateRestorePoint {
         Write-ConsoleStatus -Status success
 }
     else {
-      <#  #Write-Status -msg 'Opening Restore Point Dialog - '
-        try {
-            $proc = Start-Process 'SystemPropertiesProtection.exe' -ErrorAction SilentlyContinue -PassThru
-        }
-        catch {
-            $proc = Start-Process 'C:\Windows\System32\control.exe' -ArgumentList 'sysdm.cpl ,4' -PassThru
-        }
-        #click configure on the window
-        Start-Sleep 1
-        Add-Type -AssemblyName System.Windows.Forms
-        [System.Windows.Forms.SendKeys]::SendWait('%c') 
-        Wait-Process -Id $proc.Id -ErrorAction SilentlyContinue
-        #>
-
         #allow restore point to be created even if one was just made
         $restoreFreqPath = 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\SystemRestore'
         $restoreFreqKey = 'SystemRestorePointCreationFrequency'
@@ -668,7 +737,7 @@ function Set-UwpAppRegistryEntry {
         $AppSettingsRegMountPath = 'HKU\APP_SETTINGS'
         $RegContent = "Windows Registry Editor Version 5.00`n"
 
-        cmd.exe /d /c "reg.exe UNLOAD $AppSettingsRegMountPath >nul 2>&1" | Out-Null
+        $null = Invoke-AIRemovalReg -ArgumentList @('UNLOAD', $AppSettingsRegMountPath) -AllowedExitCodes @(0, 1)
 
         $max = 30
         $attempts = 0
@@ -682,13 +751,14 @@ function Set-UwpAppRegistryEntry {
             'WebExperienceHostApp'
         )
         Stop-Process -Name $ProcessToStop -Force -ErrorAction SilentlyContinue | Out-Null
-        # do while is needed here because wait-process in this case is not working maybe cause its just a trash function lol
-        # using microsofts own example found in the docs does not work 
+        # Use bounded polling because Wait-Process can return before the profile hive lock is released.
+        # The Microsoft example waits for process exit only, not for registry hive availability.
         # https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/wait-process?view=powershell-7.5#example-1-stop-a-process-and-wait
 
         # since we are trying multiple times while the processes are stopping this will work as soon as the file is freed 
         do {
-            cmd.exe /d /c "reg.exe LOAD $AppSettingsRegMountPath ""$FilePath"" >nul 2>&1" | Out-Null
+            $loadResult = Invoke-AIRemovalReg -ArgumentList @('LOAD', $AppSettingsRegMountPath, $FilePath) -AllowedExitCodes @(0, 1)
+            $global:LASTEXITCODE = $loadResult.ExitCode
             $attempts++
         } while ($LASTEXITCODE -ne 0 -and $attempts -lt $max)
     
@@ -749,8 +819,8 @@ function Set-UwpAppRegistryEntry {
         $SettingRegFilePath = "$($tempDir)uwp_app_settings.reg"
         $RegContent | Out-File -FilePath $SettingRegFilePath
 
-        cmd.exe /d /c "reg.exe IMPORT ""$SettingRegFilePath"" >nul 2>&1" | Out-Null
-        cmd.exe /d /c "reg.exe UNLOAD $AppSettingsRegMountPath >nul 2>&1" | Out-Null
+        $null = Invoke-AIRemovalReg -ArgumentList @('IMPORT', $SettingRegFilePath)
+        $null = Invoke-AIRemovalReg -ArgumentList @('UNLOAD', $AppSettingsRegMountPath) -AllowedExitCodes @(0, 1)
 
         Remove-Item -Path $SettingRegFilePath -Force -ErrorAction SilentlyContinue
     }
@@ -784,7 +854,7 @@ function Invoke-TrustedRegistryWrite {
     $escapedPath = $nativePath.Replace("'", "''")
     $escapedName = $Name.Replace("'", "''")
     $escapedValue = ([string]$Value).Replace("'", "''")
-    $logFile = Get-LogFilePath
+    $logFile = Get-AIRemovalLogFilePath
     $resultMarkerPath = Join-Path $env:TEMP ("AIRemoval_TI_{0}.marker" -f ([guid]::NewGuid().ToString('N')))
     $escapedMarkerPath = $resultMarkerPath.Replace("'", "''")
 
@@ -877,9 +947,9 @@ function Set-AIRemovalRegistryValue {
 #>
 
 function Disable-Registry-Keys {
-    #maybe add params for particular parts
+    # Keep these policy groups together until registry sub-helpers are split.
 
-    #disable ai registry keys
+    # Disable AI registry keys.
     Write-Status -msg "$(@('Disabling', 'Enabling')[$revert]) Copilot and Recall - "
     LogInfo "$(@('Disabling', 'Enabling')[$revert]) Copilot and Recall"
     <#
@@ -895,9 +965,9 @@ function Disable-Registry-Keys {
     # policy enabled = 1 when recall is enabled in group policy 
     Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /v 'PolicyConfigured' /t REG_DWORD /d '0' /f
     Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /v 'PolicyEnabled' /t REG_DWORD /d '0' /f
-    #dont know
+    # Mark hardware compatibility checks as not satisfied.
     Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /v 'FTDisabledState' /t REG_DWORD /d '0' /f
-    #prob the npu check failing
+    # Disable additional NPU/driver eligibility checks.
     Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /v 'MeetsAdditionalDriverRequirements' /t REG_DWORD /d '0' /f
     #sucess from last run 
     Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /v 'LastOperationKind' /t REG_DWORD /d '2' /f
@@ -971,53 +1041,10 @@ function Disable-Registry-Keys {
     #disable edge copilot mode 
     # "enabled_labs_experiments":["edge-copilot-mode@2"]
     # view flags at edge://flags
-    taskkill.exe /im msedge.exe /f *>$null
+    $null = Invoke-BaselineProcess -FilePath 'taskkill.exe' -ArgumentList @('/im', 'msedge.exe', '/f') -TimeoutSeconds 60 -AllowedExitCodes @(0, 128)
     $config = "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Local State"
-    if (Test-Path $config) {
-        #powershell core bug where json that has empty strings will error
-        try {
-            $jsonContent = (Get-Content $config).Replace('""', '"_empty"') | ConvertFrom-Json -ErrorAction Stop
-            $fail = $false
-        }
-        catch {
-            LogError 'Unable to set Edge flags to disable Copilot due to a different langauge being used'
-            LogError 'You can manually disable the Copilot flags at [edge://flags] in the browser'
-            $fail = $true
-        }
-        
-        if (!$fail) {
-            try {
-                if ($null -eq ($jsonContent.browser | Get-Member -MemberType NoteProperty enabled_labs_experiments -ErrorAction SilentlyContinue)) {
-                    $jsonContent.browser | Add-Member -MemberType NoteProperty -Name enabled_labs_experiments -Value @() -ErrorAction SilentlyContinue
-                    }
-                $flags = @(
-                    'edge-copilot-mode@2', 
-                    'edge-ntp-composer@2', #disables the copilot search in new tab page 
-                    'edge-compose@2' #disables the ai writing help 
-                )
-                if ($revert) {
-                    $jsonContent.browser.enabled_labs_experiments = $jsonContent.browser.enabled_labs_experiments | Where-Object { $_ -notin $flags }
-                }
-                else {
-                    foreach ($flag in $flags) {
-                        if ($jsonContent.browser.enabled_labs_experiments -notcontains $flag) {
-                            $jsonContent.browser.enabled_labs_experiments += $flag
-                        }
-                    }
-                }
-        
-                $newContent = $jsonContent | ConvertTo-Json -Compress -Depth 10 
-                #add back the empty strings 
-                $newContent = $newContent.replace('"_empty"', '""')
-                Set-Content $config -Value $newContent -Encoding UTF8 -Force -ErrorAction SilentlyContinue
-            }
-            catch {
-                #LogError 'Edge Browser has never been opened on this machine unable to set flags '
-                #LogError 'Open Edge once and run this tweak again'
-            }
-        }
-        
-    }
+    # P5 rollback checkpoint: Disable-Registry-Keys part extracted to Module/Regions/UWPApps/AIRemoval/Disable-Registry-Keys/EdgeCopilotFlagPolicy.ps1; re-inline here if rollback is needed.
+    . (Join-Path $PSScriptRoot 'AIRemoval\Disable-Registry-Keys\EdgeCopilotFlagPolicy.ps1')
    
     #disable office ai with group policy
     Reg.exe add 'HKLM\SOFTWARE\Policies\Microsoft\office\16.0\common\ai\training\general' /v 'disabletraining' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
@@ -1135,51 +1162,8 @@ function Disable-Registry-Keys {
         LogWarning 'Unable to load the default user hive'
     }
 
-    if ($hiveloaded) {
-        try {
-            Write-Status -msg "$(@('Disabling', 'Enabling')[$revert]) AI for new users - " 
-            LogInfo "$(@('Disabling', 'Enabling')[$revert]) AI for new users"
-            Reg.exe add "$defaultUserHiveMount\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" /v 'TurnOffWindowsCopilot' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v 'DisableAIDataAnalysis' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v 'AllowRecallEnablement' /t REG_DWORD /d @('0', '1')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v 'DisableClickToDo' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v 'TurnOffSavingSnapshots' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v 'DisableSettingsAgent' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v 'DisableAgentConnectors' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v 'DisableAgentWorkspaces' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v 'DisableRemoteAgentConnectors' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\SOFTWARE\Microsoft\Windows\Shell\Copilot\BingChat" /v 'IsUserEligible' /t REG_DWORD /d @('0', '1')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\SOFTWARE\Microsoft\Windows\Shell\Copilot" /v 'IsCopilotAvailable' /t REG_DWORD /d @('0', '1')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\SOFTWARE\Microsoft\Windows\Shell\Copilot" /v 'CopilotDisabledReason' /t REG_SZ /d @('FeatureIsDisabled', ' ')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone\Microsoft.Copilot_8wekyb3d8bbwe" /v 'Value' /t REG_SZ /d @('Deny', 'Prompt')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\Software\Microsoft\Speech_OneCore\Settings\VoiceActivation\UserPreferenceForAllApps" /v 'AgentActivationEnabled' /t REG_DWORD /d @('0', '1')[$revert]  /f *>$null
-            Reg.exe add "$defaultUserHiveMount\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v 'ShowCopilotButton' /t REG_DWORD /d @('0', '1')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\Software\Microsoft\input\Settings" /v 'InsightsEnabled' /t REG_DWORD /d @('0', '1')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\Software\Microsoft\Windows\Shell\ClickToDo" /v 'DisableClickToDo' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\SOFTWARE\Policies\Microsoft\Windows\Explorer" /v 'DisableSearchBoxSuggestions' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsCopilot" /v 'AllowCopilotRuntime' /t REG_DWORD /d @('0', '1')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins" /v 'CopilotPWAPin' /t REG_DWORD /d @('0', '1')[$revert] /f *>$null
-            Reg.exe add "$defaultUserHiveMount\Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins" /v 'RecallPin' /t REG_DWORD /d @('0', '1')[$revert] /f *>$null
-            Set-AIRemovalRegistryValue -Path "$defaultUserHivePsPath\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name 'TaskbarCompanion' -Type DWord -Value @([int]0, [int]1)[$revert]
-            Set-AIRemovalRegistryValue -Path "$defaultUserHivePsPath\Software\Microsoft\Windows\Shell\BrandedKey" -Name 'BrandedKeyChoiceType' -Type String -Value @('Search', 'App')[$revert] -TryTrustedInstallerOnAccessDenied -SkipOnAccessDenied | Out-Null
-            Set-AIRemovalRegistryValue -Path "$defaultUserHivePsPath\Software\Microsoft\Windows\Shell\BrandedKey" -Name 'AppAumid' -Type String -Value @(' ', 'Microsoft.Copilot_8wekyb3d8bbwe!App')[$revert] -TryTrustedInstallerOnAccessDenied -SkipOnAccessDenied | Out-Null
-            Set-AIRemovalRegistryValue -Path "$defaultUserHivePsPath\SOFTWARE\Policies\Microsoft\Windows\CopilotKey" -Name 'SetCopilotHardwareKey' -Type String -Value @(' ', 'Microsoft.Copilot_8wekyb3d8bbwe!App')[$revert]
-            Set-AIRemovalRegistryValue -Path "$defaultUserHivePsPath\Software\Microsoft\Windows\CurrentVersion\SettingSync\WindowsSettingHandlers" -Name 'A9HomeContentEnabled' -Type DWord -Value @([int]0, [int]1)[$revert]
-            Set-AIRemovalRegistryValue -Path "$defaultUserHivePsPath\Software\Microsoft\InputPersonalization" -Name 'RestrictImplicitInkCollection' -Type DWord -Value @([int]1, [int]0)[$revert]
-            Set-AIRemovalRegistryValue -Path "$defaultUserHivePsPath\Software\Microsoft\InputPersonalization" -Name 'RestrictImplicitTextCollection' -Type DWord -Value @([int]1, [int]0)[$revert]
-            Set-AIRemovalRegistryValue -Path "$defaultUserHivePsPath\Software\Microsoft\InputPersonalization\TrainedDataStore" -Name 'HarvestContacts' -Type DWord -Value @([int]0, [int]1)[$revert]
-            Set-AIRemovalRegistryValue -Path "$defaultUserHivePsPath\Software\Microsoft\Windows\CurrentVersion\CPSS\Store\InkingAndTypingPersonalization" -Name 'Value' -Type DWord -Value @([int]0, [int]1)[$revert]
-            if ($revert) {
-                Reg.exe delete "$defaultUserHiveMount\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" /v '{CB3B0003-8088-4EDE-8769-8B354AB2FF8C}' /f *>$null
-            }
-            else {
-                Reg.exe add "$defaultUserHiveMount\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked" /v '{CB3B0003-8088-4EDE-8769-8B354AB2FF8C}' /t REG_SZ /d 'Ask Copilot' /f *>$null
-            }
-        }
-        finally {
-            Dismount-RegistryHive -MountPath $defaultUserHiveMount -PsPath $defaultUserHivePsPath | Out-Null
-        }
-    }
+    # P5 rollback checkpoint: Disable-Registry-Keys part extracted to Module/Regions/UWPApps/AIRemoval/Disable-Registry-Keys/DefaultUserAiPolicy.ps1; re-inline here if rollback is needed.
+    . (Join-Path $PSScriptRoot 'AIRemoval\Disable-Registry-Keys\DefaultUserAiPolicy.ps1')
 
     #disable ask copilot in context menu
     if ($revert) {
@@ -1199,119 +1183,8 @@ function Disable-Registry-Keys {
 $backupPath = "$PSScriptRoot\AIRemoval\Backup"
     $backupFileWSAI = 'WSAIFabricSvc.reg'
     $backupFileAAR = 'AARSVC.reg'
-    if ($revert) {
-        if (Test-Path "$backupPath\$backupFileWSAI") {
-            Reg.exe import "$backupPath\$backupFileWSAI" *>$null
-            sc.exe create WSAIFabricSvc binPath= "$env:windir\System32\svchost.exe -k WSAIFabricSvcGroup -p" *>$null
-        }
-        else {
-            LogError "Path Not Found: $backupPath\$backupFileWSAI"
-        }
-        
-    }
-    else {
-        if ($backup) {
-            Write-Status -msg 'Backing up WSAIFabricSvc - '
-            LogInfo 'Backing up WSAIFabricSvc'
-            #export the service to a reg file before removing it 
-            if (!(Test-Path $backupPath)) {
-                New-Item $backupPath -Force -ItemType Directory | Out-Null
-            }
-            #this will hang if the service has already been exported
-            # if (!(Test-Path "$backupPath\$backupFileWSAI")) {
-            Reg.exe export 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\WSAIFabricSvc' "$backupPath\$backupFileWSAI" /y > $null 2>&1 #add overwrite file /y switch
-            # }
-            Write-ConsoleStatus -Status success
-}
-        Write-Status -msg 'Removing WSAIFabricSvc - '
-        LogInfo 'Removing WSAIFabricSvc'
-        #delete the service
-        sc.exe delete WSAIFabricSvc *>$null
-        Write-ConsoleStatus -Status success
-}
-    if (!$revert) {
-        #remove conversational agent service (used to be used for cortana, prob going to be updated for new ai agents and copilot)
-        try {
-            $aarSVCName = (Get-Service -ErrorAction SilentlyContinue | Where-Object { $_.name -like '*aarsvc*' }).Name
-        }
-        catch {
-            #aarsvc already removed
-        }
-        
-
-        if ($aarSVCName) {
-            if ($backup) {
-                Write-Status -msg 'Backing up Agent Activation Runtime Service - '
-                LogInfo 'Backing up Agent Activation Runtime Service'
-                #export the service to a reg file before removing it 
-                if (!(Test-Path $backupPath)) {
-                    New-Item $backupPath -Force -ItemType Directory | Out-Null
-                }
-                #this will hang if the service has already been exported
-                # if (!(Test-Path "$backupPath\$backupFileAAR")) {
-                Reg.exe export 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\AarSvc' "$backupPath\$backupFileAAR" /y > $null 2>&1
-                # }
-                Write-ConsoleStatus -Status success
-}
-            Write-Status -msg 'Removing Agent Activation Runtime Service - '
-            LogInfo 'Removing Agent Activation Runtime Service'
-            #delete the service
-            try {
-                Stop-Service -Name $aarSVCName -Force -ErrorAction SilentlyContinue | Out-Null
-            }
-            catch {
-                try {
-                    Stop-Service -Name AarSvc -Force -ErrorAction SilentlyContinue | Out-Null
-                }
-                catch {
-                    #neither are running
-                }
-                
-            }
-            
-            sc.exe delete AarSvc *>$null
-            Write-ConsoleStatus -Status success
-}
-    }
-    else {
-        Write-Status 'Restoring Agent Activation Runtime Service - '
-        LogInfo 'Restoring Agent Activation Runtime Service'
-
-        if (Test-Path "$backupPath\$backupFileAAR") {
-            Reg.exe import "$backupPath\$backupFileAAR" *>$null
-            sc.exe create AarSvc binPath= "$env:windir\system32\svchost.exe -k AarSvcGroup -p" *>$null
-        }
-        else {
-            LogError "Path Not Found: $backupPath\$backupFileAAR"
-        }
-        Write-ConsoleStatus -Status success
-}
-  
-    #block copilot from communicating with server
-    if ($revert) {
-        Write-Status -msg 'Adding .copilot File Extension - ' 
-        LogInfo 'Adding .copilot File Extension'
-        if ((Test-Path "$backupPath\HKCR_Copilot.reg") -or (Test-Path "$backupPath\HKCU_Copilot.reg")) {
-            Reg.exe import "$backupPath\HKCR_Copilot.reg" *>$null
-            Reg.exe import "$backupPath\HKCU_Copilot.reg" *>$null
-        }
-        else {
-           # LogInfo -msg "Unable to Find HKCR_Copilot.reg or HKCU_Copilot.reg in [$backupPath]"  
-        }
-        Write-ConsoleStatus -Status success
-}
-    else {
-        if ($backup) {
-            #backup .copilot file extension
-            Reg.exe export 'HKEY_CLASSES_ROOT\.copilot' "$backupPath\HKCR_Copilot.reg" /y *>$null
-            Reg.exe export 'HKEY_CURRENT_USER\Software\Classes\.copilot' "$backupPath\HKCU_Copilot.reg" /y *>$null
-        }
-        Write-Status -msg 'Removing .copilot File Extension - ' 
-        LogInfo 'Removing .copilot File Extension'
-        Reg.exe delete 'HKCU\Software\Classes\.copilot' /f *>$null
-        Reg.exe delete 'HKCR\.copilot' /f *>$null
-        Write-ConsoleStatus -Status success
-}
+    # P5 rollback checkpoint: Disable-Registry-Keys part extracted to Module/Regions/UWPApps/AIRemoval/Disable-Registry-Keys/WSAIFabricServicePolicy.ps1; re-inline here if rollback is needed.
+    . (Join-Path $PSScriptRoot 'AIRemoval\Disable-Registry-Keys\WSAIFabricServicePolicy.ps1')
 
     $root = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Capture'
     $allFX = (Get-ChildItem $root -Recurse).Name | Where-Object { $_ -like '*FxProperties' }
@@ -1364,50 +1237,8 @@ $backupPath = "$PSScriptRoot\AIRemoval\Backup"
 
     #disable ai setting in uwp photos app
     $uwpPhotosSettings = "$env:LOCALAPPDATA\Packages\Microsoft.Windows.Photos_8wekyb3d8bbwe\Settings\settings.dat"
-    if (Test-Path $uwpPhotosSettings) {
-        [GC]::Collect()
-        reg.exe unload 'HKU\TEMP' *>$null
-        taskkill /im photos.exe /f *>$null
-        cmd.exe /d /c "reg.exe LOAD HKU\TEMP \"$uwpPhotosSettings\" >nul 2>&1" | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            LogWarning "Unable to load Photos settings.dat. Skipping Photos AI preference update."
-        }
-        else {
-            if (!$revert) {
-                $regContent = @'
-Windows Registry Editor Version 5.00
-
-[HKEY_USERS\TEMP\LocalState] 
-"ImageCategorizationConsentDismissed"=hex(5f5e10c):74,00,72,00,75,00,65,00,00,\
-  00,4c,a0,89,0c,f7,2e,dc,01
-"ImageCategorizationConsent"=hex(5f5e10c):66,00,61,00,6c,00,73,00,65,00,00,00,\
-  6c,c4,53,ae,c5,51,dc,01
-'@
-            }
-            else {
-                $regContent = @'
-Windows Registry Editor Version 5.00
-
-[HKEY_USERS\TEMP\LocalState]
-"ImageCategorizationConsentDismissed"=hex(5f5e10c):74,00,72,00,75,00,65,00,00,\
-  00,4c,a0,89,0c,f7,2e,dc,01
-"ImageCategorizationConsent"=hex(5f5e10c):74,00,72,00,75,00,65,00,00,00,79,e7,\
-  fe,c5,c4,51,dc,01
-'@
-            }
-
-            $photosRegFilePath = "$($tempDir)DisableAIPhotos.reg"
-            try {
-                New-Item $photosRegFilePath -Value $regContent -Force >$null
-                regedit.exe /s $photosRegFilePath >$null
-                Start-Sleep 1
-            }
-            finally {
-                cmd.exe /d /c "reg.exe UNLOAD HKU\TEMP >nul 2>&1" | Out-Null
-                Remove-Item $photosRegFilePath -Force -ErrorAction SilentlyContinue >$null
-            }
-        }
-    }
+    # P5 rollback checkpoint: Disable-Registry-Keys part extracted to Module/Regions/UWPApps/AIRemoval/Disable-Registry-Keys/PhotosSettingsPolicy.ps1; re-inline here if rollback is needed.
+    . (Join-Path $PSScriptRoot 'AIRemoval\Disable-Registry-Keys\PhotosSettingsPolicy.ps1')
 
     #disable app actions
     #method credit : https://github.com/agadiffe/WindowsMize
@@ -1488,6 +1319,12 @@ function Remove-Voice-Access {
         RunTrusted -command $command -psversion $psversion -logFile $logFile
         Start-Sleep 1
         Remove-Item "$startMenu\VoiceAccess.lnk" -Force -ErrorAction SilentlyContinue
+        $voiceAccessLink = Join-Path $startMenu 'VoiceAccess.lnk'
+        if ((Test-Path -LiteralPath $voiceExe -PathType Leaf) -or (Test-Path -LiteralPath $voiceAccessLink -PathType Leaf)) {
+            LogError 'Voice Access removal did not meet postconditions.'
+            Write-ConsoleStatus -Status failed
+            return
+        }
         Write-ConsoleStatus -Status success
     }
 }
@@ -1512,72 +1349,34 @@ function Install-NOAIPackage {
                 New-Item -Path $certRegPath -Force >$null
             }
 
-            #check if script is being ran locally 
-            if ((Test-Path "$AIRemovalPackagePath\amd64") -and (Test-Path "$AIRemovalPackagePath\arm64")) {
-                #Write-Status -msg 'AIRemoval Packages Found Locally'
-                LogInfo "AIRemoval Packages Found Locally"
-                #Write-Status -msg 'Installing AIRemoval Package'
-                LogInfo "Installing AIRemoval Package"
-
-                try {
-                    Add-WindowsPackage `
-                         -Online `
-                         -PackagePath "$AIRemovalPackagePath\$arch\SdManson8AIRemoval-$($arch)1.0.0.0.cab" `
-                         -NoRestart `
-                         -IgnoreCheck `
-                         -ErrorAction Stop `
-                         *> $null
-                }
-                catch {
-                    $HandledError = $_
-                    #user is using powershell 7 use dism command as fallback
-                    dism.exe /Online /Add-Package /PackagePath:"$AIRemovalPackagePath\$arch\SdManson8AIRemoval-$($arch)1.0.0.0.cab" -NoRestart -IgnoreCheck *>$null
-                    if ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq 3010)
-                    {
-                        Remove-HandledErrorRecord -ErrorRecord $HandledError
-                    }
-                    else
-                    {
-                        LogError "Failed to install AIRemoval package: $($HandledError.Exception.Message)"
-                    }
-                }
+            $localPackagePath = Join-Path -Path (Join-Path -Path $AIRemovalPackagePath -ChildPath $arch) -ChildPath "SdManson8AIRemoval-$($arch)1.0.0.0.cab"
+            if (-not (Test-Path -LiteralPath $localPackagePath -PathType Leaf)) {
+                LogError "AIRemoval package was not found locally: $localPackagePath"
+                return
             }
-            else {
-                #Write-Status -msg 'Downloading AIRemoval Package From Github'
-                LogInfo "Downloading AIRemoval Package From Github"
 
-                $ProgressPreference = 'SilentlyContinue'
-                $packageDownloadUrl = "$RemoteAIRemovalPackageBaseUrl/$arch/SdManson8AIRemoval-$($arch)1.0.0.0.cab"
-                try {
-                    Invoke-WebRequest -Uri $packageDownloadUrl -OutFile "$($tempDir)SdManson8AIRemoval-$($arch)1.0.0.0.cab" -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop | Out-Null
-                }
-                catch {
-                    LogError "Unable to Download Package at: $packageDownloadUrl" 
-                    return
-                }
+            LogInfo "AIRemoval package found locally"
+            LogInfo "Installing AIRemoval package"
 
-                #Write-Status -msg 'Installing AIRemoval Package'
-                LogInfo "Installing AIRemoval Package"
-                try {
-                    Add-WindowsPackage `
-                         -Online `
-                         -PackagePath "$($tempDir)SdManson8AIRemoval-$($arch)1.0.0.0.cab" `
-                         -NoRestart `
-                         -IgnoreCheck `
-                         -ErrorAction Stop `
-                         *> $null
+            try {
+                Add-WindowsPackage `
+                     -Online `
+                     -PackagePath $localPackagePath `
+                     -NoRestart `
+                     -IgnoreCheck `
+                     -ErrorAction Stop `
+                     *> $null
+            }
+            catch {
+                $HandledError = $_
+                $dismResult = Invoke-AIRemovalDism -ArgumentList @('/Online', '/Add-Package', ('/PackagePath:{0}' -f $localPackagePath), '/NoRestart', '/IgnoreCheck') -AllowedExitCodes @(0, 3010)
+                if ($dismResult.ExitCode -eq 0 -or $dismResult.ExitCode -eq 3010)
+                {
+                    Remove-HandledErrorRecord -ErrorRecord $HandledError
                 }
-                catch {
-                    $HandledError = $_
-                    dism.exe /Online /Add-Package /PackagePath:"$($tempDir)SdManson8AIRemoval-$($arch)1.0.0.0.cab" -IgnoreCheck *>$null
-                    if ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq 3010)
-                    {
-                        Remove-HandledErrorRecord -ErrorRecord $HandledError
-                    }
-                    else
-                    {
-                        LogError "Failed to install downloaded AIRemoval package: $($HandledError.Exception.Message)"
-                    }
+                else
+                {
+                    LogError "Failed to install AIRemoval package: $($HandledError.Exception.Message)"
                 }
             }
         }
@@ -1594,7 +1393,7 @@ function Install-NOAIPackage {
                 Remove-WindowsPackage -Online -PackageName $package.PackageName -NoRestart -IgnoreCheck -ErrorAction Stop >$null
             }
             catch {
-                dism.exe /Online /remove-package /PackageName:$($package.PackageName) -NoRestart -IgnoreCheck *>$null
+                $null = Invoke-AIRemovalDism -ArgumentList @('/Online', '/remove-package', ('/PackageName:{0}' -f $package.PackageName), '/NoRestart', '/IgnoreCheck')
             }
             #remove reg install location 
             $regPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Packages'
@@ -1616,7 +1415,7 @@ function Install-NOAIPackage {
                 Remove-WindowsPackage -Online -PackageName $package.PackageName -NoRestart -IgnoreCheck -ErrorAction Stop >$null
             }
             catch {
-                dism.exe /Online /remove-package /PackageName:$($package.PackageName) -NoRestart -IgnoreCheck *>$null
+                $null = Invoke-AIRemovalDism -ArgumentList @('/Online', '/remove-package', ('/PackageName:{0}' -f $package.PackageName), '/NoRestart', '/IgnoreCheck')
             }
             #remove reg install location 
             $regPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Packages'
@@ -1650,9 +1449,8 @@ function Disable-Copilot-Policies {
        # Write-Host "[$JSONPath]" -ForegroundColor Yellow
         LogInfo "$(@('Disabling','Enabling')[$revert]) CoPilot Policies in [$JSONPath]"
 
-        #takeownership
-        cmd.exe /d /c "takeown /f ""$JSONPath"" >nul 2>&1" | Out-Null
-        cmd.exe /d /c "icacls ""$JSONPath"" /grant *S-1-5-32-544:F /t >nul 2>&1" | Out-Null
+        Invoke-AIRemovalTakeOwnership -Path $JSONPath
+        Grant-AIRemovalAdministratorsFullControl -Path $JSONPath
 
         #edit the content
         $jsonContent = Get-Content $JSONPath | ConvertFrom-Json
@@ -1693,8 +1491,8 @@ function Disable-Copilot-Policies {
         Write-Status -msg "$(@('Disabling','Enabling')[$revert]) Generative AI in Visual Assist - "
         LogInfo "$(@('Disabling','Enabling')[$revert]) Generative AI in Visual Assist"
 
-        takeown /f $visualAssistPath *>$null
-        icacls $visualAssistPath /grant *S-1-5-32-544:F /t *>$null
+        Invoke-AIRemovalTakeOwnership -Path $visualAssistPath
+        Grant-AIRemovalAdministratorsFullControl -Path $visualAssistPath
 
         $jsoncontent = Get-Content $visualAssistPath | ConvertFrom-Json
         $jsonContent.actions | Add-Member -MemberType NoteProperty -Name usesGenerativeAI -Value @($false, $true)[$revert] -force
@@ -1714,269 +1512,45 @@ function Disable-Copilot-Policies {
 
 function DownloadAppxPackage {
     param(
-        # there has to be an alternative, as sometimes the API fails on PackageFamilyName
         [string]$PackageFamilyName,
         [string]$ProductId,
         [string]$outputDir
     )
     if (-Not ($PackageFamilyName -Or $ProductId)) {
-        # can't do anything without at least one
         LogError 'Missing either PackageFamilyName or ProductId.'
-        return $null
-    }
-      
-    try {
-        $UserAgent = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome # needed as sometimes the API will block things when it knows requests are coming from PowerShell
-    }
-    catch {
-        $UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-    }
-      
-    $DownloadedFiles = @()
-    $errored = $false
-    $allFilesDownloaded = $true
-      
-    $apiUrl = 'https://store.rg-adguard.net/api/GetFiles'
-    $versionRing = 'Retail'
-      
-    $architecture = switch ($env:PROCESSOR_ARCHITECTURE) {
-        'x86' { 'x86' }
-        { @('x64', 'amd64') -contains $_ } { 'x64' }
-        'arm' { 'arm' }
-        'arm64' { 'arm64' }
-        default { 'neutral' } # should never get here
+        return @()
     }
 
-    <#
-        .SYNOPSIS
-        Gets latest appx packages.
-    #>
+    $candidateRoots = @()
 
-    function Get-LatestAppxPackages {
-        param(
-            [string]$RawResponse,
-            [string]$Architecture
-        )
+    if (-not [string]::IsNullOrWhiteSpace($outputDir) -and (Test-Path -LiteralPath $outputDir -PathType Container)) {
+        $candidateRoots += (Join-Path -Path $outputDir -ChildPath $PackageFamilyName)
+        $candidateRoots += $outputDir
+    }
 
-        # hashtable of packages by $name
-        #  > values = hashtables of packages by $version
-        #    > values = arrays of packages as objects (containing: url, filename, name, version, arch, publisherId, type)
-        [Collections.Generic.Dictionary[string, Collections.Generic.Dictionary[string, array]]] $packageList = @{}
+    $localPackageRoot = Join-Path -Path $PSScriptRoot -ChildPath 'AIRemoval\Backup\AppxBackup'
+    if (Test-Path -LiteralPath $localPackageRoot -PathType Container) {
+        $candidateRoots += (Join-Path -Path $localPackageRoot -ChildPath $PackageFamilyName)
+        $candidateRoots += $localPackageRoot
+    }
 
-        # populate $packageList
-        $patternUrlAndText = '<tr style.*<a href=\"(?<url>.*)"\s.*>(?<text>.*\.(app|msi)x.*)<\/a>'
-        $RawResponse | Select-String $patternUrlAndText -AllMatches | ForEach-Object { $_.Matches } | ForEach-Object {
-            $url = ($_.Groups['url']).Value
-            $text = ($_.Groups['text']).Value
-            $textSplitUnderscore = $text.split('_')
-            $name = $textSplitUnderscore.split('_')[0]
-            $version = $textSplitUnderscore.split('_')[1]
-            $arch = ($textSplitUnderscore.split('_')[2]).ToLower()
-            $publisherId = ($textSplitUnderscore.split('_')[4]).split('.')[0]
-            $textSplitPeriod = $text.split('.')
-            $type = ($textSplitPeriod[$textSplitPeriod.length - 1]).ToLower()
-
-            # create $name hash key hashtable, if it doesn't already exist
-            if (!($packageList.keys -match ('^' + [Regex]::escape($name) + '$'))) {
-                $packageList["$name"] = @{}
-            }
-            # create $version hash key array, if it doesn't already exist
-            if (!(($packageList["$name"]).keys -match ('^' + [Regex]::escape($version) + '$'))) {
-                ($packageList["$name"])["$version"] = @()
-            }
-
-            # add package to the array in the hashtable
-            ($packageList["$name"])["$version"] += @{
-                url         = $url
-                filename    = $text
-                name        = $name
-                version     = $version
-                arch        = $arch
-                publisherId = $publisherId
-                type        = $type
-            }
+    $packageFiles = @()
+    foreach ($candidateRoot in ($candidateRoots | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)) {
+        if (-not (Test-Path -LiteralPath $candidateRoot -PathType Container)) {
+            continue
         }
 
-        # an array of packages as objects, meant to only contain one of each $name
-        $latestPackages = @()
-        # grabs the most updated package for $name and puts it into $latestPackages
-        $packageList.GetEnumerator() | ForEach-Object { ($_.value).GetEnumerator() | Select-Object -Last 1 } | ForEach-Object {
-            $packagesByType = $_.value
-            $msixbundle = ($packagesByType | Where-Object { $_.type -match '^msixbundle$' })
-            $appxbundle = ($packagesByType | Where-Object { $_.type -match '^appxbundle$' })
-            $msix = ($packagesByType | Where-Object { ($_.type -match '^msix$') -And ($_.arch -match ('^' + [Regex]::Escape($Architecture) + '$')) })
-            $appx = ($packagesByType | Where-Object { ($_.type -match '^appx$') -And ($_.arch -match ('^' + [Regex]::Escape($Architecture) + '$')) })
-            if ($msixbundle) { $latestPackages += $msixbundle }
-            elseif ($appxbundle) { $latestPackages += $appxbundle }
-            elseif ($msix) { $latestPackages += $msix }
-            elseif ($appx) { $latestPackages += $appx }
-        }
-
-        return @($latestPackages)
+        $packageFiles += Get-ChildItem -LiteralPath $candidateRoot -File -Recurse -ErrorAction SilentlyContinue | Where-Object {
+            $_.Extension -in @('.appxbundle', '.msixbundle', '.appx', '.msix')
+        } | Select-Object -ExpandProperty FullName
     }
 
-    <#
-        .SYNOPSIS
-        Gets appx package key.
-    #>
-
-    function Get-AppxPackageKey {
-        param(
-            [hashtable]$Package
-        )
-
-        @(
-            $Package.name
-            $Package.arch
-            $Package.publisherId
-            $Package.type
-        ) -join '|'
-    }
-      
-    if (Test-Path $outputDir -PathType Container) {
-        New-Item -Path "$outputDir\$PackageFamilyName" -ItemType Directory -Force | Out-Null
-        $downloadFolder = "$outputDir\$PackageFamilyName"
-    }
-    else {
-        
-        $downloadFolder = Join-Path $tempDir $PackageFamilyName
-        if (!(Test-Path $downloadFolder -PathType Container)) {
-            New-Item $downloadFolder -ItemType Directory -Force | Out-Null
-        }
-    }
-        
-    $body = @{
-        type = if ($ProductId) { 'ProductId' } else { 'PackageFamilyName' }
-        url  = if ($ProductId) { $ProductId } else { $PackageFamilyName }
-        ring = $versionRing
-        lang = 'en-US'
+    $packageFiles = @($packageFiles | Select-Object -Unique)
+    if ($packageFiles.Count -eq 0) {
+        LogWarning "No local AppX package files were found for $PackageFamilyName."
     }
 
-    $headers = @{
-        'User-Agent'       = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-        'Accept'           = 'application/json, text/javascript, */*; q=0.01'
-        'Content-Type'     = 'application/x-www-form-urlencoded; charset=UTF-8'
-        'X-Requested-With' = 'XMLHttpRequest'
-        'Origin'           = 'https://store.rg-adguard.net'
-        'Referer'          = 'https://store.rg-adguard.net/'
-    }
-      
-    # required due to the api being protected behind Cloudflare now
-    if (-Not $apiWebSession) {
-        $global:apiWebSession = $null
-        $apiHostname = (($apiUrl.split('/'))[0..2]) -Join '/'
-        Invoke-WebRequest -Uri $apiHostname -UserAgent $UserAgent -SessionVariable $apiWebSession -UseBasicParsing -TimeoutSec 15
-    }
-      
-    $raw = $null
-    try {
-        $raw = Invoke-RestMethod -Method Post -Uri $apiUrl -Headers $headers -Body $body -WebSession $apiWebSession -TimeoutSec 30
-    }
-    catch {
-        $errorMsg = 'An error occurred: ' + $_
-        LogError $errorMsg
-        $errored = $true
-        return $false
-    }
-
-    $latestPackages = Get-LatestAppxPackages -RawResponse $raw -Architecture $architecture
-    $latestPackageLookup = @{}
-    foreach ($latestPackage in $latestPackages) {
-        $latestPackageLookup[(Get-AppxPackageKey -Package $latestPackage)] = $latestPackage
-    }
-      
-    # download packages
-    foreach ($package in $latestPackages) {
-        $currentPackage = $package
-        $packageKey = Get-AppxPackageKey -Package $package
-
-        for ($attempt = 0; $attempt -lt 2; $attempt++) {
-            $url = $currentPackage.url
-            $filename = $currentPackage.filename
-            $downloadFile = Join-Path $downloadFolder $filename
-
-            # If file already exists, ask to replace it.
-            if ($attempt -eq 0 -and (Test-Path $downloadFile)) {
-                if ($nonInteractive -or -not (Test-InteractiveHost)) {
-                    LogInfo "Package `"$filename`" already exists at `"$downloadFile`". Reusing the existing file because prompting is unavailable."
-                    $DownloadedFiles += $downloadFile
-                    break
-                }
-
-                Write-Host "`"${filename}`" already exists at `"${downloadFile}`"."
-                $confirmation = ''
-                while (!(($confirmation -eq 'Y') -Or ($confirmation -eq 'N'))) {
-                    $confirmation = Read-Host "`nWould you like to re-download and overwrite the file at `"${downloadFile}`" (Y/N)?"
-                    $confirmation = $confirmation.ToUpper()
-                }
-                if ($confirmation -eq 'Y') {
-                    Remove-Item -Path $downloadFile -Force
-                }
-                else {
-                    $DownloadedFiles += $downloadFile
-                    break
-                }
-            }
-            elseif ($attempt -gt 0 -and (Test-Path $downloadFile)) {
-                Remove-Item -Path $downloadFile -Force -ErrorAction SilentlyContinue
-            }
-
-            # Write-Host "Attempting download of `"${filename}`" to `"${downloadFile}`" . . ."
-            $fileDownloaded = $false
-            $downloadError = $null
-            $PreviousProgressPreference = $ProgressPreference
-            $ProgressPreference = 'SilentlyContinue' # avoids slow download when using Invoke-WebRequest
-            try {
-                Invoke-WebRequest -Uri $url -OutFile $downloadFile -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop
-                $fileDownloaded = $true
-            }
-            catch {
-                $downloadError = $_
-                if (Test-Path $downloadFile) {
-                    Remove-Item -Path $downloadFile -Force -ErrorAction SilentlyContinue
-                }
-                if ($attempt -eq 0) {
-                    LogWarning "Download attempt $($attempt + 1) for `"$filename`" failed. Refreshing package metadata and retrying."
-                }
-            }
-            $ProgressPreference = $PreviousProgressPreference # return ProgressPreference back to normal
-            if ($fileDownloaded) {
-                $DownloadedFiles += $downloadFile
-                break
-            }
-
-            if ($attempt -eq 0) {
-                try {
-                    $raw = Invoke-RestMethod -Method Post -Uri $apiUrl -Headers $headers -Body $body -WebSession $apiWebSession -TimeoutSec 30
-                    $refreshedPackages = Get-LatestAppxPackages -RawResponse $raw -Architecture $architecture
-                    $latestPackageLookup = @{}
-                    foreach ($refreshedPackage in $refreshedPackages) {
-                        $latestPackageLookup[(Get-AppxPackageKey -Package $refreshedPackage)] = $refreshedPackage
-                    }
-                    if ($latestPackageLookup.ContainsKey($packageKey)) {
-                        $currentPackage = $latestPackageLookup[$packageKey]
-                        LogWarning "Refreshed download metadata for `"$filename`". Retrying with a fresh URL."
-                    }
-                    else {
-                        LogWarning "Unable to find a refreshed download URL for `"$filename`". Retrying with the existing URL."
-                    }
-                }
-                catch {
-                    LogWarning "Unable to refresh package metadata for `"$filename`". Retrying with the existing URL."
-                }
-                continue
-            }
-
-            $allFilesDownloaded = $false
-            LogError "An error occurred: $downloadError"
-            $errored = $true
-            break
-        }
-    }
-      
-    if ($errored) { LogError 'Completed with some errors.' }
-    if (-Not $allFilesDownloaded) { LogWarning 'Not all packages could be downloaded.'}
-    return $DownloadedFiles
+    return $packageFiles
 }
 
 # Remove or restore AI-related AppX packages such as Copilot, CoreAI, and Office AI components.
@@ -2052,7 +1626,6 @@ function Remove-AI-Appx-Packages {
             'WindowsWorkload.Data.ContentExtraction.Stx.*'
             'WindowsWorkload.ScrRegDetection.Data.*'
             'WindowsWorkload.ScrRegDetection.Stx.*'
-            'WindowsWorkload.TextRecognition.Stx.*'
             'WindowsWorkload.Data.ImageSearch.Stx.*'
             'WindowsWorkload.ImageContentModeration.*'
             'WindowsWorkload.ImageContentModeration.Data.*'
@@ -2113,7 +1686,6 @@ $aipackages = @(
     'WindowsWorkload.Data.ContentExtraction.Stx.*'
     'WindowsWorkload.ScrRegDetection.Data.*'
     'WindowsWorkload.ScrRegDetection.Stx.*'
-    'WindowsWorkload.TextRecognition.Stx.*'
     'WindowsWorkload.Data.ImageSearch.Stx.*'
     'WindowsWorkload.ImageContentModeration.*'
     'WindowsWorkload.ImageContentModeration.Data.*'
@@ -2173,68 +1745,6 @@ foreach ($choice in $aipackages) {
 }
 '@
         Set-Content -Path $packageRemovalPath -Value $code -Force | Out-Null
-        #allow removal script to run
-        try {
-            Set-ExecutionPolicy Unrestricted -Force -ErrorAction SilentlyContinue | Out-Null
-        }
-        catch {
-            #user has set powershell execution policy via group policy or via settings, to change it we need to update the registry 
-            try {
-                $Global:ogExecutionPolicy = Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell' -Name 'ExecutionPolicy' -ErrorAction SilentlyContinue | Out-Null
-                Reg.exe add 'HKLM\SOFTWARE\Policies\Microsoft\Windows\PowerShell' /v 'EnableScripts' /t REG_DWORD /d '1' /f >$null
-                Reg.exe add 'HKLM\SOFTWARE\Policies\Microsoft\Windows\PowerShell' /v 'ExecutionPolicy' /t REG_SZ /d 'Unrestricted' /f >$null
-                $Global:executionPolicyUser = $false
-                $Global:executionPolicyMachine = $false
-                $Global:executionPolicyWow64 = $false
-                $Global:executionPolicyUserPol = $false
-            }
-            catch {
-                try {
-                    $Global:ogExecutionPolicy = Get-ItemPropertyValue -Path 'HKCU:\Software\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell' -Name 'ExecutionPolicy' -ErrorAction SilentlyContinue | Out-Null
-                    Reg.exe add 'HKCU\Software\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell' /v 'ExecutionPolicy' /t REG_SZ /d 'Unrestricted' /f >$null
-                    $Global:executionPolicyUser = $true
-                    $Global:executionPolicyMachine = $false
-                    $Global:executionPolicyWow64 = $false
-                    $Global:executionPolicyUserPol = $false
-                }
-                catch {
-                    try {
-                        $Global:ogExecutionPolicy = Get-ItemPropertyValue -Path 'HKLM:\Software\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell' -Name 'ExecutionPolicy' -ErrorAction SilentlyContinue | Out-Null
-                        Reg.exe add 'HKLM\Software\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell' /v 'ExecutionPolicy' /t REG_SZ /d 'Unrestricted' /f >$null
-                        $Global:executionPolicyUser = $false
-                        $Global:executionPolicyMachine = $true
-                        $Global:executionPolicyWow64 = $false
-                        $Global:executionPolicyUserPol = $false
-                    }
-                    catch {
-                        try {
-                            $Global:ogExecutionPolicy = Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell' -Name 'ExecutionPolicy' -ErrorAction SilentlyContinue | Out-Null
-                            Reg.exe add 'HKLM\SOFTWARE\Wow6432Node\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell' /v 'ExecutionPolicy' /t REG_SZ /d 'Unrestricted' /f >$null
-                            $Global:executionPolicyUser = $false
-                            $Global:executionPolicyMachine = $false
-                            $Global:executionPolicyWow64 = $true
-                            $Global:executionPolicyUserPol = $false
-
-                        }
-                        catch {
-                            $Global:ogExecutionPolicy = Get-ItemPropertyValue -Path 'HKCU:\SOFTWARE\Policies\Microsoft\Windows\PowerShell' -Name 'ExecutionPolicy' 
-                            Reg.exe add 'HKCU\SOFTWARE\Policies\Microsoft\Windows\PowerShell' /v 'EnableScripts' /t REG_DWORD /d '1' /f >$null
-                            Reg.exe add 'HKCU\SOFTWARE\Policies\Microsoft\Windows\PowerShell' /v 'ExecutionPolicy' /t REG_SZ /d 'Unrestricted' /f >$null
-                            $Global:executionPolicyUser = $false
-                            $Global:executionPolicyMachine = $false
-                            $Global:executionPolicyWow64 = $false
-                            $Global:executionPolicyUserPol = $true
-                        }
-                        
-
-                    }
-                    
-                }
-               
-            }
-            
-           
-        }
 
 
         Write-Status -msg 'Removing AI Appx Packages - '
@@ -2283,33 +1793,33 @@ foreach ($choice in $aipackages) {
 
 function Remove-Recall-Optional-Feature {
     if (!$revert) {
-        #doesnt seem to work just gets stuck (does anyone really want this shit lol)
+        # Keep Enable-WindowsOptionalFeature disabled here; on current builds it can block indefinitely.
         #Enable-WindowsOptionalFeature -Online -FeatureName 'Recall' -All -NoRestart
-        #remove recall optional feature 
+        # Remove Recall optional feature.
         Write-Status -msg 'Removing Recall Optional Feature - '
         LogInfo "Removing Recall Optional Feature"
         try {
-            $state = (Get-WindowsOptionalFeature -Online -FeatureName 'Recall' -ErrorAction SilentlyContinue | Out-Null).State
+            $feature = Get-WindowsOptionalFeature -Online -FeatureName 'Recall' -ErrorAction Stop
+            $state = $feature.State
             if ($state -and $state -ne 'DisabledWithPayloadRemoved') {
                 $ProgressPreference = 'SilentlyContinue'
                 try {
-                    Disable-WindowsOptionalFeature -Online -FeatureName 'Recall' -Remove -NoRestart -ErrorAction SilentlyContinue | Out-Null
+                    Disable-WindowsOptionalFeature -Online -FeatureName 'Recall' -Remove -NoRestart -ErrorAction Stop | Out-Null
                 }
                 catch {
-                    #incase get-windowsoptionalfeature works but disable doesnt 
-                    dism.exe /Online /Disable-Feature /FeatureName:Recall /Remove /NoRestart /Quiet *>$null
+                    $null = Invoke-AIRemovalDism -ArgumentList @('/Online', '/Disable-Feature', '/FeatureName:Recall', '/Remove', '/NoRestart', '/Quiet')
                 }
             }
         }
         catch {
-            #if get-windowsoptionalfeature errors fallback to dism
-            $dismOutput = dism.exe /Online /Get-FeatureInfo /FeatureName:Recall
+            $dismResult = Invoke-AIRemovalDism -ArgumentList @('/Online', '/Get-FeatureInfo', '/FeatureName:Recall') -CaptureOutput
+            $dismOutput = $dismResult.StandardOutput
     
-            if ($LASTEXITCODE -eq 0) {
+            if ($dismResult.ExitCode -eq 0) {
                 $isDisabledWithPayloadRemoved = $dismOutput | Select-String -Pattern 'State\s*:\s*Disabled with Payload Removed'
         
                 if (!$isDisabledWithPayloadRemoved) {
-                    dism.exe /Online /Disable-Feature /FeatureName:Recall /Remove /NoRestart /Quiet *>$null
+                    $null = Invoke-AIRemovalDism -ArgumentList @('/Online', '/Disable-Feature', '/FeatureName:Recall', '/Remove', '/NoRestart', '/Quiet')
                 }
             }
         }
@@ -2329,7 +1839,6 @@ function Remove-AI-CBS-Packages {
         #additional hidden packages
         Write-Status -msg 'Removing Additional Hidden AI Packages - '
         LogInfo "Removing Additional Hidden AI Packages"
-        #unhide the packages from dism, remove owners subkey for removal 
         $regPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Packages'
         $ProgressPreference = 'SilentlyContinue'
         Get-ChildItem $regPath | ForEach-Object {
@@ -2342,8 +1851,8 @@ function Remove-AI-CBS-Packages {
                     Remove-Item "registry::$($_.Name)\Owners" -Force -ErrorAction SilentlyContinue | Out-Null
                     Remove-Item "registry::$($_.Name)\Updates" -Force -ErrorAction SilentlyContinue | Out-Null
                     try {
-                        Remove-WindowsPackage -Online -PackageName $_.PSChildName -NoRestart -ErrorAction SilentlyContinue | Out-Null
-                        $paths = Get-ChildItem "$env:windir\servicing\Packages" -Filter "*$($_.PSChildName)*" -ErrorAction SilentlyContinue | Out-Null
+                        Remove-WindowsPackage -Online -PackageName $_.PSChildName -NoRestart -ErrorAction Stop | Out-Null
+                        $paths = Get-ChildItem "$env:windir\servicing\Packages" -Filter "*$($_.PSChildName)*" -ErrorAction SilentlyContinue
                         foreach ($path in $paths) {
                             if ($path) {
                                 Remove-Item $path.FullName -Force -ErrorAction SilentlyContinue | Out-Null
@@ -2352,9 +1861,8 @@ function Remove-AI-CBS-Packages {
                         
                     }
                     catch {
-                        #fallback to dism when user is using powershell 7
-                        dism.exe /Online /Remove-Package /PackageName:$($_.PSChildName) /NoRestart *>$null
-                        $paths = Get-ChildItem "$env:windir\servicing\Packages" -Filter "*$($_.PSChildName)*" -ErrorAction SilentlyContinue | Out-Null
+                        $null = Invoke-AIRemovalDism -ArgumentList @('/Online', '/Remove-Package', ('/PackageName:{0}' -f $_.PSChildName), '/NoRestart')
+                        $paths = Get-ChildItem "$env:windir\servicing\Packages" -Filter "*$($_.PSChildName)*" -ErrorAction SilentlyContinue
                         foreach ($path in $paths) {
                             if ($path) {
                                 Remove-Item $path.FullName -Force -ErrorAction SilentlyContinue | Out-Null
@@ -2377,544 +1885,11 @@ function Remove-AI-CBS-Packages {
 #>
 
 function Remove-AI-Files {
-    #prob add params here for each file removal 
+    # File removal groups are kept together until AIRemoval is split into package, registry, and file helpers.
 
 
-    if ($revert) {
-        if (Test-Path "$PSScriptRoot\AIRemoval\Backup\AIFiles") {
-            Write-Status -msg 'Restoring Appx Package Files - '
-            LogInfo 'Restoring Appx Package Files'
-            $paths = Get-Content "$PSScriptRoot\AIRemoval\Backup\AIFiles\backupPaths.txt"
-            foreach ($path in $paths) {
-                $fileName = Split-Path $path -Leaf
-                $dest = Split-Path $path -Parent
-                try {
-                    Move-Item -Path "$PSScriptRoot\AIRemoval\Backup\AIFiles\$fileName" -Destination $dest -Force -ErrorAction SilentlyContinue | Out-Null
-                }
-                catch {
-                    $command = "Move-Item -Path `"$PSScriptRoot\AIRemoval\Backup\AIFiles\$fileName`" -Destination `"$dest`" -Force"
-                    RunTrusted -command $command -psversion $psversion -logFile $logFile
-                    Start-Sleep 1
-                }
-            }
-
-            if (Test-Path "$PSScriptRoot\AIRemoval\Backup\AIFiles\OfficeAI") {
-                Write-Status -msg 'Restoring Office AI Files - '
-                LogInfo 'Restoring Office AI Files'
-                Move-Item "$PSScriptRoot\AIRemoval\Backup\AIFiles\OfficeAI\x64\AI" -Destination "$env:ProgramFiles\Microsoft Office\root\vfs\ProgramFilesCommonX64\Microsoft Shared\Office16" -Force | Out-Null
-                Move-Item "$PSScriptRoot\AIRemoval\Backup\AIFiles\OfficeAI\x86\AI" -Destination "$env:ProgramFiles\Microsoft Office\root\vfs\ProgramFilesCommonX64\Microsoft Shared\Office16" -Force | Out-Null
-                Move-Item "$PSScriptRoot\AIRemoval\Backup\AIFiles\OfficeAI\RootAI\AI" -Destination "$env:ProgramFiles\Microsoft Office\root\Office16" -Force | Out-Null
-                Move-Item "$PSScriptRoot\AIRemoval\Backup\AIFiles\OfficeAI\ActionsServer\ActionsServer" -Destination "$env:ProgramFiles\Microsoft Office\root\vfs\ProgramFilesCommonX64\Microsoft Shared\Office16" -Force | Out-Null
-                Get-ChildItem "$PSScriptRoot\AIRemoval\Backup\AIFiles\OfficeAI" -Filter '*.msix' | ForEach-Object {
-                    Move-Item $_.FullName -Destination "$env:ProgramFiles\Microsoft Office\root\Integration\Addons" -Force | Out-Null
-                }
-            }
-            Write-ConsoleStatus -Status success
-Write-Status -msg 'Restoring AI URIs - '
-            LogInfo 'Restoring AI URIs'
-            $regs = Get-ChildItem "$PSScriptRoot\AIRemoval\Backup\AIFiles\URIHandlers"
-            foreach ($reg in $regs) {
-                Reg.exe import $reg.FullName *>$null
-            }
-           
-            #Write-Status -msg 'Files Restored -  You May Need to Repair the Apps Using the Microsoft Store'
-            LogInfo 'Files Restored -  You May Need to Repair the Apps Using the Microsoft Store'
-        }
-        else {
-            LogError 'Unable to Find Backup Files!'
-        }
-
-        <#
-        if (Test-Path "$PSScriptRoot\AIRemoval\Backup\CompStorage"){
-            Get-ChildItem "$PSScriptRoot\AIRemoval\Backup\CompStorage" -Filter "*.reg"
-        }else{
-            LogError -msg 'Unable to Find Component Storage Backup!' 
-        }
-        #>
-    }
-    else {
-
-        $aipackages = @(
-            # 'MicrosoftWindows.Client.Photon'
-            'MicrosoftWindows.Client.AIX'
-            'MicrosoftWindows.Client.CoPilot'
-            'Microsoft.Windows.Ai.Copilot.Provider'
-            'Microsoft.Copilot'
-            'Microsoft.MicrosoftOfficeHub'
-            'MicrosoftWindows.Client.CoreAI'
-            'Microsoft.Edge.GameAssist'
-            'Microsoft.Office.ActionsServer'
-            'aimgr'
-            'Microsoft.WritingAssistant'
-            #ai component packages installed on copilot+ pcs
-            'WindowsWorkload'
-            'Voiess'
-            'Speion'
-            'Livtop'
-            'InpApp'
-            'Filons'
-        )
-
-        Write-Status -msg 'Removing Appx Package Files - '
-        LogInfo 'Removing Appx Package Files'
-       #LogWarning 'This could take a while on some systems, please be patient!'
-        #-----------------------------------------------------------------------remove files
-        $appsPath = "$env:SystemRoot\SystemApps"
-        if (!(Test-Path $appsPath)) {
-            $appsPath = "$env:windir\SystemApps"
-        }
-        $appsPath2 = "$env:ProgramFiles\WindowsApps"
-    
-        $appsPath3 = "$env:ProgramData\Microsoft\Windows\AppRepository"
-    
-        $appsPath4 = "$env:SystemRoot\servicing\Packages"
-        if (!(Test-Path $appsPath4)) {
-            $appsPath4 = "$env:windir\servicing\Packages"
-        }
-    
-        $appsPath5 = "$env:SystemRoot\System32\CatRoot"
-        if (!(Test-Path $appsPath5)) {
-            $appsPath5 = "$env:windir\System32\CatRoot"
-        }
-
-        $appsPath6 = "$env:SystemRoot\SystemApps\SxS"
-        if (!(Test-Path $appsPath6)) {
-            $appsPath6 = "$env:windir\SystemApps\SxS"
-        }
-        $pathsSystemApps = (Get-ChildItem -Path $appsPath -Directory -Force -ErrorAction SilentlyContinue).FullName 
-        $pathsWindowsApps = (Get-ChildItem -Path $appsPath2 -Directory -Force -ErrorAction SilentlyContinue).FullName 
-        $pathsAppRepo = (Get-ChildItem -Path $appsPath3 -Directory -Force -Recurse -ErrorAction SilentlyContinue).FullName 
-        $pathsServicing = (Get-ChildItem -Path $appsPath4 -Directory -Force -Recurse -ErrorAction SilentlyContinue).FullName
-        $pathsCatRoot = (Get-ChildItem -Path $appsPath5 -Directory -Force -Recurse -ErrorAction SilentlyContinue).FullName 
-        $pathsSXS = (Get-ChildItem -Path $appsPath6 -Directory -Force -ErrorAction SilentlyContinue).FullName 
-
-        $packagesPath = @()
-        #get full path
-        foreach ($package in $aipackages) {
-    
-            foreach ($path in $pathsSystemApps) {
-                if ($path -like "*$package*") {
-                    $packagesPath += $path
-                }
-            }
-    
-            foreach ($path in $pathsWindowsApps) {
-                if ($path -like "*$package*") {
-                    $packagesPath += $path
-                }
-            }
-    
-            foreach ($path in $pathsAppRepo) {
-                if ($path -like "*$package*") {
-                    $packagesPath += $path
-                }
-            }
-
-            foreach ($path in $pathsSXS) {
-                if ($path -like "*$package*") {
-                    $packagesPath += $path
-                }
-            }
-    
-        }
-    
-        #get additional files
-        foreach ($path in $pathsServicing) {
-            if ($path -like '*UserExperience-AIX*' -or $path -like '*Copilot*' -or $path -like '*UserExperience-Recall*' -or $path -like '*CoreAI*') {
-                $packagesPath += $path
-            }
-        }
-    
-        foreach ($path in $pathsCatRoot) {
-            if ($path -like '*UserExperience-AIX*' -or $path -like '*Copilot*' -or $path -like '*UserExperience-Recall*' -or $path -like '*CoreAI*') {
-                $packagesPath += $path
-            }
-        }
-
-        #add app actions mcp host
-        $paths = @(
-            "$env:LOCALAPPDATA\Microsoft\WindowsApps\ActionsMcpHost.exe"
-            "$env:SystemRoot\System32\config\systemprofile\AppData\Local\Microsoft\WindowsApps\ActionsMcpHost.exe"
-            "$env:SystemRoot\System32\config\systemprofile\AppData\Local\Microsoft\WindowsApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\ActionsMcpHost.exe"
-            "$env:LOCALAPPDATA\Microsoft\WindowsApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\ActionsMcpHost.exe"
-        )
-
-        foreach ($path in $paths) {
-            if (Test-Path $path) {
-                $packagesPath += $path
-            }
-        }
-
-        foreach ($packageName in $aipackages) {
-            $path = Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "*$packageName*" 
-            if ($path) {
-                $packagesPath += $path.FullName
-            }
-            
-        }
-
-        Write-ConsoleStatus -Status success
-if ($backup) {
-            Write-Status -msg 'Backing Up AI Files - '
-            LogInfo 'Backing Up AI Files'
-            $backupDir = "$PSScriptRoot\AIRemoval\Backup\AIFiles"
-            if (!(Test-Path $backupDir)) {
-                New-Item $backupDir -Force -ItemType Directory | Out-Null
-            }
-            Write-ConsoleStatus -Status success
-}
-
-        foreach ($Path in $packagesPath) {
-            #only remove dlls from photon to prevent startmenu from breaking
-            # if ($path -like '*Photon*') {
-            #     $command = "`$dlls = (Get-ChildItem -Path $Path -Filter *.dll).FullName; foreach(`$dll in `$dlls){Remove-item ""`$dll"" -force}"
-            #     RunTrusted -command $command -psversion $psversion -logFile $logFile
-            #     Start-Sleep 1
-            # }
-            # else {
-
-            if ($backup) {
-                $backupFiles = "$PSScriptRoot\AIRemoval\Backup\AIFiles\backupPaths.txt"
-                if (!(Test-Path $backupFiles -PathType Leaf)) {
-                    New-Item $backupFiles -Force -ItemType File | Out-Null
-                }
-                try {
-                    Copy-Item -Path $Path -Destination $backupDir -Force -Recurse -ErrorAction SilentlyContinue | Out-Null
-                    Add-Content -Path $backupFiles -Value $Path
-                }
-                catch {
-                    #ignore any errors
-                }
-            }
-            $command = "Remove-item ""$Path"" -force -ErrorAction SilentlyContinue -Recurse | Out-Null"
-            RunTrusted -command $command -psversion $psversion -logFile $logFile
-            Start-Sleep 1
-        
-        }
-    
-        #remove machine learning dlls
-        $paths = @(
-            "$env:SystemRoot\System32\Windows.AI.MachineLearning.dll"
-            "$env:SystemRoot\SysWOW64\Windows.AI.MachineLearning.dll"
-            "$env:SystemRoot\System32\Windows.AI.MachineLearning.Preview.dll"
-            "$env:SystemRoot\SysWOW64\Windows.AI.MachineLearning.Preview.dll"
-            "$env:SystemRoot\System32\SettingsHandlers_Copilot.dll"
-            "$env:SystemRoot\System32\SettingsHandlers_A9.dll"
-        )
-        foreach ($path in $paths) {
-            if (Test-Path $path) {
-                takeown /f $path *>$null
-                icacls $path /grant *S-1-5-32-544:F /t *>$null
-                try {
-                    Remove-Item -Path $path -Force -ErrorAction SilentlyContinue | Out-Null
-                }
-                catch {
-                    #takeown didnt work remove file with system priv
-                    $command = "Remove-Item -Path $path -Force -ErrorAction SilentlyContinue -Recurse | Out-Null"
-                    RunTrusted -command $command -psversion $psversion -logFile $logFile
-                }
-            }
-        }
-
-       
-        Write-Status -msg 'Removing Hidden Copilot Installers - '
-        LogInfo 'Removing Hidden Copilot Installers'
-        #remove package installers in edge dir
-        #installs Microsoft.Windows.Ai.Copilot.Provider
-        $dir = "${env:ProgramFiles(x86)}\Microsoft"
-        $folders = @(
-            'Edge',
-            'EdgeCore',
-            'EdgeWebView'
-        )
-        foreach ($folder in $folders) {
-            if ($folder -eq 'EdgeCore') {
-                #edge core doesnt have application folder
-                $fullPath = (Get-ChildItem -Path "$dir\$folder\*.*.*.*\copilot_provider_msix" -ErrorAction SilentlyContinue).FullName
-            
-            }
-            else {
-                $fullPath = (Get-ChildItem -Path "$dir\$folder\Application\*.*.*.*\copilot_provider_msix" -ErrorAction SilentlyContinue).FullName
-            }
-            if ($null -ne $fullPath) { Remove-Item -Path $fullPath -Recurse -Force -ErrorAction SilentlyContinue }
-        }
-    
-
-        #remove copilot update in edge update dir
-        $dir = "${env:ProgramFiles(x86)}\Microsoft\EdgeUpdate"
-        if (Test-Path $dir) {
-            $paths = Get-ChildItem $dir -Recurse -Filter '*CopilotUpdate.exe*' 
-            foreach ($path in $paths) {
-                if (Test-Path $path.FullName) {
-                    Remove-Item $path.FullName -Force -ErrorAction SilentlyContinue -Recurse | Out-Null
-                }
-            }
-        }
-
-        $dir = "${env:ProgramFiles(x86)}\Microsoft"
-        if (Test-Path $dir) {
-            $paths = Get-ChildItem $dir -Recurse -Filter '*Copilot_setup*' 
-            foreach ($path in $paths) {
-                if (Test-Path $path.FullName) {
-                    Remove-Item $path.FullName -Force -ErrorAction SilentlyContinue -Recurse | Out-Null
-                }
-            }
-        }
-
-        Reg.exe delete 'HKLM\SOFTWARE\Microsoft\EdgeUpdate' /v 'CopilotUpdatePath' /f *>$null
-        Reg.exe delete 'HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate' /v 'CopilotUpdatePath' /f *>$null
-    
-        #remove additional installers
-        $inboxapps = 'C:\Windows\InboxApps'
-        $installers = Get-ChildItem -Path $inboxapps -Filter '*Copilot*' -ErrorAction SilentlyContinue
-        foreach ($installer in $installers) {
-            takeown /f $installer.FullName *>$null
-            icacls $installer.FullName /grant *S-1-5-32-544:F /t *>$null
-            try {
-                Remove-Item -Path $installer.FullName -Force -ErrorAction SilentlyContinue | Out-Null
-            }
-            catch {
-                #takeown didnt work remove file with system priv
-                $command = "Remove-Item -Path $($installer.FullName) -Force -ErrorAction SilentlyContinue -Recurse | Out-Null"
-                RunTrusted -command $command -psversion $psversion -logFile $logFile
-            }
-        
-        }
-    
-        #remove ai from outlook/office
-        $aiPaths = @(
-            "$env:ProgramFiles\Microsoft Office\root\vfs\ProgramFilesCommonX64\Microsoft Shared\Office16\AI",
-            "$env:ProgramFiles\Microsoft Office\root\vfs\ProgramFilesCommonX86\Microsoft Shared\Office16\AI",
-            "$env:ProgramFiles\Microsoft Office\root\Office16\AI",
-            "$env:ProgramFiles\Microsoft Office\root\vfs\ProgramFilesCommonX64\Microsoft Shared\Office16\ActionsServer",
-            "$env:ProgramFiles\Microsoft Office\root\Integration\Addons\aimgr.msix",
-            "$env:ProgramFiles\Microsoft Office\root\Integration\Addons\WritingAssistant.msix",
-            "$env:ProgramFiles\Microsoft Office\root\Integration\Addons\ActionsServer.msix"
-        )
-    
-        foreach ($path in $aiPaths) {
-            if (Test-Path $path -ErrorAction SilentlyContinue) {
-                if ($backup) {
-                    Write-Status -msg 'Backing Up Office AI Files - '
-                    LogInfo 'Backing Up Office AI Files'
-                    $backupDir = "$PSScriptRoot\AIRemoval\Backup\AIFiles\OfficeAI"
-                    if (!(Test-Path $backupDir)) {
-                        New-Item $backupDir -Force -ItemType Directory | Out-Null
-                    }
-
-                    if ($path -eq "$env:ProgramFiles\Microsoft Office\root\vfs\ProgramFilesCommonX64\Microsoft Shared\Office16\AI") {
-                        $backupDir = "$backupDir\x64"
-                        New-Item $backupDir -Force -ItemType Directory | Out-Null
-                    }
-                    elseif ($path -eq "$env:ProgramFiles\Microsoft Office\root\vfs\ProgramFilesCommonX86\Microsoft Shared\Office16\AI") {
-                        $backupDir = "$backupDir\x86"
-                        New-Item $backupDir -Force -ItemType Directory | Out-Null
-                    }
-                    elseif ($path -eq "$env:ProgramFiles\Microsoft Office\root\Office16\AI") {
-                        $backupDir = "$backupDir\RootAI"
-                        New-Item $backupDir -Force -ItemType Directory | Out-Null
-                    }
-                    elseif ($path -eq "$env:ProgramFiles\Microsoft Office\root\vfs\ProgramFilesCommonX64\Microsoft Shared\Office16\ActionsServer") {
-                        $backupDir = "$backupDir\ActionsServer"
-                        New-Item $backupDir -Force -ItemType Directory | Out-Null
-                    }
-                    else {
-                        $backupDir = "$PSScriptRoot\AIRemoval\Backup\AIFiles\OfficeAI"
-                    }
-                    Copy-Item -Path $path -Destination $backupDir -Force -Recurse -ErrorAction SilentlyContinue | Out-Null
-                }
-                try {
-                    Remove-Item $path -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-                }
-                catch {
-                    $command = "Remove-Item $path -Recurse -Force -ErrorAction SilentlyContinue | Out-Null"
-                    RunTrusted -command $command -psversion $psversion -logFile $logFile
-                    Start-Sleep 1
-                }
-                
-            }
-        }
-        
-        Write-ConsoleStatus -Status success
-#remove any screenshots from recall
-        Write-Status -msg 'Removing Any Screenshots By Recall - '
-        LogInfo 'Removing Any Screenshots By Recall'
-        Remove-Item -Path "$env:LOCALAPPDATA\CoreAIPlatform*" -Force -Recurse -ErrorAction SilentlyContinue | Out-Null
-        Write-ConsoleStatus -Status success
-#remove ai uri handlers
-        Write-Status -msg 'Removing AI URI Handlers - '
-        LogInfo 'Removing AI URI Handlers'
-        $uris = @(
-            'registry::HKEY_CLASSES_ROOT\ms-office-ai'
-            'registry::HKEY_CLASSES_ROOT\ms-copilot'
-            'registry::HKEY_CLASSES_ROOT\ms-clicktodo'
-        )
-
-        foreach ($uri in $uris) {
-            if ($backup) {
-                if (Test-Path $uri) {
-                    $backupDir = "$PSScriptRoot\AIRemoval\Backup\AIFiles\URIHandlers"
-                    if (!(Test-Path $backupDir)) {
-                        New-Item $backupDir -Force -ItemType Directory | Out-Null
-                    }
-                    $regExportPath = "$backupDir\$($uri -replace 'registry::HKEY_CLASSES_ROOT\\', '').reg"
-                    Reg.exe export ($uri -replace 'registry::', '') $regExportPath /y *>$null
-                }
-            }
-            Remove-Item $uri -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-        }
-
-        Write-ConsoleStatus -Status success
-#prefire copilot nudges package by deleting the registry keys 
-        Write-Status -msg 'Removing Copilot Nudges Registry Keys - '
-        LogInfo 'Removing Copilot Nudges Registry Keys'
-        $keys = @(
-            'registry::HKCR\Extensions\ContractId\Windows.BackgroundTasks\PackageId\MicrosoftWindows.Client.Core_*.*.*.*_x64__cw5n1h2txyewy\ActivatableClassId\Global.CopilotNudges.AppX*.wwa',
-            'registry::HKCR\Extensions\ContractId\Windows.Launch\PackageId\MicrosoftWindows.Client.Core_*.*.*.*_x64__cw5n1h2txyewy\ActivatableClassId\Global.CopilotNudges.wwa',
-            'registry::HKCR\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages\MicrosoftWindows.Client.Core_*.*.*.*_x64__cw5n1h2txyewy\Applications\MicrosoftWindows.Client.Core_cw5n1h2txyewy!Global.CopilotNudges',
-            'HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages\MicrosoftWindows.Client.Core_*.*.*.*_x64__cw5n1h2txyewy\Applications\MicrosoftWindows.Client.Core_cw5n1h2txyewy!Global.CopilotNudges',
-            'HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications\Backup\MicrosoftWindows.Client.Core_cw5n1h2txyewy!Global.CopilotNudges',
-            'HKLM:\SOFTWARE\Classes\Extensions\ContractId\Windows.BackgroundTasks\PackageId\MicrosoftWindows.Client.Core_*.*.*.*_x64__cw5n1h2txyewy\ActivatableClassId\Global.CopilotNudges.AppX*.wwa',
-            'HKLM:\SOFTWARE\Classes\Extensions\ContractId\Windows.BackgroundTasks\PackageId\MicrosoftWindows.Client.Core_*.*.*.*_x64__cw5n1h2txyewy\ActivatableClassId\Global.CopilotNudges.AppX*.mca',
-            'HKLM:\SOFTWARE\Classes\Extensions\ContractId\Windows.Launch\PackageId\MicrosoftWindows.Client.Core_*.*.*.*_x64__cw5n1h2txyewy\ActivatableClassId\Global.CopilotNudges.wwa'
-        )
-        #get full paths and remove
-        $fullkey = @()
-        foreach ($key in $keys) {
-            try {
-                $fullKey = Get-Item -Path $key -ErrorAction SilentlyContinue | Out-Null
-                if ($null -eq $fullkey) { continue }
-                if ($fullkey.Length -gt 1) {
-                    foreach ($multikey in $fullkey) {
-                        $command = "Remove-Item -Path `"registry::$multikey`" -Force -ErrorAction SilentlyContinue -Recurse | Out-Null"
-                        RunTrusted -command $command -psversion $psversion -logFile $logFile
-                        Start-Sleep 1
-                        #remove any regular admin that have trusted installer bug
-                        Remove-Item -Path "registry::$multikey" -Force -Recurse -ErrorAction SilentlyContinue | Out-Null
-                    }
-                }
-                else {
-                    $command = "Remove-Item -Path `"registry::$fullKey`" -Force -ErrorAction SilentlyContinue -Recurse | Out-Null"
-                    RunTrusted -command $command -psversion $psversion -logFile $logFile
-                    Start-Sleep 1
-                    #remove any regular admin that have trusted installer bug
-                    Remove-Item -Path "registry::$fullKey" -Force -Recurse -ErrorAction SilentlyContinue | Out-Null
-                }
-         
-            }
-            catch {
-                continue
-            }
-        }
-
-        #remove ai app checks in updates (not sure if this does anything)
-        $command = "Reg.exe delete 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell\Update\Packages\MicrosoftWindows.Client.CoreAI_cw5n1h2txyewy' /f"
-        RunTrusted -command $command -psversion $psversion -logFile $logFile
-        Reg.exe delete 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell\Update\Packages\Components' /v 'AIX' /f *>$null
-        Reg.exe delete 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell\Update\Packages\Components' /v 'CopilotNudges' /f *>$null
-        Reg.exe delete 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell\Update\Packages\Components' /v 'AIContext' /f *>$null
-
-        reg.exe delete 'HKCU\Software\Microsoft\Windows\CurrentVersion\App Paths\ActionsMcpHost.exe' /f *>$null
-        reg.exe delete 'HKLM\Software\Microsoft\Windows\CurrentVersion\App Paths\ActionsMcpHost.exe' /f *>$null
-
-        #remove app actions files 
-        #these will get remade when updating
-        taskkill.exe /im AppActions.exe /f *>$null
-        taskkill.exe /im VisualAssist.exe /f *>$null
-        $paths = @(
-            "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\ActionUI"
-            "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\VisualAssist"
-            "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\AppActions.exe"
-            "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\AppActions.dll"
-            "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\VisualAssistExe.exe"
-            "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\VisualAssistExe.dll"
-        )
-
-        Write-ConsoleStatus -Status success
-Write-Status -msg 'Removing App Actions Files - '
-        LogInfo 'Removing App Actions Files'
-        foreach ($path in $paths) {
-            if (Test-Path $path) {
-                if ((Get-Item $path).PSIsContainer) {
-                    takeown /f "$path" /r /d Y *>$null
-                    icacls "$path" /grant *S-1-5-32-544:F /t *>$null
-                    Remove-Item "$path" -Force -Recurse -ErrorAction SilentlyContinue | Out-Null
-                }
-                else {
-                    takeown /f "$path" *>$null
-                    icacls "$path" /grant *S-1-5-32-544:F /t *>$null
-                    Remove-Item "$path" -Force -ErrorAction SilentlyContinue | Out-Null
-                }
-            }
-       
-        }
-        Write-ConsoleStatus -Status success
-Write-Status -msg 'Removing AI From Component Store (WinSxS) - '
-        LogInfo 'Removing AI From Component Store (WinSxS)'
-       # Write-Status -msg 'This could take a while on some systems, please be patient!'
-        #additional dirs and reg keys
-        $aiKeyWords = @(
-            'AIX',
-            'Copilot',
-            'Recall',
-            'CoreAI',
-            'aimgr'
-        )
-        $regLocations = @(
-            'registry::HKCR\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage',
-            'HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage',
-            'registry::HKCR\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages',
-            'HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages',
-            'registry::HKCR\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\SystemAppData',
-            'HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\SystemAppData',
-            'registry::HKCR\PackagedCom\Package',
-            'HKCU:\Software\Classes\PackagedCom\Package',
-            'HKCU:\Software\RegisteredApplications',
-            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\SideBySide\Winners'
-        )
-        $dirs = @(
-            'C:\Windows\WinSxS',
-            'C:\Windows\System32\CatRoot'
-        )
-        
-        New-Item "$($tempDir)PathsToDelete.txt" -ItemType File -Force | Out-Null
-        foreach ($keyword in $aiKeyWords) {
-            foreach ($location in $regLocations) {
-                if (Test-Path $location) {
-                    Get-ChildItem $location -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -like "*$keyword*" } | ForEach-Object {
-                        try {
-                            Remove-Item $_.PSPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-                        }
-                        catch {
-                            #ignore when path is null
-                        }
-                        
-                    }
-                }
-            }
-
-        }
-
-        foreach ($dir in $dirs) {
-            Get-ChildItem $dir -Recurse -ErrorAction SilentlyContinue | Where-Object { 
-                $_.FullName -like "*$($aiKeyWords[0])*" -or 
-                $_.FullName -like "*$($aiKeyWords[1])*" -or 
-                $_.FullName -like "*$($aiKeyWords[2])*" -or
-                $_.FullName -like "*$($aiKeyWords[3])*" -or
-                $_.FullName -like "*$($aiKeyWords[4])*" -and
-                $(Test-Path $_.FullName -PathType Container) -eq $true 
-            } | ForEach-Object {
-                #add paths to txt to delete with trusted installer
-                Add-Content "$($tempDir)PathsToDelete.txt" -Value $_.FullName | Out-Null
-            } 
-        }
-        
-        
-        $command = "Get-Content `"$($tempDir)PathsToDelete.txt`" | ForEach-Object {Remove-Item `$_ -Force -Recurse -EA 0}"
-        RunTrusted -command $command -psversion $psversion -logFile $logFile
-        Start-Sleep 1
-        Write-ConsoleStatus -Status success
-}
+    # P5 rollback checkpoint: Remove-AI-Files part extracted to Module/Regions/UWPApps/AIRemoval/Remove-AI-Files/Remove-AI-Files.ps1; re-inline here if rollback is needed.
+    . (Join-Path $PSScriptRoot 'AIRemoval\Remove-AI-Files\Remove-AI-Files.ps1')
 
     #TEST:
     # remove ai components from component storage
@@ -2970,7 +1945,7 @@ function Hide-AI-Components {
     Write-Status -msg "$(@('Hiding','Unhiding')[$revert]) Ai Components in Settings - "
     LogInfo "$(@('Hiding','Unhiding')[$revert]) Ai Components in Settings"
 
-    $existingSettings = try { Get-ItemPropertyValue 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Name 'SettingsPageVisibility' -ErrorAction SilentlyContinue } catch { Write-AIRemovalSwallowedException -ErrorRecord $_ -Source 'AIRemoval.Hide-AI-Components.ReadSettingsPageVisibility'; $null }
+$existingSettings = try { Get-ItemPropertyValue 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Name 'SettingsPageVisibility' -ErrorAction SilentlyContinue } catch { Write-AIRemovalSwallowedException -ErrorRecord $_ -Source 'AIRemoval.Hide-AI-Components.ReadSettingsPageVisibility' -Severity Warning; $null }
     #early return if the user has already customized this with showonly rather than hide, in this event ill assume the user has knowledge of this key and aicomponents is likely not shown anyway
     if ($existingSettings -like '*showonly*') {
         LogError 'SettingsPageVisibility contains "showonly" - Skipping!'
@@ -3019,24 +1994,6 @@ function Disable-Notepad-Rewrite {
     #disable rewrite for notepad
     Write-Status -msg "$(@('Disabling','Enabling')[$revert]) Rewrite Ai Feature for Notepad - "
     LogInfo "$(@('Disabling','Enabling')[$revert]) Rewrite Ai Feature for Notepad"
-    <#
-    taskkill /im notepad.exe /f *>$null
-    #load notepad settings
-    reg load HKU\TEMP "$env:LOCALAPPDATA\Packages\Microsoft.WindowsNotepad_8wekyb3d8bbwe\Settings\settings.dat" >$null
-    #add disable rewrite
-    $regContent = @'
-Windows Registry Editor Version 5.00
-
-[HKEY_USERS\TEMP\LocalState]
-"RewriteEnabled"=hex(5f5e10b):00,e0,d1,c5,7f,ee,83,db,01
-'@
-    New-Item "$env:TEMP\DisableRewrite.reg" -Value $regContent -Force | Out-Null
-    regedit.exe /s "$env:TEMP\DisableRewrite.reg"
-    Start-Sleep 1
-    reg unload HKU\TEMP >$null
-    Remove-Item "$env:TEMP\DisableRewrite.reg" -Force -ErrorAction SilentlyContinue
-    #>
-    #above is old method before this policy to disable ai in notepad, [DEPRECIATED]
     Reg.exe add 'HKLM\SOFTWARE\Policies\WindowsNotepad' /v 'DisableAIFeatures' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
         Write-ConsoleStatus -Status success
 }
@@ -3050,9 +2007,8 @@ Windows Registry Editor Version 5.00
 
 function Remove-Recall-Tasks {
     if (!$revert) {
-        #remove recall tasks
-        Write-Status -msg 'Removing Recall Scheduled Tasks - '
-        LogInfo 'Removing Recall Scheduled Tasks'
+        Write-Status -msg 'Disabling Recall Scheduled Tasks - '
+        LogInfo 'Disabling Recall Scheduled Tasks'
         #believe it or not to disable and remove these you need system priv
         #create another sub script for removal
         $code = @"
@@ -3088,6 +2044,15 @@ Get-ScheduledTask -TaskName "*Office Actions Server*" -ErrorAction SilentlyConti
         Get-ScheduledTask -TaskPath '*WindowsAI*' | Disable-ScheduledTask -ErrorAction SilentlyContinue
         "
         RunTrusted -command $command -psversion $psversion -logFile $logFile
+        $remainingEnabledTasks = @(
+            Get-ScheduledTask -TaskPath '*WindowsAI*' -ErrorAction SilentlyContinue
+            Get-ScheduledTask -TaskName '*Office Actions Server*' -ErrorAction SilentlyContinue
+        ) | Where-Object { $_.State -ne 'Disabled' }
+        if ($remainingEnabledTasks.Count -gt 0) {
+            LogError 'Recall or Office AI scheduled tasks remained enabled after removal.'
+            Write-ConsoleStatus -Status failed
+            return
+        }
         Write-ConsoleStatus -Status success
 }
 }
@@ -3095,7 +2060,7 @@ Get-ScheduledTask -TaskName "*Office Actions Server*" -ErrorAction SilentlyConti
 # Run selected actions directly from the command line without showing the GUI.
 if ($nonInteractive) {
     if ($backup) {
-        CreateRestorePoint -nonInteractive
+        New-AIRemovalRestorePoint -nonInteractive
     }
     if ($AllOptions) {
         Disable-Registry-Keys 
@@ -3142,7 +2107,7 @@ else {
         'Remove-AI-Files'                = 'Removes AI-related files from SystemApps, WindowsApps, and other system directories. Also removes machine learning DLLs and Copilot installers.'
         'Hide-AI-Components'             = 'Hides AI components in Windows Settings by modifying the SettingsPageVisibility policy to prevent user access to AI settings.'
         'Disable-Notepad-Rewrite'        = 'Disables the AI Rewrite feature in Windows Notepad through registry modifications and group policy settings.'
-        'Remove-Recall-Tasks'            = 'Removes Recall-related scheduled tasks from the Windows Task Scheduler to prevent AI data collection processes from running.'
+        'Remove-Recall-Tasks'            = 'Disables Recall-related scheduled tasks in Windows Task Scheduler to prevent AI data collection processes from running.'
         'Remove-Voice-Access'            = 'Backs up and removes Voice Access, or restores it again in revert mode. Left off by default because it can freeze on some systems.'
     }
 
@@ -3220,9 +2185,65 @@ else {
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="ScrollBar">
-                                            <Grid>
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="6"/>
-                                                <Track Name="PART_Track" IsDirectionReversed="True">
+                                            <ControlTemplate.Resources>
+                                                <Style x:Key="AiScrollBarTrackButtonStyle" TargetType="RepeatButton">
+                                                    <Setter Property="OverridesDefaultStyle" Value="True"/>
+                                                    <Setter Property="IsTabStop" Value="False"/>
+                                                    <Setter Property="Focusable" Value="False"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="RepeatButton">
+                                                                <Border Background="Transparent"/>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                                <Style x:Key="AiScrollBarArrowButtonStyle" TargetType="RepeatButton">
+                                                    <Setter Property="OverridesDefaultStyle" Value="True"/>
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="IsTabStop" Value="False"/>
+                                                    <Setter Property="Focusable" Value="False"/>
+                                                    <Setter Property="Delay" Value="350"/>
+                                                    <Setter Property="Interval" Value="55"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="RepeatButton">
+                                                                <Grid Background="Transparent" SnapsToDevicePixels="True">
+                                                                    <Border x:Name="ArrowSurface" Background="#7A7A7A" CornerRadius="5" Opacity="0"/>
+                                                                    <ContentPresenter x:Name="ArrowGlyph" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.36"/>
+                                                                </Grid>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="ArrowSurface" Property="Opacity" Value="0.18"/>
+                                                                        <Setter TargetName="ArrowGlyph" Property="Opacity" Value="0.92"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsPressed" Value="True">
+                                                                        <Setter TargetName="ArrowSurface" Property="Opacity" Value="0.26"/>
+                                                                        <Setter TargetName="ArrowGlyph" Property="Opacity" Value="1.0"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsEnabled" Value="False">
+                                                                        <Setter TargetName="ArrowGlyph" Property="Opacity" Value="0.14"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </ControlTemplate.Resources>
+                                            <Grid SnapsToDevicePixels="True">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="16"/>
+                                                    <RowDefinition Height="*"/>
+                                                    <RowDefinition Height="16"/>
+                                                </Grid.RowDefinitions>
+                                                <RepeatButton Grid.Row="0" Style="{StaticResource AiScrollBarArrowButtonStyle}" Command="ScrollBar.LineUpCommand">
+                                                    <Path Data="M 2 6 L 5 3 L 8 6" Stroke="#5A5A5A" StrokeThickness="1.45" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="8" Height="8" Stretch="Uniform"/>
+                                                </RepeatButton>
+                                                <Border Grid.Row="1" Background="{TemplateBinding Background}" CornerRadius="6"/>
+                                                <Track Grid.Row="1" Name="PART_Track" IsDirectionReversed="True">
+                                                    <Track.DecreaseRepeatButton>
+                                                        <RepeatButton Style="{StaticResource AiScrollBarTrackButtonStyle}" Command="ScrollBar.PageUpCommand"/>
+                                                    </Track.DecreaseRepeatButton>
                                                     <Track.Thumb>
                                                         <Thumb>
                                                             <Thumb.Style>
@@ -3246,7 +2267,13 @@ else {
                                                             </Thumb.Style>
                                                         </Thumb>
                                                     </Track.Thumb>
+                                                    <Track.IncreaseRepeatButton>
+                                                        <RepeatButton Style="{StaticResource AiScrollBarTrackButtonStyle}" Command="ScrollBar.PageDownCommand"/>
+                                                    </Track.IncreaseRepeatButton>
                                                 </Track>
+                                                <RepeatButton Grid.Row="2" Style="{StaticResource AiScrollBarArrowButtonStyle}" Command="ScrollBar.LineDownCommand">
+                                                    <Path Data="M 2 3 L 5 6 L 8 3" Stroke="#5A5A5A" StrokeThickness="1.45" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="8" Height="8" Stretch="Uniform"/>
+                                                </RepeatButton>
                                             </Grid>
                                         </ControlTemplate>
                                     </Setter.Value>
@@ -3696,7 +2723,7 @@ else {
                 'AppActions.exe'
             )
             foreach ($procName in $aiProcesses) {
-                taskkill /im $procName /f *>$null
+                $null = Invoke-AIRemovalNativeProcess -FilePath 'taskkill.exe' -ArgumentList @('/im', $procName, '/f') -TimeoutSeconds 60 -AllowedExitCodes @(0, 128)
             }
             Write-ConsoleStatus -Status success
 $progressWindow = New-Object System.Windows.Window
@@ -3738,7 +2765,7 @@ $progressWindow = New-Object System.Windows.Window
     
             try {
                 if ($backup) {
-                    CreateRestorePoint
+                    New-AIRemovalRestorePoint
                 }
                 foreach ($func in $selectedFunctions) {
                     $progressText.Text = "Executing: $($func.Replace('-', ' '))"

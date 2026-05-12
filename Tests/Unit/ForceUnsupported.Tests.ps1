@@ -6,7 +6,7 @@ BeforeAll {
     $modulePath = Join-Path $PSScriptRoot '../../Module/GUIExecution.psm1'
     Import-Module $modulePath -Force
 
-    $script:ExecutionContent = Get-Content -LiteralPath $modulePath -Raw -Encoding UTF8
+    $script:ExecutionContent = Get-BaselineTestSourceText -Path $modulePath
     $orchestrationPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration.ps1'
     $orchestrationSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration'
     $script:OrchestrationContent = Get-BaselineTestSourceText -Path @(

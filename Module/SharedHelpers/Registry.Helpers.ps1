@@ -2,7 +2,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Set-Policy.
 #>
 
 function Set-Policy
@@ -84,7 +83,6 @@ function Set-Policy
 
 <#
     .SYNOPSIS
-    Internal function Get-CurrentWindowsUserSid.
 #>
 
 function Get-CurrentWindowsUserSid
@@ -100,10 +98,6 @@ function Get-CurrentWindowsUserSid
 	}
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function ConvertTo-NativeRegistryPath
 {
 	<# .SYNOPSIS Converts PowerShell registry paths (HKCU:\, HKLM:\) to native reg.exe format. #>
@@ -151,7 +145,6 @@ function ConvertTo-NativeRegistryPath
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-RegExeValueType.
 #>
 
 function ConvertTo-RegExeValueType
@@ -179,7 +172,6 @@ function ConvertTo-RegExeValueType
 
 <#
     .SYNOPSIS
-    Internal function Dismount-RegistryHive.
 #>
 
 function Dismount-RegistryHive
@@ -223,7 +215,6 @@ function Dismount-RegistryHive
 
 <#
     .SYNOPSIS
-    Internal function Mount-RegistryHive.
 #>
 
 function Mount-RegistryHive
@@ -274,7 +265,6 @@ function Mount-RegistryHive
 
 <#
     .SYNOPSIS
-    Internal function Test-RegistryValueEquivalent.
 #>
 
 function Test-RegistryValueEquivalent
@@ -360,7 +350,6 @@ function Test-RegistryValueEquivalent
 
 <#
     .SYNOPSIS
-    Internal function Set-RegistryValueSafe.
 #>
 
 function Set-RegistryValueSafe
@@ -489,7 +478,6 @@ function Set-RegistryValueSafe
 
 <#
     .SYNOPSIS
-    Internal function Remove-RegistryValueSafe.
 #>
 
 function Remove-RegistryValueSafe
@@ -555,7 +543,6 @@ function Remove-RegistryValueSafe
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-RegistryCompositeStringValue.
 #>
 
 function ConvertTo-RegistryCompositeStringValue
@@ -631,7 +618,6 @@ function ConvertTo-RegistryCompositeStringValue
 
 <#
     .SYNOPSIS
-    Internal function Set-RegistryCompositeStringValue.
 #>
 
 function Set-RegistryCompositeStringValue
@@ -695,7 +681,6 @@ function Set-RegistryCompositeStringValue
 
 <#
     .SYNOPSIS
-    Internal function Set-SystemTweaksRegistryValue.
 #>
 
 function Set-SystemTweaksRegistryValue
@@ -722,7 +707,6 @@ function Set-SystemTweaksRegistryValue
 
 <#
     .SYNOPSIS
-    Internal function Remove-SystemTweaksRegistryValue.
 #>
 
 function Remove-SystemTweaksRegistryValue

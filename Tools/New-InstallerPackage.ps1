@@ -3,9 +3,10 @@
     Internal build tool for creating the Baseline setup executable with Inno Setup.
 
     .DESCRIPTION
-    Builds the portable release archive, extracts it as the installer payload,
+    Builds a temporary installer payload archive, extracts it as the setup payload,
     stamps version and path defines into the unified Baseline-Setup.iss script,
-    then compiles it with ISCC.exe to produce a single Baseline-setup-<version>.exe.
+    then compiles it with ISCC.exe to produce a single
+    Baseline-setup-<version>-<channel>.exe.
     This is a maintainer-facing packaging script.
 
     .EXAMPLE
@@ -20,6 +21,8 @@ param (
     [string]$OutputDirectory,
     [string]$Version,
     [string]$IsccPath,
+    [ValidateRange(1, 86400)]
+    [int]$IsccTimeoutSeconds = 3600,
     [switch]$IncludeDocs,
     [switch]$GenerateScriptOnly,
     [switch]$Force
@@ -27,11 +30,84 @@ param (
 
 $ErrorActionPreference = 'Stop'
 
+$toolRepoRoot = Split-Path -Path $PSScriptRoot -Parent
+. (Join-Path $PSScriptRoot 'Zip.Helpers.ps1')
+. (Join-Path $toolRepoRoot 'Module/SharedHelpers/Process.Helpers.ps1')
+
+function New-BaselineReleaseZip
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$SourceDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationZip
+    )
+
+    [void](New-BaselineZipArchive `
+        -SourceDirectory $SourceDirectory `
+        -DestinationZip $DestinationZip)
+}
+
+<#
+    .SYNOPSIS
+    Runs ISCC with a bounded wait and file-backed diagnostics.
+#>
+function Invoke-InstallerIscc
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+
+        [object[]]$ArgumentList = @(),
+
+        [Parameter(Mandatory = $true)]
+        [string]$StdoutFile,
+
+        [Parameter(Mandatory = $true)]
+        [string]$StderrFile,
+
+        [ValidateRange(1, 86400)]
+        [int]$TimeoutSeconds = 3600
+    )
+
+    $process = Start-Process -FilePath $FilePath -ArgumentList $ArgumentList `
+        -PassThru -WindowStyle Hidden `
+        -RedirectStandardOutput $StdoutFile `
+        -RedirectStandardError $StderrFile
+
+    try
+    {
+        $timeoutMilliseconds = [int]([TimeSpan]::FromSeconds($TimeoutSeconds).TotalMilliseconds)
+        if (-not $process.WaitForExit($timeoutMilliseconds))
+        {
+            Stop-BaselineProcessTree -Process $process -Source 'NewInstallerPackage.IsccTimeout'
+            throw (New-Object System.TimeoutException -ArgumentList ("ISCC timed out after {0} second(s)." -f $TimeoutSeconds))
+        }
+
+        [void]$process.WaitForExit()
+        $process.Refresh()
+
+        return [pscustomobject]@{
+            ExitCode  = [int]$process.ExitCode
+            ProcessId = [int]$process.Id
+        }
+    }
+    finally
+    {
+        if ($null -ne $process)
+        {
+            $process.Dispose()
+        }
+    }
+}
+
 # ── Locate ISCC ───────────────────────────────────────────────────────────────
 
 <#
     .SYNOPSIS
-    Internal function Resolve-IsccPath.
 #>
 function Resolve-IsccPath
 {
@@ -87,7 +163,6 @@ function Resolve-IsccPath
 
 <#
     .SYNOPSIS
-    Internal function Get-InstallerPayloadEntries.
 #>
 function Get-InstallerPayloadEntries
 {
@@ -103,7 +178,6 @@ function Get-InstallerPayloadEntries
         'Completion'
         'Tests'
         'docs'
-        '.github'
         'README.md'
         'LICENSE'
         'CHANGELOG.md'
@@ -112,7 +186,6 @@ function Get-InstallerPayloadEntries
 
 <#
     .SYNOPSIS
-    Internal function Get-InstallerBuildLayout.
 #>
 function Get-InstallerBuildLayout
 {
@@ -143,7 +216,6 @@ function Get-InstallerBuildLayout
 
 <#
     .SYNOPSIS
-    Internal function Get-InstallerPayloadPathBudgetReport.
 #>
 function Get-InstallerPayloadPathBudgetReport
 {
@@ -211,7 +283,6 @@ function Get-InstallerPayloadPathBudgetReport
 
 <#
     .SYNOPSIS
-    Internal function Get-InstallerLocalizationDefinitions.
 #>
 function Get-InstallerLocalizationDefinitions
 {
@@ -271,7 +342,6 @@ function Get-InstallerLocalizationDefinitions
 
 <#
     .SYNOPSIS
-    Internal function Import-InstallerLocalizationTable.
 #>
 function Import-InstallerLocalizationTable
 {
@@ -297,7 +367,7 @@ function Import-InstallerLocalizationTable
         'zh-MO' = 'zh-Hant'
     }
 
-    $candidates = [System.Collections.Generic.List[string]]::new()
+    $candidates = New-Object 'System.Collections.Generic.List[string]'
 
     function Add-InstallerLocalizationCandidate
     {
@@ -384,7 +454,6 @@ function Import-InstallerLocalizationTable
 
 <#
     .SYNOPSIS
-    Internal function Get-InstallerLocalizationSource.
 #>
 function Get-InstallerLocalizationSource
 {
@@ -461,7 +530,6 @@ function Get-InstallerLocalizationSource
 
 <#
     .SYNOPSIS
-    Internal function Get-InstallerLocaleCodes.
 #>
 function Get-InstallerLocaleCodes
 {
@@ -491,7 +559,6 @@ function Get-InstallerLocaleCodes
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-InnoStringLiteral.
 #>
 function ConvertTo-InnoStringLiteral
 {
@@ -507,7 +574,6 @@ function ConvertTo-InnoStringLiteral
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-StringMap.
 #>
 function ConvertTo-StringMap
 {
@@ -528,7 +594,6 @@ function ConvertTo-StringMap
 
 <#
     .SYNOPSIS
-    Internal function Initialize-InstallerLocalizationWorkspace.
 #>
 function Initialize-InstallerLocalizationWorkspace
 {
@@ -590,7 +655,6 @@ function Initialize-InstallerLocalizationWorkspace
 
 <#
     .SYNOPSIS
-    Internal function Get-InstallerLocalizationCacheKey.
 #>
 function Get-InstallerLocalizationCacheKey
 {
@@ -615,7 +679,43 @@ function Get-InstallerLocalizationCacheKey
 
 <#
     .SYNOPSIS
-    Internal function Invoke-InstallerLocalizationTranslation.
+#>
+function Get-InstallerFileSha256
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    if (Get-Command -Name 'Get-FileHash' -ErrorAction SilentlyContinue)
+    {
+        return (Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash.ToUpperInvariant()
+    }
+
+    $stream = [System.IO.File]::OpenRead($Path)
+    try
+    {
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        try
+        {
+            $hashBytes = $sha256.ComputeHash($stream)
+        }
+        finally
+        {
+            $sha256.Dispose()
+        }
+    }
+    finally
+    {
+        $stream.Dispose()
+    }
+
+    return ([System.BitConverter]::ToString($hashBytes)).Replace('-', '').ToUpperInvariant()
+}
+
+<#
+    .SYNOPSIS
 #>
 function Invoke-InstallerLocalizationTranslation
 {
@@ -710,7 +810,6 @@ function Invoke-InstallerLocalizationTranslation
 
 <#
     .SYNOPSIS
-    Internal function New-InstallerLocalizationFunction.
 #>
 function New-InstallerLocalizationFunction
 {
@@ -743,7 +842,7 @@ function New-InstallerLocalizationFunction
         $localeData[$locale.ToLowerInvariant()] = ConvertTo-StringMap -JsonObject (Get-Content -LiteralPath $localePath -Raw | ConvertFrom-Json)
     }
 
-    $sb = [System.Text.StringBuilder]::new()
+    $sb = New-Object System.Text.StringBuilder
     [void]$sb.AppendLine('function GetSetupString(Key: String): String;')
     [void]$sb.AppendLine('var')
     [void]$sb.AppendLine('  Lang: String;')
@@ -754,7 +853,7 @@ function New-InstallerLocalizationFunction
     $emittedLocaleBranch = $false
     foreach ($locale in ($localeData.Keys | Sort-Object))
     {
-        $lines = [System.Collections.Generic.List[string]]::new()
+        $lines = New-Object 'System.Collections.Generic.List[string]'
         $translations = $localeData[$locale]
         foreach ($key in $SourceMap.Keys)
         {
@@ -831,12 +930,24 @@ if (-not (Test-Path -LiteralPath $templateIss -PathType Leaf))
 # ── Version ───────────────────────────────────────────────────────────────────
 
 $moduleManifestPath = Join-Path $repoRoot 'Module\Baseline.psd1'
+$manifest = $null
 if ([string]::IsNullOrWhiteSpace($Version) -and (Test-Path -LiteralPath $moduleManifestPath -PathType Leaf))
 {
     $manifest = Import-PowerShellDataFile -LiteralPath $moduleManifestPath
     if ($manifest -and $manifest.ModuleVersion) { $Version = [string]$manifest.ModuleVersion }
 }
+elseif (Test-Path -LiteralPath $moduleManifestPath -PathType Leaf)
+{
+    $manifest = Import-PowerShellDataFile -LiteralPath $moduleManifestPath
+}
 if ([string]::IsNullOrWhiteSpace($Version)) { $Version = 'dev' }
+
+$updateChannel = 'Stable'
+if ($manifest -and $manifest.PrivateData -and $manifest.PrivateData.Prerelease)
+{
+    $updateChannel = 'Beta'
+}
+$setupChannelToken = $updateChannel.ToLowerInvariant()
 
 # ── Output dir ────────────────────────────────────────────────────────────────
 
@@ -870,7 +981,6 @@ $launcherSourceRoots  = @(
     (Join-Path $repoRoot 'Localizations')
     (Join-Path $repoRoot 'Assets')
     (Join-Path $repoRoot 'Completion')
-    (Join-Path $repoRoot '.github')
 )
 
 $needsBuild = -not (Test-Path -LiteralPath $repoExe -PathType Leaf)
@@ -907,14 +1017,14 @@ if (-not (Test-Path -LiteralPath $repoExe -PathType Leaf))
     throw "Baseline.exe not found after launcher build: $repoExe"
 }
 
-# ── Build portable payload ────────────────────────────────────────────────────
+# ── Build installer payload ───────────────────────────────────────────────────
 
 $buildLayout = Get-InstallerBuildLayout
 $tempRoot    = $buildLayout.TempRoot
 $tempDist    = $buildLayout.TempDist
 $tempExtract = $buildLayout.TempExtract
 $tempScripts = $buildLayout.TempScripts
-$archiveName = "Baseline-portable-$Version.zip"
+$archiveName = "Baseline-payload-$Version.zip"
 $archivePath = Join-Path $tempDist $archiveName
 
 try
@@ -923,7 +1033,7 @@ try
     New-Item -Path $tempExtract -ItemType Directory -Force | Out-Null
     New-Item -Path $tempScripts -ItemType Directory -Force | Out-Null
 
-    # Stage loose files and compress into the portable payload zip
+    # Stage loose files and compress them into the temporary setup payload zip.
     $stageRoot = $buildLayout.StageRoot
     $stageDir  = $buildLayout.StageDir
     New-Item -Path $stageDir -ItemType Directory -Force | Out-Null
@@ -941,7 +1051,7 @@ try
         Where-Object { $_.Name -in @('.DS_Store','Thumbs.db') } |
         Remove-Item -Force -ErrorAction SilentlyContinue
 
-    Compress-Archive -LiteralPath $stageDir -DestinationPath $archivePath -CompressionLevel Optimal -Force
+    New-BaselineReleaseZip -SourceDirectory $stageRoot -DestinationZip $archivePath
 
     if (-not (Test-Path -LiteralPath $archivePath -PathType Leaf))
     {
@@ -976,6 +1086,8 @@ try
     $sourceRootEscaped     = $sourceRoot.Replace('\', '\\')
     $resolvedOutputEscaped = $resolvedOutput.Replace('\', '\\')
     $issContent = $issContent -replace '#define MyAppVersion\s+"[^"]*"',  "#define MyAppVersion `"$Version`""
+    $issContent = $issContent -replace '#define MyAppChannel\s+"[^"]*"',  "#define MyAppChannel `"$updateChannel`""
+    $issContent = $issContent -replace '#define MyAppChannelToken\s+"[^"]*"', "#define MyAppChannelToken `"$setupChannelToken`""
     $issContent = $issContent -replace '#define MySourceRoot\s+"[^"]*"',  "#define MySourceRoot `"$sourceRootEscaped`""
     $issContent = $issContent -replace '#define MyOutputDir\s+"[^"]*"',   "#define MyOutputDir  `"$resolvedOutputEscaped`""
 
@@ -997,7 +1109,8 @@ try
                   $issContent.Substring($functionEnd)
 
     $stampedIss = Join-Path $tempScripts "Baseline-Setup-$Version.iss"
-    [System.IO.File]::WriteAllText($stampedIss, $issContent, [System.Text.UTF8Encoding]::new($true))
+    $utf8WithBom = New-Object System.Text.UTF8Encoding -ArgumentList $true
+    [System.IO.File]::WriteAllText($stampedIss, $issContent, $utf8WithBom)
 
     # ── Optionally persist the script only ───────────────────────────────────
 
@@ -1009,6 +1122,8 @@ try
             ScriptPath    = $persistedPath
             InstallerPath = $null
             Version       = $Version
+            Channel       = $updateChannel
+            ChannelToken  = $setupChannelToken
             Compiled      = $false
         }
     }
@@ -1021,7 +1136,7 @@ try
         throw 'Inno Setup compiler (ISCC.exe) not found. Install Inno Setup 6 or pass -IsccPath.'
     }
 
-    $setupFileName = "Baseline-setup-$Version.exe"
+    $setupFileName = "Baseline-setup-$Version-$setupChannelToken.exe"
     $setupPath     = Join-Path $resolvedOutput $setupFileName
 
     if ((Test-Path -LiteralPath $setupPath -PathType Leaf) -and -not $Force)
@@ -1037,11 +1152,23 @@ try
     {
         $stdoutFile = Join-Path $tempScripts 'iscc.stdout.log'
         $stderrFile = Join-Path $tempScripts 'iscc.stderr.log'
-        $process = Start-Process -FilePath $resolvedIscc -ArgumentList @('/Qp', "`"$stampedIss`"") `
-                                 -Wait -PassThru -NoNewWindow `
-                                 -RedirectStandardOutput $stdoutFile `
-                                 -RedirectStandardError $stderrFile
-        if ($process.ExitCode -ne 0)
+        $compilerResult = $null
+        $compilerError = $null
+        try
+        {
+            $compilerResult = Invoke-InstallerIscc `
+                -FilePath $resolvedIscc `
+                -ArgumentList @('/Qp', "`"$stampedIss`"") `
+                -StdoutFile $stdoutFile `
+                -StderrFile $stderrFile `
+                -TimeoutSeconds $IsccTimeoutSeconds
+        }
+        catch
+        {
+            $compilerError = $_
+        }
+
+        if ($compilerError -or $compilerResult.ExitCode -ne 0)
         {
             Write-Host '--- ISCC stdout ---'
             if (Test-Path -LiteralPath $stdoutFile) { Get-Content -LiteralPath $stdoutFile | Write-Host }
@@ -1070,7 +1197,11 @@ try
                 "Source root missing at failure time: $sourceRoot" | Out-File -LiteralPath $listingFile -Encoding UTF8
             }
             Write-Host "Persisted ISCC diagnostics to: $persistDir"
-            throw "ISCC failed with exit code $($process.ExitCode)."
+            if ($compilerError)
+            {
+                throw $compilerError
+            }
+            throw "ISCC failed with exit code $($compilerResult.ExitCode)."
         }
         else
         {
@@ -1083,11 +1214,38 @@ try
         throw "Expected installer was not produced: $setupPath"
     }
 
+    $setupHashManifestPath = $setupPath + '.sha256.json'
+    $setupHashManifest = [ordered]@{
+        schemaVersion = 1
+        algorithm    = 'sha256'
+        generatedUtc = ([System.DateTime]::UtcNow.ToString('o'))
+        version      = $Version
+        files        = [ordered]@{
+            $setupFileName = Get-InstallerFileSha256 -Path $setupPath
+        }
+    }
+    $setupHashManifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $setupHashManifestPath -Encoding UTF8
+
+    $repoSetupPath = Join-Path $repoRoot $setupFileName
+    $repoSetupHashManifestPath = Join-Path $repoRoot ([System.IO.Path]::GetFileName($setupHashManifestPath))
+
+    if (-not [string]::Equals([System.IO.Path]::GetFullPath($setupPath), [System.IO.Path]::GetFullPath($repoSetupPath), [System.StringComparison]::OrdinalIgnoreCase))
+    {
+        Copy-Item -LiteralPath $setupPath -Destination $repoSetupPath -Force
+    }
+    if (-not [string]::Equals([System.IO.Path]::GetFullPath($setupHashManifestPath), [System.IO.Path]::GetFullPath($repoSetupHashManifestPath), [System.StringComparison]::OrdinalIgnoreCase))
+    {
+        Copy-Item -LiteralPath $setupHashManifestPath -Destination $repoSetupHashManifestPath -Force
+    }
+
     [pscustomobject]@{
-        InstallerPath = $setupPath
-        Version       = $Version
-        SizeBytes     = [int64](Get-Item -LiteralPath $setupPath).Length
-        Compiled      = $true
+        InstallerPath    = $setupPath
+        HashManifestPath = $setupHashManifestPath
+        Version          = $Version
+        Channel          = $updateChannel
+        ChannelToken     = $setupChannelToken
+        SizeBytes        = [int64](Get-Item -LiteralPath $setupPath).Length
+        Compiled         = $true
     }
 }
 finally

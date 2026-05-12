@@ -1,4 +1,4 @@
-# Safe Mode / Expert Mode state toggle functions.
+﻿# Safe Mode / Expert Mode state toggle functions.
 # Dot-sourced inside Show-TweakGUI.
 #
 # Single unified toggle: ChkSafeMode checked = Safe Mode, unchecked = Expert Mode.
@@ -15,13 +15,12 @@
 
 		if (Get-Command -Name 'Set-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			try { Set-BaselineUserPreference -Key 'DefaultStartupMode' -Value $Mode } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ModeState.SaveDefaultStartupModePreference' }
+			try { Set-BaselineUserPreference -Key 'DefaultStartupMode' -Value $Mode } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ModeState.SaveDefaultStartupModePreference' }
 		}
 	}
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-SafeModeState.
 	#>
 
 	function Set-SafeModeState
@@ -116,6 +115,8 @@
 		if ($Script:MenuTools)                  { $Script:MenuTools.Visibility                  = 'Visible' }
 		if ($Script:MenuToolsAppsManager)       { $Script:MenuToolsAppsManager.Visibility       = 'Visible' }
 		if ($Script:MenuToolsUpdateAllApps)     { $Script:MenuToolsUpdateAllApps.Visibility     = 'Visible' }
+		if ($Script:MenuToolsAdvanced)          { $Script:MenuToolsAdvanced.Visibility          = $safeModeHidden }
+		if ($Script:MenuToolsDeploymentMediaBuilder) { $Script:MenuToolsDeploymentMediaBuilder.Visibility = $safeModeHidden }
 		if ($Script:MenuToolsApproveRemoteTargets) { $Script:MenuToolsApproveRemoteTargets.Visibility = $safeModeHidden }
 		if ($Script:MenuToolsSaveRemoteApprovalPolicy) { $Script:MenuToolsSaveRemoteApprovalPolicy.Visibility = $safeModeHidden }
 		if ($Script:MenuToolsLoadRemoteApprovalPolicy) { $Script:MenuToolsLoadRemoteApprovalPolicy.Visibility = $safeModeHidden }
@@ -140,7 +141,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-AdvancedModeState.
 	#>
 
 	function Set-AdvancedModeState
@@ -226,6 +226,8 @@
 		if ($Script:MenuTools)                  { $Script:MenuTools.Visibility                  = 'Visible' }
 		if ($Script:MenuToolsAppsManager)       { $Script:MenuToolsAppsManager.Visibility       = 'Visible' }
 		if ($Script:MenuToolsUpdateAllApps)     { $Script:MenuToolsUpdateAllApps.Visibility     = 'Visible' }
+		if ($Script:MenuToolsAdvanced)          { $Script:MenuToolsAdvanced.Visibility          = 'Visible' }
+		if ($Script:MenuToolsDeploymentMediaBuilder) { $Script:MenuToolsDeploymentMediaBuilder.Visibility = 'Visible' }
 		if ($Script:MenuToolsApproveRemoteTargets) { $Script:MenuToolsApproveRemoteTargets.Visibility = 'Visible' }
 		if ($Script:MenuToolsSaveRemoteApprovalPolicy) { $Script:MenuToolsSaveRemoteApprovalPolicy.Visibility = 'Visible' }
 		if ($Script:MenuToolsLoadRemoteApprovalPolicy) { $Script:MenuToolsLoadRemoteApprovalPolicy.Visibility = 'Visible' }
@@ -250,7 +252,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-DesignModeState.
 	#>
 
 	function Set-DesignModeState
@@ -276,7 +277,7 @@
 			}
 			if (Get-Command -Name 'Set-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
 			{
-				try { Set-BaselineUserPreference -Key 'DesignMode' -Value $normalized } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ModeState.Set-DesignModeState.SavePreference' }
+				try { Set-BaselineUserPreference -Key 'DesignMode' -Value $normalized } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ModeState.Set-DesignModeState.SavePreference' }
 			}
 		}
 		finally

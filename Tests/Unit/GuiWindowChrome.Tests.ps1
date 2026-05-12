@@ -6,6 +6,7 @@ BeforeAll {
     $guiCommonPath = Join-Path $PSScriptRoot '../../Module/GUICommon.psm1'
     $dialogsPath = Join-Path $PSScriptRoot '../../Module/GUICommon/Dialogs.ps1'
     $windowChromePath = Join-Path $PSScriptRoot '../../Module/GUICommon/WindowChrome.ps1'
+    $sharedScrollBarsPath = Join-Path $PSScriptRoot '../../Module/GUICommon/SharedScrollBars.ps1'
     $dpiAwarenessPath = Join-Path $PSScriptRoot '../../Module/GUICommon/DpiAwareness.ps1'
     $popupWindowsPath = Join-Path $PSScriptRoot '../../Module/GUICommon/PopupWindows.ps1'
     $executionSummaryDialogCommonPath = Join-Path $PSScriptRoot '../../Module/GUICommon/ExecutionSummaryDialog.ps1'
@@ -23,14 +24,15 @@ BeforeAll {
     $lightThemePath = Join-Path $PSScriptRoot '../../Module/GUI/Themes/Light.xaml'
 
     $guiCommonContent = @(
-        Get-Content -LiteralPath $guiCommonPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $dialogsPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $utilitiesPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $windowChromePath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $dpiAwarenessPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $popupWindowsPath -Raw -Encoding UTF8
+        Get-BaselineTestSourceText -Path $guiCommonPath
+        Get-BaselineTestSourceText -Path $dialogsPath
+        Get-BaselineTestSourceText -Path $utilitiesPath
+        Get-BaselineTestSourceText -Path $windowChromePath
+        Get-BaselineTestSourceText -Path $sharedScrollBarsPath
+        Get-BaselineTestSourceText -Path $dpiAwarenessPath
+        Get-BaselineTestSourceText -Path $popupWindowsPath
     ) -join "`n"
-    $styleManagementContent = Get-Content -LiteralPath $styleManagementPath -Raw -Encoding UTF8
+    $styleManagementContent = Get-BaselineTestSourceText -Path $styleManagementPath
     $dialogHelpersContent = Get-BaselineTestSourceText -Path @(
         $dialogHelpersPath
         (Join-Path $dialogHelpersSplitRoot 'DialogThemeHelpers.ps1')
@@ -39,15 +41,15 @@ BeforeAll {
         (Join-Path $dialogHelpersSplitRoot 'ContentDialogs.ps1')
         (Join-Path $dialogHelpersSplitRoot 'AuditOperatorDialogs.ps1')
     )
-    $executionSummaryDialogContent = Get-Content -LiteralPath $executionSummaryDialogPath -Raw -Encoding UTF8
-    $executionSummaryDialogCommonContent = Get-Content -LiteralPath $executionSummaryDialogCommonPath -Raw -Encoding UTF8
-    $dpiAwarenessContent = Get-Content -LiteralPath $dpiAwarenessPath -Raw -Encoding UTF8
-    $guiContent = (Get-Content -LiteralPath $guiPath -Raw -Encoding UTF8) + "`n" + (Get-Content -LiteralPath $applyThemePath -Raw -Encoding UTF8)
-    $mainWindowContent = Get-Content -LiteralPath $mainWindowPath -Raw -Encoding UTF8
-    $windowSetupContent = Get-Content -LiteralPath $windowSetupPath -Raw -Encoding UTF8
-    $environmentHelpersContent = Get-Content -LiteralPath $environmentHelpersPath -Raw -Encoding UTF8
-    $darkThemeContent = Get-Content -LiteralPath $darkThemePath -Raw -Encoding UTF8
-    $lightThemeContent = Get-Content -LiteralPath $lightThemePath -Raw -Encoding UTF8
+    $executionSummaryDialogContent = Get-BaselineTestSourceText -Path $executionSummaryDialogPath
+    $executionSummaryDialogCommonContent = Get-BaselineTestSourceText -Path $executionSummaryDialogCommonPath
+    $dpiAwarenessContent = Get-BaselineTestSourceText -Path $dpiAwarenessPath
+    $guiContent = (Get-BaselineTestSourceText -Path $guiPath) + "`n" + (Get-BaselineTestSourceText -Path $applyThemePath)
+    $mainWindowContent = Get-BaselineTestSourceText -Path $mainWindowPath
+    $windowSetupContent = Get-BaselineTestSourceText -Path $windowSetupPath
+    $environmentHelpersContent = Get-BaselineTestSourceText -Path $environmentHelpersPath
+    $darkThemeContent = Get-BaselineTestSourceText -Path $darkThemePath
+    $lightThemeContent = Get-BaselineTestSourceText -Path $lightThemePath
 }
 
 Describe 'GUI window chrome theming' {
@@ -65,6 +67,45 @@ Describe 'GUI window chrome theming' {
         $guiCommonContent | Should -Match '\$RootBorder\.Child = \$null'
     }
 
+    It 'keeps shared popup caption buttons visible without main GUI style helpers' {
+        $guiCommonContent | Should -Match '\$minimizeButton\.Foreground = \$bc\.ConvertFromString\(\$titleBarTextColor\)'
+        $guiCommonContent | Should -Match '\$closeButton\.Foreground = \$bc\.ConvertFromString\(\$titleBarTextColor\)'
+        $guiCommonContent | Should -Match '\$minimizeButton\.Opacity = 1\.0'
+        $guiCommonContent | Should -Match '\$closeButton\.Opacity = 1\.0'
+        $styleManagementContent | Should -Match 'ContentSourceProperty, ''Content'''
+        $guiCommonContent | Should -Match 'SetPopupMinimizeButtonFallbackBrushes'
+        $guiCommonContent | Should -Match 'SetPopupCloseButtonFallbackBrushes'
+    }
+
+    It 'defines shared two-axis scrollbar resources for popup and dialog surfaces' {
+        $guiCommonContent | Should -Match 'function Get-GuiSharedScrollBarStyleXaml'
+        $guiCommonContent | Should -Match 'function Add-GuiSharedScrollBarResources'
+        $guiCommonContent | Should -Match "'Get-GuiSharedScrollBarStyleXaml'"
+        $guiCommonContent | Should -Match "'Add-GuiSharedScrollBarResources'"
+        $guiCommonContent | Should -Match 'Command="ScrollBar\.PageUpCommand"'
+        $guiCommonContent | Should -Match 'Command="ScrollBar\.PageDownCommand"'
+        $guiCommonContent | Should -Match 'Command="ScrollBar\.PageLeftCommand"'
+        $guiCommonContent | Should -Match 'Command="ScrollBar\.PageRightCommand"'
+        $guiCommonContent | Should -Match 'BaselineScrollBarArrowButtonStyle'
+        $guiCommonContent | Should -Match 'Command="ScrollBar\.LineUpCommand"'
+        $guiCommonContent | Should -Match 'Command="ScrollBar\.LineDownCommand"'
+        $guiCommonContent | Should -Match 'Command="ScrollBar\.LineLeftCommand"'
+        $guiCommonContent | Should -Match 'Command="ScrollBar\.LineRightCommand"'
+        $guiCommonContent | Should -Match '<RowDefinition Height="16"/>'
+        $guiCommonContent | Should -Match '<ColumnDefinition Width="16"/>'
+        $guiCommonContent | Should -Match 'Add-GuiSharedScrollBarResources -Target \$Window'
+    }
+
+    It 'keeps main window scrollbars on the same subtle arrow template' {
+        $mainWindowContent | Should -Match 'BaselineScrollBarArrowButtonStyle'
+        $mainWindowContent | Should -Match 'Command="ScrollBar\.LineUpCommand"'
+        $mainWindowContent | Should -Match 'Command="ScrollBar\.LineDownCommand"'
+        $mainWindowContent | Should -Match 'Command="ScrollBar\.LineLeftCommand"'
+        $mainWindowContent | Should -Match 'Command="ScrollBar\.LineRightCommand"'
+        $mainWindowContent | Should -Match '<RowDefinition Height="16"/>'
+        $mainWindowContent | Should -Match '<ColumnDefinition Width="16"/>'
+    }
+
     It 'normalizes dark mode values before shared chrome theming runs' {
         $guiCommonContent | Should -Match 'function Get-GuiBooleanValue'
         $guiCommonContent | Should -Match 'Get-GuiBooleanValue -Value \$UseDarkMode -Default \$true -Context ''Set-GuiWindowChromeTheme'''
@@ -76,6 +117,8 @@ Describe 'GUI window chrome theming' {
         $guiCommonContent | Should -Match 'function Set-GuiPopupWindowTheme'
         $guiCommonContent | Should -Match 'function Update-GuiPopupWindowThemes'
         $guiCommonContent | Should -Match 'function Start-GuiPopupCommandAsync'
+        $guiCommonContent | Should -Match 'Import-Module -Global -Force -DisableNameChecking -WarningAction SilentlyContinue -Name \$path'
+        $guiCommonContent | Should -Match 'Import-Module -Global -Force -DisableNameChecking -WarningAction SilentlyContinue -Name \$PopupModulePath'
         $guiCommonContent | Should -Match 'GuiPopupProgressHost'
         $guiCommonContent | Should -Match 'GuiPopupProgressBar'
         $guiCommonContent | Should -Match 'RowDefinitions\.Insert'
@@ -152,11 +195,12 @@ Describe 'GUI window chrome theming' {
         $guiContent | Should -Match 'Set-WindowCaptionButtonStyle -Button \$BtnMinimize'
         $guiContent | Should -Match 'Set-WindowCaptionButtonStyle -Button \$BtnMaximize'
         $guiContent | Should -Match 'Set-WindowCaptionButtonStyle -Button \$BtnClose -Variant ''Close'''
-        $guiCommonContent | Should -Match 'Set-WindowCaptionButtonStyle -Button \$dlgCloseBtn -Variant ''Close'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Dialogs\.ShowThemedDialog\.SetCloseButtonStyle'''
+        $guiCommonContent | Should -Match 'function Set-GuiPopupCaptionButtonStyle'
+        $guiCommonContent | Should -Match 'Set-GuiPopupCaptionButtonStyle -Button \$dlgCloseBtn -Variant ''Close'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''Dialogs\.ShowThemedDialog\.SetCloseButtonStyle'''
     }
 
-    It 'routes header toggle and menu sync fallback failures through Write-DebugSwallowedException' {
+    It 'routes header toggle and menu sync fallback failures through Write-SwallowedException' {
         $styleManagementContent | Should -Match "StyleManagement\.Set-HeaderToggleControlsStyle\.ApplyChrome"
         $styleManagementContent | Should -Match "StyleManagement\.Set-HeaderToggleStyle\.LoadTemplate"
         $styleManagementContent | Should -Match "StyleManagement\.Update-HeaderModeStateText\.SyncMenuViewTheme"
@@ -173,63 +217,63 @@ Describe 'GUI window chrome theming' {
         $styleManagementContent | Should -Match 'AutomationProperties\]::SetName\(\$ChkSafeMode'
     }
 
-    It 'routes style template cleanup failures through Write-DebugSwallowedException' {
-        $styleManagementContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''StyleManagement\.Set-HeaderToggleStyle\.TemplateReaderDispose'''
-        $styleManagementContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''StyleManagement\.Set-ChoiceComboStyle\.TemplateReaderDispose'''
+    It 'routes style template cleanup failures through Write-SwallowedException' {
+        $styleManagementContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''StyleManagement\.Set-HeaderToggleStyle\.TemplateReaderDispose'''
+        $styleManagementContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''StyleManagement\.Set-ChoiceComboStyle\.ApplyTemplate'''
     }
 
-    It 'routes style theme logger failures through Write-DebugSwallowedException' {
-        $styleManagementContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''StyleManagement\.Update-GuiMenuBarTheme\.LogWarning'''
-        $styleManagementContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''StyleManagement\.Update-GuiScrollBarTheme\.LogWarning'''
+    It 'routes style theme logger failures through Write-SwallowedException' {
+        $styleManagementContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''StyleManagement\.Update-GuiMenuBarTheme\.LogWarning'''
+        $styleManagementContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''StyleManagement\.Update-GuiScrollBarTheme\.LogWarning'''
     }
 
-    It 'routes popup window cleanup failures through Write-DebugSwallowedException' {
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Start-GuiPopupCommandAsync\.DisposePowerShell'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Start-GuiPopupCommandAsync\.DisposeRunspace'''
+    It 'routes popup window cleanup failures through Write-SwallowedException' {
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Start-GuiPopupCommandAsync\.DisposePowerShell'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Start-GuiPopupCommandAsync\.DisposeRunspace'''
     }
 
-    It 'routes popup window styling and progress cleanup failures through Write-DebugSwallowedException' {
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Add-GuiPopupWindowChrome\.SetMinimizeButtonStyle'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Add-GuiPopupWindowChrome\.SetCloseButtonStyle'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Add-GuiPopupWindowChrome\.ResolveThemeColor'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetWindowBackground'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetWindowForeground'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.ResolveThemeColor'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetRootBorderBackground'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetRootBorderBorderBrush'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetRootBorderThickness'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetTitleBarBackground'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetTitleBarBorderBrush'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetTitleBarBorderThickness'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetTitleTextForeground'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetPanelContainerBackground'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetProgressHostBackground'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetProgressBarBrushes'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetPopupMinimizeButtonStyle'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetPopupCloseButtonStyle'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.ApplyChrome'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Start-GuiPopupCommandAsync\.InitializeOperationState'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Start-GuiPopupCommandAsync\.CompleteOperationState'''
+    It 'routes popup window styling and progress cleanup failures through Write-SwallowedException' {
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Add-GuiPopupWindowChrome\.SetMinimizeButtonStyle'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Add-GuiPopupWindowChrome\.SetCloseButtonStyle'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Add-GuiPopupWindowChrome\.ResolveThemeColor'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetWindowBackground'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetWindowForeground'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.ResolveThemeColor'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetRootBorderBackground'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetRootBorderBorderBrush'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetRootBorderThickness'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetTitleBarBackground'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetTitleBarBorderBrush'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetTitleBarBorderThickness'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetTitleTextForeground'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetPanelContainerBackground'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetProgressHostBackground'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetProgressBarBrushes'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetPopupMinimizeButtonStyle'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.SetPopupCloseButtonStyle'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Set-GuiPopupWindowTheme\.ApplyChrome'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Start-GuiPopupCommandAsync\.InitializeOperationState'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''PopupWindows\.Start-GuiPopupCommandAsync\.CompleteOperationState'''
     }
 
-    It 'routes window chrome cleanup failures through Write-DebugSwallowedException' {
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''WindowChrome\.Restore-WindowSystemMenu\.ApplySystemMenu'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''WindowChrome\.Restore-WindowSystemMenu\.BuildContextMenu'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''WindowChrome\.Invoke-GuiWindowChromeThemeUpdate\.ApplyRoundedCorners'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''WindowChrome\.Invoke-GuiWindowChromeThemeUpdate\.RepaintChrome'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''WindowChrome\.Set-GuiWindowChromeTheme\.SetUseDarkModeProperty'''
-        $guiCommonContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''WindowChrome\.Set-GuiWindowChromeTheme\.SetSourceInitializedHandlerProperty'''
+    It 'routes window chrome cleanup failures through Write-SwallowedException' {
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''WindowChrome\.Restore-WindowSystemMenu\.ApplySystemMenu'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''WindowChrome\.Restore-WindowSystemMenu\.BuildContextMenu'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''WindowChrome\.Invoke-GuiWindowChromeThemeUpdate\.ApplyRoundedCorners'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''WindowChrome\.Invoke-GuiWindowChromeThemeUpdate\.RepaintChrome'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''WindowChrome\.Set-GuiWindowChromeTheme\.SetUseDarkModeProperty'''
+        $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''WindowChrome\.Set-GuiWindowChromeTheme\.SetSourceInitializedHandlerProperty'''
     }
 
-    It 'routes Dpi awareness bootstrap failures through Write-DebugSwallowedException' {
-        $dpiAwarenessContent.Contains('Write-DebugSwallowedException -ErrorRecord $_ -Source ''DpiAwareness.Initialize-GuiDpiAwareness.Enable''') | Should -BeTrue
+    It 'routes Dpi awareness bootstrap failures through Write-SwallowedException' {
+        $dpiAwarenessContent.Contains('Write-SwallowedException -ErrorRecord $_ -Source ''DpiAwareness.Initialize-GuiDpiAwareness.Enable''') | Should -BeTrue
     }
 
-    It 'routes execution summary layout-init failures through Write-DebugSwallowedException' {
-        $executionSummaryDialogCommonContent | Should -Match 'Write-DebugSwallowedException[\s\S]*ExecutionSummaryDialog\.Show-ExecutionSummaryDialog\.ListStackBeginInit'
-        $executionSummaryDialogCommonContent | Should -Match 'Write-DebugSwallowedException[\s\S]*ExecutionSummaryDialog\.Show-ExecutionSummaryDialog\.CapturedListStackBeginInit'
-        $executionSummaryDialogCommonContent | Should -Match 'Write-DebugSwallowedException[\s\S]*ExecutionSummaryDialog\.Show-ExecutionSummaryDialog\.CapturedListStackEndInit'
-        $executionSummaryDialogCommonContent | Should -Match 'Write-DebugSwallowedException[\s\S]*ExecutionSummaryDialog\.Show-ExecutionSummaryDialog\.ListStackEndInit'
+    It 'routes execution summary layout-init failures through Write-SwallowedException' {
+        $executionSummaryDialogCommonContent | Should -Match 'Write-SwallowedException[\s\S]*ExecutionSummaryDialog\.Show-GuiCommonExecutionSummaryDialog\.ListStackBeginInit'
+        $executionSummaryDialogCommonContent | Should -Match 'Write-SwallowedException[\s\S]*ExecutionSummaryDialog\.Show-GuiCommonExecutionSummaryDialog\.CapturedListStackBeginInit'
+        $executionSummaryDialogCommonContent | Should -Match 'Write-SwallowedException[\s\S]*ExecutionSummaryDialog\.Show-GuiCommonExecutionSummaryDialog\.CapturedListStackEndInit'
+        $executionSummaryDialogCommonContent | Should -Match 'Write-SwallowedException[\s\S]*ExecutionSummaryDialog\.Show-GuiCommonExecutionSummaryDialog\.ListStackEndInit'
     }
 
     It 'applies native window chrome theming to custom XAML dialogs' {
@@ -237,42 +281,178 @@ Describe 'GUI window chrome theming' {
     }
 
     It 'uses the shared popup chrome helper in the borderless picker windows' {
-        $uwpAppsContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/UWPApps.psm1') -Raw -Encoding UTF8
-        $systemFeaturesContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/System/System.WindowsFeatures.psm1') -Raw -Encoding UTF8
-        $telemetryContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/PrivacyTelemetry/PrivacyTelemetry.TelemetryServices.psm1') -Raw -Encoding UTF8
+        $uwpAppsContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/UWPApps.psm1')
+        $systemFeaturesContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/System/System.WindowsFeatures.psm1')
+        $telemetryContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/PrivacyTelemetry/PrivacyTelemetry.TelemetryServices.psm1')
 
-        ([regex]::Matches($uwpAppsContent, 'GUICommon\\Add-GuiPopupWindowChrome -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer -Theme \$currentTheme -UseDarkMode \$isDarkMode')).Count | Should -Be 2
-        ([regex]::Matches($systemFeaturesContent, 'GUICommon\\Add-GuiPopupWindowChrome -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer -Theme \$Theme -UseDarkMode \$UseDarkMode')).Count | Should -Be 2
-        ([regex]::Matches($telemetryContent, 'GUICommon\\Add-GuiPopupWindowChrome -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer -Theme \$Theme -UseDarkMode \$UseDarkMode')).Count | Should -Be 1
+        $uwpAppsContent | Should -Match '(?m)^using module \.\.\\GUICommon\.psm1'
+        $systemFeaturesContent | Should -Match '(?m)^using module \.\.\\\.\.\\GUICommon\.psm1'
+        $telemetryContent | Should -Match '(?m)^using module \.\.\\\.\.\\GUICommon\.psm1'
+        ([regex]::Matches($uwpAppsContent, 'GUICommon\\Add-GuiPopupWindowChrome -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer -Title \$uwpAppsTitle -Theme \$currentTheme -UseDarkMode \$isDarkMode')).Count | Should -Be 2
+        ([regex]::Matches($systemFeaturesContent, 'GUICommon\\Add-GuiPopupWindowChrome -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer -Title (?:\$windowsCapabilitiesTitle|\$windowsFeaturesTitle) -Theme \$Theme -UseDarkMode \$UseDarkMode')).Count | Should -Be 2
+        ([regex]::Matches($telemetryContent, 'GUICommon\\Add-GuiPopupWindowChrome -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer -Title \$scheduledTasksTitle -Theme \$Theme -UseDarkMode \$UseDarkMode')).Count | Should -Be 1
     }
 
     It 'uses standard per-row info glyphs in bulk picker windows' {
-        $uwpAppsContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/UWPApps.psm1') -Raw -Encoding UTF8
-        $systemFeaturesContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/System/System.WindowsFeatures.psm1') -Raw -Encoding UTF8
-        $telemetryContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/PrivacyTelemetry/PrivacyTelemetry.TelemetryServices.psm1') -Raw -Encoding UTF8
+        $uwpAppsContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/UWPApps.psm1')
+        $systemFeaturesContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/System/System.WindowsFeatures.psm1')
+        $telemetryContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/PrivacyTelemetry/PrivacyTelemetry.TelemetryServices.psm1')
 
         $guiCommonContent | Should -Match 'function New-GuiPopupInfoIcon'
         $guiCommonContent | Should -Match "'New-GuiPopupInfoIcon'"
         $guiCommonContent | Should -Match '\$icon\.Text = \[char\]0x24D8'
+        $systemFeaturesContent | Should -Not -Match '\$IconBlock'
+        $telemetryContent | Should -Not -Match '\$IconBlock'
+        $uwpAppsContent | Should -Not -Match '\$IconBlock'
         ([regex]::Matches($systemFeaturesContent, 'GUICommon\\New-GuiPopupInfoIcon')).Count | Should -Be 2
         ([regex]::Matches($telemetryContent, 'GUICommon\\New-GuiPopupInfoIcon')).Count | Should -Be 1
         ([regex]::Matches($uwpAppsContent, 'GUICommon\\New-GuiPopupInfoIcon')).Count | Should -Be 2
     }
 
-    It 'repairs the Windows feature picker theme before applying chrome' {
-        $systemFeaturesContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/System/System.WindowsFeatures.psm1') -Raw -Encoding UTF8
+    It 'keeps Scheduled Tasks picker text and command button on normal UI fonts' {
+        $telemetryContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/PrivacyTelemetry/PrivacyTelemetry.TelemetryServices.psm1')
 
-        $systemFeaturesContent | Should -Match '\$UseDarkMode = \$false'
+        $telemetryContent | Should -Not -Match 'FontFamily="FluentSystemIcons" FontSize="12" ShowInTaskbar="True"'
+        $telemetryContent | Should -Match 'FontFamily="Segoe UI" FontSize="12" ShowInTaskbar="True"'
+        $telemetryContent | Should -Match 'CheckBox Name="CheckBoxSelectAll"'
+        $telemetryContent | Should -Match '\$TextBlock\.FontFamily = \[System\.Windows\.Media\.FontFamily\]::new\(''Segoe UI''\)'
+        $telemetryContent | Should -Match '\$Button\.FontFamily = \[System\.Windows\.Media\.FontFamily\]::new\(''Segoe UI''\)'
+        $telemetryContent | Should -Match 'GUICommon\\Get-GuiPopupLocalizedString -Key ''GuiSelectAll'' -Fallback ''Select All'''
+        $telemetryContent | Should -Match 'GUICommon\\Get-GuiPopupLocalizedString -Key ''GuiChoiceEnable'' -Fallback ''Enable'''
+        $telemetryContent | Should -Match 'GUICommon\\Get-GuiPopupLocalizedString -Key ''GuiChoiceDisable'' -Fallback ''Disable'''
+        $telemetryContent | Should -Match 'GUICommon\\Get-GuiPopupLocalizedString -Key ''Tweak_ScheduledTasks'' -Fallback ''Diagnostics Tracking Tasks'''
+        $telemetryContent | Should -Match 'GUICommon\\Set-GuiPopupActionButtonStyle -Button \$Button -Theme \$Theme -UseDarkMode \$UseDarkMode'
+        $telemetryContent | Should -Match '\$CheckBoxSelectAll\.Add_Click\(\{Invoke-TelemetryServiceSelectAllClick\}\)'
+        $telemetryContent | Should -Match '\$Form\.Title = \$scheduledTasksTitle'
+        $telemetryContent | Should -Match 'GUICommon\\Add-GuiPopupWindowChrome -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer -Title \$scheduledTasksTitle -Theme \$Theme -UseDarkMode \$UseDarkMode'
+        $guiCommonContent | Should -Match 'function Set-GuiPopupActionButtonStyle'
+    }
+
+    It 'resolves the Scheduled Tasks picker theme from shared GUI state and registers repaint callbacks' {
+        $telemetryContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/PrivacyTelemetry/PrivacyTelemetry.TelemetryServices.psm1')
+
+        $telemetryContent | Should -Match 'function Resolve-ScheduledTasksPickerUseDarkMode'
+        $telemetryContent | Should -Match 'Variable:\\Global:BaselineCurrentTheme'
+        $telemetryContent | Should -Match 'Variable:\\Global:BaselineCurrentThemeName'
+        $telemetryContent | Should -Match 'Variable:\\Global:BaselineUseDarkMode'
+        $telemetryContent | Should -Match '\$env:BASELINE_THEME_NAME'
+        $telemetryContent | Should -Match 'function Set-ScheduledTasksPickerSurface'
+        $telemetryContent | Should -Match 'function Set-ScheduledTasksPickerElementTheme'
+        $telemetryContent | Should -Match 'GUICommon\\Register-GuiPopupThemeWindow -Window \$Form -ThemeCallback \$scheduledTasksThemeCallback'
+    }
+
+    It 'keeps UWP Apps picker labels and command buttons on the shared popup paths' {
+        $uwpAppsContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/UWPApps.psm1')
+
+        ([regex]::Matches($uwpAppsContent, '\$Button(Install|Uninstall)\.FontFamily\s+=\s+\[System\.Windows\.Media\.FontFamily\]::new\(''Segoe UI''\)')).Count | Should -Be 2
+        ([regex]::Matches($uwpAppsContent, '\$Button(Install|Uninstall)\.FontSize\s+=\s+12')).Count | Should -Be 2
+        $uwpAppsContent | Should -Match 'GUICommon\\Get-GuiPopupLocalizedString -Key ''Tweak_UWPApps'' -Fallback ''UWP Apps \(Bulk\)'''
+        $uwpAppsContent | Should -Match 'GUICommon\\Get-GuiPopupLocalizedString -Key ''GuiChoiceInstall'' -Fallback ''Install'''
+        $uwpAppsContent | Should -Match 'GUICommon\\Get-GuiPopupLocalizedString -Key ''GuiChoiceUninstall'' -Fallback ''Uninstall'''
+        ([regex]::Matches($uwpAppsContent, 'GUICommon\\Get-GuiPopupLocalizedString -Key ''UninstallUWPForAll'' -Fallback ''For all users''')).Count | Should -Be 2
+        ([regex]::Matches($uwpAppsContent, 'GUICommon\\Get-GuiPopupLocalizedString -Key ''GuiSelectAll'' -Fallback ''Select All''')).Count | Should -Be 2
+        ([regex]::Matches($uwpAppsContent, 'GUICommon\\Set-GuiPopupActionButtonStyle -Button \$Button(Install|Uninstall) -Theme \$currentTheme -UseDarkMode \$isDarkMode')).Count | Should -Be 2
+        ([regex]::Matches($uwpAppsContent, 'GUICommon\\Set-GuiPopupActionButtonStyle -Button \$Button(Install|Uninstall) -Theme \$Theme -UseDarkMode \$UseDarkMode')).Count | Should -Be 2
+    }
+
+    It 'resolves the UWP Apps picker theme from shared GUI state and registers repaint callbacks' {
+        $uwpAppsContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/UWPApps.psm1')
+
+        $uwpAppsContent | Should -Match 'function Resolve-UWPAppsPickerUseDarkMode'
+        $uwpAppsContent | Should -Match 'function Get-UWPAppsPickerTheme'
+        $uwpAppsContent | Should -Match 'Variable:\\Global:BaselineCurrentThemeName'
+        $uwpAppsContent | Should -Match 'Variable:\\Global:BaselineUseDarkMode'
+        $uwpAppsContent | Should -Match 'Variable:\\Global:BaselineCurrentTheme'
+        $uwpAppsContent | Should -Match '\$env:BASELINE_USE_DARK_MODE'
+        $uwpAppsContent | Should -Match '\$env:BASELINE_THEME_NAME'
+        ([regex]::Matches($uwpAppsContent, '\$currentTheme = Get-UWPAppsPickerTheme')).Count | Should -Be 2
+        ([regex]::Matches($uwpAppsContent, 'GUICommon\\Register-GuiPopupThemeWindow -Window \$Form -ThemeCallback \$uwpApps(Install|Uninstall)ThemeCallback')).Count | Should -Be 2
+        ([regex]::Matches($uwpAppsContent, '& \$uwpApps(Install|Uninstall)ThemeCallback -Window \$Form -Theme \$currentTheme -UseDarkMode \$isDarkMode')).Count | Should -Be 2
+    }
+
+    It 'keeps Windows Features and Capabilities picker text and command buttons on normal UI fonts' {
+        $systemFeaturesContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/System/System.WindowsFeatures.psm1')
+
+        $systemFeaturesContent | Should -Not -Match 'FontFamily="FluentSystemIcons" FontSize="12" ShowInTaskbar="True"'
+        ([regex]::Matches($systemFeaturesContent, 'FontFamily="Segoe UI" FontSize="12" ShowInTaskbar="True"')).Count | Should -Be 2
+        ([regex]::Matches($systemFeaturesContent, 'CheckBox Name="CheckBoxSelectAll"')).Count | Should -Be 2
+        ([regex]::Matches($systemFeaturesContent, '\$TextBlock\.FontFamily = \[System\.Windows\.Media\.FontFamily\]::new\(''Segoe UI''\)')).Count | Should -BeGreaterOrEqual 2
+        ([regex]::Matches($systemFeaturesContent, '\$Button\.FontFamily = \[System\.Windows\.Media\.FontFamily\]::new\(''Segoe UI''\)')).Count | Should -Be 2
+        ([regex]::Matches($systemFeaturesContent, 'GUICommon\\Get-GuiPopupLocalizedString -Key ''GuiSelectAll'' -Fallback ''Select All''')).Count | Should -Be 2
+        $systemFeaturesContent | Should -Match 'GUICommon\\Get-GuiPopupLocalizedString -Key ''GuiChoiceInstall'' -Fallback ''Install'''
+        $systemFeaturesContent | Should -Match 'GUICommon\\Get-GuiPopupLocalizedString -Key ''GuiChoiceUninstall'' -Fallback ''Uninstall'''
+        $systemFeaturesContent | Should -Match 'GUICommon\\Get-GuiPopupLocalizedString -Key ''GuiChoiceEnable'' -Fallback ''Enable'''
+        $systemFeaturesContent | Should -Match 'GUICommon\\Get-GuiPopupLocalizedString -Key ''GuiChoiceDisable'' -Fallback ''Disable'''
+        $systemFeaturesContent | Should -Match 'GUICommon\\Get-GuiPopupLocalizedString -Key ''Tweak_WindowsCapabilities'' -Fallback ''Windows Capabilities'''
+        $systemFeaturesContent | Should -Match 'GUICommon\\Get-GuiPopupLocalizedString -Key ''Tweak_WindowsFeatures'' -Fallback ''Windows Features'''
+        $systemFeaturesContent | Should -Match 'WindowsCapabilities\.SetPopupActionButtonStyle'
+        $systemFeaturesContent | Should -Match 'WindowsFeatures\.SetPopupActionButtonStyle'
+        ([regex]::Matches($systemFeaturesContent, 'GUICommon\\Set-GuiPopupActionButtonStyle -Button \$Button -Theme \$Theme -UseDarkMode \$UseDarkMode')).Count | Should -Be 4
+        $systemFeaturesContent | Should -Match '\$CheckBoxSelectAll\.Add_Click\(\{Invoke-CapabilitySelectAllClick\}\)'
+        $systemFeaturesContent | Should -Match '\$CheckBoxSelectAll\.Add_Click\(\{Invoke-FeatureSelectAllClick\}\)'
+        $systemFeaturesContent | Should -Match '\$Form\.Title = \$windowsCapabilitiesTitle'
+        $systemFeaturesContent | Should -Match '\$Form\.Title = \$windowsFeaturesTitle'
+        $systemFeaturesContent | Should -Match 'GUICommon\\Add-GuiPopupWindowChrome -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer -Title \$windowsCapabilitiesTitle -Theme \$Theme -UseDarkMode \$UseDarkMode'
+        $systemFeaturesContent | Should -Match 'GUICommon\\Add-GuiPopupWindowChrome -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer -Title \$windowsFeaturesTitle -Theme \$Theme -UseDarkMode \$UseDarkMode'
+    }
+
+    It 'resolves Windows Features and Capabilities picker theme from shared GUI state' {
+        $systemFeaturesContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/System/System.WindowsFeatures.psm1')
+
+        $systemFeaturesContent | Should -Match 'function Resolve-SystemPickerUseDarkMode'
+        $systemFeaturesContent | Should -Match 'function Get-SystemPickerTheme'
+        $systemFeaturesContent | Should -Match 'function Get-SystemPickerResolvedThemeColor'
+        $systemFeaturesContent | Should -Match 'Variable:\\Global:BaselineCurrentThemeName'
+        $systemFeaturesContent | Should -Match 'Variable:\\Global:BaselineUseDarkMode'
+        $systemFeaturesContent | Should -Match 'Variable:\\Global:BaselineCurrentTheme'
+        $systemFeaturesContent | Should -Match '\$env:BASELINE_USE_DARK_MODE'
+        $systemFeaturesContent | Should -Match '\$env:BASELINE_THEME_NAME'
+        ([regex]::Matches($systemFeaturesContent, '\$Theme = Get-SystemPickerTheme')).Count | Should -Be 2
+        ([regex]::Matches($systemFeaturesContent, '\$UseDarkMode = Resolve-SystemPickerUseDarkMode')).Count | Should -Be 2
+        ([regex]::Matches($systemFeaturesContent, 'Get-SystemPickerResolvedThemeColor -Theme \$Theme -ColorName ''WindowBg''')).Count | Should -Be 2
+        ([regex]::Matches($systemFeaturesContent, 'Get-SystemPickerResolvedThemeColor -Theme \$Theme -ColorName ''BorderColor''')).Count | Should -Be 2
+        $systemFeaturesContent | Should -Match '\[void\]\$BrushConverter\.ConvertFromString\(\[string\]\$candidate\)'
+    }
+
+    It 'uses the popup secondary button palette for the default action surface' {
+        $guiCommonContent | Should -Match 'ColorName ''SecondaryButtonBg'''
+        $guiCommonContent | Should -Match 'ColorName ''SecondaryButtonFg'''
+    }
+
+    It 'uses the shared popup localized-string helper for picker captions and button text' {
+        $guiCommonContent | Should -Match 'function Get-GuiPopupLocalizedString'
+        $guiCommonContent | Should -Match '''Get-GuiPopupLocalizedString'''
+        $guiCommonContent | Should -Match 'Get-GuiPopupLocalizedString -Key ''GuiCloseButton'' -Fallback ''Close'''
+    }
+
+    It 'repairs the Windows feature picker theme before applying chrome' {
+        $systemFeaturesContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/System/System.WindowsFeatures.psm1')
+
+        $systemFeaturesContent | Should -Not -Match '\$UseDarkMode = \$false'
         $systemFeaturesContent | Should -Match 'Repair-GuiThemePalette -Theme \$Theme -ThemeName'
     }
 
     It 'routes popup actions through the shared async runner' {
-        $systemFeaturesContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/System/System.WindowsFeatures.psm1') -Raw -Encoding UTF8
-        $telemetryContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Regions/PrivacyTelemetry/PrivacyTelemetry.TelemetryServices.psm1') -Raw -Encoding UTF8
+        $systemFeaturesContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/System/System.WindowsFeatures.psm1')
+        $telemetryContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/PrivacyTelemetry/PrivacyTelemetry.TelemetryServices.psm1')
 
-        ([regex]::Matches($systemFeaturesContent, 'GUICommon\\Start-GuiPopupCommandAsync -Window \$Form -ModulePath \$modulePath -CommandName ''WindowsCapabilities''')).Count | Should -Be 1
-        ([regex]::Matches($systemFeaturesContent, 'GUICommon\\Start-GuiPopupCommandAsync -Window \$Form -ModulePath \$modulePath -CommandName ''WindowsFeatures''')).Count | Should -Be 1
+        $systemFeaturesContent | Should -Match 'function Resolve-SystemPickerGuiCommonPath'
+        ([regex]::Matches($systemFeaturesContent, 'GUICommon\\Start-GuiPopupCommandAsync -Window \$Form -ModulePath \$modulePath -AdditionalModulePaths @\(\$sharedHelpersPath, \$guiCommonPath\) -CommandName ''WindowsCapabilities''')).Count | Should -Be 1
+        ([regex]::Matches($systemFeaturesContent, 'GUICommon\\Start-GuiPopupCommandAsync -Window \$Form -ModulePath \$modulePath -AdditionalModulePaths @\(\$guiCommonPath\) -CommandName ''WindowsFeatures''')).Count | Should -Be 1
         ([regex]::Matches($telemetryContent, 'GUICommon\\Start-GuiPopupCommandAsync -Window \$Form -ModulePath \$modulePath -CommandName ''ScheduledTasks''')).Count | Should -Be 1
+    }
+
+    It 'prevents popup caption drag chrome from swallowing minimize and close clicks' {
+        $guiCommonContent | Should -Match 'function Test-GuiPopupDescendantOfElement'
+        $guiCommonContent | Should -Match '\$testPopupDescendant = \$\{function:Test-GuiPopupDescendantOfElement\}'
+        $guiCommonContent | Should -Match '& \$testPopupDescendant -Source \$originalSource -Target \$windowRef\.GuiPopupMinimizeButton'
+        $guiCommonContent | Should -Match '& \$testPopupDescendant -Source \$originalSource -Target \$windowRef\.GuiPopupCloseButton'
+        $guiCommonContent | Should -Match '\$windowRef\.DragMove\(\)'
+    }
+
+    It 'keeps popup caption buttons enabled despite picker action-button defaults' {
+        $guiCommonContent | Should -Match '\$minimizeButton\.IsEnabled = \$true'
+        $guiCommonContent | Should -Match '\$closeButton\.IsEnabled = \$true'
     }
 
     It 'repaints open popup windows when the main theme changes' {
@@ -282,5 +462,14 @@ Describe 'GUI window chrome theming' {
     It 'marks Close actions as cancel semantics in shared dialogs' {
         $guiCommonContent | Should -Match '\$btn\.IsCancel = \$true'
         $dialogHelpersContent | Should -Match '\$btnClose\.IsCancel = \$true'
+    }
+
+    It 'maps implicit shared-dialog close to dismissive results instead of the first action button' {
+        $guiCommonContent | Should -Match 'function Get-GuiDialogDismissResult'
+        $guiCommonContent | Should -Match 'if \(\$Buttons -contains ''Cancel''\)'
+        $guiCommonContent | Should -Match 'if \(\$Buttons -contains ''Close''\)'
+        $guiCommonContent | Should -Match 'Get-GuiDialogDismissResult -Buttons \$Buttons'
+        $executionSummaryDialogCommonContent | Should -Match 'Get-GuiDialogDismissResult -Buttons \$Buttons'
+        $executionSummaryDialogCommonContent | Should -Not -Match '\$Buttons\.Count -gt 0\) \{ \$Buttons\[0\] \}'
     }
 }

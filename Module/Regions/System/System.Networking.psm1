@@ -1464,5 +1464,23 @@ function SMB1
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'ConnectionSharing',
+    'CurrentNetwork',
+    'DeliveryOptimization',
+    'DnsProvider',
+    'HomeGroups',
+    'LLMNR',
+    'MSNetClient',
+    'NCSIProbe',
+    'NetBIOS',
+    'NetDevicesAutoInst',
+    'NetworkAdaptersSavePower',
+    'NetworkDiscovery',
+    'NtpServerOverride',
+    'OpenSSHServer',
+    'SMB1',
+    'SMBServer',
+    'UnknownNetworks'
+)
+Export-ModuleMember -Function $ExportedFunctions

@@ -1,8 +1,11 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     $script:filePath = Join-Path $PSScriptRoot '../../Module/Regions/System/System.FileAssociations.psm1'
-    $script:ast = [System.Management.Automation.Language.Parser]::ParseFile($script:filePath, [ref]$null, [ref]$null)
+    $sourceText = Get-BaselineTestSourceText -Path $script:filePath
+    $script:ast = [System.Management.Automation.Language.Parser]::ParseInput($sourceText, [ref]$null, [ref]$null)
 
     function Get-CommandParameterValue {
         param(

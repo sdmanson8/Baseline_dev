@@ -351,5 +351,10 @@ function NetworkProtection
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'Firewall',
+    'LOLBinFirewallRules',
+    'NetworkProtection',
+    'WindowsFirewallLogging'
+)
+Export-ModuleMember -Function $ExportedFunctions

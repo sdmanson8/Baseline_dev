@@ -3,7 +3,6 @@
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-HeadlessPresetName.
 #>
 function ConvertTo-HeadlessPresetName
 {
@@ -41,7 +40,6 @@ function ConvertTo-HeadlessPresetName
 
 <#
     .SYNOPSIS
-    Internal function Resolve-HeadlessEnvironmentPreset.
 #>
 function Resolve-HeadlessEnvironmentPreset
 {
@@ -60,7 +58,6 @@ function Resolve-HeadlessEnvironmentPreset
 
 <#
     .SYNOPSIS
-    Internal function Get-HeadlessPresetCommandFunctionName.
 #>
 function Get-HeadlessPresetCommandFunctionName
 {
@@ -93,7 +90,6 @@ function Get-HeadlessPresetCommandFunctionName
 
 <#
     .SYNOPSIS
-    Internal function Get-HeadlessPresetEntryFieldValue.
 #>
 function Get-HeadlessPresetEntryFieldValue
 {
@@ -128,7 +124,6 @@ function Get-HeadlessPresetEntryFieldValue
 
 <#
     .SYNOPSIS
-    Internal function Get-HeadlessPresetIncludedFunctionSet.
 #>
 function Get-HeadlessPresetIncludedFunctionSet
 {
@@ -143,7 +138,6 @@ function Get-HeadlessPresetIncludedFunctionSet
 
 <#
     .SYNOPSIS
-    Internal function Set-HeadlessPresetIncludedFunctionSet.
 #>
 function Set-HeadlessPresetIncludedFunctionSet
 {
@@ -172,7 +166,6 @@ function Set-HeadlessPresetIncludedFunctionSet
 
 <#
     .SYNOPSIS
-    Internal function Get-HeadlessPresetIncludedTweakLibraryPathSet.
 #>
 function Get-HeadlessPresetIncludedTweakLibraryPathSet
 {
@@ -187,7 +180,6 @@ function Get-HeadlessPresetIncludedTweakLibraryPathSet
 
 <#
     .SYNOPSIS
-    Internal function Set-HeadlessPresetIncludedTweakLibraryPathSet.
 #>
 function Set-HeadlessPresetIncludedTweakLibraryPathSet
 {
@@ -221,7 +213,6 @@ function Set-HeadlessPresetIncludedTweakLibraryPathSet
 
 <#
     .SYNOPSIS
-    Internal function Get-HeadlessPresetValidFunctionSet.
 #>
 function Get-HeadlessPresetValidFunctionSet
 {
@@ -307,7 +298,6 @@ function Get-HeadlessPresetValidFunctionSet
 
 <#
     .SYNOPSIS
-    Internal function Assert-HeadlessPresetCommandListValid.
 #>
 function Assert-HeadlessPresetCommandListValid
 {
@@ -360,7 +350,6 @@ function Assert-HeadlessPresetCommandListValid
 
 <#
     .SYNOPSIS
-    Internal function Get-HeadlessPresetCommandList.
 #>
 function Get-HeadlessPresetCommandList
 {

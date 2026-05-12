@@ -1,5 +1,7 @@
+﻿using module ..\..\GUICommon.psm1
 using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
+
 
 <#
 	.SYNOPSIS
@@ -280,11 +282,7 @@ function Request-GuiScheduledTasksSelection
     .SYNOPSIS
     Runs scheduled tasks.
 
-    
-.DESCRIPTION
-    
-Supports scheduled tasks handling inside Baseline.
-#>
+    #>
 
 function ScheduledTasks
 {
@@ -318,18 +316,8 @@ function ScheduledTasks
 		$NonInteractive
 	)
 
-	$modulePath = if (-not [string]::IsNullOrWhiteSpace([string]$PSCommandPath))
-	{
-		[string]$PSCommandPath
-	}
-	elseif ($MyInvocation.MyCommand.Module -and -not [string]::IsNullOrWhiteSpace([string]$MyInvocation.MyCommand.Module.Path))
-	{
-		[string]$MyInvocation.MyCommand.Module.Path
-	}
-	else
-	{
-		$null
-	}
+			# P5 rollback checkpoint: ScheduledTasks part extracted to Module/Regions/PrivacyTelemetry/TelemetryServices/ScheduledTasks/ModulePathResolution.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'TelemetryServices\ScheduledTasks\ModulePathResolution.ps1')
 
 	#region Variables
 	# Initialize an array list to store the selected scheduled tasks
@@ -341,135 +329,14 @@ function ScheduledTasks
 	$SelectedTaskNamesProvided = $PSBoundParameters.ContainsKey('SelectedTaskNames')
 
 	# The following tasks will have their checkboxes checked
-	[string[]]$CheckedScheduledTasks = @(
-		# Collects program telemetry information if opted-in to the Microsoft Customer Experience Improvement Program
-		"MareBackup",
-
-		# Collects program telemetry information if opted-in to the Microsoft Customer Experience Improvement Program
-		"Microsoft Compatibility Appraiser",
-
-		# Updates compatibility database
-		"StartupAppTask",
-
-		# This task collects and uploads autochk SQM data if opted-in to the Microsoft Customer Experience Improvement Program
-		"Proxy",
-
-		# If the user has consented to participate in the Windows Customer Experience Improvement Program, this job collects and sends usage data to Microsoft
-		"Consolidator",
-
-		# The USB CEIP (Customer Experience Improvement Program) task collects Universal Serial Bus related statistics and information about your machine and sends it to the Windows Device Connectivity engineering group at Microsoft
-		"UsbCeip",
-
-		# The Windows Disk Diagnostic reports general disk and system information to Microsoft for users participating in the Customer Experience Program
-		"Microsoft-Windows-DiskDiagnosticDataCollector",
-
-		# This task shows various Map related toasts
-		"MapsToastTask",
-
-		# This task checks for updates to maps which you have downloaded for offline use
-		"MapsUpdateTask",
-
-		# Initializes Family Safety monitoring and enforcement
-		"FamilySafetyMonitor",
-
-		# Synchronizes the latest settings with the Microsoft family features service
-		"FamilySafetyRefreshTask",
-
-		# XblGameSave Standby Task
-		"XblGameSaveTask"
-	)
-	#endregion Variables
-
-	#region Functions
-	function Get-CheckboxClicked
-	{
-			<#
-			    .SYNOPSIS
-			    Sync a task checkbox into the scheduled-task selection list.
-
-			    .DESCRIPTION
-			    Adds or removes the task stored in the checkbox Tag from the SelectedTasks collection based on the current check state.
-
-			    .PARAMETER CheckBox
-			    Checkbox control whose Tag contains the task payload.
-
-			    .EXAMPLE
-			    $checkBox | Get-CheckboxClicked
-			#>
-		[CmdletBinding()]
-		param
-		(
-			[Parameter(
-				Mandatory = $true,
-				ValueFromPipeline = $true
-			)]
-			[ValidateNotNull()]
-			$CheckBox
-		)
-
-		$Task = $CheckBox.Tag
-
-		if ($CheckBox.IsChecked)
-		{
-			if ($null -ne $Task -and -not ($SelectedTasks | Where-Object -FilterScript {$_.TaskName -eq $Task.TaskName}))
-			{
-				[void]$SelectedTasks.Add($Task)
-			}
-		}
-		else
-		{
-			if ($null -ne $Task)
-			{
-				$TaskToRemove = $SelectedTasks | Where-Object -FilterScript {$_.TaskName -eq $Task.TaskName} | Select-Object -First 1
-				if ($null -ne $TaskToRemove)
-				{
-					[void]$SelectedTasks.Remove($TaskToRemove)
-				}
-			}
-		}
-
-		if ($null -ne $Button)
-		{
-			$Button.IsEnabled = ($SelectedTasks.Count -gt 0)
-		}
-	}
-
-	<#
-	    .SYNOPSIS
-	    Checks scheduled task seed selected.
-
-	    
-.DESCRIPTION
-	    
-Supports scheduled task seed selected handling inside Baseline.
-	#>
-
-	function Test-ScheduledTaskSeedSelected
-	{
-		[CmdletBinding()]
-		param
-		(
-			[Parameter(Mandatory = $true)]
-			$Task
-		)
-
-		if ($SelectedTaskNamesProvided)
-		{
-			return [bool](@($SelectedTaskNames | Where-Object -FilterScript {$_ -eq $Task.TaskName}).Count -gt 0)
-		}
-
-		return [bool](@($CheckedScheduledTasks | Where-Object -FilterScript {$Task.TaskName -match $_}).Count -gt 0)
-	}
+			# P5 rollback checkpoint: ScheduledTasks part extracted to Module/Regions/PrivacyTelemetry/TelemetryServices/ScheduledTasks/ScheduledTaskList.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'TelemetryServices\ScheduledTasks\ScheduledTaskList.ps1')
 
 	<#
 	    .SYNOPSIS
 	    Gets selected scheduled task list.
 
-	    
-.DESCRIPTION
-	    
-Supports selected scheduled task list handling inside Baseline.
-	#>
+	    	#>
 
 	function Get-SelectedScheduledTaskList
 	{
@@ -480,11 +347,7 @@ Supports selected scheduled task list handling inside Baseline.
 	    .SYNOPSIS
 	    Gets selected scheduled task names.
 
-	    
-.DESCRIPTION
-	    
-Supports selected scheduled task names handling inside Baseline.
-	#>
+	    	#>
 	function Get-SelectedScheduledTaskNames
 	{
 		return @(
@@ -498,200 +361,10 @@ Supports selected scheduled task names handling inside Baseline.
 	    .SYNOPSIS
 	    Runs scheduled tasks operation.
 
-	    
-.DESCRIPTION
-	    
-Supports scheduled tasks operation handling inside Baseline.
-	#>
+	    	#>
 
-	function Invoke-ScheduledTasksOperation
-	{
-		param (
-			[object[]]$TaskList
-		)
-
-		$ResolvedTaskList = @($TaskList | Where-Object { $_ })
-		if ($ResolvedTaskList.Count -eq 0)
-		{
-			return
-		}
-
-		switch ($PSCmdlet.ParameterSetName)
-		{
-			"Enable"
-			{
-				$ResolvedTaskList | Enable-ScheduledTask
-			}
-			"Disable"
-			{
-				$ResolvedTaskList | Disable-ScheduledTask
-			}
-		}
-	}
-
-	<#
-	    .SYNOPSIS
-	    Confirms scheduled tasks selection.
-
-	    
-.DESCRIPTION
-	    
-Supports scheduled tasks selection handling inside Baseline.
-	#>
-
-	function Confirm-ScheduledTasksSelection
-	{
-		$SelectedTaskList = @(Get-SelectedScheduledTaskList)
-		$SelectionState.Confirmed = $true
-
-		if ($CollectSelectionOnly)
-		{
-			$script:ScheduledTasksSelectionResult = [PSCustomObject]@{
-				Mode = $PSCmdlet.ParameterSetName
-				SelectedTaskNames = @(Get-SelectedScheduledTaskNames)
-			}
-			if ($null -ne $Window)
-			{
-				[void]$Window.Close()
-			}
-			return
-		}
-
-		foreach ($popupControl in @($Button, $CheckBoxSelectAll, $PanelContainer))
-		{
-			if ($null -ne $popupControl)
-			{
-				$popupControl.IsEnabled = $false
-			}
-		}
-
-		$commandParameters = @{
-			SelectedTaskNames = @(Get-SelectedScheduledTaskNames)
-		}
-		$commandParameters[$PSCmdlet.ParameterSetName] = $true
-
-		if ($modulePath -and (Get-Command -Name 'Start-GuiPopupCommandAsync' -ErrorAction SilentlyContinue))
-		{
-			[void](GUICommon\Start-GuiPopupCommandAsync -Window $Form -ModulePath $modulePath -CommandName 'ScheduledTasks' -CommandParameters $commandParameters)
-			return
-		}
-
-		if ($null -ne $Window)
-		{
-			[void]$Window.Close()
-		}
-
-		Invoke-ScheduledTasksOperation -TaskList $SelectedTaskList
-	}
-
-	<#
-	    .SYNOPSIS
-	    Adds task control.
-
-	    
-.DESCRIPTION
-	    
-Supports task control handling inside Baseline.
-	#>
-
-	function Add-TaskControl
-	{
-		[CmdletBinding()]
-		param
-		(
-			[Parameter(
-				Mandatory = $true,
-				ValueFromPipeline = $true
-			)]
-			[ValidateNotNull()]
-			$Task
-		)
-
-		process
-		{
-			$CheckBox = New-Object -TypeName System.Windows.Controls.CheckBox
-			$CheckBox.Add_Click({Get-CheckboxClicked -CheckBox $_.Source})
-			$CheckBox.Tag = $Task
-
-			$LabelPanel = New-Object -TypeName System.Windows.Controls.StackPanel
-			$LabelPanel.Orientation = 'Horizontal'
-			$LabelPanel.VerticalAlignment = 'Center'
-
-			$IconBlock = New-Object -TypeName System.Windows.Controls.TextBlock
-			$IconBlock.Text = [char]0xF4C3
-			$IconBlock.FontFamily = [System.Windows.Media.FontFamily]::new('FluentSystemIcons')
-			$IconBlock.FontSize = 14
-			$IconBlock.VerticalAlignment = 'Center'
-			$IconBlock.Margin = [System.Windows.Thickness]::new(0, 0, 6, 0)
-			[void]$LabelPanel.Children.Add($IconBlock)
-
-			$TextBlock = New-Object -TypeName System.Windows.Controls.TextBlock
-			$TextBlock.Text = $Task.TaskName
-			$TextBlock.VerticalAlignment = 'Center'
-			[void]$LabelPanel.Children.Add($TextBlock)
-
-			$tooltipText = if ([string]::IsNullOrWhiteSpace([string]$Task.TaskPath)) { [string]$Task.TaskName } else { "$($Task.TaskPath)$($Task.TaskName)" }
-			$infoIcon = GUICommon\New-GuiPopupInfoIcon -TooltipText $tooltipText -Theme $Theme -UseDarkMode $UseDarkMode
-			$infoPanel = New-Object -TypeName System.Windows.Controls.StackPanel
-			$infoPanel.Orientation = 'Horizontal'
-			$infoPanel.VerticalAlignment = 'Center'
-			$infoPanel.HorizontalAlignment = 'Right'
-			$infoPanel.Margin = [System.Windows.Thickness]::new(8, 0, 10, 0)
-			[void]$infoPanel.Children.Add($infoIcon)
-
-			$rowPanel = New-Object -TypeName System.Windows.Controls.DockPanel
-			$rowPanel.LastChildFill = $true
-			$rowPanel.HorizontalAlignment = 'Stretch'
-			$rowPanel.Margin = [System.Windows.Thickness]::new(0, 2, 0, 2)
-			[System.Windows.Controls.DockPanel]::SetDock($CheckBox, [System.Windows.Controls.Dock]::Left)
-			[void]$rowPanel.Children.Add($CheckBox)
-			[System.Windows.Controls.DockPanel]::SetDock($infoPanel, [System.Windows.Controls.Dock]::Right)
-			[void]$rowPanel.Children.Add($infoPanel)
-			[void]$rowPanel.Children.Add($LabelPanel)
-			[void]$PanelContainer.Children.Add($rowPanel)
-
-			# If task checked add to the array list
-			if (Test-ScheduledTaskSeedSelected -Task $Task)
-			{
-				[void]$SelectedTasks.Add($Task)
-			}
-			else
-			{
-				$CheckBox.IsChecked = $false
-			}
-
-			if ($null -ne $Button)
-			{
-				$Button.IsEnabled = ($SelectedTasks.Count -gt 0)
-			}
-		}
-	}
-	#endregion Functions
-
-	switch ($PSCmdlet.ParameterSetName)
-	{
-		"Enable"
-		{
-			if (-not $CollectSelectionOnly)
-			{
-				Write-ConsoleStatus -Action "Enable Diagnostics Tracking Scheduled Tasks"
-				LogInfo "Enabling Diagnostics Tracking Scheduled Tasks"
-			}
-			$State           = "Disabled"
-			# Extract the localized "Enable" string from shell32.dll
-			$ButtonContent   = [WinAPI.GetStrings]::GetString(51472)
-		}
-		"Disable"
-		{
-			if (-not $CollectSelectionOnly)
-			{
-				Write-ConsoleStatus -Action "Disable Diagnostics Tracking Scheduled Tasks"
-				LogInfo "Disabling Diagnostics Tracking Scheduled Tasks"
-			}
-			$State           = "Ready"
-			$ButtonContent   = $Localization.Disable
-		}
-	}
+			# P5 rollback checkpoint: ScheduledTasks part extracted to Module/Regions/PrivacyTelemetry/TelemetryServices/ScheduledTasks/ScheduledTaskOperation.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'TelemetryServices\ScheduledTasks\ScheduledTaskOperation.ps1')
 
 	# Getting list of all scheduled tasks according to the conditions
 	$Tasks = Get-ScheduledTask | Where-Object -FilterScript {($_.State -eq $State) -and ($_.TaskName -in $CheckedScheduledTasks)}
@@ -747,7 +420,7 @@ Supports task control handling inside Baseline.
 		MinHeight="450" MinWidth="400"
 		SizeToContent="WidthAndHeight" WindowStartupLocation="CenterScreen"
 		TextOptions.TextFormattingMode="Display" SnapsToDevicePixels="True"
-		FontFamily="FluentSystemIcons" FontSize="12" ShowInTaskbar="True"
+		FontFamily="Segoe UI" FontSize="12" ShowInTaskbar="True"
 		Background="Transparent" WindowStyle="None" AllowsTransparency="True" Foreground="#262626">
 		<Window.Resources>
 			<Style TargetType="StackPanel">
@@ -784,11 +457,22 @@ Supports task control handling inside Baseline.
 					<RowDefinition Height="*"/>
 					<RowDefinition Height="Auto"/>
 				</Grid.RowDefinitions>
-				<ScrollViewer Name="Scroll" Grid.Row="0"
-					HorizontalScrollBarVisibility="Disabled"
-					VerticalScrollBarVisibility="Auto">
-					<StackPanel Name="PanelContainer" Orientation="Vertical"/>
-				</ScrollViewer>
+				<Grid Grid.Row="0" Margin="10,8,10,8">
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="*"/>
+					</Grid.ColumnDefinitions>
+					<StackPanel Name="PanelSelectAll" Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+						<CheckBox Name="CheckBoxSelectAll" IsChecked="False" VerticalAlignment="Center" Margin="0,0,6,0"/>
+						<TextBlock Name="TextBlockSelectAll" VerticalAlignment="Center"/>
+					</StackPanel>
+				</Grid>
+				<Border>
+					<ScrollViewer Name="Scroll"
+						HorizontalScrollBarVisibility="Disabled"
+						VerticalScrollBarVisibility="Auto">
+						<StackPanel Name="PanelContainer" Orientation="Vertical"/>
+					</ScrollViewer>
+				</Border>
 				<Button Name="Button" Grid.Row="2"/>
 			</Grid>
 		</Border>
@@ -801,52 +485,59 @@ Supports task control handling inside Baseline.
 		Set-Variable -Name ($_.Name) -Value $Form.FindName($_.Name)
 	}
 
-	# Apply theme styling
-	if (Test-Path -Path Variable:\Script:CurrentTheme) {
-		$Theme = $Script:CurrentTheme
-		$UseDarkMode = if (Test-Path -Path Variable:\Script:CurrentThemeName) { $Script:CurrentThemeName -eq 'Dark' } else { $false }
-		$RootBorder.Background = [System.Windows.Media.Brush](New-Object System.Windows.Media.SolidColorBrush -ArgumentList ([System.Windows.Media.Color]::FromArgb(255, [System.Convert]::ToInt32($Theme.WindowBg.Substring(1, 2), 16), [System.Convert]::ToInt32($Theme.WindowBg.Substring(3, 2), 16), [System.Convert]::ToInt32($Theme.WindowBg.Substring(5, 2), 16))))
-		$RootBorder.BorderBrush = [System.Windows.Media.Brush](New-Object System.Windows.Media.SolidColorBrush -ArgumentList ([System.Windows.Media.Color]::FromArgb(255, [System.Convert]::ToInt32($Theme.BorderColor.Substring(1, 2), 16), [System.Convert]::ToInt32($Theme.BorderColor.Substring(3, 2), 16), [System.Convert]::ToInt32($Theme.BorderColor.Substring(5, 2), 16))))
-		$RootBorder.BorderThickness = '1'
-		Set-GuiWindowChromeTheme -Window $Form -UseDarkMode $UseDarkMode
-	} else {
-		$RootBorder.Background = [System.Windows.Media.Brush](New-Object System.Windows.Media.SolidColorBrush -ArgumentList ([System.Windows.Media.Color]::FromArgb(255, 241, 241, 241)))
-		$RootBorder.BorderBrush = [System.Windows.Media.Brush](New-Object System.Windows.Media.SolidColorBrush -ArgumentList ([System.Windows.Media.Color]::FromArgb(255, 200, 200, 200)))
-		$RootBorder.BorderThickness = '1'
+	$bc = New-Object System.Windows.Media.BrushConverter
+	$Theme = Get-ScheduledTasksPickerTheme
+	$UseDarkMode = Resolve-ScheduledTasksPickerUseDarkMode
+	Set-ScheduledTasksPickerSurface -Window $Form -RootBorder $RootBorder -PanelContainer $PanelContainer -ScrollViewer $Scroll -Theme $Theme -BrushConverter $bc -UseDarkMode $UseDarkMode
+	if (Get-Command -Name 'Set-GuiWindowChromeTheme' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		[void](Set-GuiWindowChromeTheme -Window $Form -UseDarkMode $UseDarkMode)
 	}
-
-	#region Sendkey function
-	# Emulate the Backspace key sending to prevent the console window to freeze
-	Start-Sleep -Milliseconds 500
-
-	Add-Type -AssemblyName System.Windows.Forms
-
-	# We cannot use Get-Process -Id $PID as script might be invoked via Terminal with different $PID
-	Get-Process -Name Baseline, powershell, WindowsTerminal -ErrorAction Ignore | Where-Object -FilterScript {$_.MainWindowTitle -match "Baseline \| Utility for Windows"} | ForEach-Object -Process {
-		# Show window, if minimized
-		[WinAPI.ForegroundWindow]::ShowWindowAsync($_.MainWindowHandle, 10)
-
-		Start-Sleep -Seconds 1
-
-		# Force move the console window to the foreground
-		[WinAPI.ForegroundWindow]::SetForegroundWindow($_.MainWindowHandle)
-
-		Start-Sleep -Seconds 1
-
-		# Emulate the Backspace key sending
-		[System.Windows.Forms.SendKeys]::SendWait("{BACKSPACE 1}")
-	}
-	#endregion Sendkey function
 
 	$Window.Add_Loaded({$Tasks | Add-TaskControl})
 	$Button.Content = $ButtonContent
+	$Button.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI')
+	$Button.FontSize = 12
+	try { GUICommon\Set-GuiPopupActionButtonStyle -Button $Button -Theme $Theme -UseDarkMode $UseDarkMode } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ScheduledTasks.SetPopupActionButtonStyle' }
+	$TextBlockSelectAll.Text = GUICommon\Get-GuiPopupLocalizedString -Key 'GuiSelectAll' -Fallback 'Select All'
+	$TextBlockSelectAll.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI')
+	if ($Form.Foreground) { $TextBlockSelectAll.Foreground = $Form.Foreground }
 	$Button.Add_Click({Confirm-ScheduledTasksSelection})
+	$CheckBoxSelectAll.Add_Click({Invoke-TelemetryServiceSelectAllClick})
 
-	$Window.Title = $Localization.ScheduledTasks
+	$scheduledTasksTitle = GUICommon\Get-GuiPopupLocalizedString -Key 'Tweak_ScheduledTasks' -Fallback 'Diagnostics Tracking Tasks'
+	$Form.Title = $scheduledTasksTitle
 	if (Test-Path -Path Function:\Add-GuiPopupWindowChrome)
 	{
-		[void](GUICommon\Add-GuiPopupWindowChrome -Window $Form -RootBorder $RootBorder -PanelContainer $PanelContainer -Theme $Theme -UseDarkMode $UseDarkMode)
+		[void](GUICommon\Add-GuiPopupWindowChrome -Window $Form -RootBorder $RootBorder -PanelContainer $PanelContainer -Title $scheduledTasksTitle -Theme $Theme -UseDarkMode $UseDarkMode)
 	}
+	$scheduledTasksThemeCallback = {
+		param($Window, $Theme, $UseDarkMode)
+
+		try
+		{
+			Set-ScheduledTasksPickerSurface -Window $Window -RootBorder $RootBorder -PanelContainer $PanelContainer -ScrollViewer $Scroll -Theme $Theme -BrushConverter $bc -UseDarkMode $UseDarkMode
+		}
+		catch
+		{
+			Write-SwallowedException -ErrorRecord $_ -Source 'ScheduledTasks.ThemeCallback.SetSurface'
+		}
+
+		if ($Button)
+		{
+			try { GUICommon\Set-GuiPopupActionButtonStyle -Button $Button -Theme $Theme -UseDarkMode $UseDarkMode } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ScheduledTasks.ThemeCallback.SetPopupActionButtonStyle' }
+		}
+
+		if ($TextBlockSelectAll -and $Window.Foreground)
+		{
+			$TextBlockSelectAll.Foreground = $Window.Foreground
+		}
+	}.GetNewClosure()
+	if (Test-Path -Path Function:\Register-GuiPopupThemeWindow)
+	{
+		[void](GUICommon\Register-GuiPopupThemeWindow -Window $Form -ThemeCallback $scheduledTasksThemeCallback)
+	}
+	& $scheduledTasksThemeCallback -Window $Form -Theme $Theme -UseDarkMode $UseDarkMode
 	$Button.IsEnabled = $false
 
 	if ($Global:GUIMode -and -not $CollectSelectionOnly)
@@ -855,7 +546,7 @@ Supports task control handling inside Baseline.
 	}
 	else
 	{
-		# Restore minimized dialogs and bring them to the foreground once when shown.
+		# Normalize minimized dialogs before showing without reclaiming foreground focus.
 		Initialize-WpfWindowForeground -Window $Form
 		$Form.ShowDialog() | Out-Null
 	}
@@ -1149,5 +840,13 @@ function WAPPush
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'DiagnosticDataLevel',
+    'DiagTrackService',
+    'ErrorReporting',
+    'Powershell7Telemetry',
+    'Request-GuiScheduledTasksSelection',
+    'ScheduledTasks',
+    'WAPPush'
+)
+Export-ModuleMember -Function $ExportedFunctions

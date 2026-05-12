@@ -1,13 +1,16 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/UIPersonalization/UIPersonalization.Taskbar.psm1'
+
     $source = Get-Content -Raw $filePath
-    $script:TaskbarContent = $source
+    $script:TaskbarContent = Get-BaselineTestSourceText -Path $filePath
     $source = [regex]::Replace($source, '^using module[^\r\n]*[\r\n]+', '', 'Multiline')
     $sb = [scriptblock]::Create($source)
     $ast = $sb.Ast
-    # Only load the outer functions (avoid redefining nested helpers of UnpinTaskbarShortcuts etc.)
+    # Only load the outer functions (avoid redefining nested helpers of Invoke-UIPersonalizationTaskbarShortcutUnpin etc.)
     $functions = $ast.FindAll({
             param($node)
             ($node -is [System.Management.Automation.Language.FunctionDefinitionAst]) -and
@@ -19,9 +22,9 @@ BeforeAll {
 }
 
 Describe 'UIPersonalization.Taskbar content pins' {
-    It 'routes ARM64 shell-unpin cleanup failures through Write-DebugSwallowedException' {
-        $script:TaskbarContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''UIPersonalization\.Taskbar\.UnpinTaskbarShortcuts\.DoIt'''
-        $script:TaskbarContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''UIPersonalization\.Taskbar\.UnpinTaskbarShortcuts\.EndInvoke'''
+    It 'routes ARM64 shell-unpin cleanup failures through Write-SwallowedException' {
+        $script:TaskbarContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''UIPersonalization\.Taskbar\.Invoke-UIPersonalizationTaskbarShortcutUnpin\.DoIt'''
+        $script:TaskbarContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''UIPersonalization\.Taskbar\.Invoke-UIPersonalizationTaskbarShortcutUnpin\.EndInvoke'''
     }
 }
 
@@ -89,8 +92,20 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
             return $null
         }
         function Invoke-UCPDBypassed {
-            param([scriptblock]$ScriptBlock)
-            [void]$script:ucpdScriptBlocks.Add($ScriptBlock.ToString())
+            [CmdletBinding(DefaultParameterSetName = 'ScriptText')]
+            param(
+                [Parameter(Mandatory = $true, ParameterSetName = 'ScriptText')]
+                [string]$ScriptText,
+
+                [Parameter(Mandatory = $true, ParameterSetName = 'ScriptBlock')]
+                [scriptblock]$ScriptBlock
+            )
+
+            if ($PSCmdlet.ParameterSetName -eq 'ScriptBlock') {
+                $ScriptText = $ScriptBlock.ToString()
+            }
+
+            [void]$script:ucpdScriptBlocks.Add($ScriptText)
         }
     }
 
@@ -100,20 +115,20 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         }
     }
 
-    Context 'TaskbarAlignment' {
+    Context 'Set-UIPersonalizationTaskbarAlignment' {
         It 'requires Left or Center' {
-            { TaskbarAlignment } | Should -Throw
+            { Set-UIPersonalizationTaskbarAlignment } | Should -Throw
         }
 
         It 'writes TaskbarAl=0 on Left' {
-            TaskbarAlignment -Left
+            Set-UIPersonalizationTaskbarAlignment -Left
 
             ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarAl' }).Value | Should -Be 0
             $script:consoleStatuses[-1] | Should -Be 'success'
         }
 
         It 'writes TaskbarAl=1 on Center' {
-            TaskbarAlignment -Center
+            Set-UIPersonalizationTaskbarAlignment -Center
 
             ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarAl' }).Value | Should -Be 1
         }
@@ -121,7 +136,7 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         It 'creates Explorer\\Advanced when missing before writing TaskbarAl' {
             $script:pathExists = $false
 
-            TaskbarAlignment -Center
+            Set-UIPersonalizationTaskbarAlignment -Center
 
             $script:newItemCalls | Should -Contain 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
         }
@@ -129,13 +144,13 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         It 'reports failed when the registry write throws' {
             $script:shouldThrow = $true
 
-            TaskbarAlignment -Center
+            Set-UIPersonalizationTaskbarAlignment -Center
 
             $script:consoleStatuses[-1] | Should -Be 'failed'
         }
     }
 
-    Context 'TaskbarWidgets' {
+    Context 'Set-UIPersonalizationTaskbarWidgets' {
         BeforeEach {
             $Global:Localization = [pscustomobject]@{ Skipped = '{0} skipped' }
             if (-not (Test-Path Function:\Get-TweakSkipLabel)) {
@@ -149,7 +164,7 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         }
 
         It 'creates Explorer\\Advanced inside the UCPD bypass script before writing TaskbarDa' {
-            TaskbarWidgets -Hide
+            Set-UIPersonalizationTaskbarWidgets -Hide
 
             $script:ucpdScriptBlocks[0] | Should -Match 'New-Item -Path \$path -Force -ErrorAction Stop'
             $script:ucpdScriptBlocks[0] | Should -Match 'TaskbarDa'
@@ -158,7 +173,7 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         It 'returns without touching registry or policy when WebExperience package is absent' {
             $script:getAppxPackageReturns = $false
 
-            TaskbarWidgets -Hide
+            Set-UIPersonalizationTaskbarWidgets -Hide
 
             $script:ucpdScriptBlocks.Count | Should -Be 0
             $script:newItemPropertyCalls.Count | Should -Be 0
@@ -168,32 +183,32 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         }
     }
 
-    Context 'TaskbarSearch' {
+    Context 'Set-UIPersonalizationTaskbarSearch' {
         BeforeEach {
-            # TaskbarSearch writes an unconditional "clear-policy" New-ItemProperty in HKLM
+            # Set-UIPersonalizationTaskbarSearch writes an unconditional "clear-policy" New-ItemProperty in HKLM
             # which we just tolerate in the mock.
         }
 
         It 'writes SearchboxTaskbarMode=0 on -Hide' {
-            TaskbarSearch -Hide
+            Set-UIPersonalizationTaskbarSearch -Hide
 
             ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'SearchboxTaskbarMode' }).Value | Should -Be 0
         }
 
         It 'writes SearchboxTaskbarMode=1 on -SearchIcon' {
-            TaskbarSearch -SearchIcon
+            Set-UIPersonalizationTaskbarSearch -SearchIcon
 
             ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'SearchboxTaskbarMode' }).Value | Should -Be 1
         }
 
         It 'writes SearchboxTaskbarMode=2 on -SearchBox' {
-            TaskbarSearch -SearchBox
+            Set-UIPersonalizationTaskbarSearch -SearchBox
 
             ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'SearchboxTaskbarMode' }).Value | Should -Be 2
         }
 
         It 'writes SearchboxTaskbarMode=3 on -SearchIconLabel' {
-            TaskbarSearch -SearchIconLabel
+            Set-UIPersonalizationTaskbarSearch -SearchIconLabel
 
             ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'SearchboxTaskbarMode' }).Value | Should -Be 3
         }
@@ -201,38 +216,38 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         It 'creates the Search key when missing before writing SearchboxTaskbarMode' {
             $script:pathExists = $false
 
-            TaskbarSearch -SearchBox
+            Set-UIPersonalizationTaskbarSearch -SearchBox
 
             $script:newItemCalls | Should -Contain 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search'
         }
 
         It 'clears the DisableSearch policy up-front' {
-            TaskbarSearch -SearchBox
+            Set-UIPersonalizationTaskbarSearch -SearchBox
 
             @($script:policyCalls | Where-Object { $_.Name -eq 'DisableSearch' -and $_.Type -eq 'CLEAR' }).Count | Should -BeGreaterOrEqual 1
         }
     }
 
-    Context 'SearchHighlights' {
+    Context 'Set-UIPersonalizationSearchHighlights' {
         It 'creates SearchSettings when missing before writing IsDynamicSearchBoxEnabled' {
             $script:pathExists = $false
 
-            SearchHighlights -Show
+            Set-UIPersonalizationSearchHighlights -Show
 
             $script:newItemCalls | Should -Contain 'HKCU:\Software\Microsoft\Windows\CurrentVersion\SearchSettings'
             ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'IsDynamicSearchBoxEnabled' }).Value | Should -Be 1
         }
     }
 
-    Context 'TaskViewButton' {
+    Context 'Set-UIPersonalizationTaskViewButton' {
         It 'writes ShowTaskViewButton=0 on -Hide' {
-            TaskViewButton -Hide
+            Set-UIPersonalizationTaskViewButton -Hide
 
             ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'ShowTaskViewButton' }).Value | Should -Be 0
         }
 
         It 'writes ShowTaskViewButton=1 on -Show' {
-            TaskViewButton -Show
+            Set-UIPersonalizationTaskViewButton -Show
 
             ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'ShowTaskViewButton' }).Value | Should -Be 1
         }
@@ -240,27 +255,27 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         It 'creates Explorer\\Advanced when missing before writing ShowTaskViewButton' {
             $script:pathExists = $false
 
-            TaskViewButton -Hide
+            Set-UIPersonalizationTaskViewButton -Hide
 
             $script:newItemCalls | Should -Contain 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
         }
     }
 
-    Context 'TaskbarCombine' {
+    Context 'Set-UIPersonalizationTaskbarCombine' {
         It 'writes TaskbarGlomLevel=0 on -Always' {
-            TaskbarCombine -Always
+            Set-UIPersonalizationTaskbarCombine -Always
 
             ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarGlomLevel' }).Value | Should -Be 0
         }
 
         It 'writes TaskbarGlomLevel=1 on -Full' {
-            TaskbarCombine -Full
+            Set-UIPersonalizationTaskbarCombine -Full
 
             ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarGlomLevel' }).Value | Should -Be 1
         }
 
         It 'writes TaskbarGlomLevel=2 on -Never' {
-            TaskbarCombine -Never
+            Set-UIPersonalizationTaskbarCombine -Never
 
             ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarGlomLevel' }).Value | Should -Be 2
         }
@@ -268,29 +283,29 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         It 'creates Explorer\\Advanced when missing before writing TaskbarGlomLevel' {
             $script:pathExists = $false
 
-            TaskbarCombine -Always
+            Set-UIPersonalizationTaskbarCombine -Always
 
             $script:newItemCalls | Should -Contain 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
         }
     }
 
-    Context 'TaskbarEndTask' {
+    Context 'Set-UIPersonalizationTaskbarEndTask' {
         It 'creates the TaskbarDeveloperSettings key when missing before writing the value' {
             $script:pathExists = $false
 
-            TaskbarEndTask -Enable
+            Set-UIPersonalizationTaskbarEndTask -Enable
 
             $script:newItemCalls.Count | Should -Be 1
-            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'TaskbarEndTask' }).Value | Should -Be 1
+            ($script:setRegistrySafeCalls | Where-Object { $_.Name -eq 'Set-UIPersonalizationTaskbarEndTask' }).Value | Should -Be 1
         }
 
-        It 'removes TaskbarEndTask on Disable when the property exists' {
+        It 'removes Set-UIPersonalizationTaskbarEndTask on Disable when the property exists' {
             $script:pathExists = $true
             $script:hasExistingProperty = $true
 
-            TaskbarEndTask -Disable
+            Set-UIPersonalizationTaskbarEndTask -Disable
 
-            $script:removeRegistrySafeCalls[0].Name | Should -Be 'TaskbarEndTask'
+            $script:removeRegistrySafeCalls[0].Name | Should -Be 'Set-UIPersonalizationTaskbarEndTask'
         }
     }
 
@@ -349,14 +364,14 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
                 if ($script:hasBattery) { return [pscustomobject]@{ Name = 'Battery' } }
                 return $null
             }
-            function Write-DebugSwallowedException {
+            function Write-SwallowedException {
                 param([object]$ErrorRecord, [string]$Source)
             }
         }
 
         AfterEach {
             Microsoft.PowerShell.Management\Remove-Item Function:\Get-CimInstance -ErrorAction SilentlyContinue
-            Microsoft.PowerShell.Management\Remove-Item Function:\Write-DebugSwallowedException -ErrorAction SilentlyContinue
+            Microsoft.PowerShell.Management\Remove-Item Function:\Write-SwallowedException -ErrorAction SilentlyContinue
         }
 
         It 'writes IsBatteryPercentageEnabled=1 on Enable when a battery is present' {
@@ -394,13 +409,13 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         }
     }
 
-    Context 'UnpinTaskbarShortcuts parameter validation' {
+    Context 'Invoke-UIPersonalizationTaskbarShortcutUnpin parameter validation' {
         It 'requires the -Shortcuts parameter' {
-            { UnpinTaskbarShortcuts } | Should -Throw
+            { Invoke-UIPersonalizationTaskbarShortcutUnpin } | Should -Throw
         }
 
         It 'rejects an invalid shortcut name' {
-            { UnpinTaskbarShortcuts -Shortcuts 'NonExistent' } | Should -Throw
+            { Invoke-UIPersonalizationTaskbarShortcutUnpin -Shortcuts 'NonExistent' } | Should -Throw
         }
     }
 }

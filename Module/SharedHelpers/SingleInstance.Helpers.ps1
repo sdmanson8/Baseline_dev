@@ -1,4 +1,4 @@
-﻿# Single-instance launcher helpers.
+# Single-instance launcher helpers.
 #
 # Launcher single-instance contract (HandleSingleInstance via
 # AppInstance.FindOrRegisterForKey + RedirectActivationToAsync +
@@ -15,7 +15,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineSingleInstanceMutexName.
 #>
 
 function Get-BaselineSingleInstanceMutexName
@@ -43,9 +42,9 @@ function Get-BaselineSingleInstanceMutexName
 
 	$normalized = ([string]$UserName).ToLowerInvariant()
 	$sanitized = ($normalized -replace '[^a-z0-9._-]', '_')
-	# Fall back to 'unknown' when nothing identifying survives sanitization —
+	# Fall back to 'unknown' when nothing identifying survives sanitization -
 	# either empty/whitespace or a string composed entirely of replacement
-	# underscores (e.g. '???' → '___'). 'first_admin' is preserved because it
+	# underscores (e.g. '???' -> '___'). 'first_admin' is preserved because it
 	# still contains alphanumerics.
 	if ([string]::IsNullOrWhiteSpace($sanitized) -or ($sanitized -notmatch '[a-z0-9]'))
 	{
@@ -56,7 +55,6 @@ function Get-BaselineSingleInstanceMutexName
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineSingleInstanceLockAvailable.
 #>
 
 function Test-BaselineSingleInstanceLockAvailable
@@ -72,13 +70,13 @@ function Test-BaselineSingleInstanceLockAvailable
 		Returns:
 		  Acquired   : $true if this process now owns the lock
 		  CreatedNew : $true on the first acquisition (no existing instance)
-		  Mutex      : the mutex object — keep the reference alive for the
+		  Mutex      : the mutex object - keep the reference alive for the
 		               lifetime of the process; releasing/disposing it
 		               relinquishes the lock
 		  Error      : exception message if anything went wrong; Acquired
 		               will be $false in that case
 
-		The function never throws — failures (rare; usually permissions on
+		The function never throws - failures (rare; usually permissions on
 		a locked-down session 0 service account) are folded into the result
 		so the caller can decide whether to fall back to "allow multiple"
 		or surface a warning.
@@ -104,7 +102,7 @@ function Test-BaselineSingleInstanceLockAvailable
 			}
 		}
 
-		# We constructed it but did not create — try to actually acquire it
+		# We constructed it but did not create - try to actually acquire it
 		# with a zero-timeout WaitOne. If the existing owner is alive, we
 		# get $false back and we do NOT own the mutex.
 		$gotIt = $false
@@ -119,7 +117,7 @@ function Test-BaselineSingleInstanceLockAvailable
 			}
 		}
 
-		try { $mutex.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'SingleInstance.Mutex.Dispose' }
+		try { $mutex.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SingleInstance.Mutex.Dispose' }
 		return [pscustomobject]@{
 			Acquired = $false
 			CreatedNew = $false
@@ -140,7 +138,6 @@ function Test-BaselineSingleInstanceLockAvailable
 
 <#
     .SYNOPSIS
-    Internal function Acquire-BaselineSingleInstance.
 #>
 
 function Acquire-BaselineSingleInstance
@@ -208,7 +205,6 @@ function Acquire-BaselineSingleInstance
 
 <#
     .SYNOPSIS
-    Internal function Find-BaselineRunningInstance.
 #>
 
 function Find-BaselineRunningInstance
@@ -219,13 +215,13 @@ function Find-BaselineRunningInstance
 		returns its window handle so the caller can foreground it.
 
 		.DESCRIPTION
-		Pure helper modulo `Get-Process` — accepts a `-ProcessLister` script
+		Pure helper modulo `Get-Process` - accepts a `-ProcessLister` script
 		block override so tests can inject synthetic process lists. The
 		default scans for processes named like the launcher
 		('Baseline','Baseline.exe', or any name starting with 'Baseline')
 		whose `MainWindowHandle` is non-zero, excluding the current PID.
 
-		Returns the first match (lowest PID — deterministic on a host that
+		Returns the first match (lowest PID - deterministic on a host that
 		legitimately has more than one slot in flight, e.g. an in-progress
 		shutdown) as a pscustomobject:
 		  ProcessId        : [int]
@@ -307,7 +303,6 @@ function Find-BaselineRunningInstance
 
 <#
     .SYNOPSIS
-    Internal function Resolve-BaselineSingleInstanceDecision.
 #>
 
 function Resolve-BaselineSingleInstanceDecision
@@ -325,10 +320,10 @@ function Resolve-BaselineSingleInstanceDecision
 		  TargetProcessId, TargetHandle : populated only when Action='HandoffAndExit'
 
 		Decision matrix:
-		  AllowMultipleInstances=$true               → Continue (CI/test escape hatch)
-		  Lock acquired                              → Continue
-		  Lock not acquired AND running instance     → HandoffAndExit
-		  Lock not acquired AND no running instance  → HandoffAndExit
+		  AllowMultipleInstances=$true               -> Continue (CI/test escape hatch)
+		  Lock acquired                              -> Continue
+		  Lock not acquired AND running instance     -> HandoffAndExit
+		  Lock not acquired AND no running instance  -> HandoffAndExit
 		    (the lock is held by another startup path before the WPF main
 		     window can be discovered; exit instead of opening a second GUI)
 	#>
@@ -386,7 +381,6 @@ function Resolve-BaselineSingleInstanceDecision
 
 <#
     .SYNOPSIS
-    Internal function Invoke-BaselineSingleInstanceForeground.
 #>
 
 function Invoke-BaselineSingleInstanceForeground
@@ -397,7 +391,7 @@ function Invoke-BaselineSingleInstanceForeground
 		window handle. Wraps user32!IsIconic / ShowWindow / SetForegroundWindow.
 
 		.DESCRIPTION
-		Best-effort by design — never throws. Win32 SetForegroundWindow has
+		Best-effort by design - never throws. Win32 SetForegroundWindow has
 		notoriously twitchy success criteria (the calling process must own
 		the foreground or have just received input), so any failure mode
 		(missing handle, sealed window, focus stolen by another app) is

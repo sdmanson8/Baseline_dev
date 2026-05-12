@@ -7,7 +7,6 @@
 
 <#
     .SYNOPSIS
-    Internal function New-BaselineOperatorPolicy.
 #>
 
 function New-BaselineOperatorPolicy
@@ -42,7 +41,6 @@ function New-BaselineOperatorPolicy
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineOperatorChangeWindow.
 #>
 
 function Test-BaselineOperatorChangeWindow
@@ -93,7 +91,6 @@ function Test-BaselineOperatorChangeWindow
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineKillSwitch.
 #>
 
 function Test-BaselineKillSwitch
@@ -109,10 +106,6 @@ function Test-BaselineKillSwitch
 	return [bool](Test-Path -LiteralPath $Path -PathType Leaf -ErrorAction SilentlyContinue)
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Invoke-BaselineKillSwitch
 {
 	<#
@@ -140,7 +133,6 @@ function Invoke-BaselineKillSwitch
 
 <#
     .SYNOPSIS
-    Internal function Clear-BaselineKillSwitch.
 #>
 
 function Clear-BaselineKillSwitch
@@ -155,10 +147,6 @@ function Clear-BaselineKillSwitch
 	if (Test-Path -LiteralPath $Path) { Remove-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue }
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Test-BaselineOperatorRunPolicy
 {
 	<#
@@ -280,7 +268,6 @@ function Test-BaselineOperatorRunPolicy
 
 <#
     .SYNOPSIS
-    Internal function Format-BaselineOperatorPolicyDecision.
 #>
 
 function Format-BaselineOperatorPolicyDecision

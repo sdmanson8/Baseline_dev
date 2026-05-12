@@ -137,7 +137,6 @@ $conservativeGamingMetadataMap = @{
 
 <#
     .SYNOPSIS
-    Internal function Get-RequiresRestart.
 #>
 
 function Get-RequiresRestart {
@@ -162,7 +161,6 @@ function Get-RequiresRestart {
 
 <#
     .SYNOPSIS
-    Internal function Get-PresetTier.
 #>
 
 function Get-PresetTier {
@@ -207,7 +205,6 @@ function Get-PresetTier {
 
 <#
     .SYNOPSIS
-    Internal function Get-WhyThisMatters.
 #>
 
 function Get-WhyThisMatters {
@@ -247,7 +244,6 @@ function Get-WhyThisMatters {
 
 <#
     .SYNOPSIS
-    Internal function Test-HasConservativeGamingMetadataValue.
 #>
 
 function Test-HasConservativeGamingMetadataValue {
@@ -264,7 +260,6 @@ function Test-HasConservativeGamingMetadataValue {
 
 <#
     .SYNOPSIS
-    Internal function .
 #>
 function Get-ConservativeGamingMetadataValue {
     param(

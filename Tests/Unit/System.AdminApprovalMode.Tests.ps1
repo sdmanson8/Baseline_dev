@@ -1,6 +1,11 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/System.psm1'
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
@@ -20,7 +25,6 @@ Describe 'AdminApprovalMode' {
 
         <#
             .SYNOPSIS
-            Internal function Write-ConsoleStatus.
         #>
 
         function Write-ConsoleStatus {
@@ -32,7 +36,6 @@ Describe 'AdminApprovalMode' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogInfo {
             param([string]$Message)
@@ -41,7 +44,6 @@ Describe 'AdminApprovalMode' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogError {
             param([string]$Message)
@@ -50,7 +52,6 @@ Describe 'AdminApprovalMode' {
 
         <#
             .SYNOPSIS
-            Internal function New-ItemProperty.
         #>
 
         function New-ItemProperty {
@@ -73,7 +74,6 @@ Describe 'AdminApprovalMode' {
 
         <#
             .SYNOPSIS
-            Internal function Set-Policy.
         #>
 
         function Set-Policy {
@@ -151,7 +151,7 @@ Describe 'AdminApprovalMode' {
 
     It 'declares the full five-state UAC choice selector in the manifest' {
         $systemDataPath = Join-Path $PSScriptRoot '../../Module/Data/System.json'
-        $systemData = Get-Content -LiteralPath $systemDataPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+        $systemData = Get-BaselineTestSourceText -Path $systemDataPath | ConvertFrom-Json -ErrorAction Stop
         $entry = @($systemData.Entries | Where-Object Function -eq 'AdminApprovalMode' | Select-Object -First 1)
 
         $entry | Should -Not -BeNullOrEmpty

@@ -4,7 +4,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Register-BaselineScheduledTask.
 #>
 
 function Register-BaselineScheduledTask
@@ -136,7 +135,6 @@ function Register-BaselineScheduledTask
 
 <#
     .SYNOPSIS
-    Internal function Register-BaselineWindowsUpdateScheduledRun.
 #>
 
 function Register-BaselineWindowsUpdateScheduledRun
@@ -166,9 +164,12 @@ function Register-BaselineWindowsUpdateScheduledRun
 	}
 
 	$escapedSharedHelpersPath = $sharedHelpersPath.Replace("'", "''")
-	$scheduledCommand = "Import-Module '$escapedSharedHelpersPath' -Force; Invoke-BaselineWindowsUpdateScheduledRun"
-	$encodedCommand = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($scheduledCommand))
-	$psArguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand $encodedCommand"
+$scheduledCommand = "Import-Module '$escapedSharedHelpersPath' -Force -DisableNameChecking -WarningAction SilentlyContinue; Invoke-BaselineWindowsUpdateScheduledRun"
+	$scheduledScriptDirectory = Join-Path $env:ProgramData 'Baseline'
+	$scheduledScriptPath = Join-Path $scheduledScriptDirectory "$TaskName.ps1"
+	New-Item -Path $scheduledScriptDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
+	Set-Content -LiteralPath $scheduledScriptPath -Value $scheduledCommand -Encoding UTF8 -Force -ErrorAction Stop
+	$psArguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$scheduledScriptPath`""
 	$taskAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $psArguments
 
 	$timeParts = $Time -split ':'
@@ -227,7 +228,6 @@ function Register-BaselineWindowsUpdateScheduledRun
 
 <#
     .SYNOPSIS
-    Internal function Unregister-BaselineScheduledTask.
 #>
 
 function Unregister-BaselineScheduledTask
@@ -260,7 +260,6 @@ function Unregister-BaselineScheduledTask
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineScheduledTasks.
 #>
 
 function Get-BaselineScheduledTasks
@@ -303,7 +302,6 @@ function Get-BaselineScheduledTasks
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineScheduledTaskExists.
 #>
 
 function Test-BaselineScheduledTaskExists

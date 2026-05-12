@@ -14,10 +14,10 @@ BeforeAll {
     . (Join-Path $script:RepoRoot 'Module/SharedHelpers/Json.Helpers.ps1')
     . $script:ConfigProfilePath
 
-    $script:ConfigProfileContent = Get-Content -LiteralPath $script:ConfigProfilePath -Raw -Encoding UTF8
-    $script:SharedHelpersContent = Get-Content -LiteralPath $script:SharedHelpersManifestPath -Raw -Encoding UTF8
-    $script:ConfigProfileModuleContent = Get-Content -LiteralPath $script:ConfigProfileModulePath -Raw -Encoding UTF8
-    $script:TweakVisualizationContent = Get-Content -LiteralPath $script:TweakVisualizationPath -Raw -Encoding UTF8
+    $script:ConfigProfileContent = Get-BaselineTestSourceText -Path $script:ConfigProfilePath
+    $script:SharedHelpersContent = Get-BaselineTestSourceText -Path $script:SharedHelpersManifestPath
+    $script:ConfigProfileModuleContent = Get-BaselineTestSourceText -Path $script:ConfigProfileModulePath
+    $script:TweakVisualizationContent = Get-BaselineTestSourceText -Path $script:TweakVisualizationPath
     $script:ActionHandlersContent = Get-BaselineTestSourceText -Path @(
         $script:ActionHandlersPath
         (Join-Path $script:ActionHandlersSplitRoot 'ThemeNavigationHandlers.ps1')
@@ -25,8 +25,8 @@ BeforeAll {
         (Join-Path $script:ActionHandlersSplitRoot 'SystemScanFooterHandlers.ps1')
         (Join-Path $script:ActionHandlersSplitRoot 'MenuHandlers.ps1')
     )
-    $script:StyleManagementContent = Get-Content -LiteralPath $script:StyleManagementPath -Raw -Encoding UTF8
-    $script:ReadmeContent = Get-Content -LiteralPath $script:ReadmePath -Raw -Encoding UTF8
+    $script:StyleManagementContent = Get-BaselineTestSourceText -Path $script:StyleManagementPath
+    $script:ReadmeContent = Get-BaselineTestSourceText -Path $script:ReadmePath
 }
 
 Describe 'Export-BaselineFirstLogonCommandSnippet' {

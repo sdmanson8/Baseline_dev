@@ -5,9 +5,9 @@ BeforeAll {
 
     $script:RemoteTargetHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/RemoteTarget.Helpers.ps1'
     $script:SharedHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers.psm1'
-    $script:RemoteTargetHelpersContent = Get-Content -LiteralPath $script:RemoteTargetHelpersPath -Raw -Encoding UTF8
-    $script:SharedHelpersContent = Get-Content -LiteralPath $script:SharedHelpersPath -Raw -Encoding UTF8
-    function Write-DebugSwallowedException
+    $script:RemoteTargetHelpersContent = Get-BaselineTestSourceText -Path $script:RemoteTargetHelpersPath
+    $script:SharedHelpersContent = Get-BaselineTestSourceText -Path $script:SharedHelpersPath
+    function Write-SwallowedException
     {
         param(
             [object]$ErrorRecord,
@@ -86,28 +86,28 @@ Describe 'Remote session caching' {
         $actionHandlersContent | Should -Match '\$clearRemoteSessionCacheCommand -ComputerName @\(\$context.TargetComputers\)'
     }
 
-    It 'routes remote TCP cleanup failures through Write-DebugSwallowedException' {
-        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Test-BaselineRemoteTargetConnectivity\.TcpClose'''
+    It 'routes remote TCP cleanup failures through Write-SwallowedException' {
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Test-BaselineRemoteTargetConnectivity\.TcpClose'''
     }
 
-    It 'routes remote session cache cleanup failures through Write-DebugSwallowedException' {
-        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Remove-BaselineRemoteSessionCacheEntry\.RemovePSSession'''
-        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Invoke-BaselineRemoteSessionCacheMaintenance\.UpdateLastUsedUtc'''
+    It 'routes remote session cache cleanup failures through Write-SwallowedException' {
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Remove-BaselineRemoteSessionCacheEntry\.RemovePSSession'''
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Invoke-BaselineRemoteSessionCacheMaintenance\.UpdateLastUsedUtc'''
     }
 
-    It 'routes remote history timestamp parse failures through Write-DebugSwallowedException' {
-        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteOrchestrationHistory\.SinceTimestampParse'''
+    It 'routes remote history timestamp parse failures through Write-SwallowedException' {
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteOrchestrationHistory\.SinceTimestampParse'''
     }
 
-    It 'routes remote history line parse failures through Write-DebugSwallowedException' {
-        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteOrchestrationHistory\.ParseLine'''
-        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteRunSummaries\.ParseLine'''
-        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteResumeCheckpoint\.ParseLine'''
+    It 'routes remote history line parse failures through Write-SwallowedException' {
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteOrchestrationHistory\.ParseLine'''
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteRunSummaries\.ParseLine'''
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteResumeCheckpoint\.ParseLine'''
     }
 
-    It 'routes remote summary timestamp parse failures through Write-DebugSwallowedException' {
-        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteOrchestrationSummary\.SinceTimestampParse'''
-        $script:RemoteTargetHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteRunSummaries\.SinceTimestampParse'''
+    It 'routes remote summary timestamp parse failures through Write-SwallowedException' {
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteOrchestrationSummary\.SinceTimestampParse'''
+        $script:RemoteTargetHelpersContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''RemoteTarget\.Get-BaselineRemoteRunSummaries\.SinceTimestampParse'''
     }
 
     It 'keys sessions by credential scope and transport settings' {

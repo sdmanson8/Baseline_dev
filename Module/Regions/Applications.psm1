@@ -7,11 +7,7 @@ using module ..\SharedHelpers.psm1
     .SYNOPSIS
     Checks application catalog field.
 
-    
-.DESCRIPTION
-    
-Supports application catalog field handling inside Baseline.
-#>
+    #>
 
 function Test-ApplicationCatalogField
 {
@@ -37,11 +33,7 @@ function Test-ApplicationCatalogField
     .SYNOPSIS
     Gets application catalog field value.
 
-    
-.DESCRIPTION
-    
-Supports application catalog field value handling inside Baseline.
-#>
+    #>
 
 function Get-ApplicationCatalogFieldValue
 {
@@ -67,11 +59,7 @@ function Get-ApplicationCatalogFieldValue
     .SYNOPSIS
     Gets package manager availability state value.
 
-    
-.DESCRIPTION
-    
-Supports package manager availability state value handling inside Baseline.
-#>
+    #>
 
 function Get-PackageManagerAvailabilityStateValue
 {
@@ -107,11 +95,7 @@ function Get-PackageManagerAvailabilityStateValue
     .SYNOPSIS
     Resolves application execution route.
 
-    
-.DESCRIPTION
-    
-Supports application execution route handling inside Baseline.
-#>
+    #>
 
 function Resolve-ApplicationExecutionRoute
 {
@@ -518,11 +502,7 @@ function Resolve-ApplicationExecutionRoute
     .SYNOPSIS
     Saves chocolatey bootstrap script.
 
-    
-.DESCRIPTION
-    
-Supports chocolatey bootstrap script handling inside Baseline.
-#>
+    #>
 
 function Save-ChocolateyBootstrapScript
 {
@@ -531,137 +511,29 @@ function Save-ChocolateyBootstrapScript
 
 	$bootstrapScriptUrl = 'https://community.chocolatey.org/install.ps1'
 	$bootstrapScriptPath = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath ("baseline-choco-bootstrap-{0}.ps1" -f [System.Guid]::NewGuid().ToString('N'))
-	$webClient = New-Object System.Net.WebClient
-
-	try
+	$expectedChocolateyInstallerHash = [string][Environment]::GetEnvironmentVariable('BASELINE_CHOCOLATEY_INSTALLER_SHA256')
+	if (-not (Get-Command -Name 'Invoke-DownloadFile' -CommandType Function -ErrorAction SilentlyContinue))
 	{
-		$webClient.DownloadFile($bootstrapScriptUrl, $bootstrapScriptPath)
-		return $bootstrapScriptPath
+		throw 'Invoke-DownloadFile is required for Chocolatey bootstrap download.'
 	}
-	finally
+	if (-not [string]::IsNullOrWhiteSpace($expectedChocolateyInstallerHash) -and -not (Get-Command -Name 'Assert-FileHash' -CommandType Function -ErrorAction SilentlyContinue))
 	{
-		$webClient.Dispose()
-	}
-}
-
-<#
-    .SYNOPSIS
-    Checks baseline environment flag enabled.
-
-    
-.DESCRIPTION
-    
-Supports baseline environment flag enabled handling inside Baseline.
-#>
-
-function Test-BaselineEnvironmentFlagEnabled
-{
-	[CmdletBinding()]
-	param (
-		[Parameter(Mandatory = $true)]
-		[ValidateNotNullOrEmpty()]
-		[string]$Name
-	)
-
-	$rawValue = [System.Environment]::GetEnvironmentVariable($Name)
-	if ([string]::IsNullOrWhiteSpace($rawValue))
-	{
-		return $false
+		throw 'Assert-FileHash is required for Chocolatey bootstrap verification.'
 	}
 
-	switch ($rawValue.Trim().ToLowerInvariant())
+	Invoke-DownloadFile -Uri $bootstrapScriptUrl -OutFile $bootstrapScriptPath
+	if (-not [string]::IsNullOrWhiteSpace($expectedChocolateyInstallerHash))
 	{
-		'1' { return $true }
-		'true' { return $true }
-		'yes' { return $true }
-		'on' { return $true }
-		default { return $false }
+		$null = Assert-FileHash -Path $bootstrapScriptPath -ExpectedSha256 $expectedChocolateyInstallerHash -Label 'Chocolatey install.ps1'
 	}
-}
-
-<#
-    .SYNOPSIS
-    Checks chocolatey bootstrap interactive host.
-
-    
-.DESCRIPTION
-    
-Supports chocolatey bootstrap interactive host handling inside Baseline.
-#>
-
-function Test-ChocolateyBootstrapInteractiveHost
-{
-	[CmdletBinding()]
-	param(
-		[Parameter()]
-		[object]$HostInstance = $Host,
-
-		[Parameter()]
-		[Nullable[bool]]$UserInteractive = $null
-	)
-
-	try
-	{
-		if ($null -eq $HostInstance -or $null -eq $HostInstance.UI)
-		{
-			return $false
-		}
-
-		# Known non-interactive hosts whose PromptForChoice implementation throws
-		# NotSupportedException: BaselineHost (launcher), ServerRemoteHost (PSRemoting),
-		# Default Host (various automation contexts). RawUI presence is not enough —
-		# BaselineHost exposes RawUI but rejects PromptForChoice.
-		$nonInteractiveHostNames = @('BaselineHost', 'ServerRemoteHost', 'Default Host')
-		if ($HostInstance.Name -and ($nonInteractiveHostNames -contains [string]$HostInstance.Name))
-		{
-			return $false
-		}
-
-		$isUserInteractive = if ($null -ne $UserInteractive) { [bool]$UserInteractive } else { [Environment]::UserInteractive }
-		if (-not $isUserInteractive)
-		{
-			return $false
-		}
-
-		$null = $HostInstance.UI.RawUI
-		return $true
-	}
-	catch
-	{
-		return $false
-	}
-}
-
-<#
-    .SYNOPSIS
-    Confirms chocolatey bootstrap execution.
-
-    
-.DESCRIPTION
-    
-Supports chocolatey bootstrap execution handling inside Baseline.
-#>
-
-function Confirm-ChocolateyBootstrapExecution
-{
-	[CmdletBinding()]
-	param()
-
-	# Approval gate removed — Chocolatey bootstrap runs unconditionally like
-	# WinGet. The downloaded install.ps1 is Chocolatey's official script; the
-	# caller has already chosen to run Baseline, which implies the approval.
-	return
+	return $bootstrapScriptPath
 }
 
 <#
     .SYNOPSIS
     Converts values to application command literal.
 
-    
-.DESCRIPTION
-    
-Supports application command literal handling inside Baseline.
-#>
+    #>
 
 function ConvertTo-ApplicationCommandLiteral
 {
@@ -705,11 +577,7 @@ function ConvertTo-ApplicationCommandLiteral
     .SYNOPSIS
     Assert application command AST is safe.
 
-    
-.DESCRIPTION
-    
-Supports application command AST is safe handling inside Baseline.
-#>
+    #>
 
 function Assert-ApplicationCommandAstIsSafe
 {
@@ -722,7 +590,14 @@ function Assert-ApplicationCommandAstIsSafe
 		[string]$Command
 	)
 
-	if ($Ast.ParamBlock -or $Ast.BeginBlock -or $Ast.ProcessBlock -or $Ast.DynamicParamBlock -or $Ast.CleanBlock)
+	$cleanBlock = $null
+	$cleanBlockProperty = $Ast.PSObject.Properties['CleanBlock']
+	if ($cleanBlockProperty)
+	{
+		$cleanBlock = $cleanBlockProperty.Value
+	}
+
+	if ($Ast.ParamBlock -or $Ast.BeginBlock -or $Ast.ProcessBlock -or $Ast.DynamicParamBlock -or $cleanBlock)
 	{
 		throw "Command '$Command' contains unsupported syntax."
 	}
@@ -746,7 +621,14 @@ function Assert-ApplicationCommandAstIsSafe
 			throw "Command '$Command' must contain only command invocations."
 		}
 
-		if ($pipelineAst.Background)
+		$pipelineBackground = $false
+		$pipelineBackgroundProperty = $pipelineAst.PSObject.Properties['Background']
+		if ($pipelineBackgroundProperty)
+		{
+			$pipelineBackground = [bool]$pipelineBackgroundProperty.Value
+		}
+
+		if ($pipelineBackground)
 		{
 			throw "Command '$Command' contains unsupported syntax."
 		}
@@ -792,11 +674,7 @@ function Assert-ApplicationCommandAstIsSafe
     .SYNOPSIS
     Converts values to application command invocation.
 
-    
-.DESCRIPTION
-    
-Supports application command invocation handling inside Baseline.
-#>
+    #>
 
 function ConvertTo-ApplicationCommandInvocation
 {
@@ -870,7 +748,6 @@ function ConvertTo-ApplicationCommandInvocation
 		CommandArguments = @($commandArguments)
 		CommandNames = @($commandNames)
 		HasSingleCommandInvocation = [bool]$commandAst
-		ScriptBlock = [scriptblock]::Create($Command)
 	}
 }
 
@@ -890,7 +767,8 @@ function Invoke-StreamingProcess
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)][string]$FilePath,
-		[Parameter(Mandatory = $true)][string[]]$ArgumentList
+		[Parameter(Mandatory = $true)][string[]]$ArgumentList,
+		[int]$TimeoutSeconds = 900
 	)
 
 	$quotedArgs = foreach ($arg in $ArgumentList)
@@ -913,31 +791,207 @@ function Invoke-StreamingProcess
 	$process.StartInfo = $psi
 	[void]$process.Start()
 
-	# Drain both pipes to /dev/null in parallel — we just need to prevent the
+	# Drain both pipes to /dev/null in parallel - we just need to prevent the
 	# subprocess from blocking on a full pipe. Reading to end is sufficient and
 	# no LogInfo/LogWarning is emitted per line, keeping the GUI log clean.
 	$stdoutTask = $process.StandardOutput.ReadToEndAsync()
 	$stderrTask = $process.StandardError.ReadToEndAsync()
+	$timedOut = $false
+	if ($TimeoutSeconds -gt 0)
+	{
+		$timedOut = -not $process.WaitForExit([int]([TimeSpan]::FromSeconds($TimeoutSeconds).TotalMilliseconds))
+	}
+	else
+	{
+		$process.WaitForExit()
+	}
 
-	$process.WaitForExit()
+	if ($timedOut)
+	{
+		Stop-BaselineProcessTree -Process $process -Source 'Applications.Invoke-StreamingProcess.KillTimedOutProcess'
+		try { $null = $stdoutTask.GetAwaiter().GetResult() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-StreamingProcess.TimeoutStdoutAwait' }
+		try { $null = $stderrTask.GetAwaiter().GetResult() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-StreamingProcess.TimeoutStderrAwait' }
+		try { $process.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-StreamingProcess.TimeoutDisposeProcess' }
+		throw ([System.TimeoutException]::new(("Process '{0}' timed out after {1} second(s)." -f $FilePath, $TimeoutSeconds)))
+	}
 
-	try { $null = $stdoutTask.GetAwaiter().GetResult() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessCapture.StdoutAwait' }
-	try { $null = $stderrTask.GetAwaiter().GetResult() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessCapture.StderrAwait' }
+	try { $null = $stdoutTask.GetAwaiter().GetResult() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessCapture.StdoutAwait' }
+	try { $null = $stderrTask.GetAwaiter().GetResult() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessCapture.StderrAwait' }
 
 	$exitCode = [int]$process.ExitCode
-	try { $process.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessCapture.DisposeProcess' }
+	try { $process.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessCapture.DisposeProcess' }
 	return $exitCode
+}
+
+<#
+    .SYNOPSIS
+    Captures process text output with timeout control.
+#>
+function Invoke-ProcessTextCapture
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)][string]$FilePath,
+		[Parameter(Mandatory = $true)][string[]]$ArgumentList,
+		[int]$TimeoutSeconds = 300
+	)
+
+	$quotedArgs = foreach ($arg in $ArgumentList)
+	{
+		if ([string]::IsNullOrEmpty($arg)) { '""' }
+		elseif ($arg -match '[\s"]') { '"' + ($arg -replace '"', '\"') + '"' }
+		else { $arg }
+	}
+
+	$psi = [System.Diagnostics.ProcessStartInfo]::new()
+	$psi.FileName = $FilePath
+	$psi.Arguments = ($quotedArgs -join ' ')
+	$psi.UseShellExecute = $false
+	$psi.CreateNoWindow = $true
+	$psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+	$psi.RedirectStandardOutput = $true
+	$psi.RedirectStandardError = $true
+
+	$process = [System.Diagnostics.Process]::new()
+	$process.StartInfo = $psi
+	[void]$process.Start()
+
+	$stdoutTask = $process.StandardOutput.ReadToEndAsync()
+	$stderrTask = $process.StandardError.ReadToEndAsync()
+	$timedOut = $false
+	if ($TimeoutSeconds -gt 0)
+	{
+		$timedOut = -not $process.WaitForExit([int]([TimeSpan]::FromSeconds($TimeoutSeconds).TotalMilliseconds))
+	}
+	else
+	{
+		$process.WaitForExit()
+	}
+
+	if ($timedOut)
+	{
+		Stop-BaselineProcessTree -Process $process -Source 'Applications.Invoke-ProcessTextCapture.KillTimedOutProcess'
+		try { $null = $stdoutTask.GetAwaiter().GetResult() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessTextCapture.TimeoutStdoutAwait' }
+		try { $null = $stderrTask.GetAwaiter().GetResult() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessTextCapture.TimeoutStderrAwait' }
+		try { $process.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessTextCapture.TimeoutDisposeProcess' }
+		throw ([System.TimeoutException]::new(("Process '{0}' timed out after {1} second(s)." -f $FilePath, $TimeoutSeconds)))
+	}
+
+	$stdout = ''
+	$stderr = ''
+	try { $stdout = [string]$stdoutTask.GetAwaiter().GetResult() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessTextCapture.StdoutAwait' }
+	try { $stderr = [string]$stderrTask.GetAwaiter().GetResult() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessTextCapture.StderrAwait' }
+	$exitCode = [int]$process.ExitCode
+	try { $process.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessTextCapture.DisposeProcess' }
+
+	return [pscustomobject]@{
+		ExitCode = $exitCode
+		StandardOutput = $stdout
+		StandardError = $stderr
+	}
+}
+
+<#
+    .SYNOPSIS
+    Waits for a started process with timeout control.
+#>
+function Wait-ApplicationProcess
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		$Process,
+
+		[int]$TimeoutSeconds = 900
+	)
+
+	if ($TimeoutSeconds -gt 0)
+	{
+		$completed = $Process.WaitForExit([int]([TimeSpan]::FromSeconds($TimeoutSeconds).TotalMilliseconds))
+		if (-not $completed)
+		{
+			Stop-BaselineProcessTree -Process $Process -Source 'Applications.WaitApplicationProcess.KillTimedOutProcess'
+			throw ([System.TimeoutException]::new(("Process '{0}' timed out after {1} second(s)." -f [string]$Process.StartInfo.FileName, $TimeoutSeconds)))
+		}
+
+		return [int]$Process.ExitCode
+	}
+
+	$Process.WaitForExit()
+	return [int]$Process.ExitCode
+}
+
+<#
+    .SYNOPSIS
+    Gets the timeout exception from an application action error.
+#>
+function Get-ApplicationActionTimeoutException
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		$ErrorRecord
+	)
+
+	$exception = if ($ErrorRecord -and $ErrorRecord.Exception) { $ErrorRecord.Exception } else { $null }
+	while ($exception)
+	{
+		if ($exception -is [System.TimeoutException])
+		{
+			return $exception
+		}
+
+		$exception = $exception.InnerException
+	}
+
+	return $null
+}
+
+<#
+    .SYNOPSIS
+    Throws a normalized application action failure.
+#>
+function Throw-ApplicationActionFailure
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$TargetName,
+
+		[Parameter(Mandatory = $true)]
+		[string]$ActionLabel,
+
+		[int]$TimeoutSeconds = 0,
+
+		$ErrorRecord = $null
+	)
+
+	$timeoutException = if ($ErrorRecord) { Get-ApplicationActionTimeoutException -ErrorRecord $ErrorRecord } else { $null }
+	if ($timeoutException)
+	{
+		$failureMessage = if ($TimeoutSeconds -gt 0)
+		{
+			"{0} {1} - Timed out after {2} second(s)." -f $TargetName, $ActionLabel, $TimeoutSeconds
+		}
+		else
+		{
+			"{0} {1} - Timed out." -f $TargetName, $ActionLabel
+		}
+
+		LogWarning $failureMessage
+		throw ([System.TimeoutException]::new($failureMessage, $timeoutException))
+	}
+
+	$genericFailureMessage = "{0} {1} - Failed" -f $TargetName, $ActionLabel
+	LogError $genericFailureMessage
+	throw $genericFailureMessage
 }
 
 <#
     .SYNOPSIS
     Runs winget install.
 
-    
-.DESCRIPTION
-    
-Supports winget install handling inside Baseline.
-#>
+    #>
 
 function Invoke-WingetInstall
 {
@@ -950,7 +1004,9 @@ function Invoke-WingetInstall
 		[string]$DisplayName,
 
 		[Parameter(Mandatory = $false)]
-		[object]$PackageManagerAvailabilityState = $null
+		[object]$PackageManagerAvailabilityState = $null,
+
+		[int]$TimeoutSeconds = 900
 	)
 
 	$wingetAvailableState = Get-PackageManagerAvailabilityStateValue -AvailabilityState $PackageManagerAvailabilityState -PropertyName 'WinGetAvailable'
@@ -985,7 +1041,7 @@ function Invoke-WingetInstall
 		$exitCode = Invoke-StreamingProcess -FilePath $wingetPath -ArgumentList @(
 			'install', '--id', $WinGetId, '--exact', '--silent',
 			'--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity'
-		)
+		) -TimeoutSeconds $TimeoutSeconds
 
 		if ($exitCode -eq 0)
 		{
@@ -999,9 +1055,7 @@ function Invoke-WingetInstall
 	}
 	catch
 	{
-		$failureMessage = "{0} Install - Failed" -f $DisplayName
-		LogError $failureMessage
-		throw $failureMessage
+		Throw-ApplicationActionFailure -TargetName $DisplayName -ActionLabel 'Install' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
 
@@ -1009,11 +1063,7 @@ function Invoke-WingetInstall
     .SYNOPSIS
     Runs winget uninstall.
 
-    
-.DESCRIPTION
-    
-Supports winget uninstall handling inside Baseline.
-#>
+    #>
 
 function Invoke-WingetUninstall
 {
@@ -1026,7 +1076,9 @@ function Invoke-WingetUninstall
 		[string]$DisplayName,
 
 		[Parameter(Mandatory = $false)]
-		[object]$PackageManagerAvailabilityState = $null
+		[object]$PackageManagerAvailabilityState = $null,
+
+		[int]$TimeoutSeconds = 600
 	)
 
 	$wingetAvailableState = Get-PackageManagerAvailabilityStateValue -AvailabilityState $PackageManagerAvailabilityState -PropertyName 'WinGetAvailable'
@@ -1060,7 +1112,7 @@ function Invoke-WingetUninstall
 	{
 		$exitCode = Invoke-StreamingProcess -FilePath $wingetPath -ArgumentList @(
 			'uninstall', '--id', $WinGetId, '--exact', '--silent', '--disable-interactivity'
-		)
+		) -TimeoutSeconds $TimeoutSeconds
 
 		if ($exitCode -eq 0)
 		{
@@ -1074,9 +1126,7 @@ function Invoke-WingetUninstall
 	}
 	catch
 	{
-		$failureMessage = "{0} Uninstall - Failed" -f $DisplayName
-		LogError $failureMessage
-		throw $failureMessage
+		Throw-ApplicationActionFailure -TargetName $DisplayName -ActionLabel 'Uninstall' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
 
@@ -1084,11 +1134,7 @@ function Invoke-WingetUninstall
     .SYNOPSIS
     Runs winget update.
 
-    
-.DESCRIPTION
-    
-Supports winget update handling inside Baseline.
-#>
+    #>
 
 function Invoke-WingetUpdate
 {
@@ -1101,7 +1147,9 @@ function Invoke-WingetUpdate
 		[string]$DisplayName,
 
 		[Parameter(Mandatory = $false)]
-		[object]$PackageManagerAvailabilityState = $null
+		[object]$PackageManagerAvailabilityState = $null,
+
+		[int]$TimeoutSeconds = 900
 	)
 
 	$wingetAvailableState = Get-PackageManagerAvailabilityStateValue -AvailabilityState $PackageManagerAvailabilityState -PropertyName 'WinGetAvailable'
@@ -1135,7 +1183,7 @@ function Invoke-WingetUpdate
 	{
 		$exitCode = Invoke-StreamingProcess -FilePath $wingetPath -ArgumentList @(
 			'upgrade', '--id', $WinGetId, '--exact', '--include-unknown', '--silent', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity'
-		)
+		) -TimeoutSeconds $TimeoutSeconds
 
 		if ($exitCode -eq 0)
 		{
@@ -1149,9 +1197,7 @@ function Invoke-WingetUpdate
 	}
 	catch
 	{
-		$failureMessage = "{0} Update - Failed" -f $DisplayName
-		LogError $failureMessage
-		throw $failureMessage
+		Throw-ApplicationActionFailure -TargetName $DisplayName -ActionLabel 'Update' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
 
@@ -1159,56 +1205,42 @@ function Invoke-WingetUpdate
     .SYNOPSIS
     Runs chocolatey bootstrap install.
 
-    
-.DESCRIPTION
-    
-Supports chocolatey bootstrap install handling inside Baseline.
-#>
+    #>
 
 function Invoke-ChocolateyBootstrapInstall
 {
 	[CmdletBinding()]
-	param()
+	param(
+		[int]$TimeoutSeconds = 900
+	)
 
-	Confirm-ChocolateyBootstrapExecution
-
-	$previousExecutionPolicy = [string](Get-ExecutionPolicy -Scope Process)
-	$previousSecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol
-	$bootstrapScriptPath = $null
-	if ([string]::IsNullOrWhiteSpace($previousExecutionPolicy))
+	if (-not (Get-Command -Name 'Invoke-ChocolateyBootstrap' -CommandType Function -ErrorAction SilentlyContinue))
 	{
-		$previousExecutionPolicy = 'Undefined'
+		throw 'Invoke-ChocolateyBootstrap is required for Chocolatey bootstrap installation.'
 	}
 
-	try
+	$result = Invoke-ChocolateyBootstrap -TimeoutSeconds $TimeoutSeconds
+	if (-not $result -or -not [bool]$result.Success)
 	{
-		Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-		[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
-		$bootstrapScriptPath = Save-ChocolateyBootstrapScript
-		& $bootstrapScriptPath
-		Reset-ChocolateyAvailabilityState
-	}
-	finally
-	{
-		[System.Net.ServicePointManager]::SecurityProtocol = $previousSecurityProtocol
-		if ($bootstrapScriptPath -and (Test-Path -LiteralPath $bootstrapScriptPath))
+		$errorMessage = if ($result -and $result.PSObject.Properties['Error'] -and -not [string]::IsNullOrWhiteSpace([string]$result.Error))
 		{
-			Remove-Item -LiteralPath $bootstrapScriptPath -Force -ErrorAction SilentlyContinue
+			[string]$result.Error
 		}
-
-		Set-ExecutionPolicy -ExecutionPolicy $previousExecutionPolicy -Scope Process -Force
+		else
+		{
+			'Chocolatey bootstrap did not complete successfully.'
+		}
+		throw $errorMessage
 	}
+
+	Reset-ChocolateyAvailabilityState
 }
 
 <#
     .SYNOPSIS
     Runs choco install.
 
-    
-.DESCRIPTION
-    
-Supports choco install handling inside Baseline.
-#>
+    #>
 
 function Invoke-ChocoInstall
 {
@@ -1221,7 +1253,9 @@ function Invoke-ChocoInstall
 		[string]$DisplayName,
 
 		[Parameter(Mandatory = $false)]
-		[object]$PackageManagerAvailabilityState = $null
+		[object]$PackageManagerAvailabilityState = $null,
+
+		[int]$TimeoutSeconds = 900
 	)
 
 	$resolvedChocoId = Resolve-ApplicationPackageId -PackageId $ChocoId
@@ -1232,7 +1266,7 @@ function Invoke-ChocoInstall
 		$chocoPath = Resolve-ChocolateyExecutable
 		if (-not $chocoPath)
 		{
-			Invoke-ChocolateyBootstrapInstall
+			Invoke-ChocolateyBootstrapInstall -TimeoutSeconds $TimeoutSeconds
 			$chocoPath = Resolve-ChocolateyExecutable
 		}
 
@@ -1245,7 +1279,7 @@ function Invoke-ChocoInstall
 
 		$exitCode = Invoke-StreamingProcess -FilePath $chocoPath -ArgumentList @(
 			'install', $resolvedChocoId, '-y', '--no-progress', '--accept-license'
-		)
+		) -TimeoutSeconds $TimeoutSeconds
 
 		if ($exitCode -eq 0)
 		{
@@ -1259,9 +1293,7 @@ function Invoke-ChocoInstall
 	}
 	catch
 	{
-		$failureMessage = "{0} Install - Failed" -f $DisplayName
-		LogError $failureMessage
-		throw $failureMessage
+		Throw-ApplicationActionFailure -TargetName $DisplayName -ActionLabel 'Install' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
 
@@ -1269,11 +1301,7 @@ function Invoke-ChocoInstall
     .SYNOPSIS
     Runs choco uninstall.
 
-    
-.DESCRIPTION
-    
-Supports choco uninstall handling inside Baseline.
-#>
+    #>
 
 function Invoke-ChocoUninstall
 {
@@ -1286,7 +1314,9 @@ function Invoke-ChocoUninstall
 		[string]$DisplayName,
 
 		[Parameter(Mandatory = $false)]
-		[object]$PackageManagerAvailabilityState = $null
+		[object]$PackageManagerAvailabilityState = $null,
+
+		[int]$TimeoutSeconds = 600
 	)
 
 	$resolvedChocoId = Resolve-ApplicationPackageId -PackageId $ChocoId
@@ -1297,7 +1327,7 @@ function Invoke-ChocoUninstall
 		$chocoPath = Resolve-ChocolateyExecutable
 		if (-not $chocoPath)
 		{
-			Invoke-ChocolateyBootstrapInstall
+			Invoke-ChocolateyBootstrapInstall -TimeoutSeconds $TimeoutSeconds
 			$chocoPath = Resolve-ChocolateyExecutable
 		}
 
@@ -1310,7 +1340,7 @@ function Invoke-ChocoUninstall
 
 		$exitCode = Invoke-StreamingProcess -FilePath $chocoPath -ArgumentList @(
 			'uninstall', $resolvedChocoId, '-y', '--no-progress'
-		)
+		) -TimeoutSeconds $TimeoutSeconds
 
 		if ($exitCode -eq 0)
 		{
@@ -1324,9 +1354,7 @@ function Invoke-ChocoUninstall
 	}
 	catch
 	{
-		$failureMessage = "{0} Uninstall - Failed" -f $DisplayName
-		LogError $failureMessage
-		throw $failureMessage
+		Throw-ApplicationActionFailure -TargetName $DisplayName -ActionLabel 'Uninstall' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
 
@@ -1334,11 +1362,7 @@ function Invoke-ChocoUninstall
     .SYNOPSIS
     Runs choco update.
 
-    
-.DESCRIPTION
-    
-Supports choco update handling inside Baseline.
-#>
+    #>
 
 function Invoke-ChocoUpdate
 {
@@ -1351,7 +1375,9 @@ function Invoke-ChocoUpdate
 		[string]$DisplayName,
 
 		[Parameter(Mandatory = $false)]
-		[object]$PackageManagerAvailabilityState = $null
+		[object]$PackageManagerAvailabilityState = $null,
+
+		[int]$TimeoutSeconds = 900
 	)
 
 	$resolvedChocoId = Resolve-ApplicationPackageId -PackageId $ChocoId
@@ -1362,7 +1388,7 @@ function Invoke-ChocoUpdate
 		$chocoPath = Resolve-ChocolateyExecutable
 		if (-not $chocoPath)
 		{
-			Invoke-ChocolateyBootstrapInstall
+			Invoke-ChocolateyBootstrapInstall -TimeoutSeconds $TimeoutSeconds
 			$chocoPath = Resolve-ChocolateyExecutable
 		}
 
@@ -1375,7 +1401,7 @@ function Invoke-ChocoUpdate
 
 		$exitCode = Invoke-StreamingProcess -FilePath $chocoPath -ArgumentList @(
 			'upgrade', $resolvedChocoId, '-y', '--no-progress'
-		)
+		) -TimeoutSeconds $TimeoutSeconds
 
 		if ($exitCode -eq 0)
 		{
@@ -1389,9 +1415,7 @@ function Invoke-ChocoUpdate
 	}
 	catch
 	{
-		$failureMessage = "{0} Update - Failed" -f $DisplayName
-		LogError $failureMessage
-		throw $failureMessage
+		Throw-ApplicationActionFailure -TargetName $DisplayName -ActionLabel 'Update' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
 
@@ -1399,18 +1423,16 @@ function Invoke-ChocoUpdate
     .SYNOPSIS
     Runs winget update all.
 
-    
-.DESCRIPTION
-    
-Supports winget update all handling inside Baseline.
-#>
+    #>
 
 function Invoke-WingetUpdateAll
 {
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $false)]
-		[object]$PackageManagerAvailabilityState = $null
+		[object]$PackageManagerAvailabilityState = $null,
+
+		[int]$TimeoutSeconds = 900
 	)
 
 	$wingetAvailableState = Get-PackageManagerAvailabilityStateValue -AvailabilityState $PackageManagerAvailabilityState -PropertyName 'WinGetAvailable'
@@ -1444,7 +1466,7 @@ function Invoke-WingetUpdateAll
 	{
 		$exitCode = Invoke-StreamingProcess -FilePath $wingetPath -ArgumentList @(
 			'upgrade', '--all', '--include-unknown', '--silent', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity'
-		)
+		) -TimeoutSeconds $TimeoutSeconds
 
 		if ($exitCode -eq 0)
 		{
@@ -1458,9 +1480,7 @@ function Invoke-WingetUpdateAll
 	}
 	catch
 	{
-		$failureMessage = 'WinGet Update All - Failed'
-		LogError $failureMessage
-		throw $failureMessage
+		Throw-ApplicationActionFailure -TargetName 'WinGet Update All' -ActionLabel 'Update' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
 
@@ -1468,18 +1488,16 @@ function Invoke-WingetUpdateAll
     .SYNOPSIS
     Runs choco update all.
 
-    
-.DESCRIPTION
-    
-Supports choco update all handling inside Baseline.
-#>
+    #>
 
 function Invoke-ChocoUpdateAll
 {
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $false)]
-		[object]$PackageManagerAvailabilityState = $null
+		[object]$PackageManagerAvailabilityState = $null,
+
+		[int]$TimeoutSeconds = 900
 	)
 
 	$chocoAvailableState = Get-PackageManagerAvailabilityStateValue -AvailabilityState $PackageManagerAvailabilityState -PropertyName 'ChocolateyAvailable'
@@ -1513,7 +1531,7 @@ function Invoke-ChocoUpdateAll
 
 		$exitCode = Invoke-StreamingProcess -FilePath $chocoPath -ArgumentList @(
 			'upgrade', 'all', '-y', '--no-progress'
-		)
+		) -TimeoutSeconds $TimeoutSeconds
 
 		if ($exitCode -eq 0)
 		{
@@ -1527,9 +1545,7 @@ function Invoke-ChocoUpdateAll
 	}
 	catch
 	{
-		$failureMessage = 'Chocolatey Update All - Failed'
-		LogError $failureMessage
-		throw $failureMessage
+		Throw-ApplicationActionFailure -TargetName 'Chocolatey Update All' -ActionLabel 'Update' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
 
@@ -1537,11 +1553,7 @@ function Invoke-ChocoUpdateAll
     .SYNOPSIS
     Runs store install.
 
-    
-.DESCRIPTION
-    
-Supports store install handling inside Baseline.
-#>
+    #>
 
 function Invoke-StoreInstall
 {
@@ -1622,11 +1634,7 @@ function Invoke-StoreInstall
     .SYNOPSIS
     Runs direct URL install.
 
-    
-.DESCRIPTION
-    
-Supports direct URL install handling inside Baseline.
-#>
+    #>
 
 function Invoke-DirectUrlInstall
 {
@@ -1648,7 +1656,9 @@ function Invoke-DirectUrlInstall
 		[object]$OwnerWindow = $null,
 
 		[Parameter(Mandatory = $false)]
-		[object]$UseDarkMode = $true
+		[object]$UseDarkMode = $true,
+
+		[int]$TimeoutSeconds = 1800
 	)
 
 	Write-ConsoleStatus -Action (Get-BaselineLocalizedString -Key 'Progress_DirectUrl_StartingDownload' -Fallback 'Downloading {0}...' -FormatArgs @($DisplayName))
@@ -1683,8 +1693,9 @@ function Invoke-DirectUrlInstall
 
 		if ($filePath.EndsWith('.exe', [System.StringComparison]::OrdinalIgnoreCase))
 		{
-			$result = Start-Process -FilePath $filePath -Wait -PassThru -ErrorAction Stop
-			if ($result.ExitCode -eq 0 -or $result.ExitCode -eq 3010)
+			$result = Start-Process -FilePath $filePath -PassThru -ErrorAction Stop
+			$exitCode = Wait-ApplicationProcess -Process $result -TimeoutSeconds $TimeoutSeconds
+			if ($exitCode -eq 0 -or $exitCode -eq 3010)
 			{
 				LogInfo (Get-BaselineLocalizedString -Key 'Progress_DirectUrl_InstalledSuccess' -Fallback 'Successfully installed {0}' -FormatArgs @($DisplayName))
 				return
@@ -1703,6 +1714,12 @@ function Invoke-DirectUrlInstall
 	}
 	catch
 	{
+		$timeoutException = Get-ApplicationActionTimeoutException -ErrorRecord $_
+		if ($timeoutException)
+		{
+			Throw-ApplicationActionFailure -TargetName $DisplayName -ActionLabel 'Install' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
+		}
+
 		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @($_.Exception.Message)
 		LogError $failureMessage
 		throw $failureMessage
@@ -1713,11 +1730,7 @@ function Invoke-DirectUrlInstall
     .SYNOPSIS
     Runs command install.
 
-    
-.DESCRIPTION
-    
-Supports command install handling inside Baseline.
-#>
+    #>
 
 function Invoke-CommandInstall
 {
@@ -1739,7 +1752,9 @@ function Invoke-CommandInstall
 		[object]$OwnerWindow = $null,
 
 		[Parameter(Mandatory = $false)]
-		[object]$UseDarkMode = $true
+		[object]$UseDarkMode = $true,
+
+		[int]$TimeoutSeconds = 1800
 	)
 
 	Write-ConsoleStatus -Action (Get-BaselineLocalizedString -Key 'Progress_Command_Executing' -Fallback 'Executing installation command for {0}...' -FormatArgs @($DisplayName))
@@ -1764,27 +1779,18 @@ function Invoke-CommandInstall
 		}
 
 		$commandInvocation = ConvertTo-ApplicationCommandInvocation -Command $Command
-		$previousErrorActionPreference = $ErrorActionPreference
-		try
+		if (-not $commandInvocation.HasSingleCommandInvocation)
 		{
-			$ErrorActionPreference = 'Stop'
-			$null = & $commandInvocation.ScriptBlock
-			if ($commandInvocation.HasSingleCommandInvocation -and -not [string]::IsNullOrWhiteSpace([string]$commandInvocation.CommandName))
-			{
-				$resolvedCommand = Get-Command -Name $commandInvocation.CommandName -ErrorAction Stop | Select-Object -First 1
-				if ($resolvedCommand.CommandType -in @([System.Management.Automation.CommandTypes]::Application, [System.Management.Automation.CommandTypes]::ExternalScript))
-				{
-					$exitCode = $global:LASTEXITCODE
-					if ($exitCode -ne 0)
-					{
-						throw "Command '$Command' exited with code $exitCode."
-					}
-				}
-			}
+			throw "Command '$Command' must resolve to a single executable invocation."
 		}
-		finally
+
+		$exitCode = Invoke-StreamingProcess `
+			-FilePath $commandInvocation.CommandName `
+			-ArgumentList $commandInvocation.CommandArguments `
+			-TimeoutSeconds $TimeoutSeconds
+		if ($exitCode -ne 0)
 		{
-			$ErrorActionPreference = $previousErrorActionPreference
+			throw "Command '$Command' exited with code $exitCode."
 		}
 
 		LogInfo (Get-BaselineLocalizedString -Key 'Progress_Command_Success' -Fallback 'Successfully executed installation command for {0}' -FormatArgs @($DisplayName))
@@ -1792,6 +1798,12 @@ function Invoke-CommandInstall
 	}
 	catch
 	{
+		$timeoutException = Get-ApplicationActionTimeoutException -ErrorRecord $_
+		if ($timeoutException)
+		{
+			Throw-ApplicationActionFailure -TargetName $DisplayName -ActionLabel 'Install' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
+		}
+
 		$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @($_.Exception.Message)
 		LogError $failureMessage
 		throw $failureMessage
@@ -1802,11 +1814,7 @@ function Invoke-CommandInstall
     .SYNOPSIS
     Runs application action.
 
-    
-.DESCRIPTION
-    
-Supports application action handling inside Baseline.
-#>
+    #>
 
 function Invoke-ApplicationAction
 {
@@ -1834,7 +1842,11 @@ function Invoke-ApplicationAction
 
 		[Parameter(Mandatory = $false, ParameterSetName = 'Application')]
 		[Parameter(Mandatory = $false, ParameterSetName = 'Legacy')]
-		[object]$PackageManagerAvailabilityState = $null
+		[object]$PackageManagerAvailabilityState = $null,
+
+		[Parameter(Mandatory = $false, ParameterSetName = 'Application')]
+		[Parameter(Mandatory = $false, ParameterSetName = 'Legacy')]
+		[int]$TimeoutSeconds = 900
 	)
 
 	if ($PSCmdlet.ParameterSetName -eq 'Application')
@@ -1852,18 +1864,18 @@ function Invoke-ApplicationAction
 			{
 				switch ($Action)
 				{
-					'Install' { Invoke-WingetInstall -WinGetId $route.PackageId -DisplayName $route.DisplayName -PackageManagerAvailabilityState $PackageManagerAvailabilityState; return }
-					'Uninstall' { Invoke-WingetUninstall -WinGetId $route.PackageId -DisplayName $route.DisplayName -PackageManagerAvailabilityState $PackageManagerAvailabilityState; return }
-					'Update' { Invoke-WingetUpdate -WinGetId $route.PackageId -DisplayName $route.DisplayName -PackageManagerAvailabilityState $PackageManagerAvailabilityState; return }
+					'Install' { Invoke-WingetInstall -WinGetId $route.PackageId -DisplayName $route.DisplayName -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds; return }
+					'Uninstall' { Invoke-WingetUninstall -WinGetId $route.PackageId -DisplayName $route.DisplayName -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds; return }
+					'Update' { Invoke-WingetUpdate -WinGetId $route.PackageId -DisplayName $route.DisplayName -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds; return }
 				}
 			}
 			'choco'
 			{
 				switch ($Action)
 				{
-					'Install' { Invoke-ChocoInstall -ChocoId $route.PackageId -DisplayName $route.DisplayName -PackageManagerAvailabilityState $PackageManagerAvailabilityState; return }
-					'Uninstall' { Invoke-ChocoUninstall -ChocoId $route.PackageId -DisplayName $route.DisplayName -PackageManagerAvailabilityState $PackageManagerAvailabilityState; return }
-					'Update' { Invoke-ChocoUpdate -ChocoId $route.PackageId -DisplayName $route.DisplayName -PackageManagerAvailabilityState $PackageManagerAvailabilityState; return }
+					'Install' { Invoke-ChocoInstall -ChocoId $route.PackageId -DisplayName $route.DisplayName -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds; return }
+					'Uninstall' { Invoke-ChocoUninstall -ChocoId $route.PackageId -DisplayName $route.DisplayName -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds; return }
+					'Update' { Invoke-ChocoUpdate -ChocoId $route.PackageId -DisplayName $route.DisplayName -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds; return }
 				}
 			}
 			'store'
@@ -1909,6 +1921,7 @@ function Invoke-ApplicationAction
 					$directParams['UseDarkMode'] = ($Script:CurrentThemeName -eq 'Dark')
 				}
 
+				$directParams['TimeoutSeconds'] = $TimeoutSeconds
 				Invoke-DirectUrlInstall @directParams
 				return
 			}
@@ -1932,6 +1945,7 @@ function Invoke-ApplicationAction
 					$commandParams['UseDarkMode'] = ($Script:CurrentThemeName -eq 'Dark')
 				}
 
+				$commandParams['TimeoutSeconds'] = $TimeoutSeconds
 				Invoke-CommandInstall @commandParams
 				return
 			}
@@ -1962,13 +1976,13 @@ function Invoke-ApplicationAction
 		{
 			if ($legacyRoute.Route -eq 'winget')
 			{
-				Invoke-WingetInstall -WinGetId $legacyRoute.PackageId -DisplayName $targetName -PackageManagerAvailabilityState $PackageManagerAvailabilityState
+				Invoke-WingetInstall -WinGetId $legacyRoute.PackageId -DisplayName $targetName -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds
 				return
 			}
 
 			if ($legacyRoute.Route -eq 'choco')
 			{
-				Invoke-ChocoInstall -ChocoId $legacyRoute.PackageId -DisplayName $targetName -PackageManagerAvailabilityState $PackageManagerAvailabilityState
+				Invoke-ChocoInstall -ChocoId $legacyRoute.PackageId -DisplayName $targetName -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds
 				return
 			}
 
@@ -1978,13 +1992,13 @@ function Invoke-ApplicationAction
 		{
 			if ($legacyRoute.Route -eq 'winget')
 			{
-				Invoke-WingetUninstall -WinGetId $legacyRoute.PackageId -DisplayName $targetName -PackageManagerAvailabilityState $PackageManagerAvailabilityState
+				Invoke-WingetUninstall -WinGetId $legacyRoute.PackageId -DisplayName $targetName -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds
 				return
 			}
 
 			if ($legacyRoute.Route -eq 'choco')
 			{
-				Invoke-ChocoUninstall -ChocoId $legacyRoute.PackageId -DisplayName $targetName -PackageManagerAvailabilityState $PackageManagerAvailabilityState
+				Invoke-ChocoUninstall -ChocoId $legacyRoute.PackageId -DisplayName $targetName -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds
 				return
 			}
 
@@ -1994,13 +2008,13 @@ function Invoke-ApplicationAction
 		{
 			if ($legacyRoute.Route -eq 'winget')
 			{
-				Invoke-WingetUpdate -WinGetId $legacyRoute.PackageId -DisplayName $targetName -PackageManagerAvailabilityState $PackageManagerAvailabilityState
+				Invoke-WingetUpdate -WinGetId $legacyRoute.PackageId -DisplayName $targetName -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds
 				return
 			}
 
 			if ($legacyRoute.Route -eq 'choco')
 			{
-				Invoke-ChocoUpdate -ChocoId $legacyRoute.PackageId -DisplayName $targetName -PackageManagerAvailabilityState $PackageManagerAvailabilityState
+				Invoke-ChocoUpdate -ChocoId $legacyRoute.PackageId -DisplayName $targetName -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds
 				return
 			}
 
@@ -2066,18 +2080,21 @@ function AppInstall
 		[string]$PreferredSource,
 
 		[Parameter(Mandatory = $false)]
-		[object]$PackageManagerAvailabilityState = $null
+		[object]$PackageManagerAvailabilityState = $null,
+
+		[Parameter(Mandatory = $false)]
+		[int]$TimeoutSeconds = 900
 	)
 
 	if ($Install)
 	{
-		Invoke-ApplicationAction -Action 'Install' -WinGetId $WinGetId -ChocoId $ChocoId -DisplayName $DisplayName -PreferredSource $PreferredSource -PackageManagerAvailabilityState $PackageManagerAvailabilityState
+		Invoke-ApplicationAction -Action 'Install' -WinGetId $WinGetId -ChocoId $ChocoId -DisplayName $DisplayName -PreferredSource $PreferredSource -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds
 		return
 	}
 
 	if ($Uninstall)
 	{
-		Invoke-ApplicationAction -Action 'Uninstall' -WinGetId $WinGetId -ChocoId $ChocoId -DisplayName $DisplayName -PreferredSource $PreferredSource -PackageManagerAvailabilityState $PackageManagerAvailabilityState
+		Invoke-ApplicationAction -Action 'Uninstall' -WinGetId $WinGetId -ChocoId $ChocoId -DisplayName $DisplayName -PreferredSource $PreferredSource -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds
 		return
 	}
 }
@@ -2093,6 +2110,10 @@ Applies the Baseline behavior for retrieves a cached list of installed applicati
 #>
 function Get-InstalledAppCache
 {
+	param (
+		[int]$TimeoutSeconds = 300
+	)
+
 	LogInfo (Get-BaselineLocalizedString -Key 'Progress_CheckingInstallStatus' -Fallback 'Checking installation status...')
 	$installedCache = @{}
 	$wingetPath = Resolve-WinGetExecutable
@@ -2113,57 +2134,54 @@ function Get-InstalledAppCache
 			return $installedCache
 		}
 
-		# We only want the IDs of installed packages to build a quick lookup table.
-		$wingetListPath = Join-Path -Path $env:TEMP -ChildPath 'winget_list.txt'
-		$process = Start-Process -FilePath $wingetPath -ArgumentList @("list", "--accept-source-agreements", "--disable-interactivity") -PassThru -Wait -WindowStyle Hidden -RedirectStandardOutput $wingetListPath -ErrorAction Stop
-		if ($process.ExitCode -ne 0)
+		$processResult = Invoke-ProcessTextCapture -FilePath $wingetPath -ArgumentList @(
+			"list", "--accept-source-agreements", "--disable-interactivity"
+		) -TimeoutSeconds $TimeoutSeconds
+		if ($processResult.ExitCode -ne 0)
 		{
-			$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @("winget list exited with code $($process.ExitCode)")
+			$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @("winget list exited with code $($processResult.ExitCode)")
 			LogError $failureMessage
 			throw $failureMessage
 		}
 
-		if (Test-Path -LiteralPath $wingetListPath)
+		$output = @(([string]$processResult.StandardOutput) -split "(`r`n|`n|`r)")
+		$inTable = $false
+		foreach ($line in $output)
 		{
-			$output = Get-Content -LiteralPath $wingetListPath
-			$inTable = $false
-			foreach ($line in $output)
+			$trimmedLine = [string]$line
+			if ([string]::IsNullOrWhiteSpace($trimmedLine))
 			{
-				$trimmedLine = [string]$line
-				if ([string]::IsNullOrWhiteSpace($trimmedLine))
-				{
-					continue
-				}
-
-				$trimmedLine = $trimmedLine.Trim()
-				if (-not $inTable)
-				{
-					if ($trimmedLine -match '^-+$')
-					{
-						$inTable = $true
-					}
-					continue
-				}
-
-				$columns = @($trimmedLine -split '\s{2,}')
-				if ($columns.Count -lt 2)
-				{
-					continue
-				}
-
-				$packageId = [string]$columns[1].Trim()
-				if ([string]::IsNullOrWhiteSpace($packageId))
-				{
-					continue
-				}
-
-				if ($packageId -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$')
-				{
-					continue
-				}
-
-				$installedCache[$packageId] = $true
+				continue
 			}
+
+			$trimmedLine = $trimmedLine.Trim()
+			if (-not $inTable)
+			{
+				if ($trimmedLine -match '^-+$')
+				{
+					$inTable = $true
+				}
+				continue
+			}
+
+			$columns = @($trimmedLine -split '\s{2,}')
+			if ($columns.Count -lt 2)
+			{
+				continue
+			}
+
+			$packageId = [string]$columns[1].Trim()
+			if ([string]::IsNullOrWhiteSpace($packageId))
+			{
+				continue
+			}
+
+			if ($packageId -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$')
+			{
+				continue
+			}
+
+			$installedCache[$packageId] = $true
 		}
 
 		LogInfo (Get-BaselineLocalizedString -Key 'Progress_AppsCacheGenerated' -Fallback 'App cache generated with {0} detected packages.' -FormatArgs @($installedCache.Count))
@@ -2174,14 +2192,6 @@ function Get-InstalledAppCache
 		LogError $failureMessage
 		throw $failureMessage
 	}
-	finally
-	{
-		if ($wingetListPath -and (Test-Path -LiteralPath $wingetListPath))
-		{
-			Remove-Item -LiteralPath $wingetListPath -Force -ErrorAction SilentlyContinue
-		}
-	}
-
 	return $installedCache
 }
 
@@ -2189,14 +2199,14 @@ function Get-InstalledAppCache
     .SYNOPSIS
     Gets installed chocolatey app cache.
 
-    
-.DESCRIPTION
-    
-Supports installed chocolatey app cache handling inside Baseline.
-#>
+    #>
 
 function Get-InstalledChocolateyAppCache
 {
+	param (
+		[int]$TimeoutSeconds = 300
+	)
+
 	LogInfo 'Checking Chocolatey installation status...'
 	$installedCache = @{}
 	if (-not (Test-ChocolateyAvailable -Refresh))
@@ -2214,7 +2224,15 @@ function Get-InstalledChocolateyAppCache
 
 	try
 	{
-		$output = & $chocoPath list --local-only --limit-output --no-progress 2>$null
+		$processResult = Invoke-ProcessTextCapture -FilePath $chocoPath -ArgumentList @(
+			'list', '--local-only', '--limit-output', '--no-progress'
+		) -TimeoutSeconds $TimeoutSeconds
+		if ($processResult.ExitCode -ne 0)
+		{
+			throw "choco list exited with code $($processResult.ExitCode)"
+		}
+
+		$output = @(([string]$processResult.StandardOutput) -split "(`r`n|`n|`r)")
 		foreach ($line in @($output))
 		{
 			$trimmedLine = [string]$line
@@ -2248,18 +2266,17 @@ function Get-InstalledChocolateyAppCache
     .SYNOPSIS
     Gets available app update cache.
 
-    
-.DESCRIPTION
-    
-Supports available app update cache handling inside Baseline.
-#>
+    #>
 
 function Get-AvailableAppUpdateCache
 {
+	param (
+		[int]$TimeoutSeconds = 300
+	)
+
 	LogInfo 'Checking WinGet update availability...'
 	$updateCache = @{}
 	$wingetPath = Resolve-WinGetExecutable
-	$wingetListPath = $null
 
 	try
 	{
@@ -2275,58 +2292,54 @@ function Get-AvailableAppUpdateCache
 			return $updateCache
 		}
 
-		$wingetListPath = Join-Path -Path $env:TEMP -ChildPath 'winget_upgrade_available.txt'
-		$process = Start-Process -FilePath $wingetPath -ArgumentList @(
+		$processResult = Invoke-ProcessTextCapture -FilePath $wingetPath -ArgumentList @(
 			"list", "--upgrade-available", "--include-unknown", "--accept-source-agreements", "--disable-interactivity"
-		) -PassThru -Wait -WindowStyle Hidden -RedirectStandardOutput $wingetListPath -ErrorAction Stop
-		if ($process.ExitCode -ne 0)
+		) -TimeoutSeconds $TimeoutSeconds
+		if ($processResult.ExitCode -ne 0)
 		{
-			$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @("winget list --upgrade-available --include-unknown exited with code $($process.ExitCode)")
+			$failureMessage = Get-BaselineLocalizedString -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @("winget list --upgrade-available --include-unknown exited with code $($processResult.ExitCode)")
 			LogError $failureMessage
 			throw $failureMessage
 		}
 
-		if (Test-Path -LiteralPath $wingetListPath)
+		$output = @(([string]$processResult.StandardOutput) -split "(`r`n|`n|`r)")
+		$inTable = $false
+		foreach ($line in $output)
 		{
-			$output = Get-Content -LiteralPath $wingetListPath
-			$inTable = $false
-			foreach ($line in $output)
+			$trimmedLine = [string]$line
+			if ([string]::IsNullOrWhiteSpace($trimmedLine))
 			{
-				$trimmedLine = [string]$line
-				if ([string]::IsNullOrWhiteSpace($trimmedLine))
-				{
-					continue
-				}
-
-				$trimmedLine = $trimmedLine.Trim()
-				if (-not $inTable)
-				{
-					if ($trimmedLine -match '^-+$')
-					{
-						$inTable = $true
-					}
-					continue
-				}
-
-				$columns = @($trimmedLine -split '\s{2,}')
-				if ($columns.Count -lt 2)
-				{
-					continue
-				}
-
-				$packageId = [string]$columns[1].Trim()
-				if ([string]::IsNullOrWhiteSpace($packageId))
-				{
-					continue
-				}
-
-				if ($packageId -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$')
-				{
-					continue
-				}
-
-				$updateCache[$packageId] = $true
+				continue
 			}
+
+			$trimmedLine = $trimmedLine.Trim()
+			if (-not $inTable)
+			{
+				if ($trimmedLine -match '^-+$')
+				{
+					$inTable = $true
+				}
+				continue
+			}
+
+			$columns = @($trimmedLine -split '\s{2,}')
+			if ($columns.Count -lt 2)
+			{
+				continue
+			}
+
+			$packageId = [string]$columns[1].Trim()
+			if ([string]::IsNullOrWhiteSpace($packageId))
+			{
+				continue
+			}
+
+			if ($packageId -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$')
+			{
+				continue
+			}
+
+			$updateCache[$packageId] = $true
 		}
 
 		LogInfo ("WinGet update cache generated with {0} detected packages." -f $updateCache.Count)
@@ -2337,13 +2350,6 @@ function Get-AvailableAppUpdateCache
 		LogError $failureMessage
 		throw $failureMessage
 	}
-	finally
-	{
-		if ($wingetListPath -and (Test-Path -LiteralPath $wingetListPath))
-		{
-			Remove-Item -LiteralPath $wingetListPath -Force -ErrorAction SilentlyContinue
-		}
-	}
 
 	return $updateCache
 }
@@ -2352,14 +2358,14 @@ function Get-AvailableAppUpdateCache
     .SYNOPSIS
     Gets available chocolatey update cache.
 
-    
-.DESCRIPTION
-    
-Supports available chocolatey update cache handling inside Baseline.
-#>
+    #>
 
 function Get-AvailableChocolateyUpdateCache
 {
+	param (
+		[int]$TimeoutSeconds = 300
+	)
+
 	LogInfo 'Checking Chocolatey update availability...'
 	$updateCache = @{}
 	if (-not (Test-ChocolateyAvailable -Refresh))
@@ -2377,7 +2383,15 @@ function Get-AvailableChocolateyUpdateCache
 
 	try
 	{
-		$output = & $chocoPath outdated --limit-output --no-progress 2>$null
+		$processResult = Invoke-ProcessTextCapture -FilePath $chocoPath -ArgumentList @(
+			'outdated', '--limit-output', '--no-progress'
+		) -TimeoutSeconds $TimeoutSeconds
+		if ($processResult.ExitCode -ne 0)
+		{
+			throw "choco outdated exited with code $($processResult.ExitCode)"
+		}
+
+		$output = @(([string]$processResult.StandardOutput) -split "(`r`n|`n|`r)")
 		foreach ($line in @($output))
 		{
 			$trimmedLine = [string]$line
@@ -2448,7 +2462,10 @@ function AppUpdate
 		[object]$PackageManagerAvailabilityState = $null,
 
 		[Parameter(Mandatory = $false)]
-		[switch]$All
+		[switch]$All,
+
+		[Parameter(Mandatory = $false)]
+		[int]$TimeoutSeconds = 900
 	)
 
 	$wingetPath = Resolve-WinGetExecutable
@@ -2478,7 +2495,7 @@ function AppUpdate
 			$attemptedAny = $true
 			try
 			{
-				Invoke-WingetUpdateAll -PackageManagerAvailabilityState $PackageManagerAvailabilityState
+				Invoke-WingetUpdateAll -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds
 			}
 			catch
 			{
@@ -2500,7 +2517,7 @@ function AppUpdate
 			$attemptedAny = $true
 			try
 			{
-				Invoke-ChocoUpdateAll -PackageManagerAvailabilityState $PackageManagerAvailabilityState
+				Invoke-ChocoUpdateAll -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds
 			}
 			catch
 			{
@@ -2531,7 +2548,7 @@ function AppUpdate
 	}
 	elseif ($hasWinGetId -or $hasChocoId)
 	{
-		Invoke-ApplicationAction -Action 'Update' -WinGetId $WinGetId -ChocoId $ChocoId -DisplayName $targetName -PreferredSource $PreferredSource -PackageManagerAvailabilityState $PackageManagerAvailabilityState
+		Invoke-ApplicationAction -Action 'Update' -WinGetId $WinGetId -ChocoId $ChocoId -DisplayName $targetName -PreferredSource $PreferredSource -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds
 		return
 	}
 }
@@ -2559,7 +2576,9 @@ function Invoke-AppBatchAction
 
 		[string]$PreferredSource = $null,
 
-		[object]$PackageManagerAvailabilityState = $null
+		[object]$PackageManagerAvailabilityState = $null,
+
+		[int]$TimeoutSeconds = 900
 	)
 
 	$uniqueIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -2597,7 +2616,7 @@ function Invoke-AppBatchAction
 
 		try
 		{
-			Invoke-ApplicationAction -Action $Action -Application $application -PreferredSource $PreferredSource -PackageManagerAvailabilityState $PackageManagerAvailabilityState
+			Invoke-ApplicationAction -Action $Action -Application $application -PreferredSource $PreferredSource -PackageManagerAvailabilityState $PackageManagerAvailabilityState -TimeoutSeconds $TimeoutSeconds
 			$successfulApps.Add([pscustomobject]@{
 				SelectionKey = $route.SelectionKey
 				WinGetId   = $route.WinGetId

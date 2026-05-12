@@ -11,7 +11,7 @@ BeforeAll {
     $script:SessionStatePath = Join-Path $PSScriptRoot '../../Module/GUI/SessionState.ps1'
     $script:DialogHelpersPath = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers.ps1'
     $script:DialogHelpersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers'
-    $script:GuiContent = (Get-Content -LiteralPath $script:GuiPath -Raw -Encoding UTF8) + "`n" + (Get-Content -LiteralPath $script:MainWindowPath -Raw -Encoding UTF8)
+    $script:GuiContent = (Get-BaselineTestSourceText -Path $script:GuiPath) + "`n" + (Get-BaselineTestSourceText -Path $script:MainWindowPath)
     $script:ActionHandlersContent = Get-BaselineTestSourceText -Path @(
         $script:ActionHandlersPath
         (Join-Path $script:ActionHandlersSplitRoot 'ThemeNavigationHandlers.ps1')
@@ -19,8 +19,8 @@ BeforeAll {
         (Join-Path $script:ActionHandlersSplitRoot 'SystemScanFooterHandlers.ps1')
         (Join-Path $script:ActionHandlersSplitRoot 'MenuHandlers.ps1')
     )
-    $script:StyleManagementContent = Get-Content -LiteralPath $script:StyleManagementPath -Raw -Encoding UTF8
-    $script:SessionStateContent = Get-Content -LiteralPath $script:SessionStatePath -Raw -Encoding UTF8
+    $script:StyleManagementContent = Get-BaselineTestSourceText -Path $script:StyleManagementPath
+    $script:SessionStateContent = Get-BaselineTestSourceText -Path $script:SessionStatePath
     $script:DialogHelpersContent = Get-BaselineTestSourceText -Path @(
         $script:DialogHelpersPath
         (Join-Path $script:DialogHelpersSplitRoot 'DialogThemeHelpers.ps1')
@@ -46,7 +46,7 @@ Describe 'Remote target approval menu' {
         $script:SessionStateContent | Should -Match 'ApprovedAt'
         $script:SessionStateContent | Should -Match 'ApprovalMessage'
         $script:SessionStateContent | Should -Match 'PinnedBaselineVersion'
-        $script:SessionStateContent | Should -Match 'SchemaVersion = 16'
+        $script:SessionStateContent | Should -Match 'SchemaVersion = 18'
         $script:SessionStateContent | Should -Match 'function Test-GuiRemoteTargetApproval'
         $script:SessionStateContent | Should -Match 'function Set-GuiRemoteTargetApprovalList'
         $script:SessionStateContent | Should -Match 'function Clear-GuiRemoteTargetApprovalList'
@@ -55,7 +55,7 @@ Describe 'Remote target approval menu' {
         $script:SessionStateContent | Should -Match 'Clear-BaselineRemoteSessionCache'
     }
 
-    It 'routes remote-target banner and prompt fallbacks through Write-DebugSwallowedException' {
+    It 'routes remote-target banner and prompt fallbacks through Write-SwallowedException' {
         $script:SessionStateContent | Should -Match 'SessionState\.Set-GuiRemoteTargetContext\.UpdateGuiRemoteModeBanner'
         $script:SessionStateContent | Should -Match 'SessionState\.Clear-GuiRemoteTargetContext\.ClearBaselineRemoteSessionCache'
         $script:SessionStateContent | Should -Match 'SessionState\.Clear-GuiRemoteTargetContext\.UpdateGuiRemoteModeBanner'
@@ -64,8 +64,10 @@ Describe 'Remote target approval menu' {
         $script:SessionStateContent | Should -Match 'SessionState\.Prompt-GuiRemoteTargetConnection\.GetCredential'
     }
 
-    It 'routes remote connection dialog setup and cleanup failures through Write-DebugSwallowedException' {
+    It 'routes remote connection dialog setup and cleanup failures through Write-SwallowedException' {
         $script:SessionStateContent | Should -Match 'SessionState\.Prompt-GuiRemoteTargetConnection\.SetOwner'
+        $script:SessionStateContent | Should -Match 'Get-GuiSharedScrollBarStyleXaml -Theme \$theme'
+        $script:SessionStateContent | Should -Match 'HorizontalScrollBarVisibility="Auto"'
         $script:SessionStateContent | Should -Match 'SessionState\.Prompt-GuiRemoteTargetConnection\.SetWindowChromeTheme'
         $script:SessionStateContent | Should -Match 'SessionState\.Prompt-GuiRemoteTargetConnection\.SetButtonChrome'
         $script:SessionStateContent | Should -Match 'SessionState\.Prompt-GuiRemoteTargetConnection\.SetGuiRemoteConnectivityResults'
@@ -73,7 +75,7 @@ Describe 'Remote target approval menu' {
         $script:SessionStateContent | Should -Match 'SessionState\.Prompt-GuiRemoteTargetConnection\.CleanupTestDisposePowerShell'
     }
 
-    It 'routes GUI settings snapshot restore fallbacks through Write-DebugSwallowedException' {
+    It 'routes GUI settings snapshot restore fallbacks through Write-SwallowedException' {
         $script:SessionStateContent | Should -Match 'SessionState\.Import-GuiSettingsProfile\.RestoreUndoSnapshot'
         $script:SessionStateContent | Should -Match 'SessionState\.Restore-GuiSnapshot\.RestoreRedoSnapshot'
     }
@@ -95,6 +97,8 @@ Describe 'Remote target approval menu' {
 
     It 'adds a remote console dialog with orchestration controls' {
         $script:DialogHelpersContent | Should -Match 'function Show-GuiRemoteConsoleDialog'
+        $script:DialogHelpersContent | Should -Match '\$scrollBarStyleXaml = Get-BaselineScrollBarStyleXaml -Theme \$theme'
+        $script:DialogHelpersContent | Should -Match 'HorizontalScrollBarVisibility="Auto"'
         $script:DialogHelpersContent | Should -Match 'Remote Console'
         $script:DialogHelpersContent | Should -Match 'BtnConnect'
         $script:DialogHelpersContent | Should -Match 'BtnApprove'
@@ -145,7 +149,7 @@ Describe 'Remote target approval menu' {
         $script:DialogHelpersContent | Should -Match 'DialogHelpers\.ShowGuiReleaseStatusDialog\.LoadVersion'
     }
 
-    It 'routes changelog and readme path resolution fallbacks through Write-DebugSwallowedException' {
+    It 'routes changelog and readme path resolution fallbacks through Write-SwallowedException' {
         $script:DialogHelpersContent | Should -Match 'function Resolve-BaselineChangelogPath'
         $script:DialogHelpersContent | Should -Match 'function Resolve-BaselineReadmePath'
         $script:DialogHelpersContent | Should -Match 'DialogHelpers\.Resolve-BaselineChangelogPath\.AddLauncherCandidate'
@@ -162,7 +166,7 @@ Describe 'Remote target approval menu' {
         $script:DialogHelpersContent | Should -Match 'DialogHelpers\.Resolve-BaselineReadmePath\.TestCandidatePath'
     }
 
-    It 'routes dialog event wiring fallbacks through Write-DebugSwallowedException' {
+    It 'routes dialog event wiring fallbacks through Write-SwallowedException' {
         $script:DialogHelpersContent | Should -Match 'DialogHelpers\.ShowGuiTroubleshootingGuideDialog\.RaiseExportSupportBundleClick'
         $script:DialogHelpersContent | Should -Match 'DialogHelpers\.ShowGuiReleaseStatusDialog\.RaiseDownloadBaselineClick'
     }

@@ -21,8 +21,8 @@ BeforeAll {
         (Join-Path $script:ActionHandlersSplitRoot 'SystemScanFooterHandlers.ps1')
         (Join-Path $script:ActionHandlersSplitRoot 'MenuHandlers.ps1')
     )
-    $script:ConfigProfileContent = Get-Content -LiteralPath $script:ConfigProfilePath -Raw -Encoding UTF8
-    $script:SharedHelpersContent = Get-Content -LiteralPath $script:SharedHelpersManifestPath -Raw -Encoding UTF8
+    $script:ConfigProfileContent = Get-BaselineTestSourceText -Path $script:ConfigProfilePath
+    $script:SharedHelpersContent = Get-BaselineTestSourceText -Path $script:SharedHelpersManifestPath
 
     # Selections is [Parameter(Mandatory)][array] so empty arrays don't bind.
     # New-ConfigurationProfile drops selections with no Function field, so a
@@ -337,10 +337,10 @@ Describe 'GUI Import-Config wiring' {
         $tail | Should -Match 'Build-AppsViewCards'
     }
 
-    It 'routes user-app catalog refresh failures through Write-DebugSwallowedException' {
+    It 'routes user-app catalog refresh failures through Write-SwallowedException' {
         $idx = $script:ActionHandlersContent.IndexOf("if (`$userAppChoice -eq 'Yes')")
         $tail = $script:ActionHandlersContent.Substring($idx)
-        $tail | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.ImportConfigProfile\.RefreshUserAppsCatalog'''
+        $tail | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.ImportConfigProfile\.RefreshUserAppsCatalog'''
     }
 
     It 'short-circuits to a UserApps-only success path when the profile has no matching tweaks' {

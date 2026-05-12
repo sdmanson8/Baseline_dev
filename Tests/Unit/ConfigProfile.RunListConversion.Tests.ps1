@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '../..')

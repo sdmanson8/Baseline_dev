@@ -601,5 +601,13 @@ function Set-SecurityMaintenanceNotifications
 }
 
 #endregion Notifications
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'Set-CapabilityAccessNotifications',
+    'Set-CriticalNotificationsOnLockScreen',
+    'Set-DSTNotifications',
+    'Set-LockScreenNotifications',
+    'Set-NotificationSounds',
+    'Set-SecurityMaintenanceNotifications',
+    'Set-StartupAppNotifications'
+)
+Export-ModuleMember -Function $ExportedFunctions

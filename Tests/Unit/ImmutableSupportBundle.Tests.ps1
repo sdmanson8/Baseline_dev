@@ -1,14 +1,15 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     <#
         .SYNOPSIS
-        Internal function Get-BaselineDisplayVersion.
     #>
 
     function Get-BaselineDisplayVersion { return '4.0.0-beta' }
 
-    # Json helpers must load first — SupportBundle/RemoteTarget call ConvertFrom-BaselineJson.
+    # Json helpers must load first - SupportBundle/RemoteTarget call ConvertFrom-BaselineJson.
     . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Json.Helpers.ps1')
 
     $auditHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/AuditTrail.Helpers.ps1'
@@ -18,8 +19,12 @@ BeforeAll {
     $script:SharedHelpersRepoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     $script:SharedHelpersModuleRoot = Join-Path $script:SharedHelpersRepoRoot 'Module'
 
+    foreach ($filePath in @($remoteHelpersPath, $environmentHelpersPath, $bundleHelpersPath)) {
+    }
+
     foreach ($filePath in @($auditHelpersPath, $remoteHelpersPath, $environmentHelpersPath, $bundleHelpersPath)) {
-        $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
+        $sourceText = Get-BaselineTestSourceText -Path $filePath
+        $ast = [System.Management.Automation.Language.Parser]::ParseInput($sourceText, [ref]$null, [ref]$null)
         $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
         foreach ($fn in $functions) {
             Invoke-Expression $fn.Extent.Text

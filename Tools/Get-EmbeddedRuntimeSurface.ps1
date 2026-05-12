@@ -49,7 +49,6 @@ $excludeGlobs = [string[]]@($manifest.excludeGlobs)
 
 <#
     .SYNOPSIS
-    Internal function Convert-ToRelativePath.
 #>
 
 function Convert-ToRelativePath {
@@ -64,7 +63,6 @@ function Convert-ToRelativePath {
 
 <#
     .SYNOPSIS
-    Internal function .
 #>
 function Test-AnyWildcardMatch {
     param(

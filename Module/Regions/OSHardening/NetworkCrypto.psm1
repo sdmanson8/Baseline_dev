@@ -1,4 +1,4 @@
-﻿#region Network & Cryptography Hardening
+#region Network & Cryptography Hardening
 
 <#
     .SYNOPSIS
@@ -541,6 +541,18 @@ function HashAlgorithms
 }
 
 #endregion Network & Cryptography Hardening
-
-Export-ModuleMember -Function '*'
-
+$ExportedFunctions = @(
+    'AESCiphers',
+    'CipherSuites',
+    'DotNetStrongAuth',
+    'HashAlgorithms',
+    'IPv6',
+    'KeyExchanges',
+    'Protocols',
+    'RC2RC4Ciphers',
+    'RemoteCommands',
+    'SMBv3Compression',
+    'TCPTimestamps',
+    'TripleDESCipher'
+)
+Export-ModuleMember -Function $ExportedFunctions

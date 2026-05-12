@@ -10,8 +10,8 @@ BeforeAll {
     $executionSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration'
     $iconFactoryPath = Join-Path $PSScriptRoot '../../Module/GUI/IconFactory.ps1'
 
-    $script:StyleContent = Get-Content -LiteralPath $stylePath -Raw -Encoding UTF8
-    $script:IconFactoryContent = Get-Content -LiteralPath $iconFactoryPath -Raw -Encoding UTF8
+    $script:StyleContent = Get-BaselineTestSourceText -Path $stylePath
+    $script:IconFactoryContent = Get-BaselineTestSourceText -Path $iconFactoryPath
     $script:ActionContent = Get-BaselineTestSourceText -Path @(
         $actionPath
         (Join-Path $actionSplitRoot 'ThemeNavigationHandlers.ps1')
@@ -46,6 +46,12 @@ Describe 'Action button icon content' {
         $script:ActionContent | Should -Match 'Set-GuiButtonIconContent -Button \$Script:BtnHelp -IconName ''Help'''
     }
 
+    It 'always restores the main run button label after execution is no longer in progress' {
+        $script:ActionContent | Should -Match 'if \(\$Script:BtnRun -and -not \(& \$Script:TestGuiRunInProgressScript\)\)'
+        $script:ActionContent | Should -Match 'Set-GuiButtonIconContent -Button \$Script:BtnRun -IconName ''RunTweaks'' -Text \(Get-UxRunActionLabel\) -ToolTip \(Get-UxRunActionToolTip\)'
+        $script:ActionContent | Should -Not -Match '\$btnRunContent -notin @\(''Pause'', ''Resume'', ''Stopping\.\.\.'', ''Exiting\.\.\.''\)'
+    }
+
     It 'drops the old Apps refresh label from the main run button' {
         $script:ActionContent | Should -Not -Match 'GuiRefreshButton'
         $script:ActionContent | Should -Not -Match 'Tooltip_RefreshInstallationStatus'
@@ -61,36 +67,36 @@ Describe 'Action button icon content' {
         $script:ActionContent | Should -Not -Match 'Test-IsDesignModeUX[\s\S]{0,250}Export-GuiSettingsProfile'
     }
 
-    It 'routes ActionHandlers UI cleanup swallows through Write-DebugSwallowedException' {
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.UpdateRunPathContextLabel\.Foreground'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.ExportSupportBundle\.RemoveSessionStatePath'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuFileExit\.CloseMainForm'''
+    It 'routes ActionHandlers UI cleanup swallows through Write-SwallowedException' {
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.UpdateRunPathContextLabel\.Foreground'''
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.ExportSupportBundle\.RemoveSessionStatePath'''
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuFileExit\.CloseMainForm'''
     }
 
-    It 'routes ActionHandlers help menu logger failures through Write-DebugSwallowedException' {
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuClickRouting\.LogWarning'''
+    It 'routes ActionHandlers help menu logger failures through Write-SwallowedException' {
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuClickRouting\.LogWarning'''
         $script:ActionContent | Should -Match '\$MenuHelpHelp\.Add_Click\(\$openHelpDialogFromMenu\)'
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpHelp\.LogWarning'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpHelp\.ShowFailureDialog'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpGettingStarted\.LogWarning'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpReadme\.LogWarning'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpReadme\.ShowThemedDialog'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpFAQ\.LogWarning'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpChangelog\.LogWarning'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpUpdateCheck\.LogWarning'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpReleaseStatus\.LogWarning'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpTroubleshooting\.LogWarning'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpAbout\.ShowThemedDialog'''
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpHelp\.LogWarning'''
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpHelp\.ShowFailureDialog'''
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpGettingStarted\.LogWarning'''
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpReadme\.LogWarning'''
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpReadme\.ShowThemedDialog'''
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpFAQ\.LogWarning'''
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpChangelog\.LogWarning'''
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpUpdateCheck\.LogWarning'''
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpReleaseStatus\.LogWarning'''
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpTroubleshooting\.LogWarning'''
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpAbout\.ShowThemedDialog'''
     }
 
-    It 'routes ActionHandlers help/about text fallbacks through Write-DebugSwallowedException' {
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.ExportConfigProfile\.GetDisplayVersion'''
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.ImportConfigProfile\.GetDisplayVersion'''
+    It 'routes ActionHandlers help/about text fallbacks through Write-SwallowedException' {
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.ExportConfigProfile\.GetDisplayVersion'''
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.ImportConfigProfile\.GetDisplayVersion'''
         $script:ActionContent | Should -Match '& \$raiseButtonClick \$Script:BtnStartHere'
         $script:ActionContent | Should -Not -Match 'MenuHelpStartGuide\.GetQuickStartSteps'
         $script:ActionContent | Should -Not -Match 'MenuHelpStartGuide\.GetOnboardingMode'
         $script:ActionContent | Should -Not -Match 'MenuHelpStartGuide\.GetHelpLines'
-        $script:ActionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpAbout\.GetDisplayVersion'''
+        $script:ActionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ActionHandlers\.MenuHelpAbout\.GetDisplayVersion'''
     }
 
     It 'restores normal action labels through Sync-UxActionButtonText after execution view resets' {

@@ -1,6 +1,5 @@
-﻿<#
+<#
     .SYNOPSIS
-    Internal function Initialize-GuiWindowChromeInterop.
 #>
 function Initialize-GuiWindowChromeInterop
 {
@@ -65,7 +64,6 @@ namespace WinAPI
 
 <#
     .SYNOPSIS
-    Internal function Restore-WindowSystemMenu.
 #>
 function Restore-WindowSystemMenu
 {
@@ -94,7 +92,7 @@ function Restore-WindowSystemMenu
 			[void]([WinAPI.GuiWindowChrome]::SetWindowPos($hwnd, [IntPtr]::Zero, 0, 0, 0, 0, 0x27))
 		}
 	}
-	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowChrome.Restore-WindowSystemMenu.ApplySystemMenu' }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'WindowChrome.Restore-WindowSystemMenu.ApplySystemMenu' }
 
 	# Build a WPF ContextMenu that mimics the standard system menu
 	try
@@ -110,12 +108,11 @@ function Restore-WindowSystemMenu
 		$target = if ($TitleBarElement) { $TitleBarElement } else { $Window }
 		$target.ContextMenu = $menu
 	}
-	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowChrome.Restore-WindowSystemMenu.BuildContextMenu' }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'WindowChrome.Restore-WindowSystemMenu.BuildContextMenu' }
 }
 
 <#
     .SYNOPSIS
-    Internal function Invoke-GuiWindowChromeThemeUpdate.
 #>
 function Invoke-GuiWindowChromeThemeUpdate
 {
@@ -181,7 +178,7 @@ function Invoke-GuiWindowChromeThemeUpdate
 			$cornerPreference = 2
 			[void]([WinAPI.GuiWindowChrome]::DwmSetWindowAttribute($windowHandle, 33, [ref]$cornerPreference, 4))
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowChrome.Invoke-GuiWindowChromeThemeUpdate.ApplyRoundedCorners' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'WindowChrome.Invoke-GuiWindowChromeThemeUpdate.ApplyRoundedCorners' }
 	}
 
 	# Force non-client area repaint so title bar buttons update immediately
@@ -196,14 +193,13 @@ function Invoke-GuiWindowChromeThemeUpdate
 		# RDW_FRAME (0x400) | RDW_INVALIDATE (0x1) | RDW_UPDATENOW (0x100)
 		[void]([WinAPI.GuiWindowChrome]::RedrawWindow($windowHandle, [IntPtr]::Zero, [IntPtr]::Zero, 0x501))
 	}
-	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowChrome.Invoke-GuiWindowChromeThemeUpdate.RepaintChrome' }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'WindowChrome.Invoke-GuiWindowChromeThemeUpdate.RepaintChrome' }
 
 	return $true
 }
 
 <#
     .SYNOPSIS
-    Internal function Set-GuiWindowChromeTheme.
 #>
 function Set-GuiWindowChromeTheme
 {
@@ -223,7 +219,34 @@ function Set-GuiWindowChromeTheme
 
 	try
 	{
-		if ((Test-GuiObjectField -Object $Window -FieldName 'GuiWindowChromeUseDarkMode'))
+		$scrollTheme = if ($resolvedUseDarkMode)
+		{
+			@{
+				ScrollBg          = '#151824'
+				ScrollThumb       = '#3A4561'
+				ScrollThumbHover  = '#4D5875'
+				ScrollThumbActive = '#5E6C8E'
+			}
+		}
+		else
+		{
+			@{
+				ScrollBg          = '#F0F1F5'
+				ScrollThumb       = '#B4B6C2'
+				ScrollThumbHover  = '#8D8FA0'
+				ScrollThumbActive = '#6C6E80'
+			}
+		}
+		[void](Add-GuiSharedScrollBarResources -Target $Window -Theme $scrollTheme)
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'WindowChrome.Set-GuiWindowChromeTheme.AddSharedScrollBars'
+	}
+
+	try
+	{
+		if ((Test-GuiCommonObjectField -Object $Window -FieldName 'GuiWindowChromeUseDarkMode'))
 		{
 			$Window.GuiWindowChromeUseDarkMode = $resolvedUseDarkMode
 		}
@@ -234,7 +257,7 @@ function Set-GuiWindowChromeTheme
 	}
 	catch
 	{
-		Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowChrome.Set-GuiWindowChromeTheme.SetUseDarkModeProperty'
+		Write-SwallowedException -ErrorRecord $_ -Source 'WindowChrome.Set-GuiWindowChromeTheme.SetUseDarkModeProperty'
 	}
 
 	if (Invoke-GuiWindowChromeThemeUpdate -Window $Window -UseDarkMode:$resolvedUseDarkMode)
@@ -268,7 +291,7 @@ function Set-GuiWindowChromeTheme
 			$requestedDarkMode = $true
 			try
 			{
-				if ((Test-GuiObjectField -Object $sender -FieldName 'GuiWindowChromeUseDarkMode'))
+				if ((Test-GuiCommonObjectField -Object $sender -FieldName 'GuiWindowChromeUseDarkMode'))
 				{
 					$requestedDarkMode = Get-GuiBooleanValue -Value $sender.GuiWindowChromeUseDarkMode -Default $true -Context 'Set-GuiWindowChromeTheme/SourceInitialized'
 				}
@@ -290,7 +313,7 @@ function Set-GuiWindowChromeTheme
 		}
 		catch
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'WindowChrome.Set-GuiWindowChromeTheme.SetSourceInitializedHandlerProperty'
+			Write-SwallowedException -ErrorRecord $_ -Source 'WindowChrome.Set-GuiWindowChromeTheme.SetSourceInitializedHandlerProperty'
 		}
 	}
 
@@ -299,7 +322,6 @@ function Set-GuiWindowChromeTheme
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-RoundedWindow.
 #>
 function ConvertTo-RoundedWindow
 {
@@ -340,7 +362,7 @@ function ConvertTo-RoundedWindow
 	$titleBlock.Foreground = $bc.ConvertFromString($Theme.TextPrimary)
 	[void]($titleGrid.Children.Add($titleBlock))
 	$closeBtn = New-Object System.Windows.Controls.Button
-	$closeBtn.Content = '×'
+	$closeBtn.Content = 'x'
 	$closeBtn.FontFamily = [System.Windows.Media.FontFamily]::new('Arial')
 	$closeBtn.FontSize = 12
 	$closeBtn.Width = 32
@@ -372,7 +394,6 @@ function ConvertTo-RoundedWindow
 
 <#
     .SYNOPSIS
-    Internal function Complete-RoundedWindow.
 #>
 function Complete-RoundedWindow
 {

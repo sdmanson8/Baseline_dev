@@ -28,7 +28,6 @@ if (-not $LogFile)
 
 <#
     .SYNOPSIS
-    Internal function Append-Log.
 #>
 
 function Append-Log

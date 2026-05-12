@@ -1,10 +1,11 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     # Extract the Test-TweakRowVisible function from TweakRowFactory.ps1 via AST
     # so the test exercises the real source without loading the full GUI module.
     $splitRoot = Join-Path $PSScriptRoot '../../Module/GUI/TweakRowFactory'
     $sourceFiles = @(
+        (Join-Path $PSScriptRoot '../../Module/GUI/TweakAvailability.ps1')
         (Join-Path $PSScriptRoot '../../Module/GUI/TweakRowFactory.ps1')
         (Join-Path $splitRoot 'RowStateDefaults.ps1')
         (Join-Path $splitRoot 'MetadataDetails.ps1')
@@ -18,10 +19,12 @@ BeforeAll {
             $script:FunctionTextByName[$fn.Name] = $fn.Extent.Text
         }
     }
-    if ($script:FunctionTextByName.ContainsKey('Test-TweakRowVisible')) {
-        Invoke-Expression $script:FunctionTextByName['Test-TweakRowVisible']
-    } else {
-        throw 'Test-TweakRowVisible was not found in TweakRowFactory.ps1'
+    foreach ($requiredFunction in @('Get-GuiTweakAvailability', 'Test-GuiTweakAvailableOnCurrentSystem', 'Test-TweakRowVisible', 'Get-ToggleInitialCheckedState', 'Get-ActionInitialCheckedState', 'Get-ChoiceInitialSelectedIndex')) {
+        if ($script:FunctionTextByName.ContainsKey($requiredFunction)) {
+            Invoke-Expression $script:FunctionTextByName[$requiredFunction]
+        } else {
+            throw "$requiredFunction was not found in the GUI source files."
+        }
     }
 
     # Mock the user-preference accessor that Test-TweakRowVisible delegates to.
@@ -57,6 +60,21 @@ BeforeAll {
             }
         }
     }
+
+    function script:NewNonExecutableTweak {
+        param([string]$Reason = 'Required component is not installed.')
+        return [pscustomobject]@{
+            Name = 'NonExecutableEntry'
+            Function = 'NonExecutableEntry'
+            Type = 'Toggle'
+            Availability = [pscustomobject]@{
+                Available = $true
+                UnavailableReason = $null
+            }
+            SupportsExecution = $false
+            SupportsExecutionReason = $Reason
+        }
+    }
 }
 
 Describe 'Test-TweakRowVisible HideUnavailableItems gate' {
@@ -81,6 +99,18 @@ Describe 'Test-TweakRowVisible HideUnavailableItems gate' {
     It 'returns $true for an unavailable entry when HideUnavailableItems = $false (rendered greyed)' {
         $script:HideUnavailablePrefValue = $false
         $tweak = NewUnavailableTweak
+        Test-TweakRowVisible -Tweak $tweak | Should -BeTrue
+    }
+
+    It 'returns $false for a non-executable entry when HideUnavailableItems = $true' {
+        $script:HideUnavailablePrefValue = $true
+        $tweak = NewNonExecutableTweak
+        Test-TweakRowVisible -Tweak $tweak | Should -BeFalse
+    }
+
+    It 'returns $true for a non-executable entry when HideUnavailableItems = $false' {
+        $script:HideUnavailablePrefValue = $false
+        $tweak = NewNonExecutableTweak
         Test-TweakRowVisible -Tweak $tweak | Should -BeTrue
     }
 
@@ -111,5 +141,31 @@ Describe 'Test-TweakRowVisible HideUnavailableItems gate' {
                 return $Default
             }
         }
+    }
+
+    It 'prevents unavailable rows from restoring checked or selected preset state' {
+        $script:Controls = @(
+            [pscustomobject]@{
+                IsChecked = $true
+                SelectedIndex = 0
+            }
+        )
+
+        function Get-GuiExplicitSelectionDefinition {
+            param([string]$FunctionName)
+            return [pscustomobject]@{
+                Function = $FunctionName
+                Type = 'Toggle'
+                State = 'On'
+                Run = $true
+                Value = 'Enabled'
+            }
+        }
+
+        $tweak = NewUnavailableTweak
+
+        Get-ToggleInitialCheckedState -Index 0 -Tweak $tweak | Should -BeFalse
+        Get-ActionInitialCheckedState -Index 0 -Tweak $tweak | Should -BeFalse
+        Get-ChoiceInitialSelectedIndex -Index 0 -Tweak $tweak -ChoiceOptions @('Enabled') | Should -Be -1
     }
 }

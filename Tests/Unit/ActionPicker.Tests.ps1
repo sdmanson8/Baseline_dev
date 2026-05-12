@@ -1,6 +1,11 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $script:manifestHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Manifest.Helpers.ps1'
     $script:presetSelectionPath = Join-Path $PSScriptRoot '../../Module/GUI/PresetManagement/PresetSelectionState.ps1'
     $script:previewBuildersPath = Join-Path $PSScriptRoot '../../Module/GUI/PreviewBuilders.ps1'
@@ -8,11 +13,11 @@ BeforeAll {
     $script:gamingManifestPath = Join-Path $PSScriptRoot '../../Module/Data/Gaming.json'
     $script:gamingRegionPath = Join-Path $PSScriptRoot '../../Module/Regions/Gaming.psm1'
 
-    $script:ManifestHelpersContent = Get-Content -LiteralPath $script:manifestHelpersPath -Raw -Encoding UTF8
-    $script:PreviewBuildersContent = Get-Content -LiteralPath $script:previewBuildersPath -Raw -Encoding UTF8
-    $script:TweakRowControlFactoriesContent = Get-Content -LiteralPath $script:tweakRowControlFactoriesPath -Raw -Encoding UTF8
-    $script:GamingRegionContent = Get-Content -LiteralPath $script:gamingRegionPath -Raw -Encoding UTF8
-    $script:GamingManifest = Get-Content -LiteralPath $script:gamingManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $script:ManifestHelpersContent = Get-BaselineTestSourceText -Path $script:manifestHelpersPath
+    $script:PreviewBuildersContent = Get-BaselineTestSourceText -Path $script:previewBuildersPath
+    $script:TweakRowControlFactoriesContent = Get-BaselineTestSourceText -Path $script:tweakRowControlFactoriesPath
+    $script:GamingRegionContent = Get-BaselineTestSourceText -Path $script:gamingRegionPath
+    $script:GamingManifest = Get-BaselineTestSourceText -Path $script:gamingManifestPath | ConvertFrom-Json
 
     function Test-GuiObjectField {
         param([object]$Object, [string]$FieldName)

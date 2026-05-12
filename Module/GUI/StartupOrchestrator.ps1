@@ -25,7 +25,7 @@ function Write-StartupOrchestratorLog
 	if (Get-Command -Name 'Get-BaselineDebugLogging' -CommandType Function -ErrorAction SilentlyContinue)
 	{
 		try { if (-not [bool](Get-BaselineDebugLogging)) { return } }
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StartupOrchestrator.PerfLog.GetDebugMode'; return }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'StartupOrchestrator.PerfLog.GetDebugMode'; return }
 	}
 	elseif ((Test-Path -Path Variable:\Script:DebugLoggingEnabled) -and -not [bool]$Script:DebugLoggingEnabled)
 	{
@@ -41,7 +41,7 @@ function Write-StartupOrchestratorLog
 		$line = '{0} [Startup] {1}{2}' -f ([DateTime]::UtcNow.ToString('o')), $Message, [Environment]::NewLine
 		[System.IO.File]::AppendAllText($logPath, $line, [System.Text.Encoding]::UTF8)
 	}
-	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StartupOrchestrator.PerfLog.Append' }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'StartupOrchestrator.PerfLog.Append' }
 }
 
 function Invoke-FirstLaunchConfigBackup
@@ -67,7 +67,7 @@ function Invoke-FirstLaunchConfigBackup
 		# rows the foreground/pre-build tabs already probed. Cache hit is
 		# a hashtable lookup; cache miss falls back to the live probe.
 		$cached = $null
-		try { $cached = Get-CachedDetection -Function $functionName } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StartupOrchestrator.FirstLaunchBackup.GetCachedDetection' }
+		try { $cached = Get-CachedDetection -Function $functionName } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StartupOrchestrator.FirstLaunchBackup.GetCachedDetection' }
 		if ($null -ne $cached)
 		{
 			$snapshot[$functionName] = [bool]$cached
@@ -78,7 +78,7 @@ function Invoke-FirstLaunchConfigBackup
 			{
 				$value = [bool](Invoke-GuiDetectScriptblock -Detect $tweak.Detect -DefaultValue ([bool]$tweak.Default))
 				$snapshot[$functionName] = $value
-				try { Set-CachedDetection -Function $functionName -Value $value } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StartupOrchestrator.FirstLaunchBackup.SetCachedDetection' }
+				try { Set-CachedDetection -Function $functionName -Value $value } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StartupOrchestrator.FirstLaunchBackup.SetCachedDetection' }
 			}
 			catch
 			{
@@ -90,7 +90,7 @@ function Invoke-FirstLaunchConfigBackup
 		# work — same cooperative pattern as Add-TabSectionsToPanel uses.
 		if ($Dispatcher -and ($processed % 5 -eq 0))
 		{
-			try { $Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, [System.Action]{}) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StartupOrchestrator.FirstLaunchBackup.DispatcherYield' }
+			try { $Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, [System.Action]{}) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StartupOrchestrator.FirstLaunchBackup.DispatcherYield' }
 		}
 	}
 

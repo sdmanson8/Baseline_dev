@@ -12,7 +12,7 @@
 
 [CmdletBinding()]
 param (
-    [string]$RepoRoot = (Split-Path -Path $PSScriptRoot -Parent),
+    [string]$RepoRoot,
     [string[]]$InvariantValues = @('No', 'OK', 'Wi-Fi', 'Bluetooth', 'OneDrive', 'AI', 'Defender', 'HDR', 'Office', 'RPC', 'UAC', 'UI', 'Windows Terminal'),
     [string[]]$UnfinishedLocales = @(),
     [string[]]$EnglishVariantLocales = @(),
@@ -25,6 +25,21 @@ param (
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+if ([string]::IsNullOrWhiteSpace($RepoRoot))
+{
+    $scriptRoot = $PSScriptRoot
+    if ([string]::IsNullOrWhiteSpace($scriptRoot) -and -not [string]::IsNullOrWhiteSpace($MyInvocation.MyCommand.Path))
+    {
+        $scriptRoot = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
+    }
+    if ([string]::IsNullOrWhiteSpace($scriptRoot))
+    {
+        throw 'Unable to resolve the localization QA script root.'
+    }
+
+    $RepoRoot = Split-Path -Path $scriptRoot -Parent
+}
+
 $SourceFileName = 'en-US.json'
 $LocalizationDir = Join-Path $RepoRoot 'Localizations'
 $SkipSourceFiles = @($SourceFileName)
@@ -32,7 +47,6 @@ $LocaleFilePattern = '^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*\.json$'
 
 <#
     .SYNOPSIS
-    Internal function Resolve-LocalizationFilePath.
 #>
 
 function Resolve-LocalizationFilePath
@@ -116,7 +130,6 @@ $ExemptKeys = @(
 
 <#
     .SYNOPSIS
-    Internal function Get-LocalizationStringMap.
 #>
 
 function Get-LocalizationStringMap
@@ -137,7 +150,6 @@ function Get-LocalizationStringMap
 
 <#
     .SYNOPSIS
-    Internal function Get-LocalizationPlaceholderTokens.
 #>
 
 function Get-LocalizationPlaceholderTokens
@@ -152,7 +164,6 @@ function Get-LocalizationPlaceholderTokens
 
 <#
     .SYNOPSIS
-    Internal function .
 #>
 function Test-LocalizationPlaceholderParity
 {
@@ -171,7 +182,56 @@ function Test-LocalizationPlaceholderParity
 
 <#
     .SYNOPSIS
-    Internal function Get-LocalizationKeySetHash.
+#>
+
+function Test-LocalizationFormatString
+{
+    param(
+        [Parameter(Mandatory)]
+        [string]$Value
+    )
+
+    $argumentCount = 0
+    $matches = @([regex]::Matches($Value, '\{([0-9]+)(?:,[^{}]+)?(?::[^{}]+)?\}'))
+    if ($matches.Count -gt 0)
+    {
+        $maxIndex = 0
+        foreach ($match in $matches)
+        {
+            $index = [int]$match.Groups[1].Value
+            if ($index -gt $maxIndex)
+            {
+                $maxIndex = $index
+            }
+        }
+        $argumentCount = $maxIndex + 1
+    }
+
+    $formatArguments = New-Object object[] $argumentCount
+    for ($i = 0; $i -lt $argumentCount; $i++)
+    {
+        $formatArguments[$i] = $i
+    }
+
+    try
+    {
+        [void][string]::Format([System.Globalization.CultureInfo]::InvariantCulture, $Value, $formatArguments)
+        return [pscustomobject]@{
+            IsValid = $true
+            Message = $null
+        }
+    }
+    catch
+    {
+        return [pscustomobject]@{
+            IsValid = $false
+            Message = $_.Exception.Message
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
 #>
 
 function Get-LocalizationKeySetHash
@@ -199,7 +259,6 @@ function Get-LocalizationKeySetHash
 
 <#
     .SYNOPSIS
-    Internal function Get-LocaleContentHash.
 #>
 
 function Get-LocaleContentHash
@@ -225,7 +284,6 @@ function Get-LocaleContentHash
 
 <#
     .SYNOPSIS
-    Internal function Get-LocalizationTermMatchKeys.
 #>
 
 function Get-LocalizationTermMatchKeys
@@ -267,7 +325,6 @@ function Get-LocalizationTermMatchKeys
 
 <#
     .SYNOPSIS
-    Internal function Get-LocalizationTerminologyPolicy.
 #>
 
 function Get-LocalizationTerminologyPolicy
@@ -291,7 +348,6 @@ function Get-LocalizationTerminologyPolicy
 
 <#
     .SYNOPSIS
-    Internal function Get-LocalizationSchema.
 #>
 
 function Get-LocalizationSchema
@@ -382,6 +438,7 @@ $Summary = [ordered]@{
     scanned_files = 0
     files_with_key_errors = 0
     files_with_placeholder_errors = 0
+    files_with_format_errors = 0
     files_with_remaining_leaks = 0
     files_with_ignored_leaks = 0
     files_with_unfinished_leaks = 0
@@ -389,6 +446,7 @@ $Summary = [ordered]@{
     total_missing_keys = 0
     total_extra_keys = 0
     total_placeholder_errors = 0
+    total_format_errors = 0
     total_remaining_leaks = 0
     total_ignored_leaks = 0
     total_unfinished_leaks = 0
@@ -463,6 +521,7 @@ foreach ($LocaleFile in $LocaleFiles)
     $MissingKeys = @($SourceKeys | Where-Object { -not $LocaleMap.ContainsKey($_) })
     $ExtraKeys = @($LocaleMap.Keys | Where-Object { -not $SourceMap.ContainsKey($_) })
     $PlaceholderErrors = New-Object System.Collections.Generic.List[object]
+    $FormatErrors = New-Object System.Collections.Generic.List[object]
     $ExactLeaks = New-Object System.Collections.Generic.List[string]
     $EmptyStringKeys = New-Object System.Collections.Generic.List[string]
 
@@ -487,6 +546,15 @@ foreach ($LocaleFile in $LocaleFiles)
                 })
             }
 
+            $formatValidation = Test-LocalizationFormatString -Value $LocaleValue
+            if (-not $formatValidation.IsValid)
+            {
+                $FormatErrors.Add([pscustomobject]@{
+                    key = $Key
+                    message = $formatValidation.Message
+                })
+            }
+
             if (
                 $LocaleValue -ceq $SourceValue -and
                 ($ExemptKeys -notcontains $Key) -and
@@ -496,7 +564,7 @@ foreach ($LocaleFile in $LocaleFiles)
                 $ExactLeaks.Add($Key)
             }
 
-            if ($SourceValue.Length -gt 0 -and $LocaleValue.Length -eq 0)
+            if ($SourceValue.Length -gt 0 -and $LocaleValue.Length -eq 0 -and ($ExemptKeys -notcontains $Key))
             {
                 $EmptyStringKeys.Add($Key)
             }
@@ -511,6 +579,7 @@ foreach ($LocaleFile in $LocaleFiles)
     $Summary.total_missing_keys += $MissingKeys.Count
     $Summary.total_extra_keys += $ExtraKeys.Count
     $Summary.total_placeholder_errors += $PlaceholderErrors.Count
+    $Summary.total_format_errors += $FormatErrors.Count
     $Summary.total_remaining_leaks += $RealLeakCount
     $Summary.total_ignored_leaks += if ($IsLeakIgnored) { $ExactLeaks.Count } else { 0 }
     $Summary.total_unfinished_leaks += if ($IsUnfinished) { $ExactLeaks.Count } else { 0 }
@@ -588,6 +657,23 @@ foreach ($LocaleFile in $LocaleFiles)
         continue
     }
 
+    if ($FormatErrors.Count -gt 0)
+    {
+        $Summary.files_with_format_errors++
+        $HasFailure = $true
+        $preview = @($FormatErrors | Select-Object -First 5 | ForEach-Object { "{0}: {1}" -f $_.key, $_.message }) -join '; '
+        Write-Host ("  [FAIL] {0} -- {1} format string error(s): {2}" -f $LocaleFile.Name, $FormatErrors.Count, $preview)
+        continue
+    }
+
+    if ($EmptyStringKeys.Count -gt 0)
+    {
+        $HasFailure = $true
+        $preview = ($EmptyStringKeys | Select-Object -First 5) -join ', '
+        Write-Host ("  [FAIL] {0} -- {1} blank localized string(s): {2}" -f $LocaleFile.Name, $EmptyStringKeys.Count, $preview)
+        continue
+    }
+
     if ($IsUnfinished)
     {
         $Summary.files_with_ignored_leaks++
@@ -610,12 +696,6 @@ foreach ($LocaleFile in $LocaleFiles)
         $preview = ($ExactLeaks | Select-Object -First 5) -join ', '
         Write-Host ("  [FAIL] {0} -- {1} exact-English leak(s): {2}" -f $LocaleFile.Name, $ExactLeaks.Count, $preview)
         continue
-    }
-
-    if ($EmptyStringKeys.Count -gt 0)
-    {
-        $preview = ($EmptyStringKeys | Select-Object -First 5) -join ', '
-        Write-Host ("  [WARN] {0} -- {1} empty string(s): {2}" -f $LocaleFile.Name, $EmptyStringKeys.Count, $preview) -ForegroundColor Yellow
     }
 
     Write-Host ("  [PASS] {0}" -f $LocaleFile.Name)
@@ -723,6 +803,7 @@ Write-Host ("  Ignored exact-English leaks: {0}" -f $Summary.total_ignored_leaks
 Write-Host ("    unfinished locales: {0}" -f $Summary.total_unfinished_leaks)
 Write-Host ("  English-variant exact-English leaks: {0}" -f $Summary.total_english_variant_leaks)
 Write-Host ("  Placeholder issues: {0}" -f $Summary.total_placeholder_errors)
+Write-Host ("  Format string issues: {0}" -f $Summary.total_format_errors)
 Write-Host ("  Files with ignored leaks: {0}" -f $Summary.files_with_ignored_leaks)
 Write-Host ("  Files with English-variant leaks: {0}" -f $Summary.files_with_english_variant_leaks)
 Write-Host ("  Duplicate locale content groups: {0}" -f $Summary.duplicate_locale_groups)

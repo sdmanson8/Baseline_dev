@@ -1,9 +1,8 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     <#
         .SYNOPSIS
-        Internal function Test-GuiObjectField.
     #>
 
     function Test-GuiObjectField { param([object]$Object, [string]$FieldName) if ($null -eq $Object) { return $false }; if ($Object -is [System.Collections.IDictionary]) { return $Object.Contains($FieldName) }; return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName]) }
@@ -18,7 +17,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function Write-GuiRuntimeWarning {
         param(
@@ -178,7 +176,6 @@ Describe 'Register-GuiEventHandler' {
     It 'captures local functions for later invocation' {
         <#
             .SYNOPSIS
-            Internal function Get-TestGuiGreeting.
         #>
 
         function Get-TestGuiGreeting {
@@ -199,7 +196,6 @@ Describe 'Register-GuiEventHandler' {
     It 'resolves local functions with sibling dependencies through runtime commands' {
         <#
             .SYNOPSIS
-            Internal function Get-TestGuiInner.
         #>
 
         function Get-TestGuiInner {
@@ -212,7 +208,6 @@ Describe 'Register-GuiEventHandler' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Invoke-TestGuiOuter {
             param(

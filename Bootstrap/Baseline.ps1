@@ -194,7 +194,6 @@ $Script:LaunchTracePath = Join-Path $Script:LaunchTraceDirectory 'Baseline-launc
 
 <#
     .SYNOPSIS
-    Internal function Write-LaunchTrace.
 #>
 
 function Write-LaunchTrace
@@ -215,11 +214,52 @@ function Write-LaunchTrace
 	}
 }
 
+function Test-BaselineBootstrapSplashAbortRequested
+{
+	param(
+		[object]
+		$Splash = $Script:BootstrapSplash
+	)
+
+	if (-not $Splash)
+	{
+		return $false
+	}
+
+	if ($Splash -is [hashtable])
+	{
+		if ($Splash.ContainsKey('AbortRequested') -and [bool]$Splash.AbortRequested) { return $true }
+		if ($Splash.ContainsKey('UserClosed') -and [bool]$Splash.UserClosed) { return $true }
+		if ($Splash.ContainsKey('ProgrammaticClose') -and [bool]$Splash.ProgrammaticClose) { return $false }
+		if ($Splash.ContainsKey('GuiReady') -and [bool]$Splash.GuiReady) { return $false }
+		if ($Splash.ContainsKey('WasRendered') -and [bool]$Splash.WasRendered -and $Splash.ContainsKey('IsAlive') -and (-not [bool]$Splash.IsAlive)) { return $true }
+	}
+
+	return $false
+}
+
+function Stop-BaselineIfBootstrapSplashAbortRequested
+{
+	param(
+		[string]
+		$Phase = 'startup'
+	)
+
+	if (-not (Test-BaselineBootstrapSplashAbortRequested -Splash $Script:BootstrapSplash))
+	{
+		return
+	}
+
+	Write-LaunchTrace ('Bootstrap splash close requested abort before GUI open: {0}' -f $Phase)
+	$Global:LASTEXITCODE = 0
+	[System.Environment]::Exit(0)
+	try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch { }
+}
+
 Write-LaunchTrace 'Bootstrap start'
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineAdministrator.
 #>
 
 function Test-BaselineAdministrator
@@ -240,7 +280,6 @@ function Test-BaselineAdministrator
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-BaselineCommandLineLiteral.
 #>
 
 function ConvertTo-BaselineCommandLineLiteral
@@ -291,7 +330,6 @@ function ConvertTo-BaselineCommandLineLiteral
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-ValidatedTargetComputerList.
 #>
 
 function ConvertTo-ValidatedTargetComputerList
@@ -333,7 +371,6 @@ function ConvertTo-ValidatedTargetComputerList
 
 <#
     .SYNOPSIS
-    Internal function New-BaselineElevationArgumentList.
 #>
 
 function New-BaselineElevationArgumentList
@@ -524,6 +561,10 @@ Write-LaunchTrace ("Bootstrap dir resolved: {0}" -f $Script:BootstrapDir)
 # P5 rollback checkpoint: bootstrap startup helpers are split into Bootstrap\Helpers\Bootstrap.Helpers.ps1.
 # Keep this explicit import before localization, module loading, and InitialActions.
 $bootstrapHelpersPath = Join-Path $Script:BootstrapDir 'Helpers\Bootstrap.Helpers.ps1'
+if (-not (Test-Path -LiteralPath $bootstrapHelpersPath -PathType Leaf))
+{
+	throw "Required bootstrap helper file is missing: $bootstrapHelpersPath"
+}
 . $bootstrapHelpersPath
 
 if (-not $Script:IsEmbeddedHost)
@@ -541,6 +582,7 @@ $Script:RegionsRoot = Join-Path $Script:ModuleRoot 'Regions'
 
 $LocalizationRoot = Join-Path $Script:RepoRoot 'Localizations'
 $RequiredFiles = @(
+	$bootstrapHelpersPath
     (Join-Path (Join-Path $LocalizationRoot 'English (United States)') 'en-US.json')
 )
 
@@ -551,6 +593,7 @@ $RequiredFiles += if ($Script:ModuleRootExists)
 		(Join-Path (Join-Path $Script:ModuleRoot 'SharedHelpers') 'Json.Helpers.ps1')
 		(Join-Path (Join-Path $Script:ModuleRoot 'SharedHelpers') 'Localization.Helpers.ps1')
 		(Join-Path (Join-Path $Script:ModuleRoot 'SharedHelpers') 'ErrorHandling.Helpers.ps1')
+		(Join-Path (Join-Path $Script:ModuleRoot 'SharedHelpers') 'CliMode.Helpers.ps1')
 		(Join-Path (Join-Path $Script:ModuleRoot 'SharedHelpers') 'Registry.Helpers.ps1')
 		(Join-Path (Join-Path $Script:ModuleRoot 'SharedHelpers') 'Environment.Helpers.ps1')
 		(Join-Path (Join-Path $Script:ModuleRoot 'SharedHelpers') 'Manifest.Helpers.ps1')
@@ -627,7 +670,7 @@ $Global:Localization = Import-BaselineLocalization -BaseDirectory (Join-Path $Sc
 
 Write-LaunchTrace 'Localization loaded'
 
-Import-Module -Name (Join-Path $Script:ModuleRoot 'SharedHelpers.psm1') -Force -ErrorAction Stop
+Import-Module -Name (Join-Path $Script:ModuleRoot 'SharedHelpers.psm1') -Force -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop
 Write-LaunchTrace 'Shared helpers imported'
 
 [void](Initialize-BaselineMarkdownRuntime -ModuleRoot $Script:ModuleRoot)
@@ -832,7 +875,7 @@ if ($Script:MultiTargetPreviewOnly)
 }
 
 # Initialize logging early so the update check and splash phase are captured.
-Import-Module -Name (Join-Path $Script:ModuleRoot 'Logging.psm1') -Force -ErrorAction Stop
+Import-Module -Name (Join-Path $Script:ModuleRoot 'Logging.psm1') -Force -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop
 Write-LaunchTrace 'Logging module imported'
 $osName = (Get-OSInfo).OSName
 $logDirectory = Get-BaselineLogDirectory -FallbackRoot $env:TEMP
@@ -927,9 +970,9 @@ if ($shouldShowBootstrapSplash)
 		try
 		{
 			$shouldPrimeUpdatesPulse = $false
-			if ($env:BASELINE_INSTALLER_MODE -ne '1' -and $env:BASELINE_SKIP_UPDATE -ne '1' -and $env:BASELINE_EMBEDDED_HOST -eq '1')
+			if (Get-Command -Name 'Test-BaselineAutoUpdateStartupEnabled' -CommandType Function -ErrorAction SilentlyContinue)
 			{
-				$shouldPrimeUpdatesPulse = $true
+				$shouldPrimeUpdatesPulse = [bool](Test-BaselineAutoUpdateStartupEnabled)
 			}
 
 			if (-not $shouldPrimeUpdatesPulse)
@@ -944,7 +987,7 @@ if ($shouldShowBootstrapSplash)
 		catch
 		{
 			Write-LaunchTrace ('Bootstrap splash command failed: {0}' -f $_.Exception.Message)
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'Bootstrap.ShowBootstrapLoadingSplash'
+			Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.ShowBootstrapLoadingSplash' -Severity Debug
 			$Script:BootstrapSplash = $null
 		}
 	}
@@ -971,10 +1014,15 @@ if ($shouldShowBootstrapSplash)
 	{
 		Write-LaunchTrace 'Bootstrap splash shown'
 	}
+	elseif ($Script:BootstrapSplash -and $Script:BootstrapSplash.IsAlive)
+	{
+		Write-LaunchTrace 'Bootstrap splash render pending'
+	}
 	else
 	{
 		Write-LaunchTrace 'Bootstrap splash was not shown'
 	}
+	Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'after splash initialization'
 }
 else
 {
@@ -989,6 +1037,7 @@ if ([string]::IsNullOrWhiteSpace([string]$Script:CurrentAppVersion) -or $Script:
 }
 Invoke-BaselineAutoUpdate -Splash $Script:BootstrapSplash -CurrentVersion $Script:CurrentAppVersion
 Write-LaunchTrace 'Auto-update checked'
+Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'after auto-update check'
 
 $osName = (Get-OSInfo).OSName
 $Script:BaselineWindowTitle = "Baseline | Utility for $osName"
@@ -1012,7 +1061,7 @@ if ($Script:BootstrapSplash -and $Script:BootstrapSplash.IsAlive)
 		$Script:BootstrapSplash.Dispatcher.Invoke([System.Action]{
 			$Script:BootstrapSplash.Window.Title = $Script:BaselineWindowTitle
 		})
-	} catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Bootstrap.BootstrapSplash.SetWindowTitle' }
+	} catch { Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.BootstrapSplash.SetWindowTitle' -Severity Debug }
 }
 
 Remove-Module -Name Baseline -Force -ErrorAction Ignore
@@ -1020,7 +1069,7 @@ Remove-Module -Name Baseline -Force -ErrorAction Ignore
 # Checking whether script is the correct PowerShell version
 try
 {
-	Import-Module -Name (Join-Path $Script:ModuleRoot 'Baseline.psd1') -Force -ErrorAction Stop
+	Import-Module -Name (Join-Path $Script:ModuleRoot 'Baseline.psd1') -Force -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop
 }
 catch [System.InvalidOperationException]
 {
@@ -1376,6 +1425,40 @@ if ($ComplianceCheck)
 # Profile apply mode: load a saved configuration profile and apply every entry to
 # the local machine without opening the GUI.
 # Usage:  Baseline.exe -ProfilePath .\MyConfig.json -ApplyProfile
+function New-BaselineManifestFunctionAllowList
+{
+	param(
+		[Parameter(Mandatory = $true)]
+		[object[]]$Manifest
+	)
+
+	$allowList = New-Object 'System.Collections.Hashtable' ([System.StringComparer]::OrdinalIgnoreCase)
+	foreach ($entry in @($Manifest))
+	{
+		$functionName = Get-TweakManifestEntryValue -Entry $entry -FieldName 'Function'
+		if (-not [string]::IsNullOrWhiteSpace([string]$functionName))
+		{
+			$allowList[[string]$functionName] = $true
+		}
+	}
+
+	return $allowList
+}
+
+function Test-BaselineManifestFunctionAllowed
+{
+	param(
+		[Parameter(Mandatory = $true)]
+		[string]$FunctionName,
+
+		[Parameter(Mandatory = $true)]
+		[System.Collections.IDictionary]$AllowList
+	)
+
+	if ([string]::IsNullOrWhiteSpace($FunctionName)) { return $false }
+	return [bool]$AllowList.Contains($FunctionName)
+}
+
 if ($ApplyProfile)
 {
 	# Close the bootstrap splash - headless mode does not use the GUI.
@@ -1420,7 +1503,6 @@ if ($ApplyProfile)
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ApplyProfileApplicationIdentityKey.
 	#>
 
 	function Get-ApplyProfileApplicationIdentityKey
@@ -1498,7 +1580,6 @@ if ($ApplyProfile)
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ApplyProfileApplicationsCatalog.
 	#>
 
 	function Get-ApplyProfileApplicationsCatalog
@@ -1545,7 +1626,6 @@ if ($ApplyProfile)
 
 	<#
 	    .SYNOPSIS
-	    Internal function Resolve-ApplyProfileAppActionEntry.
 	#>
 
 	function Resolve-ApplyProfileAppActionEntry
@@ -1642,6 +1722,8 @@ if ($ApplyProfile)
 	}
 
 	$applyFunctions = [System.Collections.Generic.List[string]]::new()
+	$applyValidationErrors = 0
+	$applyFunctionAllowList = $null
 	if ($profileSelections.Count -gt 0)
 	{
 		$applyManifest = @(Import-TweakManifestFromData)
@@ -1650,11 +1732,18 @@ if ($ApplyProfile)
 			Write-Error 'Failed to load tweak manifest for profile apply.'
 			if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
 		}
+		$applyFunctionAllowList = New-BaselineManifestFunctionAllowList -Manifest $applyManifest
 
 		foreach ($sel in $profileSelections)
 		{
 			$fn = if ($sel.PSObject.Properties['Function']) { [string]$sel.Function } else { $null }
 			if ([string]::IsNullOrWhiteSpace($fn)) { continue }
+			if (-not (Test-BaselineManifestFunctionAllowed -FunctionName $fn -AllowList $applyFunctionAllowList))
+			{
+				LogError "Profile function '$fn' is not declared in the tweak manifest and will not be invoked."
+				$applyValidationErrors++
+				continue
+			}
 
 			$type = if ($sel.PSObject.Properties['Type']) { [string]$sel.Type } else { 'Toggle' }
 
@@ -1672,13 +1761,13 @@ if ($ApplyProfile)
 						$ac = if ($sel.PSObject.Properties['ACValue']) { [string]$sel.ACValue } else { $null }
 						$dc = if ($sel.PSObject.Properties['DCValue']) { [string]$sel.DCValue } else { $null }
 						$parts = @()
-						if (-not [string]::IsNullOrWhiteSpace($ac)) { $parts += "-ACValue $ac" }
-						if (-not [string]::IsNullOrWhiteSpace($dc)) { $parts += "-DCValue $dc" }
+						if (-not [string]::IsNullOrWhiteSpace($ac)) { $parts += "-ACValue $(ConvertTo-HeadlessCommandArgumentLiteral -Value $ac)" }
+						if (-not [string]::IsNullOrWhiteSpace($dc)) { $parts += "-DCValue $(ConvertTo-HeadlessCommandArgumentLiteral -Value $dc)" }
 						"$fn $($parts -join ' ')"
 					}
 					elseif ($sel.PSObject.Properties['Value'])
 					{
-						"$fn -Value $([string]$sel.Value)"
+						"$fn -Value $(ConvertTo-HeadlessCommandArgumentLiteral -Value ([string]$sel.Value))"
 					}
 					else { $fn }
 				}
@@ -1688,7 +1777,7 @@ if ($ApplyProfile)
 					if (-not $run) { continue }
 					$dateParam = if ($sel.PSObject.Properties['DateParam']) { [string]$sel.DateParam } else { 'StartDate' }
 					$dateVal   = if ($sel.PSObject.Properties['Value'])     { [string]$sel.Value }     else { $null }
-					if ([string]::IsNullOrWhiteSpace($dateVal)) { $fn } else { "$fn -$dateParam $dateVal" }
+					if ([string]::IsNullOrWhiteSpace($dateVal)) { $fn } else { "$fn -$dateParam $(ConvertTo-HeadlessCommandArgumentLiteral -Value $dateVal)" }
 				}
 				default
 				{
@@ -1721,6 +1810,13 @@ if ($ApplyProfile)
 
 	if ($applyFunctions.Count -eq 0 -and $applyAppActions.Count -eq 0)
 	{
+		if ($applyValidationErrors -gt 0)
+		{
+			Write-Warning "Profile '$applyResolvedPath' did not contain any allowed tweak or app actions."
+			$Global:LASTEXITCODE = 1
+			if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+		}
+
 		Write-Warning "Profile '$applyResolvedPath' produced no applicable changes. Nothing to apply."
 		$emptyExit = Get-BaselineHeadlessExitCode -Total 0
 		Write-LaunchTrace ('Profile apply: no work selected, exitCode={0} reason={1}' -f [int]$emptyExit.ExitCode, [string]$emptyExit.Reason)
@@ -1780,7 +1876,7 @@ if ($ApplyProfile)
 	Invoke-Command -ScriptBlock { InitialActions }
 	Add-SessionStatistic -Name 'ApplyRunCount'
 
-	$applyErrors = 0
+	$applyErrors = [int]$applyValidationErrors
 	$applyAppErrors = 0
 	try
 	{
@@ -1802,6 +1898,12 @@ if ($ApplyProfile)
 		$cmdElement  = $statements[0].PipelineElements[0]
 		$functionName = $cmdElement.GetCommandName()
 		$resolvedCmd  = Get-Command -Name $functionName -CommandType Function -ErrorAction SilentlyContinue
+		if (-not (Test-BaselineManifestFunctionAllowed -FunctionName $functionName -AllowList $applyFunctionAllowList))
+		{
+			LogError "Function '$functionName' is not declared in the tweak manifest — skipping."
+			$applyErrors++
+			continue
+		}
 		if (-not $resolvedCmd)
 		{
 			LogError "Unknown function '$functionName' — skipping."
@@ -1809,11 +1911,38 @@ if ($ApplyProfile)
 			continue
 		}
 
-		$invocation = Get-HeadlessCommandInvocation -CommandAst $cmdElement
-		$errBefore  = $Global:Error.Count
+		try
+		{
+			$invocation = Get-HeadlessCommandInvocation -CommandAst $cmdElement
+		}
+		catch
+		{
+			LogError "Invalid command arguments for '$functionName': $($_.Exception.Message)"
+			$applyErrors++
+			continue
+		}
 		$namedArguments = $invocation.NamedArguments
-		& $resolvedCmd @namedArguments
-		if ($Global:Error.Count -gt $errBefore) { $applyErrors++ } else { Add-SessionStatistic -Name 'SucceededCount' }
+		$operationScope = Start-BaselineOperationScope -Name $functionName
+		$operationThrew = $false
+		try
+		{
+			& $resolvedCmd @namedArguments
+		}
+		catch
+		{
+			Set-BaselineOperationFailed -Scope $operationScope -Reason $_.Exception.Message
+			LogError "Function '$functionName' failed: $($_.Exception.Message)"
+			$operationThrew = $true
+		}
+		$operationResult = Stop-BaselineOperationScope -Scope $operationScope
+		if ($operationThrew -or ($operationResult -and [bool]$operationResult.Failed))
+		{
+			$applyErrors++
+		}
+		else
+		{
+			Add-SessionStatistic -Name 'SucceededCount'
+		}
 	}
 
 	if ($applyAppActions.Count -gt 0)
@@ -1838,7 +1967,7 @@ if ($ApplyProfile)
 		# the headless-functions path uses: never block, never throw, never pop
 		# a dialog.
 		try { Invoke-Command -ScriptBlock { PostActions; Errors } }
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Bootstrap.ApplyProfile.PostActions' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.ApplyProfile.PostActions' -Severity Warning }
 
 		try
 		{
@@ -1848,7 +1977,7 @@ if ($ApplyProfile)
 				Failed     = ($applyErrors + $applyAppErrors)
 			}
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Bootstrap.ApplyProfile.Audit' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.ApplyProfile.Audit' -Severity Warning }
 
 		$applyTotal = [int]$applyFunctions.Count + [int]$applyAppActions.Count
 		$applyTotalFailed = [int]$applyErrors + [int]$applyAppErrors
@@ -1882,6 +2011,26 @@ if ($Functions)
 		GameModeProfile = $GameModeProfile
 	}
 
+	$headlessManifest = @()
+	try
+	{
+		$headlessManifest = @(Import-TweakManifestFromData)
+	}
+	catch
+	{
+		LogError "Failed to load tweak manifest for headless execution: $($_.Exception.Message)"
+		$Global:LASTEXITCODE = 1
+		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+	}
+	if (-not $headlessManifest -or $headlessManifest.Count -eq 0)
+	{
+		LogError 'Failed to load tweak manifest for headless execution.'
+		$Global:LASTEXITCODE = 1
+		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+	}
+	$headlessFunctionAllowList = New-BaselineManifestFunctionAllowList -Manifest $headlessManifest
+	$dryRunManifest = if ($DryRun) { $headlessManifest } else { $null }
+
 	if ($DryRun)
 	{
 		Write-Host ''
@@ -1890,14 +2039,6 @@ if ($Functions)
 		Write-Host "  Mode: $(if ($Preset) { "Preset '$Preset'" } elseif ($GameModeProfile) { "Game Mode '$GameModeProfile'" } elseif ($ScenarioProfile) { "Scenario '$ScenarioProfile'" } else { 'Direct functions' })"
 		Write-Host "  Commands: $($Functions.Count)"
 		Write-Host ''
-
-		# Load the manifest once so dry-run output can include risk/category metadata.
-		$dryRunManifest = $null
-		$importManifestCmd = Get-Command -Name 'Import-TweakManifestFromData' -CommandType Function -ErrorAction SilentlyContinue
-		if ($importManifestCmd)
-		{
-			try { $dryRunManifest = @(& $importManifestCmd) } catch { $dryRunManifest = $null }
-		}
 	}
 	else
 	{
@@ -1910,6 +2051,7 @@ if ($Functions)
 	}
 
 	$dryRunOrder = 0
+	$dryRunRejected = 0
 	foreach ($Function in $Functions)
 	{
 		# Validate the command via AST parsing to ensure it is a single, simple
@@ -1929,21 +2071,37 @@ if ($Functions)
 			$statements[0].PipelineElements[0] -isnot [System.Management.Automation.Language.CommandAst])
 		{
 			LogError "Invalid command format '$Function' - only simple function calls are allowed."
-			Add-SessionStatistic -Name 'SkippedCount'
+			if ($DryRun) { $dryRunRejected++ } else { Add-SessionStatistic -Name 'FailedCount' }
 			continue
 		}
 
 			$commandElement = $statements[0].PipelineElements[0]
 			$functionName = $commandElement.GetCommandName()
+			if (-not (Test-BaselineManifestFunctionAllowed -FunctionName $functionName -AllowList $headlessFunctionAllowList))
+			{
+				LogError "Function '$functionName' is not declared in the tweak manifest and will not be invoked."
+				if ($DryRun) { $dryRunRejected++ } else { Add-SessionStatistic -Name 'FailedCount' }
+				continue
+			}
+
 			$resolvedCommand = Get-Command -Name $functionName -CommandType Function -ErrorAction SilentlyContinue
 			if (-not $resolvedCommand)
 			{
 				LogError "Unknown function '$functionName' - skipping. Only functions loaded by the Baseline module are allowed."
-				Add-SessionStatistic -Name 'SkippedCount'
+				if ($DryRun) { $dryRunRejected++ } else { Add-SessionStatistic -Name 'FailedCount' }
 				continue
 			}
 
-			$commandInvocation = Get-HeadlessCommandInvocation -CommandAst $commandElement
+			try
+			{
+				$commandInvocation = Get-HeadlessCommandInvocation -CommandAst $commandElement
+			}
+			catch
+			{
+				LogError "Invalid command arguments for '$functionName': $($_.Exception.Message)"
+				if ($DryRun) { $dryRunRejected++ } else { Add-SessionStatistic -Name 'FailedCount' }
+				continue
+			}
 
 			if ($DryRun)
 			{
@@ -1988,26 +2146,35 @@ if ($Functions)
 				# Bind named parameters through a dictionary so parameter sets resolve correctly.
 				$namedArguments = $commandInvocation.NamedArguments
 				$positionalArguments = $commandInvocation.PositionalArguments
-				$headlessTweakErrorBaseline = if ($Global:Error) { $Global:Error.Count } else { 0 }
-				if ($namedArguments.Count -gt 0 -and $positionalArguments.Count -gt 0)
+				$operationScope = Start-BaselineOperationScope -Name $functionName
+				$operationThrew = $false
+				try
 				{
-					& $resolvedCommand @namedArguments @positionalArguments
+					if ($namedArguments.Count -gt 0 -and $positionalArguments.Count -gt 0)
+					{
+						& $resolvedCommand @namedArguments @positionalArguments
+					}
+					elseif ($namedArguments.Count -gt 0)
+					{
+						& $resolvedCommand @namedArguments
+					}
+					elseif ($positionalArguments.Count -gt 0)
+					{
+						& $resolvedCommand @positionalArguments
+					}
+					else
+					{
+						& $resolvedCommand
+					}
 				}
-				elseif ($namedArguments.Count -gt 0)
+				catch
 				{
-					& $resolvedCommand @namedArguments
+					Set-BaselineOperationFailed -Scope $operationScope -Reason $_.Exception.Message
+					LogError "Function '$functionName' failed: $($_.Exception.Message)"
+					$operationThrew = $true
 				}
-				elseif ($positionalArguments.Count -gt 0)
-				{
-					& $resolvedCommand @positionalArguments
-				}
-				else
-				{
-					& $resolvedCommand
-				}
-
-				# Track success/failure by checking whether new errors appeared
-				if ($Global:Error -and $Global:Error.Count -gt $headlessTweakErrorBaseline)
+				$operationResult = Stop-BaselineOperationScope -Scope $operationScope
+				if ($operationThrew -or ($operationResult -and [bool]$operationResult.Failed))
 				{
 					Add-SessionStatistic -Name 'FailedCount'
 				}
@@ -2024,8 +2191,8 @@ if ($Functions)
 		Write-Host "  Total: $dryRunOrder command$(if ($dryRunOrder -ne 1) { 's' }) would be executed." -ForegroundColor Cyan
 		Write-Host '  No changes were applied.' -ForegroundColor Cyan
 		Write-Host ''
-		$Global:LASTEXITCODE = 0
-		if ($Script:IsEmbeddedHost) { return 0 } else { exit 0 }
+		$Global:LASTEXITCODE = if ($dryRunRejected -gt 0) { 1 } else { 0 }
+		if ($Script:IsEmbeddedHost) { return [int]$Global:LASTEXITCODE } else { exit ([int]$Global:LASTEXITCODE) }
 	}
 
 	# Always run PostActions/Errors and emit the structured exit code, even if a
@@ -2094,6 +2261,7 @@ Update-SessionStatistics -Values @{ IsGUI = $true }
 # Show a WPF loading splash while startup checks run
 $Script:LoadingSplash = $Script:BootstrapSplash
 $Global:LoadingSplash = $Script:LoadingSplash
+Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'before initial checks'
 
 # Run mandatory startup checks (no menu prompt)
 try
@@ -2101,6 +2269,7 @@ try
 	Write-LaunchTrace 'InitialActions started'
 	InitialActions
 	Write-LaunchTrace 'InitialActions completed'
+	Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'after initial checks'
 }
 catch
 {
@@ -2140,12 +2309,13 @@ catch
 
 #region GUI
 # Ensure GUI module and dependencies are imported
+Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'before GUI module import'
 try
 {
-	Import-Module -Name (Join-Path $Script:ModuleRoot 'Logging.psm1') -Force -ErrorAction Stop
-	Import-Module -Name (Join-Path $Script:ModuleRoot 'GUICommon.psm1') -Force -ErrorAction Stop
-	Import-Module -Name (Join-Path $Script:ModuleRoot 'GUIExecution.psm1') -Force -ErrorAction Stop
-	Import-Module -Name (Join-Path $Script:RegionsRoot 'GUI.psm1') -Force -ErrorAction Stop
+	Import-Module -Name (Join-Path $Script:ModuleRoot 'Logging.psm1') -Force -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop
+	Import-Module -Name (Join-Path $Script:ModuleRoot 'GUICommon.psm1') -Force -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop
+	Import-Module -Name (Join-Path $Script:ModuleRoot 'GUIExecution.psm1') -Force -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop
+	Import-Module -Name (Join-Path $Script:RegionsRoot 'GUI.psm1') -Force -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop
 	# Force-reimporting resets $script:LogFilePath to $null inside Logging.psm1 (each
 	# module above has 'using module Logging.psm1' which re-runs the initializer).
 	if ($global:LogFilePath) { Set-LogFile -Path $global:LogFilePath }
@@ -2192,6 +2362,7 @@ try
 	# This keeps Windows 10 startup failures visible instead of silently disappearing.
 	Hide-ConsoleWindow
 Write-LaunchTrace 'Preparing GUI open'
+Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'before Show-TweakGUI'
 Show-TweakGUI
 Write-LaunchTrace 'GUI opened'
 if ($Script:LoadingSplash -and $Script:LoadingSplash.IsAlive)

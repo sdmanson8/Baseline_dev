@@ -4,7 +4,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineLifecycleComparableVersion.
 #>
 
 function Get-BaselineLifecycleComparableVersion
@@ -48,7 +47,6 @@ function Get-BaselineLifecycleComparableVersion
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineReleaseArtifactVerification.
 #>
 
 function Get-BaselineReleaseArtifactVerification
@@ -183,7 +181,6 @@ function Get-BaselineReleaseArtifactVerification
 
 <#
     .SYNOPSIS
-    Internal function Assert-BaselineReleaseArtifactVerification.
 #>
 
 function Assert-BaselineReleaseArtifactVerification
@@ -220,7 +217,6 @@ function Assert-BaselineReleaseArtifactVerification
 
 <#
     .SYNOPSIS
-    Internal function Import-BaselineRollbackProfile.
 #>
 
 function Import-BaselineRollbackProfile
@@ -267,7 +263,6 @@ function Import-BaselineRollbackProfile
 
 <#
     .SYNOPSIS
-    Internal function New-BaselineLifecyclePlaybook.
 #>
 
 function New-BaselineLifecyclePlaybook
@@ -384,7 +379,6 @@ function New-BaselineLifecyclePlaybook
 
 <#
     .SYNOPSIS
-    Internal function Invoke-BaselineLifecyclePlaybook.
 #>
 
 function Invoke-BaselineLifecyclePlaybook
@@ -472,12 +466,12 @@ function Invoke-BaselineLifecyclePlaybook
 		}
 
 		$arguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CLOSEAPPLICATIONS')
-		if ($PSCmdlet.ShouldProcess($Playbook.InstallerPath, "$($Playbook.Operation) Baseline"))
-		{
-			$process = Start-Process -FilePath $Playbook.InstallerPath -ArgumentList $arguments -Wait -PassThru -ErrorAction Stop
-			$result.ExitCode = $process.ExitCode
-			$result.Success = ($process.ExitCode -eq 0)
-		}
+	if ($PSCmdlet.ShouldProcess($Playbook.InstallerPath, "$($Playbook.Operation) Baseline"))
+	{
+		$process = Invoke-BaselineProcess -FilePath $Playbook.InstallerPath -ArgumentList $arguments -TimeoutSeconds 1800
+		$result.ExitCode = $process.ExitCode
+		$result.Success = ($process.ExitCode -eq 0)
+	}
 
 		return [pscustomobject]$result
 	}
@@ -514,7 +508,7 @@ function Invoke-BaselineLifecyclePlaybook
 
 	if ($PSCmdlet.ShouldProcess(($commands -join ', '), 'Execute rollback playbook'))
 	{
-		$process = Start-Process -FilePath $bootstrapPath -ArgumentList $argumentList -Wait -PassThru -ErrorAction Stop
+		$process = Invoke-BaselineProcess -FilePath $bootstrapPath -ArgumentList $argumentList -TimeoutSeconds 1800
 		$result.ExitCode = $process.ExitCode
 		$result.Success = ($process.ExitCode -eq 0)
 		$result.Commands = @($commands)
@@ -525,7 +519,6 @@ function Invoke-BaselineLifecyclePlaybook
 
 <#
     .SYNOPSIS
-    Internal function New-BaselineIncidentReproductionPack.
 #>
 
 function New-BaselineIncidentReproductionPack

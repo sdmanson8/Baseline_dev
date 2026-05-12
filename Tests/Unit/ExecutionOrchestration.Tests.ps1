@@ -1,6 +1,8 @@
 ﻿Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     $executionPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration.ps1'
     $executionStateSummaryPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration/ExecutionStateSummary.ps1'
     $executionViewPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration/ExecutionView.ps1'
@@ -8,17 +10,20 @@ BeforeAll {
     $progressChromePath = Join-Path $PSScriptRoot '../../Module/GUI/AppsModule/ProgressNavChrome.ps1'
     $guiExecutionPath = Join-Path $PSScriptRoot '../../Module/GUIExecution.psm1'
     $sessionStatePath = Join-Path $PSScriptRoot '../../Module/GUI/SessionState.ps1'
-    $script:ExecutionContent = @(
-        Get-Content -LiteralPath $executionPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $executionStateSummaryPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $executionViewPath -Raw -Encoding UTF8
-        Get-Content -LiteralPath $executionRunPath -Raw -Encoding UTF8
-    ) -join "`n"
-    $script:ExecutionViewContent = Get-Content -LiteralPath $executionViewPath -Raw -Encoding UTF8
-    $script:ExecutionRunContent = Get-Content -LiteralPath $executionRunPath -Raw -Encoding UTF8
-    $script:ProgressChromeContent = Get-Content -LiteralPath $progressChromePath -Raw -Encoding UTF8
-    $script:GuiExecutionContent = Get-Content -LiteralPath $guiExecutionPath -Raw -Encoding UTF8
-    $script:SessionStateContent = Get-Content -LiteralPath $sessionStatePath -Raw -Encoding UTF8
+    $styledControlsPath = Join-Path $PSScriptRoot '../../Module/GUI/StyledControlsSetup.ps1'
+    $script:ExecutionContent = Get-BaselineTestSourceText -Path @(
+        $executionPath
+        $executionStateSummaryPath
+        $executionViewPath
+        $executionRunPath
+    )
+    $script:ExecutionViewContent = Get-BaselineTestSourceText -Path $executionViewPath
+    $script:ExecutionRunContent = Get-BaselineTestSourceText -Path $executionRunPath
+    $script:ExecutionRunPath = $executionRunPath
+    $script:ProgressChromeContent = Get-BaselineTestSourceText -Path $progressChromePath
+    $script:GuiExecutionContent = Get-BaselineTestSourceText -Path $guiExecutionPath
+    $script:SessionStateContent = Get-BaselineTestSourceText -Path $sessionStatePath
+    $script:StyledControlsContent = Get-BaselineTestSourceText -Path $styledControlsPath
 }
 
 Describe 'Execution orchestration timer wiring' {
@@ -39,18 +44,65 @@ Describe 'Execution orchestration timer wiring' {
         $script:ExecutionViewContent | Should -Match 'New-ExecutionProgressBarTemplate'
         $script:ExecutionViewContent | Should -Match 'return New-GuiExecutionProgressBarTemplate'
         $script:ProgressChromeContent | Should -Match 'function New-GuiExecutionProgressBarTemplate'
-        $script:ProgressChromeContent | Should -Match 'ExecutionSheenRect'
-        $script:ProgressChromeContent | Should -Match 'RenderTransform\.\(TranslateTransform\.X\)'
-        $script:ProgressChromeContent | Should -Not -Match 'Storyboard\.TargetName="ExecutionSheenRect"'
-        $script:ProgressChromeContent | Should -Not -Match 'Storyboard\.TargetName="ExecutionSheenT"'
+        $script:ProgressChromeContent | Should -Match '<Border x:Name="PART_Indicator"'
+        $script:ProgressChromeContent | Should -Match '<Border x:Name="PART_BusyIndicator"'
+        $script:ProgressChromeContent | Should -Match 'Storyboard\.TargetProperty="Opacity"'
+        $script:ProgressChromeContent | Should -Match 'Storyboard\.TargetName="BusyIndicatorTransform"'
+        $script:ProgressChromeContent | Should -Match 'Storyboard\.TargetProperty="X"'
+        $script:ProgressChromeContent | Should -Match '<Trigger Property="IsIndeterminate" Value="True">'
+        $script:ProgressChromeContent | Should -Not -Match 'ExecutionSheenRect'
         $script:ProgressChromeContent | Should -Match 'RepeatBehavior="Forever"'
+        $script:ProgressChromeContent | Should -Match 'AutoReverse="True"'
         $script:ExecutionViewContent | Should -Match 'ProgressBar = \$progressBar'
         $script:ExecutionViewContent | Should -Not -Match 'New-SharedProgressBarHost -Maximum 1 -Value 0'
     }
 
+    It 'aligns the execution Abort button with the progress bar row' {
+        $script:ExecutionViewContent | Should -Match '\$abortBtnHost\.Margin = \[System\.Windows\.Thickness\]::new\(0, -6, 0, 0\)'
+        $script:ExecutionViewContent | Should -Match '\$abortBtn\.Height = \(\[double\]\$Script:GuiLayout\.ProgressBarHeight \+ 12\)'
+        $script:ExecutionViewContent | Should -Match '\$abortBtn\.Padding = \[System\.Windows\.Thickness\]::new\(16,4,16,4\)'
+    }
+
+    It 'keeps run progress driven by queued start and completion events' {
+        $script:ExecutionRunContent | Should -Match "GuiProgressPreparingRun' -Fallback 'Busy - preparing run\.\.\.'"
+        $script:ExecutionRunContent | Should -Match '& \$Script:UpdateProgressFn -Completed 0 -Total 0 -CurrentAction \$preparingRunLabel'
+        $script:ExecutionRunContent | Should -Match "GuiProgressStarting' -Fallback 'Starting\.\.\.'"
+        $script:ExecutionRunContent | Should -Match '\$completedStepIndex = if \(\(Test-GuiObjectField -Object \$entry -FieldName ''StepIndex''\)\)'
+        $script:ExecutionRunContent | Should -Match '\$completedProgress = if \(\$null -ne \$completedStepIndex\)'
+        $script:ExecutionRunContent | Should -Match '\$Script:ExecutionCurrentStepIndex -gt \[int\]\$Script:RunState\[''CompletedCount''\]'
+        $script:ExecutionRunContent | Should -Not -Match '\$currentAction = if \(-not \[string\]::IsNullOrWhiteSpace\(\$Script:RunState\[''CurrentTweak''\]\)\)'
+    }
+
+    It 'prevents delayed progress updates from moving the header backwards' {
+        $script:ExecutionContent | Should -Match '\$Script:ExecutionLastProgressCompleted = -1'
+        $script:StyledControlsContent | Should -Match '\$Completed -lt \[int\]\$Script:ExecutionLastProgressCompleted'
+        $script:StyledControlsContent | Should -Match 'return'
+        $script:StyledControlsContent | Should -Match '\$Script:ExecutionLastProgressCompleted = \$Completed'
+    }
+
     It 'refreshes the installed-app cache after app actions finish' {
-        $script:ExecutionContent | Should -Match "\$Action -in @\('Install', 'Uninstall', 'Update', 'UpdateAll'\)"
+        $script:ExecutionContent | Should -Match '\$(?:Action|runAction|runCatchAction) -in @\(''Install'', ''Uninstall'', ''Update'', ''UpdateAll''\)'
         $script:ExecutionContent | Should -Match 'Start-AppsCacheRefresh'
+    }
+
+    It 'wires the execution idle watchdog into both app and tweak run loops' {
+        $script:ExecutionContent | Should -Match 'function Update-ExecutionActivityHeartbeat'
+        $script:ExecutionContent | Should -Match 'function Test-ExecutionIdleWatchdogExpired'
+        $script:ExecutionContent | Should -Match 'function Invoke-ExecutionIdleWatchdogPrompt'
+        $script:ExecutionContent | Should -Match 'Baseline has not reported progress for 10 minutes\.'
+        $script:ExecutionContent | Should -Match "Buttons @\('Continue Waiting', 'Abort Run'\)"
+        $script:ExecutionContent | Should -Match 'Invoke-ExecutionIdleWatchdogPrompt -RunState \$Script:RunState'
+        $script:ExecutionContent | Should -Match 'IdleWatchdogSeconds = 600'
+        $script:ExecutionContent | Should -Match 'IdleWatchdogPromptOpen = \$false'
+        $script:ExecutionContent | Should -Match 'LastActivityAt   = \(Get-Date\)'
+    }
+
+    It 'uses structured per-app queue events and keeps the app execution abort button visible' {
+        $script:ExecutionContent | Should -Match 'Enter-ExecutionView -Title \$executionTitle -ShowAbortButton:\$true'
+        $script:ExecutionContent | Should -Match "'_AppStarted'"
+        $script:ExecutionContent | Should -Match "'_AppCompleted'"
+        $script:ExecutionContent | Should -Match 'AppUseStructuredProgress = \$false'
+        $script:ExecutionContent | Should -Match 'Abort requested - stopping the current app operation now\.'
     }
 
     It 'routes connected remote runs through the remote apply helper' {
@@ -75,9 +127,9 @@ Describe 'Execution orchestration timer wiring' {
         $script:ExecutionContent | Should -Match "ExecutionOrchestration\.RemoteRunCleanup\.RemoveTempProfileDir"
     }
 
-    It 'routes run-loop log failures through Write-DebugSwallowedException' {
-        $script:ExecutionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ExecutionOrchestration\.RunLoop\.FatalAppError\.LogError'''
-        $script:ExecutionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ExecutionOrchestration\.RunLoop\.FatalAppDiagnostic\.LogError'''
+    It 'routes run-loop log failures through Write-SwallowedException' {
+        $script:ExecutionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ExecutionOrchestration\.RunLoop\.FatalAppError\.LogError'''
+        $script:ExecutionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ExecutionOrchestration\.RunLoop\.FatalAppDiagnostic\.LogError'''
         $script:ExecutionContent | Should -Match 'Interactive selection request failed: \{0\}'
         $script:ExecutionContent | Should -Match 'ExecutionOrchestration\.InteractiveSelectionRequest\.LogError'
     }
@@ -181,7 +233,7 @@ Describe 'GUI run completion exit code' {
 
     It 'guards the helper lookup so a missing Get-BaselineHeadlessExitCode never breaks the GUI completion path' {
         # ErrorAction SilentlyContinue + outer try/catch routed through
-        # Write-DebugSwallowedException — completion must keep going even if
+        # Write-SwallowedException — completion must keep going even if
         # the helper module is unloaded mid-session.
         $script:ExecutionContent | Should -Match "Get-Command -Name 'Get-BaselineHeadlessExitCode' -CommandType Function -ErrorAction SilentlyContinue"
         $script:ExecutionContent | Should -Match "Source 'ExecutionOrchestration\.RunCompletion\.ExitCode'"
@@ -189,13 +241,13 @@ Describe 'GUI run completion exit code' {
 
     It 'routes the Apps & features health check through the run-completion path' {
         $script:ExecutionContent | Should -Match "Get-Command -Name 'Resolve-BaselineSettingsAppsFeaturesHealthAssessment' -CommandType Function -ErrorAction SilentlyContinue"
-        $script:ExecutionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ExecutionOrchestration\.RunCompletion\.SettingsAppsFeaturesHealthAssessment'''
+        $script:ExecutionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ExecutionOrchestration\.RunCompletion\.SettingsAppsFeaturesHealthAssessment'''
         $script:ExecutionContent | Should -Match 'Selected tweaks have finished running, but the Settings appsfeatures health check needs attention\.'
     }
 
     It 'routes the ScreenSketch regression probe through the run-completion path' {
         $script:ExecutionContent | Should -Match "Get-Command -Name 'Resolve-BaselineScreenSnippingHealthAssessment' -CommandType Function -ErrorAction SilentlyContinue"
-        $script:ExecutionContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''ExecutionOrchestration\.RunCompletion\.ScreenSnippingHealthAssessment'''
+        $script:ExecutionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ExecutionOrchestration\.RunCompletion\.ScreenSnippingHealthAssessment'''
         $script:ExecutionContent | Should -Match 'Set-ExecutionSummaryStatus -Key ''PrtScnSnippingTool'' -Status ''Failed'' -Detail \(\[string\]\$screenSnippingHealthAssessment\.Message\)'
     }
 
@@ -207,6 +259,11 @@ Describe 'GUI run completion exit code' {
         $script:ExecutionContent | Should -Match 'Invoke-GuiExecutionCompletionToast -Mode \$Mode -Title \$dlgTitle -Body \$summaryCountsText'
         $script:ExecutionContent | Should -Match "ExecutionOrchestration\.RunCompletion\.Toast"
     }
+
+    It 'returns to the restored GUI when the local run summary closes' {
+        $script:ExecutionRunContent | Should -Match 'if \(\$nextStep -eq ''Close''\)\s*\{\s*Exit-ExecutionView\s*\}\s*else\s*\{\s*Close-GuiMainWindow -Reason ''Execution summary exit requested\.'''
+        $script:ExecutionRunContent | Should -Not -Match 'if \(\$nextStep -eq ''Close''\)\s*\{[\s\S]*?Invoke-GuiSystemScan'
+    }
 }
 
 Describe 'PlatformSupport availability partition (P2 #18)' {
@@ -217,7 +274,7 @@ Describe 'PlatformSupport availability partition (P2 #18)' {
 
     It 'partitions the local apply path immediately after Initialize-ExecutionSummary' {
         $initIndex = $script:ExecutionContent.IndexOf('Initialize-ExecutionSummary -SelectedTweaks $tweakList')
-        $partitionIndex = $script:ExecutionContent.IndexOf('$availableTweaks = New-Object System.Collections.ArrayList')
+        $partitionIndex = $script:ExecutionContent.IndexOf('Resolve-GuiExecutionRunnableTweaks -TweakList $tweakList -ForceUnsupported:$ForceUnsupported')
         $initIndex | Should -BeGreaterThan 0
         $partitionIndex | Should -BeGreaterThan $initIndex
     }
@@ -227,11 +284,28 @@ Describe 'PlatformSupport availability partition (P2 #18)' {
     }
 
     It 'filters unavailable entries out of the runnable tweak list' {
-        $script:ExecutionContent | Should -Match '\$tweakList = @\(\$availableTweaks\.ToArray\(\)\)'
+        $script:ExecutionContent | Should -Match 'return @\(\$availableTweaks\.ToArray\(\)\)'
+        $script:ExecutionContent | Should -Match '\$tweakList = @\(Resolve-GuiExecutionRunnableTweaks -TweakList \$tweakList -ForceUnsupported:\$ForceUnsupported\)'
     }
 
     It 'reads availability metadata via the IDictionary and PSObject paths' {
         $script:GuiExecutionContent | Should -Match '\$availability\.Contains\(''Available''\)'
         $script:GuiExecutionContent | Should -Match '\$availability\.PSObject\.Properties\[''Available''\]'
+    }
+
+    It 'keeps Start-GuiExecutionRun inside the staged refactor size budget' {
+        $tokens = $null
+        $errors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($script:ExecutionRunPath, [ref]$tokens, [ref]$errors)
+        $errors.Count | Should -Be 0
+
+        $functionAst = $ast.FindAll({
+            param($node)
+            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                $node.Name -eq 'Start-GuiExecutionRun'
+        }, $true) | Select-Object -First 1
+
+        $functionAst | Should -Not -BeNullOrEmpty
+        ($functionAst.Extent.EndLineNumber - $functionAst.Extent.StartLineNumber + 1) | Should -BeLessOrEqual 400
     }
 }

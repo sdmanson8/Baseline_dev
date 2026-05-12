@@ -28,6 +28,8 @@ $ExportedFunctions = @(
     'Initialize-WpfWindowForeground'
     'Get-WindowsVersionData'
     'Get-OSInfo'
+    'Get-BaselineStartupThemePreference'
+    'Get-BaselineStartupThemeName'
     'Get-BaselineValidationMatrixSummary'
     'Get-BaselineValidationEvidenceReport'
     'ConvertTo-WindowsDisplayVersionComparable'
@@ -40,7 +42,22 @@ $ExportedFunctions = @(
     'Close-LoadingSplashWindow'
     'Compare-BaselineReleaseVersions'
     'Get-BaselineLatestReleaseEntry'
+    'Get-BaselineUpdateAssetPattern'
     'Invoke-BaselineAutoUpdate'
+    'Invoke-BaselineUpdateCheck'
+    'Get-BaselineUpdateSettings'
+    'Get-BaselineUpdateCheckState'
+    'Set-BaselineUpdateCheckState'
+    'Format-BaselineUpdateLastChecked'
+    'ConvertTo-BaselineUpdateCheckFrequency'
+    'ConvertTo-BaselineUpdateBranch'
+    'Get-BaselineDefaultUpdateBranch'
+    'Get-BaselineUpdateRepositoryName'
+    'Get-BaselineUpdateRepositoryUrl'
+    'Get-BaselineUpdateReleaseApiUri'
+    'Get-BaselineUpdateReleasePageUrl'
+    'Test-BaselineUpdatePrereleaseAllowed'
+    'Test-BaselineAutoUpdateStartupEnabled'
     'Show-Menu'
     'Get-LocalizedShellString'
     'Restart-Script'
@@ -66,8 +83,3 @@ $ExportedFunctions = @(
 )
 
 Export-ModuleMember -Function $ExportedFunctions
-
-
-
-
-

@@ -1,4 +1,4 @@
-
+﻿
 	. (Join-Path $Script:GuiExtractedRoot 'TweakVisualization.ps1')
 
 		    # Scriptblock stored in Script: scope so all closures and timer ticks can access it directly.
@@ -17,6 +17,18 @@
         if ($Script:ExecutionProgressBar -or $Script:ExecutionProgressText)
         {
             $Script:ExecutionProgressIndeterminate = ($Total -le 0)
+            if ($Script:ExecutionProgressIndeterminate)
+            {
+                $Script:ExecutionLastProgressCompleted = -1
+            }
+            elseif ($null -ne $Script:ExecutionLastProgressCompleted -and $Completed -lt [int]$Script:ExecutionLastProgressCompleted)
+            {
+                return
+            }
+            else
+            {
+                $Script:ExecutionLastProgressCompleted = $Completed
+            }
             Set-SharedProgressBarState -ProgressBar $Script:ExecutionProgressBar -ProgressText $Script:ExecutionProgressText -Completed $Completed -Total $Total -CurrentAction $CurrentAction -Indeterminate:($Script:ExecutionProgressIndeterminate)
         }
 
@@ -67,7 +79,6 @@
 
 		<#
 		    .SYNOPSIS
-		    Internal function Invoke-GuiEvents.
 		#>
 
 		function Invoke-GuiEvents
@@ -82,10 +93,6 @@
 			}
 		}
 
-		<#
-		    .SYNOPSIS
-		    Internal function .
-		#>
 		function Close-GuiMainWindow
 		{
 			param (
@@ -117,8 +124,8 @@
 
 			if ($timerToStop)
 			{
-				try { $timerToStop.Stop() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.TimerStop' }
-				try { $timerToStop.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.TimerDispose' }
+				try { $timerToStop.Stop() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.TimerStop' }
+				try { $timerToStop.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.TimerDispose' }
 			}
 
 			$Script:SuppressRunClosePrompt = $true
@@ -141,7 +148,7 @@
 				try
 				{
 					$null = Invoke-GuiDispatcherAction -Dispatcher $Script:MainForm.Dispatcher -PriorityUsage 'Immediate' -Action {
-	                try { Close-GuiMainWindow -Reason 'ForceCloseExecutionFn requested immediate exit.' } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.CloseMainWindow' }
+	                try { Close-GuiMainWindow -Reason 'ForceCloseExecutionFn requested immediate exit.' } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.CloseMainWindow' }
 	                try
 	                {
 	                        if ([System.Windows.Application]::Current)
@@ -149,12 +156,12 @@
                                 [System.Windows.Application]::Current.Shutdown()
                         }
                 }
-                catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.ShutdownApplication' }
+                catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.ShutdownApplication' }
 	        }
 				}
 				catch
 				{
-					try { Close-GuiMainWindow -Reason 'ForceCloseExecutionFn fallback close.' } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.FallbackCloseMainWindow' }
+					try { Close-GuiMainWindow -Reason 'ForceCloseExecutionFn fallback close.' } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.FallbackCloseMainWindow' }
 				}
 			}
 

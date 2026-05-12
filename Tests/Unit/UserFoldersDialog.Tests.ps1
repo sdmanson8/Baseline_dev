@@ -13,9 +13,9 @@ BeforeAll {
     $script:StyleManagementPath = Join-Path $script:RepoRoot 'Module/GUI/StyleManagement.ps1'
     $script:StartupDialogPath = Join-Path $script:RepoRoot 'Module/GUI/StartupManagerDialog.ps1'
 
-    $script:DialogContent = Get-Content -LiteralPath $script:DialogPath -Raw -Encoding UTF8
-    $script:XamlContent = Get-Content -LiteralPath $script:XamlPath -Raw -Encoding UTF8
-    $script:WindowSetupContent = Get-Content -LiteralPath $script:WindowSetupPath -Raw -Encoding UTF8
+    $script:DialogContent = Get-BaselineTestSourceText -Path $script:DialogPath
+    $script:XamlContent = Get-BaselineTestSourceText -Path $script:XamlPath
+    $script:WindowSetupContent = Get-BaselineTestSourceText -Path $script:WindowSetupPath
     $script:ActionHandlersContent = Get-BaselineTestSourceText -Path @(
         $script:ActionHandlersPath
         (Join-Path $script:ActionHandlersSplitRoot 'ThemeNavigationHandlers.ps1')
@@ -23,9 +23,9 @@ BeforeAll {
         (Join-Path $script:ActionHandlersSplitRoot 'SystemScanFooterHandlers.ps1')
         (Join-Path $script:ActionHandlersSplitRoot 'MenuHandlers.ps1')
     )
-    $script:GuiRegionContent = Get-Content -LiteralPath $script:GuiRegionPath -Raw -Encoding UTF8
-    $script:StyleManagementContent = Get-Content -LiteralPath $script:StyleManagementPath -Raw -Encoding UTF8
-    $script:StartupDialogContent = Get-Content -LiteralPath $script:StartupDialogPath -Raw -Encoding UTF8
+    $script:GuiRegionContent = Get-BaselineTestSourceText -Path $script:GuiRegionPath
+    $script:StyleManagementContent = Get-BaselineTestSourceText -Path $script:StyleManagementPath
+    $script:StartupDialogContent = Get-BaselineTestSourceText -Path $script:StartupDialogPath
 }
 
 Describe 'User folders dialog: category placement' {

@@ -1,63 +1,63 @@
-{
-  "generated": "2026-04-22T11:52:32.5448206+02:00",
-  "platform": {
-    "os": "Microsoft Windows NT 10.0.26100.0",
-    "edition": "Core",
-    "psVersion": "7.6.0",
-    "hostname": "SHELDON"
-  },
-  "layers": {
-    "smoke": {
-      "name": "Smoke Tests",
-      "script": "E:\\Github\\Baseline_dev\\Tools\\Test-SmokeTest.ps1",
-      "result": "Passed",
-      "passed": 0,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 43.45,
-      "output": ""
-    },
-    "unit": {
-      "name": "Unit Tests",
-      "script": "E:\\Github\\Baseline_dev\\Tests\\Unit",
-      "result": "Passed",
-      "passed": 3501,
-      "failed": 0,
-      "skipped": 5,
-      "duration": 105.42,
-      "output": "Tests: 3506 | Passed: 3501 | Failed: 0 | Skipped: 5"
-    },
-    "composition": {
-      "name": "GUI Composition Tests",
-      "script": "E:\\Github\\Baseline_dev\\Tests\\GUI.Composition.Tests.ps1",
-      "result": "Passed",
-      "passed": 34,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 0.64,
-      "output": "Tests: 34 | Passed: 34 | Failed: 0 | Skipped: 0"
-    },
-    "preset": {
-      "name": "Preset Validation",
-      "script": "E:\\Github\\Baseline_dev\\Tools\\Test-PresetGeneration.ps1",
-      "result": "Passed",
-      "passed": 0,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 1.88,
-      "output": ""
-    }
-  },
-  "summary": {
-    "totalPassed": 3535,
-    "totalFailed": 0,
-    "totalSkipped": 5,
-    "overallResult": "Passed"
-  },
-  "badge": {
-    "schemaVersion": 1,
-    "label": "tests",
-    "message": "3535 passed",
-    "color": "brightgreen"
-  }
+﻿{
+    "generated":  "2026-05-12T17:17:05.1791299+02:00",
+    "platform":  {
+                     "os":  "Microsoft Windows NT 10.0.26100.0",
+                     "edition":  "Desktop",
+                     "psVersion":  "5.1.26100.1",
+                     "hostname":  "SHELDON"
+                 },
+    "layers":  {
+                   "smoke":  {
+                                 "name":  "Smoke Tests",
+                                 "script":  "E:\\Github\\Baseline_dev\\Tools\\Test-SmokeTest.ps1",
+                                 "result":  "Passed",
+                                 "passed":  0,
+                                 "failed":  0,
+                                 "skipped":  0,
+                                 "duration":  218.64,
+                                 "output":  ""
+                             },
+                   "unit":  {
+                                "name":  "Unit Tests",
+                                "script":  "E:\\Github\\Baseline_dev\\Tests\\Unit",
+                                "result":  "Passed",
+                                "passed":  5320,
+                                "failed":  0,
+                                "skipped":  4,
+                                "duration":  1114.46,
+                                "output":  "Tests: 5324 | Passed: 5320 | Failed: 0 | Skipped: 4"
+                            },
+                   "composition":  {
+                                       "name":  "GUI Composition Tests",
+                                       "script":  "E:\\Github\\Baseline_dev\\Tests\\GUI.Composition.Tests.ps1",
+                                       "result":  "Passed",
+                                       "passed":  43,
+                                       "failed":  0,
+                                       "skipped":  0,
+                                       "duration":  4.11,
+                                       "output":  "Tests: 43 | Passed: 43 | Failed: 0 | Skipped: 0"
+                                   },
+                   "preset":  {
+                                  "name":  "Preset Validation",
+                                  "script":  "E:\\Github\\Baseline_dev\\Tools\\Test-PresetGeneration.ps1",
+                                  "result":  "Passed",
+                                  "passed":  0,
+                                  "failed":  0,
+                                  "skipped":  0,
+                                  "duration":  5.98,
+                                  "output":  ""
+                              }
+               },
+    "summary":  {
+                    "totalPassed":  5363,
+                    "totalFailed":  0,
+                    "totalSkipped":  4,
+                    "overallResult":  "Passed"
+                },
+    "badge":  {
+                  "schemaVersion":  1,
+                  "label":  "tests",
+                  "message":  "5363 passed",
+                  "color":  "brightgreen"
+              }
 }

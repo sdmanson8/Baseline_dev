@@ -1,8 +1,7 @@
-﻿<#
+<#
     .SYNOPSIS
-    Internal function Show-RiskDecisionDialog.
 #>
-function Show-RiskDecisionDialog
+function Show-GuiCommonRiskDecisionDialog
 {
 	param(
 		[Parameter(Mandatory = $true)]
@@ -23,7 +22,7 @@ function Show-RiskDecisionDialog
 
 	$bc = $Script:SharedBrushConverter
 	$cards = @($SummaryCards)
-	$resolvedUseDarkMode = Get-GuiBooleanValue -Value $UseDarkMode -Default $true -Context 'Show-RiskDecisionDialog'
+	$resolvedUseDarkMode = Get-GuiBooleanValue -Value $UseDarkMode -Default $true -Context 'Show-GuiCommonRiskDecisionDialog'
 
 	# Localization helper
 	$getLocalStr2 = Get-Command -Name 'Get-UxLocalizedString' -CommandType Function -ErrorAction SilentlyContinue
@@ -75,7 +74,7 @@ function Show-RiskDecisionDialog
 	$dlgTBarTitle.Foreground = $bc.ConvertFromString($Theme.TextPrimary)
 	[void]($dlgTBarGrid.Children.Add($dlgTBarTitle))
 	$dlgTBarClose = New-Object System.Windows.Controls.Button
-	$dlgTBarClose.Content = '×'
+	$dlgTBarClose.Content = 'x'
 	$dlgTBarClose.FontFamily = [System.Windows.Media.FontFamily]::new('Arial')
 	$dlgTBarClose.FontSize = 12
 	$dlgTBarClose.Width = 32

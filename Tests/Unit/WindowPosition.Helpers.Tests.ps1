@@ -32,7 +32,7 @@ BeforeAll {
         param([Parameter(Mandatory)][string]$Key, $Value)
         $Script:WPTestPrefStore[$Key] = $Value
     }
-    function Write-DebugSwallowedException { param($ErrorRecord, $Source) }
+    function Write-SwallowedException { param($ErrorRecord, $Source) }
 }
 
 Describe 'Test-BaselineWindowRectVisible (bounds validation)' {

@@ -36,7 +36,7 @@ function Initialize-BaselineUserPreferences
 			$Script:UserPreferencesData[[string]$prop.Name] = $prop.Value
 		}
 	}
-	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UserPreferences.Initialize.LoadJson' }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'UserPreferences.Initialize.LoadJson' }
 }
 
 function Get-BaselineUserPreference
@@ -70,6 +70,43 @@ function Set-BaselineUserPreference
 	}
 }
 
+function Normalize-GuiLogLevel
+{
+	param (
+		[AllowNull()]
+		[object]$Level,
+		[string]$Default = 'All'
+	)
+
+	$defaultValue = if ([string]::IsNullOrWhiteSpace($Default)) { 'All' } else { [string]$Default }
+	$value = if ($null -eq $Level) { '' } else { ([string]$Level).Trim() }
+	if ([string]::IsNullOrWhiteSpace($value))
+	{
+		$value = $defaultValue
+	}
+
+	switch ($value.ToLowerInvariant())
+	{
+		'all' { return 'All' }
+		'trace' { return 'Trace' }
+		'debug' { return 'Debug' }
+		'info' { return 'Info' }
+		'information' { return 'Info' }
+		'warn' { return 'Warn' }
+		'warning' { return 'Warn' }
+		'error' { return 'Error' }
+		default
+		{
+			if ($value -ne $defaultValue)
+			{
+				return (Normalize-GuiLogLevel -Level $defaultValue -Default 'All')
+			}
+
+			return 'All'
+		}
+	}
+}
+
 function Save-BaselineUserPreferences
 {
 	if ($null -eq $Script:UserPreferencesData) { return }
@@ -94,5 +131,5 @@ function Save-BaselineUserPreferences
 		[System.IO.File]::WriteAllText($path, $json, [System.Text.Encoding]::UTF8)
 		$Script:UserPreferencesDirty = $false
 	}
-	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UserPreferences.Save.WriteJson' }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'UserPreferences.Save.WriteJson' }
 }

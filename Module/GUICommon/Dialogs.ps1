@@ -1,8 +1,7 @@
-﻿<#
+<#
     .SYNOPSIS
-    Internal function Show-ThemedDialog.
 #>
-function Show-ThemedDialog
+function Show-GuiCommonThemedDialog
 {
 	param(
 		[Parameter(Mandatory = $true)]
@@ -21,7 +20,7 @@ function Show-ThemedDialog
 	)
 
 	$bc = $Script:SharedBrushConverter
-	$resolvedUseDarkMode = Get-GuiBooleanValue -Value $UseDarkMode -Default $true -Context 'Show-ThemedDialog'
+	$resolvedUseDarkMode = Get-GuiBooleanValue -Value $UseDarkMode -Default $true -Context 'Show-GuiCommonThemedDialog'
 
 	$dlg = New-Object System.Windows.Window
 	$dlg.Title = $Title
@@ -69,7 +68,7 @@ function Show-ThemedDialog
 	$dlgTitleBlock.Foreground = $bc.ConvertFromString($Theme.TextPrimary)
 	[void]($dlgTitleBarGrid.Children.Add($dlgTitleBlock))
 	$dlgCloseBtn = New-Object System.Windows.Controls.Button
-	$dlgCloseBtn.Content = '×'
+	$dlgCloseBtn.Content = 'x'
 	$dlgCloseBtn.FontFamily = [System.Windows.Media.FontFamily]::new('Arial')
 	$dlgCloseBtn.FontSize = 12
 	$dlgCloseBtn.Width = 32
@@ -81,10 +80,7 @@ function Show-ThemedDialog
 	$dlgCloseBtn.HorizontalAlignment = 'Right'
 	$dlgCloseBtn.VerticalContentAlignment = 'Center'
 	$dlgCloseBtn.HorizontalContentAlignment = 'Center'
-	if (Get-Command -Name 'Set-WindowCaptionButtonStyle' -CommandType Function -ErrorAction SilentlyContinue)
-	{
-		try { Set-WindowCaptionButtonStyle -Button $dlgCloseBtn -Variant 'Close' } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Dialogs.ShowThemedDialog.SetCloseButtonStyle' }
-	}
+	try { Set-GuiPopupCaptionButtonStyle -Button $dlgCloseBtn -Variant 'Close' -Theme $Theme -UseDarkMode $resolvedUseDarkMode } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Dialogs.ShowThemedDialog.SetCloseButtonStyle' }
 	$dlgCloseBtn.Add_Click({ $dlg.DialogResult = $false; $dlg.Close() }.GetNewClosure())
 	[void]($dlgTitleBarGrid.Children.Add($dlgCloseBtn))
 	$dlgTitleBar.Child = $dlgTitleBarGrid
@@ -159,7 +155,7 @@ function Show-ThemedDialog
 	}
 
 	$resultRef = @{
-		Value = $(if ($Buttons -contains 'Close') { 'Close' } elseif ($Buttons.Count -gt 0) { $Buttons[0] } else { $null })
+		Value = (Get-GuiDialogDismissResult -Buttons $Buttons)
 	}
 
 	foreach ($label in $Buttons)
@@ -226,7 +222,6 @@ function Show-ThemedDialog
 
 <#
     .SYNOPSIS
-    Internal function New-DialogSummaryCard.
 #>
 function New-DialogSummaryCard
 {
@@ -344,7 +339,6 @@ function New-DialogSummaryCard
 
 <#
     .SYNOPSIS
-    Internal function New-DialogSummaryCardsPanel.
 #>
 function New-DialogSummaryCardsPanel
 {
@@ -362,14 +356,14 @@ function New-DialogSummaryCardsPanel
 	foreach ($summaryCard in @($SummaryCards))
 	{
 		if ($null -eq $summaryCard) { continue }
-		$label = if ((Test-GuiObjectField -Object $summaryCard -FieldName 'Label')) { [string]$summaryCard.Label } else { '' }
+		$label = if ((Test-GuiCommonObjectField -Object $summaryCard -FieldName 'Label')) { [string]$summaryCard.Label } else { '' }
 		if ([string]::IsNullOrWhiteSpace($label)) { continue }
 		$summaryCardControl = New-DialogSummaryCard `
 			-Theme $Theme `
 			-Label $label `
-			-Value $(if ((Test-GuiObjectField -Object $summaryCard -FieldName 'Value')) { $summaryCard.Value } else { $null }) `
-			-Detail $(if ((Test-GuiObjectField -Object $summaryCard -FieldName 'Detail')) { [string]$summaryCard.Detail } else { $null }) `
-			-Tone $(if ((Test-GuiObjectField -Object $summaryCard -FieldName 'Tone')) { [string]$summaryCard.Tone } else { 'Primary' })
+			-Value $(if ((Test-GuiCommonObjectField -Object $summaryCard -FieldName 'Value')) { $summaryCard.Value } else { $null }) `
+			-Detail $(if ((Test-GuiCommonObjectField -Object $summaryCard -FieldName 'Detail')) { [string]$summaryCard.Detail } else { $null }) `
+			-Tone $(if ((Test-GuiCommonObjectField -Object $summaryCard -FieldName 'Tone')) { [string]$summaryCard.Tone } else { 'Primary' })
 		if ($summaryCardControl)
 		{
 			[void]($panel.Children.Add($summaryCardControl))
@@ -381,7 +375,6 @@ function New-DialogSummaryCardsPanel
 
 <#
     .SYNOPSIS
-    Internal function New-DialogMetadataPill.
 #>
 function New-DialogMetadataPill
 {
@@ -464,7 +457,6 @@ function New-DialogMetadataPill
 
 <#
     .SYNOPSIS
-    Internal function New-DialogMetadataPillPanel.
 #>
 function New-DialogMetadataPillPanel
 {
@@ -482,13 +474,13 @@ function New-DialogMetadataPillPanel
 	foreach ($item in @($Items))
 	{
 		if ($null -eq $item) { continue }
-		$label = if ((Test-GuiObjectField -Object $item -FieldName 'Label')) { [string]$item.Label } else { '' }
+		$label = if ((Test-GuiCommonObjectField -Object $item -FieldName 'Label')) { [string]$item.Label } else { '' }
 		if ([string]::IsNullOrWhiteSpace($label)) { continue }
 		$pill = New-DialogMetadataPill `
 			-Theme $Theme `
 			-Label $label `
-			-Tone $(if ((Test-GuiObjectField -Object $item -FieldName 'Tone')) { [string]$item.Tone } else { 'Muted' }) `
-			-ToolTip $(if ((Test-GuiObjectField -Object $item -FieldName 'ToolTip')) { [string]$item.ToolTip } else { $null })
+			-Tone $(if ((Test-GuiCommonObjectField -Object $item -FieldName 'Tone')) { [string]$item.Tone } else { 'Muted' }) `
+			-ToolTip $(if ((Test-GuiCommonObjectField -Object $item -FieldName 'ToolTip')) { [string]$item.ToolTip } else { $null })
 		if ($pill)
 		{
 			[void]($panel.Children.Add($pill))

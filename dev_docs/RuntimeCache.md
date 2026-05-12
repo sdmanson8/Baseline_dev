@@ -1,11 +1,12 @@
 # Runtime Cache
 
-Baseline's embedded launcher hydrates its bundled PowerShell payload into a per-user runtime
-cache under:
+Baseline's embedded launcher hydrates its bundled PowerShell payload into an ACL-restricted
+machine cache under:
 
-`%LOCALAPPDATA%\Baseline\RC\<version>\4\<buildId>\`
+`%ProgramData%\Baseline\RuntimeCache\RC\<version>\4\<buildId>\<launcherFingerprint>\`
 
 The `4` segment is the current runtime-cache schema version from `Launcher/Program.cs`.
+Only Administrators and SYSTEM are granted write access to the cache root.
 
 ## What It Stores
 
@@ -18,29 +19,32 @@ The cache contains the embedded runtime payload extracted from `Baseline.exe`, i
 - embedded runtime libraries such as `Markdig.dll`
 
 The hydrated root is considered ready only when the launcher finds the sentinel file
-`.baseline-runtime-ready` plus the expected bootstrap, module, localization, and library files.
+`.baseline-runtime-ready`, the hydration manifest `.baseline-runtime-manifest.sha256`, and every
+expected embedded payload file hashes to the SHA-256 value recorded for the embedded resource.
 
 ## When The Cache Is Used
 
 On startup, the launcher first checks whether it is already running from a ready runtime root.
-If so, it executes in place and does not use `%LOCALAPPDATA%\Baseline\RC`.
+If so, it executes in place and does not use `%ProgramData%\Baseline\RuntimeCache\RC`.
 
 Otherwise it:
 
 1. reads the public bundle version from assembly metadata
 2. derives a build ID from the assembly module version ID
-3. uses `%LOCALAPPDATA%\Baseline\RC\<version>\4\<buildId>\` as the hydration target
-4. reuses that directory immediately if it already passes the readiness check
+3. derives a launcher fingerprint from the signed launcher binary
+4. uses `%ProgramData%\Baseline\RuntimeCache\RC\<version>\4\<buildId>\<launcherFingerprint>\` as the hydration target
+5. reuses that directory only if the sentinel, manifest, and all per-file hashes validate
 
 ## Hydration Behaviour
 
 Hydration is protected by a single cache-root lock file:
 
-`%LOCALAPPDATA%\Baseline\RC\.hydrate.lock`
+`%ProgramData%\Baseline\RuntimeCache\RC\.hydrate.lock`
 
 The launcher extracts into a sibling staging directory, writes the sentinel last, and then
 renames the staging directory into place. If a target directory for the same build already
-exists but is not ready, the launcher deletes it and rehydrates the payload from scratch.
+exists but is not ready, or if any hydrated file hash differs from the embedded resource hash,
+the launcher deletes it and rehydrates the payload from scratch.
 
 The shorter `RC` cache root and `.s` staging suffix keep hydrated payload paths below classic
 `MAX_PATH` limits for long bundled CBS manifest filenames on machines that do not enable
@@ -50,6 +54,7 @@ This means:
 
 - one build ID gets at most one ready hydrated directory
 - incomplete hydration for the same build is replaced, not accumulated
+- tampered hydrated files are replaced before execution
 - concurrent launches serialize on the lock instead of racing
 
 ## Growth And Bounds
@@ -57,6 +62,7 @@ This means:
 Current behaviour is intentionally simple:
 
 - cache entries are partitioned by public bundle version, schema version, and build ID
+- cache entries are also partitioned by the launcher fingerprint
 - repeated launches of the same build reuse the same hydrated directory
 - a new build ID creates a new sibling directory
 - Baseline does not currently prune older versions or older build IDs automatically

@@ -1,15 +1,20 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/UWPApps.psm1'
-    $script:UwpAppsContent = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8
+    $script:UwpAppsContent = Get-BaselineTestSourceText -Path $filePath
 }
 
 Describe 'UWP apps picker surface' {
     It 'repairs picker theme values before forcing an opaque picker background in both branches' {
         $script:UwpAppsContent | Should -Match 'function Set-UWPAppsPickerSurface'
+        $script:UwpAppsContent | Should -Match 'function Resolve-UWPAppsPickerUseDarkMode'
+        $script:UwpAppsContent | Should -Match 'BASELINE_USE_DARK_MODE'
+        $script:UwpAppsContent | Should -Match 'return \$true'
         $script:UwpAppsContent | Should -Match '\[object\]\s*\$UseDarkMode'
-        $script:UwpAppsContent | Should -Match 'GUICommon\\Get-GuiBooleanValue -Value \$UseDarkMode'
+        $script:UwpAppsContent | Should -Match 'GUICommon\\Get-GuiBooleanValue -Value \$UseDarkMode -Default \(Resolve-UWPAppsPickerUseDarkMode\)'
         ([regex]::Matches($script:UwpAppsContent, 'Set-UWPAppsPickerSurface -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer')).Count | Should -Be 2
         $script:UwpAppsContent | Should -Match 'Repair-GuiThemePalette -Theme \$surfaceTheme -ThemeName'
         $script:UwpAppsContent | Should -Match '\$defaultThemeColors = if \(\$resolvedUseDarkMode\)'
@@ -36,6 +41,13 @@ Describe 'UWP apps picker surface' {
 
     It 'loads all WPF assemblies needed by the picker explicitly' {
         ([regex]::Matches($script:UwpAppsContent, 'Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase -ErrorAction Stop')).Count | Should -Be 2
+    }
+
+    It 'uses normal text fonts for app names instead of inheriting the icon font' {
+        $script:UwpAppsContent | Should -Not -Match 'FontFamily="FluentSystemIcons" FontSize="12" ShowInTaskbar="True"'
+        ([regex]::Matches($script:UwpAppsContent, 'FontFamily="Segoe UI" FontSize="12" ShowInTaskbar="True"')).Count | Should -Be 2
+        ([regex]::Matches($script:UwpAppsContent, '\$TextBlock\.FontFamily = \[System\.Windows\.Media\.FontFamily\]::new\(''Segoe UI''\)')).Count | Should -BeGreaterOrEqual 2
+        $script:UwpAppsContent | Should -Match '\$TextBlock\.Foreground = \$Form\.Foreground'
     }
 
     It 'loads bundled WinRT dependencies before using Appx cmdlets' {

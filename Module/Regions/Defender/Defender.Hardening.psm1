@@ -663,5 +663,14 @@ function F8BootMenu
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'BootRecovery',
+    'CIMemoryIntegrity',
+    'DefenderAppGuard',
+    'DefenderExploitGuardPolicy',
+    'DEPOptOut',
+    'ExploitProtectionPolicy',
+    'F8BootMenu',
+    'LocalSecurityAuthority'
+)
+Export-ModuleMember -Function $ExportedFunctions

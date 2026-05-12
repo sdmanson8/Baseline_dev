@@ -1,8 +1,7 @@
-﻿# Preset/scenario UI builder functions: button definitions, panels, filters, selection bars, and recommendation display
+# Preset/scenario UI builder functions: button definitions, panels, filters, selection bars, and recommendation display
 
 	<#
 	    .SYNOPSIS
-	    Internal function Register-GuiCommandButtonAction.
 	#>
 
 	function Register-GuiCommandButtonAction
@@ -41,7 +40,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-PresetButtonLabel.
 	#>
 
 	function Get-PresetButtonLabel
@@ -62,7 +60,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-PresetButtonTooltip.
 	#>
 
 	function Get-PresetButtonTooltip
@@ -104,7 +101,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-ShouldShowQuickStartPresetButton.
 	#>
 
 	function Test-ShouldShowQuickStartPresetButton
@@ -119,7 +115,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-TabPresetButtonDefinitions.
 	#>
 
 	function Get-TabPresetButtonDefinitions
@@ -202,7 +197,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ScenarioRecommendationLookup.
 	#>
 
 	function Get-ScenarioRecommendationLookup
@@ -224,7 +218,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Sync-ActivePresetButtonChrome.
 	#>
 
 	function Sync-ActivePresetButtonChrome
@@ -256,7 +249,7 @@
 			}
 		}
 
-		# Scenarios accumulate — multiple can be active simultaneously.
+		# Scenarios accumulate - multiple can be active simultaneously.
 		$allScenarioRefs = @(if ($Script:ScenarioButtonRefsByTab -is [hashtable]) { foreach ($tabRefs in $Script:ScenarioButtonRefsByTab.Values) { $tabRefs } })
 		foreach ($scenarioRef in $allScenarioRefs)
 		{
@@ -281,7 +274,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-TabPresetButtonsPanel.
 	#>
 
 	function New-TabPresetButtonsPanel
@@ -345,7 +337,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ScenarioProfileButtonsPanel.
 	#>
 
 	function New-ScenarioProfileButtonsPanel
@@ -409,7 +400,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ScenarioRecommendationPanel.
 	#>
 
 	function New-ScenarioRecommendationPanel
@@ -452,7 +442,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-SystemScanActionRow.
 	#>
 
 	function New-SystemScanActionRow
@@ -482,7 +471,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-TabPresetPanel.
 	#>
 
 	function New-TabPresetPanel
@@ -586,7 +574,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Add-TabContentLeadPanel.
 	#>
 
 	function Add-TabContentLeadPanel
@@ -690,7 +677,7 @@
 				Write-GuiRuntimeWarning -Context 'Build-TabContent/GameModeToggle' -Message ("Game Mode toggle bar failed for Gaming tab: {0}" -f $_.Exception.Message)
 			}
 
-			# "Reset Gaming Tweaks" button — restores Gaming-tab entries to Windows defaults
+			# "Reset Gaming Tweaks" button - restores Gaming-tab entries to Windows defaults
 			# Placed before the Game Mode landing panel so it stays visible regardless
 			# of whether Game Mode is on or off.
 			try
@@ -785,7 +772,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ActiveTabFilterItems.
 	#>
 
 	function Get-ActiveTabFilterItems
@@ -805,7 +791,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ActiveFiltersBanner.
 	#>
 
 	function New-ActiveFiltersBanner
@@ -846,7 +831,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-EmptyTabStateCard.
 	#>
 
 	function New-EmptyTabStateCard
@@ -874,7 +858,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-TabContentIndexArray.
 	#>
 
 	function Get-TabContentIndexArray
@@ -890,10 +873,6 @@
 		return [int[]]$allTabIndexesList.ToArray()
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function New-TabSelectionBar
 	{
 		param ([int[]]$AllTabIndexes)
@@ -905,11 +884,29 @@
 		$selectAllButton = New-PresetButton -Label (Get-UxLocalizedString -Key 'GuiSelectAll' -Fallback 'Select All') -Variant 'Subtle' -Compact
 		$controlsRefForSelect = $Script:Controls
 		$capturedSelectIndexes = [int[]]$AllTabIndexes
+		$hasField = {
+			param (
+				[object]$Object,
+				[string]$FieldName
+			)
+
+			if ($null -eq $Object)
+			{
+				return $false
+			}
+
+			if ($Object -is [System.Collections.IDictionary])
+			{
+				return $Object.Contains($FieldName)
+			}
+
+			return ($null -ne $Object.PSObject.Properties[$FieldName])
+		}.GetNewClosure()
 		Register-GuiEventHandler -Source $selectAllButton -EventName 'Click' -Handler ({
 			foreach ($index in $capturedSelectIndexes)
 			{
 				$control = $controlsRefForSelect[$index]
-				if ($control -and $control.IsEnabled -and (Test-GuiObjectField -Object $control -FieldName 'IsChecked'))
+				if ($control -and $control.IsEnabled -and (& $hasField -Object $control -FieldName 'IsChecked'))
 				{
 					$control.IsChecked = $true
 				}
@@ -935,11 +932,11 @@
 					& $removeExplicitSelectionDefinition -FunctionName ([string]$manifestEntry.Function)
 				}
 				$control = $controlsRefForUnselect[$index]
-				if ($control -and $control.IsEnabled -and (Test-GuiObjectField -Object $control -FieldName 'IsChecked'))
+				if ($control -and $control.IsEnabled -and (& $hasField -Object $control -FieldName 'IsChecked'))
 				{
 					$control.IsChecked = $false
 				}
-				elseif ($control -and $control.IsEnabled -and (Test-GuiObjectField -Object $control -FieldName 'SelectedIndex'))
+				elseif ($control -and $control.IsEnabled -and (& $hasField -Object $control -FieldName 'SelectedIndex'))
 				{
 					[int]$clearIndex = -1
 					$control.SelectedIndex = $clearIndex

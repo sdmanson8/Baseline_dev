@@ -2203,9 +2203,7 @@ function Set-AppGraphicsPerformance
 				$OpenFileDialog.InitialDirectory = '::{20D04FE0-3AEA-1069-A2D8-08002B30309D}'
 				$OpenFileDialog.Multiselect = $false
 
-				# Force the open-file dialog into the foreground.
-				$Focus = New-Object -TypeName System.Windows.Forms.Form -Property @{TopMost = $true}
-				$null = $OpenFileDialog.ShowDialog($Focus)
+				$null = $OpenFileDialog.ShowDialog()
 
 				if ($OpenFileDialog.FileName)
 				{
@@ -2249,5 +2247,32 @@ function AppGraphicsPerformance
 
 	return (Set-AppGraphicsPerformance -AppPath $AppPath)
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'AppGraphicsPerformance',
+    'DesktopComposition',
+    'DirectXAutoHdr',
+    'DirectXFlipModel',
+    'DirectXVrrOptimizations',
+    'FullscreenOptimizations',
+    'GameBarController',
+    'GameDVR',
+    'GamingCpuPriority',
+    'GamingGpuPriority',
+    'GamingSchedulingCategory',
+    'GPUScheduling',
+    'MouseAcceleration',
+    'MultiplaneOverlay',
+    'NaglesAlgorithm',
+    'NetworkThrottling',
+    'NvidiaSharpening',
+    'Set-AppGraphicsPerformance',
+    'SystemResponsiveness',
+    'Win32PrioritySeparation',
+    'WindowsGameMode',
+    'XboxAuthManager',
+    'XboxGameBar',
+    'XboxGameSave',
+    'XboxGameTips',
+    'XboxNetworking'
+)
+Export-ModuleMember -Function $ExportedFunctions

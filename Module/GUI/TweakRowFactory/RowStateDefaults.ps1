@@ -1,8 +1,7 @@
-# TweakRowFactory split file loaded by Module\GUI\TweakRowFactory.ps1.
+﻿# TweakRowFactory split file loaded by Module\GUI\TweakRowFactory.ps1.
 
 	<#
 	    .SYNOPSIS
-	    Internal function Ensure-PendingLinkedStateCollections.
 	#>
 
 	function Ensure-PendingLinkedStateCollections
@@ -19,7 +18,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-TweakRowVisible.
 	#>
 
 	function Test-TweakRowVisible
@@ -53,33 +51,7 @@
 			}
 		}
 
-		$availability = $null
-		if ($Tweak -is [System.Collections.IDictionary])
-		{
-			if ($Tweak.Contains('Availability')) { $availability = $Tweak['Availability'] }
-		}
-		elseif ($Tweak.PSObject -and $Tweak.PSObject.Properties['Availability'])
-		{
-			$availability = $Tweak.Availability
-		}
-
-		$hasAvailabilityFlag = $false
-		$isAvailable = $true
-		if ($availability -is [System.Collections.IDictionary])
-		{
-			if ($availability.Contains('Available'))
-			{
-				$hasAvailabilityFlag = $true
-				$isAvailable = [bool]$availability['Available']
-			}
-		}
-		elseif ($availability -and $availability.PSObject -and $availability.PSObject.Properties['Available'])
-		{
-			$hasAvailabilityFlag = $true
-			$isAvailable = [bool]$availability.Available
-		}
-
-		if ($hasAvailabilityFlag -and -not $isAvailable)
+		if ((Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue) -and -not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak))
 		{
 			$hideUnavailableItems = $true
 			try
@@ -102,7 +74,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-TweakDefaultToggleState.
 	#>
 
 	function Get-TweakDefaultToggleState
@@ -122,7 +93,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-TweakDefaultChoiceSelectedIndex.
 	#>
 
 	function Get-TweakDefaultChoiceSelectedIndex
@@ -156,7 +126,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-TweakDefaultNumericRangeValues.
 	#>
 
 	function Get-TweakDefaultNumericRangeValues
@@ -192,7 +161,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-TweakDefaultDateSelection.
 	#>
 
 	function Get-TweakDefaultDateSelection
@@ -222,7 +190,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-TweakDefaultActionState.
 	#>
 
 	function Get-TweakDefaultActionState
@@ -242,7 +209,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GameModePlanEntryForTweak.
 	#>
 
 	function Get-GameModePlanEntryForTweak
@@ -268,7 +234,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ToggleInitialCheckedState.
 	#>
 
 	function Get-ToggleInitialCheckedState
@@ -277,6 +242,11 @@
 			[int]$Index,
 			[object]$Tweak
 		)
+
+		if ((Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue) -and -not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak))
+		{
+			return $false
+		}
 
 		$planMatch = Get-GameModePlanEntryForTweak -Tweak $Tweak
 		if ($planMatch)
@@ -304,7 +274,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ActionInitialCheckedState.
 	#>
 
 	function Get-ActionInitialCheckedState
@@ -313,6 +282,11 @@
 			[int]$Index,
 			[object]$Tweak
 		)
+
+		if ((Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue) -and -not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak))
+		{
+			return $false
+		}
 
 		$planMatch = Get-GameModePlanEntryForTweak -Tweak $Tweak
 		if ($planMatch)
@@ -337,7 +311,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-ChoiceInitialSelectedIndex.
 	#>
 
 	function Get-ChoiceInitialSelectedIndex
@@ -348,6 +321,11 @@
 			[object[]]$ChoiceOptions = @(),
 			[object]$RowContext = $null
 		)
+
+		if ((Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue) -and -not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak))
+		{
+			return -1
+		}
 
 		if ($RowContext -and (Test-GuiObjectField -Object $RowContext -FieldName 'GetExplicitSelectionDefinition') -and $RowContext.GetExplicitSelectionDefinition)
 		{
@@ -373,7 +351,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-NumericRangeInitialCheckedState.
 	#>
 
 	function Get-NumericRangeInitialCheckedState
@@ -383,6 +360,11 @@
 			[object]$Tweak,
 			[object]$RowContext = $null
 		)
+
+		if ((Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue) -and -not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak))
+		{
+			return $false
+		}
 
 		$planMatch = Get-GameModePlanEntryForTweak -Tweak $Tweak
 		if ($planMatch)
@@ -414,7 +396,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-NumericRangeInitialValue.
 	#>
 
 	function Get-NumericRangeInitialValue
@@ -481,7 +462,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function ConvertTo-GuiDateTimeValue.
 	#>
 
 	function ConvertTo-GuiDateTimeValue
@@ -515,7 +495,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-DateInitialRunState.
 	#>
 
 	function Get-DateInitialRunState
@@ -524,6 +503,11 @@
 			[int]$Index,
 			[object]$Tweak
 		)
+
+		if ((Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue) -and -not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak))
+		{
+			return $false
+		}
 
 		$planMatch = Get-GameModePlanEntryForTweak -Tweak $Tweak
 		if ($planMatch)
@@ -571,7 +555,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-DateInitialSelectedDate.
 	#>
 
 	function Get-DateInitialSelectedDate
@@ -651,7 +634,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Apply-PendingLinkedToggleState.
 	#>
 
 	function Apply-PendingLinkedToggleState

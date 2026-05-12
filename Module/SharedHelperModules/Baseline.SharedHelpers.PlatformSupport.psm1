@@ -24,6 +24,8 @@ $ExportedFunctions = @(
     'Get-BaselineSystemPlatformInfo'
     'Get-BaselinePlatformFilterOverride'
     'ConvertTo-BaselinePlatformLabel'
+    'Set-BaselineDefenderExecutionAvailability'
+    'Reset-BaselineDefenderExecutionAvailability'
     'Test-BaselineEntryAvailable'
     'Test-BaselineEntrySupportsExecution'
     'Get-BaselineEntryAvailabilitySummary'

@@ -1,6 +1,11 @@
 ﻿Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '../..')
 
     . (Join-Path $repoRoot 'Module/SharedHelpers/ConfigReview.Helpers.ps1')
@@ -18,7 +23,7 @@ BeforeAll {
     }
 
     . (Join-Path $repoRoot 'Module/GUI/ReviewMode.ps1')
-    $script:ReviewModeContent = Get-Content -LiteralPath (Join-Path $repoRoot 'Module/GUI/ReviewMode.ps1') -Raw -Encoding UTF8
+    $script:ReviewModeContent = Get-BaselineTestSourceText -Path (Join-Path $repoRoot 'Module/GUI/ReviewMode.ps1')
 
     $Script:FixturesRoot = Join-Path $repoRoot 'Tests/Fixtures/ConfigReview'
 
@@ -81,6 +86,11 @@ Describe 'Show-GuiReviewModeDialog (headless)' {
 
 Describe 'Compare-Resolve fixture round-trip' {
     BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
         $Script:Current  = LoadFixture -Name 'current-profile.json'
         $Script:Imported = LoadFixture -Name 'imported-profile.json'
         $Script:Expected = LoadFixture -Name 'expected-diff.json'
@@ -126,6 +136,11 @@ Describe 'Compare-Resolve fixture round-trip' {
 
 Describe 'Invoke-GuiReviewModeGate (headless)' {
     BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
         $Script:GateCurrent  = LoadFixture -Name 'current-profile.json'
         $Script:GateImported = LoadFixture -Name 'imported-profile.json'
     }
@@ -164,6 +179,11 @@ Describe 'Invoke-GuiReviewModeGate (headless)' {
 
 Describe 'Invoke-GuiReviewModePromptForRun' {
     BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
         $Script:RunCurrent  = LoadFixture -Name 'current-profile.json'
         $Script:RunImported = LoadFixture -Name 'imported-profile.json'
     }

@@ -8,8 +8,8 @@ BeforeAll {
     $script:DialogHelpersPath = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers.ps1'
     $script:DialogHelpersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers'
     $script:MainWindowPath = Join-Path $PSScriptRoot '../../Module/GUI/MainWindow.xaml'
-    $script:GuiContent = Get-Content -LiteralPath $script:SessionStatePath -Raw -Encoding UTF8
-    $script:AuditViewContent = Get-Content -LiteralPath $script:AuditViewPath -Raw -Encoding UTF8
+    $script:GuiContent = Get-BaselineTestSourceText -Path $script:SessionStatePath
+    $script:AuditViewContent = Get-BaselineTestSourceText -Path $script:AuditViewPath
     $script:DialogHelpersContent = Get-BaselineTestSourceText -Path @(
         $script:DialogHelpersPath
         (Join-Path $script:DialogHelpersSplitRoot 'DialogThemeHelpers.ps1')
@@ -18,12 +18,12 @@ BeforeAll {
         (Join-Path $script:DialogHelpersSplitRoot 'ContentDialogs.ps1')
         (Join-Path $script:DialogHelpersSplitRoot 'AuditOperatorDialogs.ps1')
     )
-    $script:MainWindowContent = Get-Content -LiteralPath $script:MainWindowPath -Raw -Encoding UTF8
+    $script:MainWindowContent = Get-BaselineTestSourceText -Path $script:MainWindowPath
 }
 
 Describe 'Audit retention settings' {
     It 'persists the retention window in GUI settings snapshots' {
-        $script:GuiContent | Should -Match 'SchemaVersion = 16'
+        $script:GuiContent | Should -Match 'SchemaVersion = 18'
         $script:GuiContent | Should -Match 'AuditRetentionDays'
         $script:GuiContent | Should -Match '\$Script:AuditRetentionDays = \[int\]\$desiredAuditRetentionDays'
         $script:GuiContent | Should -Match '\$Script:Ctx.UI.AuditRetentionDays = \[int\]\$desiredAuditRetentionDays'

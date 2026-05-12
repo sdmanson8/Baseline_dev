@@ -651,5 +651,12 @@ function StandbyFix
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'AdobeNetworkBlock',
+    'BraveDebloat',
+    'CrossDeviceResume',
+    'ExplorerAutoDiscovery',
+    'PerformanceTuning',
+    'StandbyFix'
+)
+Export-ModuleMember -Function $ExportedFunctions

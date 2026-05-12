@@ -1,8 +1,7 @@
-# TweakRowFactory split file loaded by Module\GUI\TweakRowFactory.ps1.
+﻿# TweakRowFactory split file loaded by Module\GUI\TweakRowFactory.ps1.
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-TweakRowCard.
 	#>
 
 	function New-TweakRowCard
@@ -41,7 +40,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-TweakNamePanel.
 	#>
 
 	function New-TweakNamePanel
@@ -49,7 +47,7 @@
 		param (
 			[object]$Tweak,
 			[object]$BrushConverter,
-			[double]$FontSize = (GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSubheading' -Default 12),
+			[double]$FontSize = (GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeSubheading' -Default 12),
 			[double]$LineHeight = 17,
 			[switch]$UseWrapPanel
 		)
@@ -122,7 +120,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-TweakHeaderBadgesPanel.
 	#>
 
 	function New-TweakHeaderBadgesPanel
@@ -202,7 +199,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Invoke-TweakRowResetToDefaults.
 	#>
 
 	function Invoke-TweakRowResetToDefaults
@@ -247,7 +243,7 @@
 					}
 					if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'Card') -and $StateControl.Card)
 					{
-						try { $StateControl.Card.Opacity = if ($defaultChecked) { 1.0 } else { 0.7 } } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Update-TweakRowState.CardOpacity' }
+						try { $StateControl.Card.Opacity = if ($defaultChecked) { 1.0 } else { 0.7 } } catch { Write-SwallowedException -ErrorRecord $_ -Source 'TweakRowFactory.Update-TweakRowState.CardOpacity' }
 					}
 					& $RowContext.RemoveExplicitSelectionDefinition -FunctionName ([string]$Tweak.Function)
 				}
@@ -389,7 +385,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-TweakResetButton.
 	#>
 
 	function New-TweakResetButton
@@ -417,7 +412,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Register-GuiDateSelectionHandlers.
 	#>
 
 	function Register-GuiDateSelectionHandlers
@@ -437,10 +431,29 @@
 		}
 
 		$dateParamName = if ([string]::IsNullOrWhiteSpace([string]$DateParam)) { 'StartDate' } else { [string]$DateParam }
+		$hasField = {
+			param (
+				[object]$Object,
+				[string]$FieldName
+			)
+
+			if ($null -eq $Object)
+			{
+				return $false
+			}
+
+			if ($Object -is [System.Collections.IDictionary])
+			{
+				return $Object.Contains($FieldName)
+			}
+
+			return ($null -ne $Object.PSObject.Properties[$FieldName])
+		}.GetNewClosure()
+
 		$syncSelectionState = {
 			param([bool]$IsChecked)
 
-			if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
+			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 			{
 				return
 			}
@@ -474,7 +487,7 @@
 				Run = [bool]$IsChecked
 				DateParam = $dateParamName
 				Value = $selectedDateValue
-				Source = if ($currentExplicitDefinition -and (Test-GuiObjectField -Object $currentExplicitDefinition -FieldName 'Source')) { [string]$currentExplicitDefinition.Source } else { 'Preset' }
+				Source = if ($currentExplicitDefinition -and (& $hasField -Object $currentExplicitDefinition -FieldName 'Source')) { [string]$currentExplicitDefinition.Source } else { 'Preset' }
 			}
 			& $RowContext.SetExplicitSelectionDefinition -FunctionName $FunctionName -Definition ([pscustomobject]$definition)
 
@@ -485,7 +498,7 @@
 		}.GetNewClosure()
 
 		$null = Register-GuiEventHandler -Source $CheckBox -EventName 'Checked' -Handler ({
-			if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
+			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 			{
 				return
 			}
@@ -501,7 +514,7 @@
 		}.GetNewClosure())
 
 		$null = Register-GuiEventHandler -Source $CheckBox -EventName 'Unchecked' -Handler ({
-			if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
+			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 			{
 				return
 			}
@@ -511,7 +524,7 @@
 		}.GetNewClosure())
 
 		$null = Register-GuiEventHandler -Source $DatePicker -EventName 'SelectedDateChanged' -Handler ({
-			if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
+			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 			{
 				return
 			}
@@ -542,7 +555,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Finalize-DateRow.
 	#>
 
 	function Finalize-DateRow
@@ -570,7 +582,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-DateTweakRow.
 	#>
 
 	function New-DateTweakRow
@@ -588,6 +599,7 @@
 
 		$checkBox = New-ToggleLikeCheckBox -Index $Index -InitialChecked (Get-DateInitialRunState -Index $Index -Tweak $Tweak) -BrushConverter $RowContext.BrushConverter -FontSize $RowContext.LabelFontSize
 		Apply-PendingLinkedToggleState -CheckBox $checkBox -FunctionName ([string]$Tweak.Function)
+		Disable-GuiUnavailableTweakControl -Tweak $Tweak -Control $checkBox
 		$stateControl = [pscustomobject]@{
 			Type = 'Date'
 			IsChecked = [bool]$checkBox.IsChecked
@@ -644,6 +656,7 @@
 		$stateControl.DatePicker = $datePicker
 		$stateControl.SelectedDate = $datePicker.SelectedDate
 		$stateControl.IsChecked = [bool]$checkBox.IsChecked
+		Disable-GuiUnavailableTweakControl -Tweak $Tweak -Control $stateControl
 
 		Register-GuiDateSelectionHandlers -CheckBox $checkBox -DatePicker $datePicker -FunctionName ([string]$Tweak.Function) -DateParam $(if ((Test-GuiObjectField -Object $Tweak -FieldName 'DateParam')) { [string]$Tweak.DateParam } else { 'StartDate' }) -RowContext $RowContext -StateControl $stateControl
 		return Finalize-DateRow -Card $card -ChildContent $leftStack -CheckBox $checkBox -DatePicker $datePicker -StateControl $stateControl -Tweak $Tweak -Index $Index -RowContext $RowContext
@@ -651,7 +664,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ToggleLikeCheckBox.
 	#>
 
 	function New-ToggleLikeCheckBox
@@ -660,7 +672,7 @@
 			[int]$Index,
 			[bool]$InitialChecked,
 			[object]$BrushConverter,
-			[double]$FontSize = (GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11)
+			[double]$FontSize = (GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11)
 		)
 
 		$checkBox = New-Object System.Windows.Controls.CheckBox
@@ -675,7 +687,80 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ToggleLikeHeaderGrid.
+	#>
+
+	function Disable-GuiUnavailableTweakControl
+	{
+		param (
+			[object]$Tweak,
+			[object]$Control
+		)
+
+		if (-not $Control) { return }
+		if (-not (Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue)) { return }
+		if (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak) { return }
+
+		if ((Test-GuiObjectField -Object $Control -FieldName 'IsRestoring'))
+		{
+			$Control.IsRestoring = $true
+		}
+		try
+		{
+			if ((Test-GuiObjectField -Object $Control -FieldName 'IsChecked'))
+			{
+				$Control.IsChecked = $false
+			}
+			if ((Test-GuiObjectField -Object $Control -FieldName 'IsEnabled'))
+			{
+				$Control.IsEnabled = $false
+			}
+			if ((Test-GuiObjectField -Object $Control -FieldName 'SelectedIndex'))
+			{
+				$Control.SelectedIndex = [int]-1
+			}
+			if ((Test-GuiObjectField -Object $Control -FieldName 'SelectedDate'))
+			{
+				$Control.SelectedDate = $null
+			}
+			foreach ($childField in @('CheckBox', 'ComboBox', 'DatePicker', 'ACSlider', 'DCSlider'))
+			{
+				if ((Test-GuiObjectField -Object $Control -FieldName $childField) -and $Control.$childField)
+				{
+					if ((Test-GuiObjectField -Object $Control.$childField -FieldName 'IsChecked'))
+					{
+						$Control.$childField.IsChecked = $false
+					}
+					if ((Test-GuiObjectField -Object $Control.$childField -FieldName 'SelectedIndex'))
+					{
+						$Control.$childField.SelectedIndex = [int]-1
+					}
+					if ((Test-GuiObjectField -Object $Control.$childField -FieldName 'SelectedDate'))
+					{
+						$Control.$childField.SelectedDate = $null
+					}
+					if ((Test-GuiObjectField -Object $Control.$childField -FieldName 'IsEnabled'))
+					{
+						$Control.$childField.IsEnabled = $false
+					}
+				}
+			}
+		}
+		finally
+		{
+			if ((Test-GuiObjectField -Object $Control -FieldName 'IsRestoring'))
+			{
+				$Control.IsRestoring = $false
+			}
+		}
+
+		if (Get-Command -Name 'Remove-GuiExplicitSelectionDefinition' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Remove-GuiExplicitSelectionDefinition -FunctionName ([string]$Tweak.Function)
+		}
+	}
+
+	<#
+	    .SYNOPSIS
 	#>
 
 	function New-ToggleLikeHeaderGrid
@@ -727,7 +812,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ChoiceHeaderGrid.
 	#>
 
 	function New-ChoiceHeaderGrid
@@ -754,7 +838,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ToggleStatusRow.
 	#>
 
 	function New-ToggleStatusRow
@@ -850,7 +933,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Register-ToggleStatusHandlers.
 	#>
 
 	function Register-ToggleStatusHandlers
@@ -887,7 +969,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Register-GuiLinkedToggleHandlers.
 	#>
 
 	function Register-GuiLinkedToggleHandlers
@@ -913,7 +994,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Register-GuiToggleExplicitSelectionHandlers.
 	#>
 
 	function Register-GuiToggleExplicitSelectionHandlers
@@ -925,8 +1005,27 @@
 			[object]$StateControl = $null
 		)
 
+		$hasField = {
+			param (
+				[object]$Object,
+				[string]$FieldName
+			)
+
+			if ($null -eq $Object)
+			{
+				return $false
+			}
+
+			if ($Object -is [System.Collections.IDictionary])
+			{
+				return $Object.Contains($FieldName)
+			}
+
+			return ($null -ne $Object.PSObject.Properties[$FieldName])
+		}.GetNewClosure()
+
 		$null = Register-GuiEventHandler -Source $CheckBox -EventName 'Checked' -Handler ({
-			if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
+			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 			{
 				return
 			}
@@ -937,7 +1036,7 @@
 					Function = $FunctionName
 					Type = 'Toggle'
 					State = 'On'
-					Source = if ((Test-GuiObjectField -Object $currentExplicitDefinition -FieldName 'Source')) { [string]$currentExplicitDefinition.Source } else { 'Preset' }
+					Source = if ((& $hasField -Object $currentExplicitDefinition -FieldName 'Source')) { [string]$currentExplicitDefinition.Source } else { 'Preset' }
 				})
 			}
 			if ($RowContext.SyncGameModePlanFromControlsScript)
@@ -946,7 +1045,7 @@
 			}
 		}.GetNewClosure())
 		$null = Register-GuiEventHandler -Source $CheckBox -EventName 'Unchecked' -Handler ({
-			if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
+			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 			{
 				return
 			}
@@ -957,7 +1056,7 @@
 					Function = $FunctionName
 					Type = 'Toggle'
 					State = 'Off'
-					Source = if ((Test-GuiObjectField -Object $currentExplicitDefinition -FieldName 'Source')) { [string]$currentExplicitDefinition.Source } else { 'Preset' }
+					Source = if ((& $hasField -Object $currentExplicitDefinition -FieldName 'Source')) { [string]$currentExplicitDefinition.Source } else { 'Preset' }
 				})
 			}
 			else
@@ -973,7 +1072,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Register-GuiActionSelectionHandlers.
 	#>
 
 	function Get-GuiActionPickerField
@@ -1233,7 +1331,7 @@
 			Value = [string]$SelectedPath
 			Selection = [string]$SelectedPath
 			ExtraArgs = $extraArgs
-			Source = if ($CurrentExplicitDefinition -and (Test-GuiObjectField -Object $CurrentExplicitDefinition -FieldName 'Source')) { [string]$CurrentExplicitDefinition.Source } else { 'Preset' }
+			Source = if ($CurrentExplicitDefinition -and (Test-GuiObjectField -Object $CurrentExplicitDefinition -FieldName 'Source')) { [string]$CurrentExplicitDefinition.Source } else { 'Manual' }
 		})
 
 		if ($RowContext.SyncGameModePlanFromControlsScript)
@@ -1322,7 +1420,7 @@
 		$selectionText = New-Object System.Windows.Controls.TextBlock
 		$selectionText.VerticalAlignment = 'Center'
 		$selectionText.TextWrapping = 'Wrap'
-		$selectionText.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
+		$selectionText.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeSmall' -Default 10
 		$selectionText.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextSecondary)
 		[System.Windows.Controls.Grid]::SetColumn($selectionText, 1)
 
@@ -1347,8 +1445,27 @@
 			[object]$ActionPickerButton = $null
 		)
 
+		$hasField = {
+			param (
+				[object]$Object,
+				[string]$FieldName
+			)
+
+			if ($null -eq $Object)
+			{
+				return $false
+			}
+
+			if ($Object -is [System.Collections.IDictionary])
+			{
+				return $Object.Contains($FieldName)
+			}
+
+			return ($null -ne $Object.PSObject.Properties[$FieldName])
+		}.GetNewClosure()
+
 		$null = Register-GuiEventHandler -Source $CheckBox -EventName 'Checked' -Handler ({
-			if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
+			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 			{
 				return
 			}
@@ -1374,21 +1491,28 @@
 			}
 			if ($currentExplicitDefinition -and [string]$currentExplicitDefinition.Type -eq 'Action')
 			{
-				& $RowContext.SetExplicitSelectionDefinition -FunctionName $FunctionName -Definition ([pscustomobject]@{
-					Function = $FunctionName
-					Type = 'Action'
-					Run = $true
-					ExtraArgs = if ((Test-GuiObjectField -Object $currentExplicitDefinition -FieldName 'ExtraArgs')) { $currentExplicitDefinition.ExtraArgs } else { $null }
-					Source = if ((Test-GuiObjectField -Object $currentExplicitDefinition -FieldName 'Source')) { [string]$currentExplicitDefinition.Source } else { 'Preset' }
-				})
+				$selectionSource = if ((& $hasField -Object $currentExplicitDefinition -FieldName 'Source') -and -not [string]::IsNullOrWhiteSpace([string]$currentExplicitDefinition.Source)) { [string]$currentExplicitDefinition.Source } else { 'Manual' }
+				$selectionExtraArgs = if ((& $hasField -Object $currentExplicitDefinition -FieldName 'ExtraArgs')) { $currentExplicitDefinition.ExtraArgs } else { $null }
 			}
+			else
+			{
+				$selectionSource = 'Manual'
+				$selectionExtraArgs = $null
+			}
+			& $RowContext.SetExplicitSelectionDefinition -FunctionName $FunctionName -Definition ([pscustomobject]@{
+				Function = $FunctionName
+				Type = 'Action'
+				Run = $true
+				ExtraArgs = $selectionExtraArgs
+				Source = $selectionSource
+			})
 			if ($RowContext.SyncGameModePlanFromControlsScript)
 			{
 				& $RowContext.SyncGameModePlanFromControlsScript
 			}
 		}.GetNewClosure())
 		$null = Register-GuiEventHandler -Source $CheckBox -EventName 'Unchecked' -Handler ({
-			if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
+			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 			{
 				return
 			}
@@ -1407,7 +1531,7 @@
 		if ($ActionPicker -and $ActionPickerButton)
 		{
 			$null = Register-GuiEventHandler -Source $ActionPickerButton -EventName 'Click' -Handler ({
-				if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
+				if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 				{
 					return
 				}
@@ -1424,7 +1548,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Register-GuiChoiceSelectionHandler.
 	#>
 
 	function Register-GuiChoiceSelectionHandler
@@ -1437,22 +1560,41 @@
 			[object]$StateControl = $null
 		)
 
+		$hasField = {
+			param (
+				[object]$Object,
+				[string]$FieldName
+			)
+
+			if ($null -eq $Object)
+			{
+				return $false
+			}
+
+			if ($Object -is [System.Collections.IDictionary])
+			{
+				return $Object.Contains($FieldName)
+			}
+
+			return ($null -ne $Object.PSObject.Properties[$FieldName])
+		}.GetNewClosure()
+
 		$comboRef = $ComboBox
 		$null = Register-GuiEventHandler -Source $ComboBox -EventName 'SelectionChanged' -Handler ({
-			if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
+			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 			{
 				return
 			}
 			$currentExplicitDefinition = & $RowContext.GetExplicitSelectionDefinition -FunctionName $FunctionName
 			if ($comboRef.SelectedIndex -ge 0)
 			{
-				if ($currentExplicitDefinition -and [string]$currentExplicitDefinition.Type -eq 'Choice' -and $comboRef.SelectedIndex -lt $ChoiceOptions.Count)
+				if ($comboRef.SelectedIndex -lt $ChoiceOptions.Count)
 				{
 					& $RowContext.SetExplicitSelectionDefinition -FunctionName $FunctionName -Definition ([pscustomobject]@{
 						Function = $FunctionName
 						Type = 'Choice'
 						Value = [string]$ChoiceOptions[$comboRef.SelectedIndex]
-						Source = if ((Test-GuiObjectField -Object $currentExplicitDefinition -FieldName 'Source')) { [string]$currentExplicitDefinition.Source } else { 'Preset' }
+						Source = if ($currentExplicitDefinition -and (& $hasField -Object $currentExplicitDefinition -FieldName 'Source') -and -not [string]::IsNullOrWhiteSpace([string]$currentExplicitDefinition.Source)) { [string]$currentExplicitDefinition.Source } else { 'Manual' }
 					})
 				}
 			}
@@ -1469,7 +1611,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Register-GuiNumericRangeSelectionHandlers.
 	#>
 
 	function Register-GuiNumericRangeSelectionHandlers
@@ -1505,10 +1646,29 @@
 			return [string]$resolvedText
 		}.GetNewClosure()
 
+		$hasField = {
+			param (
+				[object]$Object,
+				[string]$FieldName
+			)
+
+			if ($null -eq $Object)
+			{
+				return $false
+			}
+
+			if ($Object -is [System.Collections.IDictionary])
+			{
+				return $Object.Contains($FieldName)
+			}
+
+			return ($null -ne $Object.PSObject.Properties[$FieldName])
+		}.GetNewClosure()
+
 		$syncSelectionState = {
 			param([bool]$IsChecked)
 
-			if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
+			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 			{
 				return
 			}
@@ -1560,7 +1720,7 @@
 				ACValue = $acValue
 				DCValue = $dcValue
 				Units = $Units
-				Source = if ($currentExplicitDefinition -and (Test-GuiObjectField -Object $currentExplicitDefinition -FieldName 'Source')) { [string]$currentExplicitDefinition.Source } else { 'Preset' }
+				Source = if ($currentExplicitDefinition -and (& $hasField -Object $currentExplicitDefinition -FieldName 'Source')) { [string]$currentExplicitDefinition.Source } else { 'Preset' }
 			}
 			& $RowContext.SetExplicitSelectionDefinition -FunctionName $FunctionName -Definition ([pscustomobject]$definition)
 
@@ -1571,7 +1731,7 @@
 		}.GetNewClosure()
 
 		$null = Register-GuiEventHandler -Source $CheckBox -EventName 'Checked' -Handler ({
-			if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
+			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 			{
 				return
 			}
@@ -1582,7 +1742,7 @@
 		}.GetNewClosure())
 
 		$null = Register-GuiEventHandler -Source $CheckBox -EventName 'Unchecked' -Handler ({
-			if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
+			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 			{
 				return
 			}
@@ -1593,7 +1753,7 @@
 		}.GetNewClosure())
 
 		$null = Register-GuiEventHandler -Source $AcSlider -EventName 'ValueChanged' -Handler ({
-			if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
+			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 			{
 				return
 			}
@@ -1607,7 +1767,7 @@
 		}.GetNewClosure())
 
 		$null = Register-GuiEventHandler -Source $DcSlider -EventName 'ValueChanged' -Handler ({
-			if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
+			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 			{
 				return
 			}
@@ -1623,7 +1783,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Finalize-ToggleLikeRow.
 	#>
 
 	function Finalize-ToggleLikeRow
@@ -1653,7 +1812,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Finalize-NumericRangeRow.
 	#>
 
 	function Finalize-NumericRangeRow
@@ -1682,7 +1840,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ToggleTweakRow.
 	#>
 
 	function New-ToggleTweakRow
@@ -1700,6 +1857,7 @@
 
 		$checkBox = New-ToggleLikeCheckBox -Index $Index -InitialChecked (Get-ToggleInitialCheckedState -Index $Index -Tweak $Tweak) -BrushConverter $RowContext.BrushConverter -FontSize $RowContext.LabelFontSize
 		Apply-PendingLinkedToggleState -CheckBox $checkBox -FunctionName ([string]$Tweak.Function)
+		Disable-GuiUnavailableTweakControl -Tweak $Tweak -Control $checkBox
 
 		$statusContext = New-ToggleStatusRow -Tweak $Tweak -CheckBox $checkBox -RowContext $RowContext
 		$stateControl = [pscustomobject]@{
@@ -1728,7 +1886,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ChoiceTweakRow.
 	#>
 
 	function New-ChoiceTweakRow
@@ -1771,6 +1928,7 @@
 		if ($selectedIndex -lt -1) { $selectedIndex = -1 }
 		if ($selectedIndex -ge $combo.Items.Count) { $selectedIndex = -1 }
 		$combo.SelectedIndex = [int]$selectedIndex
+		Disable-GuiUnavailableTweakControl -Tweak $Tweak -Control $combo
 
 		$stateControl = [pscustomobject]@{
 			Type = 'Choice'
@@ -1796,7 +1954,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-NumericRangeTweakRow.
 	#>
 
 	function New-NumericRangeTweakRow
@@ -1817,6 +1974,7 @@
 
 		$checkBox = New-ToggleLikeCheckBox -Index $Index -InitialChecked (Get-NumericRangeInitialCheckedState -Index $Index -Tweak $Tweak -RowContext $RowContext) -BrushConverter $RowContext.BrushConverter -FontSize $RowContext.LabelFontSize
 		Apply-PendingLinkedToggleState -CheckBox $checkBox -FunctionName ([string]$Tweak.Function)
+		Disable-GuiUnavailableTweakControl -Tweak $Tweak -Control $checkBox
 
 		$summaryText = New-Object System.Windows.Controls.TextBlock
 		$summaryText.TextWrapping = [System.Windows.TextWrapping]::Wrap
@@ -1923,6 +2081,7 @@
 			Card = $card
 			IsRestoring = $false
 		}
+		Disable-GuiUnavailableTweakControl -Tweak $Tweak -Control $stateControl
 		[void]($leftStack.Children.Add((New-ToggleLikeHeaderGrid -CheckBox $checkBox -Tweak $Tweak -RowContext $RowContext)))
 		[void]($leftStack.Children.Add($channelGrid))
 		Add-TweakMetadataDetails -Container $leftStack -Tweak $Tweak -RowContext $RowContext -DescriptionText $(if ($Tweak.Description) { if ($Tweak.DescriptionKey) { Get-UxString -Key $Tweak.DescriptionKey -Fallback $Tweak.Description } else { $Tweak.Description } } else { Get-UxString -Key 'GuiNumericRangeDefaultDescription' -Fallback 'Adjusts a numeric power value for the selected power scheme.' }) -DescriptionColor $Script:CurrentTheme.TextSecondary -DescriptionMargin $Script:T.DescIndent -MetadataMargin $Script:T.MetaIndent -BlastMargin $Script:T.BlastIndent
@@ -1938,7 +2097,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ActionTweakRow.
 	#>
 
 	function New-ActionTweakRow
@@ -1952,6 +2110,7 @@
 		$card = New-TweakRowCard -BrushConverter $RowContext.BrushConverter -Margin $RowContext.RowCardMargin -Padding $RowContext.RowCardPadding -Tweak $Tweak
 		$checkBox = New-ToggleLikeCheckBox -Index $Index -InitialChecked (Get-ActionInitialCheckedState -Index $Index -Tweak $Tweak) -BrushConverter $RowContext.BrushConverter -FontSize $RowContext.LabelFontSize
 		Apply-PendingLinkedToggleState -CheckBox $checkBox -FunctionName ([string]$Tweak.Function)
+		Disable-GuiUnavailableTweakControl -Tweak $Tweak -Control $checkBox
 		$actionPicker = Get-GuiActionPickerConfig -Tweak $Tweak
 		$initialSelectedPath = $null
 		if ($actionPicker)
@@ -1986,6 +2145,7 @@
 			PickerSelectionText = $null
 			IsRestoring = $false
 		}
+		Disable-GuiUnavailableTweakControl -Tweak $Tweak -Control $stateControl
 		try
 		{
 			[void]($nameRowWithDescription.Children.Add((New-ToggleLikeHeaderGrid -CheckBox $checkBox -Tweak $Tweak -RowContext $RowContext)))

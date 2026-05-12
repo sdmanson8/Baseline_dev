@@ -261,7 +261,7 @@ Applies the Baseline behavior for toggle Hybrid Sleep (combines sleep + hibernat
 	Driven by powercfg subgroup SUB_SLEEP / setting HYBRIDSLEEP. See
 	the power optimizations implementation for this setting.
 	Hardware that does not support hybrid sleep will return a non-zero
-	exit code from powercfg â€” the function logs and continues rather
+	exit code from powercfg -- the function logs and continues rather
 	than throwing because the surface is documented as best-effort.
 #>
 function HybridSleep
@@ -1264,11 +1264,7 @@ function MultimediaVideoPlaybackQualityBias
     .SYNOPSIS
     Sets power scheme setting visibility.
 
-    
-.DESCRIPTION
-    
-Supports power scheme setting visibility handling inside Baseline.
-#>
+    #>
 
 function Set-PowerSchemeSettingVisibility
 {
@@ -1291,11 +1287,7 @@ function Set-PowerSchemeSettingVisibility
     .SYNOPSIS
     Sets power scheme numeric range setting.
 
-    
-.DESCRIPTION
-    
-Supports power scheme numeric range setting handling inside Baseline.
-#>
+    #>
 
 function Set-PowerSchemeNumericRangeSetting
 {
@@ -1385,11 +1377,7 @@ function Set-PowerSchemeNumericRangeSetting
     .SYNOPSIS
     Sets power scheme choice setting.
 
-    
-.DESCRIPTION
-    
-Supports power scheme choice setting handling inside Baseline.
-#>
+    #>
 
 function Set-PowerSchemeChoiceSetting
 {

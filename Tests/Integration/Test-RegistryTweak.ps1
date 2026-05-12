@@ -73,7 +73,6 @@ $failed = 0
 
 <#
     .SYNOPSIS
-    Internal function Write-TestResult.
 #>
 
 function Write-TestResult

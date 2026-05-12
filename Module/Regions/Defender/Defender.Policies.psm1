@@ -769,5 +769,14 @@ function WindowsScriptHost
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'EventViewerCustomView',
+    'PowerShellModulesLogging',
+    'PowerShellScriptsLogging',
+    'PUAppsDetection',
+    'SaveZoneInformation',
+    'SharingMappedDrives',
+    'WindowsSandbox',
+    'WindowsScriptHost'
+)
+Export-ModuleMember -Function $ExportedFunctions

@@ -1,4 +1,4 @@
-﻿using module ..\Logging.psm1
+using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 # Load System region submodules during module import.
@@ -7,7 +7,7 @@ if (Test-Path $systemSubModuleRoot)
 {
     foreach ($subModule in (Get-ChildItem -Path $systemSubModuleRoot -Filter '*.psm1' -File))
     {
-        Import-Module $subModule.FullName -Force -Global
+        Import-Module $subModule.FullName -Force -Global -DisableNameChecking -WarningAction SilentlyContinue
     }
 }
 
@@ -832,7 +832,7 @@ function LatestInstalledNET
 		}
 		"Disable"
 		{
-			# Write-Host: intentional â€” user-visible progress indicator
+			# Write-Host: intentional -- user-visible progress indicator
 			Write-Host "Disabling the use of the latest installed .NET runtime for all apps -" -NoNewline
 			LogInfo "Disabling the use of the latest installed .NET runtime for all apps"
 			Remove-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework -Name OnlyUseLatestCLR -Force -ErrorAction Ignore | Out-Null
@@ -1299,11 +1299,7 @@ function RegistryBackup
     .SYNOPSIS
     Runs sticky shift.
 
-    
-.DESCRIPTION
-    
-Supports sticky shift handling inside Baseline.
-#>
+    #>
 
 function StickyShift
 {
@@ -1615,6 +1611,26 @@ function Win32LongPathLimit
 		}
 	}
 }
-
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'AdminApprovalMode',
+    'AdvancedStartupShortcut',
+    'AppsSilentInstalling',
+    'Autoplay',
+    'BSoDStopError',
+    'CapsLock',
+    'DefaultTerminalApp',
+    'F1HelpPage',
+    'InputMethod',
+    'LatestInstalled.NET',
+    'LatestInstalledNET',
+    'NewAppPrompt',
+    'NumLock',
+    'PreventEdgeShortcutCreation',
+    'QoS',
+    'RegistryBackup',
+    'StickyShift',
+    'StorageSense',
+    'VerboseStatus',
+    'Win32LongPathLimit'
+)
+Export-ModuleMember -Function $ExportedFunctions

@@ -1,23 +1,24 @@
-<#
+﻿<#
     .SYNOPSIS
     Download and install Baseline from GitHub.
 
     .DESCRIPTION
-    This script is designed to be hosted at a raw GitHub URL and executed with
-    a one-liner such as:
+    This script is designed to be hosted at a raw GitHub URL, downloaded to a
+    local file, inspected if desired, and executed as a script file:
 
-        iwr https://raw.githubusercontent.com/sdmanson8/Baseline/main/Bootstrap/Bootstrap.ps1 -UseBasicParsing | iex
+        Invoke-WebRequest -Uri https://raw.githubusercontent.com/sdmanson8/Baseline/main/Bootstrap/Bootstrap.ps1 -OutFile "$env:TEMP\Baseline.Bootstrap.ps1" -UseBasicParsing
+        powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\Baseline.Bootstrap.ps1"
 
     It queries the GitHub Releases API for the latest non-draft release,
-    downloads the release asset zip, verifies it, extracts it to a folder under the user's
-    Downloads directory, and then runs Bootstrap.Install.ps1 from inside the
-    verified archive. The packaged installer script locates and verifies
-    Baseline-setup-<version>.exe before running it. When BASELINE_PRESET is
+    downloads the release zip, verifies it, extracts it to a folder under the
+    user's Downloads directory, and then runs Bootstrap.Install.ps1 from inside
+    the verified archive. The packaged installer script locates and verifies
+    Baseline-setup-<version>-<channel>.exe before running it. When BASELINE_PRESET is
     set or -Preset is supplied, the preset is forwarded to the installed launcher.
 
     .NOTES
-    SECURITY: This bootstrap is still distributed via pipe-to-IEX, so the
-    bootstrap script itself is not signature-validated or hash-pinned.
+    SECURITY: Do not execute remote bootstrap content directly from a pipeline.
+    This bootstrap script itself is not signature-validated or hash-pinned.
     Release payload integrity is enforced by downloading the companion
     <release-zip>.sha256.json manifest from the GitHub Release and verifying
     SHA-256 for both the zip and the extracted setup executable before launch.
@@ -31,6 +32,8 @@ param(
     [string]$Owner = 'sdmanson8',
     [string]$Repository = 'Baseline',
     [string]$Preset,
+    [ValidateSet('stable', 'beta')]
+    [string]$ReleaseChannel,
     [string]$CacheRoot = (Join-Path (Join-Path ([System.Environment]::GetFolderPath('UserProfile')) 'Downloads') 'Baseline-Bootstrap')
 )
 
@@ -39,7 +42,38 @@ $ProgressPreference = 'SilentlyContinue'
 
 <#
     .SYNOPSIS
-    Internal function Enable-Tls12.
+#>
+
+function Write-BootstrapSwallowedException
+{
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$ErrorRecord,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Source,
+
+        [ValidateSet('Debug', 'Warning', 'Error')]
+        [string]$Severity = 'Debug'
+    )
+
+    if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+    {
+        Write-SwallowedException -ErrorRecord $ErrorRecord -Source $Source -Severity $Severity
+        return
+    }
+
+    $message = '[swallow] {0}: {1}' -f $Source, $ErrorRecord.Exception.Message
+    switch ($Severity)
+    {
+        'Warning' { Write-Warning $message }
+        'Error' { Write-Error $message -ErrorAction Continue }
+        default { Write-Verbose $message }
+    }
+}
+
+<#
+    .SYNOPSIS
 #>
 
 function Enable-Tls12
@@ -60,15 +94,14 @@ function Enable-Tls12
             [System.Net.ServicePointManager]::SecurityProtocol = $current -bor $tls12
         }
     }
-    catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Bootstrap.Enable-Tls12' }
+    catch { Write-BootstrapSwallowedException -ErrorRecord $_ -Source 'Bootstrap.Enable-Tls12' -Severity Warning }
 }
 
 <#
     .SYNOPSIS
-    Internal function Resolve-BootstrapPreset.
 #>
 
-function Resolve-BootstrapPreset
+function Resolve-RawBootstrapPreset
 {
     param(
         [string]$Preset,
@@ -86,15 +119,14 @@ function Resolve-BootstrapPreset
         throw ("Invalid preset token '{0}'. Use letters, numbers, dots, underscores, or hyphens only." -f $candidate)
     }
 
-    return [string]$candidate
+	return [string]$candidate
 }
 
 <#
     .SYNOPSIS
-    Internal function Invoke-DownloadFile.
 #>
 
-function Invoke-DownloadFile
+function Invoke-RawBootstrapDownloadFile
 {
     param(
         [Parameter(Mandatory = $true)]
@@ -122,10 +154,9 @@ function Invoke-DownloadFile
 
 <#
     .SYNOPSIS
-    Internal function Get-BootstrapFileSha256.
 #>
 
-function Get-BootstrapFileSha256
+function Get-RawBootstrapFileSha256
 {
     param(
         [Parameter(Mandatory = $true)]
@@ -165,10 +196,9 @@ function Get-BootstrapFileSha256
 
 <#
     .SYNOPSIS
-    Internal function Get-BootstrapReleaseIntegrityManifest.
 #>
 
-function Get-BootstrapReleaseIntegrityManifest
+function Get-RawBootstrapReleaseIntegrityManifest
 {
     param(
         [Parameter(Mandatory = $true)]
@@ -196,10 +226,9 @@ function Get-BootstrapReleaseIntegrityManifest
 
 <#
     .SYNOPSIS
-    Internal function Get-BootstrapReleaseAssetSha256.
 #>
 
-function Get-BootstrapReleaseAssetSha256
+function Get-RawBootstrapReleaseAssetSha256
 {
     param(
         [Parameter(Mandatory = $true)]
@@ -209,7 +238,7 @@ function Get-BootstrapReleaseAssetSha256
         [string]$AssetName
     )
 
-    $manifest = Get-BootstrapReleaseIntegrityManifest -ManifestPath $ManifestPath
+    $manifest = Get-RawBootstrapReleaseIntegrityManifest -ManifestPath $ManifestPath
     $assetProperty = $manifest.files.PSObject.Properties[$AssetName]
     if (-not $assetProperty -or [string]::IsNullOrWhiteSpace([string]$assetProperty.Value))
     {
@@ -221,10 +250,9 @@ function Get-BootstrapReleaseAssetSha256
 
 <#
     .SYNOPSIS
-    Internal function Assert-BootstrapReleaseAssetHash.
 #>
 
-function Assert-BootstrapReleaseAssetHash
+function Assert-RawBootstrapReleaseAssetHash
 {
     param(
         [Parameter(Mandatory = $true)]
@@ -239,8 +267,8 @@ function Assert-BootstrapReleaseAssetHash
         [string]$Label = 'Downloaded file'
     )
 
-    $expected = Get-BootstrapReleaseAssetSha256 -ManifestPath $ManifestPath -AssetName $AssetName
-    $actual = Get-BootstrapFileSha256 -Path $FilePath
+    $expected = Get-RawBootstrapReleaseAssetSha256 -ManifestPath $ManifestPath -AssetName $AssetName
+    $actual = Get-RawBootstrapFileSha256 -Path $FilePath
     if ($actual -ne $expected)
     {
         throw "$Label failed SHA-256 verification. Expected $expected but received $actual."
@@ -273,7 +301,6 @@ function Find-BootstrapInstallScript
 }
 <#
     .SYNOPSIS
-    Internal function Compare-BootstrapReleaseVersions.
 #>
 
 function Compare-BootstrapReleaseVersions
@@ -296,8 +323,8 @@ function Compare-BootstrapReleaseVersions
 
         $trimmedText = ([string]$VersionText).Trim()
         $comparableText = $trimmedText.Split('+')[0].Trim()
-        $match = [regex]::Match($comparableText, '\d+(?:\.\d+){1,3}')
-        if (-not $match.Success)
+        $versionPattern = '^v?(?<Major>\d+)\.(?<Minor>\d+)\.(?<Patch>\d+)(?:-(?<Prerelease>[0-9A-Za-z][0-9A-Za-z.-]*))?$'
+        if ($comparableText -notmatch $versionPattern)
         {
             return [pscustomobject]@{
                 OriginalText     = $trimmedText
@@ -308,9 +335,7 @@ function Compare-BootstrapReleaseVersions
             }
         }
 
-        $parts = $match.Value.Split('.')
-        while ($parts.Count -lt 4) { $parts += '0' }
-        if ($parts.Count -gt 4) { $parts = $parts[0..3] }
+        $parts = @($Matches['Major'], $Matches['Minor'], $Matches['Patch'], '0')
 
         $coreVersion = $null
         try
@@ -328,26 +353,11 @@ function Compare-BootstrapReleaseVersions
             }
         }
 
-        $prereleaseText = $comparableText.Substring($match.Index + $match.Length).Trim()
-        if ($prereleaseText -match '^\((.+)\)$')
-        {
-            $prereleaseText = [string]$Matches[1]
-        }
-        $prereleaseText = [regex]::Replace($prereleaseText, '^[\s\-\._\(\[\{]+', '')
-        $prereleaseText = [regex]::Replace($prereleaseText, '[\s\)\]\}]+$', '')
-
         $prereleaseTokens = @()
-        if (-not [string]::IsNullOrWhiteSpace([string]$prereleaseText))
+
+        if (-not [string]::IsNullOrWhiteSpace($Matches['Prerelease']))
         {
-            $tokenMatches = [regex]::Matches($prereleaseText.ToLowerInvariant(), '[0-9]+|[A-Za-z]+')
-            if ($tokenMatches.Count -gt 0)
-            {
-                $prereleaseTokens = @($tokenMatches | ForEach-Object { [string]$_.Value })
-            }
-            else
-            {
-                $prereleaseTokens = @([string]$prereleaseText.ToLowerInvariant())
-            }
+            $prereleaseTokens = @([string]$Matches['Prerelease'] -split '[.-]' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
         }
 
         return [pscustomobject]@{
@@ -420,7 +430,6 @@ function Compare-BootstrapReleaseVersions
 
 <#
     .SYNOPSIS
-    Internal function Get-BootstrapLatestRelease.
 #>
 
 function Get-BootstrapLatestRelease
@@ -460,7 +469,7 @@ function Get-BootstrapLatestRelease
                 $candidatePublishedAt = [DateTimeOffset]::Parse($rawPublishedAt, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal)
                 break
             }
-            catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Bootstrap.Get-BootstrapLatestRelease.ParsePublishedAt' }
+            catch { Write-BootstrapSwallowedException -ErrorRecord $_ -Source 'Bootstrap.Get-BootstrapLatestRelease.ParsePublishedAt' -Severity Debug }
         }
 
         if ($null -eq $bestRelease)
@@ -481,7 +490,7 @@ function Get-BootstrapLatestRelease
     return $bestRelease
 }
 
-$Preset = Resolve-BootstrapPreset -Preset $Preset
+$Preset = Resolve-RawBootstrapPreset -Preset $Preset
 
 try
 {
@@ -501,7 +510,7 @@ try
 
     New-Item -ItemType Directory -Path $CacheRoot -Force | Out-Null
 
-    $archivePath = Join-Path $CacheRoot "$Repository.zip"
+    $archivePath = Join-Path $CacheRoot 'Baseline-release.zip'
     $extractRoot = Join-Path $CacheRoot 'extract'
 
     # Resolve the latest release (including pre-releases) via the GitHub API.
@@ -525,9 +534,9 @@ try
     # matching SHA-256 manifest must be present. Enforces a 1:1 contract so a
     # release with multiple zips (or a stray manifest) is treated as a hard
     # contract violation rather than silently picking "the first match".
-    $repoEscaped             = [regex]::Escape($Repository)
-    $expectedZipPattern      = "^$repoEscaped(?:-portable)?-(v?\d+\.\d+\.\d+(?:-[a-zA-Z0-9]+)?)\.zip$"
-    $expectedManifestPattern = "^$repoEscaped(?:-portable)?-(v?\d+\.\d+\.\d+(?:-[a-zA-Z0-9]+)?)\.zip\.sha256\.json$"
+    $releaseChannel = if (-not [string]::IsNullOrWhiteSpace($ReleaseChannel)) { $ReleaseChannel } elseif ([string]::Equals($Repository, 'Baseline_dev', [System.StringComparison]::OrdinalIgnoreCase)) { 'beta' } else { 'stable' }
+    $expectedZipPattern = "^Baseline-\d+\.\d+\.\d+-$releaseChannel\.zip$"
+    $expectedManifestPattern = "^Baseline-\d+\.\d+\.\d+-$releaseChannel\.zip\.sha256\.json$"
 
     $releaseAssets   = @($latest.assets)
     $releaseZip      = @($releaseAssets | Where-Object { [string]$_.name -match $expectedZipPattern })
@@ -542,14 +551,15 @@ try
     $integrityAsset       = $releaseManifest[0]
     $downloadUrl          = [string]$asset.browser_download_url
     $integrityUrl         = [string]$integrityAsset.browser_download_url
+    $archivePath          = Join-Path $CacheRoot ([string]$asset.name)
     $integrityManifestPath = Join-Path $CacheRoot ([string]$integrityAsset.name)
 
     # Write-Host: intentional bootstrap progress output.
     Write-Host "Downloading $Repository $($latest.tag_name) from $downloadUrl"
-    Invoke-DownloadFile -Uri $downloadUrl -OutFile $archivePath
+    Invoke-RawBootstrapDownloadFile -Uri $downloadUrl -OutFile $archivePath
     Write-Host "Downloading release integrity manifest from $integrityUrl"
-    Invoke-DownloadFile -Uri $integrityUrl -OutFile $integrityManifestPath
-    $archiveHash = Assert-BootstrapReleaseAssetHash -ManifestPath $integrityManifestPath -AssetName ([string]$asset.name) -FilePath $archivePath -Label 'Release archive'
+    Invoke-RawBootstrapDownloadFile -Uri $integrityUrl -OutFile $integrityManifestPath
+    $archiveHash = Assert-RawBootstrapReleaseAssetHash -ManifestPath $integrityManifestPath -AssetName ([string]$asset.name) -FilePath $archivePath -Label 'Release archive'
     Write-Host "Verified SHA-256 for $($asset.name): $archiveHash"
 
     New-Item -ItemType Directory -Path $extractRoot -Force | Out-Null

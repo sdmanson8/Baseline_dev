@@ -1,9 +1,8 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     <#
         .SYNOPSIS
-        Internal function Get-UxLocalizedString.
     #>
 
     function Get-UxLocalizedString {
@@ -23,7 +22,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function Resolve-GuiPrimaryTabForTweak.
     #>
 
     function Resolve-GuiPrimaryTabForTweak {
@@ -54,28 +52,23 @@ BeforeAll {
     # Stub helper functions referenced by FilteringLogic
     <#
         .SYNOPSIS
-        Internal function script.
     #>
 
     function script:Test-GuiObjectField { param([object]$Object, [string]$FieldName) return ($null -ne $Object -and $Object.PSObject.Properties[$FieldName]) }
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function script:Test-TweakRemovalOperation { param([object]$Tweak) return ($Tweak.Tags -contains 'removal') }
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function script:Test-TweakIsSelected { param([object]$Tweak, [object]$StateSource) return ($StateSource.IsChecked -eq $true) }
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function script:Test-TweakIsRestorable { param([object]$Tweak) return ($Tweak.Restorable -eq $true) }
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function script:Test-TweakIsGamingRelated { param([object]$Tweak) return ($Tweak.Tags -contains 'gaming') }
 

@@ -36,7 +36,6 @@ $skipped = 0
 
 <#
     .SYNOPSIS
-    Internal function Write-TestResult.
 #>
 
 function Write-TestResult
@@ -63,7 +62,6 @@ function Write-TestResult
 
 <#
     .SYNOPSIS
-    Internal function Import-NewInstallerPackageFunctions.
 #>
 function Import-NewInstallerPackageFunctions
 {
@@ -85,8 +83,24 @@ function Import-NewInstallerPackageFunctions
     $moduleSource = (($functions | ForEach-Object { $_.Extent.Text }) -join [Environment]::NewLine) +
         [Environment]::NewLine +
         'Export-ModuleMember -Function *'
-    $module = New-Module -Name $moduleName -ScriptBlock ([scriptblock]::Create($moduleSource))
-    Import-Module $module -Force -DisableNameChecking | Out-Null
+
+    $tempModuleDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("Baseline-SmokeTest-{0}" -f [System.Guid]::NewGuid().ToString('N'))
+    $tempModulePath = Join-Path $tempModuleDirectory "$moduleName.psm1"
+    New-Item -ItemType Directory -Path $tempModuleDirectory -Force | Out-Null
+    $utf8WithBom = New-Object System.Text.UTF8Encoding -ArgumentList $true
+    [System.IO.File]::WriteAllText($tempModulePath, $moduleSource, $utf8WithBom)
+
+    try
+    {
+        Import-Module -Name $tempModulePath -Force -DisableNameChecking | Out-Null
+    }
+    finally
+    {
+        if (Test-Path -LiteralPath $tempModuleDirectory)
+        {
+            Remove-Item -LiteralPath $tempModuleDirectory -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 # ============================================================
@@ -296,18 +310,43 @@ $guiContent = Get-Content -LiteralPath $guiPath -Raw
 # Verify dot-source block exists in Show-TweakGUI
 $extractedFiles = @(
     'GuiContext.ps1'
+    'StateTransitions.ps1'
     'ObservableState.ps1'
     'UxPolicy.ps1'
+    'UserPreferences.ps1'
+    'UIDensity.ps1'
+    'SessionState.ps1'
+    'TweakAvailability.ps1'
+    'PreviewBuilders.ps1'
     'ExecutionSummary.ps1'
     'PresetManagement.ps1'
     'GameModeUI.ps1'
-    'ThemeManagement.ps1'
-    'TweakAnalysis.ps1'
-    'ComponentFactory.ps1'
-    'FilteringLogic.ps1'
-    'SystemScan.ps1'
+    'GameModeState.ps1'
+    'PreflightChecks.ps1'
+    'PlanSummaryPanel.ps1'
+    'ExecutionOrchestration.ps1'
+    'EventInfrastructure.ps1'
+    'StyleManagement.ps1'
+    'ExecutionSummaryDialog.ps1'
+    'DiffView.ps1'
+    'ComplianceView.ps1'
+    'AuditView.ps1'
     'DialogHelpers.ps1'
+    'ReviewMode.ps1'
+    'AddCustomAppDialog.ps1'
+    'StartupManagerDialog.ps1'
+    'RemovalPersistenceDialog.ps1'
+    'UserFoldersDialog.ps1'
     'TabManagement.ps1'
+    'WindowSetup.ps1'
+    'ApplyTheme.ps1'
+    'StyledControlsSetup.ps1'
+    'BuildTweakControls.ps1'
+    'UpdatesPanel.ps1'
+    'BuildTabContent.ps1'
+    'BuildPrimaryTabs.ps1'
+    'SearchFilterHandlers.ps1'
+    'ActionHandlers.ps1'
 )
 
 foreach ($ef in $extractedFiles)
@@ -404,6 +443,24 @@ else
     Write-TestResult -Name 'Baseline.exe launcher hosts Windows PowerShell in-process' -Result Fail -Detail 'Embedded PowerShell host path not found'
 }
 
+if ($launcherSourceContent -match [regex]::Escape('powershell.AddCommand(launcherScript)') -and $launcherSourceContent -match [regex]::Escape('BindPowerShellInvocationArguments(powershell, normalizedArgs)') -and $launcherSourceContent -notmatch 'AddScript')
+{
+    Write-TestResult -Name 'Baseline.exe launcher binds CLI arguments through PowerShell SDK APIs' -Result Pass
+}
+else
+{
+    Write-TestResult -Name 'Baseline.exe launcher binds CLI arguments through PowerShell SDK APIs' -Result Fail -Detail 'Expected AddCommand/AddParameter binding without AddScript'
+}
+
+if ($launcherSourceContent -match [regex]::Escape('GetRestrictedRuntimeCacheRoot()') -and $launcherSourceContent -match [regex]::Escape('Environment.SpecialFolder.CommonApplicationData') -and $launcherSourceContent -match [regex]::Escape('HydrationManifestMatches(root, payloadManifest)') -and $launcherSourceContent -match [regex]::Escape('FileMatchesSha256(filePath, payload.Sha256)'))
+{
+    Write-TestResult -Name 'Baseline.exe launcher verifies the hydrated ProgramData runtime cache' -Result Pass
+}
+else
+{
+    Write-TestResult -Name 'Baseline.exe launcher verifies the hydrated ProgramData runtime cache' -Result Fail -Detail 'Expected ProgramData cache ACL and per-file SHA-256 verification'
+}
+
 if ($launcherSourceContent -match [regex]::Escape('ApartmentState.STA') -and $launcherSourceContent -match [regex]::Escape('PSThreadOptions.ReuseThread'))
 {
     Write-TestResult -Name 'Baseline.exe launcher runs the embedded host on an STA thread' -Result Pass
@@ -411,6 +468,15 @@ if ($launcherSourceContent -match [regex]::Escape('ApartmentState.STA') -and $la
 else
 {
     Write-TestResult -Name 'Baseline.exe launcher runs the embedded host on an STA thread' -Result Fail -Detail 'Embedded host STA configuration not found'
+}
+
+if ($launcherSourceContent -match [regex]::Escape('PSExecutionPolicyPreference') -and $launcherSourceContent -match [regex]::Escape('InitialSessionState.CreateDefault()') -and $launcherSourceContent -match [regex]::Escape('initialSessionState.ExecutionPolicy = Microsoft.PowerShell.ExecutionPolicy.Bypass;') -and $launcherSourceContent -match [regex]::Escape('RunspaceFactory.CreateRunspace(host, initialSessionState)'))
+{
+    Write-TestResult -Name 'Baseline.exe launcher bypasses script execution policy for trusted embedded bootstrap' -Result Pass
+}
+else
+{
+    Write-TestResult -Name 'Baseline.exe launcher bypasses script execution policy for trusted embedded bootstrap' -Result Fail -Detail 'Hosted runspace execution policy bypass not configured'
 }
 
 if ($launcherSourceContent -match [regex]::Escape('BASELINE_EMBEDDED_HOST') -and $launcherSourceContent -match [regex]::Escape('BASELINE_LAUNCHER_PATH'))
@@ -672,7 +738,6 @@ $presetFunctions = @{}
 
 <#
     .SYNOPSIS
-    Internal function Get-PresetFunctionName.
 #>
 
 function Get-PresetFunctionName

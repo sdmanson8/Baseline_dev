@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/System/System.FeatureBundles.psm1'
@@ -21,7 +21,6 @@ Describe 'Feature bundle wrappers' {
 
         <#
             .SYNOPSIS
-            Internal function Write-ConsoleStatus.
         #>
 
         function Write-ConsoleStatus {
@@ -40,7 +39,6 @@ Describe 'Feature bundle wrappers' {
 
         <#
             .SYNOPSIS
-            Internal function LogInfo.
         #>
 
         function LogInfo {
@@ -50,7 +48,6 @@ Describe 'Feature bundle wrappers' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function LogError {
             param([string]$Message)
@@ -59,7 +56,6 @@ Describe 'Feature bundle wrappers' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Invoke-SilencedProgress {
             param([scriptblock]$ScriptBlock)
@@ -68,7 +64,6 @@ Describe 'Feature bundle wrappers' {
 
         <#
             .SYNOPSIS
-            Internal function Enable-WindowsOptionalFeature.
         #>
 
         function Enable-WindowsOptionalFeature {
@@ -91,7 +86,6 @@ Describe 'Feature bundle wrappers' {
 
         <#
             .SYNOPSIS
-            Internal function Disable-WindowsOptionalFeature.
         #>
 
         function Disable-WindowsOptionalFeature {
@@ -113,7 +107,6 @@ Describe 'Feature bundle wrappers' {
 
         <#
             .SYNOPSIS
-            Internal function nfsadmin.
         #>
 
         function nfsadmin {
@@ -130,7 +123,6 @@ Describe 'Feature bundle wrappers' {
 
         <#
             .SYNOPSIS
-            Internal function .
         #>
         function Set-ItemProperty {
             param(

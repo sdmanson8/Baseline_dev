@@ -1,9 +1,5 @@
-# PresetManagement split file loaded by Module\GUI\PresetManagement.ps1.
+﻿# PresetManagement split file loaded by Module\GUI\PresetManagement.ps1.
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Resolve-GuiPresetFilePath
 	{
 		param([Parameter(Mandatory = $true)][string]$PresetName)
@@ -47,7 +43,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiPresetEntries.
 	#>
 
 	function Get-GuiPresetEntries
@@ -244,10 +239,6 @@
 		return ,($entries.ToArray())
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-GuiPresetCommandsPath
 	{
 		param ([string]$PresetName)
@@ -284,7 +275,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Import-GuiPresetSelectionMap.
 	#>
 
 	function Import-GuiPresetSelectionMap
@@ -610,7 +600,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiPresetDefinition.
 	#>
 
 	function Get-GuiPresetDefinition

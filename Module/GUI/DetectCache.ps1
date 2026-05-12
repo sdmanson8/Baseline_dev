@@ -41,7 +41,7 @@ function Initialize-GuiDetectCache
 			if ($null -ne $prop.Value) { $Script:DetectCache[[string]$prop.Name] = [bool]$prop.Value }
 		}
 	}
-	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DetectCache.Load.ParseJson' }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'DetectCache.Load.ParseJson' }
 }
 
 function Get-CachedDetection
@@ -95,5 +95,5 @@ function Save-GuiDetectCache
 		[System.IO.File]::WriteAllText($Script:DetectCachePath, $json, [System.Text.Encoding]::UTF8)
 		$Script:DetectCacheDirty = $false
 	}
-	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'DetectCache.Save.WriteJson' }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'DetectCache.Save.WriteJson' }
 }

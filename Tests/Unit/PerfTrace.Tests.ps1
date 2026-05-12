@@ -1,12 +1,17 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
-    $script:PerfTraceContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/GUI/PerfTrace.ps1') -Raw -Encoding UTF8
-    $script:DialogHelpersContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers.ps1') -Raw -Encoding UTF8
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
+    $script:PerfTraceContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/GUI/PerfTrace.ps1')
+    $script:DialogHelpersContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/GUI/DialogHelpers.ps1')
 }
 
 Describe 'PerfTrace swallowed-exception routing' {
-    It 'routes perf-log initialization and append failures through Write-DebugSwallowedException' {
+    It 'routes perf-log initialization and append failures through Write-SwallowedException' {
         $script:PerfTraceContent | Should -Match "Source 'PerfTrace\.TestGuiPerfTraceDebugEnabled\.GetBaselineDebugLogging'"
         $script:PerfTraceContent | Should -Match "Source 'PerfTrace\.InitializeGuiPerfTrace\.WriteSessionHeader'"
         $script:PerfTraceContent | Should -Match "Source 'PerfTrace\.StopGuiPerfScope\.AppendLine'"

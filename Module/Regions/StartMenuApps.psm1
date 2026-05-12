@@ -474,5 +474,11 @@ function RecentlyAddedApps
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'MostUsedApps',
+    'MostUsedStartApps',
+    'RecentlyAddedApps',
+    'RecentlyAddedStartApps',
+    'StartMenuAllSectionCategories'
+)
+Export-ModuleMember -Function $ExportedFunctions

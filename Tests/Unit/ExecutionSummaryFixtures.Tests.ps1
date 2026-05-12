@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $Script:FixtureRoot = Join-Path $PSScriptRoot '../Fixtures/ExecutionSummary'
@@ -24,7 +24,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function Load-Fixture.
     #>
 
     function Load-Fixture {

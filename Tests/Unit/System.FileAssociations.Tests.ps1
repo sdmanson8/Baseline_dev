@@ -1,6 +1,8 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/System/System.FileAssociations.psm1'
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     # Pick only the top-level function definitions (skip nested ones which are
@@ -96,10 +98,7 @@ Describe 'Import-Associations (cancelled dialog)' {
                         InitialDirectory = ''
                         Multiselect     = $false
                         FileName        = ''
-                    } | Add-Member -MemberType ScriptMethod -Name ShowDialog -Value { param($parent) return 'Cancel' } -PassThru
-                }
-                'System.Windows.Forms.Form' {
-                    return [pscustomobject]@{ TopMost = $true }
+                    } | Add-Member -MemberType ScriptMethod -Name ShowDialog -Value { return 'Cancel' } -PassThru
                 }
                 default {
                     throw "New-Object shim received unexpected TypeName: $TypeName"
@@ -124,6 +123,10 @@ Describe 'Import-Associations (cancelled dialog)' {
 
 Describe 'WinPrtScrFolder' {
     BeforeEach {
+        $Script:Localization = [pscustomobject]@{
+            OneDriveWarning = 'OneDriveWarning: {0}'
+            Skipped         = 'Skipped: {0}'
+        }
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:warningMessages = [System.Collections.Generic.List[string]]::new()
         $script:errorMessages = [System.Collections.Generic.List[string]]::new()

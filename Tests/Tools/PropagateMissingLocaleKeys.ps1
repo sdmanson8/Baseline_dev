@@ -1,4 +1,4 @@
-# Propagation script: ensure every locale .json under Localizations/ contains
+﻿# Propagation script: ensure every locale .json under Localizations/ contains
 # every key present in en-US.json. Missing keys are filled with the en-US value
 # verbatim (English fallback) so the LocalizationIntegrity "preserves every
 # source key" test passes. Translators can replace the English fallbacks later.

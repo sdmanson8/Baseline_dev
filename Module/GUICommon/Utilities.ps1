@@ -1,6 +1,5 @@
-<#
+﻿<#
     .SYNOPSIS
-    Internal function Test-GuiCommonUniqueAdd.
 #>
 function Test-GuiCommonUniqueAdd
 {
@@ -42,7 +41,6 @@ function Test-GuiCommonUniqueAdd
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiBooleanValue.
 #>
 function Get-GuiBooleanValue
 {
@@ -105,7 +103,33 @@ function Get-GuiBooleanValue
 
 <#
     .SYNOPSIS
-    Internal function Write-GuiCommonWarning.
+#>
+function Get-GuiDialogDismissResult
+{
+	param(
+		[string[]]$Buttons = @()
+	)
+
+	if ($Buttons -contains 'Cancel')
+	{
+		return 'Cancel'
+	}
+
+	if ($Buttons -contains 'Close')
+	{
+		return 'Close'
+	}
+
+	if ($Buttons.Count -eq 1)
+	{
+		return $Buttons[0]
+	}
+
+	return $null
+}
+
+<#
+    .SYNOPSIS
 #>
 function Write-GuiCommonWarning
 {

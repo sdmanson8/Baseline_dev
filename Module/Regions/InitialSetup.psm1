@@ -255,9 +255,6 @@ function CheckWinGet
 		{
 			$installerUrl = [string]$installerMetadata.Uri
 			$installerPath = Join-Path $env:TEMP ("winget-install-{0}.ps1" -f $installerVersion)
-			$stdoutLog = Join-Path $env:TEMP "winget-install-stdout.log"
-			$stderrLog = Join-Path $env:TEMP "winget-install-stderr.log"
-
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_DownloadingPackageManagerInstaller' -Fallback 'Downloading {0} installer from {1}' -FormatArgs @('WinGet', $installerUrl))
 			Invoke-DownloadFile -Uri $installerUrl -OutFile $installerPath
 
@@ -277,24 +274,26 @@ function CheckWinGet
 			$executingStatusText = Get-BaselineLocalizedString -Key 'Progress_Installing' -Fallback 'Installing {0}...' -FormatArgs @('WinGet')
 			& $updateStartupSplashState -StatusText $executingStatusText -Indeterminate
 
-			$process = Start-Process powershell.exe -ArgumentList (@(
+			$process = Invoke-BaselineProcess -FilePath 'powershell.exe' -ArgumentList (@(
 				'-NoProfile',
 				'-ExecutionPolicy', 'Bypass',
-				'-File', "`"$installerPath`""
-			) + $installerArguments) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -ErrorAction Stop
+				'-File', $installerPath
+			) + $installerArguments) -TimeoutSeconds 1800 -CaptureOutput
 
-			if (Test-Path $stdoutLog)
+			$stdoutLines = @()
+			if (-not [string]::IsNullOrWhiteSpace([string]$process.StandardOutput))
 			{
-				$stdoutLines = @(Get-Content $stdoutLog | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+				$stdoutLines = @(([string]$process.StandardOutput -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
 				foreach ($stdoutLine in $stdoutLines)
 				{
 					LogInfo "winget-installer: $stdoutLine"
 				}
 			}
 
-			if (Test-Path $stderrLog)
+			$stderrLines = @()
+			if (-not [string]::IsNullOrWhiteSpace([string]$process.StandardError))
 			{
-				$stderrLines = @(Get-Content $stderrLog | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+				$stderrLines = @(([string]$process.StandardError -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
 				foreach ($stderrLine in $stderrLines)
 				{
 					LogError "winget-installer: $stderrLine"
@@ -489,17 +488,20 @@ function Initialize-PackageManagersBootstrap
 	$logFilePath = if ($Global:LogFilePath) { [string]$Global:LogFilePath } else { $null }
 	$results = [System.Collections.Generic.List[object]]::new()
 	$jobs = @()
+	$bootstrapTimeoutSeconds = 900
+	$jobStartedAt = @{}
 
 	$jobScriptBlock = {
 		param(
 			[string]$PackageManager,
 			[string]$LoggingModulePath,
 			[string]$SharedHelpersModulePath,
-			[string]$LogFilePath
+			[string]$LogFilePath,
+			[int]$TimeoutSeconds
 		)
 
-		Import-Module -Name $LoggingModulePath -Force -ErrorAction Stop
-		Import-Module -Name $SharedHelpersModulePath -Force -ErrorAction Stop
+	Import-Module -Name $LoggingModulePath -Force -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop
+	Import-Module -Name $SharedHelpersModulePath -Force -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop
 		if (-not [string]::IsNullOrWhiteSpace($LogFilePath))
 		{
 			Set-LogFile -Path $LogFilePath
@@ -507,8 +509,8 @@ function Initialize-PackageManagersBootstrap
 
 		switch ($PackageManager)
 		{
-			'WinGet' { Invoke-WinGetBootstrap }
-			'Chocolatey' { Invoke-ChocolateyBootstrap }
+			'WinGet' { Invoke-WinGetBootstrap -TimeoutSeconds $TimeoutSeconds }
+			'Chocolatey' { Invoke-ChocolateyBootstrap -TimeoutSeconds $TimeoutSeconds }
 			default { throw "Unsupported package manager '$PackageManager'." }
 		}
 	}
@@ -540,7 +542,9 @@ function Initialize-PackageManagersBootstrap
 			{
 				try
 				{
-					$jobs += Start-Job -Name 'WinGetBootstrap' -ScriptBlock $jobScriptBlock -ArgumentList @('WinGet', $loggingModulePath, $sharedHelpersModulePath, $logFilePath)
+					$newJob = Start-Job -Name 'WinGetBootstrap' -ScriptBlock $jobScriptBlock -ArgumentList @('WinGet', $loggingModulePath, $sharedHelpersModulePath, $logFilePath, $bootstrapTimeoutSeconds)
+					$jobs += $newJob
+					$jobStartedAt[$newJob.Id] = Get-Date
 				}
 				catch
 				{
@@ -577,7 +581,9 @@ function Initialize-PackageManagersBootstrap
 		{
 			try
 			{
-				$jobs += Start-Job -Name 'ChocolateyBootstrap' -ScriptBlock $jobScriptBlock -ArgumentList @('Chocolatey', $loggingModulePath, $sharedHelpersModulePath, $logFilePath)
+				$newJob = Start-Job -Name 'ChocolateyBootstrap' -ScriptBlock $jobScriptBlock -ArgumentList @('Chocolatey', $loggingModulePath, $sharedHelpersModulePath, $logFilePath, $bootstrapTimeoutSeconds)
+				$jobs += $newJob
+				$jobStartedAt[$newJob.Id] = Get-Date
 			}
 			catch
 			{
@@ -611,6 +617,24 @@ function Initialize-PackageManagersBootstrap
 			while ($jobs.Count -gt 0)
 			{
 				$null = Wait-Job -Job $jobs -Any -Timeout 1
+				foreach ($runningJob in @($jobs | Where-Object { $_.State -eq 'Running' }))
+				{
+					$jobStartTime = if ($jobStartedAt.ContainsKey($runningJob.Id)) { [datetime]$jobStartedAt[$runningJob.Id] } else { Get-Date }
+					if (((Get-Date) - $jobStartTime).TotalSeconds -ge ($bootstrapTimeoutSeconds + 30))
+					{
+						LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerBootstrapJobTimedOut' -Fallback "Package manager bootstrap job '{0}' timed out after {1} seconds. Baseline will stop waiting and continue startup." -FormatArgs @($runningJob.Name, ($bootstrapTimeoutSeconds + 30)))
+						try { Stop-Job -Job $runningJob -Force -ErrorAction SilentlyContinue } catch { $null = $_ }
+						[void]$results.Add([pscustomobject]@{
+							PackageManager = [string]$runningJob.Name.Replace('Bootstrap', '')
+							Available      = $false
+							Installed      = $false
+							Repaired       = $false
+							Version        = $null
+							Success        = $false
+							Error          = ("Timed out after {0} seconds." -f ($bootstrapTimeoutSeconds + 30))
+						})
+					}
+				}
 				$completedJobs = @($jobs | Where-Object { $_.State -ne 'Running' })
 				foreach ($completedJob in @($completedJobs))
 				{
@@ -637,6 +661,10 @@ function Initialize-PackageManagersBootstrap
 					}
 					finally
 					{
+						if ($jobStartedAt.ContainsKey($completedJob.Id))
+						{
+							$null = $jobStartedAt.Remove($completedJob.Id)
+						}
 						Remove-Job -Job $completedJob -Force -ErrorAction SilentlyContinue
 					}
 				}
@@ -756,9 +784,10 @@ function UpdatePowershell
 
 		if ($WingetPath)
 		{
-			$process = Start-Process -FilePath $WingetPath `
-				-ArgumentList "install --id Microsoft.PowerShell --source winget --accept-package-agreements --accept-source-agreements --silent" `
-				-WindowStyle Hidden -Wait -PassThru -ErrorAction Stop
+			$process = Invoke-BaselineProcess -FilePath $WingetPath `
+				-ArgumentList @('install', '--id', 'Microsoft.PowerShell', '--source', 'winget', '--accept-package-agreements', '--accept-source-agreements', '--silent') `
+				-TimeoutSeconds 1800 `
+				-AllowedExitCodes @(0, -1978335189)
 			if ($process.ExitCode -in 0, -1978335189)
 			{
 				$wingetSucceeded = $true
@@ -780,9 +809,10 @@ function UpdatePowershell
 				$installerPath = Join-Path $env:TEMP $installerFileName
 				Invoke-DownloadFile -Uri $installerUri -OutFile $installerPath
 				$null = Assert-AuthenticodeSignature -Path $installerPath -AllowedSubjects @('CN=Microsoft Corporation')
-				$process = Start-Process -FilePath 'msiexec.exe' `
-					-ArgumentList "/i `"$installerPath`" /qn /norestart" `
-					-WindowStyle Hidden -Wait -PassThru -ErrorAction Stop
+				$process = Invoke-BaselineProcess -FilePath 'msiexec.exe' `
+					-ArgumentList @('/i', $installerPath, '/qn', '/norestart') `
+					-TimeoutSeconds 1800 `
+					-AllowedExitCodes @(0, 3010)
 				if ($process.ExitCode -notin 0, 3010)
 				{
 					throw "msiexec returned exit code $($process.ExitCode)"
@@ -815,33 +845,11 @@ function UpdatePowershell
 	
 Applies the Baseline behavior for refresh the current process PATH from the machine and user environment blocks..
 #>
-function Update-ProcessPathFromRegistry
-{
-	$MachinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
-	$UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
-	$env:Path = (@($MachinePath, $UserPath) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join ";"
-}
-
-<#
-	.SYNOPSIS
-	Restart File Explorer so desktop and shell changes apply immediately.
-
-	.DESCRIPTION
-	Stops the Explorer foreground process so desktop, taskbar, and File Explorer
-	changes can be reloaded by the shell.
-
-	.EXAMPLE
-	Stop-Foreground
-
-	.NOTES
-	Current user
-#>
-function Stop-Foreground
-{
-	LogInfo "Stopping explorer.exe to apply shell changes"
-	Stop-Process -Name "explorer" -Force -ErrorAction SilentlyContinue | Out-Null
-}
-
 #endregion Initial Setup
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'CheckWinGet',
+    'CreateRestorePoint',
+    'Initialize-PackageManagersBootstrap',
+    'UpdatePowershell'
+)
+Export-ModuleMember -Function $ExportedFunctions

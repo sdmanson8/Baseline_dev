@@ -1,4 +1,4 @@
-using module .\Logging.psm1
+﻿using module .\Logging.psm1
 
 <#
     .SYNOPSIS
@@ -28,6 +28,7 @@ $Script:GuiCommonRoot = Join-Path $PSScriptRoot 'GUICommon'
 . (Join-Path $Script:GuiCommonRoot 'Utilities.ps1')
 . (Join-Path $Script:GuiCommonRoot 'DpiAwareness.ps1')
 . (Join-Path $Script:GuiCommonRoot 'WindowChrome.ps1')
+. (Join-Path $Script:GuiCommonRoot 'SharedScrollBars.ps1')
 . (Join-Path $Script:GuiCommonRoot 'PopupWindows.ps1')
 . (Join-Path $Script:GuiCommonRoot 'Dialogs.ps1')
 . (Join-Path $Script:GuiCommonRoot 'ExecutionSummaryDialog.ps1')
@@ -35,13 +36,18 @@ $Script:GuiCommonRoot = Join-Path $PSScriptRoot 'GUICommon'
 . (Join-Path $Script:GuiCommonRoot 'SettingsStore.ps1')
 
 Export-ModuleMember -Function @(
-	'Test-GuiObjectField'
-	'Get-GuiObjectField'
+	'Test-GuiCommonObjectField'
+	'Get-GuiCommonObjectField'
 	'Get-GuiLayout'
-	'Get-GuiSafeFontSize'
+	'Get-GuiCommonSafeFontSize'
 	'Get-GuiBooleanValue'
+	'Get-GuiPopupLocalizedString'
 	'Set-GuiWindowChromeTheme'
+	'Get-GuiSharedScrollBarStyleXaml'
+	'Add-GuiSharedScrollBarResources'
 	'Add-GuiPopupWindowChrome'
+	'Set-GuiPopupActionButtonStyle'
+	'Set-GuiPopupCaptionButtonStyle'
 	'New-GuiPopupInfoIcon'
 	'Register-GuiPopupThemeWindow'
 	'Show-GuiActivatedDialog'
@@ -50,9 +56,9 @@ Export-ModuleMember -Function @(
 	'Start-GuiPopupCommandAsync'
 	'ConvertTo-RoundedWindow'
 	'Complete-RoundedWindow'
-	'Show-ThemedDialog'
-	'Show-ExecutionSummaryDialog'
-	'Show-RiskDecisionDialog'
+	'Show-GuiCommonThemedDialog'
+	'Show-GuiCommonExecutionSummaryDialog'
+	'Show-GuiCommonRiskDecisionDialog'
 	'New-DialogMetadataPill'
 	'New-DialogMetadataPillPanel'
 	'New-DialogSummaryCard'

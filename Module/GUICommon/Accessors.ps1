@@ -1,8 +1,7 @@
-<#
+﻿<#
     .SYNOPSIS
-    Internal function Test-GuiObjectField.
 #>
-function Test-GuiObjectField
+function Test-GuiCommonObjectField
 {
 	param([object]$Object, [string]$FieldName)
 	if ($null -eq $Object -or [string]::IsNullOrWhiteSpace($FieldName)) { return $false }
@@ -12,12 +11,11 @@ function Test-GuiObjectField
 
 <#
     .SYNOPSIS
-    Internal function Get-GuiObjectField.
 #>
-function Get-GuiObjectField
+function Get-GuiCommonObjectField
 {
 	param([object]$Object, [string]$FieldName)
-	if (-not (Test-GuiObjectField -Object $Object -FieldName $FieldName)) { return $null }
+	if (-not (Test-GuiCommonObjectField -Object $Object -FieldName $FieldName)) { return $null }
 	if ($Object -is [System.Collections.IDictionary]) { return $Object[$FieldName] }
 	return $Object.$FieldName
 }

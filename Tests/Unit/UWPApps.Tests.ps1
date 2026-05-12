@@ -1,11 +1,106 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
+
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/UWPApps.psm1'
-    $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
-    $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
-    foreach ($fn in $functions) {
-        Invoke-Expression $fn.Extent.Text
+    $aiRemovalPath = Join-Path $PSScriptRoot '../../Module/Regions/UWPApps/AIRemoval.ps1'
+    $script:UWPAppsContent = Get-BaselineTestSourceText -Path $filePath
+    $script:AIRemovalContent = Get-BaselineTestSourceText -Path $aiRemovalPath
+    foreach ($sourcePath in @(Get-BaselineTestSourcePathSet -Path $filePath)) {
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($sourcePath, [ref]$null, [ref]$null)
+        $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+        foreach ($fn in $functions) {
+            Invoke-Expression $fn.Extent.Text
+        }
+    }
+}
+
+Describe 'UWPApps protected package guard' {
+    It 'treats Windows Security packages as protected' {
+        Test-UWPAppsProtectedPackage -PackageName 'Microsoft.SecHealthUI_1000.26100.1.0_x64__8wekyb3d8bbwe' | Should -BeTrue
+        Test-UWPAppsProtectedPackage -PackageName 'Microsoft.Windows.SecHealthUI_cw5n1h2txyewy' | Should -BeTrue
+        Test-UWPAppsProtectedPackage -PackageName 'Microsoft.WindowsCalculator_11.0.0.0_x64__8wekyb3d8bbwe' | Should -BeFalse
+    }
+
+    It 'excludes and skips protected Windows Security packages before removal' {
+        $script:UWPAppsContent | Should -Match '"Microsoft\.SecHealthUI"'
+        $script:UWPAppsContent | Should -Match '"Microsoft\.Windows\.SecHealthUI"'
+        $script:UWPAppsContent | Should -Match 'Test-UWPAppsProtectedPackage -PackageName \$_.Name'
+        $script:UWPAppsContent | Should -Match 'Test-UWPAppsProtectedPackage -PackageName \$Package'
+        $script:UWPAppsContent | Should -Match 'Skipped protected Windows Security package'
+    }
+}
+
+Describe 'UWPApps GUI selection cancellation' {
+    It 'returns no confirmed packages when the bulk picker closes without a selection' {
+        @(Get-UWPAppsConfirmedSelectionPackages -SelectionResult $null).Count | Should -Be 0
+        @(Get-UWPAppsConfirmedSelectionPackages -SelectionResult ([pscustomobject]@{ SelectedPackages = @() })).Count | Should -Be 0
+
+        $packages = @(Get-UWPAppsConfirmedSelectionPackages -SelectionResult ([pscustomobject]@{ SelectedPackages = @('  ', 'Microsoft.WindowsCalculator') }))
+        $packages.Count | Should -Be 1
+        $packages[0] | Should -Be 'Microsoft.WindowsCalculator'
+    }
+
+    It 'short-circuits GUI install and uninstall before execution when no packages are confirmed' {
+        $installMessageIndex = $script:UWPAppsContent.IndexOf('Skipping UWP app install because the package picker was closed without a confirmed selection.')
+        $installPickerIndex = $script:UWPAppsContent.IndexOf('# Show the app picker and install the packages the user selects.')
+        $uninstallMessageIndex = $script:UWPAppsContent.IndexOf('Skipping UWP app uninstall because the package picker was closed without a confirmed selection.')
+        $uninstallPickerIndex = $script:UWPAppsContent.IndexOf('# Show the app picker and remove the packages the user selects.')
+
+        $installMessageIndex | Should -BeGreaterThan -1
+        $installMessageIndex | Should -BeLessThan $installPickerIndex
+        $uninstallMessageIndex | Should -BeGreaterThan -1
+        $uninstallMessageIndex | Should -BeLessThan $uninstallPickerIndex
+    }
+}
+
+Describe 'AIRemoval scrollbars' {
+    It 'uses subtle line-scroll chevrons in the custom scroll viewer template' {
+        $script:AIRemovalContent | Should -Match 'AiScrollBarArrowButtonStyle'
+        $script:AIRemovalContent | Should -Match 'Command="ScrollBar\.LineUpCommand"'
+        $script:AIRemovalContent | Should -Match 'Command="ScrollBar\.LineDownCommand"'
+        $script:AIRemovalContent | Should -Match 'Command="ScrollBar\.PageUpCommand"'
+        $script:AIRemovalContent | Should -Match 'Command="ScrollBar\.PageDownCommand"'
+        $script:AIRemovalContent | Should -Match '<RowDefinition Height="16"/>'
+        $script:AIRemovalContent | Should -Match 'Opacity" Value="0\.14"'
+    }
+
+    It 'returns after elevated relaunch instead of issuing a host exit' {
+        $script:AIRemovalContent | Should -Match 'Start-Process -FilePath ''powershell\.exe'' -ArgumentList \$arguments -Verb RunAs\r?\n\s*return\b'
+        $script:AIRemovalContent | Should -Not -Match 'Start-Process -FilePath ''powershell\.exe'' -ArgumentList \$arguments -Verb RunAs\r?\n\s*Exit\b'
+    }
+}
+
+Describe 'AIRemoval privileged operation safeguards' {
+    It 'requires TrustedInstaller completion markers and hard-fails restore failures' {
+        $script:AIRemovalContent | Should -Match '\$trustedMarkerPath'
+        $script:AIRemovalContent | Should -Match '\$trustedErrorPath'
+        $script:AIRemovalContent | Should -Match 'TrustedInstaller AIRemoval command did not report completion'
+        $script:AIRemovalContent | Should -Match 'TrustedInstaller AIRemoval command returned exit code'
+        $script:AIRemovalContent | Should -Match '\$restoreFailure = \$_'
+        $script:AIRemovalContent | Should -Match 'Failed to restore the TrustedInstaller service command after AIRemoval privileged cleanup'
+    }
+
+    It 'verifies Voice Access removal before reporting success' {
+        $postconditionIndex = $script:AIRemovalContent.IndexOf('Voice Access removal did not meet postconditions.')
+        $failedIndex = $script:AIRemovalContent.IndexOf('Write-ConsoleStatus -Status failed', $postconditionIndex)
+        $successIndex = $script:AIRemovalContent.IndexOf('Write-ConsoleStatus -Status success', $postconditionIndex)
+
+        $postconditionIndex | Should -BeGreaterThan -1
+        $failedIndex | Should -BeGreaterThan $postconditionIndex
+        $successIndex | Should -BeGreaterThan $failedIndex
+    }
+
+    It 'verifies Recall and Office AI scheduled tasks before reporting success' {
+        $postconditionIndex = $script:AIRemovalContent.IndexOf('Recall or Office AI scheduled tasks remained enabled after removal.')
+        $failedIndex = $script:AIRemovalContent.IndexOf('Write-ConsoleStatus -Status failed', $postconditionIndex)
+        $successIndex = $script:AIRemovalContent.IndexOf('Write-ConsoleStatus -Status success', $postconditionIndex)
+
+        $script:AIRemovalContent | Should -Match '\$remainingEnabledTasks = @\('
+        $postconditionIndex | Should -BeGreaterThan -1
+        $failedIndex | Should -BeGreaterThan $postconditionIndex
+        $successIndex | Should -BeGreaterThan $failedIndex
     }
 }
 

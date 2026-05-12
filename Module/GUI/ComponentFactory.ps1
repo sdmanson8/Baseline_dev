@@ -1,8 +1,7 @@
-﻿# WPF component factory functions: info icons, badges, status pills, scenario tags
+# WPF component factory functions: info icons, badges, status pills, scenario tags
 
 	<#
 	    .SYNOPSIS
-	    Internal function Build-InfoIconTooltipContent.
 	#>
 
 	function Build-InfoIconTooltipContent
@@ -24,7 +23,7 @@
 		$tb.Text = if ([string]::IsNullOrWhiteSpace($TooltipText)) { Get-UxString -Key 'GuiTooltipDefaultText' -Fallback 'This option changes a Windows setting.' } else { $TooltipText.Trim() }
 		$tb.TextWrapping = [System.Windows.TextWrapping]::Wrap
 		$tb.FontWeight = [System.Windows.FontWeights]::SemiBold
-		$tb.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSubheading' -Default 12
+		$tb.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeSubheading' -Default 12
 		[void]($stackPanel.Children.Add($tb))
 		# Detail text
 		$detailText = Get-GuiObjectField -Object $Tweak -FieldName 'Detail'
@@ -46,7 +45,7 @@
 			$tb = New-Object System.Windows.Controls.TextBlock
 			$tb.Text = $detailValue.Trim()
 			$tb.TextWrapping = [System.Windows.TextWrapping]::Wrap
-			$tb.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+			$tb.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 			$tb.Margin = [System.Windows.Thickness]::new(0, 4, 0, 0)
 			$tb.Foreground = $bc.ConvertFromString($theme.TextSecondary)
 			[void]($stackPanel.Children.Add($tb))
@@ -62,7 +61,7 @@
 				param([string]$Text)
 				$section = New-Object System.Windows.Controls.TextBlock
 				$section.Text = $Text.ToUpperInvariant()
-				$section.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
+				$section.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeSmall' -Default 10
 				$section.FontWeight = [System.Windows.FontWeights]::Bold
 				$section.Foreground = $bc.ConvertFromString($theme.SectionLabel)
 				$section.Margin = [System.Windows.Thickness]::new(0, 0, 0, 3)
@@ -79,13 +78,13 @@
 					$tb = New-Object System.Windows.Controls.TextBlock
 					$tb.Text = (Get-UxLocalizedString -Key 'GuiDetailCheckedToggle' -Fallback 'Checked: {0}' -FormatArgs @($onLabel))
 					$tb.TextWrapping = [System.Windows.TextWrapping]::Wrap
-					$tb.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+					$tb.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 					$tb.Foreground = $bc.ConvertFromString($theme.TextSecondary)
 					[void]($stackPanel.Children.Add($tb))
 					$tb = New-Object System.Windows.Controls.TextBlock
 					$tb.Text = (Get-UxLocalizedString -Key 'GuiDetailUncheckedToggle' -Fallback 'Unchecked: {0}' -FormatArgs @($offLabel))
 					$tb.TextWrapping = [System.Windows.TextWrapping]::Wrap
-					$tb.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+					$tb.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 					$tb.Foreground = $bc.ConvertFromString($theme.TextSecondary)
 					[void]($stackPanel.Children.Add($tb))
 				}
@@ -94,7 +93,7 @@
 					$tb = New-Object System.Windows.Controls.TextBlock
 					$tb.Text = (Get-UxLocalizedString -Key 'GuiDetailChoices' -Fallback 'Choices: {0}' -FormatArgs @(($displayOpts -join ', ')))
 					$tb.TextWrapping = [System.Windows.TextWrapping]::Wrap
-					$tb.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+					$tb.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 					$tb.Foreground = $bc.ConvertFromString($theme.TextSecondary)
 					[void]($stackPanel.Children.Add($tb))
 				}
@@ -102,13 +101,13 @@
 					$tb = New-Object System.Windows.Controls.TextBlock
 					$tb.Text = (Get-UxLocalizedString -Key 'GuiDetailDateChecked' -Fallback 'Checked: pause updates starting on the selected date')
 					$tb.TextWrapping = [System.Windows.TextWrapping]::Wrap
-					$tb.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+					$tb.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 					$tb.Foreground = $bc.ConvertFromString($theme.TextSecondary)
 					[void]($stackPanel.Children.Add($tb))
 					$tb = New-Object System.Windows.Controls.TextBlock
 					$tb.Text = (Get-UxLocalizedString -Key 'GuiDetailDateUnchecked' -Fallback 'Unchecked: pause updates are cleared')
 					$tb.TextWrapping = [System.Windows.TextWrapping]::Wrap
-					$tb.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+					$tb.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 					$tb.Foreground = $bc.ConvertFromString($theme.TextSecondary)
 					[void]($stackPanel.Children.Add($tb))
 				}
@@ -116,13 +115,13 @@
 					$tb = New-Object System.Windows.Controls.TextBlock
 					$tb.Text = (Get-UxLocalizedString -Key 'GuiDetailActionChecked' -Fallback 'Checked: this action runs when you click {0}' -FormatArgs @((Get-UxRunActionLabel)))
 					$tb.TextWrapping = [System.Windows.TextWrapping]::Wrap
-					$tb.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+					$tb.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 					$tb.Foreground = $bc.ConvertFromString($theme.TextSecondary)
 					[void]($stackPanel.Children.Add($tb))
 					$tb = New-Object System.Windows.Controls.TextBlock
 					$tb.Text = (Get-UxLocalizedString -Key 'GuiDetailActionUnchecked' -Fallback 'Unchecked: this action is skipped')
 					$tb.TextWrapping = [System.Windows.TextWrapping]::Wrap
-					$tb.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+					$tb.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 					$tb.Foreground = $bc.ConvertFromString($theme.TextSecondary)
 					[void]($stackPanel.Children.Add($tb))
 				}
@@ -139,7 +138,7 @@
 				& $addSectionHeader (Get-UxLocalizedString -Key 'GuiSectionCurrentState' -Fallback 'Current State')
 				$stateRow = New-Object System.Windows.Controls.TextBlock
 				$stateRow.TextWrapping = [System.Windows.TextWrapping]::Wrap
-				$stateRow.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+				$stateRow.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 				if ($matchesDesired)
 				{
 					$stateRow.Text = (Get-UxLocalizedString -Key 'GuiDetailNoChangeNeeded' -Fallback ("{0} {1} no change needed" -f $stateLabel, ([char]0x2014)))
@@ -174,7 +173,7 @@
 				$tb = New-Object System.Windows.Controls.TextBlock
 				$tb.Text = $winDefText
 				$tb.TextWrapping = [System.Windows.TextWrapping]::Wrap
-				$tb.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+				$tb.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 				$tb.Foreground = $bc.ConvertFromString($theme.TextMuted)
 				[void]($stackPanel.Children.Add($tb))
 			}
@@ -189,12 +188,12 @@
 			$riskLbl = New-Object System.Windows.Controls.TextBlock
 			$riskLbl.Text = (Get-UxLocalizedString -Key 'GuiRiskLevelLabel' -Fallback 'Level: ')
 			$riskLbl.Foreground = $bc.ConvertFromString($theme.TextMuted)
-			$riskLbl.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+			$riskLbl.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 			[void]($riskRow.Children.Add($riskLbl))
 			$riskVal = New-Object System.Windows.Controls.TextBlock
 			$riskVal.Text = if ($riskLevel -eq 'Low') { (Get-UxLocalizedString -Key 'GuiRiskLow' -Fallback 'Low Risk') } elseif ($riskLevel -eq 'High') { (Get-UxLocalizedString -Key 'GuiRiskHigh' -Fallback 'High Risk') } else { (Get-UxLocalizedString -Key 'GuiRiskMedium' -Fallback 'Medium Risk') }
 			$riskVal.FontWeight = [System.Windows.FontWeights]::SemiBold
-			$riskVal.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+			$riskVal.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 			if ($riskLevel -eq 'High')
 			{
 				$riskVal.Foreground = $bc.ConvertFromString($theme.RiskHighBadge)
@@ -215,7 +214,7 @@
 				$tb = New-Object System.Windows.Controls.TextBlock
 				$tb.Text = (Get-UxLocalizedString -Key 'GuiDetailWhyNeedsCare' -Fallback 'Why this needs care: {0}' -FormatArgs @($Tweak.CautionReason))
 				$tb.TextWrapping = [System.Windows.TextWrapping]::Wrap
-				$tb.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+				$tb.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 				$tb.Foreground = $bc.ConvertFromString($theme.TextSecondary)
 				$tb.Margin = [System.Windows.Thickness]::new(0, 4, 0, 0)
 				[void]($stackPanel.Children.Add($tb))
@@ -233,11 +232,11 @@
 				$lbl = New-Object System.Windows.Controls.TextBlock
 				$lbl.Text = (Get-UxLocalizedString -Key 'GuiRestoreLabel' -Fallback 'Restore: ')
 				$lbl.Foreground = $bc.ConvertFromString($theme.TextMuted)
-				$lbl.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+				$lbl.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 				[void]($restoreRow.Children.Add($lbl))
 				$val = New-Object System.Windows.Controls.TextBlock
 				$val.FontWeight = [System.Windows.FontWeights]::SemiBold
-				$val.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+				$val.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 				if ($Tweak.Restorable)
 				{
 					$val.Text = (Get-UxLocalizedString -Key 'GuiRestorePossible' -Fallback 'Possible')
@@ -265,12 +264,12 @@
 				$impactLbl = New-Object System.Windows.Controls.TextBlock
 				$impactLbl.Text = (Get-UxLocalizedString -Key 'GuiDetailLevelLabel' -Fallback 'Level: ')
 				$impactLbl.Foreground = $bc.ConvertFromString($theme.TextMuted)
-				$impactLbl.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+				$impactLbl.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 				[void]($impactRow.Children.Add($impactLbl))
 				$impactVal = New-Object System.Windows.Controls.TextBlock
 				$impactVal.Text = $impactLevel
 				$impactVal.FontWeight = [System.Windows.FontWeights]::SemiBold
-				$impactVal.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+				$impactVal.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 				$impactVal.Foreground = $bc.ConvertFromString($(
 					if ($impactLevel -eq 'High') { $theme.RiskHighBadge }
 					elseif ($impactLevel -eq 'Medium') { $theme.RiskMediumBadge }
@@ -293,7 +292,7 @@
 				$whyTb = New-Object System.Windows.Controls.TextBlock
 				$whyTb.Text = $whyText.Trim()
 				$whyTb.TextWrapping = [System.Windows.TextWrapping]::Wrap
-				$whyTb.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+				$whyTb.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 				$whyTb.Foreground = $bc.ConvertFromString($theme.TextSecondary)
 				[void]($stackPanel.Children.Add($whyTb))
 			}
@@ -311,11 +310,11 @@
 				$recoveryLbl = New-Object System.Windows.Controls.TextBlock
 				$recoveryLbl.Text = (Get-UxLocalizedString -Key 'GuiDetailRecoveryLabel' -Fallback 'Recovery: ')
 				$recoveryLbl.Foreground = $bc.ConvertFromString($theme.TextMuted)
-				$recoveryLbl.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+				$recoveryLbl.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 				[void]($recoveryRow.Children.Add($recoveryLbl))
 				$recoveryVal = New-Object System.Windows.Controls.TextBlock
 				$recoveryVal.FontWeight = [System.Windows.FontWeights]::SemiBold
-				$recoveryVal.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+				$recoveryVal.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 				$recoveryVal.Text = switch ($recoveryLevel)
 				{
 					'Direct'       { Get-UxString -Key 'GuiRecoveryDirect'       -Fallback 'Directly reversible' }
@@ -341,7 +340,7 @@
 				[void]($stackPanel.Children.Add($sepRestart))
 				$restartTb = New-Object System.Windows.Controls.TextBlock
 				$restartTb.Text = ([char]0x21BB).ToString() + ' ' + (Get-UxString -Key 'GuiRestartRequiredDetail' -Fallback 'Restart required for this change to take effect')
-				$restartTb.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+				$restartTb.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 				$restartTb.FontWeight = [System.Windows.FontWeights]::SemiBold
 				$restartTb.Foreground = $bc.ConvertFromString($theme.RiskMediumBadge)
 				[void]($stackPanel.Children.Add($restartTb))
@@ -353,7 +352,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-InfoIcon.
 	#>
 
 	function New-InfoIcon
@@ -369,7 +367,7 @@
 		$icon = New-Object System.Windows.Controls.TextBlock
 		$icon.Text = [char]0x24D8  # info icon
 		$icon.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI Symbol')
-		$icon.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSection' -Default 14
+		$icon.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeSection' -Default 14
 		$icon.Foreground = ConvertTo-GuiBrush -Color $theme.AccentBlue -Context 'New-InfoIcon'
 		$icon.VerticalAlignment = "Center"
 		$icon.Margin = [System.Windows.Thickness]::new(6, 0, 0, 0)
@@ -431,7 +429,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-ImpactBadge.
 	#>
 
 	function New-ImpactBadge
@@ -449,7 +446,7 @@
 
 		$txt = New-Object System.Windows.Controls.TextBlock
 		$txt.Text = (Get-UxLocalizedString -Key 'GuiImpactBadge' -Fallback 'Impact')
-		$txt.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
+		$txt.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeSmall' -Default 10
 		$txt.FontWeight = [System.Windows.FontWeights]::SemiBold
 		$txt.Foreground = ConvertTo-GuiBrush -Color $Script:CurrentTheme.ImpactBadge -Context 'New-ImpactBadge/Foreground'
 
@@ -459,7 +456,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-RiskBadge.
 	#>
 
 	function New-RiskBadge
@@ -475,7 +471,7 @@
 		$border.BorderThickness = [System.Windows.Thickness]::new(1)
 
 		$txt = New-Object System.Windows.Controls.TextBlock
-		$txt.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeSmall' -Default 10
+		$txt.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeSmall' -Default 10
 		$txt.FontWeight = [System.Windows.FontWeights]::SemiBold
 		$riskLevel = if ([string]::IsNullOrWhiteSpace($Level)) { 'Low' } else { [string]$Level }
 
@@ -507,7 +503,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-TroubleshootingOnlyBadge.
 	#>
 
 	function New-TroubleshootingOnlyBadge
@@ -522,10 +517,6 @@
 			-ToolTip 'Use this only when diagnosing game compatibility, overlay, or display issues.')
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function New-StatusPill
 	{
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
@@ -543,7 +534,7 @@
 
 		$txt = New-Object System.Windows.Controls.TextBlock
 		$txt.Text = $Text
-		$txt.FontSize = GUICommon\Get-GuiSafeFontSize -Key 'FontSizeLabel' -Default 11
+		$txt.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 		$txt.FontWeight = [System.Windows.FontWeights]::SemiBold
 		$txt.Foreground = $bc.ConvertFromString($Script:CurrentTheme.StatusPillText)
 		$border.Child = $txt
@@ -552,7 +543,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Format-TweakScenarioTag.
 	#>
 
 	function Format-TweakScenarioTag
@@ -563,7 +553,7 @@
 
 		$normalized = [string]$Tag.Trim().ToLowerInvariant()
 
-		# Technical abbreviations and brand names — never translated
+		# Technical abbreviations and brand names - never translated
 		switch ($normalized)
 		{
 			'uwp'      { return 'UWP' }

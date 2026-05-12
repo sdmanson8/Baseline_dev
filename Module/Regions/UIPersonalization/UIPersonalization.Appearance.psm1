@@ -1495,5 +1495,22 @@ function Set-DynamicLighting
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'AccessibilityActivationSounds',
+    'AccessibilityWarningSounds',
+    'AeroShaking',
+    'AppColorMode',
+    'AppsLanguageSwitch',
+    'BuildNumberOnDesktop',
+    'DesktopRegistry',
+    'EnhPointerPrecision',
+    'NarratorAudioDucking',
+    'PrtScnSnippingTool',
+    'Set-DynamicLighting',
+    'SoundDuckingPreference',
+    'SpeechOneCoreVoiceActivation',
+    'StartupSound',
+    'TitleBarColor',
+    'VisualFX'
+)
+Export-ModuleMember -Function $ExportedFunctions

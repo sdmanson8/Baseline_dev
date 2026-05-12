@@ -13,6 +13,8 @@
 #   - presets skip unavailable entries with a "Skipped — not available on
 #     this system" line in the run report (instead of failing)
 
+$Script:CachedBaselineDefenderExecutionAvailable = $null
+
 # Shape-agnostic field probes — manifest entries arrive as either ordered
 # hashtables (from Import-TweakManifestFromData) or pscustomobjects (from
 # tests / scripted callers). Both Test-BaselineEntryAvailable and
@@ -138,7 +140,6 @@ function Get-BaselineServerReleaseFromBuild
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineSystemPlatformInfo.
 #>
 
 function Get-BaselineSystemPlatformInfo
@@ -298,7 +299,6 @@ function Get-BaselineSystemPlatformInfo
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-BaselinePlatformLabel.
 #>
 
 function ConvertTo-BaselinePlatformLabel
@@ -351,7 +351,6 @@ function ConvertTo-BaselinePlatformLabel
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineEntrySupportsExecution.
 #>
 
 function Test-BaselineEntrySupportsExecution
@@ -391,7 +390,205 @@ function Test-BaselineEntrySupportsExecution
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineEntryAvailable.
+#>
+
+function Get-BaselineEntrySupportsExecutionReason
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[Parameter(Mandatory)]
+		[AllowNull()]
+		[object]$Entry
+	)
+
+	if ($null -eq $Entry) { return $null }
+	if (-not (Test-BaselineEntryFieldPresent -Entry $Entry -Name 'SupportsExecutionReason')) { return $null }
+
+	$reason = Get-BaselineEntryFieldValue -Entry $Entry -Name 'SupportsExecutionReason'
+	if ([string]::IsNullOrWhiteSpace([string]$reason))
+	{
+		return $null
+	}
+
+	return [string]$reason
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Set-BaselineDefenderExecutionAvailability
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[bool]$Available
+	)
+
+	$Script:CachedBaselineDefenderExecutionAvailable = [bool]$Available
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Reset-BaselineDefenderExecutionAvailability
+{
+	[CmdletBinding()]
+	param ()
+
+	$Script:CachedBaselineDefenderExecutionAvailable = $null
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Test-BaselineDefenderExecutionAvailable
+{
+	[CmdletBinding()]
+	[OutputType([bool])]
+	param ()
+
+	if ($null -ne $Script:CachedBaselineDefenderExecutionAvailable)
+	{
+		return [bool]$Script:CachedBaselineDefenderExecutionAvailable
+	}
+
+	return $false
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Get-BaselineEntryExecutionSupport
+{
+	[CmdletBinding()]
+	[OutputType([pscustomobject])]
+	param (
+		[Parameter(Mandatory)]
+		[AllowNull()]
+		[object]$Entry
+	)
+
+	$result = [ordered]@{
+		SupportsExecution = $true
+		Reason = ''
+	}
+
+	if ($null -eq $Entry)
+	{
+		return [pscustomobject]$result
+	}
+
+	if (Test-BaselineEntryFieldPresent -Entry $Entry -Name 'SupportsExecution')
+	{
+		$result.SupportsExecution = Test-BaselineEntrySupportsExecution -Entry $Entry
+		if (-not $result.SupportsExecution)
+		{
+			$reason = Get-BaselineEntrySupportsExecutionReason -Entry $Entry
+			$result.Reason = if ([string]::IsNullOrWhiteSpace([string]$reason)) { 'Execution not supported on this system.' } else { [string]$reason }
+		}
+		return [pscustomobject]$result
+	}
+
+	$functionName = if (Test-BaselineEntryFieldPresent -Entry $Entry -Name 'Function')
+	{
+		[string](Get-BaselineEntryFieldValue -Entry $Entry -Name 'Function')
+	}
+	else
+	{
+		$null
+	}
+
+	if ([string]::IsNullOrWhiteSpace([string]$functionName))
+	{
+		return [pscustomobject]$result
+	}
+
+	$requiresAppxPackage = @{
+		TaskbarWidgets = @{
+			Name = 'MicrosoftWindows.Client.WebExperience'
+			Reason = 'Widgets requires the Windows Web Experience Pack to be installed.'
+		}
+		CortanaAutostart = @{
+			Name = 'Microsoft.549981C3F5F10'
+			Reason = 'Cortana is not installed on this system.'
+		}
+		EditWithClipchampContext = @{
+			Name = 'Clipchamp.Clipchamp'
+			Reason = 'Clipchamp is not installed on this system.'
+		}
+		OpenWindowsTerminalAdminContext = @{
+			Name = 'Microsoft.WindowsTerminal'
+			Reason = 'Windows Terminal is not installed on this system.'
+		}
+	}
+
+	if ($requiresAppxPackage.ContainsKey($functionName))
+	{
+		$packageRequirement = $requiresAppxPackage[$functionName]
+		$package = Get-AppxPackage -Name ([string]$packageRequirement.Name) -ErrorAction SilentlyContinue -WarningAction SilentlyContinue | Select-Object -First 1
+		if (-not $package)
+		{
+			$result.SupportsExecution = $false
+			$result.Reason = [string]$packageRequirement.Reason
+		}
+		return [pscustomobject]$result
+	}
+
+	$defenderBackedFunctions = @(
+		'AppsSmartScreen'
+		'DefenderSandbox'
+		'DefenderScanCPULimit'
+		'DefenderSignatureUpdateInterval'
+		'DismissMSAccount'
+		'DismissSmartScreenFilter'
+		'NetworkProtection'
+		'PUAppsDetection'
+	)
+	if ($functionName -in $defenderBackedFunctions)
+	{
+		if (-not (Test-BaselineDefenderExecutionAvailable))
+		{
+			$result.SupportsExecution = $false
+			$result.Reason = 'Microsoft Defender is not available on this system.'
+		}
+		return [pscustomobject]$result
+	}
+
+	if ($functionName -eq 'NetworkAdaptersSavePower')
+	{
+		try
+		{
+			$adapters = @(
+				Get-NetAdapter -Physical -ErrorAction Stop |
+					Where-Object -FilterScript { $_.MacAddress } |
+					Get-NetAdapterPowerManagement -ErrorAction Stop |
+					Where-Object -FilterScript { $_.AllowComputerToTurnOffDevice -ne 'Unsupported' }
+			)
+		}
+		catch
+		{
+			$adapters = @()
+		}
+
+		if ($adapters.Count -eq 0)
+		{
+			$result.SupportsExecution = $false
+			$result.Reason = 'No compatible physical network adapters are available on this system.'
+		}
+
+		return [pscustomobject]$result
+	}
+
+	return [pscustomobject]$result
+}
+
+<#
+    .SYNOPSIS
 #>
 
 function Test-BaselineEntryAvailable
@@ -545,7 +742,6 @@ function Test-BaselineEntryAvailable
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineEntryAvailabilitySummary.
 #>
 
 function Get-BaselineEntryAvailabilitySummary
@@ -619,7 +815,6 @@ function Get-BaselineEntryAvailabilitySummary
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselinePlatformFilterOverride.
 #>
 
 function Get-BaselinePlatformFilterOverride
@@ -675,7 +870,6 @@ function Get-BaselinePlatformFilterOverride
 
 <#
     .SYNOPSIS
-    Internal function Set-BaselineManifestAllAvailable.
 #>
 
 function Set-BaselineManifestAllAvailable
@@ -878,7 +1072,6 @@ function Test-BaselineDictionaryPlatformSupportAvailable
 
 <#
     .SYNOPSIS
-    Internal function Update-BaselineManifestAvailability.
 #>
 
 function Update-BaselineManifestAvailability
@@ -985,6 +1178,89 @@ function Update-BaselineManifestAvailability
 		else
 		{
 			Add-Member -InputObject $entry -NotePropertyName 'Availability' -NotePropertyValue $availability -Force
+		}
+	}
+
+	return $Manifest
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Update-BaselineManifestExecutionSupport
+{
+	[CmdletBinding()]
+	[OutputType([object])]
+	param (
+		[Parameter(Mandatory)]
+		[AllowNull()]
+		[object]$Manifest
+	)
+
+	if ($null -eq $Manifest) { return $Manifest }
+
+	$entries = @()
+	if ($Manifest -is [System.Collections.IDictionary])
+	{
+		foreach ($key in @($Manifest.Keys))
+		{
+			$bucket = $Manifest[$key]
+			if ($null -eq $bucket) { continue }
+			if ($bucket -is [System.Collections.IEnumerable] -and -not ($bucket -is [string]))
+			{
+				foreach ($e in $bucket) { if ($e) { $entries += , $e } }
+			}
+			else
+			{
+				$entries += , $bucket
+			}
+		}
+	}
+	elseif ($Manifest.PSObject -and $Manifest.PSObject.Properties['Entries'])
+	{
+		$entries = @($Manifest.Entries)
+	}
+	elseif ($Manifest -is [System.Collections.IEnumerable] -and -not ($Manifest -is [string]))
+	{
+		$entries = @($Manifest)
+	}
+	else
+	{
+		$entries = @($Manifest)
+	}
+
+	foreach ($entry in $entries)
+	{
+		if ($null -eq $entry) { continue }
+
+		$support = Get-BaselineEntryExecutionSupport -Entry $entry
+		if ($entry -is [System.Collections.IDictionary])
+		{
+			$entry['SupportsExecution'] = [bool]$support.SupportsExecution
+			if ([string]::IsNullOrWhiteSpace([string]$support.Reason))
+			{
+				if ($entry.Contains('SupportsExecutionReason'))
+				{
+					$entry.Remove('SupportsExecutionReason') | Out-Null
+				}
+			}
+			else
+			{
+				$entry['SupportsExecutionReason'] = [string]$support.Reason
+			}
+		}
+		else
+		{
+			Add-Member -InputObject $entry -NotePropertyName 'SupportsExecution' -NotePropertyValue ([bool]$support.SupportsExecution) -Force
+			if ([string]::IsNullOrWhiteSpace([string]$support.Reason))
+			{
+				Add-Member -InputObject $entry -NotePropertyName 'SupportsExecutionReason' -NotePropertyValue $null -Force
+			}
+			else
+			{
+				Add-Member -InputObject $entry -NotePropertyName 'SupportsExecutionReason' -NotePropertyValue ([string]$support.Reason) -Force
+			}
 		}
 	}
 

@@ -2,7 +2,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Convert-JsonManifestValue.
 #>
 
 function Convert-JsonManifestValue
@@ -47,7 +46,6 @@ function Convert-JsonManifestValue
 }
 <#
     .SYNOPSIS
-    Internal function ConvertTo-NormalizedParameterName.
 #>
 
 function ConvertTo-NormalizedParameterName
@@ -71,7 +69,6 @@ function ConvertTo-NormalizedParameterName
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-TweakRiskLevel.
 #>
 
 function ConvertTo-TweakRiskLevel
@@ -93,7 +90,6 @@ function ConvertTo-TweakRiskLevel
 }
 <#
     .SYNOPSIS
-    Internal function ConvertTo-TweakPresetTier.
 #>
 
 function ConvertTo-TweakPresetTier
@@ -132,7 +128,6 @@ function ConvertTo-TweakPresetTier
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-TweakWorkflowSensitivity.
 #>
 
 function ConvertTo-TweakWorkflowSensitivity
@@ -159,7 +154,6 @@ function ConvertTo-TweakWorkflowSensitivity
 
 <#
     .SYNOPSIS
-    Internal function Convert-ToWhyThisMattersText.
 #>
 
 function Convert-ToWhyThisMattersText
@@ -194,7 +188,6 @@ function Convert-ToWhyThisMattersText
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineManifestPlatformSupportHintTags.
 #>
 
 function Get-BaselineManifestPlatformSupportHintTags
@@ -240,7 +233,6 @@ function Get-BaselineManifestPlatformSupportHintTags
 
 <#
     .SYNOPSIS
-    Internal function Write-ManifestValidationWarning.
 #>
 
 function Write-ManifestValidationWarning
@@ -265,7 +257,6 @@ function Write-ManifestValidationWarning
 
 <#
     .SYNOPSIS
-    Internal function Import-TweakManifestFromData.
 #>
 
 function Import-TweakManifestFromData
@@ -482,7 +473,6 @@ function Import-TweakManifestFromData
 
 <#
     .SYNOPSIS
-    Internal function Test-TweakManifestEntryField.
 #>
 
 function Test-TweakManifestEntryField
@@ -513,7 +503,6 @@ function Test-TweakManifestEntryField
 
 <#
     .SYNOPSIS
-    Internal function Get-TweakManifestEntryValue.
 #>
 
 function Get-TweakManifestEntryValue
@@ -539,7 +528,6 @@ function Get-TweakManifestEntryValue
 
 <#
     .SYNOPSIS
-    Internal function Get-TweakManifestDefaultCommand.
 #>
 
 function Get-TweakManifestDefaultCommand
@@ -747,7 +735,6 @@ function Get-TweakManifestDefaultCommand
 
 <#
     .SYNOPSIS
-    Internal function Get-ManifestEntryByFunction.
 #>
 
 function Get-ManifestEntryByFunction
@@ -779,7 +766,6 @@ function Get-ManifestEntryByFunction
 
 <#
     .SYNOPSIS
-    Internal function Get-ValidScenarioTagCatalog.
 #>
 
 function Get-ValidScenarioTagCatalog
@@ -831,7 +817,6 @@ function Get-ValidScenarioTagCatalog
 
 <#
     .SYNOPSIS
-    Internal function Get-ValidGamingPreviewGroups.
 #>
 
 function Get-ValidGamingPreviewGroups
@@ -851,7 +836,6 @@ function Get-ValidGamingPreviewGroups
 
 <#
     .SYNOPSIS
-    Internal function Get-ValidGameModeProfileNames.
 #>
 
 function Get-ValidGameModeProfileNames
@@ -864,10 +848,6 @@ function Get-ValidGameModeProfileNames
 	)
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Test-TweakManifestIntegrity
 {
 	<# .SYNOPSIS Validates manifest structure, required fields, and value constraints. #>
@@ -1232,7 +1212,6 @@ function Test-TweakManifestIntegrity
 
 <#
     .SYNOPSIS
-    Internal function Get-TweakRestartGroups.
 #>
 
 function Get-TweakRestartGroups
@@ -1276,7 +1255,6 @@ function Get-TweakRestartGroups
 
 <#
     .SYNOPSIS
-    Internal function Get-TweakDependencyInfo.
 #>
 
 function Get-TweakDependencyInfo

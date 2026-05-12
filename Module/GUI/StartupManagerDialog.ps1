@@ -44,9 +44,9 @@ function Get-GuiStartupManagerEntries
 	}
 	catch
 	{
-		if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'StartupManagerDialog.Enumerate'
+			Write-SwallowedException -ErrorRecord $_ -Source 'StartupManagerDialog.Enumerate'
 		}
 		$entries = @()
 	}
@@ -184,9 +184,9 @@ function New-GuiStartupManagerEntryRow
 			catch
 			{
 				$ok = $false
-				if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 				{
-					Write-DebugSwallowedException -ErrorRecord $_ -Source 'StartupManagerDialog.Toggle'
+					Write-SwallowedException -ErrorRecord $_ -Source 'StartupManagerDialog.Toggle'
 				}
 			}
 			if (-not $ok)

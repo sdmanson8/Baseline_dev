@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/PackageManagement.Helpers.ps1'
@@ -88,6 +88,95 @@ Describe 'Resolve-ChocolateyExecutable' {
     }
 }
 
+Describe 'Chocolatey bootstrap download and integrity' {
+    BeforeEach {
+        $script:previousChocolateyHash = $env:BASELINE_CHOCOLATEY_INSTALLER_SHA256
+        $script:previousTemp = $env:TEMP
+        Remove-Item Env:\BASELINE_CHOCOLATEY_INSTALLER_SHA256 -ErrorAction SilentlyContinue
+        $env:TEMP = $TestDrive
+
+        function Get-BaselineBilingualString {
+            param(
+                [string]$Key,
+                [string]$Fallback,
+                [object[]]$FormatArgs = @()
+            )
+
+            if ($FormatArgs.Count -gt 0) { return ($Fallback -f $FormatArgs) }
+            return $Fallback
+        }
+
+        function LogInfo { param([string]$Message) }
+        function LogWarning { param([string]$Message) }
+        function LogError { param([string]$Message) }
+
+        Mock Test-ChocolateyBootstrapInteractiveHost { $false }
+        Mock Get-ChocolateyVersion { $null }
+        Mock Invoke-DownloadFile {
+            param($Uri, $OutFile)
+            Set-Content -LiteralPath $OutFile -Value 'installer' -Encoding ASCII
+        }
+        Mock Assert-FileHash { 'OK' }
+        Mock Start-Process { [pscustomobject]@{ ExitCode = 0 } }
+        Mock Wait-PackageManagerProcess { 0 }
+        Mock Get-PackageManagerBootstrapLogLines { @() }
+        Mock Start-Sleep {}
+        Mock Reset-ChocolateyAvailabilityState {}
+    }
+
+    AfterEach {
+        if ($null -eq $script:previousChocolateyHash) { Remove-Item Env:\BASELINE_CHOCOLATEY_INSTALLER_SHA256 -ErrorAction SilentlyContinue } else { $env:BASELINE_CHOCOLATEY_INSTALLER_SHA256 = $script:previousChocolateyHash }
+        $env:TEMP = $script:previousTemp
+        Remove-Item Function:\Get-BaselineBilingualString -ErrorAction SilentlyContinue
+        Remove-Item Function:\LogInfo -ErrorAction SilentlyContinue
+        Remove-Item Function:\LogWarning -ErrorAction SilentlyContinue
+        Remove-Item Function:\LogError -ErrorAction SilentlyContinue
+    }
+
+    It 'downloads and executes Chocolatey without an environment gate or pinned hash' {
+        $result = Invoke-ChocolateyBootstrap
+
+        $result.Success | Should -BeTrue
+        $result.Error | Should -BeNullOrEmpty
+
+        Should -Invoke Invoke-DownloadFile -Times 1
+        Should -Invoke Assert-FileHash -Times 0
+        Should -Invoke Start-Process -Times 1
+    }
+
+    It 'does not require a pinned hash before executing the Chocolatey installer' {
+        $result = Invoke-ChocolateyBootstrap
+
+        $result.Success | Should -BeTrue
+
+        Should -Invoke Invoke-DownloadFile -Times 1
+        Should -Invoke Assert-FileHash -Times 0
+        Should -Invoke Start-Process -Times 1
+    }
+
+    It 'verifies the pinned hash before executing the Chocolatey installer' {
+        $env:BASELINE_CHOCOLATEY_INSTALLER_SHA256 = ('A' * 64)
+        $script:chocolateyVersionProbeCount = 0
+        Mock Get-ChocolateyVersion {
+            $script:chocolateyVersionProbeCount++
+            if ($script:chocolateyVersionProbeCount -eq 1) { return $null }
+            return '2.2.2'
+        }
+
+        $result = Invoke-ChocolateyBootstrap -TimeoutSeconds 77
+
+        $result.Success | Should -BeTrue
+        $result.Available | Should -BeTrue
+        Should -Invoke Assert-FileHash -Times 1 -ParameterFilter {
+            $ExpectedSha256 -eq ('A' * 64) -and $Label -eq 'Chocolatey install.ps1'
+        }
+        Should -Invoke Start-Process -Times 1
+        Should -Invoke Wait-PackageManagerProcess -Times 1 -ParameterFilter {
+            $TimeoutSeconds -eq 77
+        }
+    }
+}
+
 Describe 'Get-WinGetBootstrapInstallerMetadata' {
     It 'returns the reviewed 5.3.6 winget-install release metadata' {
         $metadata = Get-WinGetBootstrapInstallerMetadata
@@ -104,6 +193,26 @@ Describe 'Get-WinGetBootstrapInstallerArguments' {
         $arguments = @(Get-WinGetBootstrapInstallerArguments)
 
         $arguments | Should -Be @('-Force')
+    }
+}
+
+Describe 'Get-WinGetVersion' {
+    It 'uses the bounded process capture helper with the supplied timeout' {
+        Mock Resolve-WinGetExecutable { 'winget.exe' }
+        Mock Invoke-PackageManagerProcessCapture {
+            [pscustomobject]@{
+                ExitCode = 0
+                StandardOutput = "v1.9.0`r`n"
+                StandardError = ''
+            }
+        }
+
+        $version = Get-WinGetVersion -TimeoutSeconds 17
+
+        $version | Should -Be 'v1.9.0'
+        Should -Invoke Invoke-PackageManagerProcessCapture -Times 1 -ParameterFilter {
+            $FilePath -eq 'winget.exe' -and $TimeoutSeconds -eq 17
+        }
     }
 }
 
@@ -177,6 +286,7 @@ Describe 'Invoke-WinGetBootstrap' {
             $script:wingetVersionCallCount++
             return $null
         }
+        Mock Wait-PackageManagerProcess { 0 }
         Mock Start-Sleep {}
         Mock Set-PSRepository { throw 'repair path hit' }
         Mock Install-PackageProvider {}
@@ -211,6 +321,7 @@ Describe 'Invoke-WinGetBootstrap' {
             $script:wingetVersionCallCount++
             return $null
         }
+        Mock Wait-PackageManagerProcess { 0 }
         Mock Start-Sleep {}
         Mock Reset-WinGetAvailabilityState {}
 
@@ -253,5 +364,29 @@ Describe 'Invoke-WinGetBootstrap' {
 
         ($script:capturedWinGetInstallerArgumentList -join ' ') | Should -Match '-Force'
         ($script:capturedWinGetInstallerArgumentList -join ' ') | Should -Not -Match 'AlternateInstallMethod'
+    }
+
+    It 'waits for the installer process with the supplied timeout' {
+        Mock Invoke-DownloadFile {
+            param($Uri, $OutFile)
+            Set-Content -LiteralPath $OutFile -Value 'installer' -Encoding ASCII
+        }
+        Mock Assert-FileHash { 'OK' }
+        Mock Start-Process { [pscustomobject]@{ ExitCode = 0; StartInfo = [pscustomobject]@{ FileName = 'powershell.exe' } } }
+        Mock Wait-PackageManagerProcess { 0 }
+        Mock Get-PackageManagerBootstrapLogLines { @() }
+        Mock Get-WinGetVersion {
+            $script:wingetVersionCallCount++
+            if ($script:wingetVersionCallCount -eq 1) { return $null }
+            return '1.0.0'
+        }
+        Mock Start-Sleep {}
+        Mock Reset-WinGetAvailabilityState {}
+
+        $null = Invoke-WinGetBootstrap -TimeoutSeconds 321
+
+        Should -Invoke Wait-PackageManagerProcess -Times 1 -ParameterFilter {
+            $TimeoutSeconds -eq 321
+        }
     }
 }

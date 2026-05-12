@@ -62,7 +62,6 @@ function Resolve-BaselineLocalizationDirectory
 
 <#
     .SYNOPSIS
-    Internal function Resolve-BaselineLocalizationFile.
 #>
 
 function Resolve-BaselineLocalizationFile
@@ -96,7 +95,6 @@ function Resolve-BaselineLocalizationFile
 
 <#
     .SYNOPSIS
-    Internal function Import-BaselineLocalization.
 #>
 
 function Import-BaselineLocalization
@@ -139,7 +137,6 @@ function Import-BaselineLocalization
 
     <#
         .SYNOPSIS
-        Internal function Add-LocalizationCandidate.
     #>
 
     function Add-LocalizationCandidate
@@ -253,7 +250,6 @@ function Import-BaselineLocalization
 
 <#
     .SYNOPSIS
-    Internal function Resolve-BaselineCultureName.
 #>
 
 function Resolve-BaselineCultureName
@@ -308,7 +304,6 @@ function Resolve-BaselineCultureName
 
 <#
     .SYNOPSIS
-    Internal function Set-BaselineThreadCulture.
 #>
 
 function Set-BaselineThreadCulture
@@ -334,10 +329,6 @@ function Set-BaselineThreadCulture
     return $cultureInfo.Name
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Get-BaselineLocalizedString
 {
     <#
@@ -393,7 +384,6 @@ function Get-BaselineLocalizedString
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineBilingualString.
 #>
 
 function Get-BaselineBilingualString

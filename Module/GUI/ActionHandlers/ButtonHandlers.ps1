@@ -1,4 +1,4 @@
-# ActionHandlers split file loaded by Module\GUI\ActionHandlers.ps1.
+﻿# ActionHandlers split file loaded by Module\GUI\ActionHandlers.ps1.
 
 	#region Button handlers
 		$getActiveTweakRunListCommand = Get-GuiRuntimeCommand -Name 'Get-ActiveTweakRunList' -CommandType 'Function'
@@ -15,6 +15,9 @@
 		$getWindowsDefaultRunListCommand = Get-GuiRuntimeCommand -Name 'Get-WindowsDefaultRunList' -CommandType 'Function'
 		$showHelpDialogCommand = Get-GuiRuntimeCommand -Name 'Show-HelpDialog' -CommandType 'Function'
 		$showThemedDialogCommand = Get-GuiRuntimeCommand -Name 'Show-ThemedDialog' -CommandType 'Function'
+		$testGuiModeActiveCommand = Get-GuiRuntimeCommand -Name 'Test-GuiModeActive' -CommandType 'Function'
+		$invokePreflightChecksCommand = Get-GuiRuntimeCommand -Name 'Invoke-PreflightChecks' -CommandType 'Function'
+		$showPlanSummaryDialogCommand = Get-GuiRuntimeCommand -Name 'Show-PlanSummaryDialog' -CommandType 'Function'
 		$showReadmeDialogCommand = Get-GuiRuntimeCommand -Name 'Show-ReadmeDialog' -CommandType 'Function'
 		$showGuiFaqDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiFaqDialog' -CommandType 'Function'
 		$showUpdateCheckDialogCommand = Get-GuiRuntimeCommand -Name 'Show-BaselineUpdateCheckDialog' -CommandType 'Function'
@@ -27,6 +30,7 @@
 		$showGuiReleaseStatusDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiReleaseStatusDialog' -CommandType 'Function'
 		$showGuiTroubleshootingGuideDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiTroubleshootingGuideDialog' -CommandType 'Function'
 		$showGuiRemovalPersistenceDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiRemovalPersistenceDialog' -CommandType 'Function'
+		$showGuiDeploymentMediaBuilderDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiDeploymentMediaBuilderDialog' -CommandType 'Function'
 		$showWslInstallDialogCommand = Get-GuiRuntimeCommand -Name 'Show-WslInstallDialog' -CommandType 'Function'
 		$invokeWslInstallFlowCommand = Get-GuiRuntimeCommand -Name 'Invoke-BaselineWslInstallFlow' -CommandType 'Function'
 		$exportSupportBundleCommand = Get-GuiRuntimeCommand -Name 'Export-BaselineSupportBundle' -CommandType 'Function'
@@ -71,6 +75,10 @@
 		if (-not $startAppsModuleActionAsyncCommand) { throw 'Start-AppsModuleActionAsync not found.' }
 		if (-not $startAppsModuleBatchActionAsyncCommand) { throw 'Start-AppsModuleBatchActionAsync not found.' }
 		if (-not $clearAppSelectionStateCommand) { throw 'Clear-AppSelectionState not found.' }
+		if (-not $showThemedDialogCommand) { throw 'Show-ThemedDialog not found.' }
+		if (-not $testGuiModeActiveCommand) { throw 'Test-GuiModeActive not found.' }
+		if (-not $invokePreflightChecksCommand) { throw 'Invoke-PreflightChecks not found.' }
+		if (-not $showPlanSummaryDialogCommand) { throw 'Show-PlanSummaryDialog not found.' }
 		if (-not $showGuiAuditSettingsDialogCommand) { throw 'Show-GuiAuditSettingsDialog not found.' }
 		if (-not $showGuiSettingsDialogCommand) { throw 'Show-GuiSettingsDialog not found.' }
 		if (-not $showGuiFileSaveDialogCommand) { throw 'Show-GuiFileSaveDialog not found.' }
@@ -80,6 +88,7 @@
 		if (-not $showGuiReleaseStatusDialogCommand) { throw 'Show-GuiReleaseStatusDialog not found.' }
 		if (-not $showGuiTroubleshootingGuideDialogCommand) { throw 'Show-GuiTroubleshootingGuideDialog not found.' }
 		if (-not $showGuiFaqDialogCommand) { throw 'Show-GuiFaqDialog not found.' }
+		if (-not $showGuiDeploymentMediaBuilderDialogCommand) { throw 'Show-GuiDeploymentMediaBuilderDialog not found.' }
 		if (-not $exportRemoteTargetApprovalPolicyCommand)
 		{
 			LogWarning 'Export-GuiRemoteTargetApprovalPolicy not found; remote approval policy save actions will be disabled.'
@@ -116,7 +125,7 @@
 				}
 
 				$baselineVersion = $null
-				try { $baselineVersion = Get-BaselineDisplayVersion } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source ('ActionHandlers.{0}.GetDisplayVersion' -f $Context) }
+				try { $baselineVersion = Get-BaselineDisplayVersion } catch { Write-SwallowedException -ErrorRecord $_ -Source ('ActionHandlers.{0}.GetDisplayVersion' -f $Context) }
 				if ([string]::IsNullOrWhiteSpace($baselineVersion)) { $baselineVersion = 'unknown' }
 
 				$userAppSnapshot = @()
@@ -132,9 +141,9 @@
 					}
 					catch
 					{
-						if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 						{
-							Write-DebugSwallowedException -ErrorRecord $_ -Source ('ActionHandlers.{0}.UserApps' -f $Context)
+							Write-SwallowedException -ErrorRecord $_ -Source ('ActionHandlers.{0}.UserApps' -f $Context)
 						}
 						$userAppSnapshot = @()
 					}
@@ -271,13 +280,14 @@
 			if (-not $tweakList) { return }
 			if ($tweakList.Count -eq 0)
 			{
-				$emptyRunMessage = if (Test-GuiModeActive -Mode 'Game') {
+				$isGameModeActiveForEmptyRun = if ($testGuiModeActiveCommand) { [bool](& $testGuiModeActiveCommand -Mode 'Game') } else { $false }
+				$emptyRunMessage = if ($isGameModeActiveForEmptyRun) {
 					(& $getUxLocalizedStringCapture -Key 'GuiActionEmptyRunGameMode' -Fallback 'Choose a Game Mode profile before starting a gaming run.')
 				}
 				else {
 					(& $getUxLocalizedStringCapture -Key 'GuiActionEmptyRunNormal' -Fallback 'Select at least one tweak before starting a run.')
 				}
-				Show-ThemedDialog -Title $(if (Test-GuiModeActive -Mode 'Game') { & $getUxLocalizedStringCapture -Key 'GuiGameModeHeader' -Fallback 'Game Mode' } else { & $getUxRunActionLabelCommand }) `
+				& $showThemedDialogCommand -Title $(if ($isGameModeActiveForEmptyRun) { & $getUxLocalizedStringCapture -Key 'GuiGameModeHeader' -Fallback 'Game Mode' } else { & $getUxRunActionLabelCommand }) `
 					-Message $emptyRunMessage `
 					-Buttons @('OK') `
 					-AccentButton 'OK'
@@ -291,21 +301,28 @@
 				LogInfo (Get-UxBilingualLocalizedString -Key 'GuiLogGameModeRunRequested' -Fallback 'Game Mode run requested: Profile={0}, Actions={1}, RestorePointRecommended={2}, Decisions={3}' -FormatArgs @((& $getGameModeProfileCommand), $tweakList.Count, $runSummary.ShouldRecommendRestorePoint, (& $getGameModeDecisionOverridesTextCommand -Overrides (& $getGameModeDecisionOverridesCommand))))
 			}
 
-			# Plan Summary: show pre-run overview with pre-flight checks (including restore point)
-			$planPreflightResults = $null
-			try { $planPreflightResults = Invoke-PreflightChecks } catch { $planPreflightResults = $null }
-			$planChoice = Show-PlanSummaryDialog -SelectedTweaks $tweakList -PreflightResults $planPreflightResults
-			if ($planChoice -ne (& $getUxRunActionLabelCommand))
+			$requireRunConfirmation = $true
+			$requireRunConfirmationVariable = Get-Variable -Scope Script -Name 'RequireRunConfirmation' -ErrorAction SilentlyContinue
+			if ($requireRunConfirmationVariable)
 			{
-				if ($isGameModeRun)
-				{
-					LogInfo (Get-UxBilingualLocalizedString -Key 'GuiLogGameModeRunCancelled' -Fallback 'Game Mode run cancelled from plan summary.')
-				}
-				return
+				$requireRunConfirmation = [bool]$requireRunConfirmationVariable.Value
 			}
 
-			# Restore point creation is now handled by the pre-flight checks system.
-			# See Test-PreflightRestorePointCreation in PreflightChecks.ps1.
+			if ($requireRunConfirmation)
+			{
+				# Plan Summary: show pre-run overview with pre-flight checks.
+				$planPreflightResults = $null
+				try { if ($invokePreflightChecksCommand) { $planPreflightResults = & $invokePreflightChecksCommand } } catch { $planPreflightResults = $null }
+				$planChoice = & $showPlanSummaryDialogCommand -SelectedTweaks $tweakList -PreflightResults $planPreflightResults
+				if ($planChoice -ne (& $getUxRunActionLabelCommand))
+				{
+					if ($isGameModeRun)
+					{
+						LogInfo (Get-UxBilingualLocalizedString -Key 'GuiLogGameModeRunCancelled' -Fallback 'Game Mode run cancelled from plan summary.')
+					}
+					return
+				}
+			}
 
 			try
 			{
@@ -441,9 +458,9 @@
 				try { $result = Show-GuiAddCustomAppDialog }
 				catch
 				{
-					if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 					{
-						Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.AddCustomApp'
+						Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.AddCustomApp'
 					}
 					return
 				}
@@ -451,7 +468,7 @@
 
 				if (Get-Command -Name 'Get-BaselineApplicationsCatalog' -CommandType Function -ErrorAction SilentlyContinue)
 				{
-					try { $null = Get-BaselineApplicationsCatalog -Force } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'ActionHandlers.AddCustomApp.RefreshCatalog' }
+					try { $null = Get-BaselineApplicationsCatalog -Force } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.AddCustomApp.RefreshCatalog' }
 				}
 				$Script:AppsViewBuildSignature = $null
 				if ($Script:AppsModeActive -and (Get-Command -Name 'Build-AppsViewCards' -CommandType Function -ErrorAction SilentlyContinue))
@@ -580,18 +597,21 @@
 			$pageCategory = $pageResetButton.Name -replace '^BtnPageReset_', '' -replace '_', ' '
 			$capturedButton = $pageResetButton
 			$capturedCategory = $pageCategory
-			Register-GuiEventHandler -Source $capturedButton -EventName 'Click' -Handler ([scriptblock]::Create("
+			$capturedGetCategoryDefaultRunListCommand = $getCategoryDefaultRunListCommand
+			$capturedStartGuiExecutionRunCommand = $startGuiExecutionRunCommand
+			$pageResetHandler = {
 				param ()
-				\$categoryTweakList = & \$getCategoryDefaultRunListCommand -Category '$($capturedCategory -replace "'", "''")'
-				if (-not \$categoryTweakList -or \$categoryTweakList.Count -eq 0)
+				$categoryTweakList = & $capturedGetCategoryDefaultRunListCommand -Category $capturedCategory
+				if (-not $categoryTweakList -or $categoryTweakList.Count -eq 0)
 				{
 					Show-ThemedDialog -Title 'Reset to Defaults' -Message 'No restorable tweaks with Windows default values found for this page.' -Buttons @('OK') -AccentButton 'OK'
 					return
 				}
-				\$result = Show-ThemedDialog -Title 'Reset page to defaults' -Message ('Reset ' + '$capturedCategory' + ' (' + \$categoryTweakList.Count + ' tweaks) to Windows defaults?') -Buttons @('Cancel','Reset to Defaults') -DestructiveButton 'Reset to Defaults'
-				if (\$result -ne 'Reset to Defaults') { return }
-				& \$startGuiExecutionRunCommand -TweakList \$categoryTweakList -Mode 'Defaults' -ExecutionTitle ('Resetting ' + '$capturedCategory' + ' to defaults')
-			")) | Out-Null
+				$result = Show-ThemedDialog -Title 'Reset page to defaults' -Message ('Reset ' + $capturedCategory + ' (' + $categoryTweakList.Count + ' tweaks) to Windows defaults?') -Buttons @('Cancel','Reset to Defaults') -DestructiveButton 'Reset to Defaults'
+				if ($result -ne 'Reset to Defaults') { return }
+				& $capturedStartGuiExecutionRunCommand -TweakList $categoryTweakList -Mode 'Defaults' -ExecutionTitle ('Resetting ' + $capturedCategory + ' to defaults')
+			}.GetNewClosure()
+			Register-GuiEventHandler -Source $capturedButton -EventName 'Click' -Handler $pageResetHandler | Out-Null
 		}
 	}
 
@@ -599,7 +619,6 @@
 	# defaults restore without needing a named button.
 	<#
 	    .SYNOPSIS
-	    Internal function Invoke-PageResetToDefaults.
 	#>
 
 	$Script:InvokePageResetToDefaultsScript = {

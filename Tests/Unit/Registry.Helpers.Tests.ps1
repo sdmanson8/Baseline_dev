@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     # Extract inner functions from the dot-sourced file via AST.
@@ -10,7 +10,7 @@ BeforeAll {
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
         # Only load pure-logic functions that do not touch the registry or filesystem
-        if ($fn.Name -in @('Get-CurrentWindowsUserSid', 'ConvertTo-NativeRegistryPath', 'ConvertTo-RegExeValueType', 'Test-RegistryValueEquivalent')) {
+        if ($fn.Name -in @('Get-CurrentWindowsUserSid', 'ConvertTo-NativeRegistryPath', 'ConvertTo-RegExeValueType', 'Test-RegistryValueEquivalent', 'Set-SystemTweaksRegistryValue', 'Remove-SystemTweaksRegistryValue')) {
             Invoke-Expression $fn.Extent.Text
         }
     }
@@ -204,5 +204,60 @@ Describe 'Test-RegistryValueEquivalent' {
             Test-RegistryValueEquivalent -CurrentValue 'test' -DesiredValue 'test' -Type 'Unknown' | Should -Be $true
             Test-RegistryValueEquivalent -CurrentValue 'test' -DesiredValue 'other' -Type 'Unknown' | Should -Be $false
         }
+    }
+}
+
+Describe 'Set-SystemTweaksRegistryValue' {
+    BeforeEach {
+        $script:setRegistryValueSafeCalls = [System.Collections.Generic.List[object]]::new()
+
+        function Set-RegistryValueSafe {
+            param([string]$Path, [string]$Name, [object]$Value, [string]$Type)
+            [void]$script:setRegistryValueSafeCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name; Value = $Value; Type = $Type })
+            return $true
+        }
+    }
+
+    AfterEach {
+        Microsoft.PowerShell.Management\Remove-Item Function:\Set-RegistryValueSafe -ErrorAction SilentlyContinue
+    }
+
+    It 'delegates system tweak writes to Set-RegistryValueSafe' {
+        Set-SystemTweaksRegistryValue -Path 'HKLM:\FAKE' -Name 'Val' -Value 5 -Type DWord
+
+        $script:setRegistryValueSafeCalls.Count | Should -Be 1
+        $script:setRegistryValueSafeCalls[0].Path | Should -Be 'HKLM:\FAKE'
+        $script:setRegistryValueSafeCalls[0].Name | Should -Be 'Val'
+        $script:setRegistryValueSafeCalls[0].Value | Should -Be 5
+        $script:setRegistryValueSafeCalls[0].Type | Should -Be 'DWord'
+    }
+
+    It 'rejects an invalid Type before writing' {
+        { Set-SystemTweaksRegistryValue -Path 'HKLM:\FAKE' -Name 'Val' -Value 1 -Type 'Nonsense' } | Should -Throw
+        $script:setRegistryValueSafeCalls.Count | Should -Be 0
+    }
+}
+
+Describe 'Remove-SystemTweaksRegistryValue' {
+    BeforeEach {
+        $script:removeRegistryValueSafeCalls = [System.Collections.Generic.List[object]]::new()
+
+        function Remove-RegistryValueSafe {
+            param([string]$Path, [string]$Name)
+            [void]$script:removeRegistryValueSafeCalls.Add([pscustomobject]@{ Path = $Path; Name = $Name })
+            return $true
+        }
+    }
+
+    AfterEach {
+        Microsoft.PowerShell.Management\Remove-Item Function:\Remove-RegistryValueSafe -ErrorAction SilentlyContinue
+    }
+
+    It 'delegates system tweak removals to Remove-RegistryValueSafe' {
+        Remove-SystemTweaksRegistryValue -Path 'HKLM:\FAKE' -Name 'Val' | Should -BeTrue
+
+        $script:removeRegistryValueSafeCalls.Count | Should -Be 1
+        $script:removeRegistryValueSafeCalls[0].Path | Should -Be 'HKLM:\FAKE'
+        $script:removeRegistryValueSafeCalls[0].Name | Should -Be 'Val'
     }
 }

@@ -1,16 +1,21 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
 	$privacyDataPath = Join-Path $PSScriptRoot '../../Module/Data/PrivacyTelemetry.json'
 	$basicPresetPath = Join-Path $PSScriptRoot '../../Module/Data/Presets/Basic.json'
 	$balancedPresetPath = Join-Path $PSScriptRoot '../../Module/Data/Presets/Balanced.json'
 	$advancedPresetPath = Join-Path $PSScriptRoot '../../Module/Data/Presets/Advanced.json'
 	$filePath = Join-Path $PSScriptRoot '../../Module/Regions/PrivacyTelemetry/PrivacyTelemetry.PrivacySettings.psm1'
 
-	$script:PrivacyTelemetryData = Get-Content -LiteralPath $privacyDataPath -Raw -Encoding UTF8 | ConvertFrom-Json
-	$script:BasicPreset = Get-Content -LiteralPath $basicPresetPath -Raw -Encoding UTF8 | ConvertFrom-Json
-	$script:BalancedPreset = Get-Content -LiteralPath $balancedPresetPath -Raw -Encoding UTF8 | ConvertFrom-Json
-	$script:AdvancedPreset = Get-Content -LiteralPath $advancedPresetPath -Raw -Encoding UTF8 | ConvertFrom-Json
+	$script:PrivacyTelemetryData = Get-BaselineTestSourceText -Path $privacyDataPath | ConvertFrom-Json
+	$script:BasicPreset = Get-BaselineTestSourceText -Path $basicPresetPath | ConvertFrom-Json
+	$script:BalancedPreset = Get-BaselineTestSourceText -Path $balancedPresetPath | ConvertFrom-Json
+	$script:AdvancedPreset = Get-BaselineTestSourceText -Path $advancedPresetPath | ConvertFrom-Json
 
 	$ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
 	$functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
@@ -40,7 +45,6 @@ Describe 'Privacy telemetry registry toggles' {
 
 		<#
 		    .SYNOPSIS
-		    Internal function Write-ConsoleStatus.
 		#>
 
 		function Write-ConsoleStatus {
@@ -52,7 +56,6 @@ Describe 'Privacy telemetry registry toggles' {
 
 		<#
 		    .SYNOPSIS
-		    Internal function .
 		#>
 		function LogInfo {
 			param([string]$Message)
@@ -61,7 +64,6 @@ Describe 'Privacy telemetry registry toggles' {
 
 		<#
 		    .SYNOPSIS
-		    Internal function .
 		#>
 		function LogError {
 			param([string]$Message)
@@ -70,7 +72,6 @@ Describe 'Privacy telemetry registry toggles' {
 
 		<#
 		    .SYNOPSIS
-		    Internal function Test-Path.
 		#>
 
 		function Test-Path {
@@ -80,7 +81,6 @@ Describe 'Privacy telemetry registry toggles' {
 
 		<#
 		    .SYNOPSIS
-		    Internal function .
 		#>
 		function New-Item {
 			param(
@@ -94,7 +94,6 @@ Describe 'Privacy telemetry registry toggles' {
 
 		<#
 		    .SYNOPSIS
-		    Internal function New-ItemProperty.
 		#>
 
 		function New-ItemProperty {
@@ -117,7 +116,6 @@ Describe 'Privacy telemetry registry toggles' {
 
 		<#
 		    .SYNOPSIS
-		    Internal function Remove-ItemProperty.
 		#>
 
 		function Remove-ItemProperty {

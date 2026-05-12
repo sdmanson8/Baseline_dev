@@ -1,8 +1,7 @@
-# Execution summary dialog helpers for Baseline UI.
+﻿# Execution summary dialog helpers for Baseline UI.
 
 <#
     .SYNOPSIS
-    Internal function Show-ExecutionSummaryDialog.
 #>
 
 function Show-ExecutionSummaryDialog
@@ -22,7 +21,7 @@ function Show-ExecutionSummaryDialog
 		$dialogStrings = Get-UxExecutionSummaryDialogStrings
 	}
 
-	return (GUICommon\Show-ExecutionSummaryDialog `
+	return (GUICommon\Show-GuiCommonExecutionSummaryDialog `
 		-Theme $Script:CurrentTheme `
 		-ApplyButtonChrome ${function:Set-ButtonChrome} `
 		-OwnerWindow $Form `

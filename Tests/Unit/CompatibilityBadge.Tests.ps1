@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     # Extract Get-CompatibilityBadgeInfo from the split TweakRowFactory source

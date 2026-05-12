@@ -1,8 +1,8 @@
-﻿# Shared helpers for Baseline.
+﻿
+# Shared helpers for Baseline.
 
 <#
     .SYNOPSIS
-    Internal function Initialize-ForegroundWindowInterop.
 #>
 
 function Initialize-ForegroundWindowInterop
@@ -32,7 +32,6 @@ namespace WinAPI
 
 <#
     .SYNOPSIS
-    Internal function Initialize-ConsoleWindowInterop.
 #>
 
 function Initialize-ConsoleWindowInterop
@@ -61,7 +60,6 @@ namespace WinAPI
 
 <#
     .SYNOPSIS
-    Internal function Get-ConsoleHandle.
 #>
 
 function Get-ConsoleHandle
@@ -71,10 +69,6 @@ function Get-ConsoleHandle
 	return [WinAPI.ConsoleWindow]::GetConsoleWindow()
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Hide-ConsoleWindow
 {
 	<# .SYNOPSIS Hides the console window using ShowWindow(SW_HIDE). #>
@@ -90,7 +84,6 @@ function Hide-ConsoleWindow
 
 <#
     .SYNOPSIS
-    Internal function Show-ConsoleWindow.
 #>
 
 function Show-ConsoleWindow
@@ -106,10 +99,6 @@ function Show-ConsoleWindow
 	}
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Test-InteractiveHost
 {
 	<# .SYNOPSIS Tests whether the current PowerShell host supports interactive UI. #>
@@ -131,7 +120,6 @@ function Test-InteractiveHost
 
 <#
     .SYNOPSIS
-    Internal function Write-EnvironmentLaunchTrace.
 #>
 
 function Write-EnvironmentLaunchTrace
@@ -153,11 +141,10 @@ function Write-EnvironmentLaunchTrace
 			[void][System.IO.Directory]::CreateDirectory($traceDirectory)
 		}
 		$tracePath = Join-Path $traceDirectory 'Baseline-launch-trace.txt'
-		[System.IO.File]::AppendAllText(
-			$tracePath,
-			("{0:o} {1}`r`n" -f [DateTime]::UtcNow, [string]$Message),
-			[System.Text.Encoding]::UTF8
-		)
+		$traceBytes = [System.Text.Encoding]::UTF8.GetBytes(("{0:o} {1}`r`n" -f [DateTime]::UtcNow, [string]$Message))
+		$traceStream = [System.IO.FileStream]::new($tracePath, [System.IO.FileMode]::Append, [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite)
+		try { $traceStream.Write($traceBytes, 0, $traceBytes.Length) }
+		finally { $traceStream.Dispose() }
 	}
 	catch
 	{
@@ -167,7 +154,6 @@ function Write-EnvironmentLaunchTrace
 
 <#
     .SYNOPSIS
-    Internal function Write-EnvironmentSwallowedException.
 #>
 
 function Write-EnvironmentSwallowedException
@@ -185,7 +171,7 @@ function Write-EnvironmentSwallowedException
 
 	try
 	{
-		$debugWriter = Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue
+		$debugWriter = $ExecutionContext.SessionState.InvokeCommand.GetCommand('Write-SwallowedException', [System.Management.Automation.CommandTypes]::Function)
 		if ($debugWriter)
 		{
 			& $debugWriter -ErrorRecord $ErrorRecord -Source $Source
@@ -206,7 +192,6 @@ function Write-EnvironmentSwallowedException
 
 <#
     .SYNOPSIS
-    Internal function ConvertFrom-EnvironmentPowerShellDataFileAst.
 #>
 
 function ConvertFrom-EnvironmentPowerShellDataFileAst
@@ -301,7 +286,6 @@ function ConvertFrom-EnvironmentPowerShellDataFileAst
 
 <#
     .SYNOPSIS
-    Internal function Import-EnvironmentPowerShellDataFile.
 #>
 
 function Import-EnvironmentPowerShellDataFile
@@ -337,111 +321,34 @@ function Import-EnvironmentPowerShellDataFile
 
 <#
     .SYNOPSIS
-    Internal function Initialize-WpfWindowForeground.
 #>
 
 function Initialize-WpfWindowForeground
 {
-	<# .SYNOPSIS Configures a WPF window to activate and bring itself to foreground. #>
+	<# .SYNOPSIS Prepares a WPF window for normal display without forcing foreground focus. #>
 	param
 	(
 		[Parameter(Mandatory = $true)]
 		$Window
 	)
 
+	if (-not $Window) { return }
+
 	try
 	{
-		$Window.ShowActivated = $true
+		if ($Window.WindowState -eq [System.Windows.WindowState]::Minimized)
+		{
+			$Window.WindowState = [System.Windows.WindowState]::Normal
+		}
 	}
 	catch
 	{
 		# Ignore if the supplied object is not a WPF Window.
 	}
-
-	$activationPending = [ref]$true
-	$bringWindowToFront = {
-		if (-not $activationPending.Value)
-		{
-			return
-		}
-
-		$activationPending.Value = $false
-
-		try
-		{
-			$activateWindowAction = [System.Action]{
-				try
-				{
-					Initialize-ForegroundWindowInterop
-
-					if ($Window.WindowState -eq [System.Windows.WindowState]::Minimized)
-					{
-						$Window.WindowState = [System.Windows.WindowState]::Normal
-					}
-
-					$interopHelper = New-Object -TypeName System.Windows.Interop.WindowInteropHelper -ArgumentList $Window
-					if ($interopHelper.Handle -ne [IntPtr]::Zero)
-					{
-						[WinAPI.ForegroundWindow]::ShowWindowAsync($interopHelper.Handle, 9 <# SW_RESTORE #>) | Out-Null
-						[WinAPI.ForegroundWindow]::SetForegroundWindow($interopHelper.Handle) | Out-Null
-					}
-
-					$originalTopmost = $Window.Topmost
-					$Window.Topmost = $true
-					$Window.Activate() | Out-Null
-					$Window.Focus() | Out-Null
-
-					$resetTopmostAction = [System.Action]{
-						$Window.Topmost = $originalTopmost
-					}
-					$Window.Dispatcher.BeginInvoke($resetTopmostAction, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle) | Out-Null
-				}
-				catch
-				{
-					try
-					{
-						$Window.WindowState = [System.Windows.WindowState]::Normal
-						$Window.Activate() | Out-Null
-						$Window.Focus() | Out-Null
-					}
-					catch
-					{
-						# Ignore foreground activation failures and allow the dialog to continue opening normally.
-					}
-				}
-			}
-
-			$Window.Dispatcher.BeginInvoke($activateWindowAction, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle) | Out-Null
-		}
-		catch
-		{
-			try
-			{
-				$Window.WindowState = [System.Windows.WindowState]::Normal
-				$Window.Activate() | Out-Null
-				$Window.Focus() | Out-Null
-			}
-			catch
-			{
-				# Ignore foreground activation failures and allow the dialog to continue opening normally.
-			}
-		}
-	}
-
-	$Window.Add_Loaded($bringWindowToFront)
-	$Window.Add_SourceInitialized($bringWindowToFront)
-	$Window.Add_ContentRendered($bringWindowToFront)
-	$Window.Add_StateChanged({
-		if ($activationPending -and ($Window.WindowState -eq [System.Windows.WindowState]::Minimized))
-		{
-			$bringWindowToFront.Invoke()
-		}
-	})
 }
 
 <#
     .SYNOPSIS
-    Internal function Get-WindowsVersionData.
 #>
 
 function Get-WindowsVersionData
@@ -495,7 +402,6 @@ function Get-WindowsVersionData
 
 <#
     .SYNOPSIS
-    Internal function Get-OSInfo.
 #>
 
 function Get-OSInfo
@@ -536,7 +442,6 @@ function Get-OSInfo
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineValidationMatrixSummary.
 #>
 
 function Get-BaselineValidationMatrixSummary
@@ -625,7 +530,6 @@ function Get-BaselineValidationMatrixSummary
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineValidationEvidenceReport.
 #>
 
 function Get-BaselineValidationEvidenceReport
@@ -814,7 +718,6 @@ function Get-BaselineValidationEvidenceReport
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-WindowsDisplayVersionComparable.
 #>
 
 function ConvertTo-WindowsDisplayVersionComparable
@@ -841,7 +744,6 @@ function ConvertTo-WindowsDisplayVersionComparable
 
 <#
     .SYNOPSIS
-    Internal function Test-Windows11FeatureBranchSupport.
 #>
 
 function Test-Windows11FeatureBranchSupport
@@ -892,7 +794,6 @@ function Test-Windows11FeatureBranchSupport
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineWindowsThemePreference.
 #>
 
 function Get-BaselineWindowsThemePreference
@@ -926,28 +827,95 @@ function Get-BaselineWindowsThemePreference
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineStartupThemeName.
 #>
 
-function Get-BaselineStartupThemeName
+function Resolve-BaselineStartupThemePreference
+{
+	param (
+		[string]$Preference
+	)
+
+	if ($Preference -in @('Light', 'Dark', 'System'))
+	{
+		return [string]$Preference
+	}
+
+	return 'System'
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Resolve-BaselineConcreteStartupThemeName
+{
+	param (
+		[string]$Preference
+	)
+
+	$normalizedPreference = Resolve-BaselineStartupThemePreference -Preference $Preference
+	if ($normalizedPreference -in @('Light', 'Dark'))
+	{
+		return $normalizedPreference
+	}
+
+	$windowsTheme = Get-BaselineWindowsThemePreference
+	if ($windowsTheme -in @('Light', 'Dark'))
+	{
+		return $windowsTheme
+	}
+
+	return 'Light'
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Get-BaselineStartupThemePreference
 {
 	param ()
 
-	$sessionPath = $null
+	$sessionBaseDir = $null
 	try
 	{
 		$stateRoot = [System.Environment]::GetEnvironmentVariable('BASELINE_STATE_ROOT')
 		if (-not [string]::IsNullOrWhiteSpace([string]$stateRoot))
 		{
 			$sessionBaseDir = Join-Path $stateRoot 'Profiles'
+			$userPreferencesPath = Join-Path $sessionBaseDir 'Baseline-user-prefs.json'
 		}
 		elseif ($env:LOCALAPPDATA)
 		{
 			$sessionBaseDir = Join-Path $env:LOCALAPPDATA 'Baseline\Profiles'
+			$userPreferencesPath = Join-Path (Join-Path $env:LOCALAPPDATA 'Baseline\UserState\Profiles') 'Baseline-user-prefs.json'
 		}
 		else
 		{
 			$sessionBaseDir = Join-Path $env:TEMP 'Baseline\Profiles'
+			$userPreferencesPath = Join-Path $sessionBaseDir 'Baseline-user-prefs.json'
+		}
+
+		if (Test-Path -LiteralPath $userPreferencesPath -PathType Leaf)
+		{
+			$preferencesJson = Get-Content -LiteralPath $userPreferencesPath -Raw -ErrorAction Stop | ConvertFrom-BaselineJson -Depth 16
+			if ($preferencesJson -and $preferencesJson.Values -and $preferencesJson.Values.Theme)
+			{
+				return (Resolve-BaselineStartupThemePreference -Preference ([string]$preferencesJson.Values.Theme))
+			}
+		}
+	}
+	catch
+	{
+		Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineStartupThemePreference.LoadPreferences'
+	}
+
+	try
+	{
+		if (-not $sessionBaseDir)
+		{
+			if ($env:LOCALAPPDATA) { $sessionBaseDir = Join-Path $env:LOCALAPPDATA 'Baseline\Profiles' }
+			else { $sessionBaseDir = Join-Path $env:TEMP 'Baseline\Profiles' }
 		}
 
 		$sessionPath = Join-Path $sessionBaseDir 'Baseline-last-session.json'
@@ -964,29 +932,33 @@ function Get-BaselineStartupThemeName
 				$sessionTheme = [string]$sessionJson.Theme
 			}
 
-			if ($sessionTheme -in @('Light', 'Dark'))
+			if ($sessionTheme -in @('Light', 'Dark', 'System'))
 			{
-				return $sessionTheme
+				return (Resolve-BaselineStartupThemePreference -Preference $sessionTheme)
 			}
 		}
 	}
 	catch
 	{
-		Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineStartupThemeName.LoadSession'
+		Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineStartupThemePreference.LoadSession'
 	}
 
-	$windowsTheme = Get-BaselineWindowsThemePreference
-	if ($windowsTheme -in @('Light', 'Dark'))
-	{
-		return $windowsTheme
-	}
-
-	return 'Dark'
+	return 'System'
 }
 
 <#
     .SYNOPSIS
-    Internal function Show-BootstrapLoadingSplash.
+#>
+
+function Get-BaselineStartupThemeName
+{
+	param ()
+
+	return (Resolve-BaselineConcreteStartupThemeName -Preference (Get-BaselineStartupThemePreference))
+}
+
+<#
+    .SYNOPSIS
 #>
 
 function Show-BootstrapLoadingSplash
@@ -998,854 +970,16 @@ function Show-BootstrapLoadingSplash
 		[switch]$StartUpdatesPulse
 	)
 
-	try
-	{
-		Write-EnvironmentLaunchTrace ('Bootstrap splash helper entered: embedded={0} startUpdatesPulse={1}' -f [System.Environment]::GetEnvironmentVariable('BASELINE_EMBEDDED_HOST'), [bool]$StartUpdatesPulse)
-		Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase -ErrorAction Stop
-
-		# Match the main GUI's startup sizing logic so the splash and the
-		# eventual main window hand off at the same physical footprint.
-		$guiMinW = 940
-		$guiMinH = 660
-		try
-		{
-			$workArea = [System.Windows.SystemParameters]::WorkArea
-			$widthRatio = if ($workArea.Width -ge 2560) { 0.55 } elseif ($workArea.Width -ge 1920) { 0.65 } else { 0.85 }
-			$targetW = [Math]::Round($workArea.Width * $widthRatio)
-			$targetH = [Math]::Round($workArea.Height * 0.85)
-			$maxW = [Math]::Min(1400, $workArea.Width)
-			$effectiveMinW = [Math]::Min($guiMinW, $workArea.Width)
-			$effectiveMinH = [Math]::Min($guiMinH, $workArea.Height)
-			$splashWindowWidth  = [int][Math]::Min([Math]::Max($targetW, $effectiveMinW), $maxW)
-			$splashWindowHeight = [int][Math]::Min([Math]::Max($targetH, $effectiveMinH), $workArea.Height)
-		}
-		catch
-		{
-			$splashWindowWidth  = $guiMinW
-			$splashWindowHeight = $guiMinH
-		}
-
-		# Match the last saved session first, then fall back to the current Windows theme.
-		$useLightTheme = ((Get-BaselineStartupThemeName) -eq 'Light')
-
-			$syncHash = [hashtable]::Synchronized(@{
-				Window     = $null
-				Dispatcher = $null
-				StatusText = $null
-				SubActionPanel = $null
-				ProgressBar = $null
-				StepGlyphs = $null
-				StepIdleDots = $null
-				StepPulseDots = $null
-				StepChecks = $null
-				StepLabels = $null
-				StepStates = $null
-				StepOrder  = @('updates', 'system', 'winget', 'chocolatey', 'finalize')
-				SplashTheme = $null
-				GuiReady   = $false
-				IsReady    = $false
-				IsAlive    = $true
-				WasLoaded  = $false
-				WasShown   = $false
-				WasRendered = $false
-				StartUpdatesPulseApplied = $false
-				ChecklistProgressActive = $false
-				WindowHandle = [IntPtr]::Zero
-				ErrorType  = $null
-				ErrorMessage = $null
-			})
-
-		# Theme colors
-		if ($useLightTheme)
-		{
-			$splashBg = '#F0F2F6'; $splashBorder = '#E6EAF0'; $splashFg = '#1F2937'
-			$splashSub = '#4B5563'; $splashAccent = '#1550AA'; $splashFooterBg = '#E9EDF3'
-			$splashMuted = '#5F6B7A'; $splashBtnFg = '#4B5563'; $splashStepActive = '#1F2937'; $splashDarkMode = $false
-		}
-		else
-		{
-			$splashBg = '#10131C'; $splashBorder = '#293044'; $splashFg = '#F4F7FF'
-			$splashSub = '#CDD6EA'; $splashAccent = '#7CB7FF'; $splashFooterBg = '#151824'
-			$splashMuted = '#A3ADC6'; $splashBtnFg = '#CDD6EA'; $splashStepActive = '#E6EBFF'; $splashDarkMode = $true
-		}
-		$CurrentTheme = [ordered]@{
-			WindowBg    = $splashBg
-			BorderColor = $splashBorder
-			TextPrimary = $splashFg
-			TextSecondary = $splashSub
-			Accent      = $splashAccent
-			CardBg      = $splashFooterBg
-			TextMuted   = $splashMuted
-		}
-		$SplashTheme = [ordered]@{
-			Muted   = $splashMuted
-			Sub     = $splashSub
-			Primary = $splashStepActive
-			Accent  = $splashAccent
-		}
-
-		$runspace = [runspacefactory]::CreateRunspace()
-		$runspace.ApartmentState = 'STA'
-		$runspace.ThreadOptions  = 'ReuseThread'
-		$runspace.Open()
-		$splashIconPath = $null
-		$splashThemePath = $null
-		try
-		{
-			$repoBasePath = Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent
-			$candidateSplashIcon = Join-Path -Path $repoBasePath -ChildPath 'Assets\baseline.ico'
-			if (Test-Path -LiteralPath $candidateSplashIcon -PathType Leaf)
-			{
-				$splashIconPath = [System.IO.Path]::GetFullPath($candidateSplashIcon)
-			}
-			$splashThemeFileName = if ($useLightTheme) { 'Light.xaml' } else { 'Dark.xaml' }
-			$candidateSplashTheme = Join-Path -Path $repoBasePath -ChildPath ('Module\GUI\Themes\{0}' -f $splashThemeFileName)
-			if (Test-Path -LiteralPath $candidateSplashTheme -PathType Leaf)
-			{
-				$splashThemePath = [System.IO.Path]::GetFullPath($candidateSplashTheme)
-			}
-		}
-		catch
-		{
-			$splashIconPath = $null
-			$splashThemePath = $null
-		}
-		$runspace.SessionStateProxy.SetVariable('syncHash', $syncHash)
-		$runspace.SessionStateProxy.SetVariable('splashIconPath', $splashIconPath)
-		$runspace.SessionStateProxy.SetVariable('splashThemePath', $splashThemePath)
-		$runspace.SessionStateProxy.SetVariable('splashBg', $splashBg)
-		$runspace.SessionStateProxy.SetVariable('splashBorder', $splashBorder)
-		$runspace.SessionStateProxy.SetVariable('splashFg', $splashFg)
-		$runspace.SessionStateProxy.SetVariable('splashSub', $splashSub)
-		$runspace.SessionStateProxy.SetVariable('splashAccent', $splashAccent)
-		$runspace.SessionStateProxy.SetVariable('splashFooterBg', $splashFooterBg)
-		$runspace.SessionStateProxy.SetVariable('splashMuted', $splashMuted)
-		$runspace.SessionStateProxy.SetVariable('splashBtnFg', $splashBtnFg)
-		$runspace.SessionStateProxy.SetVariable('splashDarkMode', $splashDarkMode)
-		$runspace.SessionStateProxy.SetVariable('splashWindowWidth', $splashWindowWidth)
-		$runspace.SessionStateProxy.SetVariable('splashWindowHeight', $splashWindowHeight)
-		$runspace.SessionStateProxy.SetVariable('CurrentTheme', $CurrentTheme)
-		$runspace.SessionStateProxy.SetVariable('SplashTheme', $SplashTheme)
-		# Pass localization strings for splash screen
-		$splashLocSubtitle = Get-BaselineLocalizedString -Key 'GuiSplashSubtitle' -Fallback 'Review, preview, and apply system changes safely'
-		$splashLocLoading = Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...'
-		$splashLocStepUpdates    = Get-BaselineLocalizedString -Key 'Bootstrap_StepCheckingForUpdates' -Fallback 'Checking for Updates'
-		$splashLocStepSystem     = Get-BaselineLocalizedString -Key 'Bootstrap_StepRunningSystemChecks' -Fallback 'Running System Checks'
-		$splashLocStepWinget     = Get-BaselineLocalizedString -Key 'Bootstrap_StepCheckingWinget' -Fallback 'Checking WinGet'
-		$splashLocStepChocolatey = Get-BaselineLocalizedString -Key 'Bootstrap_StepCheckingChocolatey' -Fallback 'Checking Chocolatey'
-		$splashLocStepFinalize   = Get-BaselineLocalizedString -Key 'Bootstrap_StepFinalizing' -Fallback 'Finalizing Baseline Configuration'
-		$runspace.SessionStateProxy.SetVariable('splashLocSubtitle', $splashLocSubtitle)
-		$runspace.SessionStateProxy.SetVariable('splashLocLoading', $splashLocLoading)
-		$runspace.SessionStateProxy.SetVariable('splashLocCheckingForUpdates', (Get-BaselineLocalizedString -Key 'Bootstrap_CheckingForUpdates' -Fallback 'Checking for updates...'))
-		$runspace.SessionStateProxy.SetVariable('splashLocStepUpdates', $splashLocStepUpdates)
-		$runspace.SessionStateProxy.SetVariable('splashLocStepSystem', $splashLocStepSystem)
-		$runspace.SessionStateProxy.SetVariable('splashLocStepWinget', $splashLocStepWinget)
-		$runspace.SessionStateProxy.SetVariable('splashLocStepChocolatey', $splashLocStepChocolatey)
-		$runspace.SessionStateProxy.SetVariable('splashLocStepFinalize', $splashLocStepFinalize)
-		$runspace.SessionStateProxy.SetVariable('startUpdatesPulse', [bool]$StartUpdatesPulse)
-		$runspace.SessionStateProxy.SetVariable('bootstrapSplashProgressWidthDefinition', (Get-Command -Name 'Get-BaselineSplashProgressWidth' -CommandType Function -ErrorAction Stop).ScriptBlock.ToString())
-		$runspace.SessionStateProxy.SetVariable('bootstrapLoadingSplashStateDefinition', (Get-Command -Name 'Set-BootstrapLoadingSplashState' -CommandType Function -ErrorAction Stop).ScriptBlock.ToString())
-		$runspace.SessionStateProxy.SetVariable('bootstrapLoadingSplashStepDefinition', (Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction Stop).ScriptBlock.ToString())
-
-		$ps = [powershell]::Create()
-		$ps.Runspace = $runspace
-		[void]$ps.AddScript({
-			try
-			{
-				Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
-
-				$installSplashFunction = {
-					param(
-						[string]$Name,
-						[string]$Definition
-					)
-
-					if ([string]::IsNullOrWhiteSpace($Definition))
-					{
-						throw "Bootstrap splash function definition is empty: $Name"
-					}
-
-					Set-Item -Path ('Function:\global:{0}' -f $Name) -Value ([scriptblock]::Create($Definition)) -ErrorAction Stop
-				}
-
-				& $installSplashFunction 'Get-BaselineSplashProgressWidth' $bootstrapSplashProgressWidthDefinition
-				& $installSplashFunction 'Set-BootstrapLoadingSplashState' $bootstrapLoadingSplashStateDefinition
-				& $installSplashFunction 'Set-BootstrapLoadingSplashStep' $bootstrapLoadingSplashStepDefinition
-				$bootstrapLoadingSplashStateCommand = (Get-Command -Name 'Set-BootstrapLoadingSplashState' -CommandType Function -ErrorAction Stop).ScriptBlock
-				$bootstrapLoadingSplashStepCommand = (Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction Stop).ScriptBlock
-
-				$subtitleEsc = [System.Security.SecurityElement]::Escape($splashLocSubtitle)
-				$loadingEsc = [System.Security.SecurityElement]::Escape($splashLocLoading)
-				$stepUpdatesEsc = [System.Security.SecurityElement]::Escape($splashLocStepUpdates)
-				$stepSystemEsc = [System.Security.SecurityElement]::Escape($splashLocStepSystem)
-				$stepWingetEsc = [System.Security.SecurityElement]::Escape($splashLocStepWinget)
-				$stepChocolateyEsc = [System.Security.SecurityElement]::Escape($splashLocStepChocolatey)
-				$stepFinalizeEsc = [System.Security.SecurityElement]::Escape($splashLocStepFinalize)
-
-				[xml]$xaml = @"
-<Window
-	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-	Title="Baseline | Windows Utility"
-	Width="$splashWindowWidth"
-	Height="$splashWindowHeight"
-	MinWidth="940"
-	MinHeight="660"
-	ResizeMode="NoResize"
-	WindowStartupLocation="CenterScreen"
-	Background="Transparent"
-	BorderBrush="Transparent"
-	BorderThickness="0"
-	Foreground="{DynamicResource Brush.TextPrimary}"
-	FontFamily="Segoe UI"
-	ShowInTaskbar="True"
-	ShowActivated="False"
-	Topmost="False"
-	WindowStyle="None"
-	AllowsTransparency="True"
-	SnapsToDevicePixels="True"
-	UseLayoutRounding="True">
-	<Window.Resources>
-		<Storyboard x:Key="SpinnerRotation" RepeatBehavior="Forever">
-			<DoubleAnimation Storyboard.TargetName="SubActionSpinnerRotate" Storyboard.TargetProperty="Angle" From="0" To="360" Duration="0:0:1.2"/>
-		</Storyboard>
-		<Style x:Key="SplashCaptionButtonStyle" TargetType="Button">
-			<Setter Property="Background" Value="Transparent"/>
-			<Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}"/>
-			<Setter Property="BorderBrush" Value="Transparent"/>
-			<Setter Property="BorderThickness" Value="0"/>
-			<Setter Property="Padding" Value="0"/>
-			<Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-			<Setter Property="Template">
-				<Setter.Value>
-					<ControlTemplate TargetType="Button">
-						<Border x:Name="CaptionBd"
-							Background="{TemplateBinding Background}"
-							BorderBrush="{TemplateBinding BorderBrush}"
-							BorderThickness="{TemplateBinding BorderThickness}"
-							CornerRadius="6"
-							SnapsToDevicePixels="True">
-							<ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
-						</Border>
-					</ControlTemplate>
-				</Setter.Value>
-			</Setter>
-			<Style.Triggers>
-				<Trigger Property="IsMouseOver" Value="True">
-					<Setter Property="Background" Value="{DynamicResource Brush.SurfaceHover}"/>
-					<Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}"/>
-				</Trigger>
-				<Trigger Property="IsPressed" Value="True">
-					<Setter Property="Background" Value="{DynamicResource Brush.ButtonPressBg}"/>
-					<Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}"/>
-				</Trigger>
-			</Style.Triggers>
-		</Style>
-		<Style x:Key="SplashCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource SplashCaptionButtonStyle}">
-			<Style.Triggers>
-				<Trigger Property="IsMouseOver" Value="True">
-					<Setter Property="Background" Value="{DynamicResource Brush.Danger}"/>
-					<Setter Property="Foreground" Value="White"/>
-				</Trigger>
-				<Trigger Property="IsPressed" Value="True">
-					<Setter Property="Background" Value="{DynamicResource Brush.Danger}"/>
-					<Setter Property="Foreground" Value="White"/>
-				</Trigger>
-			</Style.Triggers>
-		</Style>
-	</Window.Resources>
-	<Window.Triggers>
-		<EventTrigger RoutedEvent="FrameworkElement.Loaded">
-			<BeginStoryboard Storyboard="{StaticResource SpinnerRotation}"/>
-		</EventTrigger>
-	</Window.Triggers>
-	<Border Name="RootBorder" CornerRadius="8" Background="{DynamicResource Brush.SplashBackdrop}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" Margin="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SnapsToDevicePixels="True" ClipToBounds="True">
-			<Grid Background="Transparent" Margin="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SnapsToDevicePixels="True">
-				<Grid.RowDefinitions>
-					<RowDefinition Height="Auto"/>
-					<RowDefinition Height="*"/>
-				</Grid.RowDefinitions>
-			<Grid Grid.Row="0" Background="{DynamicResource Brush.HeaderBg}" Margin="10,6,6,0">
-				<Grid.ColumnDefinitions>
-					<ColumnDefinition Width="*"/>
-					<ColumnDefinition Width="Auto"/>
-				</Grid.ColumnDefinitions>
-				<DockPanel Grid.Column="0" LastChildFill="True" VerticalAlignment="Center" Margin="0,0,10,0">
-					<Image Name="SplashTopLeftIcon" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2,0,8,0"/>
-					<TextBlock Name="TitleText"
-						Text="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=Title}"
-						FontSize="12"
-						FontWeight="SemiBold"
-						Foreground="{DynamicResource Brush.TextPrimary}"
-						VerticalAlignment="Center"
-						TextTrimming="CharacterEllipsis"/>
-				</DockPanel>
-				<StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-					<Button Name="BtnMinimize" Content="&#x2015;" Width="28" Height="24" FontSize="11"
-						Cursor="Hand" ToolTip="Minimize" Margin="0,0,2,0" Style="{StaticResource SplashCaptionButtonStyle}"/>
-					<Button Name="BtnClose" Content="&#x2715;" Width="28" Height="24" FontSize="11"
-						Cursor="Hand" ToolTip="Close" Style="{StaticResource SplashCloseButtonStyle}"/>
-				</StackPanel>
-			</Grid>
-			<Border Name="SplashContentCard" Grid.Row="1" Background="{DynamicResource Brush.SplashCard}" BorderThickness="0" CornerRadius="18" Padding="52,44" VerticalAlignment="Center" HorizontalAlignment="Center" SnapsToDevicePixels="True">
-				<Border.Effect>
-					<DropShadowEffect Color="#000000" BlurRadius="34" ShadowDepth="0" Opacity="0.18"/>
-				</Border.Effect>
-				<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0">
-				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,16">
-					<Image Name="SplashCenterIcon" Width="58" Height="58" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,16,0"
-						RenderOptions.BitmapScalingMode="HighQuality" UseLayoutRounding="True" SnapsToDevicePixels="True"/>
-					<TextBlock Text="Baseline"
-						FontWeight="SemiBold"
-						FontSize="56"
-						Foreground="{DynamicResource Brush.TextPrimary}"
-						VerticalAlignment="Center"/>
-				</StackPanel>
-				<TextBlock Name="SubtitleText" Text="$subtitleEsc"
-					FontSize="14" Foreground="{DynamicResource Brush.SplashSubtitle}"
-					HorizontalAlignment="Center" Margin="0,0,0,32"/>
-				<StackPanel Name="StepListPanel" HorizontalAlignment="Center" MinWidth="360" Margin="0,0,0,24">
-					<Grid Margin="0,0,0,7">
-						<Grid.ColumnDefinitions>
-							<ColumnDefinition Width="22"/>
-							<ColumnDefinition Width="*"/>
-						</Grid.ColumnDefinitions>
-						<Grid Name="StepGlyph_updates" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-							<Ellipse Name="StepIdle_updates" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-							<Ellipse Name="StepPulse_updates" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
-								<Ellipse.RenderTransform>
-									<ScaleTransform/>
-								</Ellipse.RenderTransform>
-							</Ellipse>
-							<TextBlock Name="StepCheck_updates" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
-						</Grid>
-						<TextBlock Name="StepLabel_updates" Grid.Column="1" Text="$stepUpdatesEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-					</Grid>
-					<Grid Margin="0,0,0,7">
-						<Grid.ColumnDefinitions>
-							<ColumnDefinition Width="22"/>
-							<ColumnDefinition Width="*"/>
-						</Grid.ColumnDefinitions>
-						<Grid Name="StepGlyph_system" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-							<Ellipse Name="StepIdle_system" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-							<Ellipse Name="StepPulse_system" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
-								<Ellipse.RenderTransform>
-									<ScaleTransform/>
-								</Ellipse.RenderTransform>
-							</Ellipse>
-							<TextBlock Name="StepCheck_system" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
-						</Grid>
-						<TextBlock Name="StepLabel_system" Grid.Column="1" Text="$stepSystemEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-					</Grid>
-					<Grid Margin="0,0,0,7">
-						<Grid.ColumnDefinitions>
-							<ColumnDefinition Width="22"/>
-							<ColumnDefinition Width="*"/>
-						</Grid.ColumnDefinitions>
-						<Grid Name="StepGlyph_winget" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-							<Ellipse Name="StepIdle_winget" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-							<Ellipse Name="StepPulse_winget" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
-								<Ellipse.RenderTransform>
-									<ScaleTransform/>
-								</Ellipse.RenderTransform>
-							</Ellipse>
-							<TextBlock Name="StepCheck_winget" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
-						</Grid>
-						<TextBlock Name="StepLabel_winget" Grid.Column="1" Text="$stepWingetEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-					</Grid>
-					<Grid Margin="0,0,0,7">
-						<Grid.ColumnDefinitions>
-							<ColumnDefinition Width="22"/>
-							<ColumnDefinition Width="*"/>
-						</Grid.ColumnDefinitions>
-						<Grid Name="StepGlyph_chocolatey" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-							<Ellipse Name="StepIdle_chocolatey" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-							<Ellipse Name="StepPulse_chocolatey" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
-								<Ellipse.RenderTransform>
-									<ScaleTransform/>
-								</Ellipse.RenderTransform>
-							</Ellipse>
-							<TextBlock Name="StepCheck_chocolatey" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
-						</Grid>
-						<TextBlock Name="StepLabel_chocolatey" Grid.Column="1" Text="$stepChocolateyEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-					</Grid>
-					<Grid Margin="0,0,0,0">
-						<Grid.ColumnDefinitions>
-							<ColumnDefinition Width="22"/>
-							<ColumnDefinition Width="*"/>
-						</Grid.ColumnDefinitions>
-						<Grid Name="StepGlyph_finalize" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-							<Ellipse Name="StepIdle_finalize" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-							<Ellipse Name="StepPulse_finalize" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
-								<Ellipse.RenderTransform>
-									<ScaleTransform/>
-								</Ellipse.RenderTransform>
-							</Ellipse>
-							<TextBlock Name="StepCheck_finalize" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
-						</Grid>
-						<TextBlock Name="StepLabel_finalize" Grid.Column="1" Text="$stepFinalizeEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-					</Grid>
-				</StackPanel>
-				<StackPanel Name="SubActionPanel" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,14" Visibility="Collapsed">
-					<TextBlock Name="SubActionSpinner" Text="&#x27F3;" FontFamily="Segoe UI Symbol" FontSize="11"
-						Foreground="{DynamicResource Brush.TextSecondary}" VerticalAlignment="Center" Margin="0,0,6,0" RenderTransformOrigin="0.5,0.5">
-						<TextBlock.RenderTransform>
-							<RotateTransform x:Name="SubActionSpinnerRotate" Angle="0"/>
-						</TextBlock.RenderTransform>
-					</TextBlock>
-					<TextBlock Name="StatusText" Text="$loadingEsc" FontSize="11" Foreground="{DynamicResource Brush.TextMuted}"
-						VerticalAlignment="Center"/>
-				</StackPanel>
-				<ProgressBar Name="ProgressBar"
-					Width="360" Height="6"
-					Visibility="Visible"
-					Minimum="0" Maximum="330" Value="0"
-					IsIndeterminate="False"
-					Foreground="{DynamicResource Brush.Progress}"
-					Background="{DynamicResource Brush.ProgressTrack}"
-					BorderThickness="0">
-					<ProgressBar.Template>
-						<ControlTemplate TargetType="ProgressBar">
-							<Grid SnapsToDevicePixels="True">
-								<Border x:Name="PART_Track" Background="{TemplateBinding Background}" CornerRadius="3" Opacity="0.82"/>
-								<Border x:Name="PART_Indicator" Width="{TemplateBinding Value}" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="3">
-									<Border.Effect>
-										<DropShadowEffect Color="{DynamicResource Color.Progress}" BlurRadius="10" ShadowDepth="0" Opacity="0.35"/>
-									</Border.Effect>
-									<Grid ClipToBounds="True">
-										<Rectangle x:Name="PART_GlowRect" Width="84" HorizontalAlignment="Left" RenderTransformOrigin="0,0">
-											<Rectangle.Fill>
-												<LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-													<GradientStop Color="#00FFFFFF" Offset="0"/>
-													<GradientStop Color="#7FFFFFFF" Offset="0.5"/>
-													<GradientStop Color="#00FFFFFF" Offset="1"/>
-												</LinearGradientBrush>
-											</Rectangle.Fill>
-											<Rectangle.RenderTransform>
-												<TranslateTransform x:Name="SplashSheenT" X="-100"/>
-											</Rectangle.RenderTransform>
-										</Rectangle>
-									</Grid>
-								</Border>
-							</Grid>
-							<ControlTemplate.Triggers>
-								<EventTrigger RoutedEvent="FrameworkElement.Loaded">
-									<BeginStoryboard>
-										<Storyboard RepeatBehavior="Forever">
-											<DoubleAnimation Storyboard.TargetName="SplashSheenT" Storyboard.TargetProperty="X" From="-100" To="400" Duration="0:0:1.4"/>
-										</Storyboard>
-									</BeginStoryboard>
-								</EventTrigger>
-							</ControlTemplate.Triggers>
-						</ControlTemplate>
-					</ProgressBar.Template>
-				</ProgressBar>
-				</StackPanel>
-			</Border>
-		</Grid>
-	</Border>
-</Window>
-"@
-				$splash = [System.Windows.Markup.XamlReader]::Load(
-					(New-Object System.Xml.XmlNodeReader $xaml)
-				)
-				if ([string]::IsNullOrWhiteSpace([string]$splashThemePath))
-				{
-					throw 'Bootstrap splash theme resource dictionary was not found.'
-				}
-
-				$themeReader = [System.Xml.XmlReader]::Create($splashThemePath)
-				try
-				{
-					$themeDictionary = [System.Windows.Markup.XamlReader]::Load($themeReader)
-					if (-not ($themeDictionary -is [System.Windows.ResourceDictionary]))
-					{
-						throw "Bootstrap splash theme resource did not load as a ResourceDictionary: $splashThemePath"
-					}
-					[void]$splash.Resources.MergedDictionaries.Add($themeDictionary)
-				}
-				finally
-				{
-					if ($themeReader) { $themeReader.Close() }
-				}
-
-				$traceDirectory = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline'
-				if (-not [System.IO.Directory]::Exists($traceDirectory))
-				{
-					[void][System.IO.Directory]::CreateDirectory($traceDirectory)
-				}
-				$tracePath = Join-Path $traceDirectory 'Baseline-launch-trace.txt'
-				$writeSplashTrace = {
-					param([string]$Message)
-					try { [System.IO.File]::AppendAllText($tracePath, ("{0:o} {1}`r`n" -f [DateTime]::UtcNow, $Message), [System.Text.Encoding]::UTF8) } catch { }
-				}
-
-				if (-not [string]::IsNullOrWhiteSpace([string]$splashIconPath) -and (Test-Path -LiteralPath $splashIconPath -PathType Leaf))
-				{
-					try
-					{
-						$selectSplashIconFrame = {
-							param(
-								[Parameter(Mandatory = $true)]
-								[System.Collections.IEnumerable]
-								$Frames,
-								[Parameter(Mandatory = $true)]
-								[int]$TargetPixelWidth
-							)
-
-							$closest = $Frames |
-								Sort-Object -Property @{ Expression = { [Math]::Abs($_.PixelWidth - $TargetPixelWidth) } } |
-								Select-Object -First 1
-							return $closest
-						}
-
-						$iconUri = [System.Uri]::new($splashIconPath, [System.UriKind]::Absolute)
-						$iconDecoder = [System.Windows.Media.Imaging.IconBitmapDecoder]::new(
-							$iconUri,
-							[System.Windows.Media.Imaging.BitmapCreateOptions]::None,
-							[System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-						)
-						$iconForWindow = if ($iconDecoder.Frames -and $iconDecoder.Frames.Count -gt 0)
-						{
-							& $selectSplashIconFrame -Frames $iconDecoder.Frames -TargetPixelWidth 32
-						}
-						else
-						{
-							$null
-						}
-						$iconForTitleBar = if ($iconDecoder.Frames -and $iconDecoder.Frames.Count -gt 0)
-						{
-							& $selectSplashIconFrame -Frames $iconDecoder.Frames -TargetPixelWidth 20
-						}
-						else
-						{
-							$null
-						}
-						$iconForCenterLogo = if ($iconDecoder.Frames -and $iconDecoder.Frames.Count -gt 0)
-						{
-							& $selectSplashIconFrame -Frames $iconDecoder.Frames -TargetPixelWidth 58
-						}
-						else
-						{
-							$null
-						}
-						if (-not $iconForWindow) { $iconForWindow = [System.Windows.Media.Imaging.BitmapFrame]::Create($iconUri) }
-						if (-not $iconForTitleBar) { $iconForTitleBar = $iconForWindow }
-						if (-not $iconForCenterLogo) { $iconForCenterLogo = $iconForWindow }
-						if ($iconForWindow -and $iconForWindow.CanFreeze) { $iconForWindow.Freeze() }
-						if ($iconForTitleBar -and $iconForTitleBar.CanFreeze) { $iconForTitleBar.Freeze() }
-						if ($iconForCenterLogo -and $iconForCenterLogo.CanFreeze) { $iconForCenterLogo.Freeze() }
-						$splash.Icon = $iconForWindow
-						$splashTopLeftIcon = $splash.FindName('SplashTopLeftIcon')
-						if ($splashTopLeftIcon)
-						{
-							$splashTopLeftIcon.Source = $iconForTitleBar
-							[System.Windows.Media.RenderOptions]::SetBitmapScalingMode($splashTopLeftIcon, [System.Windows.Media.BitmapScalingMode]::HighQuality)
-							$splashTopLeftIcon.SnapsToDevicePixels = $true
-							$splashTopLeftIcon.UseLayoutRounding = $true
-						}
-						$splashCenterIcon = $splash.FindName('SplashCenterIcon')
-						if ($splashCenterIcon)
-						{
-							$splashCenterIcon.Source = $iconForCenterLogo
-							[System.Windows.Media.RenderOptions]::SetBitmapScalingMode($splashCenterIcon, [System.Windows.Media.BitmapScalingMode]::HighQuality)
-							$splashCenterIcon.SnapsToDevicePixels = $true
-							$splashCenterIcon.UseLayoutRounding = $true
-						}
-					}
-					catch { & $writeSplashTrace ('Environment.ShowBootstrapLoadingSplash.LoadSplashIcon: {0}' -f $_.Exception.Message) }
-				}
-
-				# Apply Windows 11 rounded corners and dark title bar
-				$splash.Add_SourceInitialized({
-					try
-					{
-						if (-not ('WinAPI.SplashChrome' -as [type]))
-						{
-							Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-namespace WinAPI {
-	public static class SplashChrome {
-		[DllImport("dwmapi.dll")]
-		public static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
-		[DllImport("user32.dll", EntryPoint = "GetWindowLongPtr")] private static extern IntPtr GetWindowLongPtr64(IntPtr hWnd, int nIndex);
-		[DllImport("user32.dll", EntryPoint = "GetWindowLong")] private static extern IntPtr GetWindowLong32(IntPtr hWnd, int nIndex);
-		[DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")] private static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
-		[DllImport("user32.dll", EntryPoint = "SetWindowLong")] private static extern IntPtr SetWindowLong32(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
-		[DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
-		public static IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex) { return IntPtr.Size == 8 ? GetWindowLongPtr64(hWnd, nIndex) : GetWindowLong32(hWnd, nIndex); }
-		public static IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong) { return IntPtr.Size == 8 ? SetWindowLongPtr64(hWnd, nIndex, dwNewLong) : SetWindowLong32(hWnd, nIndex, dwNewLong); }
-		public const int GWL_STYLE = -16;
-		public const int WS_SYSMENU = 0x00080000;
-		public const int WS_MINIMIZEBOX = 0x00020000;
-	}
-}
-"@ -ErrorAction Stop | Out-Null
-						}
-						$hwnd = (New-Object System.Windows.Interop.WindowInteropHelper($splash)).Handle
-						if ($hwnd -ne [IntPtr]::Zero)
-						{
-							$syncHash.WindowHandle = $hwnd
-							$darkMode = if ($splashDarkMode) { 1 } else { 0 }
-							$immAttr = if ([Environment]::OSVersion.Version.Build -ge 18362) { 20 } else { 19 }
-							[void]([WinAPI.SplashChrome]::DwmSetWindowAttribute($hwnd, $immAttr, [ref]$darkMode, 4))
-							if ([Environment]::OSVersion.Version.Build -ge 22000)
-							{
-								$cornerPref = 2
-								[void]([WinAPI.SplashChrome]::DwmSetWindowAttribute($hwnd, 33, [ref]$cornerPref, 4))
-							}
-							# Restore system menu (right-click title bar: Restore/Move/Size/Minimize/Maximize/Close)
-							$style = [WinAPI.SplashChrome]::GetWindowLongPtr($hwnd, [WinAPI.SplashChrome]::GWL_STYLE)
-							$styleInt = $style.ToInt64()
-							$styleInt = $styleInt -bor [WinAPI.SplashChrome]::WS_SYSMENU
-							$styleInt = $styleInt -bor [WinAPI.SplashChrome]::WS_MINIMIZEBOX
-							[void]([WinAPI.SplashChrome]::SetWindowLongPtr($hwnd, [WinAPI.SplashChrome]::GWL_STYLE, [IntPtr]::new($styleInt)))
-							[void]([WinAPI.SplashChrome]::SetWindowPos($hwnd, [IntPtr]::Zero, 0, 0, 0, 0, 0x27))
-							& $writeSplashTrace ('Bootstrap splash source initialized: hwnd={0}' -f $hwnd)
-						}
-					}
-					catch
-					{
-						$syncHash.ErrorType = $_.Exception.GetType().FullName
-						$syncHash.ErrorMessage = $_.Exception.Message
-						& $writeSplashTrace ('Bootstrap splash chrome setup failed: {0}' -f $_.Exception.Message)
-					}
-				})
-
-				# Wire up minimize/close buttons and drag-to-move
-				$btnMin = $splash.FindName('BtnMinimize')
-				$btnCls = $splash.FindName('BtnClose')
-				if ($btnMin)
-				{
-					$btnMin.Add_Click({ $splash.WindowState = [System.Windows.WindowState]::Minimized })
-				}
-				if ($btnCls)
-				{
-					$btnCls.Add_Click({
-						$syncHash.UserClosed = $true
-						$splash.Close()
-						# Terminate the entire process when user explicitly closes the splash
-						[System.Environment]::Exit(0)
-					})
-				}
-				$splash.Add_MouseLeftButtonDown({ param($s,$e) $splash.DragMove() })
-
-				# System-style right-click context menu for splash title area
-				$splashMenu = New-Object System.Windows.Controls.ContextMenu
-				$miMin = New-Object System.Windows.Controls.MenuItem
-				$miMin.Header = 'Minimize'
-				$miMin.Add_Click({ $splash.WindowState = [System.Windows.WindowState]::Minimized })
-				$miCloseCtx = New-Object System.Windows.Controls.MenuItem
-				$miCloseCtx.Header = 'Close'
-				$miCloseCtx.InputGestureText = 'Alt+F4'
-				$miCloseCtx.FontWeight = [System.Windows.FontWeights]::Bold
-				$miCloseCtx.Add_Click({ $syncHash.UserClosed = $true; $splash.Close(); [System.Environment]::Exit(0) })
-				$splashSep = New-Object System.Windows.Controls.Separator
-				[void]$splashMenu.Items.Add($miMin)
-				[void]$splashMenu.Items.Add($splashSep)
-				[void]$splashMenu.Items.Add($miCloseCtx)
-				$splash.ContextMenu = $splashMenu
-
-					$syncHash.Window     = $splash
-					$syncHash.Dispatcher = $splash.Dispatcher
-					$syncHash.StatusText = $splash.FindName('StatusText')
-					$syncHash.SubActionPanel = $splash.FindName('SubActionPanel')
-					$syncHash.ProgressBar = $splash.FindName('ProgressBar')
-					$syncHash.StepGlyphs = @{
-						'updates'    = $splash.FindName('StepGlyph_updates')
-						'system'     = $splash.FindName('StepGlyph_system')
-						'winget'     = $splash.FindName('StepGlyph_winget')
-						'chocolatey' = $splash.FindName('StepGlyph_chocolatey')
-						'finalize'   = $splash.FindName('StepGlyph_finalize')
-					}
-					$syncHash.StepIdleDots = @{
-						'updates'    = $splash.FindName('StepIdle_updates')
-						'system'     = $splash.FindName('StepIdle_system')
-						'winget'     = $splash.FindName('StepIdle_winget')
-						'chocolatey' = $splash.FindName('StepIdle_chocolatey')
-						'finalize'   = $splash.FindName('StepIdle_finalize')
-					}
-					$syncHash.StepPulseDots = @{
-						'updates'    = $splash.FindName('StepPulse_updates')
-						'system'     = $splash.FindName('StepPulse_system')
-						'winget'     = $splash.FindName('StepPulse_winget')
-						'chocolatey' = $splash.FindName('StepPulse_chocolatey')
-						'finalize'   = $splash.FindName('StepPulse_finalize')
-					}
-					$syncHash.StepChecks = @{
-						'updates'    = $splash.FindName('StepCheck_updates')
-						'system'     = $splash.FindName('StepCheck_system')
-						'winget'     = $splash.FindName('StepCheck_winget')
-						'chocolatey' = $splash.FindName('StepCheck_chocolatey')
-						'finalize'   = $splash.FindName('StepCheck_finalize')
-					}
-					$syncHash.StepLabels = @{
-						'updates'    = $splash.FindName('StepLabel_updates')
-						'system'     = $splash.FindName('StepLabel_system')
-						'winget'     = $splash.FindName('StepLabel_winget')
-						'chocolatey' = $splash.FindName('StepLabel_chocolatey')
-						'finalize'   = $splash.FindName('StepLabel_finalize')
-					}
-					$syncHash.StepStates = @{
-						'updates'    = 'pending'
-						'system'     = 'pending'
-						'winget'     = 'pending'
-						'chocolatey' = 'pending'
-						'finalize'   = 'pending'
-					}
-					$syncHash.SplashTheme = $SplashTheme
-					$startUpdatesPulseAction = {
-						param([string]$Source = 'unknown')
-						if (-not $startUpdatesPulse) { return }
-						if ([bool]$syncHash.StartUpdatesPulseApplied) { return }
-						try
-						{
-							$stateApplied = $true
-							$stepApplied = $false
-							if ($bootstrapLoadingSplashStateCommand)
-							{
-								$stateApplied = [bool](& $bootstrapLoadingSplashStateCommand -Splash $syncHash -StatusText $splashLocCheckingForUpdates -Completed 0 -Total 5)
-							}
-							if ($bootstrapLoadingSplashStepCommand)
-							{
-								$stepApplied = [bool](& $bootstrapLoadingSplashStepCommand -Splash $syncHash -StepId 'updates' -Status 'in_progress' -SubAction '')
-							}
-							$syncHash.StartUpdatesPulseApplied = $stepApplied
-							& $writeSplashTrace ('Bootstrap splash update pulse {0}: state={1} step={2}' -f $Source, $stateApplied, $stepApplied)
-						}
-						catch
-						{
-							$syncHash.ErrorType = $_.Exception.GetType().FullName
-							$syncHash.ErrorMessage = $_.Exception.Message
-							& $writeSplashTrace ('Bootstrap splash update pulse failed: {0}' -f $_.Exception.Message)
-						}
-					}.GetNewClosure()
-
-					$splash.Add_Loaded({
-						try
-						{
-							if ($splash.WindowState -eq [System.Windows.WindowState]::Minimized)
-							{
-								$splash.WindowState = [System.Windows.WindowState]::Normal
-							}
-							& $startUpdatesPulseAction 'Loaded'
-							$syncHash.WasLoaded = $true
-							& $writeSplashTrace 'Bootstrap splash loaded'
-						}
-						catch
-						{
-							$syncHash.ErrorType = $_.Exception.GetType().FullName
-							$syncHash.ErrorMessage = $_.Exception.Message
-							$syncHash.IsReady = $true
-							$syncHash.IsAlive = $false
-							& $writeSplashTrace ('Bootstrap splash load failed: {0}' -f $_.Exception.Message)
-							try { $splash.Close() } catch { }
-						}
-					})
-
-					$splash.Add_ContentRendered({
-						try
-						{
-							$syncHash.WasShown = $true
-							$syncHash.WasRendered = $true
-							& $startUpdatesPulseAction 'ContentRendered'
-							$syncHash.IsReady = $true
-							& $writeSplashTrace 'Bootstrap splash content rendered'
-						}
-						catch
-						{
-							$syncHash.ErrorType = $_.Exception.GetType().FullName
-							$syncHash.ErrorMessage = $_.Exception.Message
-							$syncHash.IsReady = $true
-							$syncHash.IsAlive = $false
-							& $writeSplashTrace ('Bootstrap splash content render failed: {0}' -f $_.Exception.Message)
-							try { $splash.Close() } catch { }
-						}
-					})
-
-					$splash.Add_Activated({
-						try { & $writeSplashTrace 'Bootstrap splash activated' } catch { }
-					})
-
-				$splash.Add_Closed({
-					$syncHash.IsAlive = $false
-					& $writeSplashTrace 'Bootstrap splash closed'
-					$splash.Dispatcher.InvokeShutdown()
-				})
-
-				& $writeSplashTrace 'Bootstrap splash ShowDialog starting'
-				$splash.ShowDialog() | Out-Null
-			}
-			catch
-			{
-				$syncHash.ErrorType = $_.Exception.GetType().FullName
-				$syncHash.ErrorMessage = $_.Exception.Message
-				$syncHash.IsReady = $true
-				$syncHash.IsAlive = $false
-				try
-				{
-					$traceDirectory = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline'
-					if (-not [System.IO.Directory]::Exists($traceDirectory))
-					{
-						[void][System.IO.Directory]::CreateDirectory($traceDirectory)
-					}
-					$tracePath = Join-Path $traceDirectory 'Baseline-launch-trace.txt'
-					[System.IO.File]::AppendAllText($tracePath, ("{0:o} Bootstrap splash runspace failed: {1}`r`n" -f [DateTime]::UtcNow, $_.Exception.Message), [System.Text.Encoding]::UTF8)
-				}
-				catch { }
-			}
-		})
-
-		Write-EnvironmentLaunchTrace 'Bootstrap splash helper BeginInvoke starting'
-		$asyncResult = $ps.BeginInvoke()
-		$deadline = [datetime]::Now.AddSeconds(10)
-		while (-not $syncHash.IsReady -and [datetime]::Now -lt $deadline)
-		{
-			Start-Sleep -Milliseconds 50
-		}
-		Write-EnvironmentLaunchTrace ('Bootstrap splash helper wait complete: IsReady={0} IsAlive={1} WasLoaded={2} WasRendered={3} Error={4}' -f [bool]$syncHash.IsReady, [bool]$syncHash.IsAlive, [bool]$syncHash.WasLoaded, [bool]$syncHash.WasRendered, [string]$syncHash.ErrorMessage)
-
-		if ((-not $syncHash.IsAlive) -or (-not $syncHash.WasRendered))
-		{
-			# Splash never became ready - clean up the background runspace.
-			try
-			{
-				if (-not [string]::IsNullOrWhiteSpace([string]$syncHash.ErrorMessage))
-				{
-					Write-EnvironmentLaunchTrace ('Bootstrap splash failed before it became visible: {0}' -f [string]$syncHash.ErrorMessage)
-				}
-				else
-				{
-					Write-EnvironmentLaunchTrace 'Bootstrap splash failed before it became visible.'
-				}
-			}
-			catch { }
-			try { $ps.Stop(); $ps.Dispose() } catch { Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.CleanupPowerShell' }
-			try { $runspace.Close(); $runspace.Dispose() } catch { Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.CleanupRunspace' }
-			return $null
-		}
-
-		$syncHash._PowerShell  = $ps
-		$syncHash._AsyncResult = $asyncResult
-		$syncHash._Runspace    = $runspace
-
-		Write-EnvironmentLaunchTrace ('Bootstrap splash helper returning live splash: IsAlive={0} WasRendered={1} WindowHandle={2}' -f [bool]$syncHash.IsAlive, [bool]$syncHash.WasRendered, [string]$syncHash.WindowHandle)
-		return $syncHash
-	}
-	catch
-	{
-		Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash'
-		Write-EnvironmentLaunchTrace ('Bootstrap splash helper failed: {0}' -f $_.Exception.Message)
-		try { if ($ps) { $ps.Stop(); $ps.Dispose() } } catch { Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.StopPowerShell' }
-		try { if ($runspace) { $runspace.Close(); $runspace.Dispose() } } catch { Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.StopRunspace' }
-		return $null
-	}
+			# P5 rollback checkpoint: Show-BootstrapLoadingSplash part extracted to Module/SharedHelpers/Environment/Show-BootstrapLoadingSplash/Show-BootstrapLoadingSplash.ps1; re-inline here if rollback is needed.
+		$__baselineExtractedPartDidReturn = $false
+		$__baselineExtractedPartHasReturnValue = $false
+		$__baselineExtractedPartReturnValue = $null
+		. (Join-Path $PSScriptRoot 'Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1')
+		if ($__baselineExtractedPartDidReturn) { if ($__baselineExtractedPartHasReturnValue) { return $__baselineExtractedPartReturnValue }; return }
 }
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineSplashProgressWidth.
 #>
 
 function Get-BaselineSplashProgressWidth
@@ -1889,7 +1023,6 @@ function Get-BaselineSplashProgressWidth
 
 <#
     .SYNOPSIS
-    Internal function Initialize-BaselineProcessIdentity.
 #>
 
 function Initialize-BaselineProcessIdentity
@@ -1935,7 +1068,6 @@ namespace WinAPI
 
 <#
     .SYNOPSIS
-    Internal function Format-BaselineDownloadStatus.
 #>
 
 function Format-BaselineDownloadStatus
@@ -1974,9 +1106,228 @@ function Format-BaselineDownloadStatus
 	return (Get-BaselineLocalizedString -Key 'Bootstrap_DownloadingUpdateNoTotal' -Fallback 'Downloading update {0}... {1} MB at {2} MB/s' -FormatArgs @($VersionTag, $receivedMB, $speedMBps))
 }
 
+function Get-BaselineUpdateAsset
+{
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory = $false)]
+		[object[]]
+		$Assets,
+
+		[Parameter(Mandatory = $false)]
+		[string]
+		$Name,
+
+		[Parameter(Mandatory = $false)]
+		[string]
+		$Pattern
+	)
+
+	foreach ($asset in @($Assets))
+	{
+		if ($null -eq $asset)
+		{
+			continue
+		}
+
+		$assetName = [string]$asset.name
+		if (-not [string]::IsNullOrWhiteSpace($Name) -and $assetName -eq $Name)
+		{
+			return $asset
+		}
+
+		if (-not [string]::IsNullOrWhiteSpace($Pattern) -and $assetName -like $Pattern)
+		{
+			return $asset
+		}
+	}
+
+	return $null
+}
+
+function Get-BaselineUpdateAssetPattern
+{
+	[CmdletBinding()]
+	param (
+		[string]$Branch
+	)
+
+	$normalizedBranch = if (Get-Command -Name 'ConvertTo-BaselineUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		ConvertTo-BaselineUpdateBranch -Branch $Branch
+	}
+	else
+	{
+		[string]$Branch
+	}
+
+	if ([string]::Equals($normalizedBranch, 'Beta', [System.StringComparison]::OrdinalIgnoreCase))
+	{
+		return 'Baseline-*-beta.zip'
+	}
+
+	return 'Baseline-*-stable.zip'
+}
+
+function Get-BaselineUpdateFileSha256
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param(
+		[Parameter(Mandatory = $true)]
+		[string]
+		$Path
+	)
+
+	if (Get-Command -Name 'Get-FileHash' -ErrorAction SilentlyContinue)
+	{
+		return (Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash.ToUpperInvariant()
+	}
+
+	$stream = [System.IO.File]::OpenRead($Path)
+	try
+	{
+		$sha256 = [System.Security.Cryptography.SHA256]::Create()
+		try
+		{
+			$hashBytes = $sha256.ComputeHash($stream)
+		}
+		finally
+		{
+			$sha256.Dispose()
+		}
+	}
+	finally
+	{
+		$stream.Dispose()
+	}
+
+	return ([System.BitConverter]::ToString($hashBytes)).Replace('-', '').ToUpperInvariant()
+}
+
+function Get-BaselineUpdateManifestFileHash
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param(
+		[Parameter(Mandatory = $true)]
+		[object]
+		$Manifest,
+
+		[Parameter(Mandatory = $true)]
+		[string]
+		$Name
+	)
+
+	if (-not $Manifest.PSObject.Properties['files'])
+	{
+		return $null
+	}
+
+	$files = $Manifest.files
+	if ($null -eq $files)
+	{
+		return $null
+	}
+
+	$property = $files.PSObject.Properties[$Name]
+	if ($property)
+	{
+		return ([string]$property.Value).ToUpperInvariant()
+	}
+
+	$normalizedName = $Name.Replace('\', '/')
+	foreach ($entry in @($files.PSObject.Properties))
+	{
+		if ([string]::Equals(([string]$entry.Name).Replace('\', '/'), $normalizedName, [System.StringComparison]::OrdinalIgnoreCase))
+		{
+			return ([string]$entry.Value).ToUpperInvariant()
+		}
+	}
+
+	return $null
+}
+
+function Assert-BaselineUpdateFileHash
+{
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory = $true)]
+		[string]
+		$Path,
+
+		[Parameter(Mandatory = $true)]
+		[object]
+		$Manifest,
+
+		[Parameter(Mandatory = $true)]
+		[string]
+		$Name
+	)
+
+	$expectedHash = Get-BaselineUpdateManifestFileHash -Manifest $Manifest -Name $Name
+	if ([string]::IsNullOrWhiteSpace($expectedHash))
+	{
+		throw "Release hash manifest does not contain an entry for $Name."
+	}
+
+	$actualHash = Get-BaselineUpdateFileSha256 -Path $Path
+	if (-not [string]::Equals($actualHash, $expectedHash, [System.StringComparison]::OrdinalIgnoreCase))
+	{
+		throw "Hash mismatch for $Name. Expected $expectedHash, got $actualHash."
+	}
+}
+
+function Get-BaselineUpdateInstallMode
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param(
+		[Parameter(Mandatory = $true)]
+		[string]
+		$ExecutablePath
+	)
+
+	$directory = [System.IO.Path]::GetFullPath((Split-Path -Path $ExecutablePath -Parent)).TrimEnd('\')
+	$registeredInstallKeys = @(
+		'Software\Microsoft\Windows\CurrentVersion\Uninstall\{D5A779F1-8936-4E66-A24D-9A4E43A2A4D9}',
+		'Software\Microsoft\Windows\CurrentVersion\Uninstall\{D5A779F1-8936-4E66-A24D-9A4E43A2A4D9}_is1'
+	)
+	$registryRoots = @('HKEY_CURRENT_USER', 'HKEY_LOCAL_MACHINE')
+
+	foreach ($registryRoot in $registryRoots)
+	{
+		foreach ($registeredInstallKey in $registeredInstallKeys)
+		{
+			$registryPath = 'Registry::{0}\{1}' -f $registryRoot, $registeredInstallKey
+			try
+			{
+				$installRecord = Get-ItemProperty -LiteralPath $registryPath -ErrorAction Stop
+			}
+			catch
+			{
+				continue
+			}
+
+			$installLocation = [string]$installRecord.InstallLocation
+			if ([string]::IsNullOrWhiteSpace($installLocation))
+			{
+				continue
+			}
+
+			$registeredDirectory = [System.IO.Path]::GetFullPath($installLocation).TrimEnd('\')
+			if ([string]::Equals($directory, $registeredDirectory, [System.StringComparison]::OrdinalIgnoreCase))
+			{
+				return 'Install'
+			}
+		}
+	}
+
+	return 'Portable'
+}
+
 <#
     .SYNOPSIS
-    Internal function Set-BootstrapLoadingSplashState.
 #>
 
 function Set-BootstrapLoadingSplashState
@@ -1986,7 +1337,7 @@ function Set-BootstrapLoadingSplashState
 	param(
 		[Parameter(Mandatory = $false)]
 		[object]
-		$Splash = $Global:LoadingSplash,
+		$Splash = $null,
 
 		[Parameter(Mandatory = $false)]
 		[string]
@@ -2009,6 +1360,15 @@ function Set-BootstrapLoadingSplashState
 		$HideProgressBar
 	)
 
+	if ($null -eq $Splash)
+	{
+		$loadingSplashVariable = Get-Variable -Name 'LoadingSplash' -Scope Global -ErrorAction SilentlyContinue
+		if ($loadingSplashVariable)
+		{
+			$Splash = $loadingSplashVariable.Value
+		}
+	}
+
 	if (-not $Splash)
 	{
 		return $false
@@ -2023,12 +1383,12 @@ function Set-BootstrapLoadingSplashState
 
 	if ($Splash -is [hashtable])
 	{
-		if ($Splash.ContainsKey('Window')) { $window = $Splash.Window }
-		if ($Splash.ContainsKey('Dispatcher')) { $dispatcher = $Splash.Dispatcher }
-		if ($Splash.ContainsKey('StatusText')) { $statusControl = $Splash.StatusText }
-		if ($Splash.ContainsKey('SubActionPanel')) { $subActionPanel = $Splash.SubActionPanel }
-		if ($Splash.ContainsKey('ProgressBar')) { $progressBar = $Splash.ProgressBar }
-		if ($Splash.ContainsKey('ChecklistProgressActive')) { $checklistProgressActive = [bool]$Splash.ChecklistProgressActive }
+		if ($Splash.ContainsKey('Window')) { $window = $Splash['Window'] }
+		if ($Splash.ContainsKey('Dispatcher')) { $dispatcher = $Splash['Dispatcher'] }
+		if ($Splash.ContainsKey('StatusText')) { $statusControl = $Splash['StatusText'] }
+		if ($Splash.ContainsKey('SubActionPanel')) { $subActionPanel = $Splash['SubActionPanel'] }
+		if ($Splash.ContainsKey('ProgressBar')) { $progressBar = $Splash['ProgressBar'] }
+		if ($Splash.ContainsKey('ChecklistProgressActive')) { $checklistProgressActive = [bool]$Splash['ChecklistProgressActive'] }
 	}
 	else
 	{
@@ -2046,7 +1406,7 @@ function Set-BootstrapLoadingSplashState
 
 	try
 	{
-		$dispatcher.Invoke([System.Action]{
+		$updateAction = {
 			try
 			{
 				if (-not $statusControl -and $window)
@@ -2087,9 +1447,9 @@ function Set-BootstrapLoadingSplashState
 					if ($HideProgressBar)
 					{
 						$progressBar.Visibility = [System.Windows.Visibility]::Collapsed
-						if ($progressBar.PSObject.Properties['IsIndeterminate']) { $progressBar.IsIndeterminate = $false }
-						if ($progressBar.PSObject.Properties['Value']) { $progressBar.Value = 0 }
-						if ($progressBar.PSObject.Properties['Maximum']) { $progressBar.Maximum = 1 }
+						$progressBar.IsIndeterminate = $false
+						$progressBar.Value = 0
+						$progressBar.Maximum = 1
 					}
 					else
 					{
@@ -2098,29 +1458,40 @@ function Set-BootstrapLoadingSplashState
 
 						if (-not $showProgress)
 						{
-							if ($progressBar.PSObject.Properties['IsIndeterminate']) { $progressBar.IsIndeterminate = $false }
+							$progressBar.IsIndeterminate = $false
 						}
 						elseif ($Indeterminate -or $Total -le 0)
 						{
-							if ($progressBar.PSObject.Properties['IsIndeterminate']) { $progressBar.IsIndeterminate = -not $checklistProgressActive }
+							$progressBar.IsIndeterminate = -not $checklistProgressActive
 						}
 						else
 						{
 							$safeTotal = [Math]::Max(1, $Total)
 							$safeCompleted = [Math]::Min([Math]::Max(0, $Completed), $safeTotal)
 							$barWidth = Get-BaselineSplashProgressWidth -ProgressBar $progressBar
-							if ($progressBar.PSObject.Properties['IsIndeterminate']) { $progressBar.IsIndeterminate = $false }
-							if ($progressBar.PSObject.Properties['Maximum']) { $progressBar.Maximum = $barWidth }
-							if ($progressBar.PSObject.Properties['Value']) { $progressBar.Value = [Math]::Round((($safeCompleted / $safeTotal) * $barWidth), 3) }
+							$progressBar.IsIndeterminate = $false
+							$progressBar.Maximum = $barWidth
+							$progressBar.Value = [Math]::Round((($safeCompleted / $safeTotal) * $barWidth), 3)
 						}
 					}
 				}
 			}
 			catch
 			{
-				Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.SetBootstrapLoadingSplashState.DispatcherUpdate'
+				Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.SetBootstrapLoadingSplashState.DispatcherUpdate'
 			}
-		})
+		}.GetNewClosure()
+
+		$dispatcherHasCheckAccess = $false
+		try { $dispatcherHasCheckAccess = ($null -ne $dispatcher.PSObject.Methods['CheckAccess']) } catch { $dispatcherHasCheckAccess = $false }
+		if ($dispatcherHasCheckAccess -and $dispatcher.CheckAccess())
+		{
+			& $updateAction
+		}
+		else
+		{
+			[void]$dispatcher.Invoke([System.Action]$updateAction)
+		}
 
 		return $true
 	}
@@ -2132,7 +1503,6 @@ function Set-BootstrapLoadingSplashState
 
 <#
     .SYNOPSIS
-    Internal function Set-BootstrapLoadingSplashStep.
 #>
 
 function Set-BootstrapLoadingSplashStep
@@ -2143,7 +1513,7 @@ function Set-BootstrapLoadingSplashStep
 	param(
 		[Parameter(Mandatory = $false)]
 		[object]
-		$Splash = $Global:LoadingSplash,
+		$Splash = $null,
 
 		[Parameter(Mandatory = $true)]
 		[ValidateSet('updates','system','winget','chocolatey','finalize')]
@@ -2162,6 +1532,15 @@ function Set-BootstrapLoadingSplashStep
 		$SubAction
 	)
 
+	if ($null -eq $Splash)
+	{
+		$loadingSplashVariable = Get-Variable -Name 'LoadingSplash' -Scope Global -ErrorAction SilentlyContinue
+		if ($loadingSplashVariable)
+		{
+			$Splash = $loadingSplashVariable.Value
+		}
+	}
+
 	if (-not $Splash) { return $false }
 
 	$window = $null
@@ -2178,406 +1557,26 @@ function Set-BootstrapLoadingSplashStep
 	$theme = $null
 	$stepOrder = @('updates','system','winget','chocolatey','finalize')
 
-	if ($Splash -is [hashtable])
-	{
-		if ($Splash.ContainsKey('Window'))            { $window         = $Splash.Window }
-		if ($Splash.ContainsKey('Dispatcher'))        { $dispatcher     = $Splash.Dispatcher }
-		if ($Splash.ContainsKey('StepGlyphs'))        { $stepGlyphs     = $Splash.StepGlyphs }
-		if ($Splash.ContainsKey('StepIdleDots'))      { $stepIdleDots   = $Splash.StepIdleDots }
-		if ($Splash.ContainsKey('StepPulseDots'))     { $stepPulseDots  = $Splash.StepPulseDots }
-		if ($Splash.ContainsKey('StepChecks'))        { $stepChecks     = $Splash.StepChecks }
-		if ($Splash.ContainsKey('StepLabels'))        { $stepLabels     = $Splash.StepLabels }
-		if ($Splash.ContainsKey('StepStates'))        { $stepStates     = $Splash.StepStates }
-		if ($Splash.ContainsKey('StatusText'))        { $statusControl  = $Splash.StatusText }
-		if ($Splash.ContainsKey('SubActionPanel'))    { $subActionPanel = $Splash.SubActionPanel }
-		if ($Splash.ContainsKey('ProgressBar'))       { $progressBar    = $Splash.ProgressBar }
-		if ($Splash.ContainsKey('SplashTheme'))       { $theme          = $Splash.SplashTheme }
-		if ($Splash.ContainsKey('StepOrder') -and $Splash.StepOrder) { $stepOrder = @($Splash.StepOrder) }
-	}
+			# P5 rollback checkpoint: Set-BootstrapLoadingSplashStep part extracted to Module/SharedHelpers/Environment/Set-BootstrapLoadingSplashStep/SplashControlResolution.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'Environment\Set-BootstrapLoadingSplashStep\SplashControlResolution.ps1')
 
 	if (-not $window -or -not $dispatcher -or $dispatcher.HasShutdownStarted) { return $false }
 	if (-not $stepGlyphs -or -not $stepLabels -or -not $stepStates) { return $false }
 
 	$hasSubActionArg = $PSBoundParameters.ContainsKey('SubAction')
-	if ($Splash -is [hashtable])
-	{
-		if ($Status -eq 'in_progress')
-		{
-			$Splash.ChecklistProgressActive = $true
-		}
-		elseif ($StepId -eq 'finalize' -and $Status -eq 'completed')
-		{
-			$Splash.ChecklistProgressActive = $false
-			$Splash.CompletionAnimationDeadlineUtc = [datetime]::UtcNow.AddMilliseconds(360)
-		}
-	}
+			# P5 rollback checkpoint: Set-BootstrapLoadingSplashStep part extracted to Module/SharedHelpers/Environment/Set-BootstrapLoadingSplashStep/SplashProgressState.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'Environment\Set-BootstrapLoadingSplashStep\SplashProgressState.ps1')
 
-	try
-	{
-		$dispatcher.Invoke([System.Action]{
-			try
-			{
-				$mutedBrush   = $null
-				$subBrush     = $null
-				$primaryBrush = $null
-				$accentBrush  = $null
-				if ($theme)
-				{
-					try { $mutedBrush   = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($theme.Muted))   } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.Splash.BrushConvert.Muted' }
-					try { $subBrush     = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($theme.Sub))     } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.Splash.BrushConvert.Sub' }
-					try { $primaryBrush = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($theme.Primary)) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.Splash.BrushConvert.Primary' }
-					try { $accentBrush  = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($theme.Accent))  } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.Splash.BrushConvert.Accent' }
-				}
-
-				$opacityProp   = [System.Windows.UIElement]::OpacityProperty
-				$snapAndKeep   = [System.Windows.Media.Animation.HandoffBehavior]::SnapshotAndReplace
-				$holdEnd       = [System.Windows.Media.Animation.FillBehavior]::HoldEnd
-
-				$animateOpacity = {
-					param($element, $to, $durationMs)
-					if (-not $element) { return }
-					try
-					{
-						$a = New-Object System.Windows.Media.Animation.DoubleAnimation
-						$a.To       = [double]$to
-						$a.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds([int]$durationMs))
-						$e          = New-Object System.Windows.Media.Animation.QuadraticEase
-						$e.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut
-						$a.EasingFunction = $e
-						$a.FillBehavior   = $holdEnd
-						$element.BeginAnimation($opacityProp, $a, $snapAndKeep)
-					}
-					catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.Splash.OpacityAnimation.Begin' }
-				}
-
-				$scaleXProp = [System.Windows.Media.ScaleTransform]::ScaleXProperty
-				$scaleYProp = [System.Windows.Media.ScaleTransform]::ScaleYProperty
-				$visVisible = [System.Windows.Visibility]::Visible
-				$visCollapsed = [System.Windows.Visibility]::Collapsed
-
-				$startPulseDot = {
-					param($pulseEllipse)
-					if (-not $pulseEllipse) { return }
-					try
-					{
-						& $stopPulseDot $pulseEllipse
-						$rt = $pulseEllipse.RenderTransform
-						if ($rt -is [System.Windows.Media.ScaleTransform])
-						{
-							$sxa = New-Object System.Windows.Media.Animation.DoubleAnimation
-							$sxa.From = 1.0; $sxa.To = 1.4
-							$sxa.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(360))
-							$sxa.AutoReverse = $true
-							$sxa.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-							$rt.BeginAnimation($scaleXProp, $sxa, $snapAndKeep)
-
-							$sya = New-Object System.Windows.Media.Animation.DoubleAnimation
-							$sya.From = 1.0; $sya.To = 1.4
-							$sya.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(360))
-							$sya.AutoReverse = $true
-							$sya.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-							$rt.BeginAnimation($scaleYProp, $sya, $snapAndKeep)
-						}
-						$oa = New-Object System.Windows.Media.Animation.DoubleAnimation
-						$oa.From = 0.6; $oa.To = 1.0
-						$oa.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(360))
-						$oa.AutoReverse = $true
-						$oa.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-						$pulseEllipse.BeginAnimation($opacityProp, $oa, $snapAndKeep)
-					}
-					catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.Splash.PulseDot.Start' }
-				}
-
-				$stopPulseDot = {
-					param($pulseEllipse)
-					if (-not $pulseEllipse) { return }
-					try
-					{
-						$rt = $pulseEllipse.RenderTransform
-						if ($rt -is [System.Windows.Media.ScaleTransform])
-						{
-							$rt.BeginAnimation($scaleXProp, $null)
-							$rt.BeginAnimation($scaleYProp, $null)
-							$rt.ScaleX = 1.0
-							$rt.ScaleY = 1.0
-						}
-						$pulseEllipse.BeginAnimation($opacityProp, $null)
-						$pulseEllipse.Opacity = 0.6
-					}
-					catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.Splash.PulseDot.Stop' }
-				}
-
-				$stopInactivePulseDots = {
-					param($activeStepId)
-					if (-not $stepPulseDots) { return }
-					foreach ($pulseId in @($stepPulseDots.Keys))
-					{
-						if ($pulseId -eq $activeStepId) { continue }
-						$pulseDot = $stepPulseDots[$pulseId]
-						if (-not $pulseDot) { continue }
-						& $stopPulseDot $pulseDot
-						$pulseDot.Visibility = $visCollapsed
-					}
-				}
-
-				$applyRowState = {
-					param($id, $state)
-					$g     = $stepGlyphs[$id]
-					$idle  = if ($stepIdleDots)  { $stepIdleDots[$id] }  else { $null }
-					$pulse = if ($stepPulseDots) { $stepPulseDots[$id] } else { $null }
-					$check = if ($stepChecks)    { $stepChecks[$id] }    else { $null }
-					$l     = $stepLabels[$id]
-
-					switch ($state)
-					{
-						'pending'
-						{
-							if ($pulse)
-							{
-								& $stopPulseDot $pulse
-								$pulse.Visibility = $visCollapsed
-							}
-							if ($check) { $check.Visibility = $visCollapsed }
-							if ($idle)
-							{
-								if ($mutedBrush) { $idle.Stroke = $mutedBrush }
-								$idle.Visibility = $visVisible
-							}
-							if ($g) { & $animateOpacity $g 1.0 220 }
-						}
-						'in_progress'
-						{
-							if ($idle)  { $idle.Visibility  = $visCollapsed }
-							if ($check) { $check.Visibility = $visCollapsed }
-							if ($pulse)
-							{
-								if ($accentBrush) { $pulse.Fill = $accentBrush }
-								$pulse.Visibility = $visVisible
-								& $startPulseDot $pulse
-							}
-							if ($g) { & $animateOpacity $g 1.0 220 }
-						}
-						'completed'
-						{
-							if ($pulse)
-							{
-								& $stopPulseDot $pulse
-								$pulse.Visibility = $visCollapsed
-							}
-							if ($idle) { $idle.Visibility = $visCollapsed }
-							if ($check)
-							{
-								if ($accentBrush) { $check.Foreground = $accentBrush }
-								$check.Visibility = $visVisible
-							}
-							if ($g) { & $animateOpacity $g 0.85 280 }
-						}
-					}
-
-					if ($l)
-					{
-						switch ($state)
-						{
-							'pending'
-							{
-								if ($mutedBrush) { $l.Foreground = $mutedBrush }
-								& $animateOpacity $l 1.0 200
-							}
-							'in_progress'
-							{
-								if ($primaryBrush) { $l.Foreground = $primaryBrush }
-								& $animateOpacity $l 1.0 200
-							}
-							'completed'
-							{
-								if ($subBrush) { $l.Foreground = $subBrush }
-								& $animateOpacity $l 0.85 280
-							}
-						}
-					}
-				}
-
-				# Cascade earlier steps to completed when a later step starts. This
-				# keeps the checklist coherent even if a caller skips a transition.
-				if ($Status -in @('in_progress','completed'))
-				{
-					$foundIdx = [Array]::IndexOf($stepOrder, $StepId)
-					if ($foundIdx -gt 0)
-					{
-						for ($i = 0; $i -lt $foundIdx; $i++)
-						{
-							$earlierId = $stepOrder[$i]
-							if ($stepStates[$earlierId] -ne 'completed')
-							{
-								$stepStates[$earlierId] = 'completed'
-								& $applyRowState $earlierId 'completed'
-							}
-						}
-					}
-				}
-
-				$activePulseStepId = if ($Status -eq 'in_progress') { $StepId } else { $null }
-				& $stopInactivePulseDots $activePulseStepId
-
-				$stepStates[$StepId] = $Status
-				& $applyRowState $StepId $Status
-
-				$completedCount = 0
-				foreach ($id in $stepOrder)
-				{
-					if ($stepStates[$id] -eq 'completed') { $completedCount++ }
-				}
-
-				# Snap on step completion; while the final handoff is active, keep
-				# the bar moving slowly toward a reserved near-complete ceiling
-				# until the foreground GUI tab signals readiness.
-				if ($progressBar)
-				{
-					try
-					{
-						if ($progressBar.PSObject.Properties['IsIndeterminate']) { $progressBar.IsIndeterminate = $false }
-						$barWidth = Get-BaselineSplashProgressWidth -ProgressBar $progressBar
-						$stepCount = [Math]::Max(1, [double]$stepOrder.Count)
-						$current = [double]$progressBar.Value
-						if ($progressBar.PSObject.Properties['Maximum']) { $progressBar.Maximum = $barWidth }
-						if ($Status -eq 'in_progress')
-						{
-							$activeIdx = [Array]::IndexOf($stepOrder, $StepId)
-							if ($activeIdx -lt 0) { $activeIdx = $completedCount }
-							$lastStepIndex = [Math]::Max(0, ([int]$stepOrder.Count) - 1)
-							$isFinalHandoffStep = ([string]$StepId -eq [string]$stepOrder[$lastStepIndex])
-							$snapTo = ([double]$activeIdx / $stepCount) * $barWidth
-							$fillFrom = $snapTo
-							$fillTo = (([double]$activeIdx + 0.35) / $stepCount) * $barWidth
-							$fillDurationMs = 2200
-							$fillEase = New-Object System.Windows.Media.Animation.CubicEase
-							$fillEase.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut
-							if ($isFinalHandoffStep)
-							{
-								$handoffCeiling = $barWidth * 0.97
-								if ($current -gt $snapTo -and $current -lt $handoffCeiling)
-								{
-									$fillFrom = $current
-								}
-								$fillTo = $handoffCeiling
-								$fillDurationMs = 24000
-								$fillEase = $null
-							}
-
-							$fill = New-Object System.Windows.Media.Animation.DoubleAnimation
-							$fill.From = $fillFrom
-							$fill.To   = $fillTo
-							$fill.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds($fillDurationMs))
-							if ($fillEase) { $fill.EasingFunction = $fillEase }
-							$fill.FillBehavior = $holdEnd
-							# Clear any prior animation on Value before starting the step-owned fill.
-							$progressBar.BeginAnimation([System.Windows.Controls.ProgressBar]::ValueProperty, $null)
-							if ($progressBar.PSObject.Properties['Value']) { $progressBar.Value = $fillFrom }
-							$progressBar.BeginAnimation([System.Windows.Controls.ProgressBar]::ValueProperty, $fill, $snapAndKeep)
-						}
-						else
-						{
-							$anim = New-Object System.Windows.Media.Animation.DoubleAnimation
-							$anim.From = $current
-							$anim.To   = ([double]$completedCount / $stepCount) * $barWidth
-							$anim.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(320))
-							$ease = New-Object System.Windows.Media.Animation.QuadraticEase
-							$ease.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut
-							$anim.EasingFunction = $ease
-							$anim.FillBehavior = $holdEnd
-							$progressBar.BeginAnimation([System.Windows.Controls.ProgressBar]::ValueProperty, $anim, $snapAndKeep)
-						}
-					}
-					catch
-					{
-						try
-						{
-							$barWidth = Get-BaselineSplashProgressWidth -ProgressBar $progressBar
-							$stepCount = [Math]::Max(1, [double]$stepOrder.Count)
-							$progressBar.Value = ([double]$completedCount / $stepCount) * $barWidth
-						}
-						catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.Splash.ProgressBar.SetValueFallback' }
-					}
-				}
-
-				# Sub-action visibility: panel toggles, not just the inner StatusText.
-				if ($hasSubActionArg)
-				{
-					if ([string]::IsNullOrWhiteSpace([string]$SubAction))
-					{
-						if ($statusControl) { $statusControl.Text = '' }
-						if ($subActionPanel)
-						{
-							$subActionPanel.Visibility = [System.Windows.Visibility]::Collapsed
-						}
-						elseif ($statusControl)
-						{
-							$statusControl.Visibility = [System.Windows.Visibility]::Collapsed
-						}
-					}
-					else
-					{
-						if ($statusControl) { $statusControl.Text = [string]$SubAction }
-						if ($subActionPanel)
-						{
-							$subActionPanel.Visibility = [System.Windows.Visibility]::Visible
-						}
-						elseif ($statusControl)
-						{
-							$statusControl.Visibility = [System.Windows.Visibility]::Visible
-						}
-					}
-				}
-				elseif ($Status -eq 'completed')
-				{
-					if ($statusControl) { $statusControl.Text = '' }
-					if ($subActionPanel)
-					{
-						$subActionPanel.Visibility = [System.Windows.Visibility]::Collapsed
-					}
-					elseif ($statusControl)
-					{
-						$statusControl.Visibility = [System.Windows.Visibility]::Collapsed
-					}
-				}
-
-				# Finish moment: when the last step lands as completed, brighten the
-				# whole list back to full opacity for a beat of visual closure before
-				# the splash window is dismissed.
-				if ($StepId -eq 'finalize' -and $Status -eq 'completed')
-				{
-					foreach ($id in $stepOrder)
-					{
-						$gFin = $stepGlyphs[$id]
-						$lFin = $stepLabels[$id]
-						if ($gFin) { & $animateOpacity $gFin 1.0 350 }
-						if ($lFin) { & $animateOpacity $lFin 1.0 350 }
-					}
-				}
-			}
-			catch
-			{
-				if ($Splash -is [hashtable])
-				{
-					$Splash.ErrorType = $_.Exception.GetType().FullName
-					$Splash.ErrorMessage = $_.Exception.Message
-				}
-				try { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.SetBootstrapLoadingSplashStep.DispatcherUpdate' } catch { }
-				throw
-			}
-		})
-
-		return $true
-	}
-	catch
-	{
-		return $false
-	}
+			# P5 rollback checkpoint: Set-BootstrapLoadingSplashStep part extracted to Module/SharedHelpers/Environment/Set-BootstrapLoadingSplashStep/SplashDispatcherUpdate.ps1; re-inline here if rollback is needed.
+		$__baselineExtractedPartDidReturn = $false
+		$__baselineExtractedPartHasReturnValue = $false
+		$__baselineExtractedPartReturnValue = $null
+		. (Join-Path $PSScriptRoot 'Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1')
+		if ($__baselineExtractedPartDidReturn) { if ($__baselineExtractedPartHasReturnValue) { return $__baselineExtractedPartReturnValue }; return }
 }
 
 <#
     .SYNOPSIS
-    Internal function Close-LoadingSplashWindow.
 #>
 
 function Close-LoadingSplashWindow
@@ -2607,15 +1606,19 @@ function Close-LoadingSplashWindow
 	{
 		if ($Splash -is [hashtable])
 		{
-			if ($Splash.IsAlive -and $Splash.Dispatcher -and (-not $Splash.Dispatcher.HasShutdownStarted))
+			if (-not $Splash.ContainsKey('ProgrammaticClose')) { $Splash['ProgrammaticClose'] = $false }
+			$Splash['ProgrammaticClose'] = $true
+			$splashDispatcher = if ($Splash.ContainsKey('Dispatcher')) { $Splash['Dispatcher'] } else { $null }
+			$splashWindow = if ($Splash.ContainsKey('Window')) { $Splash['Window'] } else { $null }
+			if ([bool]$Splash['IsAlive'] -and $splashDispatcher -and (-not $splashDispatcher.HasShutdownStarted))
 			{
-				$Splash.Dispatcher.Invoke([System.Action]{
-					if ($Splash.Window)
+				$splashDispatcher.Invoke([System.Action]{
+					if ($splashWindow)
 					{
-						try { $Splash.Window.Hide() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.WindowHide' }
-						try { $Splash.Window.Close() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.WindowClose' }
+						try { $splashWindow.Hide() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.WindowHide' }
+						try { $splashWindow.Close() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.WindowClose' }
 					}
-					$Splash.IsAlive = $false
+					$Splash['IsAlive'] = $false
 				})
 				$closeRequested = $true
 			}
@@ -2623,44 +1626,47 @@ function Close-LoadingSplashWindow
 		elseif ($Splash.Dispatcher -and (-not $Splash.Dispatcher.HasShutdownStarted))
 		{
 			$Splash.Dispatcher.Invoke([System.Action]{
-				try { $Splash.Hide() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.Hide' }
-				try { $Splash.Close() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.Close' }
+				try { $Splash.Hide() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.Hide' }
+				try { $Splash.Close() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.Close' }
 			})
 			$closeRequested = $true
 		}
 	}
 	catch
 	{
-		Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.DispatcherInvoke'
+		Write-SwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.DispatcherInvoke'
 	}
 
 	if ($DisposeResources -and $Splash -is [hashtable])
 	{
 		$closeDeadline = [datetime]::UtcNow.AddMilliseconds([Math]::Max($CloseTimeoutMilliseconds, 0))
-		while ($Splash.IsAlive -and [datetime]::UtcNow -lt $closeDeadline)
+		while ([bool]$Splash['IsAlive'] -and [datetime]::UtcNow -lt $closeDeadline)
 		{
 			Start-Sleep -Milliseconds 50
 		}
 
-		if ($Splash.IsAlive -and $Splash.Dispatcher -and (-not $Splash.Dispatcher.HasShutdownStarted))
+		$splashDispatcher = if ($Splash.ContainsKey('Dispatcher')) { $Splash['Dispatcher'] } else { $null }
+		if ([bool]$Splash['IsAlive'] -and $splashDispatcher -and (-not $splashDispatcher.HasShutdownStarted))
 		{
-			try { $Splash.Dispatcher.InvokeShutdown() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.DispatcherInvokeShutdown' }
+			try { $splashDispatcher.InvokeShutdown() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.DispatcherInvokeShutdown' }
 		}
 
 		try
 		{
-			if ($Splash._PowerShell -and $Splash._AsyncResult)
+			$splashPowerShell = if ($Splash.ContainsKey('_PowerShell')) { $Splash['_PowerShell'] } else { $null }
+			$splashAsyncResult = if ($Splash.ContainsKey('_AsyncResult')) { $Splash['_AsyncResult'] } else { $null }
+			if ($splashPowerShell -and $splashAsyncResult)
 			{
-				$Splash._PowerShell.EndInvoke($Splash._AsyncResult)
+				$splashPowerShell.EndInvoke($splashAsyncResult)
 			}
 		}
 		catch
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.EndInvoke'
+			Write-SwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.EndInvoke'
 		}
 
-		try { if ($Splash._PowerShell) { $Splash._PowerShell.Dispose() } } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.PowerShellDispose' }
-		try { if ($Splash._Runspace) { $Splash._Runspace.Close(); $Splash._Runspace.Dispose() } } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.RunspaceDispose' }
+		try { if ($Splash.ContainsKey('_PowerShell') -and $Splash['_PowerShell']) { $Splash['_PowerShell'].Dispose() } } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.PowerShellDispose' }
+		try { if ($Splash.ContainsKey('_Runspace') -and $Splash['_Runspace']) { $Splash['_Runspace'].Close(); $Splash['_Runspace'].Dispose() } } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.CloseLoadingSplashWindow.RunspaceDispose' }
 	}
 
 	return $closeRequested
@@ -2668,7 +1674,6 @@ function Close-LoadingSplashWindow
 
 <#
     .SYNOPSIS
-    Internal function Compare-BaselineReleaseVersions.
 #>
 
 function Compare-BaselineReleaseVersions
@@ -2868,7 +1873,6 @@ function Compare-BaselineReleaseVersions
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineLatestReleaseEntry.
 #>
 
 function Get-BaselineLatestReleaseEntry
@@ -2876,7 +1880,9 @@ function Get-BaselineLatestReleaseEntry
 	<# .SYNOPSIS Selects the highest Baseline GitHub release from a release list. #>
 	param(
 		[AllowNull()]
-		[object[]]$Releases
+		[object[]]$Releases,
+
+		[switch]$IncludePrerelease
 	)
 
 	$bestRelease = $null
@@ -2899,6 +1905,20 @@ function Get-BaselineLatestReleaseEntry
 			$isDraft = $false
 		}
 		if ($isDraft)
+		{
+			continue
+		}
+
+		$isPrerelease = $false
+		try
+		{
+			$isPrerelease = [bool]$release.prerelease
+		}
+		catch
+		{
+			$isPrerelease = $false
+		}
+		if ($isPrerelease -and -not $IncludePrerelease)
 		{
 			continue
 		}
@@ -2935,7 +1955,7 @@ function Get-BaselineLatestReleaseEntry
 				$candidatePublishedAt = [DateTimeOffset]::Parse($rawPublishedAt, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal)
 				break
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineLatestReleaseEntry.ParsePublishedAt' }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineLatestReleaseEntry.ParsePublishedAt' }
 		}
 
 		if ($null -eq $bestRelease)
@@ -2958,7 +1978,6 @@ function Get-BaselineLatestReleaseEntry
 
 <#
     .SYNOPSIS
-    Internal function Invoke-BaselineAutoUpdate.
 #>
 
 function Get-BaselineAutoUpdateThrottlePath
@@ -2980,6 +1999,620 @@ function Get-BaselineAutoUpdateThrottlePath
 	}
 
 	return (Join-Path (Join-Path (Join-Path $LocalAppData 'Baseline') 'UserState') 'auto-update-check.json')
+}
+
+function Get-BaselineUpdatePreferencePath
+{
+	<#
+	.SYNOPSIS
+	Returns the per-user preference file path used by the GUI settings store.
+	#>
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[string]$LocalAppData = ([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData))
+	)
+
+	if ([string]::IsNullOrWhiteSpace($LocalAppData))
+	{
+		throw 'LocalApplicationData is not available; cannot read Baseline update preferences.'
+	}
+
+	return (Join-Path (Join-Path (Join-Path (Join-Path $LocalAppData 'Baseline') 'UserState') 'Profiles') 'Baseline-user-prefs.json')
+}
+
+function ConvertTo-BaselineUpdateBoolean
+{
+	[CmdletBinding()]
+	[OutputType([bool])]
+	param (
+		[AllowNull()]
+		[object]$Value,
+
+		[bool]$Default = $false
+	)
+
+	if ($null -eq $Value) { return $Default }
+	if ($Value -is [bool]) { return [bool]$Value }
+	$text = ([string]$Value).Trim()
+	if ([string]::IsNullOrWhiteSpace($text)) { return $Default }
+	if ($text -in @('1', 'true', 'yes', 'on')) { return $true }
+	if ($text -in @('0', 'false', 'no', 'off')) { return $false }
+	return $Default
+}
+
+function ConvertTo-BaselineUpdateCheckFrequency
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[AllowNull()]
+		[object]$Frequency
+	)
+
+	switch -Regex ([string]$Frequency)
+	{
+		'(?i)^daily$' { return 'Daily' }
+		'(?i)^weekly$' { return 'Weekly' }
+		default { return 'Startup' }
+	}
+}
+
+function ConvertTo-BaselineUpdateBranch
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[AllowNull()]
+		[object]$Branch
+	)
+
+	switch -Regex ([string]$Branch)
+	{
+		'(?i)^beta$' { return 'Beta' }
+		default { return 'Stable' }
+	}
+}
+
+function Get-BaselineDefaultUpdateBranch
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[string]$ModuleManifestPath
+	)
+
+	if ([string]::IsNullOrWhiteSpace($ModuleManifestPath) -and -not [string]::IsNullOrWhiteSpace($PSScriptRoot))
+	{
+		$ModuleManifestPath = Join-Path (Split-Path -Path $PSScriptRoot -Parent) 'Baseline.psd1'
+	}
+
+	if ([string]::IsNullOrWhiteSpace($ModuleManifestPath) -or -not (Test-Path -LiteralPath $ModuleManifestPath -PathType Leaf))
+	{
+		return 'Stable'
+	}
+
+	try
+	{
+		if (Get-Command -Name 'Import-EnvironmentPowerShellDataFile' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			$manifest = Import-EnvironmentPowerShellDataFile -Path $ModuleManifestPath
+		}
+		else
+		{
+			$manifest = Import-PowerShellDataFile -LiteralPath $ModuleManifestPath
+		}
+
+		$prerelease = if ($manifest -and $manifest.PrivateData -and $manifest.PrivateData.ContainsKey('Prerelease')) { [string]$manifest.PrivateData.Prerelease } else { '' }
+		if ($prerelease -match '(?i)\bbeta\b')
+		{
+			return 'Beta'
+		}
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineDefaultUpdateBranch'
+	}
+
+	return 'Stable'
+}
+
+function Get-BaselineUpdateRepositoryName
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[string]$Branch = 'Stable'
+	)
+
+	$normalizedBranch = ConvertTo-BaselineUpdateBranch -Branch $Branch
+	if ($normalizedBranch -eq 'Beta') { return 'Baseline_dev' }
+	return 'Baseline'
+}
+
+function Get-BaselineUpdateRepositoryUrl
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[string]$Branch = 'Stable'
+	)
+
+	$repositoryName = Get-BaselineUpdateRepositoryName -Branch $Branch
+	return ('https://github.com/sdmanson8/{0}' -f $repositoryName)
+}
+
+function Get-BaselineUpdateReleaseApiUri
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[string]$Branch = 'Stable'
+	)
+
+	$repositoryName = Get-BaselineUpdateRepositoryName -Branch $Branch
+	return ('https://api.github.com/repos/sdmanson8/{0}/releases' -f $repositoryName)
+}
+
+function Get-BaselineUpdateReleasePageUrl
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[string]$Branch = 'Stable'
+	)
+
+	return ('{0}/releases/latest' -f (Get-BaselineUpdateRepositoryUrl -Branch $Branch))
+}
+
+function Test-BaselineUpdatePrereleaseAllowed
+{
+	[CmdletBinding()]
+	[OutputType([bool])]
+	param (
+		[string]$Branch = 'Stable',
+
+		[bool]$IncludePrerelease = $false
+	)
+
+	$normalizedBranch = ConvertTo-BaselineUpdateBranch -Branch $Branch
+	if ($normalizedBranch -eq 'Beta')
+	{
+		return $true
+	}
+
+	return [bool]$IncludePrerelease
+}
+
+function Get-BaselineStoredUpdatePreference
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$Key,
+
+		[AllowNull()]
+		[object]$Default = $null,
+
+		[string]$Path = (Get-BaselineUpdatePreferencePath)
+	)
+
+	if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path))
+	{
+		return $Default
+	}
+
+	try
+	{
+		$raw = [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8)
+		if ([string]::IsNullOrWhiteSpace($raw)) { return $Default }
+		$parsed = $raw | ConvertFrom-BaselineJson -Depth 12 -ErrorAction Stop
+		if (-not $parsed -or -not $parsed.Values -or -not $parsed.Values.PSObject.Properties[$Key])
+		{
+			return $Default
+		}
+		return $parsed.Values.$Key
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineStoredUpdatePreference'
+		return $Default
+	}
+}
+
+function Get-BaselineUpdateSettings
+{
+	<#
+	.SYNOPSIS
+	Reads persisted update behavior settings without loading the GUI preference module.
+	#>
+	[CmdletBinding()]
+	[OutputType([pscustomobject])]
+	param (
+		[string]$PreferencePath = (Get-BaselineUpdatePreferencePath),
+
+		[string]$StatePath = (Get-BaselineAutoUpdateThrottlePath)
+	)
+
+	$autoCheckPreference = Get-BaselineStoredUpdatePreference -Key 'AutoCheckUpdates' -Default $null -Path $PreferencePath
+	$autoCheck = ConvertTo-BaselineUpdateBoolean -Value $autoCheckPreference -Default $true
+	if ($null -eq $autoCheckPreference)
+	{
+		$checkState = Get-BaselineUpdateCheckState -Path $StatePath
+		if ($checkState -and [string]::Equals([string]$checkState.Status, 'Disabled', [System.StringComparison]::OrdinalIgnoreCase))
+		{
+			$autoCheck = $false
+		}
+	}
+	$frequency = ConvertTo-BaselineUpdateCheckFrequency -Frequency (Get-BaselineStoredUpdatePreference -Key 'UpdateCheckFrequency' -Default 'Startup' -Path $PreferencePath)
+	$includePrerelease = ConvertTo-BaselineUpdateBoolean -Value (Get-BaselineStoredUpdatePreference -Key 'IncludePrereleaseUpdates' -Default $false -Path $PreferencePath) -Default $false
+	$defaultUpdateBranch = Get-BaselineDefaultUpdateBranch
+	$updateBranch = ConvertTo-BaselineUpdateBranch -Branch (Get-BaselineStoredUpdatePreference -Key 'UpdateBranch' -Default $defaultUpdateBranch -Path $PreferencePath)
+
+	return [pscustomobject]@{
+		AutoCheckUpdates = $autoCheck
+		CheckFrequency = $frequency
+		IncludePrereleaseBuilds = $includePrerelease
+		UpdateBranch = $updateBranch
+		RepositoryName = Get-BaselineUpdateRepositoryName -Branch $updateBranch
+		RepositoryUrl = Get-BaselineUpdateRepositoryUrl -Branch $updateBranch
+		ReleaseApiUri = Get-BaselineUpdateReleaseApiUri -Branch $updateBranch
+	}
+}
+
+function Get-BaselineUpdateCheckState
+{
+	<#
+	.SYNOPSIS
+	Reads the persisted update check state displayed in Settings.
+	#>
+	[CmdletBinding()]
+	[OutputType([pscustomobject])]
+	param (
+		[string]$Path = (Get-BaselineAutoUpdateThrottlePath)
+	)
+
+	$defaultState = [pscustomobject]@{
+		LastCheckedUtc = $null
+		Status = 'Not checked'
+		LatestVersion = ''
+		Message = ''
+	}
+
+	if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path))
+	{
+		return $defaultState
+	}
+
+	try
+	{
+		$raw = [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8)
+		if ([string]::IsNullOrWhiteSpace($raw)) { return $defaultState }
+		$state = $raw | ConvertFrom-BaselineJson -Depth 8 -ErrorAction Stop
+		$lastCheckedUtc = $null
+		$lastCheckedRaw = if ($state -and $state.PSObject.Properties['LastCheckedUtc']) { [string]$state.LastCheckedUtc } else { '' }
+		if (-not [string]::IsNullOrWhiteSpace($lastCheckedRaw))
+		{
+			$parsedLastCheckedUtc = [datetime]::MinValue
+			if ([datetime]::TryParse($lastCheckedRaw, [ref]$parsedLastCheckedUtc))
+			{
+				$lastCheckedUtc = $parsedLastCheckedUtc.ToUniversalTime()
+			}
+		}
+
+		return [pscustomobject]@{
+			LastCheckedUtc = $lastCheckedUtc
+			Status = if ($state -and $state.PSObject.Properties['Status'] -and -not [string]::IsNullOrWhiteSpace([string]$state.Status)) { [string]$state.Status } else { 'Not checked' }
+			LatestVersion = if ($state -and $state.PSObject.Properties['LatestVersion']) { [string]$state.LatestVersion } else { '' }
+			Message = if ($state -and $state.PSObject.Properties['Message']) { [string]$state.Message } else { '' }
+		}
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineUpdateCheckState'
+		return $defaultState
+	}
+}
+
+function Set-BaselineUpdateCheckState
+{
+	<#
+	.SYNOPSIS
+	Persists update check state for Settings and startup gating.
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$Status,
+
+		[string]$LatestVersion = '',
+
+		[string]$Message = '',
+
+		[string]$Path = (Get-BaselineAutoUpdateThrottlePath),
+
+		[datetime]$NowUtc = [DateTime]::UtcNow,
+
+		[switch]$PreserveLastChecked
+	)
+
+	$directory = Split-Path -Path $Path -Parent
+	if (-not (Test-Path -LiteralPath $directory))
+	{
+		$null = New-Item -Path $directory -ItemType Directory -Force
+	}
+
+	$lastCheckedUtc = $NowUtc.ToUniversalTime()
+	if ($PreserveLastChecked)
+	{
+		$existing = Get-BaselineUpdateCheckState -Path $Path
+		if ($existing -and $existing.LastCheckedUtc)
+		{
+			$lastCheckedUtc = ([datetime]$existing.LastCheckedUtc).ToUniversalTime()
+		}
+		else
+		{
+			$lastCheckedUtc = $null
+		}
+	}
+
+	$payload = [pscustomobject]@{
+		Schema = 'Baseline.AutoUpdateCheck'
+		SchemaVersion = 2
+		LastCheckedUtc = if ($lastCheckedUtc) { $lastCheckedUtc.ToString('o') } else { $null }
+		Status = [string]$Status
+		LatestVersion = [string]$LatestVersion
+		Message = [string]$Message
+		MinimumIntervalHours = 4
+	}
+	[System.IO.File]::WriteAllText($Path, ($payload | ConvertTo-Json -Depth 6), [System.Text.Encoding]::UTF8)
+}
+
+function Format-BaselineUpdateLastChecked
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[AllowNull()]
+		[object]$LastCheckedUtc,
+
+		[string]$NeverText = 'Never'
+	)
+
+	if ($null -eq $LastCheckedUtc) { return $NeverText }
+	$parsed = [datetime]::MinValue
+	if (-not [datetime]::TryParse([string]$LastCheckedUtc, [ref]$parsed)) { return $NeverText }
+	return $parsed.ToLocalTime().ToString('yyyy-MM-dd HH:mm', [System.Globalization.CultureInfo]::InvariantCulture)
+}
+
+function Get-BaselineUpdateFrequencyDecision
+{
+	[CmdletBinding()]
+	[OutputType([pscustomobject])]
+	param (
+		[string]$Frequency = 'Startup',
+
+		[AllowNull()]
+		[object]$State = $null,
+
+		[datetime]$NowUtc = [DateTime]::UtcNow
+	)
+
+	$normalizedFrequency = ConvertTo-BaselineUpdateCheckFrequency -Frequency $Frequency
+	if ($normalizedFrequency -eq 'Startup')
+	{
+		return [pscustomobject]@{
+			ShouldCheck = $true
+			NextEligibleUtc = $NowUtc.ToUniversalTime()
+			Reason = 'Startup update check is enabled.'
+		}
+	}
+
+	$lastCheckedUtc = $null
+	if ($State -and $State.PSObject.Properties['LastCheckedUtc'] -and $State.LastCheckedUtc)
+	{
+		$lastCheckedUtc = ([datetime]$State.LastCheckedUtc).ToUniversalTime()
+	}
+	if (-not $lastCheckedUtc)
+	{
+		return [pscustomobject]@{
+			ShouldCheck = $true
+			NextEligibleUtc = $NowUtc.ToUniversalTime()
+			Reason = 'No previous update check was recorded.'
+		}
+	}
+
+	$interval = if ($normalizedFrequency -eq 'Weekly') { [TimeSpan]::FromDays(7) } else { [TimeSpan]::FromDays(1) }
+	$nextEligibleUtc = $lastCheckedUtc.Add($interval)
+	return [pscustomobject]@{
+		ShouldCheck = ($NowUtc.ToUniversalTime() -ge $nextEligibleUtc)
+		NextEligibleUtc = $nextEligibleUtc
+		Reason = if ($NowUtc.ToUniversalTime() -ge $nextEligibleUtc) { 'Update check frequency interval elapsed.' } else { 'Update check frequency interval has not elapsed.' }
+	}
+}
+
+function Test-BaselineAutoUpdateStartupEnabled
+{
+	<#
+	.SYNOPSIS
+	Determines whether startup should visually prime and run the update check.
+	#>
+	[CmdletBinding()]
+	[OutputType([bool])]
+	param ()
+
+	if ($env:BASELINE_INSTALLER_MODE -eq '1') { return $false }
+	if ($env:BASELINE_SKIP_UPDATE -eq '1') { return $false }
+	if ($env:BASELINE_EMBEDDED_HOST -ne '1') { return $false }
+
+	$settings = Get-BaselineUpdateSettings
+	if (-not [bool]$settings.AutoCheckUpdates) { return $false }
+
+	$state = Get-BaselineUpdateCheckState
+	$decision = Get-BaselineUpdateFrequencyDecision -Frequency $settings.CheckFrequency -State $state
+	return [bool]$decision.ShouldCheck
+}
+
+function Test-BaselineOfflineUpdateException
+{
+	[CmdletBinding()]
+	[OutputType([bool])]
+	param (
+		[AllowNull()]
+		[object]$ErrorRecord
+	)
+
+	$exception = if ($ErrorRecord -is [System.Management.Automation.ErrorRecord]) { $ErrorRecord.Exception } elseif ($ErrorRecord -is [System.Exception]) { $ErrorRecord } else { $null }
+	while ($exception)
+	{
+		if ($exception -is [System.Net.WebException])
+		{
+			$status = $exception.Status
+			if ($status -in @(
+				[System.Net.WebExceptionStatus]::NameResolutionFailure,
+				[System.Net.WebExceptionStatus]::ConnectFailure,
+				[System.Net.WebExceptionStatus]::ProxyNameResolutionFailure,
+				[System.Net.WebExceptionStatus]::ReceiveFailure,
+				[System.Net.WebExceptionStatus]::SendFailure,
+				[System.Net.WebExceptionStatus]::Timeout
+			))
+			{
+				return $true
+			}
+		}
+		$exception = $exception.InnerException
+	}
+
+	return $false
+}
+
+function Test-BaselineUpdateEndpointAvailable
+{
+	[CmdletBinding()]
+	[OutputType([bool])]
+	param (
+		[string]$HostName = 'api.github.com',
+
+		[int]$Port = 443,
+
+		[int]$TimeoutMilliseconds = 1500
+	)
+
+	$client = [System.Net.Sockets.TcpClient]::new()
+	try
+	{
+		$async = $client.BeginConnect($HostName, $Port, $null, $null)
+		if (-not $async.AsyncWaitHandle.WaitOne([Math]::Max(250, [int]$TimeoutMilliseconds), $false))
+		{
+			return $false
+		}
+		$client.EndConnect($async)
+		return $true
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'Environment.TestBaselineUpdateEndpointAvailable'
+		return $false
+	}
+	finally
+	{
+		try { $client.Close() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.TestBaselineUpdateEndpointAvailable.Close' }
+	}
+}
+
+function Invoke-BaselineUpdateCheck
+{
+	<#
+	.SYNOPSIS
+	Runs an immediate GitHub release metadata check and persists the visible
+	update state.
+	#>
+	[CmdletBinding()]
+	[OutputType([pscustomobject])]
+	param (
+		[string]$CurrentVersion = '0.0.0',
+
+		[string]$UpdateBranch = 'Stable',
+
+		[switch]$IncludePrerelease
+	)
+
+	$statePath = Get-BaselineAutoUpdateThrottlePath
+	$normalizedUpdateBranch = ConvertTo-BaselineUpdateBranch -Branch $UpdateBranch
+	$allowPrerelease = Test-BaselineUpdatePrereleaseAllowed -Branch $normalizedUpdateBranch -IncludePrerelease ([bool]$IncludePrerelease)
+	$releaseApiUri = Get-BaselineUpdateReleaseApiUri -Branch $normalizedUpdateBranch
+	$repositoryName = Get-BaselineUpdateRepositoryName -Branch $normalizedUpdateBranch
+	$repositoryUrl = Get-BaselineUpdateRepositoryUrl -Branch $normalizedUpdateBranch
+	try
+	{
+		Set-DownloadSecurityProtocol
+		$headers = @{ 'User-Agent' = "Baseline/$CurrentVersion" }
+		$releases = Invoke-RestMethod -Uri $releaseApiUri -Headers $headers -Method Get -TimeoutSec 10 -ErrorAction Stop
+		$release = Get-BaselineLatestReleaseEntry -Releases $releases -IncludePrerelease:$allowPrerelease
+		if (-not $release)
+		{
+			Set-BaselineUpdateCheckState -Path $statePath -Status 'Up to date' -LatestVersion $CurrentVersion -Message 'No published release newer than the current build was found.'
+			return [pscustomobject]@{
+				Status = 'Up to date'
+				LatestVersion = $CurrentVersion
+				IsUpdateAvailable = $false
+				Release = $null
+				LastCheckedUtc = (Get-BaselineUpdateCheckState -Path $statePath).LastCheckedUtc
+				Message = ''
+				UpdateBranch = $normalizedUpdateBranch
+				RepositoryName = $repositoryName
+				RepositoryUrl = $repositoryUrl
+			}
+		}
+
+		$latestTag = [string]$release.tag_name
+		$isNewer = ((Compare-BaselineReleaseVersions -LeftVersion $latestTag -RightVersion $CurrentVersion) -gt 0)
+		if ($isNewer)
+		{
+			Set-BaselineUpdateCheckState -Path $statePath -Status 'Update available' -LatestVersion $latestTag -Message ''
+			return [pscustomobject]@{
+				Status = 'Update available'
+				LatestVersion = $latestTag
+				IsUpdateAvailable = $true
+				Release = $release
+				LastCheckedUtc = (Get-BaselineUpdateCheckState -Path $statePath).LastCheckedUtc
+				Message = ''
+				UpdateBranch = $normalizedUpdateBranch
+				RepositoryName = $repositoryName
+				RepositoryUrl = $repositoryUrl
+			}
+		}
+
+		Set-BaselineUpdateCheckState -Path $statePath -Status 'Up to date' -LatestVersion $latestTag -Message ''
+		return [pscustomobject]@{
+			Status = 'Up to date'
+			LatestVersion = $latestTag
+			IsUpdateAvailable = $false
+			Release = $release
+			LastCheckedUtc = (Get-BaselineUpdateCheckState -Path $statePath).LastCheckedUtc
+			Message = ''
+			UpdateBranch = $normalizedUpdateBranch
+			RepositoryName = $repositoryName
+			RepositoryUrl = $repositoryUrl
+		}
+	}
+	catch
+	{
+		$status = if (Test-BaselineOfflineUpdateException -ErrorRecord $_) { 'Skipped (offline)' } else { 'Failed' }
+		$message = [string]$_.Exception.Message
+		Set-BaselineUpdateCheckState -Path $statePath -Status $status -LatestVersion '' -Message $message
+		return [pscustomobject]@{
+			Status = $status
+			LatestVersion = ''
+			IsUpdateAvailable = $false
+			Release = $null
+			LastCheckedUtc = (Get-BaselineUpdateCheckState -Path $statePath).LastCheckedUtc
+			Message = $message
+			UpdateBranch = $normalizedUpdateBranch
+			RepositoryName = $repositoryName
+			RepositoryUrl = $repositoryUrl
+		}
+	}
 }
 
 function Get-BaselineAutoUpdateThrottleDecision
@@ -3075,24 +2708,45 @@ function Invoke-BaselineAutoUpdate
 	<#
 	.SYNOPSIS
 	Checks GitHub for a newer Baseline release zip and, if found, downloads it
-	using the existing splash progress bar then relaunches the updated exe.
+	using the existing splash progress bar then runs the setup update flow.
 	#>
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $false)]
-		[object]$Splash = $Global:LoadingSplash,
+		[object]$Splash = $null,
 
 		[Parameter(Mandatory = $false)]
 		[string]$CurrentVersion = '0.0.0'
 	)
 
+	if ($null -eq $Splash)
+	{
+		$loadingSplashVariable = Get-Variable -Name 'LoadingSplash' -Scope Global -ErrorAction SilentlyContinue
+		if ($loadingSplashVariable)
+		{
+			$Splash = $loadingSplashVariable.Value
+		}
+	}
+
 	# Skip if launched by the installer or already updated this session
 	if ($env:BASELINE_INSTALLER_MODE -eq '1') { return }
 	if ($env:BASELINE_SKIP_UPDATE    -eq '1') { return }
 	if ($env:BASELINE_EMBEDDED_HOST -ne '1') { return }
+	$updateSettings = Get-BaselineUpdateSettings
+	$statePath = Get-BaselineAutoUpdateThrottlePath
+	$updateBranch = if ($updateSettings -and $updateSettings.PSObject.Properties['UpdateBranch'] -and -not [string]::IsNullOrWhiteSpace([string]$updateSettings.UpdateBranch)) { ConvertTo-BaselineUpdateBranch -Branch $updateSettings.UpdateBranch } else { Get-BaselineDefaultUpdateBranch }
+	if (-not [bool]$updateSettings.AutoCheckUpdates)
+	{
+		Set-BaselineUpdateCheckState -Path $statePath -Status 'Disabled' -PreserveLastChecked
+		LogInfo 'Skipping auto-update check: automatic update checks are disabled.'
+		return
+	}
+
 	$exePath = [string]$env:BASELINE_LAUNCHER_PATH
 	if ([string]::IsNullOrWhiteSpace($exePath) -or -not [System.IO.Path]::IsPathRooted($exePath))
 	{
+		Set-BaselineUpdateCheckState -Path $statePath -Status 'Failed' -Message 'Launcher path was not available to the embedded host.'
+		LogWarning 'Skipping auto-update check: launcher path was not available to the embedded host.'
 		return
 	}
 
@@ -3101,20 +2755,27 @@ function Invoke-BaselineAutoUpdate
 	# would silently downgrade the user.
 	if ([string]::IsNullOrWhiteSpace([string]$CurrentVersion) -or $CurrentVersion -eq '0.0.0')
 	{
+		Set-BaselineUpdateCheckState -Path $statePath -Status 'Failed' -Message ('Current Baseline version could not be determined (reported: "{0}").' -f $CurrentVersion)
 		LogWarning ('Skipping auto-update check: current Baseline version could not be determined (reported: "{0}"). Refusing to compare against GitHub releases to avoid downgrading.' -f $CurrentVersion)
 		return
 	}
 
 	try
 	{
-		$throttlePath = Get-BaselineAutoUpdateThrottlePath
-		$throttleDecision = Get-BaselineAutoUpdateThrottleDecision -Path $throttlePath -MinimumIntervalHours 4
-		if (-not [bool]$throttleDecision.ShouldCheck)
+		$updateState = Get-BaselineUpdateCheckState -Path $statePath
+		$frequencyDecision = Get-BaselineUpdateFrequencyDecision -Frequency $updateSettings.CheckFrequency -State $updateState
+		if (-not [bool]$frequencyDecision.ShouldCheck)
 		{
-			LogInfo ('Skipping auto-update check: checked within the last 4 hours. Next eligible UTC: {0:o}.' -f $throttleDecision.NextEligibleUtc)
+			LogInfo ('Skipping auto-update check: {0} Next eligible UTC: {1:o}.' -f $frequencyDecision.Reason, $frequencyDecision.NextEligibleUtc)
 			return
 		}
-		Set-BaselineAutoUpdateThrottleTimestamp -Path $throttlePath
+
+		if (-not (Test-BaselineUpdateEndpointAvailable))
+		{
+			Set-BaselineUpdateCheckState -Path $statePath -Status 'Skipped (offline)' -Message 'GitHub release endpoint is not reachable.'
+			LogInfo 'Skipping auto-update check: GitHub release endpoint is not reachable.'
+			return
+		}
 
 		Set-DownloadSecurityProtocol
 		[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'Bootstrap_CheckingForUpdates' -Fallback 'Checking for updates...') -Completed 0 -Total 5)
@@ -3124,42 +2785,70 @@ function Invoke-BaselineAutoUpdate
 		}
 		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingForUpdatesVerbose' -Fallback 'Checking for updates (current version: {0})...' -FormatArgs @($CurrentVersion))
 
-		$apiUrl  = 'https://api.github.com/repos/sdmanson8/Baseline/releases'
+		$apiUrl  = Get-BaselineUpdateReleaseApiUri -Branch $updateBranch
 		$headers = @{ 'User-Agent' = "Baseline/$CurrentVersion" }
 
 		$releases = Invoke-RestMethod -Uri $apiUrl -Headers $headers -Method Get -TimeoutSec 8 -ErrorAction Stop
-		$release = Get-BaselineLatestReleaseEntry -Releases $releases
-		if (-not $release) { LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_NoReleasesFound' -Fallback 'No releases found on GitHub; skipping update.'); return }
+		$allowPrerelease = Test-BaselineUpdatePrereleaseAllowed -Branch $updateBranch -IncludePrerelease ([bool]$updateSettings.IncludePrereleaseBuilds)
+		$release = Get-BaselineLatestReleaseEntry -Releases $releases -IncludePrerelease:$allowPrerelease
+		if (-not $release)
+		{
+			Set-BaselineUpdateCheckState -Path $statePath -Status 'Up to date' -LatestVersion $CurrentVersion -Message 'No published release newer than the current build was found.'
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_NoReleasesFound' -Fallback 'No releases found on GitHub; skipping update.')
+			return
+		}
 
 		$latestTag = [string]$release.tag_name
 		$isNewer = ((Compare-BaselineReleaseVersions -LeftVersion $latestTag -RightVersion $CurrentVersion) -gt 0)
 
 		if (-not $isNewer)
 		{
+			Set-BaselineUpdateCheckState -Path $statePath -Status 'Up to date' -LatestVersion $latestTag -Message ''
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_AlreadyUpToDate' -Fallback 'Already up to date (latest: {0}).' -FormatArgs @($latestTag))
 			[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...') -Indeterminate)
 			return
 		}
 
-		$downloadUrl = $null
-		$releaseAsset = $release.assets | Where-Object { $_.name -like 'Baseline-*.zip' } | Select-Object -First 1
-		if ($releaseAsset)
+		Set-BaselineUpdateCheckState -Path $statePath -Status 'Update available' -LatestVersion $latestTag -Message ''
+
+		$releaseAssetPattern = Get-BaselineUpdateAssetPattern -Branch $updateBranch
+		$releaseAsset = Get-BaselineUpdateAsset -Assets @($release.assets) -Pattern $releaseAssetPattern
+		$downloadUrl = if ($releaseAsset) { [string]$releaseAsset.browser_download_url } else { $null }
+		if ([string]::IsNullOrWhiteSpace($downloadUrl)) { LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_NoMatchingUpdateAsset' -Fallback 'Update {0} found but no matching release zip asset; skipping.' -FormatArgs @($latestTag)); return }
+
+		$releaseAssetName = [string]$releaseAsset.name
+		$releaseHashAssetName = $releaseAssetName + '.sha256.json'
+		$releaseHashAsset = Get-BaselineUpdateAsset -Assets @($release.assets) -Name $releaseHashAssetName
+		$releaseHashDownloadUrl = if ($releaseHashAsset) { [string]$releaseHashAsset.browser_download_url } else { $null }
+		if ([string]::IsNullOrWhiteSpace($releaseHashDownloadUrl))
 		{
-			$downloadUrl = [string]$releaseAsset.browser_download_url
+			LogWarning ('Update {0} found but no matching SHA-256 manifest asset ({1}); skipping.' -f $latestTag, $releaseHashAssetName)
+			return
 		}
-		if ([string]::IsNullOrWhiteSpace($downloadUrl)) { LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_NoMatchingUpdateAsset' -Fallback 'Update {0} found but no matching zip asset; skipping.' -FormatArgs @($latestTag)); return }
 
 		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_UpdateAvailable' -Fallback 'Update available: {0}. Downloading...' -FormatArgs @($latestTag))
 		# Download with progress bar
 		[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Format-BaselineDownloadStatus -VersionTag $latestTag -BytesReceived 0 -TotalBytes 0 -ElapsedSeconds 0) -Completed 0 -Total 100)
 
-		$tmpDir  = Join-Path ([System.IO.Path]::GetTempPath()) ("BaselineUpdate_" + [System.Guid]::NewGuid().ToString('N'))
-		$zipPath = Join-Path $tmpDir 'Baseline-update.zip'
-		$newExePath = Join-Path $tmpDir 'Baseline.exe'
+		$tmpDir = Join-Path ([System.IO.Path]::GetTempPath()) ("BaselineUpdate_" + [System.Guid]::NewGuid().ToString('N'))
+		$zipPath = Join-Path $tmpDir $releaseAssetName
+		$manifestPath = Join-Path $tmpDir ($releaseAssetName + '.sha256.json')
+		$extractPath = Join-Path $tmpDir 'extract'
 		[void](New-Item -ItemType Directory -Path $tmpDir -Force)
 
 		try
 		{
+			$manifestClient = New-Object System.Net.WebClient
+			try
+			{
+				$manifestClient.Headers['User-Agent'] = "Baseline/$CurrentVersion"
+				$manifestClient.DownloadFile($releaseHashDownloadUrl, $manifestPath)
+			}
+			finally
+			{
+				$manifestClient.Dispose()
+			}
+
 			$request  = [System.Net.HttpWebRequest]::Create($downloadUrl)
 			$request.UserAgent = "Baseline/$CurrentVersion"
 			$request.Timeout   = 300000
@@ -3214,29 +2903,55 @@ function Invoke-BaselineAutoUpdate
 
 			[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'Bootstrap_InstallingUpdate' -Fallback '' -FormatArgs @($latestTag)) -Completed 100 -Total 100)
 
-			# Extract Baseline.exe from zip
-			Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
-			$zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
-			try
+			$releaseManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-BaselineJson
+			Assert-BaselineUpdateFileHash -Path $zipPath -Manifest $releaseManifest -Name $releaseAssetName
+			New-Item -ItemType Directory -Path $extractPath -Force | Out-Null
+			Expand-Archive -LiteralPath $zipPath -DestinationPath $extractPath -Force
+			$setupCandidates = @(Get-ChildItem -Path $extractPath -Filter 'Baseline-setup-*.exe' -Recurse -File -ErrorAction Stop)
+			if ($setupCandidates.Count -ne 1)
 			{
-				$entry = $zip.Entries | Where-Object { $_.Name -eq 'Baseline.exe' } | Select-Object -First 1
-				if (-not $entry) { return }
-				[System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $newExePath, $true)
+				throw "Release zip must contain exactly one Baseline-setup-*.exe. Found $($setupCandidates.Count)."
 			}
-			finally
+			$setupPath = [string]$setupCandidates[0].FullName
+			$setupFileName = [System.IO.Path]::GetFileName($setupPath)
+			Assert-BaselineUpdateFileHash -Path $setupPath -Manifest $releaseManifest -Name $setupFileName
+
+			$updateInstallMode = Get-BaselineUpdateInstallMode -ExecutablePath $exePath
+			$updateTargetDirectory = Split-Path -Path $exePath -Parent
+			$setupArguments = @(
+				'/SP-'
+				'/VERYSILENT'
+				'/SUPPRESSMSGBOXES'
+				'/NORESTART'
+				'/BASELINEUPDATE=1'
+				('/BASELINEUPDATEMODE={0}' -f $updateInstallMode)
+				('/BASELINEUPDATETARGETDIR="{0}"' -f $updateTargetDirectory)
+				('/RELAUNCH="{0}"' -f $exePath)
+			)
+			if ($updateInstallMode -eq 'Install')
 			{
-				$zip.Dispose()
+				$installDirectory = $updateTargetDirectory
+				$setupArguments += ('/DIR="{0}"' -f $installDirectory)
+				if ($installDirectory.StartsWith([System.Environment]::GetFolderPath('LocalApplicationData'), [System.StringComparison]::OrdinalIgnoreCase))
+				{
+					$setupArguments += '/CURRENTUSER'
+				}
+			}
+			else
+			{
+				$setupArguments += '/CURRENTUSER'
 			}
 
-			# Write self-deleting updater script and relaunch
 			$cmdPath = Join-Path $tmpDir 'apply-update.cmd'
+			$setupArgumentText = [string]::Join(' ', $setupArguments)
 			$cmdContent = @"
 @echo off
 timeout /t 2 /nobreak >nul
-move /y "$newExePath" "$exePath"
 set BASELINE_SKIP_UPDATE=1
-start "" "$exePath"
+start /wait "" "$setupPath" $setupArgumentText
+del /f /q "$manifestPath"
 del /f /q "$zipPath"
+del /f /q "$setupPath"
 del /f /q "%~f0"
 "@
 			[System.IO.File]::WriteAllText($cmdPath, $cmdContent)
@@ -3247,12 +2962,11 @@ del /f /q "%~f0"
 				$cmdExe = Join-Path $env:SystemRoot 'System32\cmd.exe'
 			}
 
-			$psi = [System.Diagnostics.ProcessStartInfo]::new()
+			$psi = New-Object System.Diagnostics.ProcessStartInfo
 			$psi.FileName = $cmdExe
 			$psi.CreateNoWindow  = $true
 			$psi.UseShellExecute = $false
-			$psi.ArgumentList.Add('/c')
-			$psi.ArgumentList.Add($cmdPath)
+			$psi.Arguments = ('/c "{0}"' -f $cmdPath)
 			[void]([System.Diagnostics.Process]::Start($psi))
 
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_UpdateDownloadedRelaunching' -Fallback 'Update {0} downloaded. Relaunching to apply...' -FormatArgs @($latestTag))
@@ -3261,13 +2975,21 @@ del /f /q "%~f0"
 		}
 		catch
 		{
+			Set-BaselineUpdateCheckState -Path $statePath -Status 'Failed' -LatestVersion $latestTag -Message ([string]$_.Exception.Message)
 			LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_UpdateDownloadOrApplyFailed' -Fallback 'Failed to download or apply update {0}: {1}' -FormatArgs @($latestTag, $_.Exception.Message))
-			try { if (Test-Path $tmpDir) { Remove-Item -LiteralPath $tmpDir -Recurse -Force -ErrorAction SilentlyContinue } } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.InvokeBaselineAutoUpdate.CleanupTempDir' }
+			try { if (Test-Path $tmpDir) { Remove-Item -LiteralPath $tmpDir -Recurse -Force -ErrorAction SilentlyContinue } } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.InvokeBaselineAutoUpdate.CleanupTempDir' }
 		}
 	}
 	catch
 	{
-		# Never block startup — silently fall through on any update failure
+		try
+		{
+			$autoUpdateStatePath = Get-BaselineAutoUpdateThrottlePath
+			$autoUpdateStatus = if (Test-BaselineOfflineUpdateException -ErrorRecord $_) { 'Skipped (offline)' } else { 'Failed' }
+			Set-BaselineUpdateCheckState -Path $autoUpdateStatePath -Status $autoUpdateStatus -Message ([string]$_.Exception.Message)
+		}
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.InvokeBaselineAutoUpdate.PersistFailureState' }
+		# Never block startup - silently fall through on any update failure
 		LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_AutoUpdateCheckFailed' -Fallback 'Auto-update check failed: {0}' -FormatArgs @($_.Exception.Message))
 	}
 	finally
@@ -3284,13 +3006,12 @@ del /f /q "%~f0"
 				[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...') -Indeterminate)
 			}
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.InvokeBaselineAutoUpdate.RestoreSplashState' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.InvokeBaselineAutoUpdate.RestoreSplashState' }
 	}
 }
 
 <#
     .SYNOPSIS
-    Internal function Show-Menu.
 #>
 
 function Show-Menu
@@ -3385,7 +3106,6 @@ function Show-Menu
 
 <#
     .SYNOPSIS
-    Internal function Get-LocalizedShellString.
 #>
 
 function Get-LocalizedShellString
@@ -3436,7 +3156,6 @@ function Get-LocalizedShellString
 
 <#
     .SYNOPSIS
-    Internal function Restart-Script.
 #>
 
 function Restart-Script
@@ -3541,7 +3260,6 @@ function Restart-Script
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineDisplayVersion.
 #>
 
 function Get-BaselineDisplayVersion
@@ -3576,7 +3294,6 @@ function Get-BaselineDisplayVersion
 
 <#
     .SYNOPSIS
-    Internal function Get-TweakSkipLabel.
 #>
 
 function Get-TweakSkipLabel
@@ -3608,47 +3325,63 @@ function Stop-Foreground
 
 <#
 .SYNOPSIS
-Execute a scriptblock via a UCPD-bypassed PowerShell copy with guaranteed cleanup.
+Execute a temporary script via a UCPD-bypassed PowerShell copy with guaranteed cleanup.
 
 .DESCRIPTION
 Copies powershell.exe to a temporary name to bypass the Windows UCPD driver
-which blocks certain registry writes. The temporary file is removed in a
-finally block to guarantee cleanup even if the command fails.
+which blocks certain registry writes. The copied executable and generated
+script file are removed in a finally block to guarantee cleanup even if the
+command fails.
+
+.PARAMETER ScriptText
+The PowerShell source text to execute from a temporary .ps1 file.
 
 .PARAMETER ScriptBlock
-The scriptblock to execute in the temporary PowerShell process.
+The PowerShell script block to execute from a temporary .ps1 file.
 #>
 function Invoke-UCPDBypassed
 {
-	[CmdletBinding()]
+	[CmdletBinding(DefaultParameterSetName = 'ScriptText')]
 	param
 	(
-		[Parameter(Mandatory = $true)]
+		[Parameter(Mandatory = $true, ParameterSetName = 'ScriptText')]
+		[string]$ScriptText,
+
+		[Parameter(Mandatory = $true, ParameterSetName = 'ScriptBlock')]
 		[scriptblock]$ScriptBlock
 	)
 
 	$sourcePath = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
 	$tempPath = Get-UCPDTemporaryPowerShellPath -SourcePath $sourcePath
+	$tempScript = Join-Path ([System.IO.Path]::GetTempPath()) ('Baseline-UCPD-{0}.ps1' -f ([guid]::NewGuid().ToString('N')))
 
+	# UCPD blocks some registry writes by process image name; this temporary copy
+	# preserves Windows PowerShell 5.1 semantics without inline command text.
+	LogInfo "Running UCPD-protected registry operation through a temporary Windows PowerShell copy."
 	Copy-Item -Path $sourcePath -Destination $tempPath -Force -ErrorAction Stop | Out-Null
 	try
 	{
-		# ExecutionPolicy Bypass: required for elevated child process
-	& $tempPath -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command $ScriptBlock | Out-Null
-		if ($LASTEXITCODE -ne 0)
+		if ($PSCmdlet.ParameterSetName -eq 'ScriptBlock')
 		{
-			throw "Temporary PowerShell copy returned exit code $LASTEXITCODE"
+			$ScriptText = $ScriptBlock.ToString()
 		}
+
+		Set-Content -LiteralPath $tempScript -Value $ScriptText -Encoding UTF8 -Force -ErrorAction Stop
+		$null = Invoke-BaselineProcess `
+			-FilePath $tempPath `
+			-ArgumentList @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $tempScript) `
+			-TimeoutSeconds 300 `
+			-AllowedExitCodes @(0)
 	}
 	finally
 	{
-		Remove-Item -Path $tempPath -Force -ErrorAction SilentlyContinue | Out-Null
+		Remove-Item -LiteralPath $tempScript -Force -ErrorAction SilentlyContinue | Out-Null
+		Remove-Item -LiteralPath $tempPath -Force -ErrorAction SilentlyContinue | Out-Null
 	}
 }
 
 <#
     .SYNOPSIS
-    Internal function Get-UCPDTemporaryPowerShellPath.
 #>
 
 function Get-UCPDTemporaryPowerShellPath
@@ -3664,10 +3397,6 @@ function Get-UCPDTemporaryPowerShellPath
 	return (Join-Path -Path $sourceDirectory -ChildPath $uniqueName)
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Set-BaselineOperationMode
 {
 	<#
@@ -3687,10 +3416,6 @@ function Set-BaselineOperationMode
 	[System.Environment]::SetEnvironmentVariable('BASELINE_OPERATION_MODE', $Mode, [System.EnvironmentVariableTarget]::Process)
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Get-BaselineOperationMode
 {
 	<#
@@ -3701,26 +3426,19 @@ function Get-BaselineOperationMode
 	[OutputType([string])]
 	param ()
 
-	if ($Global:BaselineOperationMode) { return [string]$Global:BaselineOperationMode }
+	$globalMode = Get-Variable -Name BaselineOperationMode -Scope Global -ValueOnly -ErrorAction SilentlyContinue
+	if (-not [string]::IsNullOrWhiteSpace([string]$globalMode)) { return [string]$globalMode }
 	$envMode = [System.Environment]::GetEnvironmentVariable('BASELINE_OPERATION_MODE')
 	if (-not [string]::IsNullOrWhiteSpace([string]$envMode)) { return [string]$envMode }
 	return 'ReadWrite'
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Test-BaselineReadOnlyMode
 {
 	<# .SYNOPSIS Returns $true when Baseline is in ReadOnly mode. #>
 	return ((Get-BaselineOperationMode) -eq 'ReadOnly')
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Assert-BaselineWriteAllowed
 {
 	<#
@@ -3738,10 +3456,6 @@ function Assert-BaselineWriteAllowed
 	}
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Initialize-BaselineMarkdownRuntime
 {
 	<# .SYNOPSIS Loads the embedded Markdig + Markdig.Wpf assemblies into the current runspace. #>
@@ -3782,7 +3496,7 @@ function Initialize-BaselineMarkdownRuntime
 	{
 		$dllPath = Join-Path $librariesRoot $dllName
 		if (-not (Test-Path -LiteralPath $dllPath -PathType Leaf)) { continue }
-		try { Add-Type -Path $dllPath -ErrorAction Stop } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.InitializeBaselineMarkdownRuntime.AddAssembly' }
+		try { Add-Type -Path $dllPath -ErrorAction Stop } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.InitializeBaselineMarkdownRuntime.AddAssembly' }
 	}
 
 	$Script:CachedBaselineMarkdownRuntimeLoaded = (Test-BaselineMarkdownRuntimeReady)
@@ -3791,7 +3505,6 @@ function Initialize-BaselineMarkdownRuntime
 
 <#
     .SYNOPSIS
-    Internal function Initialize-BaselineWinRtRuntimeDependencies.
 #>
 function Initialize-BaselineWinRtRuntimeDependencies
 {
@@ -3843,7 +3556,7 @@ function Initialize-BaselineWinRtRuntimeDependencies
 
 		$dllPath = Join-Path $librariesRoot $dllName
 		if (-not (Test-Path -LiteralPath $dllPath -PathType Leaf)) { continue }
-		try { Add-Type -Path $dllPath -ErrorAction Stop } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.InitializeBaselineWinRtRuntimeDependencies.AddAssembly' }
+		try { Add-Type -Path $dllPath -ErrorAction Stop } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.InitializeBaselineWinRtRuntimeDependencies.AddAssembly' }
 	}
 
 	$Script:CachedBaselineWinRtRuntimeDependenciesLoaded = (& $isAssemblyLoaded 'System.Numerics.Vectors')
@@ -3852,7 +3565,6 @@ function Initialize-BaselineWinRtRuntimeDependencies
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineMarkdownRuntimeReady.
 #>
 
 function Test-BaselineMarkdownRuntimeReady
@@ -3890,12 +3602,12 @@ function Test-BaselineMarkdownRuntimeReady
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineMarkdownPipeline.
 #>
 function Get-BaselineMarkdownPipeline
 {
 	<# .SYNOPSIS Returns a cached MarkdownPipeline configured with GitHub-style heading identifiers. #>
-	if ($Script:CachedBaselineMarkdownPipeline) { return $Script:CachedBaselineMarkdownPipeline }
+	$cachedPipelineVariable = Get-Variable -Name 'CachedBaselineMarkdownPipeline' -Scope Script -ErrorAction SilentlyContinue
+	if ($cachedPipelineVariable -and $cachedPipelineVariable.Value) { return $cachedPipelineVariable.Value }
 
 	if (-not (Test-BaselineMarkdownRuntimeReady))
 	{
@@ -3913,10 +3625,6 @@ function Get-BaselineMarkdownPipeline
 	return $Script:CachedBaselineMarkdownPipeline
 }
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function ConvertFrom-BaselineMarkdownToFlowDocument
 {
 	<# .SYNOPSIS Renders a Markdown string into a WPF FlowDocument using Markdig.Wpf. #>
@@ -3942,7 +3650,6 @@ function ConvertFrom-BaselineMarkdownToFlowDocument
 
 <#
     .SYNOPSIS
-    Internal function ConvertFrom-BaselineMarkdownToAnchoredFlowDocument.
 #>
 function ConvertFrom-BaselineMarkdownToAnchoredFlowDocument
 {
@@ -4080,7 +3787,10 @@ function ConvertFrom-BaselineMarkdownToAnchoredFlowDocument
 		{
 			$docHyperlinks[$i].NavigateUri = [System.Uri]::new([string]$url, [System.UriKind]::RelativeOrAbsolute)
 		}
-		catch { }
+		catch
+		{
+			Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.Markdown.AssignHyperlinkUri'
+		}
 	}
 
 	return [PSCustomObject]@{
@@ -4092,7 +3802,6 @@ function ConvertFrom-BaselineMarkdownToAnchoredFlowDocument
 
 <#
     .SYNOPSIS
-    Internal function ConvertFrom-BaselineMarkdownToHtml.
 #>
 function ConvertFrom-BaselineMarkdownToHtml
 {
@@ -4220,7 +3929,6 @@ $bodyHtml
 
 <#
     .SYNOPSIS
-    Internal function Initialize-BaselineWebView2Runtime.
 #>
 function Initialize-BaselineWebView2Runtime
 {
@@ -4271,7 +3979,7 @@ function Initialize-BaselineWebView2Runtime
 				[void]$searchRoots.Add($rootPath)
 			}
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.InitializeBaselineWebView2Runtime.ExpandSearchRoot' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.InitializeBaselineWebView2Runtime.ExpandSearchRoot' }
 	}
 
 	$loadOrder = @(
@@ -4293,7 +4001,7 @@ function Initialize-BaselineWebView2Runtime
 		}
 
 		if (-not $dllPath) { continue }
-		try { Add-Type -Path $dllPath -ErrorAction Stop } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'Environment.InitializeBaselineWebView2Runtime.AddAssembly' }
+		try { Add-Type -Path $dllPath -ErrorAction Stop } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.InitializeBaselineWebView2Runtime.AddAssembly' }
 	}
 
 	$Script:CachedBaselineWebView2RuntimeLoaded = ([System.Type]::GetType('Microsoft.Web.WebView2.WinForms.WebView2, Microsoft.Web.WebView2.WinForms') -ne $null)
@@ -4302,7 +4010,6 @@ function Initialize-BaselineWebView2Runtime
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineWebView2RuntimeReady.
 #>
 function Test-BaselineWebView2RuntimeReady
 {
@@ -4336,4 +4043,3 @@ function Test-IsVirtualMachine
 
 	return ($model -match 'Virtual|VMware|VBOX|KVM|QEMU|Xen|Hyper-V')
 }
-

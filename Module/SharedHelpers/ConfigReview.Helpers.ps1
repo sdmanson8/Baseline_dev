@@ -20,7 +20,6 @@
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-BaselineReviewEntryKey.
 #>
 
 function ConvertTo-BaselineReviewEntryKey
@@ -48,7 +47,6 @@ function ConvertTo-BaselineReviewEntryKey
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-BaselineReviewValueText.
 #>
 
 function ConvertTo-BaselineReviewValueText
@@ -103,7 +101,6 @@ function ConvertTo-BaselineReviewValueText
 
 <#
     .SYNOPSIS
-    Internal function Compare-BaselineConfigForReview.
 #>
 
 function Compare-BaselineConfigForReview
@@ -221,7 +218,6 @@ function Compare-BaselineConfigForReview
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineConfigReviewSummary.
 #>
 
 function Get-BaselineConfigReviewSummary
@@ -264,7 +260,6 @@ function Get-BaselineConfigReviewSummary
 
 <#
     .SYNOPSIS
-    Internal function Resolve-BaselineConfigReviewDecisions.
 #>
 
 function Resolve-BaselineConfigReviewDecisions

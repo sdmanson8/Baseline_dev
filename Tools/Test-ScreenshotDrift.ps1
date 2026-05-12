@@ -55,7 +55,6 @@ $warned = 0
 
 <#
     .SYNOPSIS
-    Internal function Write-DriftResult.
 #>
 
 function Write-DriftResult

@@ -7,7 +7,7 @@
     CompatiblePSEditions  = @('Desktop')
     PowerShellVersion     = '5.1'
     ProcessorArchitecture = 'None'
-    FunctionsToExport     = '*'
+    FunctionsToExport     = @()
     PrivateData           = @{
         Prerelease = 'beta'
     }

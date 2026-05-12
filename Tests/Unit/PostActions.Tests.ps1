@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/PostActions.psm1'
@@ -100,7 +100,7 @@ Describe 'Invoke-PostActionStep' {
 Describe 'Invoke-PostActionProcess' {
     BeforeEach {
         $script:startProcessCalls = [System.Collections.Generic.List[object]]::new()
-        $script:stopProcessCalls = [System.Collections.Generic.List[int]]::new()
+        $script:stopProcessTreeCalls = [System.Collections.Generic.List[object]]::new()
         $script:processExitCode = 0
         $script:processTimesOut = $false
 
@@ -128,14 +128,14 @@ Describe 'Invoke-PostActionProcess' {
             Add-Member -InputObject $proc -MemberType ScriptMethod -Name 'Dispose' -Value { } -Force
             return $proc
         }
-        function Stop-Process {
-            param([int]$Id, [switch]$Force, [object]$ErrorAction)
-            [void]$script:stopProcessCalls.Add($Id)
+        function Stop-BaselineProcessTree {
+            param([object]$Process, [string]$Source)
+            [void]$script:stopProcessTreeCalls.Add([pscustomobject]@{ Process = $Process; Source = $Source })
         }
     }
 
     AfterEach {
-        foreach ($n in @('Start-Process','Stop-Process')) {
+        foreach ($n in @('Start-Process','Stop-BaselineProcessTree')) {
             Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }
@@ -159,8 +159,9 @@ Describe 'Invoke-PostActionProcess' {
 
         { Invoke-PostActionProcess -FilePath 'fake.exe' -Description 'demo' -TimeoutSeconds 1 } |
             Should -Throw '*timed out*'
-        $script:stopProcessCalls.Count | Should -Be 1
-        $script:stopProcessCalls[0] | Should -Be 4242
+        $script:stopProcessTreeCalls.Count | Should -Be 1
+        $script:stopProcessTreeCalls[0].Process.Id | Should -Be 4242
+        $script:stopProcessTreeCalls[0].Source | Should -Be 'PostActions.ProcessTimeout'
     }
 
     It 'passes ArgumentList through to Start-Process' {

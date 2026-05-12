@@ -1,4 +1,4 @@
-# Windows Update runtime panel: manifest-independent scan, download, install, and history UI.
+﻿# Windows Update runtime panel: manifest-independent scan, download, install, and history UI.
 
 function Initialize-GuiWindowsUpdateRuntimeState
 {
@@ -176,6 +176,10 @@ function Show-GuiWindowsUpdateRuntimeView
 	{
 		[void](GUICommon\Set-GuiWindowChromeTheme -Window $window -UseDarkMode ($Script:CurrentThemeName -eq 'Dark'))
 	}
+	if (Get-Command -Name 'GUICommon\Add-GuiSharedScrollBarResources' -ErrorAction SilentlyContinue)
+	{
+		[void](GUICommon\Add-GuiSharedScrollBarResources -Target $window -Theme $theme)
+	}
 	if ((Test-Path -Path Variable:\Script:MainForm) -and $Script:MainForm)
 	{
 		$window.Owner = $Script:MainForm
@@ -184,13 +188,12 @@ function Show-GuiWindowsUpdateRuntimeView
 
 	$scrollViewer = New-Object System.Windows.Controls.ScrollViewer
 	$scrollViewer.VerticalScrollBarVisibility = [System.Windows.Controls.ScrollBarVisibility]::Auto
-	$scrollViewer.HorizontalScrollBarVisibility = [System.Windows.Controls.ScrollBarVisibility]::Disabled
+	$scrollViewer.HorizontalScrollBarVisibility = [System.Windows.Controls.ScrollBarVisibility]::Auto
 	$scrollViewer.Background = $brushConverter.ConvertFromString($theme.WindowBg)
 	$scrollViewer.Content = New-GuiUpdatesRuntimePanel
 	$window.Content = $scrollViewer
 
 	[void]$window.Show()
-	[void]$window.Activate()
 }
 
 function Set-GuiWindowsUpdatePresetSelection
@@ -918,8 +921,8 @@ function Start-GuiWindowsUpdateOperation
 		{
 			$Script:WindowsUpdateOperationInProgress = $false
 			& $updateGuiWindowsUpdateActionStateScript
-			try { $ps.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdatesPanel.Start-GuiWindowsUpdateOperation.DisposePowerShell' }
-			try { $runspace.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'UpdatesPanel.Start-GuiWindowsUpdateOperation.DisposeRunspace' }
+			try { $ps.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdatesPanel.Start-GuiWindowsUpdateOperation.DisposePowerShell' }
+			try { $runspace.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdatesPanel.Start-GuiWindowsUpdateOperation.DisposeRunspace' }
 		}
 	}.GetNewClosure())
 	$timer.Start()

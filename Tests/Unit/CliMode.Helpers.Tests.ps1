@@ -1,11 +1,16 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $filePath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/CliMode.Helpers.ps1'
     . $filePath
     $script:PresetDir = Resolve-Path (Join-Path $PSScriptRoot '../../Module/Data/Presets')
-    $script:BootstrapContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Bootstrap/Baseline.ps1') -Raw -Encoding UTF8
-    $script:ModuleContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/Baseline.psm1') -Raw -Encoding UTF8
+    $script:BootstrapContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Bootstrap/Baseline.ps1')
+    $script:ModuleContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Baseline.psm1')
 }
 
 Describe 'Resolve-BaselineCliIntent' {
@@ -127,7 +132,7 @@ Describe 'Bootstrap CLI intent wiring' {
         $script:BootstrapContent | Should -Match '\$ComplianceCheck -or \$ScheduledRun -or \$TargetComputer -or \$NoGui'
         $script:BootstrapContent | Should -Match '\$shouldShowBootstrapSplash = -not \$hasHeadlessIntent'
         $script:BootstrapContent | Should -Match 'if \(\$shouldShowBootstrapSplash\)\s*\{[\s\S]*Get-Command -Name ''Show-BootstrapLoadingSplash'''
-        $script:BootstrapContent | Should -Match '\$env:BASELINE_INSTALLER_MODE -ne ''1'' -and \$env:BASELINE_SKIP_UPDATE -ne ''1'' -and \$env:BASELINE_EMBEDDED_HOST -eq ''1'''
+        $script:BootstrapContent | Should -Match "Get-Command -Name 'Test-BaselineAutoUpdateStartupEnabled'"
         $script:BootstrapContent | Should -Match '\$Script:BootstrapSplash = & \$showBootstrapSplashCommand -StartUpdatesPulse'
     }
 
@@ -153,15 +158,31 @@ Describe 'Bootstrap CLI intent wiring' {
         $script:BootstrapContent | Should -Match "Write-LaunchTrace 'Bootstrap splash was not shown'"
     }
 
-    It 'primes the updates pulse whenever GUI auto-update is enabled' {
+    It 'primes the updates pulse when startup update settings allow a check' {
         $script:BootstrapContent | Should -Match '\$shouldPrimeUpdatesPulse = \$false'
-        $script:BootstrapContent | Should -Match '\$env:BASELINE_INSTALLER_MODE -ne ''1'' -and \$env:BASELINE_SKIP_UPDATE -ne ''1'' -and \$env:BASELINE_EMBEDDED_HOST -eq ''1'''
-        $script:BootstrapContent | Should -Match '\$shouldPrimeUpdatesPulse = \$true'
+        $script:BootstrapContent | Should -Match "Get-Command -Name 'Test-BaselineAutoUpdateStartupEnabled'"
+        $script:BootstrapContent | Should -Match '\$shouldPrimeUpdatesPulse = \[bool\]\(Test-BaselineAutoUpdateStartupEnabled\)'
         $script:BootstrapContent | Should -Not -Match "Get-Command -Name 'Get-BaselineAutoUpdateThrottleDecision'"
         $script:BootstrapContent | Should -Not -Match '\$shouldPrimeUpdatesPulse = \[bool\]\$autoUpdateThrottleDecision\.ShouldCheck'
         $script:BootstrapContent | Should -Match 'if \(-not \$shouldPrimeUpdatesPulse\)'
         $script:BootstrapContent | Should -Match '\$Script:BootstrapSplash = & \$showBootstrapSplashCommand\s*\r?\n'
         $script:BootstrapContent | Should -Match '\$Script:BootstrapSplash = & \$showBootstrapSplashCommand -StartUpdatesPulse'
+    }
+
+    It 'aborts before opening the GUI when the startup splash is user-closed' {
+        $script:BootstrapContent | Should -Match 'function Test-BaselineBootstrapSplashAbortRequested'
+        $script:BootstrapContent | Should -Match 'function Stop-BaselineIfBootstrapSplashAbortRequested'
+        $script:BootstrapContent | Should -Match "Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'after initial checks'"
+        $script:BootstrapContent | Should -Match "Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'before Show-TweakGUI'"
+        $script:BootstrapContent | Should -Match '\[System\.Environment\]::Exit\(0\)'
+        $script:BootstrapContent | Should -Match '\[System\.Diagnostics\.Process\]::GetCurrentProcess\(\)\.Kill\(\)'
+
+        $abortIndex = $script:BootstrapContent.IndexOf("Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'before Show-TweakGUI'")
+        $guiOpenIndex = $script:BootstrapContent.IndexOf('Show-TweakGUI', $abortIndex)
+
+        $abortIndex | Should -BeGreaterThan 0
+        $guiOpenIndex | Should -BeGreaterThan 0
+        $abortIndex | Should -BeLessThan $guiOpenIndex
     }
 
     It 'fails closed when the GUI single-instance gate cannot run' {

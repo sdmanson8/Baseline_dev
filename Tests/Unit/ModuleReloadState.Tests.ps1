@@ -1,10 +1,15 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $script:LoaderPath = Join-Path $PSScriptRoot '../../Module/Baseline.psm1'
     $script:StateDocPath = Join-Path $PSScriptRoot '../../dev_docs/STATE.md'
-    $script:LoaderContent = Get-Content -LiteralPath $script:LoaderPath -Raw -Encoding UTF8
-    $script:StateDocContent = Get-Content -LiteralPath $script:StateDocPath -Raw -Encoding UTF8
+    $script:LoaderContent = Get-BaselineTestSourceText -Path $script:LoaderPath
+    $script:StateDocContent = Get-BaselineTestSourceText -Path $script:StateDocPath
 }
 
 Describe 'Module reload state visibility' {

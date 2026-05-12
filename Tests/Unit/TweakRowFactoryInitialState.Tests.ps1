@@ -1,15 +1,18 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     <#
         .SYNOPSIS
-        Internal function Test-GuiObjectField.
     #>
 
     function Test-GuiObjectField { param([object]$Object, [string]$FieldName) if ($null -eq $Object) { return $false }; if ($Object -is [System.Collections.IDictionary]) { return $Object.Contains($FieldName) }; return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName]) }
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function Get-GuiObjectField { param([object]$Object, [string]$FieldName) if ($null -eq $Object) { return $null }; if ($Object -is [System.Collections.IDictionary]) { return $Object[$FieldName] }; if ($Object.PSObject -and $Object.PSObject.Properties[$FieldName]) { return $Object.PSObject.Properties[$FieldName].Value }; return $null }
     $densityPath = Join-Path $PSScriptRoot '../../Module/GUI/UIDensity.ps1'
@@ -22,7 +25,7 @@ BeforeAll {
         (Join-Path $splitRoot 'MetadataDetails.ps1')
         (Join-Path $splitRoot 'ControlFactories.ps1')
     )
-    $script:FileContent = @($filePaths | ForEach-Object { Get-Content -LiteralPath $_ -Raw -Encoding UTF8 }) -join "`n"
+    $script:FileContent = @($filePaths | ForEach-Object { Get-BaselineTestSourceText -Path $_ }) -join "`n"
     $script:FunctionTextByName = @{}
     foreach ($path in $filePaths) {
         $ast = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$null)
@@ -37,7 +40,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function Get-GameModePlan {
         return @($script:TestGameModePlan)
@@ -45,7 +47,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function Get-GuiExplicitSelectionDefinition.
     #>
 
     function Get-GuiExplicitSelectionDefinition {
@@ -60,18 +61,18 @@ BeforeAll {
 }
 
 Describe 'Tweak row content pins' {
-    It 'routes tweak-row opacity updates through Write-DebugSwallowedException' {
-        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Update-TweakRowState\.CardOpacity'''
+    It 'routes tweak-row opacity updates through Write-SwallowedException' {
+        $script:FileContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Update-TweakRowState\.CardOpacity'''
     }
 
-    It 'routes hover and focus chrome updates through Write-DebugSwallowedException' {
-        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_MouseEnter'''
-        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_MouseLeave'''
-        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_PreviewMouseLeftButtonDown'''
-        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_PreviewMouseLeftButtonUp'''
-        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_GotKeyboardFocus'''
-        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_LostKeyboardFocus'''
-        $script:FileContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.UpdateChrome'''
+    It 'routes hover and focus chrome updates through Write-SwallowedException' {
+        $script:FileContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_MouseEnter'''
+        $script:FileContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_MouseLeave'''
+        $script:FileContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_PreviewMouseLeftButtonDown'''
+        $script:FileContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_PreviewMouseLeftButtonUp'''
+        $script:FileContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_GotKeyboardFocus'''
+        $script:FileContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.Add_LostKeyboardFocus'''
+        $script:FileContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''TweakRowFactory\.Build-TweakRowCard\.UpdateChrome'''
     }
 
     It 'separates tweak cards with soft elevation instead of hard shadow offsets' {
@@ -345,7 +346,7 @@ Describe 'Tweak row initial state recovery' {
 
     Describe 'Numeric range row wiring' {
         It 'resolves the checkbox label font size through density-aware row context tokens' {
-            $script:FunctionTextByName['New-ToggleLikeCheckBox'] | Should -Match '\[double\]\$FontSize = \(GUICommon\\Get-GuiSafeFontSize -Key ''FontSizeLabel'' -Default 11\)'
+            $script:FunctionTextByName['New-ToggleLikeCheckBox'] | Should -Match '\[double\]\$FontSize = \(GUICommon\\Get-GuiCommonSafeFontSize -Key ''FontSizeLabel'' -Default 11\)'
             $script:FunctionTextByName['New-ToggleLikeCheckBox'] | Should -Match '\$checkBox\.FontSize = \$FontSize'
             $script:FunctionTextByName['New-NumericRangeTweakRow'] | Should -Match '-FontSize \$RowContext\.LabelFontSize'
         }

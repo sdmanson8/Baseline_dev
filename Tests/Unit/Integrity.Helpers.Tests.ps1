@@ -78,6 +78,13 @@ Describe 'Integrity helper — manifest generation' {
         { Test-BaselineModuleIntegrity -ModuleRoot $script:fixtureRoot -ManifestPath $manifestPath } |
             Should -Throw -ExceptionType ([System.IO.FileNotFoundException])
     }
+
+    It 'validates the checked-in module integrity manifest' {
+        $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+        $moduleRoot = Join-Path $repoRoot 'Module'
+
+        Test-BaselineModuleIntegrity -ModuleRoot $moduleRoot | Should -BeTrue
+    }
 }
 
 Describe 'Integrity helper — mode resolution' {

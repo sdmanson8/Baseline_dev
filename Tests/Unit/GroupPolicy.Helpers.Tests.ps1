@@ -1,11 +1,16 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
-    $script:GroupPolicyHelpersContent = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../Module/SharedHelpers/GroupPolicy.Helpers.ps1') -Raw -Encoding UTF8
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
+    $script:GroupPolicyHelpersContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/SharedHelpers/GroupPolicy.Helpers.ps1')
 }
 
 Describe 'GroupPolicy helper swallowed-exception routing' {
-    It 'routes environment and policy lookup failures through Write-DebugSwallowedException' {
+    It 'routes environment and policy lookup failures through Write-SwallowedException' {
         $script:GroupPolicyHelpersContent | Should -Match "Source 'GroupPolicy\.GetBaselineGpoPolicyValueState\.GetValueKind'"
         $script:GroupPolicyHelpersContent | Should -Match "Source 'GroupPolicy\.GetBaselineGpoPolicyValueState\.LoadValue'"
         $script:GroupPolicyHelpersContent | Should -Match "Source 'GroupPolicy\.GetBaselineGpoEnvironmentSummary\.LoadComputerSystem'"

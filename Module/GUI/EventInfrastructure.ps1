@@ -1,8 +1,7 @@
-# Event handler infrastructure: safe property setter, scoped error handling, event registration/cleanup, command caching
+﻿# Event handler infrastructure: safe property setter, scoped error handling, event registration/cleanup, command caching
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-GuiControlProperty.
 	#>
 
 	function Set-GuiControlProperty
@@ -84,7 +83,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Show-ScopedGuiRuntimeFailure.
 	#>
 
 	function Show-ScopedGuiRuntimeFailure
@@ -149,7 +147,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Invoke-GuiSafeAction.
 	#>
 
 	function Invoke-GuiSafeAction
@@ -182,7 +179,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Ensure-GuiEventHandlerStore.
 	#>
 
 	function Ensure-GuiEventHandlerStore
@@ -193,10 +189,6 @@
 		}
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Get-GuiEventAccessorMethod
 	{
 		param (
@@ -232,7 +224,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Register-GuiEventHandler.
 	#>
 
 	function Register-GuiEventHandler
@@ -339,7 +330,6 @@
 
 		<#
 		    .SYNOPSIS
-		    Internal function Unregister-GuiEventHandler.
 		#>
 
 		function Unregister-GuiEventHandler
@@ -378,7 +368,6 @@
 
 		<#
 		    .SYNOPSIS
-		    Internal function Unregister-GuiEventHandlers.
 		#>
 
 		function Unregister-GuiEventHandlers
@@ -411,7 +400,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiRuntimeCommand.
 	#>
 
 	function Get-GuiRuntimeCommand
@@ -453,7 +441,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GuiFunctionCapture.
 	#>
 
 	function Get-GuiFunctionCapture
@@ -507,7 +494,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Invoke-CapturedFunction.
 	#>
 
 	function Invoke-CapturedFunction
@@ -557,7 +543,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Clear-GuiWindowRuntimeState.
 	#>
 
 	function Clear-GuiWindowRuntimeState

@@ -1,6 +1,74 @@
-﻿<#
+<#
     .SYNOPSIS
-    Internal function Add-GuiPopupWindowChrome.
+#>
+function Get-GuiPopupLocalizedString
+{
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory = $true)]
+		[string]$Key,
+
+		[Parameter(Mandatory = $true)]
+		[AllowEmptyString()]
+		[string]$Fallback,
+
+		[object[]]$FormatArgs = @()
+	)
+
+	if (Test-Path -Path Function:\Get-UxLocalizedString)
+	{
+		try
+		{
+			return (Get-UxLocalizedString -Key $Key -Fallback $Fallback -FormatArgs $FormatArgs)
+		}
+		catch
+		{
+			Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Get-GuiPopupLocalizedString.GetUxLocalizedString'
+		}
+	}
+
+	if (Test-Path -Path Function:\Get-BaselineLocalizedString)
+	{
+		try
+		{
+			return (Get-BaselineLocalizedString -Key $Key -Fallback $Fallback -FormatArgs $FormatArgs)
+		}
+		catch
+		{
+			Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Get-GuiPopupLocalizedString.GetBaselineLocalizedString'
+		}
+	}
+
+	$template = $Fallback
+	$localizationSource = if ($null -ne $Global:Localization) { $Global:Localization } elseif ($null -ne $Localization) { $Localization } else { $null }
+	if ($null -ne $localizationSource)
+	{
+		$candidate = $null
+		if ($localizationSource -is [System.Collections.IDictionary] -and $localizationSource.Contains($Key))
+		{
+			$candidate = [string]$localizationSource[$Key]
+		}
+		elseif ($localizationSource.PSObject -and $localizationSource.PSObject.Properties[$Key])
+		{
+			$candidate = [string]$localizationSource.$Key
+		}
+
+		if (-not [string]::IsNullOrWhiteSpace($candidate))
+		{
+			$template = $candidate
+		}
+	}
+
+	if ($FormatArgs.Count -gt 0)
+	{
+		return ($template -f $FormatArgs)
+	}
+
+	return $template
+}
+
+<#
+    .SYNOPSIS
 #>
 function Add-GuiPopupWindowChrome
 {
@@ -30,7 +98,7 @@ function Add-GuiPopupWindowChrome
 
 	try
 	{
-		if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupChromeApplied') -and [bool]$Window.GuiPopupChromeApplied)
+		if ((Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupChromeApplied') -and [bool]$Window.GuiPopupChromeApplied)
 		{
 			return $true
 		}
@@ -56,11 +124,12 @@ function Add-GuiPopupWindowChrome
 	}
 
 	$bc = $Script:SharedBrushConverter
-	$themeRef = if ($Theme) { $Theme } elseif (Test-GuiObjectField -Object $Script:CurrentTheme -FieldName 'WindowBg') { $Script:CurrentTheme } else { @{} }
-	$fallbackWindowBg = if ($resolvedUseDarkMode) { '#1E1E2E' } else { '#F3F3F3' }
-	$fallbackHeaderBg = if ($resolvedUseDarkMode) { '#181825' } else { '#FFFFFF' }
-	$fallbackBorderColor = if ($resolvedUseDarkMode) { '#333346' } else { '#D0D0D0' }
-	$fallbackTextPrimary = if ($resolvedUseDarkMode) { '#CDD6F4' } else { '#1F1F1F' }
+	$themeRef = if ($Theme) { $Theme } elseif (Test-GuiCommonObjectField -Object $Script:CurrentTheme -FieldName 'WindowBg') { $Script:CurrentTheme } else { @{} }
+	[void](Add-GuiSharedScrollBarResources -Target $Window -Theme $themeRef)
+	$fallbackWindowBg = if ($resolvedUseDarkMode) { '#1E1E2E' } else { '#F3F5F8' }
+	$fallbackHeaderBg = if ($resolvedUseDarkMode) { '#181825' } else { '#F7F8FA' }
+	$fallbackBorderColor = if ($resolvedUseDarkMode) { '#333346' } else { '#D8DEE8' }
+	$fallbackTextPrimary = if ($resolvedUseDarkMode) { '#CDD6F4' } else { '#111827' }
 
 	$getThemeColor = {
 		param(
@@ -79,7 +148,7 @@ function Add-GuiPopupWindowChrome
 				}
 			}
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Add-GuiPopupWindowChrome.ResolveThemeColor' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Add-GuiPopupWindowChrome.ResolveThemeColor' }
 
 		return $DefaultColor
 	}.GetNewClosure()
@@ -91,18 +160,7 @@ function Add-GuiPopupWindowChrome
 	$titleBarBackground = & $getThemeColor -ColorName 'HeaderBg' -DefaultColor (& $getThemeColor -ColorName 'WindowBg' -DefaultColor $fallbackHeaderBg)
 	$titleBarTextColor = & $getThemeColor -ColorName 'TextPrimary' -DefaultColor $fallbackTextPrimary
 	$borderColor = & $getThemeColor -ColorName 'BorderColor' -DefaultColor $fallbackBorderColor
-	$closeLabel = 'Close'
-	if (Test-Path -Path Function:\Get-UxLocalizedString)
-	{
-		try
-		{
-			$closeLabel = Get-UxLocalizedString -Key 'GuiCloseButton' -Fallback 'Close'
-		}
-		catch
-		{
-			$closeLabel = 'Close'
-		}
-	}
+	$closeLabel = Get-GuiPopupLocalizedString -Key 'GuiCloseButton' -Fallback 'Close'
 
 	$titleBar = New-Object System.Windows.Controls.Border
 	$titleBar.Background = $bc.ConvertFromString($titleBarBackground)
@@ -148,33 +206,33 @@ function Add-GuiPopupWindowChrome
 	$minimizeButton.Width = 36
 	$minimizeButton.Height = 28
 	$minimizeButton.Background = [System.Windows.Media.Brushes]::Transparent
+	$minimizeButton.Foreground = $bc.ConvertFromString($titleBarTextColor)
 	$minimizeButton.BorderThickness = [System.Windows.Thickness]::new(0)
 	$minimizeButton.Cursor = [System.Windows.Input.Cursors]::Hand
 	$minimizeButton.HorizontalContentAlignment = 'Center'
 	$minimizeButton.VerticalContentAlignment = 'Center'
 	$minimizeButton.ToolTip = 'Minimize'
-	if (Test-Path -Path Function:\Set-WindowCaptionButtonStyle)
-	{
-		try { Set-WindowCaptionButtonStyle -Button $minimizeButton } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Add-GuiPopupWindowChrome.SetMinimizeButtonStyle' }
-	}
+	$minimizeButton.IsEnabled = $true
+	$minimizeButton.Opacity = 1.0
+	try { Set-GuiPopupCaptionButtonStyle -Button $minimizeButton -Theme $themeRef -UseDarkMode $resolvedUseDarkMode } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Add-GuiPopupWindowChrome.SetMinimizeButtonStyle' }
 	$minimizeButton.Add_Click({ $windowRef.WindowState = [System.Windows.WindowState]::Minimized }.GetNewClosure())
 
 	$closeButton = New-Object System.Windows.Controls.Button
-	$closeButton.Content = '×'
+	$closeButton.Content = 'x'
 	$closeButton.FontFamily = [System.Windows.Media.FontFamily]::new('Arial')
 	$closeButton.FontSize = 12
 	$closeButton.Width = 36
 	$closeButton.Height = 28
 	$closeButton.Background = [System.Windows.Media.Brushes]::Transparent
+	$closeButton.Foreground = $bc.ConvertFromString($titleBarTextColor)
 	$closeButton.BorderThickness = [System.Windows.Thickness]::new(0)
 	$closeButton.Cursor = [System.Windows.Input.Cursors]::Hand
 	$closeButton.HorizontalContentAlignment = 'Center'
 	$closeButton.VerticalContentAlignment = 'Center'
 	$closeButton.ToolTip = $closeLabel
-	if (Test-Path -Path Function:\Set-WindowCaptionButtonStyle)
-	{
-		try { Set-WindowCaptionButtonStyle -Button $closeButton -Variant 'Close' } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Add-GuiPopupWindowChrome.SetCloseButtonStyle' }
-	}
+	$closeButton.IsEnabled = $true
+	$closeButton.Opacity = 1.0
+	try { Set-GuiPopupCaptionButtonStyle -Button $closeButton -Variant 'Close' -Theme $themeRef -UseDarkMode $resolvedUseDarkMode } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Add-GuiPopupWindowChrome.SetCloseButtonStyle' }
 	$closeButton.Add_Click({ $windowRef.Close() }.GetNewClosure())
 	$closeButton.Margin = [System.Windows.Thickness]::new(0, 0, 0, 0)
 	$minimizeButton.Margin = [System.Windows.Thickness]::new(0, 0, 4, 0)
@@ -183,7 +241,18 @@ function Add-GuiPopupWindowChrome
 	[void]$buttonStack.Children.Add($closeButton)
 	[void]$titleGrid.Children.Add($buttonStack)
 	$titleBar.Child = $titleGrid
-	$titleBar.Add_MouseLeftButtonDown({ $windowRef.DragMove() }.GetNewClosure())
+	$testPopupDescendant = ${function:Test-GuiPopupDescendantOfElement}
+	$titleBar.Add_MouseLeftButtonDown({
+		param($sender, $mouseArgs)
+
+		$originalSource = if ($mouseArgs) { $mouseArgs.OriginalSource } else { $null }
+		if (((& $testPopupDescendant -Source $originalSource -Target $windowRef.GuiPopupMinimizeButton)) -or ((& $testPopupDescendant -Source $originalSource -Target $windowRef.GuiPopupCloseButton)))
+		{
+			return
+		}
+
+		$windowRef.DragMove()
+	}.GetNewClosure())
 
 	$menu = New-Object System.Windows.Controls.ContextMenu
 	$miMinimize = New-Object System.Windows.Controls.MenuItem
@@ -267,7 +336,7 @@ function Add-GuiPopupWindowChrome
 
 	try
 	{
-		if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupRootBorder'))
+		if ((Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupRootBorder'))
 		{
 			$Window.GuiPopupRootBorder = $RootBorder
 		}
@@ -275,7 +344,7 @@ function Add-GuiPopupWindowChrome
 		{
 			$Window | Add-Member -NotePropertyName 'GuiPopupRootBorder' -NotePropertyValue $RootBorder -Force
 		}
-		if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupContentElement'))
+		if ((Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupContentElement'))
 		{
 			$Window.GuiPopupContentElement = $contentElement
 		}
@@ -283,7 +352,7 @@ function Add-GuiPopupWindowChrome
 		{
 			$Window | Add-Member -NotePropertyName 'GuiPopupContentElement' -NotePropertyValue $contentElement -Force
 		}
-		if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupTitleBar'))
+		if ((Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupTitleBar'))
 		{
 			$Window.GuiPopupTitleBar = $titleBar
 		}
@@ -291,7 +360,7 @@ function Add-GuiPopupWindowChrome
 		{
 			$Window | Add-Member -NotePropertyName 'GuiPopupTitleBar' -NotePropertyValue $titleBar -Force
 		}
-		if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupTitleText'))
+		if ((Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupTitleText'))
 		{
 			$Window.GuiPopupTitleText = $titleBlock
 		}
@@ -299,7 +368,7 @@ function Add-GuiPopupWindowChrome
 		{
 			$Window | Add-Member -NotePropertyName 'GuiPopupTitleText' -NotePropertyValue $titleBlock -Force
 		}
-		if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupMinimizeButton'))
+		if ((Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupMinimizeButton'))
 		{
 			$Window.GuiPopupMinimizeButton = $minimizeButton
 		}
@@ -307,7 +376,7 @@ function Add-GuiPopupWindowChrome
 		{
 			$Window | Add-Member -NotePropertyName 'GuiPopupMinimizeButton' -NotePropertyValue $minimizeButton -Force
 		}
-		if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupCloseButton'))
+		if ((Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupCloseButton'))
 		{
 			$Window.GuiPopupCloseButton = $closeButton
 		}
@@ -317,7 +386,7 @@ function Add-GuiPopupWindowChrome
 		}
 		if ($PanelContainer)
 		{
-			if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupThemePanelContainer'))
+			if ((Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupThemePanelContainer'))
 			{
 				$Window.GuiPopupThemePanelContainer = $PanelContainer
 			}
@@ -326,7 +395,7 @@ function Add-GuiPopupWindowChrome
 				$Window | Add-Member -NotePropertyName 'GuiPopupThemePanelContainer' -NotePropertyValue $PanelContainer -Force
 			}
 		}
-		if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupProgressHost'))
+		if ((Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupProgressHost'))
 		{
 			$Window.GuiPopupProgressHost = $progressHost
 		}
@@ -334,7 +403,7 @@ function Add-GuiPopupWindowChrome
 		{
 			$Window | Add-Member -NotePropertyName 'GuiPopupProgressHost' -NotePropertyValue $progressHost -Force
 		}
-		if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupProgressBar'))
+		if ((Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupProgressBar'))
 		{
 			$Window.GuiPopupProgressBar = $progressBar
 		}
@@ -351,7 +420,7 @@ function Add-GuiPopupWindowChrome
 
 	try
 	{
-		if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupChromeApplied'))
+		if ((Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupChromeApplied'))
 		{
 			$Window.GuiPopupChromeApplied = $true
 		}
@@ -372,7 +441,6 @@ function Add-GuiPopupWindowChrome
 
 <#
     .SYNOPSIS
-    Internal function New-GuiPopupInfoIcon.
 #>
 function New-GuiPopupInfoIcon
 {
@@ -388,7 +456,7 @@ function New-GuiPopupInfoIcon
 	)
 
 	$resolvedUseDarkMode = Get-GuiBooleanValue -Value $UseDarkMode -Default $true -Context 'New-GuiPopupInfoIcon'
-	$themeRef = if ($Theme) { $Theme } elseif (Test-GuiObjectField -Object $Script:CurrentTheme -FieldName 'AccentBlue') { $Script:CurrentTheme } else { @{} }
+	$themeRef = if ($Theme) { $Theme } elseif (Test-GuiCommonObjectField -Object $Script:CurrentTheme -FieldName 'AccentBlue') { $Script:CurrentTheme } else { @{} }
 	$accentColor = if ($resolvedUseDarkMode) { '#89B4FA' } else { '#2563EB' }
 
 	try
@@ -404,7 +472,7 @@ function New-GuiPopupInfoIcon
 	}
 	catch
 	{
-		Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.New-GuiPopupInfoIcon.ResolveThemeColor'
+		Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.New-GuiPopupInfoIcon.ResolveThemeColor'
 	}
 
 	if ($null -eq $Margin)
@@ -431,7 +499,7 @@ function New-GuiPopupInfoIcon
 	}
 	catch
 	{
-		Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.New-GuiPopupInfoIcon.SetForeground'
+		Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.New-GuiPopupInfoIcon.SetForeground'
 		$icon.Foreground = [System.Windows.Media.Brushes]::DodgerBlue
 	}
 
@@ -440,39 +508,23 @@ function New-GuiPopupInfoIcon
 
 <#
     .SYNOPSIS
-    Internal function Show-GuiActivatedDialog.
 #>
 function Show-GuiActivatedDialog
 {
-	# Without forcing activation, WPF dialogs sometimes open unactivated and the
-	# first click only focuses the window instead of firing the control. A short
-	# Topmost toggle on Loaded and ContentRendered reliably pulls the dialog to the
-	# foreground and keeps first interaction consistent.
+	# Show the dialog through WPF's normal modal path. Do not toggle Topmost or
+	# call Activate/Focus from lifecycle events; once the user moves focus to
+	# another window, Baseline must not reclaim it.
 	[CmdletBinding()]
 	param(
 		[Parameter(Mandatory = $true)]
 		[System.Windows.Window]$Window
 	)
 
-	$activate = {
-		param($s, $e)
-		$null = $e
-		try { if (-not $s.IsVisible) { return } } catch { return }
-		try { $s.Topmost = $true } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.FocusSelf.TopmostOn' }
-		try { [void]$s.Activate() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.FocusSelf.Activate' }
-		try { [void]$s.Focus() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.FocusSelf.Focus' }
-		try { $s.Topmost = $false } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.FocusSelf.TopmostOff' }
-	}
-
-	$Window.Add_Loaded($activate)
-	$Window.Add_ContentRendered($activate)
-
 	return $Window.ShowDialog()
 }
 
 <#
     .SYNOPSIS
-    Internal function Register-GuiPopupThemeWindow.
 #>
 function Register-GuiPopupThemeWindow
 {
@@ -495,7 +547,7 @@ function Register-GuiPopupThemeWindow
 	{
 		if ($ThemeCallback)
 		{
-			if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupThemeCallback'))
+			if ((Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupThemeCallback'))
 			{
 				$Window.GuiPopupThemeCallback = $ThemeCallback
 			}
@@ -511,7 +563,7 @@ function Register-GuiPopupThemeWindow
 		}
 
 		$registrationAttached = $false
-		if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupThemeRegistrationAttached'))
+		if ((Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupThemeRegistrationAttached'))
 		{
 			$registrationAttached = [bool]$Window.GuiPopupThemeRegistrationAttached
 		}
@@ -533,7 +585,7 @@ function Register-GuiPopupThemeWindow
 				}
 			}.GetNewClosure())
 
-			if ((Test-GuiObjectField -Object $Window -FieldName 'GuiPopupThemeRegistrationAttached'))
+			if ((Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupThemeRegistrationAttached'))
 			{
 				$Window.GuiPopupThemeRegistrationAttached = $true
 			}
@@ -554,7 +606,6 @@ function Register-GuiPopupThemeWindow
 
 <#
     .SYNOPSIS
-    Internal function Set-GuiPopupWindowProgress.
 #>
 function Set-GuiPopupWindowProgress
 {
@@ -582,8 +633,8 @@ function Set-GuiPopupWindowProgress
 		return $false
 	}
 
-	$progressHost = Get-GuiObjectField -Object $Window -FieldName 'GuiPopupProgressHost'
-	$progressBar = Get-GuiObjectField -Object $Window -FieldName 'GuiPopupProgressBar'
+	$progressHost = Get-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupProgressHost'
+	$progressBar = Get-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupProgressBar'
 	if (-not $progressHost -or -not $progressBar)
 	{
 		return $false
@@ -627,7 +678,6 @@ function Set-GuiPopupWindowProgress
 
 <#
     .SYNOPSIS
-    Internal function Set-GuiPopupWindowTheme.
 #>
 function Set-GuiPopupWindowTheme
 {
@@ -652,12 +702,12 @@ function Set-GuiPopupWindowTheme
 	}
 
 	$bc = $Script:SharedBrushConverter
-	$themeRef = if ($Theme) { $Theme } elseif (Test-GuiObjectField -Object $Script:CurrentTheme -FieldName 'WindowBg') { $Script:CurrentTheme } else { @{} }
-	$fallbackWindowBg = if ($resolvedUseDarkMode) { '#1E1E2E' } else { '#F3F3F3' }
-	$fallbackHeaderBg = if ($resolvedUseDarkMode) { '#181825' } else { '#FFFFFF' }
-	$fallbackBorderColor = if ($resolvedUseDarkMode) { '#333346' } else { '#D0D0D0' }
-	$fallbackTextPrimary = if ($resolvedUseDarkMode) { '#CDD6F4' } else { '#1F1F1F' }
-	$fallbackAccentBlue = if ($resolvedUseDarkMode) { '#89B4FA' } else { '#3B82F6' }
+	$themeRef = if ($Theme) { $Theme } elseif (Test-GuiCommonObjectField -Object $Script:CurrentTheme -FieldName 'WindowBg') { $Script:CurrentTheme } else { @{} }
+	$fallbackWindowBg = if ($resolvedUseDarkMode) { '#1E1E2E' } else { '#F3F5F8' }
+	$fallbackHeaderBg = if ($resolvedUseDarkMode) { '#181825' } else { '#F7F8FA' }
+	$fallbackBorderColor = if ($resolvedUseDarkMode) { '#333346' } else { '#D8DEE8' }
+	$fallbackTextPrimary = if ($resolvedUseDarkMode) { '#CDD6F4' } else { '#111827' }
+	$fallbackAccentBlue = if ($resolvedUseDarkMode) { '#89B4FA' } else { '#2563EB' }
 
 	$getThemeColor = {
 		param(
@@ -676,7 +726,7 @@ function Set-GuiPopupWindowTheme
 				}
 			}
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.ResolveThemeColor' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.ResolveThemeColor' }
 
 		return $DefaultColor
 	}.GetNewClosure()
@@ -688,46 +738,46 @@ function Set-GuiPopupWindowTheme
 	$borderColor = & $getThemeColor -ColorName 'BorderColor' -DefaultColor $fallbackBorderColor
 	$accentBlue = & $getThemeColor -ColorName 'AccentBlue' -DefaultColor $fallbackAccentBlue
 
-	try { $Window.Background = [System.Windows.Media.Brushes]::Transparent } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetWindowBackground' }
-	try { $Window.Foreground = $bc.ConvertFromString($titleBarTextColor) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetWindowForeground' }
+	try { $Window.Background = [System.Windows.Media.Brushes]::Transparent } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetWindowBackground' }
+	try { $Window.Foreground = $bc.ConvertFromString($titleBarTextColor) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetWindowForeground' }
 
-	$rootBorder = Get-GuiObjectField -Object $Window -FieldName 'GuiPopupRootBorder'
+	$rootBorder = Get-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupRootBorder'
 	if ($rootBorder)
 	{
-		try { $rootBorder.Background = $bc.ConvertFromString($windowBg) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetRootBorderBackground' }
-		try { $rootBorder.BorderBrush = $bc.ConvertFromString($borderColor) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetRootBorderBorderBrush' }
-		try { $rootBorder.BorderThickness = [System.Windows.Thickness]::new(1) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetRootBorderThickness' }
-		try { $rootBorder.CornerRadius = [System.Windows.CornerRadius]::new(8) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetRootBorderCornerRadius' }
-		try { $rootBorder.ClipToBounds = $true } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetRootBorderClipToBounds' }
+		try { $rootBorder.Background = $bc.ConvertFromString($windowBg) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetRootBorderBackground' }
+		try { $rootBorder.BorderBrush = $bc.ConvertFromString($borderColor) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetRootBorderBorderBrush' }
+		try { $rootBorder.BorderThickness = [System.Windows.Thickness]::new(1) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetRootBorderThickness' }
+		try { $rootBorder.CornerRadius = [System.Windows.CornerRadius]::new(8) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetRootBorderCornerRadius' }
+		try { $rootBorder.ClipToBounds = $true } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetRootBorderClipToBounds' }
 	}
 
-	$titleBar = Get-GuiObjectField -Object $Window -FieldName 'GuiPopupTitleBar'
+	$titleBar = Get-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupTitleBar'
 	if ($titleBar)
 	{
-		try { $titleBar.Background = $bc.ConvertFromString($titleBarBackground) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetTitleBarBackground' }
-		try { $titleBar.BorderBrush = $bc.ConvertFromString($borderColor) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetTitleBarBorderBrush' }
-		try { $titleBar.BorderThickness = [System.Windows.Thickness]::new(0, 0, 0, 1) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetTitleBarBorderThickness' }
+		try { $titleBar.Background = $bc.ConvertFromString($titleBarBackground) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetTitleBarBackground' }
+		try { $titleBar.BorderBrush = $bc.ConvertFromString($borderColor) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetTitleBarBorderBrush' }
+		try { $titleBar.BorderThickness = [System.Windows.Thickness]::new(0, 0, 0, 1) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetTitleBarBorderThickness' }
 	}
 
-	$titleText = Get-GuiObjectField -Object $Window -FieldName 'GuiPopupTitleText'
+	$titleText = Get-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupTitleText'
 	if ($titleText)
 	{
-		try { $titleText.Foreground = $bc.ConvertFromString($titleBarTextColor) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetTitleTextForeground' }
+		try { $titleText.Foreground = $bc.ConvertFromString($titleBarTextColor) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetTitleTextForeground' }
 	}
 
-	$panelContainer = Get-GuiObjectField -Object $Window -FieldName 'GuiPopupThemePanelContainer'
+	$panelContainer = Get-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupThemePanelContainer'
 	if ($panelContainer)
 	{
-		try { $panelContainer.Background = $bc.ConvertFromString($panelBg) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetPanelContainerBackground' }
+		try { $panelContainer.Background = $bc.ConvertFromString($panelBg) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetPanelContainerBackground' }
 	}
 
-	$progressHost = Get-GuiObjectField -Object $Window -FieldName 'GuiPopupProgressHost'
+	$progressHost = Get-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupProgressHost'
 	if ($progressHost)
 	{
-		try { $progressHost.Background = $bc.ConvertFromString($borderColor) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetProgressHostBackground' }
+		try { $progressHost.Background = $bc.ConvertFromString($borderColor) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetProgressHostBackground' }
 	}
 
-	$progressBar = Get-GuiObjectField -Object $Window -FieldName 'GuiPopupProgressBar'
+	$progressBar = Get-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupProgressBar'
 	if ($progressBar)
 	{
 		try
@@ -735,19 +785,35 @@ function Set-GuiPopupWindowTheme
 			$progressBar.Background = $bc.ConvertFromString($borderColor)
 			$progressBar.Foreground = $bc.ConvertFromString($accentBlue)
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetProgressBarBrushes' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetProgressBarBrushes' }
 	}
 
-	$minimizeButton = Get-GuiObjectField -Object $Window -FieldName 'GuiPopupMinimizeButton'
-	if ($minimizeButton -and (Get-Command -Name 'Set-WindowCaptionButtonStyle' -ErrorAction SilentlyContinue))
+	$minimizeButton = Get-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupMinimizeButton'
+	if ($minimizeButton)
 	{
-		try { Set-WindowCaptionButtonStyle -Button $minimizeButton } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetPopupMinimizeButtonStyle' }
+		try
+		{
+			$minimizeButton.IsEnabled = $true
+			$minimizeButton.Foreground = $bc.ConvertFromString($titleBarTextColor)
+			$minimizeButton.Background = [System.Windows.Media.Brushes]::Transparent
+			$minimizeButton.Opacity = 1.0
+		}
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetPopupMinimizeButtonFallbackBrushes' }
+		try { Set-GuiPopupCaptionButtonStyle -Button $minimizeButton -Theme $themeRef -UseDarkMode $resolvedUseDarkMode } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetPopupMinimizeButtonStyle' }
 	}
 
-	$closeButton = Get-GuiObjectField -Object $Window -FieldName 'GuiPopupCloseButton'
-	if ($closeButton -and (Get-Command -Name 'Set-WindowCaptionButtonStyle' -ErrorAction SilentlyContinue))
+	$closeButton = Get-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupCloseButton'
+	if ($closeButton)
 	{
-		try { Set-WindowCaptionButtonStyle -Button $closeButton -Variant 'Close' } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetPopupCloseButtonStyle' }
+		try
+		{
+			$closeButton.IsEnabled = $true
+			$closeButton.Foreground = $bc.ConvertFromString($titleBarTextColor)
+			$closeButton.Background = [System.Windows.Media.Brushes]::Transparent
+			$closeButton.Opacity = 1.0
+		}
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetPopupCloseButtonFallbackBrushes' }
+		try { Set-GuiPopupCaptionButtonStyle -Button $closeButton -Variant 'Close' -Theme $themeRef -UseDarkMode $resolvedUseDarkMode } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.SetPopupCloseButtonStyle' }
 	}
 
 	try
@@ -757,9 +823,9 @@ function Set-GuiPopupWindowTheme
 			[void](Set-GuiWindowChromeTheme -Window $Window -UseDarkMode:$resolvedUseDarkMode)
 		}
 	}
-	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.ApplyChrome' }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowTheme.ApplyChrome' }
 
-	$themeCallback = Get-GuiObjectField -Object $Window -FieldName 'GuiPopupThemeCallback'
+	$themeCallback = Get-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupThemeCallback'
 	if ($themeCallback -is [scriptblock])
 	{
 		try
@@ -777,7 +843,6 @@ function Set-GuiPopupWindowTheme
 
 <#
     .SYNOPSIS
-    Internal function Update-GuiPopupWindowThemes.
 #>
 function Update-GuiPopupWindowThemes
 {
@@ -839,7 +904,6 @@ function Update-GuiPopupWindowThemes
 
 <#
     .SYNOPSIS
-    Internal function Start-GuiPopupCommandAsync.
 #>
 function Start-GuiPopupCommandAsync
 {
@@ -869,7 +933,7 @@ function Start-GuiPopupCommandAsync
 
 	try
 	{
-		if (Test-GuiObjectField -Object $Window -FieldName 'GuiPopupOperationError')
+		if (Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupOperationError')
 		{
 			$Window.GuiPopupOperationError = $null
 		}
@@ -878,7 +942,7 @@ function Start-GuiPopupCommandAsync
 			$Window | Add-Member -NotePropertyName 'GuiPopupOperationError' -NotePropertyValue $null -Force
 		}
 
-		if (Test-GuiObjectField -Object $Window -FieldName 'GuiPopupOperationResult')
+		if (Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupOperationResult')
 		{
 			$Window.GuiPopupOperationResult = $null
 		}
@@ -889,7 +953,7 @@ function Start-GuiPopupCommandAsync
 
 		Set-GuiPopupWindowProgress -Window $Window -Visible $true -Indeterminate | Out-Null
 	}
-	catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Start-GuiPopupCommandAsync.InitializeOperationState' }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Start-GuiPopupCommandAsync.InitializeOperationState' }
 
 	$syncHash = [hashtable]::Synchronized(@{
 		Done = $false
@@ -917,10 +981,10 @@ function Start-GuiPopupCommandAsync
 		{
 			foreach ($path in @($PopupAdditionalModulePaths | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }))
 			{
-				Import-Module -Force -Name $path -ErrorAction Stop | Out-Null
+		Import-Module -Global -Force -DisableNameChecking -WarningAction SilentlyContinue -Name $path -ErrorAction Stop | Out-Null
 			}
 
-			Import-Module -Force -Name $PopupModulePath -ErrorAction Stop | Out-Null
+	Import-Module -Global -Force -DisableNameChecking -WarningAction SilentlyContinue -Name $PopupModulePath -ErrorAction Stop | Out-Null
 			$Sync.Result = & $PopupCommandName @PopupCommandParameters
 		}
 		catch
@@ -952,14 +1016,14 @@ function Start-GuiPopupCommandAsync
 		$timer.Stop()
 
 		try { $ps.EndInvoke($asyncResult) | Out-Null } catch { if (-not $syncHash.Error) { $syncHash.Error = $_ } }
-		try { $ps.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Start-GuiPopupCommandAsync.DisposePowerShell' }
-		try { $runspace.Close(); $runspace.Dispose() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Start-GuiPopupCommandAsync.DisposeRunspace' }
+		try { $ps.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Start-GuiPopupCommandAsync.DisposePowerShell' }
+		try { $runspace.Close(); $runspace.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Start-GuiPopupCommandAsync.DisposeRunspace' }
 
 		try
 		{
 			if ($syncHash.Error)
 			{
-				if (Test-GuiObjectField -Object $Window -FieldName 'GuiPopupOperationError')
+				if (Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupOperationError')
 				{
 					$Window.GuiPopupOperationError = $syncHash.Error
 				}
@@ -970,7 +1034,7 @@ function Start-GuiPopupCommandAsync
 			}
 			else
 			{
-				if (Test-GuiObjectField -Object $Window -FieldName 'GuiPopupOperationResult')
+				if (Test-GuiCommonObjectField -Object $Window -FieldName 'GuiPopupOperationResult')
 				{
 					$Window.GuiPopupOperationResult = $syncHash.Result
 				}
@@ -983,9 +1047,298 @@ function Start-GuiPopupCommandAsync
 			Set-GuiPopupWindowProgress -Window $Window -Visible $false | Out-Null
 			$Window.Close()
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'PopupWindows.Start-GuiPopupCommandAsync.CompleteOperationState' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Start-GuiPopupCommandAsync.CompleteOperationState' }
 	}.GetNewClosure())
 	$timer.Start()
 
 	return $true
+}
+<#
+    .SYNOPSIS
+#>
+function Get-GuiPopupThemeColor
+{
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory = $false)]
+		[hashtable]$Theme = $null,
+		[Parameter(Mandatory = $true)]
+		[string]$ColorName,
+		[Parameter(Mandatory = $true)]
+		[string]$DefaultColor,
+		[string]$ErrorSource = 'PopupWindows.Get-GuiPopupThemeColor'
+	)
+
+	try
+	{
+		if ($Theme -and ($Theme -is [System.Collections.IDictionary]) -and $Theme.Contains($ColorName))
+		{
+			$value = [string]$Theme[$ColorName]
+			if (-not [string]::IsNullOrWhiteSpace($value))
+			{
+				return $value
+			}
+		}
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source $ErrorSource
+	}
+
+	return $DefaultColor
+}
+
+<#
+    .SYNOPSIS
+#>
+function Set-GuiPopupActionButtonStyle
+{
+	[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+	[CmdletBinding()]
+	param(
+		[System.Windows.Controls.Button]$Button,
+		[Parameter(Mandatory = $false)]
+		[hashtable]$Theme = $null,
+		[Parameter(Mandatory = $false)]
+		[object]$UseDarkMode = $true
+	)
+
+	if (-not $Button)
+	{
+		return
+	}
+
+	$resolvedUseDarkMode = Get-GuiBooleanValue -Value $UseDarkMode -Default $true -Context 'Set-GuiPopupActionButtonStyle'
+	$themeRef = if ($Theme) { $Theme } elseif (Test-GuiCommonObjectField -Object $Script:CurrentTheme -FieldName 'WindowBg') { $Script:CurrentTheme } else { @{} }
+	$bc = $Script:SharedBrushConverter
+
+	$normalBg = Get-GuiPopupThemeColor -Theme $themeRef -ColorName 'SecondaryButtonBg' -DefaultColor $(if ($resolvedUseDarkMode) { '#262D40' } else { '#FFFFFF' }) -ErrorSource 'PopupWindows.Set-GuiPopupActionButtonStyle.ResolveNormalBackground'
+	$hoverBg = Get-GuiPopupThemeColor -Theme $themeRef -ColorName 'TabHoverBg' -DefaultColor $(if ($resolvedUseDarkMode) { '#2E3650' } else { '#E3E9F3' }) -ErrorSource 'PopupWindows.Set-GuiPopupActionButtonStyle.ResolveHoverBackground'
+	$pressBg = Get-GuiPopupThemeColor -Theme $themeRef -ColorName 'SecondaryButtonPressBg' -DefaultColor $(if ($resolvedUseDarkMode) { '#202638' } else { '#D7DFEC' }) -ErrorSource 'PopupWindows.Set-GuiPopupActionButtonStyle.ResolvePressBackground'
+	$normalBorder = Get-GuiPopupThemeColor -Theme $themeRef -ColorName 'SecondaryButtonBorder' -DefaultColor $(if ($resolvedUseDarkMode) { '#39435C' } else { '#C9D4E3' }) -ErrorSource 'PopupWindows.Set-GuiPopupActionButtonStyle.ResolveBorder'
+	$foreground = Get-GuiPopupThemeColor -Theme $themeRef -ColorName 'SecondaryButtonFg' -DefaultColor $(if ($resolvedUseDarkMode) { '#F4F7FF' } else { '#263248' }) -ErrorSource 'PopupWindows.Set-GuiPopupActionButtonStyle.ResolveForeground'
+	$focusBorder = Get-GuiPopupThemeColor -Theme $themeRef -ColorName 'FocusRing' -DefaultColor $(if ($resolvedUseDarkMode) { '#9ACAFF' } else { '#3B82F6' }) -ErrorSource 'PopupWindows.Set-GuiPopupActionButtonStyle.ResolveFocusBorder'
+
+	$normalBgBrush = $bc.ConvertFromString($normalBg)
+	$hoverBgBrush = $bc.ConvertFromString($hoverBg)
+	$pressBgBrush = $bc.ConvertFromString($pressBg)
+	$normalBorderBrush = $bc.ConvertFromString($normalBorder)
+	$focusBorderBrush = $bc.ConvertFromString($focusBorder)
+	$foregroundBrush = $bc.ConvertFromString($foreground)
+	$paddingValue = if ($Button.Padding -and ($Button.Padding.Left -ne 0 -or $Button.Padding.Top -ne 0 -or $Button.Padding.Right -ne 0 -or $Button.Padding.Bottom -ne 0))
+	{
+		$Button.Padding
+	}
+	else
+	{
+		[System.Windows.Thickness]::new(12, 6, 12, 6)
+	}
+
+	$Button.Foreground = $foregroundBrush
+	$Button.Background = $normalBgBrush
+	$Button.BorderBrush = $normalBorderBrush
+	$Button.BorderThickness = [System.Windows.Thickness]::new(1)
+	$Button.FocusVisualStyle = $null
+	$Button.Cursor = [System.Windows.Input.Cursors]::Hand
+	$Button.Template = $null
+
+	$template = New-Object System.Windows.Controls.ControlTemplate([System.Windows.Controls.Button])
+	$border = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.Border])
+	$border.Name = 'PopupActionBd'
+	$border.SetValue([System.Windows.Controls.Border]::CornerRadiusProperty, [System.Windows.CornerRadius]::new(6))
+	$border.SetValue([System.Windows.Controls.Border]::PaddingProperty, $paddingValue)
+	$border.SetValue([System.Windows.Controls.Border]::BackgroundProperty, $normalBgBrush)
+	$border.SetValue([System.Windows.Controls.Border]::BorderBrushProperty, $normalBorderBrush)
+	$border.SetValue([System.Windows.Controls.Border]::BorderThicknessProperty, [System.Windows.Thickness]::new(1))
+	$presenter = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.ContentPresenter])
+	$presenter.SetValue([System.Windows.Controls.ContentPresenter]::ContentSourceProperty, 'Content')
+	$presenter.SetValue([System.Windows.Controls.ContentPresenter]::HorizontalAlignmentProperty, [System.Windows.HorizontalAlignment]::Center)
+	$presenter.SetValue([System.Windows.Controls.ContentPresenter]::VerticalAlignmentProperty, [System.Windows.VerticalAlignment]::Center)
+	$border.AppendChild($presenter)
+	$template.VisualTree = $border
+
+	$hoverTrigger = New-Object System.Windows.Trigger
+	$hoverTrigger.Property = [System.Windows.UIElement]::IsMouseOverProperty
+	$hoverTrigger.Value = $true
+	[void]$hoverTrigger.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Border]::BackgroundProperty, $hoverBgBrush, 'PopupActionBd')))
+	[void]$hoverTrigger.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Border]::BorderBrushProperty, $normalBorderBrush, 'PopupActionBd')))
+	[void]$template.Triggers.Add($hoverTrigger)
+
+	$focusTrigger = New-Object System.Windows.Trigger
+	$focusTrigger.Property = [System.Windows.UIElement]::IsKeyboardFocusedProperty
+	$focusTrigger.Value = $true
+	[void]$focusTrigger.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Border]::BorderBrushProperty, $focusBorderBrush, 'PopupActionBd')))
+	[void]$focusTrigger.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Border]::BorderThicknessProperty, [System.Windows.Thickness]::new(2), 'PopupActionBd')))
+	[void]$template.Triggers.Add($focusTrigger)
+
+	$pressTrigger = New-Object System.Windows.Trigger
+	$pressTrigger.Property = [System.Windows.Controls.Primitives.ButtonBase]::IsPressedProperty
+	$pressTrigger.Value = $true
+	[void]$pressTrigger.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Border]::BackgroundProperty, $pressBgBrush, 'PopupActionBd')))
+	[void]$template.Triggers.Add($pressTrigger)
+
+	$disabledTrigger = New-Object System.Windows.Trigger
+	$disabledTrigger.Property = [System.Windows.UIElement]::IsEnabledProperty
+	$disabledTrigger.Value = $false
+	[void]$disabledTrigger.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Border]::OpacityProperty, 0.55, 'PopupActionBd')))
+	[void]$template.Triggers.Add($disabledTrigger)
+
+	$Button.Template = $template
+}
+
+<#
+    .SYNOPSIS
+#>
+function Set-GuiPopupCaptionButtonStyle
+{
+	[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+	[CmdletBinding()]
+	param(
+		[System.Windows.Controls.Button]$Button,
+		[ValidateSet('Standard', 'Close')]
+		[string]$Variant = 'Standard',
+		[Parameter(Mandatory = $false)]
+		[hashtable]$Theme = $null,
+		[Parameter(Mandatory = $false)]
+		[object]$UseDarkMode = $true
+	)
+
+	if (-not $Button)
+	{
+		return
+	}
+
+	$resolvedUseDarkMode = Get-GuiBooleanValue -Value $UseDarkMode -Default $true -Context 'Set-GuiPopupCaptionButtonStyle'
+	$themeRef = if ($Theme) { $Theme } elseif (Test-GuiCommonObjectField -Object $Script:CurrentTheme -FieldName 'WindowBg') { $Script:CurrentTheme } else { @{} }
+	$bc = $Script:SharedBrushConverter
+
+	$foreground = Get-GuiPopupThemeColor -Theme $themeRef -ColorName 'TextPrimary' -DefaultColor $(if ($resolvedUseDarkMode) { '#F4F7FF' } else { '#111827' }) -ErrorSource 'PopupWindows.Set-GuiPopupCaptionButtonStyle.ResolveForeground'
+	$hoverBg = if ($Variant -eq 'Close')
+	{
+		Get-GuiPopupThemeColor -Theme $themeRef -ColorName 'DestructiveHover' -DefaultColor '#A6294E' -ErrorSource 'PopupWindows.Set-GuiPopupCaptionButtonStyle.ResolveCloseHoverBackground'
+	}
+	else
+	{
+		Get-GuiPopupThemeColor -Theme $themeRef -ColorName 'SecondaryButtonHoverBg' -DefaultColor $(if ($resolvedUseDarkMode) { '#343C55' } else { '#E8EDF5' }) -ErrorSource 'PopupWindows.Set-GuiPopupCaptionButtonStyle.ResolveHoverBackground'
+	}
+	$pressBg = if ($Variant -eq 'Close')
+	{
+		Get-GuiPopupThemeColor -Theme $themeRef -ColorName 'DestructiveBg' -DefaultColor '#C0325A' -ErrorSource 'PopupWindows.Set-GuiPopupCaptionButtonStyle.ResolveClosePressBackground'
+	}
+	else
+	{
+		Get-GuiPopupThemeColor -Theme $themeRef -ColorName 'SecondaryButtonPressBg' -DefaultColor $(if ($resolvedUseDarkMode) { '#202638' } else { '#DCE4F0' }) -ErrorSource 'PopupWindows.Set-GuiPopupCaptionButtonStyle.ResolvePressBackground'
+	}
+	$hoverForeground = if ($Variant -eq 'Close') { '#FFFFFF' } else { $foreground }
+	$focusBorder = Get-GuiPopupThemeColor -Theme $themeRef -ColorName 'FocusRing' -DefaultColor $(if ($resolvedUseDarkMode) { '#9ACAFF' } else { '#3B82F6' }) -ErrorSource 'PopupWindows.Set-GuiPopupCaptionButtonStyle.ResolveFocusBorder'
+
+	$foregroundBrush = $bc.ConvertFromString($foreground)
+	$hoverForegroundBrush = $bc.ConvertFromString($hoverForeground)
+	$hoverBgBrush = $bc.ConvertFromString($hoverBg)
+	$pressBgBrush = $bc.ConvertFromString($pressBg)
+	$focusBorderBrush = $bc.ConvertFromString($focusBorder)
+
+	$Button.Foreground = $foregroundBrush
+	$Button.Background = [System.Windows.Media.Brushes]::Transparent
+	$Button.BorderBrush = [System.Windows.Media.Brushes]::Transparent
+	$Button.BorderThickness = [System.Windows.Thickness]::new(0)
+	$Button.FocusVisualStyle = $null
+	$Button.Cursor = [System.Windows.Input.Cursors]::Hand
+	$Button.Padding = [System.Windows.Thickness]::new(0)
+	$Button.Template = $null
+
+	$template = New-Object System.Windows.Controls.ControlTemplate([System.Windows.Controls.Button])
+	$border = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.Border])
+	$border.Name = 'PopupCaptionBd'
+	$border.SetValue([System.Windows.Controls.Border]::BackgroundProperty, [System.Windows.Media.Brushes]::Transparent)
+	$border.SetValue([System.Windows.Controls.Border]::BorderBrushProperty, [System.Windows.Media.Brushes]::Transparent)
+	$border.SetValue([System.Windows.Controls.Border]::BorderThicknessProperty, [System.Windows.Thickness]::new(0))
+	$border.SetValue([System.Windows.Controls.Border]::CornerRadiusProperty, [System.Windows.CornerRadius]::new(6))
+	$border.SetValue([System.Windows.Controls.Border]::SnapsToDevicePixelsProperty, $true)
+	$presenter = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.ContentPresenter])
+	$presenter.SetValue([System.Windows.Controls.ContentPresenter]::ContentSourceProperty, 'Content')
+	$presenter.SetValue([System.Windows.Controls.ContentPresenter]::HorizontalAlignmentProperty, [System.Windows.HorizontalAlignment]::Center)
+	$presenter.SetValue([System.Windows.Controls.ContentPresenter]::VerticalAlignmentProperty, [System.Windows.VerticalAlignment]::Center)
+	$border.AppendChild($presenter)
+	$template.VisualTree = $border
+
+	$hoverTrigger = New-Object System.Windows.Trigger
+	$hoverTrigger.Property = [System.Windows.UIElement]::IsMouseOverProperty
+	$hoverTrigger.Value = $true
+	[void]$hoverTrigger.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Border]::BackgroundProperty, $hoverBgBrush, 'PopupCaptionBd')))
+	[void]$hoverTrigger.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $hoverForegroundBrush)))
+	[void]$template.Triggers.Add($hoverTrigger)
+
+	$focusTrigger = New-Object System.Windows.Trigger
+	$focusTrigger.Property = [System.Windows.UIElement]::IsKeyboardFocusedProperty
+	$focusTrigger.Value = $true
+	[void]$focusTrigger.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Border]::BorderBrushProperty, $focusBorderBrush, 'PopupCaptionBd')))
+	[void]$focusTrigger.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Border]::BorderThicknessProperty, [System.Windows.Thickness]::new(1), 'PopupCaptionBd')))
+	[void]$template.Triggers.Add($focusTrigger)
+
+	$pressTrigger = New-Object System.Windows.Trigger
+	$pressTrigger.Property = [System.Windows.Controls.Primitives.ButtonBase]::IsPressedProperty
+	$pressTrigger.Value = $true
+	[void]$pressTrigger.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Border]::BackgroundProperty, $pressBgBrush, 'PopupCaptionBd')))
+	[void]$pressTrigger.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $hoverForegroundBrush)))
+	[void]$template.Triggers.Add($pressTrigger)
+
+	$disabledTrigger = New-Object System.Windows.Trigger
+	$disabledTrigger.Property = [System.Windows.UIElement]::IsEnabledProperty
+	$disabledTrigger.Value = $false
+	[void]$disabledTrigger.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Border]::OpacityProperty, 0.45, 'PopupCaptionBd')))
+	[void]$template.Triggers.Add($disabledTrigger)
+
+	$Button.Template = $template
+}
+
+<#
+    .SYNOPSIS
+#>
+function Test-GuiPopupDescendantOfElement
+{
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory = $false)]
+		[object]$Source,
+		[Parameter(Mandatory = $false)]
+		[object]$Target
+	)
+
+	if (-not $Source -or -not $Target)
+	{
+		return $false
+	}
+
+	$current = $Source
+	while ($current)
+	{
+		if ($current -eq $Target)
+		{
+			return $true
+		}
+
+		try
+		{
+			if ($current -is [System.Windows.Media.Visual] -or $current -is [System.Windows.Media.Media3D.Visual3D])
+			{
+				$current = [System.Windows.Media.VisualTreeHelper]::GetParent($current)
+				continue
+			}
+
+			if ($current -is [System.Windows.FrameworkContentElement])
+			{
+				$current = $current.Parent
+				continue
+			}
+		}
+		catch
+		{
+			Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Test-GuiPopupDescendantOfElement.GetParent'
+		}
+
+		$current = $null
+	}
+
+	return $false
 }

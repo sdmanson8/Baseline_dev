@@ -136,6 +136,41 @@ function Test-BaselineWindowRectVisible
 	return $false
 }
 
+function ConvertTo-BaselineWindowPlacementDouble
+{
+	[CmdletBinding()]
+	param (
+		[AllowNull()]
+		[object]$Value,
+
+		[ref]$Result
+	)
+
+	if ($null -eq $Value) { return $false }
+	if ($Value -is [byte] -or $Value -is [int16] -or $Value -is [int] -or $Value -is [long] -or $Value -is [single] -or $Value -is [double] -or $Value -is [decimal])
+	{
+		$Result.Value = [double]$Value
+		return $true
+	}
+
+	$text = [string]$Value
+	if ([string]::IsNullOrWhiteSpace($text)) { return $false }
+
+	$parsed = 0.0
+	if ([double]::TryParse($text, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$parsed))
+	{
+		$Result.Value = $parsed
+		return $true
+	}
+	if ([double]::TryParse($text, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::CurrentCulture, [ref]$parsed))
+	{
+		$Result.Value = $parsed
+		return $true
+	}
+
+	return $false
+}
+
 function Get-BaselineSavedWindowPlacement
 {
 	<#
@@ -147,23 +182,22 @@ function Get-BaselineSavedWindowPlacement
 	[CmdletBinding()]
 	param ()
 
-	$getPref = Get-Command -Name 'Get-BaselineUserPreference' -ErrorAction SilentlyContinue
-	if (-not $getPref) { return $null }
+	if (-not (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)) { return $null }
 
-	$left      = & $getPref -Key $BaselineWindowPrefKeys.Left
-	$top       = & $getPref -Key $BaselineWindowPrefKeys.Top
-	$width     = & $getPref -Key $BaselineWindowPrefKeys.Width
-	$height    = & $getPref -Key $BaselineWindowPrefKeys.Height
-	$maximized = & $getPref -Key $BaselineWindowPrefKeys.Maximized -Default $false
+	$left      = Get-BaselineUserPreference -Key $BaselineWindowPrefKeys.Left
+	$top       = Get-BaselineUserPreference -Key $BaselineWindowPrefKeys.Top
+	$width     = Get-BaselineUserPreference -Key $BaselineWindowPrefKeys.Width
+	$height    = Get-BaselineUserPreference -Key $BaselineWindowPrefKeys.Height
+	$maximized = Get-BaselineUserPreference -Key $BaselineWindowPrefKeys.Maximized -Default $false
 
 	if ($null -eq $width -or $null -eq $height) { return $null }
 	if ($null -eq $left -or $null -eq $top) { return $null }
 
 	$dLeft   = 0.0; $dTop = 0.0; $dWidth = 0.0; $dHeight = 0.0
-	if (-not [double]::TryParse([string]$left,   [ref]$dLeft))   { return $null }
-	if (-not [double]::TryParse([string]$top,    [ref]$dTop))    { return $null }
-	if (-not [double]::TryParse([string]$width,  [ref]$dWidth))  { return $null }
-	if (-not [double]::TryParse([string]$height, [ref]$dHeight)) { return $null }
+	if (-not (ConvertTo-BaselineWindowPlacementDouble -Value $left -Result ([ref]$dLeft))) { return $null }
+	if (-not (ConvertTo-BaselineWindowPlacementDouble -Value $top -Result ([ref]$dTop))) { return $null }
+	if (-not (ConvertTo-BaselineWindowPlacementDouble -Value $width -Result ([ref]$dWidth))) { return $null }
+	if (-not (ConvertTo-BaselineWindowPlacementDouble -Value $height -Result ([ref]$dHeight))) { return $null }
 
 	if ($dWidth -le 0 -or $dHeight -le 0) { return $null }
 
@@ -200,20 +234,19 @@ function Save-BaselineWindowPlacement
 		[bool]$Maximized = $false
 	)
 
-	$setPref = Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue
-	$getPref = Get-Command -Name 'Get-BaselineUserPreference' -ErrorAction SilentlyContinue
-	if (-not $setPref -or -not $getPref) { return $false }
+	if (-not (Get-Command -Name 'Set-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)) { return $false }
+	if (-not (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)) { return $false }
 
-	$remember = & $getPref -Key $BaselineWindowPrefKeys.Remember -Default $true
+	$remember = Get-BaselineUserPreference -Key $BaselineWindowPrefKeys.Remember -Default $true
 	if (-not [bool]$remember) { return $false }
 
 	if ($Width -le 0 -or $Height -le 0) { return $false }
 
-	& $setPref -Key $BaselineWindowPrefKeys.Left      -Value ([double]$Left)
-	& $setPref -Key $BaselineWindowPrefKeys.Top       -Value ([double]$Top)
-	& $setPref -Key $BaselineWindowPrefKeys.Width     -Value ([double]$Width)
-	& $setPref -Key $BaselineWindowPrefKeys.Height    -Value ([double]$Height)
-	& $setPref -Key $BaselineWindowPrefKeys.Maximized -Value ([bool]$Maximized)
+	Set-BaselineUserPreference -Key $BaselineWindowPrefKeys.Left      -Value ([double]$Left)
+	Set-BaselineUserPreference -Key $BaselineWindowPrefKeys.Top       -Value ([double]$Top)
+	Set-BaselineUserPreference -Key $BaselineWindowPrefKeys.Width     -Value ([double]$Width)
+	Set-BaselineUserPreference -Key $BaselineWindowPrefKeys.Height    -Value ([double]$Height)
+	Set-BaselineUserPreference -Key $BaselineWindowPrefKeys.Maximized -Value ([bool]$Maximized)
 	return $true
 }
 
@@ -250,11 +283,10 @@ function Resolve-BaselineWindowPlacement
 		[double]$MinVisibleHeight = $BaselineWindowMinVisibleHeight
 	)
 
-	$getPref = Get-Command -Name 'Get-BaselineUserPreference' -ErrorAction SilentlyContinue
 	$remember = $true
-	if ($getPref)
+	if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
 	{
-		$remember = [bool](& $getPref -Key $BaselineWindowPrefKeys.Remember -Default $true)
+		$remember = [bool](Get-BaselineUserPreference -Key $BaselineWindowPrefKeys.Remember -Default $true)
 	}
 
 	$default = [pscustomobject]@{

@@ -1,8 +1,7 @@
-﻿# Game Mode profile definitions, plan builders, and UI state management
+# Game Mode profile definitions, plan builders, and UI state management
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-GameModeStatusText.
 	#>
 
 	function Update-GameModeStatusText
@@ -40,7 +39,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GameModeManifestEntries.
 	#>
 
 	function Get-GameModeManifestEntries
@@ -70,7 +68,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GamingPreviewGroupSortOrder.
 	#>
 
 	function Get-GamingPreviewGroupSortOrder
@@ -97,7 +94,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GameModePreviewSectionInfo.
 	#>
 
 	function Get-GameModePreviewSectionInfo
@@ -131,7 +127,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GameModeToggleStateLabel.
 	#>
 
 	function Get-GameModeToggleStateLabel
@@ -150,7 +145,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GameModeProfileDefaultSelection.
 	#>
 
 	function Get-GameModeProfileDefaultSelection
@@ -193,7 +187,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-GameModePlanEntry.
 	#>
 
 	function New-GameModePlanEntry
@@ -271,7 +264,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-GameModeUndoRunList.
 	#>
 
 	function Get-GameModeUndoRunList
@@ -311,7 +303,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Build-GameModeAdvancedPlanEntries.
 	#>
 
 	function Build-GameModeAdvancedPlanEntries
@@ -362,7 +353,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Build-GameModePlan.
 	#>
 
 	function Build-GameModePlan
@@ -438,7 +428,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Test-TweakEditableInGameModeTab.
 	#>
 
 	function Test-TweakEditableInGameModeTab
@@ -478,7 +467,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Sync-GameModePlanToGamingControls.
 	#>
 
 	function Sync-GameModePlanToGamingControls
@@ -626,7 +614,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Sync-GameModePlanFromGamingControls.
 	#>
 
 	function Sync-GameModePlanFromGamingControls
@@ -806,7 +793,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Clear-GameModePlan.
 	#>
 
 	function Clear-GameModePlan
@@ -829,7 +815,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-GameModeProfile.
 	#>
 
 	function Set-GameModeProfile
@@ -906,7 +891,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Set-GameModeState.
 	#>
 
 	function Set-GameModeState
@@ -982,7 +966,7 @@
 				}
 			}
 
-			$message = "$([char]0x25C9) $(Get-UxLocalizedString -Key 'GuiGameModeActiveStatus' -Fallback 'GAME MODE ACTIVE — only the Gaming plan can be edited or run. Turn off Game Mode to use other tabs.')"
+			$message = "$([char]0x25C9) $(Get-UxLocalizedString -Key 'GuiGameModeActiveStatus' -Fallback 'GAME MODE ACTIVE - only the Gaming plan can be edited or run. Turn off Game Mode to use other tabs.')"
 		}
 		else
 		{
@@ -1033,7 +1017,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-GameModeAdvancedPanel.
 	#>
 
 	function New-GameModeAdvancedPanel
@@ -1182,10 +1165,28 @@
 		$syncGameModePlanToGamingControlsScript = $Script:SyncGameModePlanToGamingControlsScript
 		$gameModeAdvancedSelectionsRef = $Script:GameModeAdvancedSelections
 		$gameModeCorePlanRef = $Script:GameModeCorePlan
-		# Getter/setter bound to module scope — .GetNewClosure() closures can't
+		# Getter/setter bound to module scope - .GetNewClosure() closures can't
 		# access $Script:GameModePlan directly because $Script: targets the dynamic module.
 		$getGameModePlanScript = { @($Script:GameModePlan) }
 		$setGameModePlanScript = { param($NewPlan) $Script:GameModePlan = $NewPlan }
+		$hasField = {
+			param (
+				[object]$Object,
+				[string]$FieldName
+			)
+
+			if ($null -eq $Object)
+			{
+				return $false
+			}
+
+			if ($Object -is [System.Collections.IDictionary])
+			{
+				return $Object.Contains($FieldName)
+			}
+
+			return ($null -ne $Object.PSObject.Properties[$FieldName])
+		}.GetNewClosure()
 
 		foreach ($cat in $categoryOrder)
 		{
@@ -1257,9 +1258,9 @@
 								if (-not $cp) { continue }
 								# Drop old advanced entries (they'll be rebuilt) and entries
 								# whose function is being overridden by a new advanced entry.
-								$isOldAdvanced = (Test-GuiObjectField -Object $cp -FieldName 'IsAdvanced') -and [bool]$cp.IsAdvanced
+								$isOldAdvanced = (& $hasField -Object $cp -FieldName 'IsAdvanced') -and [bool]$cp.IsAdvanced
 								if ($isOldAdvanced) { continue }
-								$cpFn = if ((Test-GuiObjectField -Object $cp -FieldName 'Function')) { [string]$cp.Function } else { $null }
+								$cpFn = if ((& $hasField -Object $cp -FieldName 'Function')) { [string]$cp.Function } else { $null }
 								if (-not [string]::IsNullOrWhiteSpace($cpFn) -and $advFnLookup.ContainsKey($cpFn)) { continue }
 								[void]$merged.Add($cp)
 							}
@@ -1295,9 +1296,9 @@
 								if (-not $cp) { continue }
 								# Drop old advanced entries (they'll be rebuilt) and entries
 								# whose function is being overridden by a new advanced entry.
-								$isOldAdvanced = (Test-GuiObjectField -Object $cp -FieldName 'IsAdvanced') -and [bool]$cp.IsAdvanced
+								$isOldAdvanced = (& $hasField -Object $cp -FieldName 'IsAdvanced') -and [bool]$cp.IsAdvanced
 								if ($isOldAdvanced) { continue }
-								$cpFn = if ((Test-GuiObjectField -Object $cp -FieldName 'Function')) { [string]$cp.Function } else { $null }
+								$cpFn = if ((& $hasField -Object $cp -FieldName 'Function')) { [string]$cp.Function } else { $null }
 								if (-not [string]::IsNullOrWhiteSpace($cpFn) -and $advFnLookup.ContainsKey($cpFn)) { continue }
 								[void]$merged.Add($cp)
 							}
@@ -1306,13 +1307,13 @@
 							foreach ($corePlanEntry in @($gameModeCorePlanRef))
 							{
 								if (-not $corePlanEntry) { continue }
-								$coreFn = if ((Test-GuiObjectField -Object $corePlanEntry -FieldName 'Function')) { [string]$corePlanEntry.Function } else { $null }
+								$coreFn = if ((& $hasField -Object $corePlanEntry -FieldName 'Function')) { [string]$corePlanEntry.Function } else { $null }
 								if ([string]::IsNullOrWhiteSpace($coreFn)) { continue }
 								# Only restore if this function was removed (was overridden by the advanced entry being unchecked)
 								# and is not already present in the merged plan.
 								$alreadyInMerged = $false
 								foreach ($m in $merged) {
-									if ($m -and (Test-GuiObjectField -Object $m -FieldName 'Function') -and [string]$m.Function -eq $coreFn) { $alreadyInMerged = $true; break }
+									if ($m -and (& $hasField -Object $m -FieldName 'Function') -and [string]$m.Function -eq $coreFn) { $alreadyInMerged = $true; break }
 								}
 								if (-not $alreadyInMerged -and -not $advFnLookup.ContainsKey($coreFn))
 								{
@@ -1372,7 +1373,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-GameModeLandingPanel.
 	#>
 
 	function New-GameModeLandingPanel
@@ -1647,7 +1647,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function New-GameModeComparisonPanel.
 	#>
 
 	function New-GameModeComparisonPanel
@@ -1757,7 +1756,7 @@
 		$profileLookup = @{}
 		foreach ($p in $profiles) { $profileLookup[[string]$p.Label] = [string]$p.Name }
 
-		# Capture $Script: variables into locals before .GetNewClosure() — closures
+		# Capture $Script: variables into locals before .GetNewClosure() - closures
 		# create a dynamic module scope where $Script: no longer references GUI.psm1.
 		$newSafeBrushConverterCapture = $Script:NewSafeBrushConverterScript
 		$guiLayoutCapture = $Script:GuiLayout

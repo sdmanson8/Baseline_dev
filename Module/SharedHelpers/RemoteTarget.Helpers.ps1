@@ -1,4 +1,5 @@
-﻿# Remote targeting helpers for Baseline.
+
+# Remote targeting helpers for Baseline.
 # Provides multi-machine compliance checking and profile application over
 # PowerShell Remoting (WinRM / PSSession). Each function accepts an array of
 # computer names and operates in parallel per-session.
@@ -68,7 +69,6 @@ else
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteCredentialScopeKey.
 #>
 
 function Get-BaselineRemoteCredentialScopeKey
@@ -102,7 +102,6 @@ function Get-BaselineRemoteCredentialScopeKey
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteSessionKey.
 #>
 
 function Get-BaselineRemoteSessionKey
@@ -124,7 +123,6 @@ function Get-BaselineRemoteSessionKey
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-BaselineRemoteTransportSettingsValue.
 #>
 
 function ConvertTo-BaselineRemoteTransportSettingsValue
@@ -184,7 +182,6 @@ function ConvertTo-BaselineRemoteTransportSettingsValue
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteTransportSettingsSignature.
 #>
 
 function Get-BaselineRemoteTransportSettingsSignature
@@ -229,7 +226,6 @@ function Get-BaselineRemoteTransportSettingsSignature
 
 <#
     .SYNOPSIS
-    Internal function New-BaselineRemoteSessionCacheEntry.
 #>
 
 function New-BaselineRemoteSessionCacheEntry
@@ -264,7 +260,6 @@ function New-BaselineRemoteSessionCacheEntry
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineRemoteSessionCacheEntry.
 #>
 
 function Test-BaselineRemoteSessionCacheEntry
@@ -335,7 +330,6 @@ function Test-BaselineRemoteSessionCacheEntry
 
 <#
     .SYNOPSIS
-    Internal function Remove-BaselineRemoteSessionCacheEntry.
 #>
 
 function Remove-BaselineRemoteSessionCacheEntry
@@ -356,7 +350,7 @@ function Remove-BaselineRemoteSessionCacheEntry
 	try { $session = $entry.Session } catch { $session = $entry }
 	if ($session)
 	{
-		try { Remove-PSSession -Session $session -ErrorAction SilentlyContinue } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Remove-BaselineRemoteSessionCacheEntry.RemovePSSession' }
+		try { Remove-PSSession -Session $session -ErrorAction SilentlyContinue } catch { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Remove-BaselineRemoteSessionCacheEntry.RemovePSSession' }
 	}
 	$null = $Script:CachedRemoteSessionCache.Remove($Key)
 	return $entry
@@ -364,7 +358,6 @@ function Remove-BaselineRemoteSessionCacheEntry
 
 <#
     .SYNOPSIS
-    Internal function Invoke-BaselineRemoteSessionCacheMaintenance.
 #>
 
 function Invoke-BaselineRemoteSessionCacheMaintenance
@@ -415,7 +408,6 @@ function Invoke-BaselineRemoteSessionCacheMaintenance
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteTargetTerminalState.
 #>
 
 function Get-BaselineRemoteTargetTerminalState
@@ -479,7 +471,6 @@ function Get-BaselineRemoteTargetTerminalState
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteTargetState.
 #>
 
 function Get-BaselineRemoteTargetState
@@ -550,7 +541,6 @@ function Get-BaselineRemoteTargetState
 
 <#
     .SYNOPSIS
-    Internal function New-BaselineRemoteTargetStateTransition.
 #>
 
 function New-BaselineRemoteTargetStateTransition
@@ -584,7 +574,6 @@ function New-BaselineRemoteTargetStateTransition
 
 <#
     .SYNOPSIS
-    Internal function Add-BaselineRemoteTargetStateTransition.
 #>
 
 function Add-BaselineRemoteTargetStateTransition
@@ -616,7 +605,6 @@ function Add-BaselineRemoteTargetStateTransition
 
 <#
     .SYNOPSIS
-    Internal function Clear-BaselineRemoteSessionCache.
 #>
 
 function Clear-BaselineRemoteSessionCache
@@ -664,7 +652,6 @@ function Clear-BaselineRemoteSessionCache
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteSession.
 #>
 
 function Get-BaselineRemoteSession
@@ -701,7 +688,7 @@ function Get-BaselineRemoteSession
 		$entry = $Script:CachedRemoteSessionCache[$key]
 		if (Test-BaselineRemoteSessionCacheEntry -Entry $entry -TransportKey $transportSignature.Hash -IdleTimeoutMinutes $IdleTimeoutMinutes)
 		{
-			try { $entry.LastUsedUtc = [datetime]::UtcNow } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Invoke-BaselineRemoteSessionCacheMaintenance.UpdateLastUsedUtc' }
+			try { $entry.LastUsedUtc = [datetime]::UtcNow } catch { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Invoke-BaselineRemoteSessionCacheMaintenance.UpdateLastUsedUtc' }
 			$session = $entry.Session
 		}
 		else
@@ -768,7 +755,6 @@ function Get-BaselineRemoteSession
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteSessionSummary.
 #>
 
 function Get-BaselineRemoteSessionSummary
@@ -837,7 +823,6 @@ function Get-BaselineRemoteSessionSummary
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteOrchestrationHistoryPath.
 #>
 
 function Get-BaselineRemoteOrchestrationHistoryPath
@@ -859,7 +844,6 @@ function Get-BaselineRemoteOrchestrationHistoryPath
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteFailureProfile.
 #>
 
 function Get-BaselineRemoteFailureProfile
@@ -947,7 +931,6 @@ function Get-BaselineRemoteFailureProfile
 
 <#
     .SYNOPSIS
-    Internal function New-BaselineRemoteAttemptRecord.
 
     .DESCRIPTION
     Creates a structured record for a single execution attempt, capturing timing
@@ -1004,7 +987,6 @@ function New-BaselineRemoteAttemptRecord
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteRetryAnalytics.
 
     .DESCRIPTION
     Computes aggregate retry metrics from a collection of attempt records.
@@ -1089,7 +1071,6 @@ function Get-BaselineRemoteRetryAnalytics
 
 <#
     .SYNOPSIS
-    Internal function Write-BaselineRemoteAttemptHistoryRecord.
 
     .DESCRIPTION
     Appends individual attempt events to the orchestration history JSONL file
@@ -1137,7 +1118,6 @@ function Write-BaselineRemoteAttemptHistoryRecord
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteOrchestrationHistory.
 #>
 
 function Get-BaselineRemoteOrchestrationHistory
@@ -1170,7 +1150,7 @@ function Get-BaselineRemoteOrchestrationHistory
 		}
 		catch
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteOrchestrationHistory.ParseLine'
+			Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteOrchestrationHistory.ParseLine'
 			continue
 		}
 
@@ -1181,7 +1161,7 @@ function Get-BaselineRemoteOrchestrationHistory
 				$ts = [datetime]::Parse([string]$obj.Timestamp)
 				if ($ts -lt $Since) { continue }
 			}
-			catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteOrchestrationHistory.SinceTimestampParse' }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteOrchestrationHistory.SinceTimestampParse' }
 		}
 
 		if (-not [string]::IsNullOrWhiteSpace($Operation) -and $obj.Operation -ne $Operation)
@@ -1217,7 +1197,6 @@ function Get-BaselineRemoteOrchestrationHistory
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteOrchestrationSummary.
 #>
 
 function Get-BaselineRemoteOrchestrationSummary
@@ -1263,7 +1242,6 @@ function Get-BaselineRemoteOrchestrationSummary
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteOrchestrationDetails.
 #>
 
 function Get-BaselineRemoteOrchestrationDetails
@@ -1352,7 +1330,6 @@ function Get-BaselineRemoteOrchestrationDetails
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteRunSummaries.
 #>
 
 function Get-BaselineRemoteRunSummaries
@@ -1422,7 +1399,6 @@ function Get-BaselineRemoteRunSummaries
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteTargetHealthPath.
 
     .DESCRIPTION
     Returns the path to the per-target health tracking file.
@@ -1445,7 +1421,6 @@ function Get-BaselineRemoteTargetHealthPath
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteTargetHealth.
 
     .DESCRIPTION
     Retrieves the last known health state for one or more remote targets.
@@ -1507,7 +1482,6 @@ function Get-BaselineRemoteTargetHealth
 
 <#
     .SYNOPSIS
-    Internal function Update-BaselineRemoteTargetHealth.
 
     .DESCRIPTION
     Updates the health tracking record for a remote target after an operation.
@@ -1682,7 +1656,6 @@ function Update-BaselineRemoteTargetHealth
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteTargetFailureHistory.
 
     .DESCRIPTION
     Retrieves aggregated failure history for a target across orchestration runs.
@@ -1720,7 +1693,7 @@ function Get-BaselineRemoteTargetFailureHistory
 	{
 		$filtered = @($records | Where-Object {
 			$ts = $null
-			try { $ts = [datetime]::Parse([string]$_.Timestamp) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteOrchestrationSummary.SinceTimestampParse'; $ts = $null }
+			try { $ts = [datetime]::Parse([string]$_.Timestamp) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteOrchestrationSummary.SinceTimestampParse'; $ts = $null }
 			$ts -and $ts -ge $Since
 		})
 	}
@@ -1783,7 +1756,6 @@ function Get-BaselineRemoteTargetFailureHistory
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteApprovalDecisionPath.
 
     .DESCRIPTION
     Returns the path to the approval decision tracking file.
@@ -1806,7 +1778,6 @@ function Get-BaselineRemoteApprovalDecisionPath
 
 <#
     .SYNOPSIS
-    Internal function Write-BaselineRemoteApprovalDecision.
 
     .DESCRIPTION
     Records an approval decision for audit and tracking purposes.
@@ -1856,7 +1827,6 @@ function Write-BaselineRemoteApprovalDecision
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteApprovalDecisions.
 
     .DESCRIPTION
     Retrieves approval decision history with optional filters.
@@ -1891,7 +1861,7 @@ function Get-BaselineRemoteApprovalDecisions
 		if ([string]::IsNullOrWhiteSpace($line)) { continue }
 
 		$obj = $null
-		try { $obj = $line | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteRunSummaries.ParseLine'; continue }
+		try { $obj = $line | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop } catch { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteRunSummaries.ParseLine'; continue }
 		if (-not $obj) { continue }
 
 		if (-not [string]::IsNullOrWhiteSpace($RunId) -and [string]$obj.RunId -ne $RunId) { continue }
@@ -1901,7 +1871,7 @@ function Get-BaselineRemoteApprovalDecisions
 		if ($PSBoundParameters.ContainsKey('Since') -and $obj.RecordedUtc)
 		{
 			$ts = $null
-			try { $ts = [datetime]::Parse([string]$obj.RecordedUtc) } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteRunSummaries.SinceTimestampParse'; $ts = $null }
+			try { $ts = [datetime]::Parse([string]$obj.RecordedUtc) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteRunSummaries.SinceTimestampParse'; $ts = $null }
 			if ($ts -and $ts -lt $Since) { continue }
 		}
 
@@ -1929,7 +1899,6 @@ function Get-BaselineRemoteApprovalDecisions
 
 <#
     .SYNOPSIS
-    Internal function Write-BaselineRemoteRolloutOutcome.
 
     .DESCRIPTION
     Records a rollout outcome for tracking and dashboard surfaces.
@@ -2013,7 +1982,6 @@ function Write-BaselineRemoteRolloutOutcome
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteRolloutOutcomes.
 
     .DESCRIPTION
     Retrieves rollout outcomes for dashboard and reporting surfaces.
@@ -2082,7 +2050,6 @@ function Get-BaselineRemoteRolloutOutcomes
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteOrchestrationDashboard.
 
     .DESCRIPTION
     Returns aggregated dashboard data over orchestration history.
@@ -2255,7 +2222,6 @@ function Get-BaselineRemoteOrchestrationDashboard
 
 <#
     .SYNOPSIS
-    Internal function Search-BaselineRemoteOrchestrationHistory.
 
     .DESCRIPTION
     Provides flexible search over orchestration history with multiple filter criteria.
@@ -2356,7 +2322,6 @@ function Search-BaselineRemoteOrchestrationHistory
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteTargetLifecycleState.
 #>
 
 function Get-BaselineRemoteTargetLifecycleState
@@ -2425,7 +2390,6 @@ function Get-BaselineRemoteTargetLifecycleState
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteOrchestrationReconciliation.
 #>
 
 function Get-BaselineRemoteOrchestrationReconciliation
@@ -2489,6 +2453,13 @@ function Get-BaselineRemoteOrchestrationReconciliation
 		$attempts = if ($item.PSObject.Properties['AttemptCount']) { [int]$item.AttemptCount } else { 1 }
 		$retries = if ($item.PSObject.Properties['RetryCount']) { [int]$item.RetryCount } else { 0 }
 		$failureCategory = if ($item.PSObject.Properties['FailureCategory']) { [string]$item.FailureCategory } else { 'Unknown' }
+		$retryable = if ($item.PSObject.Properties['Retryable']) { [bool]$item.Retryable } else { $false }
+		$blockedByPolicy = if ($item.PSObject.Properties['BlockedByPolicy']) { [bool]$item.BlockedByPolicy } else { $false }
+		$cancelled = $false
+		if ($item.PSObject.Properties['TerminalState'])
+		{
+			$cancelled = [string]$item.TerminalState -eq 'Cancelled'
+		}
 		$summary.TotalAttempts += [math]::Max(1, $attempts)
 		$summary.TotalRetries += [math]::Max(0, $retries)
 		if ($summary.FailureCategoryCounts.Contains($failureCategory))
@@ -2499,9 +2470,9 @@ function Get-BaselineRemoteOrchestrationReconciliation
 		{
 			$summary.FailureCategoryCounts['Unknown']++
 		}
-		$lifecycle = if ($item.PSObject.Properties['LifecycleState']) { [string]$item.LifecycleState } else { Get-BaselineRemoteTargetLifecycleState -Operation ([string]$item.Operation) -Status $status -Retryable ([bool]$item.Retryable) -Blocked ([bool]$item.BlockedByPolicy) }
-		$targetState = if ($item.PSObject.Properties['TargetState']) { [string]$item.TargetState } else { Get-BaselineRemoteTargetState -Operation ([string]$item.Operation) -Status $status -Retryable ([bool]$item.Retryable) -Blocked ([bool]$item.BlockedByPolicy) -Cancelled ([bool]($item.PSObject.Properties['TerminalState'] -and [string]$item.TerminalState -eq 'Cancelled')) }
-		$terminalState = if ($item.PSObject.Properties['TerminalState']) { [string]$item.TerminalState } else { Get-BaselineRemoteTargetTerminalState -Status $status -Retryable ([bool]$item.Retryable) -Blocked ([bool]$item.BlockedByPolicy) }
+		$lifecycle = if ($item.PSObject.Properties['LifecycleState']) { [string]$item.LifecycleState } else { Get-BaselineRemoteTargetLifecycleState -Operation ([string]$item.Operation) -Status $status -Retryable $retryable -Blocked $blockedByPolicy }
+		$targetState = if ($item.PSObject.Properties['TargetState']) { [string]$item.TargetState } else { Get-BaselineRemoteTargetState -Operation ([string]$item.Operation) -Status $status -Retryable $retryable -Blocked $blockedByPolicy -Cancelled $cancelled }
+		$terminalState = if ($item.PSObject.Properties['TerminalState']) { [string]$item.TerminalState } else { Get-BaselineRemoteTargetTerminalState -Status $status -Retryable $retryable -Blocked $blockedByPolicy }
 		switch ($lifecycle)
 		{
 			'Succeeded' { $summary.Succeeded++ }
@@ -2623,7 +2594,6 @@ function Get-BaselineRemoteOrchestrationReconciliation
 
 <#
     .SYNOPSIS
-    Internal function Invoke-BaselineRemoteEntryWithRetry.
 #>
 
 function Invoke-BaselineRemoteEntryWithRetry
@@ -2695,7 +2665,6 @@ function Invoke-BaselineRemoteEntryWithRetry
 
 <#
     .SYNOPSIS
-    Internal function Invoke-BaselineRemoteRetryDelay.
 #>
 
 function Invoke-BaselineRemoteRetryDelay
@@ -2714,7 +2683,6 @@ function Invoke-BaselineRemoteRetryDelay
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineRemoteOrchestrationAllowed.
 #>
 
 function Test-BaselineRemoteOrchestrationAllowed
@@ -2775,7 +2743,6 @@ function Test-BaselineRemoteOrchestrationAllowed
 
 <#
     .SYNOPSIS
-    Internal function Write-BaselineRemoteOrchestrationRecord.
 #>
 
 function Write-BaselineRemoteOrchestrationRecord
@@ -2847,7 +2814,6 @@ function Write-BaselineRemoteOrchestrationRecord
 
 <#
     .SYNOPSIS
-    Internal function Write-BaselineRemoteOrchestrationSummaryRecord.
 #>
 
 function Write-BaselineRemoteOrchestrationSummaryRecord
@@ -2928,7 +2894,6 @@ function Write-BaselineRemoteOrchestrationSummaryRecord
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteResumeDirectory.
 
     .DESCRIPTION
     Returns the directory that holds per-run resume checkpoint files. Checkpoints
@@ -2963,7 +2928,6 @@ function Get-BaselineRemoteResumeDirectory
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteResumeCheckpointPath.
 
     .DESCRIPTION
     Returns the checkpoint file path for a given run identifier.
@@ -2984,7 +2948,6 @@ function Get-BaselineRemoteResumeCheckpointPath
 
 <#
     .SYNOPSIS
-    Internal function Save-BaselineRemoteResumeCheckpoint.
 
     .DESCRIPTION
     Writes or updates a resume checkpoint describing the run's targets and
@@ -3125,7 +3088,6 @@ function Save-BaselineRemoteResumeCheckpoint
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteResumeCheckpoint.
 
     .DESCRIPTION
     Reads a single checkpoint file, or enumerates every checkpoint in the
@@ -3173,7 +3135,7 @@ function Get-BaselineRemoteResumeCheckpoint
 		}
 		catch
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteResumeCheckpoint.ParseLine'
+			Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Get-BaselineRemoteResumeCheckpoint.ParseLine'
 			continue
 		}
 	}
@@ -3181,7 +3143,6 @@ function Get-BaselineRemoteResumeCheckpoint
 }
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteResumableRuns.
 
     .DESCRIPTION
     Returns interrupted checkpoints (Status = Interrupted, or Running with a
@@ -3254,7 +3215,6 @@ function Get-BaselineRemoteResumableRuns
 }
 <#
     .SYNOPSIS
-    Internal function Clear-BaselineRemoteResumeCheckpoint.
 
     .DESCRIPTION
     Deletes a checkpoint file after its run reaches a terminal state or the
@@ -3279,7 +3239,6 @@ function Clear-BaselineRemoteResumeCheckpoint
 
 <#
     .SYNOPSIS
-    Internal function Write-BaselineRemoteCheckpointWarning.
 #>
 
 function Write-BaselineRemoteCheckpointWarning
@@ -3302,7 +3261,6 @@ function Write-BaselineRemoteCheckpointWarning
 
 <#
     .SYNOPSIS
-    Internal function Invoke-BaselineRemoteCheckpointAction.
 #>
 
 function Invoke-BaselineRemoteCheckpointAction
@@ -3336,11 +3294,10 @@ function Invoke-BaselineRemoteCheckpointAction
 
 <#
     .SYNOPSIS
-    Internal function Resolve-BaselineRemoteResumeTargets.
 
     .DESCRIPTION
     Given a checkpoint, returns the ordered set of targets whose state is
-    still in a non-terminal bucket — this is the list of computers that the
+    still in a non-terminal bucket - this is the list of computers that the
     resume operation should replay.
 #>
 
@@ -3415,7 +3372,7 @@ function Resume-BaselineRemoteOrchestration
 		throw ("Checkpoint references a profile that cannot be found: '{0}'." -f $resolvedProfile)
 	}
 
-	$pendingTargets = Resolve-BaselineRemoteResumeTargets -Checkpoint $checkpoint
+	$pendingTargets = @(Resolve-BaselineRemoteResumeTargets -Checkpoint $checkpoint)
 	if ($pendingTargets.Count -eq 0)
 	{
 		Clear-BaselineRemoteResumeCheckpoint -RunId $RunId
@@ -3456,7 +3413,6 @@ function Resume-BaselineRemoteOrchestration
 
 <#
     .SYNOPSIS
-    Internal function ConvertFrom-BaselineRemoteTargetInput.
 #>
 
 function ConvertFrom-BaselineRemoteTargetInput
@@ -3517,7 +3473,6 @@ function ConvertFrom-BaselineRemoteTargetInput
 
 <#
     .SYNOPSIS
-    Internal function New-BaselineRemoteTargetCredential.
 #>
 
 function New-BaselineRemoteTargetCredential
@@ -3526,7 +3481,7 @@ function New-BaselineRemoteTargetCredential
 		.SYNOPSIS
 		Builds a PSCredential from Connect-dialog username + SecureString
 		input, validating the username shape up front (DOMAIN\User or
-		user@domain — never both, never empty halves) so that bad input
+		user@domain - never both, never empty halves) so that bad input
 		surfaces as a UI-friendly ArgumentException rather than as an opaque
 		WinRM authentication failure later.
 	#>
@@ -3554,7 +3509,7 @@ function New-BaselineRemoteTargetCredential
 
 	if ($hasBackslash -and $hasAt)
 	{
-		throw [System.ArgumentException]::new('Use either DOMAIN\Username or user@domain — not both.', 'Username')
+		throw [System.ArgumentException]::new('Use either DOMAIN\Username or user@domain - not both.', 'Username')
 	}
 
 	if ($hasBackslash)
@@ -3580,7 +3535,6 @@ function New-BaselineRemoteTargetCredential
 
 <#
     .SYNOPSIS
-    Internal function Format-BaselineRemoteConnectivityStatus.
 #>
 
 function Format-BaselineRemoteConnectivityStatus
@@ -3591,7 +3545,7 @@ function Format-BaselineRemoteConnectivityStatus
 		Test Connection run. Each row carries ComputerName, State
 		('Reachable' / 'Unreachable' / 'Blocked'), Icon, and a Display
 		string the dialog prints verbatim. Entries without a ComputerName
-		are dropped silently — they belong to other parts of the
+		are dropped silently - they belong to other parts of the
 		connectivity record, not the per-host status panel.
 	#>
 	[CmdletBinding()]
@@ -3662,7 +3616,6 @@ function Format-BaselineRemoteConnectivityStatus
 
 <#
     .SYNOPSIS
-    Internal function ConvertTo-BaselineRemoteConnectionMethod.
 #>
 
 function ConvertTo-BaselineRemoteConnectionMethod
@@ -3710,7 +3663,6 @@ function ConvertTo-BaselineRemoteConnectionMethod
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineRemoteConnectionMethodLabel.
 #>
 
 function Get-BaselineRemoteConnectionMethodLabel
@@ -3743,7 +3695,6 @@ function Get-BaselineRemoteConnectionMethodLabel
 
 <#
     .SYNOPSIS
-    Internal function Test-BaselineRemoteConnectivity.
 #>
 
 function Test-BaselineRemoteConnectivity
@@ -3843,7 +3794,7 @@ function Test-BaselineRemoteConnectivity
 							}
 							finally
 							{
-								try { $tcp.Close() } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Test-BaselineRemoteTargetConnectivity.TcpClose' }
+								try { $tcp.Close() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Test-BaselineRemoteTargetConnectivity.TcpClose' }
 							}
 						}
 						default
@@ -3987,7 +3938,6 @@ function Test-BaselineRemoteConnectivity
 }
 <#
     .SYNOPSIS
-    Internal function Invoke-BaselineRemoteCompliance.
 #>
 
 function Invoke-BaselineRemoteCompliance
@@ -4041,315 +3991,8 @@ function Invoke-BaselineRemoteCompliance
 	})
 
 	$cancelEngaged = $false
-	foreach ($computer in @($ComputerName))
-	{
-		if (-not $cancelEngaged -and $policyGate.Allowed)
-		{
-			try
-			{
-				$midRunGate = Test-BaselineRemoteOrchestrationAllowed -Operation 'RemoteCompliance'
-				if (-not $midRunGate.Allowed) { $cancelEngaged = $true }
-			}
-			catch
-			{
-				Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Invoke-BaselineRemoteCompliance.PolicyGate'
-				throw
-			}
-		}
-
-		if ($cancelEngaged)
-		{
-			$checkpointTargetStates[[string]$computer] = 'Cancelled'
-			[void](Invoke-BaselineRemoteCheckpointAction -Description ("persist RemoteCompliance cancellation state for target '{0}' in run '{1}'" -f $computer, $orchestrationRunId) -Action {
-				$null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteCompliance' -TargetStates @{ ([string]$computer) = 'Cancelled' } -Status 'Interrupted' -InterruptReason 'Kill switch engaged during run.'
-			})
-			continue
-		}
-
-		$runId = [guid]::NewGuid().ToString('N')
-		$startedAt = [datetime]::UtcNow
-		$status = 'Unknown'
-		$sessionReused = $false
-		$sessionState = 'NotConnected'
-		$attemptHistory = [System.Collections.Generic.List[pscustomobject]]::new()
-		$targetStateHistory = [System.Collections.Generic.List[pscustomobject]]::new()
-		[void](Add-BaselineRemoteTargetStateTransition -Transitions $targetStateHistory -Operation 'RemoteCompliance' -State 'Pending' -Phase 'Queued' -Timestamp $startedAt -Reason 'Target queued for remote compliance check.')
-		$entry = [pscustomobject]@{
-			ComputerName    = $computer
-			RunId           = $runId
-			AttemptCount    = 1
-			RetryCount      = 0
-			Compliant       = $false
-			DriftedCount    = 0
-			TotalChecked    = 0
-			Status          = $status
-			TerminalState   = 'Unknown'
-			LifecycleState  = if ($policyGate.Allowed) { 'Pending' } else { 'BlockedByPolicy' }
-			FailureCategory = $null
-			Retryable       = $false
-			RetryReason     = $null
-			BlockedByPolicy = (-not $policyGate.Allowed)
-			SessionReused   = $sessionReused
-			SessionState    = $sessionState
-			HistoryPath     = $null
-			DurationSeconds = 0
-			AttemptHistory  = $null
-			RetryAnalytics  = $null
-			Errors          = @()
-		}
-
-		$session = $null
-		try
-		{
-			if ($policyGate.Allowed)
-			{
-				$payloadAttempt = 0
-				$payloadRetry = $false
-				do
-				{
-					$payloadAttempt++
-					$payloadRetry = $false
-					$remoteTempDir = $null
-					$attemptStartedAt = [datetime]::UtcNow
-					$attemptStatus = 'Unknown'
-					[void](Add-BaselineRemoteTargetStateTransition -Transitions $targetStateHistory -Operation 'RemoteCompliance' -State 'Connecting' -Phase 'Connecting' -Timestamp $attemptStartedAt -Reason ("Attempt {0} started." -f $payloadAttempt))
-					$entry.Errors = @()
-					$entry.Compliant = $false
-					$entry.DriftedCount = 0
-					$entry.TotalChecked = 0
-
-					try
-					{
-						$sessionSummaryBefore = @()
-						try { $sessionSummaryBefore = @(Get-BaselineRemoteSessionSummary -ComputerName $computer) } catch { $sessionSummaryBefore = @() }
-						$sessionReused = $sessionSummaryBefore.Count -gt 0
-						# Open or reuse a cached remote session.
-						$session = Get-BaselineRemoteSession -ComputerName $computer -Credential $Credential -MaxRetryCount $MaxRetryCount -RetryDelayMilliseconds $RetryDelayMilliseconds
-						if ($session) { $sessionState = [string]$session.State }
-						[void](Add-BaselineRemoteTargetStateTransition -Transitions $targetStateHistory -Operation 'RemoteCompliance' -State 'Connected' -Phase 'Connected' -Timestamp ([datetime]::UtcNow) -Reason 'Remote session opened.')
-
-						# Create a temp staging directory on the remote machine.
-						$remoteTempDir = Invoke-Command -Session $session -ScriptBlock {
-							$dir = Join-Path ([System.IO.Path]::GetTempPath()) "Baseline_$([guid]::NewGuid().ToString('N'))"
-							$null = New-Item -Path $dir -ItemType Directory -Force
-							return $dir
-						}
-
-						# Copy profile file to the remote temp directory.
-						$remoteProfilePath = Join-Path $remoteTempDir (Split-Path $ProfilePath -Leaf)
-						Copy-Item -Path $ProfilePath -Destination $remoteProfilePath -ToSession $session -Force
-
-						# Copy the Module directory to the remote temp directory.
-						$remoteModuleDir = Join-Path $remoteTempDir 'Module'
-						Copy-Item -Path $moduleRoot -Destination $remoteModuleDir -ToSession $session -Recurse -Force
-
-						# Copy the Localizations directory (required by the module).
-						$localizationsDir = Join-Path $repoRoot 'Localizations'
-						if (Test-Path -LiteralPath $localizationsDir)
-						{
-							$remoteLocDir = Join-Path $remoteTempDir 'Localizations'
-							Copy-Item -Path $localizationsDir -Destination $remoteLocDir -ToSession $session -Recurse -Force
-						}
-
-						# Run the compliance check on the remote machine.
-						[void](Add-BaselineRemoteTargetStateTransition -Transitions $targetStateHistory -Operation 'RemoteCompliance' -State 'Running' -Phase 'Running' -Timestamp ([datetime]::UtcNow) -Reason 'Remote compliance check started.')
-						$remoteResult = Invoke-Command -Session $session -ArgumentList $remoteProfilePath, $remoteModuleDir -ScriptBlock {
-							param ($profilePath, $moduleDir)
-
-							$errors = [System.Collections.Generic.List[string]]::new()
-							$report = $null
-
-							try
-							{
-								# Import the SharedHelpers module from the staged directory.
-								$sharedHelpersPath = Join-Path $moduleDir 'SharedHelpers.psm1'
-								Import-Module -Name $sharedHelpersPath -Force -ErrorAction Stop
-
-								# Load the profile.
-								$profileContent = Get-Content -LiteralPath $profilePath -Raw -ErrorAction Stop
-								$profile = $profileContent | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop
-
-								# Load the manifest.
-								$manifest = @(Import-TweakManifestFromData)
-								if (-not $manifest -or $manifest.Count -eq 0)
-								{
-									$errors.Add('Failed to load tweak manifest on remote machine.')
-								}
-								else
-								{
-									$report = Test-SystemCompliance -Profile $profile -Manifest $manifest
-								}
-							}
-							catch
-							{
-								$errors.Add($_.Exception.Message)
-							}
-
-							return @{
-								Report = $report
-								Errors = @($errors)
-							}
-						}
-
-						# Process remote results.
-						if ($remoteResult.Report)
-						{
-							$report = $remoteResult.Report
-							$entry.TotalChecked = $report.TotalChecked
-							$entry.DriftedCount = $report.Drifted
-							$entry.Compliant    = ($report.Drifted -eq 0)
-						}
-
-						if ($remoteResult.Errors -and $remoteResult.Errors.Count -gt 0)
-						{
-							$entry.Errors = @($remoteResult.Errors)
-						}
-					}
-					catch
-					{
-						$entry.Errors = @($entry.Errors + $_.Exception.Message)
-					}
-					finally
-					{
-						if ($remoteTempDir)
-						{
-							Invoke-Command -Session $session -ArgumentList $remoteTempDir -ScriptBlock {
-								param ($dir)
-								if (Test-Path -LiteralPath $dir) { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue }
-							}
-						}
-					}
-
-					$attemptCompletedAt = [datetime]::UtcNow
-					$attemptStatus = if ($entry.Errors.Count -gt 0) { 'Failed' } elseif ($entry.Compliant) { 'Compliant' } elseif ($entry.DriftedCount -gt 0) { 'Drifted' } else { 'Unknown' }
-					$attemptFailureProfile = Get-BaselineRemoteFailureProfile -ErrorMessages @($entry.Errors) -Status $attemptStatus
-					$attemptRecord = New-BaselineRemoteAttemptRecord -ComputerName $computer -AttemptIndex $payloadAttempt -StartedUtc $attemptStartedAt -CompletedUtc $attemptCompletedAt -Status $attemptStatus -Errors @($entry.Errors) -FailureProfile $attemptFailureProfile
-					[void]$attemptHistory.Add($attemptRecord)
-					$null = Write-BaselineRemoteAttemptHistoryRecord -RunId $runId -Operation 'RemoteCompliance' -AttemptRecord $attemptRecord
-
-					if ($entry.Errors.Count -gt 0)
-					{
-						$payloadProfile = $attemptFailureProfile
-						if ($payloadProfile.Retryable -and $payloadAttempt -lt ([math]::Max(1, $MaxRetryCount + 1)))
-						{
-							$payloadRetry = $true
-							Invoke-BaselineRemoteRetryDelay -Attempt $payloadAttempt -BaseDelayMilliseconds $RetryDelayMilliseconds
-						}
-					}
-				}
-				while ($payloadRetry)
-
-				$retryAnalytics = Get-BaselineRemoteRetryAnalytics -AttemptRecords @($attemptHistory)
-				$entry.AttemptCount = $payloadAttempt
-				$entry.RetryCount = [math]::Max(0, $payloadAttempt - 1)
-				$entry.AttemptHistory = @($attemptHistory)
-				$entry.RetryAnalytics = $retryAnalytics
-			}
-			else
-			{
-				$entry.Errors = @($policyGate.Reason)
-			}
-		}
-		catch
-		{
-			$entry.Errors = @($entry.Errors + $_.Exception.Message)
-		}
-		finally
-		{
-			$completedAt = [datetime]::UtcNow
-			$entry.SessionReused = $sessionReused
-			$entry.SessionState = $sessionState
-			if ($entry.Errors.Count -gt 0)
-			{
-				$status = 'Failed'
-			}
-			elseif ($entry.Compliant)
-			{
-				$status = 'Compliant'
-			}
-			elseif ($entry.TotalChecked -gt 0 -and $entry.DriftedCount -gt 0)
-			{
-				$status = 'Drifted'
-			}
-			elseif ($entry.TotalChecked -eq 0)
-			{
-				$status = 'Skipped'
-			}
-			else
-			{
-				$status = 'Unknown'
-			}
-
-			$entry.Status = $status
-			$failureProfile = Get-BaselineRemoteFailureProfile -ErrorMessages @($entry.Errors) -Status $status
-			$entry.FailureCategory = $failureProfile.Category
-			$entry.Retryable = $failureProfile.Retryable
-			$entry.RetryReason = $failureProfile.RetryReason
-			$entry.LifecycleState = Get-BaselineRemoteTargetLifecycleState -Operation 'RemoteCompliance' -Status $status -Retryable $failureProfile.Retryable -Blocked $entry.BlockedByPolicy
-			$entry.TerminalState = if ($entry.BlockedByPolicy) { 'Skipped' } elseif ($entry.Compliant) { 'Succeeded' } elseif ($status -eq 'Skipped') { 'Skipped' } elseif ($status -eq 'Drifted') { 'Failed' } elseif ($failureProfile.Retryable) { 'Retrying' } else { 'Failed' }
-			$entry.TargetState = Get-BaselineRemoteTargetState -Operation 'RemoteCompliance' -Status $status -Retryable $failureProfile.Retryable -Blocked $entry.BlockedByPolicy
-			[void](Add-BaselineRemoteTargetStateTransition -Transitions $targetStateHistory -Operation 'RemoteCompliance' -State $entry.TargetState -Phase 'Completed' -Status $status -Timestamp $completedAt -Reason $entry.RetryReason)
-			$entry.DurationSeconds = [math]::Round(($completedAt - $startedAt).TotalSeconds, 2)
-			$record = Write-BaselineRemoteOrchestrationRecord -Record @{
-				RecordKind       = 'Target'
-				RunId             = $runId
-				Operation         = 'RemoteCompliance'
-				ComputerName      = $computer
-				RemoteTargetLabel = $computer
-				Status            = $status
-				TargetState       = $entry.TargetState
-				TerminalState     = $entry.TerminalState
-				LifecycleState    = $entry.LifecycleState
-				SessionReused     = $sessionReused
-				SessionState      = $sessionState
-				DriftedCount      = $entry.DriftedCount
-				TotalChecked      = $entry.TotalChecked
-				AttemptCount      = $entry.AttemptCount
-				RetryCount        = $entry.RetryCount
-				BlockedByPolicy   = $entry.BlockedByPolicy
-				Errors            = @($entry.Errors)
-				FailureCategory   = $failureProfile.Category
-				Retryable         = $failureProfile.Retryable
-				RetryReason       = $failureProfile.RetryReason
-				StartedAt         = $startedAt
-				CompletedAt       = $completedAt
-				DurationSeconds   = $entry.DurationSeconds
-				TargetStateHistory = @($targetStateHistory)
-				RetryAnalytics    = if ($entry.RetryAnalytics) {
-					[ordered]@{
-						TotalAttempts         = $entry.RetryAnalytics.TotalAttempts
-						TotalRetries          = $entry.RetryAnalytics.TotalRetries
-						RetryableFailures     = $entry.RetryAnalytics.RetryableFailures
-						NonRetryableFailures  = $entry.RetryAnalytics.NonRetryableFailures
-						RetryDurationMs       = $entry.RetryAnalytics.RetryDurationMs
-						FailureCategoryCounts = $entry.RetryAnalytics.FailureCategoryCounts
-					}
-				} else { $null }
-				Details           = [ordered]@{
-					Compliant        = [bool]$entry.Compliant
-					AttemptSummaries = if ($entry.AttemptHistory) {
-						@($entry.AttemptHistory | ForEach-Object {
-							[ordered]@{
-								AttemptIndex    = [int]$_.AttemptIndex
-								DurationMs      = [int]$_.DurationMs
-								Status          = [string]$_.Status
-								FailureCategory = [string]$_.FailureCategory
-								Retryable       = [bool]$_.Retryable
-							}
-						})
-					} else { @() }
-				}
-			}
-
-			$entry.HistoryPath = $record.HistoryPath
-		}
-
-		$results.Add($entry)
-		[void](Invoke-BaselineRemoteCheckpointAction -Description ("persist RemoteCompliance target state for '{0}' in run '{1}'" -f $computer, $orchestrationRunId) -Action {
-			$checkpointTargetStates[[string]$computer] = [string]$entry.TerminalState
-			$null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteCompliance' -TargetStates @{ ([string]$computer) = [string]$entry.TerminalState } -Status 'Running'
-		})
-	}
+			# P5 rollback checkpoint: Invoke-BaselineRemoteCompliance part extracted to Module/SharedHelpers/RemoteTarget/Invoke-BaselineRemoteCompliance/Invoke-BaselineRemoteCompliance.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'RemoteTarget\Invoke-BaselineRemoteCompliance\Invoke-BaselineRemoteCompliance.ps1')
 
 	if ($cancelEngaged)
 	{
@@ -4409,7 +4052,6 @@ function Invoke-BaselineRemoteCompliance
 
 <#
     .SYNOPSIS
-    Internal function Invoke-BaselineRemoteApply.
 #>
 
 function Invoke-BaselineRemoteApply
@@ -4464,395 +4106,8 @@ function Invoke-BaselineRemoteApply
 	})
 
 	$cancelEngaged = $false
-	foreach ($computer in @($ComputerName))
-	{
-		if (-not $cancelEngaged -and $policyGate.Allowed)
-		{
-			try
-			{
-				$midRunGate = Test-BaselineRemoteOrchestrationAllowed -Operation 'RemoteApply'
-				if (-not $midRunGate.Allowed) { $cancelEngaged = $true }
-			}
-			catch
-			{
-				Write-DebugSwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Invoke-BaselineRemoteApply.PolicyGate'
-				throw
-			}
-		}
-
-		if ($cancelEngaged)
-		{
-			$checkpointTargetStates[[string]$computer] = 'Cancelled'
-			[void](Invoke-BaselineRemoteCheckpointAction -Description ("persist RemoteApply cancellation state for target '{0}' in run '{1}'" -f $computer, $orchestrationRunId) -Action {
-				$null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteApply' -TargetStates @{ ([string]$computer) = 'Cancelled' } -Status 'Interrupted' -InterruptReason 'Kill switch engaged during run.'
-			})
-			continue
-		}
-
-		$runId = [guid]::NewGuid().ToString('N')
-		$startedAt = [datetime]::UtcNow
-		$status = 'Unknown'
-		$sessionReused = $false
-		$sessionState = 'NotConnected'
-		$targetStateHistory = [System.Collections.Generic.List[pscustomobject]]::new()
-		[void](Add-BaselineRemoteTargetStateTransition -Transitions $targetStateHistory -Operation 'RemoteApply' -State 'Pending' -Phase 'Queued' -Timestamp $startedAt -Reason 'Target queued for remote apply.')
-		$entry = [pscustomobject]@{
-			ComputerName    = $computer
-			RunId           = $runId
-			AttemptCount    = 1
-			RetryCount      = 0
-			Applied         = $false
-			AppliedCount    = 0
-			FailedCount     = 0
-			Status          = $status
-			TerminalState   = 'Unknown'
-			LifecycleState  = if ($policyGate.Allowed) { 'Pending' } else { 'BlockedByPolicy' }
-			FailureCategory = $null
-			Retryable       = $false
-			RetryReason     = $null
-			BlockedByPolicy = (-not $policyGate.Allowed)
-			SessionReused   = $sessionReused
-			SessionState    = $sessionState
-			HistoryPath     = $null
-			DurationSeconds = 0
-			RetryAnalytics  = $null
-			Errors          = @()
-		}
-
-		$session = $null
-		try
-		{
-			if ($policyGate.Allowed)
-			{
-				$sessionSummaryBefore = @()
-				try { $sessionSummaryBefore = @(Get-BaselineRemoteSessionSummary -ComputerName $computer) } catch { $sessionSummaryBefore = @() }
-				$sessionReused = $sessionSummaryBefore.Count -gt 0
-				# Open or reuse a cached remote session.
-				$session = Get-BaselineRemoteSession -ComputerName $computer -Credential $Credential -MaxRetryCount $MaxRetryCount -RetryDelayMilliseconds $RetryDelayMilliseconds
-				if ($session) { $sessionState = [string]$session.State }
-				[void](Add-BaselineRemoteTargetStateTransition -Transitions $targetStateHistory -Operation 'RemoteApply' -State 'Connecting' -Phase 'Connecting' -Timestamp ([datetime]::UtcNow) -Reason 'Remote session requested.')
-				[void](Add-BaselineRemoteTargetStateTransition -Transitions $targetStateHistory -Operation 'RemoteApply' -State 'Connected' -Phase 'Connected' -Timestamp ([datetime]::UtcNow) -Reason 'Remote session opened.')
-
-				# Create a temp staging directory on the remote machine.
-				$remoteTempDir = Invoke-Command -Session $session -ScriptBlock {
-					$dir = Join-Path ([System.IO.Path]::GetTempPath()) "Baseline_$([guid]::NewGuid().ToString('N'))"
-					$null = New-Item -Path $dir -ItemType Directory -Force
-					return $dir
-				}
-
-				# Copy profile file to the remote temp directory.
-				$remoteProfilePath = Join-Path $remoteTempDir (Split-Path $ProfilePath -Leaf)
-				Copy-Item -Path $ProfilePath -Destination $remoteProfilePath -ToSession $session -Force
-
-				# Copy the Module directory to the remote temp directory.
-				$remoteModuleDir = Join-Path $remoteTempDir 'Module'
-				Copy-Item -Path $moduleRoot -Destination $remoteModuleDir -ToSession $session -Recurse -Force
-
-				# Copy the Localizations directory (required by the module).
-				$localizationsDir = Join-Path $repoRoot 'Localizations'
-				if (Test-Path -LiteralPath $localizationsDir)
-				{
-					$remoteLocDir = Join-Path $remoteTempDir 'Localizations'
-					Copy-Item -Path $localizationsDir -Destination $remoteLocDir -ToSession $session -Recurse -Force
-				}
-
-				# Copy the relocated entry script for headless execution.
-				$baselineScript = Join-Path $repoRoot 'Bootstrap/Baseline.ps1'
-				if (Test-Path -LiteralPath $baselineScript)
-				{
-					$remoteBootstrapDir = Join-Path $remoteTempDir 'Bootstrap'
-					Invoke-Command -Session $session -ArgumentList $remoteBootstrapDir -ScriptBlock {
-						param ($dir)
-						$null = New-Item -Path $dir -ItemType Directory -Force
-					}
-					Copy-Item -Path $baselineScript -Destination $remoteBootstrapDir -ToSession $session -Force
-				}
-				[void](Add-BaselineRemoteTargetStateTransition -Transitions $targetStateHistory -Operation 'RemoteApply' -State 'PreviewReady' -Phase 'PreviewReady' -Timestamp ([datetime]::UtcNow) -Reason 'Remote command list staged and ready.')
-
-				# Run the profile application on the remote machine.
-				[void](Add-BaselineRemoteTargetStateTransition -Transitions $targetStateHistory -Operation 'RemoteApply' -State 'Running' -Phase 'Running' -Timestamp ([datetime]::UtcNow) -Reason 'Remote apply started.')
-				$remoteResult = Invoke-Command -Session $session -ArgumentList $remoteProfilePath, $remoteModuleDir, $remoteTempDir -ScriptBlock {
-				param ($profilePath, $moduleDir, $baseDir)
-
-				$errors = [System.Collections.Generic.List[string]]::new()
-				$appliedCount = 0
-				$failedCount  = 0
-
-				try
-				{
-					# Import the SharedHelpers module from the staged directory.
-					$sharedHelpersPath = Join-Path $moduleDir 'SharedHelpers.psm1'
-					Import-Module -Name $sharedHelpersPath -Force -ErrorAction Stop
-
-					# Import the main Baseline module.
-					$baselineModulePath = Join-Path $moduleDir 'Baseline.psd1'
-					if (Test-Path -LiteralPath $baselineModulePath)
-					{
-						Import-Module -Name $baselineModulePath -Force -ErrorAction Stop
-					}
-
-					# Load the profile.
-					$profileContent = Get-Content -LiteralPath $profilePath -Raw -ErrorAction Stop
-					$profile = $profileContent | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop
-
-					# Extract entries from the profile and build headless command list.
-					$profileEntries = @()
-					if ($profile.PSObject.Properties['Entries'] -and $profile.Entries)
-					{
-						$profileEntries = @($profile.Entries)
-					}
-
-					$entryResults = [System.Collections.Generic.List[pscustomobject]]::new()
-					foreach ($profileEntry in @($profileEntries))
-					{
-						if (-not $profileEntry) { continue }
-
-						$functionName = $null
-						$paramValue   = $null
-						$entryType    = 'Toggle'
-
-						if ($profileEntry.PSObject.Properties['Function'])
-						{
-							$functionName = [string]$profileEntry.Function
-						}
-						if ($profileEntry.PSObject.Properties['Type'])
-						{
-							$entryType = [string]$profileEntry.Type
-						}
-
-						if ([string]::IsNullOrWhiteSpace($functionName)) { continue }
-
-						# Resolve the parameter to pass.
-						switch ($entryType)
-						{
-							'Choice'
-							{
-								if ($profileEntry.PSObject.Properties['Value'] -and
-									-not [string]::IsNullOrWhiteSpace([string]$profileEntry.Value))
-								{
-									$paramValue = [string]$profileEntry.Value
-								}
-							}
-							default
-							{
-								if ($profileEntry.PSObject.Properties['Param'] -and
-									-not [string]::IsNullOrWhiteSpace([string]$profileEntry.Param))
-								{
-									$paramValue = [string]$profileEntry.Param
-								}
-							}
-						}
-
-						$entryAttempt = Invoke-BaselineRemoteEntryWithRetry -EntryName $functionName -MaxRetryCount $MaxRetryCount -RetryDelayMilliseconds $RetryDelayMilliseconds -Action {
-							$cmd = Get-Command -Name $functionName -ErrorAction SilentlyContinue
-							if (-not $cmd)
-							{
-								throw "Command not found: $functionName"
-							}
-
-							if ($paramValue)
-							{
-								& $functionName -$paramValue
-							}
-							else
-							{
-								& $functionName
-							}
-						}
-
-						if ($entryAttempt.Success)
-						{
-							$appliedCount++
-						}
-						else
-						{
-							$failedCount++
-							foreach ($message in @($entryAttempt.Errors))
-							{
-								if (-not [string]::IsNullOrWhiteSpace([string]$message))
-								{
-									$errors.Add("Failed to apply $functionName : $message")
-								}
-							}
-						}
-
-						$entryResults.Add([pscustomobject]@{
-							Function    = $functionName
-							Type        = $entryType
-							Attempts    = $entryAttempt.Attempts
-							RetryCount  = $entryAttempt.RetryCount
-							Success     = [bool]$entryAttempt.Success
-							Retryable   = [bool]$entryAttempt.Retryable
-							RetryReason = [string]$entryAttempt.RetryReason
-							Errors      = @($entryAttempt.Errors)
-						})
-					}
-				}
-				catch
-				{
-					$errors.Add($_.Exception.Message)
-				}
-
-					return @{
-						AppliedCount = $appliedCount
-						FailedCount  = $failedCount
-						Errors       = @($errors)
-						Entries      = @($entryResults)
-					}
-				}
-
-				# Process remote results.
-				$entry.AppliedCount = $remoteResult.AppliedCount
-				$entry.FailedCount  = $remoteResult.FailedCount
-				$entry.Applied      = ($remoteResult.FailedCount -eq 0 -and $remoteResult.AppliedCount -gt 0)
-				if ($remoteResult.Entries -and $remoteResult.Entries.Count -gt 0)
-				{
-					$entry.AttemptCount = [int](($remoteResult.Entries | ForEach-Object { if ($_.Attempts) { [int]$_.Attempts } else { 1 } }) | Measure-Object -Sum).Sum
-					$entry.RetryCount = [int](($remoteResult.Entries | ForEach-Object { if ($_.RetryCount) { [int]$_.RetryCount } else { 0 } }) | Measure-Object -Sum).Sum
-					$failureCategoryCounts = [ordered]@{}
-					foreach ($entryResult in @($remoteResult.Entries))
-					{
-						$cat = if ($entryResult.Success) { 'Success' } elseif ($entryResult.FailureCategory) { [string]$entryResult.FailureCategory } else { 'Unknown' }
-						if (-not $failureCategoryCounts.ContainsKey($cat))
-						{
-							$failureCategoryCounts[$cat] = 0
-						}
-						$failureCategoryCounts[$cat]++
-					}
-					$entry.RetryAnalytics = [pscustomobject]@{
-						TotalAttempts         = $entry.AttemptCount
-						TotalRetries          = $entry.RetryCount
-						RetryableFailures     = @($remoteResult.Entries | Where-Object { [bool]$_.Retryable }).Count
-						NonRetryableFailures  = @($remoteResult.Entries | Where-Object { -not [bool]$_.Success -and -not [bool]$_.Retryable }).Count
-						FailureCategoryCounts = $failureCategoryCounts
-						EntrySummaries        = @($remoteResult.Entries | ForEach-Object {
-							[ordered]@{
-								Function        = [string]$_.Function
-								Attempts        = [int]$_.Attempts
-								RetryCount      = [int]$_.RetryCount
-								Success         = [bool]$_.Success
-								Retryable       = [bool]$_.Retryable
-								FailureCategory = [string]$_.FailureCategory
-							}
-						})
-					}
-				}
-				else
-				{
-					$entry.AttemptCount = 1
-					$entry.RetryCount = 0
-				}
-
-				if ($remoteResult.Errors -and $remoteResult.Errors.Count -gt 0)
-				{
-					$entry.Errors = @($remoteResult.Errors)
-				}
-
-				# Clean up temp files on the remote machine.
-				Invoke-Command -Session $session -ArgumentList $remoteTempDir -ScriptBlock {
-					param ($dir)
-					if (Test-Path -LiteralPath $dir) { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue }
-				}
-			}
-			else
-			{
-				$entry.Errors = @($policyGate.Reason)
-			}
-		}
-		catch
-		{
-			$entry.Errors = @($entry.Errors + $_.Exception.Message)
-		}
-		finally
-		{
-			$completedAt = [datetime]::UtcNow
-			$entry.SessionReused = $sessionReused
-			$entry.SessionState = $sessionState
-			if ($entry.Errors.Count -gt 0)
-			{
-				$status = 'Failed'
-			}
-			elseif ($entry.AppliedCount -gt 0 -and $entry.FailedCount -eq 0)
-			{
-				$status = 'Applied'
-			}
-			elseif ($entry.AppliedCount -gt 0 -and $entry.FailedCount -gt 0)
-			{
-				$status = 'Partial'
-			}
-			elseif ($entry.AppliedCount -eq 0 -and $entry.FailedCount -gt 0)
-			{
-				$status = 'Failed'
-			}
-			elseif ($entry.AppliedCount -eq 0 -and $entry.FailedCount -eq 0)
-			{
-				$status = 'Skipped'
-			}
-			else
-			{
-				$status = 'Unknown'
-			}
-
-			$entry.Applied = ($status -eq 'Applied')
-			$entry.Status = $status
-			$failureProfile = Get-BaselineRemoteFailureProfile -ErrorMessages @($entry.Errors) -Status $status
-			$entry.FailureCategory = $failureProfile.Category
-			$entry.Retryable = $failureProfile.Retryable
-			$entry.RetryReason = $failureProfile.RetryReason
-			$entry.LifecycleState = Get-BaselineRemoteTargetLifecycleState -Operation 'RemoteApply' -Status $status -Retryable $failureProfile.Retryable -Blocked $entry.BlockedByPolicy
-			$entry.TerminalState = if ($entry.BlockedByPolicy) { 'Skipped' } elseif ($entry.Applied) { 'Succeeded' } elseif ($status -eq 'Skipped') { 'Skipped' } elseif ($status -eq 'Partial') { if ($failureProfile.Retryable) { 'Retrying' } else { 'Failed' } } elseif ($failureProfile.Retryable) { 'Retrying' } else { 'Failed' }
-			$entry.TargetState = Get-BaselineRemoteTargetState -Operation 'RemoteApply' -Status $status -Retryable $failureProfile.Retryable -Blocked $entry.BlockedByPolicy
-			[void](Add-BaselineRemoteTargetStateTransition -Transitions $targetStateHistory -Operation 'RemoteApply' -State $entry.TargetState -Phase 'Completed' -Status $status -Timestamp $completedAt -Reason $entry.RetryReason)
-			$entry.DurationSeconds = [math]::Round(($completedAt - $startedAt).TotalSeconds, 2)
-			$record = Write-BaselineRemoteOrchestrationRecord -Record @{
-				RecordKind       = 'Target'
-				RunId             = $runId
-				Operation         = 'RemoteApply'
-				ComputerName      = $computer
-				RemoteTargetLabel = $computer
-				Status            = $status
-				TargetState       = $entry.TargetState
-				TerminalState     = $entry.TerminalState
-				LifecycleState    = $entry.LifecycleState
-				SessionReused     = $sessionReused
-				SessionState      = $sessionState
-				AppliedCount      = $entry.AppliedCount
-				FailedCount       = $entry.FailedCount
-				AttemptCount      = $entry.AttemptCount
-				RetryCount        = $entry.RetryCount
-				BlockedByPolicy   = $entry.BlockedByPolicy
-				Errors            = @($entry.Errors)
-				FailureCategory   = $failureProfile.Category
-				Retryable         = $failureProfile.Retryable
-				RetryReason       = $failureProfile.RetryReason
-				StartedAt         = $startedAt
-				CompletedAt       = $completedAt
-				DurationSeconds   = $entry.DurationSeconds
-				TargetStateHistory = @($targetStateHistory)
-				RetryAnalytics    = if ($entry.RetryAnalytics) {
-					[ordered]@{
-						TotalAttempts         = $entry.RetryAnalytics.TotalAttempts
-						TotalRetries          = $entry.RetryAnalytics.TotalRetries
-						RetryableFailures     = $entry.RetryAnalytics.RetryableFailures
-						NonRetryableFailures  = $entry.RetryAnalytics.NonRetryableFailures
-						FailureCategoryCounts = $entry.RetryAnalytics.FailureCategoryCounts
-					}
-				} else { $null }
-				Details           = [ordered]@{
-					Applied        = [bool]$entry.Applied
-					EntrySummaries = if ($entry.RetryAnalytics -and $entry.RetryAnalytics.EntrySummaries) { @($entry.RetryAnalytics.EntrySummaries) } else { @() }
-				}
-			}
-
-			$entry.HistoryPath = $record.HistoryPath
-		}
-
-		$results.Add($entry)
-		[void](Invoke-BaselineRemoteCheckpointAction -Description ("persist RemoteApply target state for '{0}' in run '{1}'" -f $computer, $orchestrationRunId) -Action {
-			$checkpointTargetStates[[string]$computer] = [string]$entry.TerminalState
-			$null = Save-BaselineRemoteResumeCheckpoint -RunId $orchestrationRunId -Operation 'RemoteApply' -TargetStates @{ ([string]$computer) = [string]$entry.TerminalState } -Status 'Running'
-		})
-	}
+			# P5 rollback checkpoint: Invoke-BaselineRemoteApply part extracted to Module/SharedHelpers/RemoteTarget/Invoke-BaselineRemoteApply/Invoke-BaselineRemoteApply.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'RemoteTarget\Invoke-BaselineRemoteApply\Invoke-BaselineRemoteApply.ps1')
 
 	if ($cancelEngaged)
 	{
@@ -4909,4 +4164,3 @@ function Invoke-BaselineRemoteApply
 
 	return @($results)
 }
-

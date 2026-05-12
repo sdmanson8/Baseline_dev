@@ -1,4 +1,4 @@
-# Group Policy conflict-detection helpers for Baseline.
+﻿# Group Policy conflict-detection helpers for Baseline.
 #
 # Compares each tweak's intended registry write against the policy hives
 # (HKLM/HKCU \SOFTWARE\Policies\...) so we can warn the user that an enforced
@@ -14,9 +14,27 @@ $Script:CachedBaselineGpoPolicyHiveRoots = @(
     'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies'
 )
 
+function Write-GroupPolicyDebugSwallowedException
+{
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.Management.Automation.ErrorRecord]$ErrorRecord,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Source
+    )
+
+    if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+    {
+        Write-SwallowedException -ErrorRecord $ErrorRecord -Source $Source
+        return
+    }
+
+    Write-Verbose ("{0}: {1}" -f $Source, $ErrorRecord.Exception.Message)
+}
+
 <#
     .SYNOPSIS
-    Internal function Test-BaselineGpoPolicyPath.
 #>
 
 function Test-BaselineGpoPolicyPath
@@ -48,7 +66,6 @@ function Test-BaselineGpoPolicyPath
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineGpoPolicyValueState.
 #>
 
 function Get-BaselineGpoPolicyValueState
@@ -92,11 +109,11 @@ function Get-BaselineGpoPolicyValueState
             $kind = $key.GetValueKind($Name)
             $result.Type = [string]$kind
         }
-        catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'GroupPolicy.GetBaselineGpoPolicyValueState.GetValueKind' }
+        catch { Write-GroupPolicyDebugSwallowedException -ErrorRecord $_ -Source 'GroupPolicy.GetBaselineGpoPolicyValueState.GetValueKind' }
     }
     catch
     {
-        Write-DebugSwallowedException -ErrorRecord $_ -Source 'GroupPolicy.GetBaselineGpoPolicyValueState.LoadValue'
+        Write-GroupPolicyDebugSwallowedException -ErrorRecord $_ -Source 'GroupPolicy.GetBaselineGpoPolicyValueState.LoadValue'
         $result.Exists = $false
     }
 
@@ -105,7 +122,6 @@ function Get-BaselineGpoPolicyValueState
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineGpoEnvironmentSummary.
 #>
 
 function Get-BaselineGpoEnvironmentSummary
@@ -127,7 +143,7 @@ function Get-BaselineGpoEnvironmentSummary
         $domainJoined = [bool]$cs.PartOfDomain
         if ($domainJoined) { $domainName = [string]$cs.Domain }
     }
-    catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'GroupPolicy.GetBaselineGpoEnvironmentSummary.LoadComputerSystem' }
+    catch { Write-GroupPolicyDebugSwallowedException -ErrorRecord $_ -Source 'GroupPolicy.GetBaselineGpoEnvironmentSummary.LoadComputerSystem' }
 
     $mdmEnrolled = $false
     try
@@ -143,7 +159,7 @@ function Get-BaselineGpoEnvironmentSummary
             }
         }
     }
-    catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'GroupPolicy.GetBaselineGpoEnvironmentSummary.LoadEnrollments' }
+    catch { Write-GroupPolicyDebugSwallowedException -ErrorRecord $_ -Source 'GroupPolicy.GetBaselineGpoEnvironmentSummary.LoadEnrollments' }
 
     $populated = [System.Collections.Generic.List[string]]::new()
     foreach ($root in $Script:CachedBaselineGpoPolicyHiveRoots)
@@ -156,7 +172,7 @@ function Get-BaselineGpoEnvironmentSummary
                 if ($children.Count -gt 0) { [void]$populated.Add($root) }
             }
         }
-        catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'GroupPolicy.GetBaselineGpoEnvironmentSummary.ScanPolicyRoot' }
+        catch { Write-GroupPolicyDebugSwallowedException -ErrorRecord $_ -Source 'GroupPolicy.GetBaselineGpoEnvironmentSummary.ScanPolicyRoot' }
     }
 
     return [pscustomobject]@{
@@ -170,7 +186,6 @@ function Get-BaselineGpoEnvironmentSummary
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineGpoConflictForEntry.
 #>
 
 function Get-BaselineGpoConflictForEntry
@@ -240,7 +255,6 @@ function Get-BaselineGpoConflictForEntry
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineGpoConflictReport.
 #>
 
 function Get-BaselineGpoConflictReport
@@ -286,7 +300,6 @@ function Get-BaselineGpoConflictReport
 
 <#
     .SYNOPSIS
-    Internal function Format-BaselineGpoConflictReport.
 #>
 
 function Format-BaselineGpoConflictReport

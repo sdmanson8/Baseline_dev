@@ -1,4 +1,4 @@
-# Dialog helper functions for Baseline UI modals.
+﻿# Dialog helper functions for Baseline UI modals.
 
 # P5 rollback checkpoint: dialog helpers are split into Module\GUI\DialogHelpers\*.ps1.
 # Keep this explicit order; later files may depend on functions loaded by earlier files.

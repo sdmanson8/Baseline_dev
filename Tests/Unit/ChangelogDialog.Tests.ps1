@@ -41,7 +41,9 @@ BeforeAll {
     $helperFunctionNames = @(
         'Set-BaselineReadmeInlineTheme',
         'Set-BaselineReadmeBlockTheme',
-        'Set-BaselineReadmeFlowDocumentTheme'
+        'Set-BaselineReadmeFlowDocumentTheme',
+        'Resolve-BaselineChangelogVersionLabel',
+        'Select-BaselineChangelogVersionSection'
     )
     foreach ($functionName in $helperFunctionNames)
     {
@@ -76,10 +78,73 @@ Describe 'Documentation viewer wiring' {
         $script:DialogHelpersContent | Should -Match 'ReadAllText'
     }
 
-    It 'routes changelog and readme viewer fallbacks through Write-DebugSwallowedException' {
-        $script:DialogHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''DialogHelpers\.Show-ChangelogDialog\.SetGuiWindowChromeTheme'''
-        $script:DialogHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''DialogHelpers\.Show-ChangelogDialog\.ResolveCurrentChangelogVersion'''
-        $script:DialogHelpersContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''DialogHelpers\.Show-ReadmeDialog\.ApplyBlockFormatting'''
+    It 'routes changelog and readme viewer fallbacks through Write-SwallowedException' {
+        $script:DialogHelpersContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''DialogHelpers\.Show-ChangelogDialog\.SetGuiWindowChromeTheme'''
+        $script:DialogHelpersContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''DialogHelpers\.Show-ChangelogDialog\.ResolveCurrentChangelogVersion'''
+        $script:DialogHelpersContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''DialogHelpers\.Show-ReadmeDialog\.ApplyBlockFormatting'''
+    }
+
+    It 'normalizes display versions to exact changelog version labels' {
+        Resolve-BaselineChangelogVersionLabel -DisplayVersion '4.0.0' | Should -Be 'v4.0.0'
+        Resolve-BaselineChangelogVersionLabel -DisplayVersion 'v4.0.0-beta' | Should -Be 'v4.0.0-beta'
+        Resolve-BaselineChangelogVersionLabel -DisplayVersion 'v4.0.0 (beta)' | Should -Be 'v4.0.0-beta'
+    }
+
+    It 'selects only the exact matching release section from the changelog' {
+        $raw = @'
+# Full Change Log
+
+# v4.0.0-beta
+
+## Changed
+
+- Current beta change.
+
+## Fixed
+
+- Current beta fix.
+
+---
+
+## 3.1.0-beta | 2026-04-26
+
+### Changed
+
+- Old beta change.
+
+---
+
+## 3.0.0-beta | 2026-04-06
+
+### Fixed
+
+- Older beta fix.
+'@
+
+        $section = Select-BaselineChangelogVersionSection -Raw $raw -Version 'v4.0.0-beta'
+
+        $section | Should -Match '^# v4\.0\.0-beta'
+        $section | Should -Match 'Current beta change'
+        $section | Should -Match 'Current beta fix'
+        $section | Should -Not -Match '3\.1\.0-beta'
+        $section | Should -Not -Match 'Old beta change'
+    }
+
+    It 'does not match a stable version against a beta changelog section' {
+        $raw = @'
+# v4.0.0-beta
+
+- Beta-only change.
+
+---
+
+## 3.1.0-beta | 2026-04-26
+
+- Old change.
+'@
+
+        Select-BaselineChangelogVersionSection -Raw $raw -Version 'v4.0.0' |
+            Should -Be 'No changelog entry found for v4.0.0.'
     }
 
     It 'routes the Help menu changelog and documentation actions through themed dialogs instead of launching external apps' {
@@ -107,7 +172,7 @@ Describe 'Documentation viewer wiring' {
     It 'captures Set-ButtonChrome at module scope so menu-driven dialogs can theme their buttons' {
         $script:RegionGuiContent | Should -Match '\$Script:SetButtonChromeScript = \$null'
         $script:RegionGuiContent | Should -Match 'function Set-ButtonChrome'
-        $script:RegionGuiContent | Should -Match '\$Script:SetButtonChromeScript = \$\{function:Set-ButtonChrome\}'
+        $script:RegionGuiContent | Should -Match '\$Script:SetButtonChromeScript = \$\{function:Set-GuiButtonChrome\}'
     }
 
     It 'uses the module-captured button chrome helper in the README dialog callbacks' {

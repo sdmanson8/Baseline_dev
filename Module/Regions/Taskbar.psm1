@@ -5,11 +5,7 @@ using module ..\SharedHelpers.psm1
     .SYNOPSIS
     Ensure taskbar registry path.
 
-    
-.DESCRIPTION
-    
-Supports taskbar registry path handling inside Baseline.
-#>
+    #>
 
 function Ensure-TaskbarRegistryPath
 {
@@ -31,11 +27,7 @@ function Ensure-TaskbarRegistryPath
     .SYNOPSIS
     Runs news interests.
 
-    
-.DESCRIPTION
-    
-Supports news interests handling inside Baseline.
-#>
+    #>
 
 function NewsInterests
 {
@@ -111,11 +103,7 @@ function NewsInterests
     .SYNOPSIS
     Runs taskbar alignment.
 
-    
-.DESCRIPTION
-    
-Supports taskbar alignment handling inside Baseline.
-#>
+    #>
 
 function TaskbarAlignment
 {
@@ -179,11 +167,7 @@ function TaskbarAlignment
     .SYNOPSIS
     Runs taskbar widgets.
 
-    
-.DESCRIPTION
-    
-Supports taskbar widgets handling inside Baseline.
-#>
+    #>
 
 function TaskbarWidgets
 {
@@ -258,11 +242,7 @@ function TaskbarWidgets
     .SYNOPSIS
     Runs taskbar search.
 
-    
-.DESCRIPTION
-    
-Supports taskbar search handling inside Baseline.
-#>
+    #>
 
 function TaskbarSearch
 {
@@ -378,11 +358,7 @@ function TaskbarSearch
     .SYNOPSIS
     Runs search highlights.
 
-    
-.DESCRIPTION
-    
-Supports search highlights handling inside Baseline.
-#>
+    #>
 
 function SearchHighlights
 {
@@ -449,11 +425,7 @@ function SearchHighlights
     .SYNOPSIS
     Runs task view button.
 
-    
-.DESCRIPTION
-    
-Supports task view button handling inside Baseline.
-#>
+    #>
 
 function TaskViewButton
 {
@@ -522,11 +494,7 @@ function TaskViewButton
     .SYNOPSIS
     Runs taskbar combine.
 
-    
-.DESCRIPTION
-    
-Supports taskbar combine handling inside Baseline.
-#>
+    #>
 
 function TaskbarCombine
 {
@@ -618,11 +586,7 @@ function TaskbarCombine
     .SYNOPSIS
     Runs unpin taskbar shortcuts.
 
-    
-.DESCRIPTION
-    
-Supports unpin taskbar shortcuts handling inside Baseline.
-#>
+    #>
 
 function UnpinTaskbarShortcuts
 {
@@ -637,8 +601,25 @@ function UnpinTaskbarShortcuts
 
 	$TaskbarPinnedPath = Join-Path $env:AppData "Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
 	$IsARM64 = ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") -or
-		($env:PROCESSOR_ARCHITEW6432 -eq "ARM64") -or
-		([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq [System.Runtime.InteropServices.Architecture]::Arm64)
+		($env:PROCESSOR_ARCHITEW6432 -eq "ARM64")
+	if (-not $IsARM64)
+	{
+		try
+		{
+			$runtimeInfoType = [type]::GetType('System.Runtime.InteropServices.RuntimeInformation')
+			$architectureType = [type]::GetType('System.Runtime.InteropServices.Architecture')
+			if ($runtimeInfoType -and $architectureType)
+			{
+				$osArchitecture = $runtimeInfoType.GetProperty('OSArchitecture').GetValue($null, $null)
+				$arm64Architecture = [System.Enum]::Parse($architectureType, 'Arm64')
+				$IsARM64 = ($osArchitecture -eq $arm64Architecture)
+			}
+		}
+		catch
+		{
+			Write-SwallowedException -ErrorRecord $_ -Source 'Taskbar.OSArchitecture' -Severity Debug
+		}
+	}
 	$IsWindows10 = [System.Environment]::OSVersion.Version.Build -lt 22000
 	# ARM64 and Windows 10 already needed the STA-runspace path (original condition).
 	# AMD64 Windows 11 also needs it - direct COM shell verb calls silently do nothing on Win11 x64.
@@ -907,7 +888,7 @@ function UnpinTaskbarShortcuts
 		{
 			Stop-Process -Name "explorer" -Force -ErrorAction SilentlyContinue
 			Start-Sleep -Seconds 3
-			Start-Process "explorer.exe" -ErrorAction SilentlyContinue
+			[void](Invoke-UserLaunch -FilePath "explorer.exe" -Description "Explorer shell restart after taskbar changes")
 			# Wait for Explorer to be ready
 			for ($w = 0; $w -lt 20; $w++)
 			{
@@ -935,11 +916,7 @@ function UnpinTaskbarShortcuts
     .SYNOPSIS
     Runs taskbar end task.
 
-    
-.DESCRIPTION
-    
-Supports taskbar end task handling inside Baseline.
-#>
+    #>
 
 function TaskbarEndTask
 {
@@ -1004,11 +981,7 @@ function TaskbarEndTask
     .SYNOPSIS
     Runs meet now.
 
-    
-.DESCRIPTION
-    
-Supports meet now handling inside Baseline.
-#>
+    #>
 
 function MeetNow
 {
@@ -1074,5 +1047,17 @@ function MeetNow
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'Ensure-TaskbarRegistryPath',
+    'MeetNow',
+    'NewsInterests',
+    'SearchHighlights',
+    'TaskbarAlignment',
+    'TaskbarCombine',
+    'TaskbarEndTask',
+    'TaskbarSearch',
+    'TaskbarWidgets',
+    'TaskViewButton',
+    'UnpinTaskbarShortcuts'
+)
+Export-ModuleMember -Function $ExportedFunctions

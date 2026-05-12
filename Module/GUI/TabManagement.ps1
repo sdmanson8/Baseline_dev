@@ -1,8 +1,7 @@
-# Primary tab visual management, hover effects, search results tab lifecycle, localized tab headers
+﻿# Primary tab visual management, hover effects, search results tab lifecycle, localized tab headers
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-LocalizedTabHeader.
 	#>
 
 	function Get-LocalizedTabHeader
@@ -30,7 +29,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-PrimaryTabVisibleTweakCount.
 	#>
 
 	function Get-PrimaryTabVisibleTweakCount
@@ -72,7 +70,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-PrimaryTabHeaders.
 	#>
 
 	function Update-PrimaryTabHeaders
@@ -95,7 +92,7 @@
 			{
 				if (Get-Command -Name 'Get-BaselineStartupEntries' -CommandType Function -ErrorAction SilentlyContinue)
 				{
-					try { $tweakCount = @(Get-BaselineStartupEntries).Count } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'TabManagement.Get-PrimaryTabItemHeaderText.CustomizationsStartupEntries'; $tweakCount = 0 }
+					try { $tweakCount = @(Get-BaselineStartupEntries).Count } catch { Write-SwallowedException -ErrorRecord $_ -Source 'TabManagement.Get-PrimaryTabItemHeaderText.CustomizationsStartupEntries'; $tweakCount = 0 }
 				}
 			}
 			else
@@ -119,7 +116,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-PrimaryTabVisuals.
 	#>
 
 	function Update-PrimaryTabVisuals
@@ -153,7 +149,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Add-PrimaryTabHoverEffects.
 	#>
 
 	function Add-PrimaryTabHoverEffects
@@ -208,7 +203,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Get-PrimaryTabItem.
 	#>
 
 	function Get-PrimaryTabItem
@@ -224,10 +218,6 @@
 		return $null
 	}
 
-	<#
-	    .SYNOPSIS
-	    Internal function .
-	#>
 	function Initialize-SearchResultsTab
 	{
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
@@ -239,7 +229,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Remove-SearchResultsTab.
 	#>
 
 	function Remove-SearchResultsTab
@@ -258,7 +247,6 @@
 
 	<#
 	    .SYNOPSIS
-	    Internal function Update-SearchResultsTabState.
 	#>
 
 	function Update-SearchResultsTabState

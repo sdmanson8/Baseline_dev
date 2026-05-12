@@ -1,10 +1,15 @@
 ﻿Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     # Json helpers must load first — RemoteTarget calls ConvertFrom-BaselineJson.
     . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Json.Helpers.ps1')
 
-    function Write-DebugSwallowedException
+    function Write-SwallowedException
     {
         param (
             [object]$ErrorRecord,
@@ -14,8 +19,8 @@ BeforeAll {
 
     $script:RemoteTargetHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/RemoteTarget.Helpers.ps1'
     $script:SharedHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers.psm1'
-    $script:RemoteTargetHelpersContent = Get-Content -LiteralPath $script:RemoteTargetHelpersPath -Raw -Encoding UTF8
-    $script:SharedHelpersContent = Get-Content -LiteralPath $script:SharedHelpersPath -Raw -Encoding UTF8
+    $script:RemoteTargetHelpersContent = Get-BaselineTestSourceText -Path $script:RemoteTargetHelpersPath
+    $script:SharedHelpersContent = Get-BaselineTestSourceText -Path $script:SharedHelpersPath
     . $script:RemoteTargetHelpersPath
 
     $script:ResumeTempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('BaselineResumeTests_' + [guid]::NewGuid().ToString('N'))

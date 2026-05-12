@@ -1,9 +1,5 @@
-# AppsModule split file loaded by Module\GUI\AppsModule.ps1.
+﻿# AppsModule split file loaded by Module\GUI\AppsModule.ps1.
 
-<#
-    .SYNOPSIS
-    Internal function .
-#>
 function Get-ApplicationEntityType
 {
 	[CmdletBinding()]
@@ -104,7 +100,6 @@ function Get-ApplicationEntityType
 
 <#
     .SYNOPSIS
-    Internal function Get-AppsCatalogItemsBySearchStatusAndSourceFilters.
 #>
 
 function Get-AppsCatalogItemsBySearchStatusAndSourceFilters
@@ -146,7 +141,7 @@ function Get-AppsCatalogItemsBySearchStatusAndSourceFilters
 			$wingetUpdateCache = $installedCacheSnapshot.WinGetUpdates
 			$chocolateyUpdateCache = $installedCacheSnapshot.ChocolateyUpdates
 		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Get-ApplicationCacheSnapshot.CacheSnapshot' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Get-ApplicationCacheSnapshot.CacheSnapshot' }
 	}
 
 	$activeSourceFilter = if ([string]::IsNullOrWhiteSpace([string]$Script:AppsSourceFilter)) { 'All' } else { [string]$Script:AppsSourceFilter.Trim() }
@@ -215,7 +210,6 @@ function Get-AppsCatalogItemsBySearchStatusAndSourceFilters
 
 <#
     .SYNOPSIS
-    Internal function Test-ApplicationExecutionSupport.
 #>
 
 function Test-ApplicationExecutionSupport
@@ -321,7 +315,6 @@ function Test-ApplicationExecutionSupport
 
 <#
     .SYNOPSIS
-    Internal function Get-ApplicationCatalogIdentityKey.
 #>
 
 function Get-ApplicationCatalogIdentityKey
@@ -387,7 +380,6 @@ function Get-ApplicationCatalogIdentityKey
 
 <#
     .SYNOPSIS
-    Internal function Get-ApplicationExecutionState.
 #>
 
 function Get-ApplicationExecutionState
@@ -704,7 +696,6 @@ function Get-ApplicationExecutionState
 
 <#
     .SYNOPSIS
-    Internal function Get-ApplicationCacheSnapshot.
 #>
 
 function Get-ApplicationCacheSnapshot
@@ -752,7 +743,6 @@ function Get-ApplicationCacheSnapshot
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineApplicationsCatalog.
 #>
 
 function Get-AppsDefaultCatalogCategory
@@ -919,11 +909,11 @@ function Get-BaselineApplicationsCatalog
 
 	if (Get-Command -Name 'Test-WinGetAvailable' -CommandType Function -ErrorAction SilentlyContinue)
 	{
-		try { $null = Test-WinGetAvailable -Refresh } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Get-BaselineApplicationsCatalog.TestWinGetAvailable' }
+		try { $null = Test-WinGetAvailable -Refresh } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Get-BaselineApplicationsCatalog.TestWinGetAvailable' }
 	}
 	if (Get-Command -Name 'Test-ChocolateyAvailable' -CommandType Function -ErrorAction SilentlyContinue)
 	{
-		try { $null = Test-ChocolateyAvailable -Refresh } catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Get-BaselineApplicationsCatalog.TestChocolateyAvailable' }
+		try { $null = Test-ChocolateyAvailable -Refresh } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Get-BaselineApplicationsCatalog.TestChocolateyAvailable' }
 	}
 
 	$effectiveCategory = Resolve-AppsCatalogCategory -Category $Category
@@ -1032,9 +1022,9 @@ function Get-BaselineApplicationsCatalog
 	}
 	catch
 	{
-		if (Get-Command -Name 'Write-DebugSwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			Write-DebugSwallowedException -ErrorRecord $_ -Source 'AppsModule.Catalog.UserAppsLoad'
+			Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Catalog.UserAppsLoad'
 		}
 		else { $null = $_ }
 	}

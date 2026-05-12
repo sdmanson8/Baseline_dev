@@ -1,6 +1,11 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $script:RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
     $script:LauncherProgramPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Launcher/Program.cs'))
     $script:LauncherProjectPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Launcher/RunLauncher.csproj'))
@@ -13,25 +18,25 @@ BeforeAll {
     $script:TelemetryServicesPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Module/Regions/PrivacyTelemetry/PrivacyTelemetry.TelemetryServices.psm1'))
     $script:BuildLauncherPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../Tools/Build-Launcher.ps1'))
 
-    $script:LauncherProgramContent = Get-Content -LiteralPath $script:LauncherProgramPath -Raw -Encoding UTF8
-    $script:LauncherProjectContent = Get-Content -LiteralPath $script:LauncherProjectPath -Raw -Encoding UTF8
-    $script:LauncherManifestContent = Get-Content -LiteralPath $script:LauncherManifestPath -Raw -Encoding UTF8
-    $script:LauncherSurfaceContent = Get-Content -LiteralPath $script:LauncherSurfacePath -Raw -Encoding UTF8
-    $script:BootstrapContent = Get-Content -LiteralPath $script:BootstrapPath -Raw -Encoding UTF8
-    $script:InitialActionsContent = Get-Content -LiteralPath $script:InitialActionsPath -Raw -Encoding UTF8
-    $script:UwpAppsContent = Get-Content -LiteralPath $script:UwpAppsPath -Raw -Encoding UTF8
-    $script:SystemWindowsFeaturesContent = Get-Content -LiteralPath $script:SystemWindowsFeaturesPath -Raw -Encoding UTF8
-    $script:TelemetryServicesContent = Get-Content -LiteralPath $script:TelemetryServicesPath -Raw -Encoding UTF8
-    $script:BuildLauncherContent = Get-Content -LiteralPath $script:BuildLauncherPath -Raw -Encoding UTF8
+    $script:LauncherProgramContent = Get-BaselineTestSourceText -Path $script:LauncherProgramPath
+    $script:LauncherProjectContent = Get-BaselineTestSourceText -Path $script:LauncherProjectPath
+    $script:LauncherManifestContent = Get-BaselineTestSourceText -Path $script:LauncherManifestPath
+    $script:LauncherSurfaceContent = Get-BaselineTestSourceText -Path $script:LauncherSurfacePath
+    $script:BootstrapContent = Get-BaselineTestSourceText -Path $script:BootstrapPath
+    $script:InitialActionsContent = Get-BaselineTestSourceText -Path $script:InitialActionsPath
+    $script:UwpAppsContent = Get-BaselineTestSourceText -Path $script:UwpAppsPath
+    $script:SystemWindowsFeaturesContent = Get-BaselineTestSourceText -Path $script:SystemWindowsFeaturesPath
+    $script:TelemetryServicesContent = Get-BaselineTestSourceText -Path $script:TelemetryServicesPath
+    $script:BuildLauncherContent = Get-BaselineTestSourceText -Path $script:BuildLauncherPath
 }
 
 Describe 'Launcher identity host' {
     It 'hosts Windows PowerShell in-process instead of shelling out to powershell.exe' {
-        $script:LauncherProgramContent | Should -Match 'RunspaceFactory\.CreateRunspace\(host\)'
+        $script:LauncherProgramContent | Should -Match 'RunspaceFactory\.CreateRunspace\(host, initialSessionState\)'
         $script:LauncherProgramContent | Should -Match 'PowerShell\.Create\(\)'
         $script:LauncherProgramContent | Should -Match 'BaselinePowerShellHost'
         $script:LauncherProgramContent | Should -Not -Match 'ProcessStartInfo'
-        $script:LauncherProgramContent | Should -Not -Match 'powershell\.exe'
+        $script:LauncherProgramContent | Should -Not -Match 'Process\.Start'
     }
 
     It 'keys the hydrated runtime cache by build identity, version, and launcher fingerprint' {
@@ -40,17 +45,35 @@ Describe 'Launcher identity host' {
         $script:LauncherProgramContent | Should -Match 'RuntimeCacheSchema\s*=\s*"4"'
         $script:LauncherProgramContent | Should -Match 'Path\.Combine\(cacheRoot, version, RuntimeCacheSchema, buildId, launcherFingerprint\)'
         $script:LauncherProgramContent | Should -Match 'GetLauncherCacheFingerprint\(launcherPath\)'
+        $script:LauncherProgramContent | Should -Match 'GetRestrictedRuntimeCacheRoot\(\)'
+        $script:LauncherProgramContent | Should -Match 'Environment\.SpecialFolder\.CommonApplicationData'
+        $script:LauncherProgramContent | Should -Match 'EnsureRestrictedDirectory\(cacheRoot\)'
+        $script:LauncherProgramContent | Should -Match 'WellKnownSidType\.BuiltinAdministratorsSid'
+        $script:LauncherProgramContent | Should -Match 'WellKnownSidType\.LocalSystemSid'
         $script:LauncherProgramContent | Should -Match 'SHA256\.Create\(\)'
         $script:LauncherProgramContent | Should -Match 'sentinelLines\.Length != 4'
     }
 
     It 'embeds shared helper wrapper modules and validates the full payload before cache reuse' {
+        $script:LauncherProjectContent | Should -Match '<EmbeddedResource Include="\.\./Bootstrap/Helpers/\*\.ps1">'
+        $script:LauncherSurfaceContent | Should -Match '"Bootstrap/Helpers/\*\.ps1"'
+        $script:LauncherProjectContent | Should -Match 'BaselinePayload/Bootstrap/Helpers/%\(Filename\)%\(Extension\)'
+        $script:LauncherProjectContent | Should -Match '<EmbeddedResource Include="\.\./Module/SharedHelpers/\*\*/\*\.ps1">'
+        $script:LauncherSurfaceContent | Should -Match '"Module/SharedHelpers/\*\*/\*\.ps1"'
+        $script:LauncherProjectContent | Should -Match '<EmbeddedResource Include="\.\./Module/GUIExecution/\*\*/\*\.ps1">'
+        $script:LauncherSurfaceContent | Should -Match '"Module/GUIExecution/\*\*/\*\.ps1"'
         $script:LauncherProjectContent | Should -Match '<EmbeddedResource Include="\.\./Module/SharedHelperModules/\*\.psm1">'
         $script:LauncherSurfaceContent | Should -Match '"Module/SharedHelperModules/\*\.psm1"'
         $script:LauncherProjectContent | Should -Match 'BaselinePayload/Module/SharedHelperModules/%\(Filename\)%\(Extension\)'
+        $script:LauncherProjectContent | Should -Match '<EmbeddedResource Include="\.\./Module/integrity\.manifest\.json">'
+        $script:LauncherSurfaceContent | Should -Match '"Module/integrity\.manifest\.json"'
         $script:LauncherProgramContent | Should -Match 'GetEmbeddedPayloadResourceNames\(asm\)'
-        $script:LauncherProgramContent | Should -Match 'Select\(GetPayloadRelativePath\)'
-        $script:LauncherProgramContent | Should -Match 'Path\.Combine\(root, relativePath\)'
+        $script:LauncherProgramContent | Should -Match 'GetEmbeddedPayloadManifest\(asm\)'
+        $script:LauncherProgramContent | Should -Match 'ComputeHydratedResourceSha256\(asm, resourceName, relativePath\)'
+        $script:LauncherProgramContent | Should -Match 'HydrationManifestMatches\(root, payloadManifest\)'
+        $script:LauncherProgramContent | Should -Match 'FileMatchesSha256\(filePath, payload\.Sha256\)'
+        $script:LauncherProgramContent | Should -Match 'WriteHydrationManifest\(staging, payloadManifest\)'
+        $script:LauncherProgramContent | Should -Match 'HydrationManifest\s*=\s*"\.baseline-runtime-manifest\.sha256"'
         $script:LauncherProgramContent | Should -Match 'Path\.Combine\(root, HydrationSentinel\)'
     }
 
@@ -59,7 +82,7 @@ Describe 'Launcher identity host' {
         $script:LauncherProgramContent | Should -Match 'RuntimeCacheFolderName\s*=\s*"RC"'
         $script:LauncherProgramContent | Should -Match 'StagingSuffix\s*=\s*"\.s"'
 
-        $runtimeRoot = 'C:\Users\Administrator\AppData\Local\Temp\Baseline\RC\4.0.0\4\00000000000000000000000000000000.s\000000000000'
+        $runtimeRoot = 'C:\ProgramData\Baseline\RuntimeCache\RC\4.0.0\4\00000000000000000000000000000000.s\000000000000'
         $payloadRoots = @(
             @{ Root = Join-Path $script:RepoRoot 'Bootstrap'; Prefix = 'Bootstrap\' },
             @{ Root = Join-Path $script:RepoRoot 'Module'; Prefix = 'Module\' },
@@ -101,6 +124,10 @@ Describe 'Launcher identity host' {
         $script:LauncherProgramContent | Should -Match 'runspace\.ApartmentState = ApartmentState\.STA;'
         $script:LauncherProgramContent | Should -Match 'runspace\.ThreadOptions = PSThreadOptions\.ReuseThread;'
         $script:LauncherProgramContent | Should -Match 'Environment\.SetEnvironmentVariable\(EmbeddedHostVar, "1", EnvironmentVariableTarget\.Process\);'
+        $script:LauncherProgramContent | Should -Match 'PSExecutionPolicyPreference'
+        $script:LauncherProgramContent | Should -Match 'InitialSessionState\.CreateDefault\(\)'
+        $script:LauncherProgramContent | Should -Match 'initialSessionState\.ExecutionPolicy = Microsoft\.PowerShell\.ExecutionPolicy\.Bypass;'
+        $script:LauncherProgramContent | Should -Match 'RunspaceFactory\.CreateRunspace\(host, initialSessionState\)'
     }
 
     It 'does not apply the default PowerShell timeout to the interactive GUI path' {
@@ -113,6 +140,22 @@ Describe 'Launcher identity host' {
         $script:LauncherProgramContent | Should -Match '"Functions"'
         $script:LauncherProgramContent | Should -Match '"Preset"'
         $script:LauncherProgramContent | Should -Match '"TargetComputer"'
+    }
+
+    It 'invokes the embedded bootstrap with named command-line parameters preserved' {
+        $script:LauncherProgramContent | Should -Match 'powershell\.AddCommand\(launcherScript\)'
+        $script:LauncherProgramContent | Should -Match 'BindPowerShellInvocationArguments\(powershell, normalizedArgs\)'
+        $script:LauncherProgramContent | Should -Match 'AddBoundPowerShellParameter\(powershell, canonicalName, values\.ToArray\(\)\)'
+        $script:LauncherProgramContent | Should -Match 'powershell\.AddParameter\(canonicalName'
+        $script:LauncherProgramContent | Should -Match 'powershell\.AddArgument\(argument\)'
+        $script:LauncherProgramContent | Should -Not -Match 'BuildPowerShellInvocationScript'
+        $script:LauncherProgramContent | Should -Not -Match 'AddScript'
+        $script:LauncherProgramContent | Should -Not -Match '@BaselineLauncherArguments'
+        $script:LauncherProgramContent | Should -Match 'BootstrapSwitchParameterNames'
+        $script:LauncherProgramContent | Should -Match '"ListPresets"'
+        $script:LauncherProgramContent | Should -Not -Match 'QuotePowerShellStringLiteral'
+        $script:LauncherProgramContent | Should -Match 'TrySplitPowerShellParameterAssignment'
+        $script:LauncherProgramContent | Should -Match 'ParseSwitchValue'
     }
 
     It 'checks for the interactive GUI path before honoring timeout overrides' {

@@ -1,9 +1,14 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $filePath = Join-Path $PSScriptRoot '../../Module/GUI/DetectScriptblocks.ps1'
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
-    $script:DetectScriptblocksContent = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8
+    $script:DetectScriptblocksContent = Get-BaselineTestSourceText -Path $filePath
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
         Invoke-Expression $fn.Extent.Text
@@ -29,7 +34,7 @@ Describe 'Invoke-GuiDetectScriptblock' {
         $result | Should -Be $true
     }
 
-    It 'routes expected detection catches through Write-DebugSwallowedException and keeps Defender probes quiet' {
+    It 'routes expected detection catches through Write-SwallowedException and keeps Defender probes quiet' {
         $script:DetectScriptblocksContent | Should -Match 'DetectScriptblocks\.RegistryBackup\.LoadAutoRegBackupTask'
         $script:DetectScriptblocksContent | Should -Match 'function Get-GuiDetectMpPreference'
         $script:DetectScriptblocksContent | Should -Not -Match 'DetectScriptblocks\.NetworkProtection\.LoadMpPreference'

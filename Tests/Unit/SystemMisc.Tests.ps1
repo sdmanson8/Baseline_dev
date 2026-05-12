@@ -1,8 +1,13 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $script:SystemMiscPath = Join-Path $PSScriptRoot '../../Module/Regions/System/System.SystemMisc.psm1'
-    $script:SystemMiscContent = Get-Content -LiteralPath $script:SystemMiscPath -Raw -Encoding UTF8
+    $script:SystemMiscContent = Get-BaselineTestSourceText -Path $script:SystemMiscPath
 }
 
 Describe 'System miscellaneous cleanup' {

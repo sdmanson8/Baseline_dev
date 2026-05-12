@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Bootstrap startup helpers for Baseline.
 
@@ -9,7 +9,6 @@
 
 <#
     .SYNOPSIS
-    Internal function Get-BaselineBootstrapSessionStatePath.
 #>
 
 function Get-BaselineBootstrapSessionStatePath
@@ -35,7 +34,6 @@ function Get-BaselineBootstrapSessionStatePath
 
 <#
     .SYNOPSIS
-    Internal function Resolve-BaselineBootstrapUICulture.
 #>
 
 function Resolve-BaselineBootstrapUICulture
@@ -136,7 +134,6 @@ function Resolve-BaselineCurrentVersion
 
 <#
     .SYNOPSIS
-    Internal function Import-BaselineIncludedTweakLibraries.
 #>
 
 function Import-BaselineIncludedTweakLibraries
@@ -193,7 +190,6 @@ function Import-BaselineIncludedTweakLibraries
 
 <#
     .SYNOPSIS
-    Internal function Get-ErrorDetailText.
 #>
 
 function Get-ErrorDetailText
@@ -225,7 +221,6 @@ function Get-ErrorDetailText
 
 <#
     .SYNOPSIS
-    Internal function Get-HeadlessCommandInvocation.
 #>
 
 function Get-HeadlessCommandInvocation
@@ -283,6 +278,53 @@ function Get-HeadlessCommandInvocation
 		PositionalArguments = $positionalArguments.ToArray()
 		DisplayArguments = $displayArguments.ToArray()
 	}
+}
+
+function ConvertTo-HeadlessCommandArgumentLiteral
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param
+	(
+		[AllowNull()]
+		[object]
+		$Value
+	)
+
+	if ($null -eq $Value)
+	{
+		return '$null'
+	}
+
+	if ($Value -is [bool])
+	{
+		if ([bool]$Value) { return '$true' }
+		return '$false'
+	}
+
+	if ($Value -is [System.Array])
+	{
+		$items = @($Value | ForEach-Object { ConvertTo-HeadlessCommandArgumentLiteral -Value $_ })
+		return ('@({0})' -f ($items -join ', '))
+	}
+
+	if ($Value -is [byte] -or
+		$Value -is [sbyte] -or
+		$Value -is [int16] -or
+		$Value -is [uint16] -or
+		$Value -is [int] -or
+		$Value -is [uint32] -or
+		$Value -is [long] -or
+		$Value -is [uint64] -or
+		$Value -is [single] -or
+		$Value -is [double] -or
+		$Value -is [decimal])
+	{
+		return ([System.Convert]::ToString($Value, [System.Globalization.CultureInfo]::InvariantCulture))
+	}
+
+	$text = [string]$Value
+	return ("'{0}'" -f ($text -replace "'", "''"))
 }
 
 <#

@@ -1,6 +1,7 @@
 ﻿using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
+
 # Appx cmdlets fail with "The type initializer for '<Module>' threw an exception"
 # in the minimal embedded runspace the Baseline launcher creates. Fall back to the
 # WinRT PackageManager so presence checks still work. Returns $null when neither
@@ -104,76 +105,15 @@ function InitialActions
 	$Script:CompilerParameters = [System.CodeDom.Compiler.CompilerParameters]::new("System.dll")
 	$Script:CompilerParameters.TempFiles = [System.CodeDom.Compiler.TempFileCollection]::new($env:TEMP, $false)
 	$Script:CompilerParameters.GenerateInMemory = $true
-	$Signature = @{
-		Namespace          = "WinAPI"
-		Name               = "GetStrings"
-		Language           = "CSharp"
-		UsingNamespace     = "System.Text"
-		CompilerParameters = $CompilerParameters
-		MemberDefinition   = @"
-[DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-public static extern IntPtr GetModuleHandle(string lpModuleName);
-
-[DllImport("user32.dll", CharSet = CharSet.Auto)]
-internal static extern int LoadString(IntPtr hInstance, uint uID, StringBuilder lpBuffer, int nBufferMax);
-
-public static string GetString(uint strId)
-{
-	IntPtr intPtr = GetModuleHandle("shell32.dll");
-	StringBuilder sb = new StringBuilder(255);
-	LoadString(intPtr, strId, sb, sb.Capacity);
-	return sb.ToString();
-}
-
-// Get string from other DLLs
-[DllImport("shlwapi.dll", CharSet=CharSet.Unicode)]
-private static extern int SHLoadIndirectString(string pszSource, StringBuilder pszOutBuf, int cchOutBuf, string ppvReserved);
-
-public static string GetIndirectString(string indirectString)
-{
-	try
-	{
-		int returnValue;
-		StringBuilder lptStr = new StringBuilder(1024);
-		returnValue = SHLoadIndirectString(indirectString, lptStr, 1024, null);
-
-		if (returnValue == 0)
-		{
-			return lptStr.ToString();
-		}
-		else
-		{
-			return null;
-			// return "SHLoadIndirectString Failure: " + returnValue;
-		}
-	}
-	catch // (Exception ex)
-	{
-		return null;
-		// return "Exception Message: " + ex.Message;
-	}
-}
-"@
-	}
+			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/ShellStringWinApi.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\ShellStringWinApi.ps1')
 	if (-not ("WinAPI.GetStrings" -as [type]))
 	{
 		Add-Type @Signature
 	}
 
-	$Signature = @{
-		Namespace          = "WinAPI"
-		Name               = "ForegroundWindow"
-		Language           = "CSharp"
-		CompilerParameters = $CompilerParameters
-		MemberDefinition   = @"
-[DllImport("user32.dll")]
-public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
-
-[DllImport("user32.dll")]
-[return: MarshalAs(UnmanagedType.Bool)]
-public static extern bool SetForegroundWindow(IntPtr hWnd);
-"@
-	}
+			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/ForegroundWindowWinApi.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\ForegroundWindowWinApi.ps1')
 
 	if (-not ("WinAPI.ForegroundWindow" -as [type]))
 	{
@@ -209,54 +149,11 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 
 	# Checking whether Windows was broken by 3rd party harmful tweakers, trojans, or custom Windows images
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingWindowsIntegrity' -Fallback 'Checking whether Windows was broken by 3rd party harmful tweakers, trojans, or custom Windows images')
-	$Tweakers = @{
-		# https://github.com/Sycnex/Windows10Debloater
-		Windows10Debloater  = "$env:SystemDrive\Temp\Windows10Debloater"
-		# https://github.com/Fs00/Win10BloatRemover
-		Win10BloatRemover   = "$env:TEMP\.net\Win10BloatRemover"
-		# https://github.com/arcadesdude/BRU
-		"Bloatware Removal" = "$env:SystemDrive\BRU\Bloatware-Removal*.log"
-		# https://www.youtube.com/GHOSTSPECTRE
-		"Ghost Toolbox"     = "$env:SystemRoot\System32\migwiz\dlmanifests\run.ghost.cmd"
-		# https://win10tweaker.ru
-		"Win 10 Tweaker"    = "HKCU:\Software\Win 10 Tweaker"
-		# https://boosterx.ru
-		BoosterX            = "$env:ProgramFiles\GameModeX\GameModeX.exe"
-		# https://forum.ru-board.com/topic.cgi?forum=5&topic=14285&start=400#11
-		"Defender Control"  = "$env:APPDATA\Defender Control"
-		# https://forum.ru-board.com/topic.cgi?forum=5&topic=14285&start=260#12
-		"Defender Switch"   = "$env:ProgramData\DSW"
-		# https://revi.cc/revios/download
-		"Revision Tool"     = "${env:ProgramFiles(x86)}\Revision Tool"
-		# https://www.youtube.com/watch?v=L0cj_I6OF2o
-		"WinterOS Tweaker"  = "$env:SystemRoot\WinterOS*"
-		# https://github.com/ThePCDuke/WinCry
-		WinCry              = "$env:SystemRoot\TempCleaner.exe"
-		# https://www.youtube.com/watch?v=5NBqbUUB1Pk
-		WinClean             = "$env:ProgramFiles\WinClean Plus Apps"
-		# https://github.com/Atlas-OS/Atlas
-		AtlasOS              = "$env:SystemRoot\AtlasModules"
-		# https://x.com/NPKirbyy
-		KirbyOS              = "$env:ProgramData\KirbyOS"
-		# https://pc-np.com
-		PCNP                 = "HKCU:\Software\PCNP"
-	}
+			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/KnownTweakerDetectionMap.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\KnownTweakerDetectionMap.ps1')
 	$DetectedTweakers = New-Object System.Collections.Generic.List[string]
-	foreach ($Tweaker in $Tweakers.Keys)
-	{
-		if (Test-Path -Path $Tweakers[$Tweaker])
-		{
-			[void]$DetectedTweakers.Add([string]$Tweaker)
-			if ($Tweakers[$Tweaker] -eq "HKCU:\Software\Win 10 Tweaker")
-			{
-				LogWarning (Get-BaselineBilingualString -Key 'Win10TweakerWarning' -Fallback 'Windows has been infected with a trojan via a Win 10 Tweaker backdoor. Reinstall Windows using only a genuine ISO image.')
-			}
-			else
-			{
-				LogWarning (Get-BaselineBilingualString -Key 'TweakerWarning' -Fallback 'The Windows stability may have been compromised by using {0}. Reinstall Windows using only a genuine ISO image.' -FormatArgs @($Tweaker))
-			}
-		}
-	}
+			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/KnownTweakerWarnings.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\KnownTweakerWarnings.ps1')
 
 		# Checking whether Windows was broken by 3rd party harmful tweakers, trojans, or custom Windows images
 		# These probes are advisory only and must never block startup on restricted or unsupported systems.
@@ -273,18 +170,8 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 			}
 		}
 
-		$InvokeOptionalProbe = {
-			param([scriptblock]$ScriptBlock)
-
-			try
-			{
-				& $ScriptBlock
-			}
-			catch
-			{
-				$null
-			}
-		}
+				# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/OptionalProbeInvoker.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\OptionalProbeInvoker.ps1')
 
 		$AutoSettingsPS = & $InvokeOptionalProbe {
 			Get-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows Defender\Exclusions\Paths" | Where-Object -FilterScript {$_.Property -match "AutoSettingsPS"}
@@ -311,24 +198,8 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 			Get-Volume | Where-Object -FilterScript {$_.FileSystemLabel -eq "ChlorideOS"}
 		}
 
-		$Tweakers = @{
-			# https://forum.ru-board.com/topic.cgi?forum=62&topic=30617&start=1600#14
-			AutoSettingsPS   = "$AutoSettingsPS"
-			# Flibustier custom Windows image
-			Flibustier       = "$Flibustier"
-			# https://github.com/builtbybel/Winpilot
-			Winpilot         = "$Winpilot"
-			# https://github.com/builtbybel/Winpilot
-			Bloatynosy       = "$Bloatynosy"
-			# https://github.com/builtbybel/xd-AntiSpy
-			"xd-AntiSpy"     = "$XdAntiSpy"
-			# https://forum.ru-board.com/topic.cgi?forum=5&topic=50519
-			"Modern Tweaker" = "$ModernTweaker"
-			# https://discord.com/invite/kernelos
-			KernelOS         = "$KernelOS"
-			# https://discord.com/invite/9ZCgxhaYV6
-			ChlorideOS       = "$ChlorideOS"
-		}
+				# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/AdditionalTweakerDetectionMap.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\AdditionalTweakerDetectionMap.ps1')
 	foreach ($Tweaker in $Tweakers.Keys)
 	{
 		if ($Tweakers[$Tweaker])
@@ -347,203 +218,17 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 		}
 	}
 
-	if ($IsAdmin)
-	{
-		# Remove harmful blocked DNS domains list from https://github.com/schrebra/Windows.10.DNS.Block.List
-		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_RemovingBlockedDnsDomainsList' -Fallback 'Remove harmful blocked DNS domains list from {0}' -FormatArgs @('https://github.com/schrebra/Windows.10.DNS.Block.List'))
-		Get-NetFirewallRule -DisplayName Block.MSFT* -ErrorAction Ignore | Remove-NetFirewallRule | Out-Null
-
-		# Remove firewalled IP addresses that block Microsoft recourses added by harmful tweakers
-		# https://wpd.app
-		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_RemovingBlockedMicrosoftIpAddresses' -Fallback 'Remove firewalled IP addresses that block Microsoft recourses added by harmful tweakers')
-		Get-NetFirewallRule -DisplayName "Blocker MicrosoftTelemetry*", "Blocker MicrosoftExtra*", "windowsSpyBlocker*" -ErrorAction Ignore | Remove-NetFirewallRule | Out-Null
-
-		# Remove IP addresses from hosts file that block Microsoft resources added by WindowsSpyBlocker
-		# https://github.com/crazy-max/WindowsSpyBlocker
-		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_RemovingHostsEntries' -Fallback 'Remove IP addresses from hosts file that block Microsoft resources added by WindowsSpyBlocker')
-		try
-		{
-			$HostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
-			$HostsContent = Get-Content -Path $HostsPath -Encoding Default -Force
-			$ActiveHostsEntries = @(
-				$HostsContent | Where-Object {
-					$Line = $_.Trim()
-					$Line -and (-not $Line.StartsWith("#"))
-				}
-			)
-
-			if ($ActiveHostsEntries.Count -eq 0)
-			{
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_NoActiveHostsEntries' -Fallback 'No active hosts entries detected; skipping WindowsSpyBlocker hosts cleanup lookup.')
-			}
-			else
-			{
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingGitHubAlive' -Fallback 'Checking whether {0} is alive' -FormatArgs @('https://github.com'))
-				$Parameters = @{
-					Uri              = "https://github.com"
-					Method           = "Head"
-					DisableKeepAlive = $true
-					UseBasicParsing  = $true
-					TimeoutSec       = 15
-				}
-				(Invoke-WebRequest @Parameters).StatusDescription | Out-Null
-
-				Clear-Variable -Name IPArray -ErrorAction Ignore
-
-				# https://github.com/crazy-max/WindowsSpyBlocker/tree/master/data/hosts
-				$Parameters = @{
-					Uri             = "https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/extra.txt"
-					UseBasicParsing = $true
-					TimeoutSec      = 15
-				}
-				$extra = (Invoke-WebRequest @Parameters).Content
-
-			$Parameters = @{
-				Uri             = "https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/extra_v6.txt"
-				UseBasicParsing = $true
-				TimeoutSec      = 15
-			}
-			$extra_v6 = (Invoke-WebRequest @Parameters).Content
-
-			$Parameters = @{
-				Uri             = "https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/spy.txt"
-				UseBasicParsing = $true
-				TimeoutSec      = 15
-			}
-			$spy = (Invoke-WebRequest @Parameters).Content
-
-			$Parameters = @{
-				Uri             = "https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/spy_v6.txt"
-				UseBasicParsing = $true
-				TimeoutSec      = 15
-			}
-			$spy_v6 = (Invoke-WebRequest @Parameters).Content
-
-			$Parameters = @{
-				Uri             = "https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/update.txt"
-				UseBasicParsing = $true
-				TimeoutSec      = 15
-			}
-			$update = (Invoke-WebRequest @Parameters).Content
-
-			$Parameters = @{
-				Uri             = "https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/update_v6.txt"
-				UseBasicParsing = $true
-				TimeoutSec      = 15
-			}
-			$update_v6 = (Invoke-WebRequest @Parameters).Content
-
-			$IPArray = Get-BaselineHostsCandidateEntries -Content (@($extra, $extra_v6, $spy, $spy_v6, $update, $update_v6) -split "`r?`n")
-
-			# Validate downloaded hosts entries for integrity
-			$TotalLines = @($IPArray).Count
-			$InvalidLines = @($IPArray | Where-Object { -not (Test-BaselineHostsEntry -Line $_) })
-			$ValidLines = @($IPArray | Where-Object { Test-BaselineHostsEntry -Line $_ })
-
-			if ($InvalidLines.Count -gt 0)
-			{
-				foreach ($BadLine in $InvalidLines)
-				{
-					LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_InvalidHostsEntrySkipped' -Fallback 'Invalid hosts entry skipped: {0}' -FormatArgs @($BadLine))
-				}
-			}
-
-			if (Test-BaselineHostsDownloadSuspect -InvalidCount $InvalidLines.Count -TotalCount $TotalLines)
-			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_MoreThanHalfHostsEntriesFailedValidation' -Fallback 'More than 50% of downloaded hosts entries failed validation ({0}/{1}). Downloaded data may be corrupted or tampered. Skipping WindowsSpyBlocker hosts cleanup.' -FormatArgs @($InvalidLines.Count, $TotalLines))
-				return
-			}
-
-			$IPArray = $ValidLines
-
-			$MatchedHostsEntries = $ActiveHostsEntries | Where-Object {
-				$Line = $_.Trim()
-				$Line -and
-				(-not $Line.StartsWith("#")) -and
-				($IPArray | Select-String -SimpleMatch -Pattern $Line -Quiet)
-			}
-
-			if ($MatchedHostsEntries)
-			{
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_WindowsSpyBlockerEntriesDetectedInHostsFile' -Fallback 'WindowsSpyBlocker entries detected in hosts file')
-
-				$prefValue = $null
-				$prefPath = Join-Path -Path (Join-Path -Path (Join-Path -Path $env:LOCALAPPDATA -ChildPath 'Baseline') -ChildPath 'UserState\Profiles') -ChildPath 'Baseline-user-prefs.json'
-				if (Test-Path -LiteralPath $prefPath)
-				{
-					try
-					{
-						$rawPrefs = [System.IO.File]::ReadAllText($prefPath, [System.Text.Encoding]::UTF8)
-						if (-not [string]::IsNullOrWhiteSpace($rawPrefs))
-						{
-							$parsedPrefs = ConvertFrom-Json -InputObject $rawPrefs -ErrorAction Stop
-							if ($parsedPrefs -and $parsedPrefs.Values -and ($parsedPrefs.Values.PSObject.Properties.Name -contains 'AutoStripWindowsSpyBlockerHosts'))
-							{
-								$prefValue = $parsedPrefs.Values.AutoStripWindowsSpyBlockerHosts
-							}
-						}
-					}
-					catch
-					{
-						LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_HostsCleanupPrefReadFailed' -Fallback 'Could not read AutoStripWindowsSpyBlockerHosts preference from {0}: {1}. Falling back to the warn-and-skip default.' -FormatArgs @($prefPath, $_.Exception.Message))
-					}
-				}
-
-				$hostsPolicy = Resolve-BaselineHostsCleanupPolicy -EnvValue $env:BASELINE_AUTO_STRIP_HOSTS -PreferenceValue $prefValue
-
-				if (-not $hostsPolicy.AutoStrip)
-				{
-					foreach ($DetectedEntry in $MatchedHostsEntries)
-					{
-						LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_HostsEntryDetectedSkipping' -Fallback 'Detected third-party hosts entry: {0}' -FormatArgs @(([string]$DetectedEntry).Trim()))
-					}
-					LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_HostsCleanupSkipped' -Fallback 'Detected third-party WindowsSpyBlocker hosts entries that may block legitimate Microsoft resources, but automatic cleanup is opt-in. Set the BASELINE_AUTO_STRIP_HOSTS environment variable to 1, or enable AutoStripWindowsSpyBlockerHosts in Settings, to allow Baseline to remove them.')
-				}
-				else
-				{
-					$FilteredHosts = $HostsContent | Where-Object {
-						$Line = $_.Trim()
-
-						if (-not $Line -or $Line.StartsWith("#"))
-						{
-							return $true
-						}
-
-						-not ($IPArray | Select-String -SimpleMatch -Pattern $Line -Quiet)
-					}
-
-					LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CleaningHostsFile' -Fallback 'Cleaning hosts file (auto-strip source: {0})' -FormatArgs @([string]$hostsPolicy.Source))
-					$FilteredHosts | Set-Content -Path $HostsPath -Encoding Default -Force
-
-					Start-Process -FilePath notepad.exe -ArgumentList $HostsPath | Out-Null
-				}
-			}
-			}
-		}
-		catch [System.Net.WebException]
-		{
-			LogWarning (((Get-BaselineBilingualString -Key 'NoResponse' -Fallback 'A connection could not be established with {0}.') -f 'https://github.com') + ' ' + (Get-BaselineBilingualString -Key 'Bootstrap_SkippingWindowsSpyBlockerHostsCleanup' -Fallback 'Skipping WindowsSpyBlocker hosts cleanup.'))
-		}
-	}
-	else
-	{
-		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_SkippingFirewallHostsRemediationNotElevated' -Fallback 'Skipping firewall and hosts remediation because Baseline is not running elevated.')
-	}
+			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/HarmfulTweakerNetworkCleanup.ps1; re-inline here if rollback is needed.
+		$__baselineExtractedPartDidReturn = $false
+		$__baselineExtractedPartHasReturnValue = $false
+		$__baselineExtractedPartReturnValue = $null
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\HarmfulTweakerNetworkCleanup.ps1')
+		if ($__baselineExtractedPartDidReturn) { if ($__baselineExtractedPartHasReturnValue) { return $__baselineExtractedPartReturnValue }; return }
 
 	# Checking whether Windows Feature Experience Pack was removed by harmful tweakers
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingFeatureExperiencePack' -Fallback 'Checking whether Windows Feature Experience Pack was removed by harmful tweakers')
-	if ($osInfo.IsWindowsServer)
-	{
-		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_FeatureExperiencePackNotApplicable' -Fallback 'Windows Feature Experience Pack check is not applicable on Windows Server.')
-	}
-	else
-	{
-		$featurePackPresent = Test-BaselineAppxPackagePresence -Name 'MicrosoftWindows.Client.CBS'
-		if ($featurePackPresent -eq $false)
-		{
-			LogWarning (Get-BaselineBilingualString -Key 'WindowsComponentBroken' -Fallback '{0} is broken or removed from Windows. Reinstall Windows using only a genuine ISO image.' -FormatArgs @('Windows Feature Experience Pack'))
-		}
-	}
+			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/FeatureExperiencePackPresenceCheck.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\FeatureExperiencePackPresenceCheck.ps1')
 
 	# Checking whether EventLog service is running
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingEventLogService' -Fallback 'Checking whether EventLog service is running')
@@ -554,37 +239,14 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 
 	# Checking whether the Microsoft Store being an important system component was removed
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingMicrosoftStore' -Fallback 'Checking whether the Microsoft Store being an important system component was removed')
-	if ($osInfo.IsWindowsServer)
-	{
-		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_MicrosoftStoreNotApplicable' -Fallback 'Microsoft Store presence check is not applicable on Windows Server.')
-	}
-	else
-	{
-		$storePresent = Test-BaselineAppxPackagePresence -Name 'Microsoft.WindowsStore'
-		if ($storePresent -eq $false)
-		{
-			LogWarning (Get-BaselineBilingualString -Key 'WindowsComponentBroken' -Fallback '{0} is broken or removed from Windows. Reinstall Windows using only a genuine ISO image.' -FormatArgs @('Microsoft Store'))
-		}
-	}
+			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/MicrosoftStorePresenceCheck.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\MicrosoftStorePresenceCheck.ps1')
 
 	#region Defender checks
 	# Checking whether necessary Microsoft Defender components exists
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingDefenderComponents' -Fallback 'Checking whether necessary Microsoft Defender components exists')
-	$Files = if ($osInfo.IsWindowsServer)
-	{
-		@(
-			"$env:SystemRoot\System32\smartscreen.exe",
-			"$env:SystemRoot\System32\CompatTelRunner.exe"
-		)
-	}
-	else
-	{
-		@(
-			"$env:SystemRoot\System32\smartscreen.exe",
-			"$env:SystemRoot\System32\SecurityHealthSystray.exe",
-			"$env:SystemRoot\System32\CompatTelRunner.exe"
-		)
-	}
+			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/RequiredWindowsFiles.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\RequiredWindowsFiles.ps1')
 	foreach ($File in $Files)
 	{
 		if (-not (Test-Path -Path $File))
@@ -602,23 +264,8 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 
 	# Checking whether WMI is corrupted
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingWmi' -Fallback 'Checking whether WMI is corrupted')
-	if ($osInfo.IsWindowsServer)
-	{
-		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_SkippingDefenderWmiHealthCheckOnWindowsServer' -Fallback 'Skipping Microsoft Defender WMI health check on Windows Server.')
-	}
-	else
-	{
-		try
-		{
-			Get-CimInstance -ClassName MSFT_MpComputerStatus -Namespace root/Microsoft/Windows/Defender -ErrorAction Stop | Out-Null
-		}
-		catch [Microsoft.Management.Infrastructure.CimException]
-		{
-			Remove-HandledErrorRecord -ErrorRecord $_
-			LogWarning (Get-BaselineBilingualString -Key 'GuiPreflightWMIFailed' -Fallback 'CIM/WMI query failed: {0}' -FormatArgs @($_.Exception.Message))
-			LogWarning (Get-BaselineBilingualString -Key 'WindowsComponentBroken' -Fallback '{0} is broken or removed from Windows. Reinstall Windows using only a genuine ISO image.' -FormatArgs @('Microsoft Defender'))
-		}
-	}
+			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/DefenderWmiHealthCheck.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\DefenderWmiHealthCheck.ps1')
 
 	# Check Microsoft Defender state
 	$SecurityCenterProducts = @()
@@ -629,177 +276,30 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 	$Script:RealtimeMonitoringEnabled = $false
 	$Script:BehaviorMonitoringEnabled = $false
 
-	if ($osInfo.IsWindowsServer)
-	{
-		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_SkippingSecurityCenterChecksOnWindowsServer' -Fallback 'Skipping SecurityCenter2 antivirus checks on Windows Server.')
-	}
-	else
-	{
-		try
-		{
-			$SecurityCenterProducts = @(Get-CimInstance -ClassName AntiVirusProduct -Namespace root/SecurityCenter2 -ErrorAction Stop)
-			$SecurityCenterAvailable = $true
-			if (-not $SecurityCenterProducts)
-			{
-				LogWarning (Get-BaselineBilingualString -Key 'WindowsComponentBroken' -Fallback '{0} is broken or removed from Windows. Reinstall Windows using only a genuine ISO image.' -FormatArgs @('Microsoft Defender'))
-			}
-		}
-		catch [Microsoft.Management.Infrastructure.CimException]
-		{
-			LogWarning (Get-BaselineBilingualString -Key 'GuiPreflightWMIFailed' -Fallback 'CIM/WMI query failed: {0}' -FormatArgs @($_.Exception.Message))
-			LogWarning (Get-BaselineBilingualString -Key 'WindowsComponentBroken' -Fallback '{0} is broken or removed from Windows. Reinstall Windows using only a genuine ISO image.' -FormatArgs @('Microsoft Defender'))
-		}
-	}
+			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/SecurityCenterAntivirusProducts.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\SecurityCenterAntivirusProducts.ps1')
 
 	# Checking services
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingServices' -Fallback 'Checking services')
-		try
-		{
-			$DefenderServiceNames = if ($osInfo.IsWindowsServer)
-			{
-				@("WinDefend", "wscsvc")
-		}
-		else
-		{
-			@("WinDefend", "SecurityHealthService", "wscsvc")
-		}
-
-			$Services = Get-Service -Name $DefenderServiceNames -ErrorAction Stop
-			if ($IsAdmin -and (-not $osInfo.IsWindowsServer) -and ($Services.Name -contains "SecurityHealthService"))
-			{
-				Get-Service -Name SecurityHealthService -ErrorAction Stop | Start-Service | Out-Null
-			}
-		}
-	catch [Microsoft.PowerShell.Commands.ServiceCommandException]
-	{
-		Remove-HandledErrorRecord -ErrorRecord $_
-		$Services = @()
-		LogWarning (Get-BaselineBilingualString -Key 'WindowsComponentBroken' -Fallback '{0} is broken or removed from Windows. Reinstall Windows using only a genuine ISO image.' -FormatArgs @('Microsoft Defender'))
-	}
+				# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/DefenderServiceHealth.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\DefenderServiceHealth.ps1')
 
 	$Script:DefenderServices = Test-BaselineDefenderServicesHealthy -Services $Services
 
 	# Checking Get-MpPreference cmdlet
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingGetMpPreference' -Fallback 'Checking Get-MpPreference cmdlet')
-	if (Get-Command -Name Get-MpPreference -ErrorAction SilentlyContinue)
-	{
-		try
-		{
-			(Get-MpPreference -ErrorAction Stop).EnableControlledFolderAccess | Out-Null
-		}
-		catch [Microsoft.Management.Infrastructure.CimException]
-		{
-			LogWarning (Get-BaselineBilingualString -Key 'WindowsComponentBroken' -Fallback '{0} is broken or removed from Windows. Reinstall Windows using only a genuine ISO image.' -FormatArgs @('Microsoft Defender'))
-		}
-	}
-	else
-	{
-		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_MicrosoftDefenderPreferenceCmdletsUnavailable' -Fallback 'Microsoft Defender preference cmdlets are not available on this OS.')
-	}
+			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/DefenderPreferenceHealthCheck.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\DefenderPreferenceHealthCheck.ps1')
 
 	# Check Microsoft Defender state
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingMicrosoftDefenderState' -Fallback 'Checking Microsoft Defender state')
 	$DefenderState = $null
-	if ($SecurityCenterAvailable)
+			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/DefenderPolicyState.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\DefenderPolicyState.ps1')
+
+	if (Get-Command -Name 'Set-BaselineDefenderExecutionAvailability' -CommandType Function -ErrorAction SilentlyContinue)
 	{
-		$DefenderProduct = $SecurityCenterProducts | Where-Object { $_.instanceGuid -eq "{D68DDC3A-831F-4fae-9E44-DA132C1ACF46}" } | Select-Object -First 1
-		if ($DefenderProduct -and ($null -ne $DefenderProduct.productState))
-		{
-			try
-			{
-				$DefenderState = Get-BaselineDefenderProductStateCode -ProductState $DefenderProduct.productState
-			}
-			catch
-			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_UnableToParseDefenderProductState' -Fallback 'Unable to parse Microsoft Defender product state: {0}' -FormatArgs @($_.Exception.Message))
-			}
-		}
-	}
-	else
-	{
-		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_MicrosoftDefenderSecurityCenterStateUnavailable' -Fallback 'Microsoft Defender Security Center product state is not available on this OS.')
-	}
-
-	if (Test-BaselineDefenderActiveByProductState -StateCode $DefenderState)
-	{
-		# Defender is a currently used AV. Continue...
-		$Script:DefenderProductState = $true
-
-		# Checking whether Microsoft Defender was turned off via GPO
-		if ([Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender", "DisableAntiSpyware", $null) -eq 1)
-		{
-			$Script:AntiSpywareEnabled = $false
-		}
-		else
-		{
-			$Script:AntiSpywareEnabled = $true
-		}
-
-		# Checking whether Microsoft Defender was turned off via GPO
-		if ([Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection", "DisableRealtimeMonitoring", $null) -eq 1)
-		{
-			$Script:RealtimeMonitoringEnabled = $false
-		}
-		else
-		{
-			$Script:RealtimeMonitoringEnabled = $true
-		}
-
-		# Checking whether Microsoft Defender was turned off via GPO
-		if ([Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection", "DisableBehaviorMonitoring", $null) -eq 1)
-		{
-			$Script:BehaviorMonitoringEnabled = $false
-		}
-		else
-		{
-			$Script:BehaviorMonitoringEnabled = $true
-		}
-	}
-	else
-	{
-		$Script:DefenderProductState = $false
-		$Script:AntiSpywareEnabled = $false
-		$Script:RealtimeMonitoringEnabled = $false
-		$Script:BehaviorMonitoringEnabled = $false
-	}
-
-	if (Test-BaselineDefenderFullyEnabled -ServicesRunning $Script:DefenderServices -ProductStateActive $Script:DefenderProductState -AntiSpywareEnabled $Script:AntiSpywareEnabled -RealtimeMonitoringEnabled $Script:RealtimeMonitoringEnabled -BehaviorMonitoringEnabled $Script:BehaviorMonitoringEnabled)
-	{
-		# Defender is enabled
-		$Script:DefenderEnabled = $true
-
-		switch ((Get-MpPreference).EnableControlledFolderAccess)
-		{
-			"1"
-			{
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_DisablingControlledFolderAccess' -Fallback 'Disabling Controlled folder access')
-				$Script:ControlledFolderAccess = $true
-				if ($IsAdmin)
-				{
-					Set-MpPreference -EnableControlledFolderAccess Disabled | Out-Null
-				}
-				else
-				{
-					LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_SkippingControlledFolderAccessRemediationNotElevated' -Fallback 'Skipping Controlled folder access remediation because Baseline is not running elevated.')
-				}
-
-				Start-Process -FilePath "windowsdefender://RansomwareProtection" | Out-Null
-			}
-			"0"
-			{
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_ControlledFolderAccessAlreadyDisabled' -Fallback 'Controlled folder access has already been disabled')
-				$Script:ControlledFolderAccess = $false
-			}
-			default
-			{
-				$Script:ControlledFolderAccess = $false
-			}
-		}
-	}
-	else
-	{
-		$Script:DefenderEnabled = $false
-		$Script:ControlledFolderAccess = $false
+		Set-BaselineDefenderExecutionAvailability -Available ([bool]$Script:DefenderEnabled)
 	}
 	#endregion Defender checks
 
@@ -870,73 +370,11 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 	# Extract the localized "Skip" string from shell32.dll
 	$Script:Skip = Get-LocalizedShellString -ResourceId 16956 -Fallback 'Skip'
 
-	Write-Information -MessageData "┏┓   *     ┏      ┓ ┏*   ┓ 		" -InformationAction Continue
-	Write-Information -MessageData "┗┓┏┏┓┓┏┓╋  ╋┏┓┏┓  ┃┃┃┓┏┓┏┫┏┓┓┏┏┏" -InformationAction Continue
-	Write-Information -MessageData "┗┛┗┛ ┗┣┛┗  ┛┗┛┛   ┗┻┛┗┛┗┗┻┗┛┗┻┛┛" -InformationAction Continue
-	Write-Information -MessageData "      ┛                   		" -InformationAction Continue
+	Write-Information -MessageData "Baseline | Windows Utility" -InformationAction Continue
 
 	# Display a warning message about whether a user has customized the preset file
-	if ($Warning)
-	{
-		# Get the name of a preset (e.g Bootstrap/Baseline.ps1) regardless if it was named
-		# $_.File has no EndsWith() method
-		[string]$PresetName = ((Get-PSCallStack).Position | Where-Object -FilterScript {$_.File}).File | Where-Object -FilterScript {$_.EndsWith(".ps1")}
-		LogWarning (Get-BaselineBilingualString -Key 'CustomizationWarning' -Fallback 'Have you customized every function in the {0} preset file before running Baseline | Windows Utility?' -FormatArgs @("`"$PresetName`""))
-		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_ShowingMainMenuWaitingForInput' -Fallback 'Showing Main Menu, waiting for input')
-
-		do
-		{
-			$Choice = Show-Menu -Menu @($Script:Yes, $Script:No) -Default 2
-
-			switch ($Choice)
-			{
-				$Script:Yes
-				{
-					continue
-				}
-				$Script:No
-				{
-					Invoke-Item -Path $PresetName
-					Start-Sleep -Seconds 5
-				}
-				$Script:KeyboardArrows {}
-			}
-		}
-		until ($Choice -ne $Script:KeyboardArrows)
-	}
-
-	if ($Global:GUIMode -and $Global:LoadingSplash -and $Global:LoadingSplash.IsAlive)
-	{
-		try
-		{
-			if (Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction SilentlyContinue)
-			{
-				Set-BootstrapLoadingSplashStep -Splash $Global:LoadingSplash -StepId 'system' -Status 'in_progress' -SubAction ''
-			}
-			if (Get-Command -Name 'Initialize-PackageManagersBootstrap' -CommandType Function -ErrorAction SilentlyContinue)
-			{
-				Initialize-PackageManagersBootstrap -LoadingSplash $Global:LoadingSplash
-			}
-		}
-		catch
-		{
-			LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerStartupBootstrapFailedUnexpectedly' -Fallback 'Package manager startup bootstrap failed unexpectedly: {0}' -FormatArgs @($_.Exception.Message))
-		}
-	}
-
-	if ($Global:LoadingSplash -and $Global:LoadingSplash.IsAlive)
-	{
-		try
-		{
-			if (Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction SilentlyContinue)
-			{
-				Set-BootstrapLoadingSplashStep -Splash $Global:LoadingSplash -StepId 'finalize' -Status 'in_progress' -SubAction ''
-			}
-			# The launcher closes the splash immediately after InitialActions
-			# returns, once startup checks are done and before the GUI builds.
-		}
-		catch { Write-DebugSwallowedException -ErrorRecord $_ -Source 'InitialActions.SplashFinalize.SetStep' }
-	}
+			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/StartupWarningAndSplashFinalization.ps1; re-inline here if rollback is needed.
+		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\StartupWarningAndSplashFinalization.ps1')
 
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_InitialChecksFinished' -Fallback 'Initial Checks finished, continuing with Main Script') -addGap
 	if ($env:BASELINE_EMBEDDED_HOST -ne '1' -and (Test-InteractiveHost))
@@ -945,5 +383,8 @@ public static extern bool SetForegroundWindow(IntPtr hWnd);
 	}
 }
 #endregion InitialActions
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'InitialActions',
+    'Test-BaselineAppxPackagePresence'
+)
+Export-ModuleMember -Function $ExportedFunctions

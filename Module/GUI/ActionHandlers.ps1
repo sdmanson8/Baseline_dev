@@ -1,4 +1,4 @@
-# P5 rollback checkpoint: action handler wiring is split into Module\GUI\ActionHandlers\*.ps1.
+﻿# P5 rollback checkpoint: action handler wiring is split into Module\GUI\ActionHandlers\*.ps1.
 # Keep this explicit order; later handler groups depend on command captures and controls initialized by earlier groups.
 $actionHandlersSplitRoot = Join-Path $PSScriptRoot 'ActionHandlers'
 . (Join-Path $actionHandlersSplitRoot 'ThemeNavigationHandlers.ps1')

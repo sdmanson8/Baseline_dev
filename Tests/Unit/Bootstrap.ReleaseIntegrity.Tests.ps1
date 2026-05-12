@@ -1,14 +1,20 @@
 Set-StrictMode -Version Latest
 
 BeforeAll {
+    $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+    . $sourceContentHelperPath
+
+
     $filePath = Join-Path $PSScriptRoot '../../Bootstrap/Bootstrap.ps1'
-    $script:bootstrapContent = Get-Content -LiteralPath $filePath -Raw -Encoding UTF8
+    $script:bootstrapContent = Get-BaselineTestSourceText -Path $filePath
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functionsToLoad = @(
-        'Get-BootstrapFileSha256',
-        'Get-BootstrapReleaseIntegrityManifest',
-        'Get-BootstrapReleaseAssetSha256',
-        'Assert-BootstrapReleaseAssetHash'
+        'Get-RawBootstrapFileSha256',
+        'Get-RawBootstrapReleaseIntegrityManifest',
+        'Get-RawBootstrapReleaseAssetSha256',
+        'Assert-RawBootstrapReleaseAssetHash',
+        'Compare-BootstrapReleaseVersions'
     )
 
     $functions = $ast.FindAll({
@@ -27,8 +33,8 @@ Describe 'Bootstrap release integrity helpers' {
         $script:fixtureRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('baseline-bootstrap-integrity-' + [guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path $script:fixtureRoot -Force | Out-Null
 
-        $script:archiveName = 'Baseline-4.0.0.zip'
-        $script:setupName = 'Baseline-setup-4.0.0.exe'
+        $script:archiveName = 'Baseline-4.0.0-stable.zip'
+        $script:setupName = 'Baseline-setup-4.0.0-beta.exe'
         $script:archivePath = Join-Path $script:fixtureRoot $script:archiveName
         $script:setupPath = Join-Path $script:fixtureRoot $script:setupName
         $script:manifestPath = Join-Path $script:fixtureRoot ($script:archiveName + '.sha256.json')
@@ -36,8 +42,8 @@ Describe 'Bootstrap release integrity helpers' {
         Set-Content -LiteralPath $script:archivePath -Value 'archive payload' -Encoding UTF8 -NoNewline
         Set-Content -LiteralPath $script:setupPath -Value 'setup payload' -Encoding UTF8 -NoNewline
 
-        $script:archiveHash = (Get-BootstrapFileSha256 -Path $script:archivePath)
-        $script:setupHash = (Get-BootstrapFileSha256 -Path $script:setupPath)
+        $script:archiveHash = (Get-RawBootstrapFileSha256 -Path $script:archivePath)
+        $script:setupHash = (Get-RawBootstrapFileSha256 -Path $script:setupPath)
 
         [ordered]@{
             schemaVersion = 1
@@ -64,28 +70,40 @@ Describe 'Bootstrap release integrity helpers' {
         $script:bootstrapContent | Should -Match 'one SHA-256 manifest matching'
     }
 
-    It 'routes published-at parse failures through Write-DebugSwallowedException' {
-        $script:bootstrapContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Bootstrap\.Get-BootstrapLatestRelease\.ParsePublishedAt'''
+    It 'allows callers to select the bootstrap release channel explicitly' {
+        $script:bootstrapContent | Should -Match '\[ValidateSet\(''stable'', ''beta''\)\]'
+        $script:bootstrapContent | Should -Match '\[string\]\$ReleaseChannel'
+        $script:bootstrapContent | Should -Match 'IsNullOrWhiteSpace\(\$ReleaseChannel\)'
     }
 
-    It 'routes TLS setup failures through Write-DebugSwallowedException' {
-        $script:bootstrapContent | Should -Match 'Write-DebugSwallowedException -ErrorRecord \$_ -Source ''Bootstrap\.Enable-Tls12'''
+    It 'parses channel-stamped prerelease tags during version comparison' {
+        Compare-BootstrapReleaseVersions -LeftVersion 'v4.0.0-beta.1' -RightVersion 'v4.0.0-beta' | Should -BeGreaterThan 0
+        Compare-BootstrapReleaseVersions -LeftVersion 'v4.0.0-beta-rc1' -RightVersion 'v4.0.0-beta' | Should -BeGreaterThan 0
+        Compare-BootstrapReleaseVersions -LeftVersion 'v4.0.0-beta' -RightVersion 'v4.0.0' | Should -BeLessThan 0
+    }
+
+    It 'routes published-at parse failures through severity-aware swallowed-exception logging' {
+        $script:bootstrapContent | Should -Match 'Write-BootstrapSwallowedException -ErrorRecord \$_ -Source ''Bootstrap\.Get-BootstrapLatestRelease\.ParsePublishedAt'' -Severity Debug'
+    }
+
+    It 'routes TLS setup failures through warning-severity swallowed-exception logging' {
+        $script:bootstrapContent | Should -Match 'Write-BootstrapSwallowedException -ErrorRecord \$_ -Source ''Bootstrap\.Enable-Tls12'' -Severity Warning'
     }
 
     It 'returns the expected SHA-256 for an asset in the manifest' {
-        $result = Get-BootstrapReleaseAssetSha256 -ManifestPath $script:manifestPath -AssetName $script:archiveName
+        $result = Get-RawBootstrapReleaseAssetSha256 -ManifestPath $script:manifestPath -AssetName $script:archiveName
 
         $result | Should -Be $script:archiveHash
     }
 
     It 'verifies the release archive hash against the manifest' {
-        $result = Assert-BootstrapReleaseAssetHash -ManifestPath $script:manifestPath -AssetName $script:archiveName -FilePath $script:archivePath -Label 'Release archive'
+        $result = Assert-RawBootstrapReleaseAssetHash -ManifestPath $script:manifestPath -AssetName $script:archiveName -FilePath $script:archivePath -Label 'Release archive'
 
         $result | Should -Be $script:archiveHash
     }
 
     It 'throws when the manifest does not contain the requested asset hash' {
-        { Get-BootstrapReleaseAssetSha256 -ManifestPath $script:manifestPath -AssetName 'missing.zip' } | Should -Throw '*does not contain a SHA-256 entry*'
+        { Get-RawBootstrapReleaseAssetSha256 -ManifestPath $script:manifestPath -AssetName 'missing.zip' } | Should -Throw '*does not contain a SHA-256 entry*'
     }
 
     It 'throws when the manifest algorithm is unsupported' {
@@ -97,6 +115,6 @@ Describe 'Bootstrap release integrity helpers' {
             }
         } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $script:manifestPath -Encoding UTF8
 
-        { Get-BootstrapReleaseIntegrityManifest -ManifestPath $script:manifestPath } | Should -Throw '*Unsupported release integrity manifest algorithm*'
+        { Get-RawBootstrapReleaseIntegrityManifest -ManifestPath $script:manifestPath } | Should -Throw '*Unsupported release integrity manifest algorithm*'
     }
 }

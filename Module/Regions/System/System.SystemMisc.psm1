@@ -560,5 +560,12 @@ function Set-PrintSpooler
 		}
 	}
 }
-
-Export-ModuleMember -Function '*'
+$ExportedFunctions = @(
+    'ReservedStorage',
+    'Set-IPv4Preference',
+    'Set-PrintSpooler',
+    'Set-ServicesPipeTimeout',
+    'Set-UTCClockForLinuxDualBoot',
+    'WindowsManageDefaultPrinter'
+)
+Export-ModuleMember -Function $ExportedFunctions

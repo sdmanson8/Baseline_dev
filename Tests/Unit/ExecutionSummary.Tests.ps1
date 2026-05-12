@@ -1,15 +1,13 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 BeforeAll {
     <#
         .SYNOPSIS
-        Internal function Test-GuiObjectField.
     #>
 
     function Test-GuiObjectField { param([object]$Object, [string]$FieldName) if ($null -eq $Object) { return $false }; if ($Object -is [System.Collections.IDictionary]) { return $Object.Contains($FieldName) }; return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName]) }
     <#
         .SYNOPSIS
-        Internal function .
     #>
     function Get-UxLocalizedString {
         param(
@@ -28,7 +26,6 @@ BeforeAll {
 
     <#
         .SYNOPSIS
-        Internal function Get-UxBilingualLocalizedString.
     #>
 
     function Get-UxBilingualLocalizedString {
@@ -237,6 +234,20 @@ Describe 'Get-ExecutionSummaryClassification' {
         $result.FailureCode | Should -Be 'general_failure'
     }
 
+    It 'classifies Timed Out' {
+        $result = Get-ExecutionSummaryClassification -Status 'Timed Out' -Detail 'Timed out after 60 second(s), continuing to the next item.'
+
+        $result.OutcomeState | Should -Be 'Timed Out'
+        $result.FailureCode | Should -Be 'timed_out'
+    }
+
+    It 'classifies Timed Out / Unknown Final State' {
+        $result = Get-ExecutionSummaryClassification -Status 'Timed Out / Unknown Final State' -Detail 'Baseline could not verify the final state after the timeout.'
+
+        $result.OutcomeState | Should -Be 'Timed Out / Unknown Final State'
+        $result.FailureCode | Should -Be 'timed_out_unknown_final_state'
+    }
+
     It 'returns Pending for unknown status' {
         $result = Get-ExecutionSummaryClassification -Status '' -Detail ''
 
@@ -333,6 +344,38 @@ Describe 'Get-ExecutionResultLiveLogEntry' {
         $entry.Level | Should -Be 'SUCCESS'
     }
 
+    It 'prefixes the live log line with the selected action when the tweak name is neutral' {
+        $record = [pscustomobject]@{
+            Name = 'Diagnostics Tracking Tasks'
+            Selection = 'Disable'
+            Status = 'Success'
+            Detail = $null
+            OutcomeState = 'Success'
+            OutcomeReason = 'Baseline applied the requested change successfully.'
+        }
+
+        $entry = Get-ExecutionResultLiveLogEntry -Record $record
+
+        $entry.Message | Should -Be 'Disable Diagnostics Tracking Tasks - success'
+        $entry.Level | Should -Be 'SUCCESS'
+    }
+
+    It 'does not duplicate the selected action when the tweak name already starts with it' {
+        $record = [pscustomobject]@{
+            Name = 'Disable IPv6'
+            Selection = 'Disable'
+            Status = 'Success'
+            Detail = $null
+            OutcomeState = 'Success'
+            OutcomeReason = 'Baseline applied the requested change successfully.'
+        }
+
+        $entry = Get-ExecutionResultLiveLogEntry -Record $record
+
+        $entry.Message | Should -Be 'Disable IPv6 - success'
+        $entry.Level | Should -Be 'SUCCESS'
+    }
+
     It 'formats failed records with the failure reason' {
         $record = [pscustomobject]@{
             Name = 'Check WinGet'
@@ -375,6 +418,21 @@ Describe 'Get-ExecutionResultLiveLogEntry' {
         $entry = Get-ExecutionResultLiveLogEntry -Record $record
 
         $entry.Message | Should -Be 'Device Sensors - success (Baseline applied this change, but Windows still needs a restart before it is fully finished.)'
+        $entry.Level | Should -Be 'WARNING'
+    }
+
+    It 'formats timed out records as warnings with the timeout detail' {
+        $record = [pscustomobject]@{
+            Name = 'Disable scheduled tasks'
+            Status = 'Timed Out'
+            Detail = 'Timed out after 60 second(s), continuing to the next item.'
+            OutcomeState = 'Timed Out'
+            OutcomeReason = 'The action exceeded its timeout window.'
+        }
+
+        $entry = Get-ExecutionResultLiveLogEntry -Record $record
+
+        $entry.Message | Should -Be 'Disable scheduled tasks - timed out (Timed out after 60 second(s), continuing to the next item.)'
         $entry.Level | Should -Be 'WARNING'
     }
 }
