@@ -70,6 +70,32 @@ Describe 'Get-PackageManagerAvailabilityStateValue' {
     }
 }
 
+Describe 'Application process diagnostics' {
+    BeforeEach {
+        $script:warningMessages = [System.Collections.Generic.List[string]]::new()
+        function LogWarning { param([string]$Message) [void]$script:warningMessages.Add($Message) }
+    }
+
+    AfterEach {
+        Remove-Item Function:\LogWarning -ErrorAction SilentlyContinue
+    }
+
+    It 'logs exit code and captured stderr/stdout for failed package-manager processes' {
+        Write-ApplicationProcessFailureDiagnostics -Result ([pscustomobject]@{
+            ExitCode = 87
+            FilePath = 'winget.exe'
+            Arguments = 'install --id Example.App'
+            StandardError = "first error`nlast error"
+            StandardOutput = "first output`nlast output"
+        })
+
+        $script:warningMessages.Count | Should -Be 1
+        $script:warningMessages[0] | Should -Match 'exitCode=87'
+        $script:warningMessages[0] | Should -Match 'stderr=.*last error'
+        $script:warningMessages[0] | Should -Match 'stdout=.*last output'
+    }
+}
+
 Describe 'Invoke-WingetInstall failure paths' {
     BeforeEach {
         $script:errorMessages = [System.Collections.Generic.List[string]]::new()

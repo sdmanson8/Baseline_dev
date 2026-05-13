@@ -21,11 +21,34 @@
     as implementation detail, not end-user documentation.
 #>
 
-# Logging and helper functions are shared across all region modules, so we import them first to ensure they are available for use in the region modules.
-# Import shared modules used by all region modules
-Import-Module -Name "$PSScriptRoot\Logging.psm1" -Force -Global -DisableNameChecking -WarningAction SilentlyContinue
-Import-Module -Name "$PSScriptRoot\SharedHelpers.psm1" -Force -Global -DisableNameChecking -WarningAction SilentlyContinue
-Import-Module -Name "$PSScriptRoot\GUIExecution.psm1" -Force -Global -DisableNameChecking -WarningAction SilentlyContinue
+# Logging and helper functions are shared across all region modules, so import
+# logging first, then fail fast on every remaining core module.
+$coreModuleImports = @(
+    @{ Name = 'Logging.psm1';     Path = Join-Path $PSScriptRoot 'Logging.psm1';     CanLog = $false }
+    @{ Name = 'SharedHelpers.psm1'; Path = Join-Path $PSScriptRoot 'SharedHelpers.psm1'; CanLog = $true  }
+    @{ Name = 'GUIExecution.psm1';  Path = Join-Path $PSScriptRoot 'GUIExecution.psm1';  CanLog = $true  }
+)
+
+foreach ($coreImport in $coreModuleImports)
+{
+    try
+    {
+        Import-Module -Name $coreImport.Path -Force -Global -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop
+    }
+    catch
+    {
+        $message = "Failed to import core module '$($coreImport.Name)': $($_.Exception.Message)"
+        if ([bool]$coreImport.CanLog -and (Get-Command -Name 'LogError' -CommandType Function -ErrorAction SilentlyContinue))
+        {
+            LogError $message
+        }
+        else
+        {
+            Write-Error -Message $message
+        }
+        throw [System.InvalidOperationException]::new($message, $_.Exception)
+    }
+}
 
 # Optional supply-chain hardening. When BASELINE_INTEGRITY_MODE is set to
 # Strict or Audit, every script file under Module/ is hashed and compared

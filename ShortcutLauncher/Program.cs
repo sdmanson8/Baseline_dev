@@ -1,4 +1,4 @@
-// Internal shortcut launcher that locates Baseline.exe and relays execution.
+// Internal GUI-only shortcut launcher that locates Baseline.exe and starts it.
 // Used by the installer and desktop shortcut flow.
 
 using System;
@@ -24,14 +24,23 @@ namespace Baseline.ShortcutLauncher
         private const uint MB_ICONERROR = 0x00000010;
 
         /// <summary>
-        /// Internal shortcut launcher entrypoint for Baseline.
+        /// Internal GUI-only shortcut launcher entrypoint for Baseline.
         /// </summary>
+        /// <param name="args">Command-line arguments; unsupported by this GUI-only helper.</param>
         /// <returns>An exit code suitable for the host process.</returns>
         [STAThread]
-        private static int Main()
+        private static int Main(string[] args)
         {
             try
             {
+                if (args != null && args.Length > 0)
+                {
+                    NativeMsgBox(IntPtr.Zero,
+                        "Baseline shortcut launcher does not accept command-line arguments. Run Baseline.exe directly for CLI workflows.",
+                        "Baseline", MB_OK | MB_ICONERROR);
+                    return 2;
+                }
+
                 var exeDir = Path.GetDirectoryName(
                     System.Reflection.Assembly.GetExecutingAssembly().Location) ?? string.Empty;
                 var script = Path.Combine(exeDir, "Bootstrap", "Baseline.ps1");
@@ -56,12 +65,8 @@ namespace Baseline.ShortcutLauncher
                     WorkingDirectory = exeDir
                 };
 
-                using (var proc = Process.Start(psi))
-                {
-                    if (proc == null) return 1;
-                    proc.WaitForExit();
-                    return proc.ExitCode;
-                }
+                var proc = Process.Start(psi);
+                return proc == null ? 1 : 0;
             }
             catch (Exception ex)
             {

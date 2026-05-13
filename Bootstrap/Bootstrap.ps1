@@ -505,7 +505,15 @@ try
 
     if (Test-Path -LiteralPath $CacheRoot)
     {
-        Remove-Item -LiteralPath $CacheRoot -Recurse -Force -ErrorAction SilentlyContinue
+        try
+        {
+            Remove-Item -LiteralPath $CacheRoot -Recurse -Force -ErrorAction Stop
+        }
+        catch
+        {
+            Write-Error "Failed to clean bootstrap cache '$CacheRoot'. Stale or locked content could affect extraction: $($_.Exception.Message)"
+            throw
+        }
     }
 
     New-Item -ItemType Directory -Path $CacheRoot -Force | Out-Null

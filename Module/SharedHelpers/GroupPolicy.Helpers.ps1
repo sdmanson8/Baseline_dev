@@ -318,6 +318,14 @@ function Format-BaselineGpoConflictReport
     $sb = [System.Text.StringBuilder]::new()
     [void]$sb.AppendLine(('GPO conflict report - generated {0:o}' -f $Report.GeneratedAt))
     [void]$sb.AppendLine(('Domain joined: {0} | MDM enrolled: {1} | Hives populated: {2}' -f $Report.Environment.DomainJoined, $Report.Environment.MdmEnrolled, ($Report.Environment.PopulatedHives -join ', ')))
+    if ($Report.PSObject.Properties['PartialFailureCount'] -and [int]$Report.PartialFailureCount -gt 0)
+    {
+        [void]$sb.AppendLine(('Report incomplete: {0} manifest fragment(s) could not be read.' -f [int]$Report.PartialFailureCount))
+        foreach ($failure in @($Report.PartialFailures))
+        {
+            [void]$sb.AppendLine(('  ! {0}: {1}' -f [string]$failure.Path, [string]$failure.Error))
+        }
+    }
     [void]$sb.AppendLine(('Conflicts detected: {0}' -f $Report.ConflictCount))
 
     foreach ($c in $Report.Conflicts)

@@ -67,6 +67,15 @@ Describe 'PowerShell 5.1 support contract' {
         $content | Should -Match 'FileNotFoundException'
     }
 
+    It 'documents and enforces the shortcut launcher as GUI-only fire-and-forget' {
+        $content = Get-BaselineTestSourceText -Path $script:ShortcutLauncherPath
+
+        $content | Should -Match 'private static int Main\(string\[\] args\)'
+        $content | Should -Match 'does not accept command-line arguments'
+        $content | Should -Match 'Run Baseline\.exe directly for CLI workflows'
+        $content | Should -Not -Match 'WaitForExit\(\)'
+    }
+
     It 'keeps runtime curation helpers from selecting PowerShell 7 as the Baseline host' {
         foreach ($path in $script:RuntimeContractFiles) {
             $content = Get-BaselineTestSourceText -Path $path

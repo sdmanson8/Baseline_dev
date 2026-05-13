@@ -45,4 +45,38 @@ Describe 'Resolve-BaselineLocalizationDirectory' {
         $result | Should -Be ''
         $bilingual | Should -Be ''
     }
+
+    It 'returns visible fallback text and logs the key and culture when a non-English translation is missing' {
+        $previousLanguage = [System.Environment]::GetEnvironmentVariable('BASELINE_LANGUAGE')
+        $previousLocalizationVariable = Get-Variable -Name Localization -Scope Global -ErrorAction SilentlyContinue
+        $script:WarningMessages = [System.Collections.Generic.List[string]]::new()
+
+        function LogWarning { param([string]$Message) [void]$script:WarningMessages.Add($Message) }
+
+        try {
+            [System.Environment]::SetEnvironmentVariable('BASELINE_LANGUAGE', 'fr-FR', [System.EnvironmentVariableTarget]::Process)
+            $Global:Localization = @{}
+
+            $result = Get-BaselineLocalizedString -Key 'Missing_Operational_Key' -Fallback 'Visible operational fallback'
+
+            $result | Should -Be 'Visible operational fallback'
+            $script:WarningMessages.Count | Should -Be 1
+            $script:WarningMessages[0] | Should -Match 'Missing_Operational_Key'
+            $script:WarningMessages[0] | Should -Match 'fr-FR'
+        }
+        finally {
+            [System.Environment]::SetEnvironmentVariable('BASELINE_LANGUAGE', $previousLanguage, [System.EnvironmentVariableTarget]::Process)
+            if ($previousLocalizationVariable)
+            {
+                $Global:Localization = $previousLocalizationVariable.Value
+            }
+            else
+            {
+                Remove-Variable -Name Localization -Scope Global -ErrorAction SilentlyContinue
+            }
+
+            Remove-Variable -Name CachedBaselineMissingLocalizationWarnings -Scope Script -ErrorAction SilentlyContinue
+            Remove-Item Function:\LogWarning -ErrorAction SilentlyContinue
+        }
+    }
 }

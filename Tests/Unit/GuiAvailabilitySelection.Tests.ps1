@@ -25,6 +25,7 @@ BeforeAll {
                 'Get-GuiTweakAvailability',
                 'Test-GuiTweakAvailableOnCurrentSystem',
                 'Get-GuiTweakUnavailableReason',
+                'Get-GuiIndexedControlState',
                 'Get-SelectedTweakRunList',
                 'Clear-GuiSelectableControlState',
                 'Apply-TabPresetSelections'
@@ -49,12 +50,70 @@ BeforeAll {
             [void]$script:ExplicitSelectionDefinitions.Remove($FunctionName)
         }
     }
+
+    function Get-TweakVisualMetadata {
+        param([object]$Tweak, [object]$StateSource)
+        return [pscustomobject]@{
+            TypeKind = [string]$Tweak.Type
+            TypeLabel = [string]$Tweak.Type
+            TypeTone = 'neutral'
+            TypeBadgeLabel = [string]$Tweak.Type
+            StateLabel = 'Test state'
+            StateTone = 'neutral'
+            StateDetail = ''
+            MatchesDesired = $false
+            ScenarioTags = @()
+            ReasonIncluded = ''
+            BlastRadius = ''
+            IsRemoval = $false
+        }
+    }
 }
 
 Describe 'GUI availability selection gates' {
     BeforeEach {
         $script:RemovedExplicitSelections = @()
         $script:ExplicitSelectionDefinitions = @{}
+        $script:TweakManifest = @()
+        $script:Controls = @{}
+    }
+
+    It 'builds the GUI run list from the live control hashtable' {
+        $script:ExplicitSelectionDefinitions['DemoToggle'] = [pscustomobject]@{
+            Function = 'DemoToggle'
+            Type = 'Toggle'
+            State = 'Off'
+        }
+        $script:TweakManifest = @(
+            [pscustomobject]@{
+                Name = 'Demo toggle'
+                Function = 'DemoToggle'
+                Type = 'Toggle'
+                OnParam = 'Enable'
+                OffParam = 'Disable'
+                Category = 'Testing'
+                Risk = 'Low'
+                Restorable = $true
+                RequiresRestart = $false
+                Impact = ''
+                PresetTier = 'Basic'
+                Default = $true
+                Availability = [pscustomobject]@{
+                    Available = $true
+                    Reason = ''
+                }
+            }
+        )
+        $script:Controls[0] = [pscustomobject]@{
+            IsEnabled = $true
+            IsChecked = $false
+        }
+
+        $selected = @(Get-SelectedTweakRunList)
+
+        $selected | Should -HaveCount 1
+        $selected[0].Function | Should -Be 'DemoToggle'
+        $selected[0].ToggleParam | Should -Be 'Disable'
     }
 
     It 'keeps unavailable selected controls out of the GUI run list' {

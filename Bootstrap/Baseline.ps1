@@ -192,6 +192,22 @@ $Script:IsEmbeddedHost = ([System.Environment]::GetEnvironmentVariable('BASELINE
 $Script:LaunchTraceDirectory = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline'
 $Script:LaunchTracePath = Join-Path $Script:LaunchTraceDirectory 'Baseline-launch-trace.txt'
 
+function Exit-BaselineBootstrap
+{
+	param(
+		[int]
+		$Code = 0
+	)
+
+	$Global:LASTEXITCODE = [int]$Code
+	if ($Script:IsEmbeddedHost)
+	{
+		return [int]$Code
+	}
+
+	exit ([int]$Code)
+}
+
 <#
     .SYNOPSIS
 #>
@@ -647,7 +663,7 @@ if (-not $Script:ModuleRootExists -or $MissingRequired -or -not $RegionFiles) {
         Write-Warning "No region files found in: $Script:RegionsRoot"
     }
 
-    if ($Script:IsEmbeddedHost) { return } else { exit }
+    return (Exit-BaselineBootstrap -Code 2)
 }
 
 Write-LaunchTrace 'Bootstrap files verified'
@@ -723,6 +739,7 @@ if (-not [string]::IsNullOrWhiteSpace([string]$LifecycleOperation))
 			'GpoConflictReport'
 			{
 				$manifest = @()
+				$manifestReadFailures = [System.Collections.Generic.List[object]]::new()
 				$dataDir = Join-Path $Script:ModuleRoot 'Data'
 				if (Test-Path -LiteralPath $dataDir)
 				{
@@ -747,10 +764,20 @@ if (-not [string]::IsNullOrWhiteSpace([string]$LifecycleOperation))
 						catch
 						{
 							Write-LaunchTrace ('Skipping unreadable manifest fragment {0}: {1}' -f $df.Name, $_.Exception.Message)
+							Write-Warning ('GPO conflict report is incomplete; skipped unreadable manifest fragment {0}: {1}' -f $df.FullName, $_.Exception.Message)
+							[void]$manifestReadFailures.Add([pscustomobject]@{
+								Path = $df.FullName
+								Error = $_.Exception.Message
+							})
 						}
 					}
 				}
 				$report = Get-BaselineGpoConflictReport -Manifest $manifest
+				if ($manifestReadFailures.Count -gt 0)
+				{
+					$report | Add-Member -NotePropertyName PartialFailureCount -NotePropertyValue ([int]$manifestReadFailures.Count) -Force
+					$report | Add-Member -NotePropertyName PartialFailures -NotePropertyValue ($manifestReadFailures.ToArray()) -Force
+				}
 				if ($OutputFormat -eq 'Text')
 				{
 					Write-Output (Format-BaselineGpoConflictReport -Report $report)
@@ -777,12 +804,12 @@ if (-not [string]::IsNullOrWhiteSpace([string]$LifecycleOperation))
 				}
 			}
 		}
-		exit 0
+		return (Exit-BaselineBootstrap -Code 0)
 	}
 	catch
 	{
 		Write-BaselineCliEvent -Kind 'Error' -Message ('Lifecycle operation failed: {0}' -f $_.Exception.Message)
-		exit 2
+		return (Exit-BaselineBootstrap -Code 2)
 	}
 }
 
@@ -823,8 +850,7 @@ if ($cliIntentCmd)
 				Write-Error ([string]$cliError)
 			}
 		}
-		$Global:LASTEXITCODE = 2
-		if ($Script:IsEmbeddedHost) { return } else { exit 2 }
+		return (Exit-BaselineBootstrap -Code 2)
 	}
 }
 
@@ -855,14 +881,12 @@ if ($ListPresets)
 	{
 		Write-LaunchTrace 'Preset catalog helpers missing — cannot honor -ListPresets.'
 		Write-Error 'Preset catalog helpers are unavailable; cannot list presets.'
-		$Global:LASTEXITCODE = 2
-		if ($Script:IsEmbeddedHost) { return } else { exit 2 }
+		return (Exit-BaselineBootstrap -Code 2)
 	}
 	$presetCatalog = & $presetCatalogCmd -PresetDirectory (Join-Path $Script:ModuleRoot 'Data\Presets')
 	$rendered = & $presetFormatCmd -Catalog $presetCatalog
 	Write-Output $rendered
-	$Global:LASTEXITCODE = 0
-	if ($Script:IsEmbeddedHost) { return } else { exit 0 }
+	return (Exit-BaselineBootstrap -Code 0)
 }
 
 # Multi-target preview safety: when more than one target is supplied without
@@ -922,8 +946,7 @@ if ($NoGui -and -not $hasHeadlessWorkIntent)
 {
 	Write-LaunchTrace '-NoGui supplied without any headless work intent; exiting cleanly.'
 	Write-Warning '-NoGui supplied with no work to do (no -Preset/-Functions/-ApplyProfile/-ApplyPreset/-ListPresets/-ConfigFile). Exiting.'
-	$Global:LASTEXITCODE = 0
-	if ($Script:IsEmbeddedHost) { return } else { exit 0 }
+	return (Exit-BaselineBootstrap -Code 0)
 }
 $shouldShowBootstrapSplash = -not $hasHeadlessIntent
 
@@ -938,8 +961,7 @@ if ($shouldShowBootstrapSplash)
 	{
 		Write-LaunchTrace 'Single-instance helper is missing — cannot enforce the GUI gate. Failing closed.'
 		Write-Warning 'Single-instance helper is missing; cannot safely launch a second GUI instance. Aborting.'
-		$Global:LASTEXITCODE = 2
-		if ($Script:IsEmbeddedHost) { return } else { exit 2 }
+		return (Exit-BaselineBootstrap -Code 2)
 	}
 	try
 	{
@@ -950,16 +972,14 @@ if ($shouldShowBootstrapSplash)
 		if ($Script:SingleInstanceDecision -and $Script:SingleInstanceDecision.Action -eq 'HandoffAndExit')
 		{
 			Write-LaunchTrace ('Single-instance handoff: {0}' -f [string]$Script:SingleInstanceDecision.Reason)
-			$Global:LASTEXITCODE = 0
-			if ($Script:IsEmbeddedHost) { return } else { exit 0 }
+			return (Exit-BaselineBootstrap -Code 0)
 		}
 	}
 	catch
 	{
 		Write-LaunchTrace ('SingleInstance gate failed: {0}' -f $_.Exception.Message)
 		Write-Warning ('SingleInstance gate failed: {0}. Aborting to avoid concurrent GUI runs.' -f $_.Exception.Message)
-		$Global:LASTEXITCODE = 2
-		if ($Script:IsEmbeddedHost) { return } else { exit 2 }
+		return (Exit-BaselineBootstrap -Code 2)
 	}
 
 	Write-LaunchTrace 'Bootstrap splash requested'
@@ -1074,7 +1094,7 @@ try
 catch [System.InvalidOperationException]
 {
 	Write-Warning -Message $Localization.UnsupportedPowerShell
-	if ($Script:IsEmbeddedHost) { return } else { exit }
+	return (Exit-BaselineBootstrap -Code 2)
 }
 
 Import-BaselineIncludedTweakLibraries -IncludePaths $Include
@@ -1212,7 +1232,7 @@ if ($TargetComputer)
 	if (-not (Test-Path -LiteralPath $resolvedRemoteProfile))
 	{
 		Write-Error "Profile file not found: $resolvedRemoteProfile"
-		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+		return (Exit-BaselineBootstrap -Code 1)
 	}
 
 	try
@@ -1234,7 +1254,7 @@ if ($TargetComputer)
 	catch
 	{
 		Write-Error "Failed to validate include libraries for remote profile '$resolvedRemoteProfile': $_"
-		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+		return (Exit-BaselineBootstrap -Code 1)
 	}
 
 	# Test connectivity first.
@@ -1262,7 +1282,7 @@ if ($TargetComputer)
 	{
 		Write-Error 'No target computers are reachable.'
 		if ($tempProfileCreated -and (Test-Path -LiteralPath $resolvedRemoteProfile)) { Remove-Item -LiteralPath $resolvedRemoteProfile -Force -ErrorAction SilentlyContinue }
-		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+		return (Exit-BaselineBootstrap -Code 1)
 	}
 
 	$remoteParams = @{ ComputerName = $reachableMachines; ProfilePath = $resolvedRemoteProfile }
@@ -1287,8 +1307,8 @@ if ($TargetComputer)
 		if ($tempProfileCreated -and (Test-Path -LiteralPath $resolvedRemoteProfile)) { Remove-Item -LiteralPath $resolvedRemoteProfile -Force -ErrorAction SilentlyContinue }
 
 		$anyDrift = @($remoteResults | Where-Object { -not $_.Compliant })
-		if ($anyDrift.Count -gt 0) { if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 } }
-		if ($Script:IsEmbeddedHost) { return 0 } else { exit 0 }
+		if ($anyDrift.Count -gt 0) { return (Exit-BaselineBootstrap -Code 1) }
+		return (Exit-BaselineBootstrap -Code 0)
 	}
 	else
 	{
@@ -1309,8 +1329,8 @@ if ($TargetComputer)
 		if ($tempProfileCreated -and (Test-Path -LiteralPath $resolvedRemoteProfile)) { Remove-Item -LiteralPath $resolvedRemoteProfile -Force -ErrorAction SilentlyContinue }
 
 		$anyFailed = @($remoteResults | Where-Object { -not $_.Applied })
-		if ($anyFailed.Count -gt 0) { if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 } }
-		if ($Script:IsEmbeddedHost) { return 0 } else { exit 0 }
+		if ($anyFailed.Count -gt 0) { return (Exit-BaselineBootstrap -Code 1) }
+		return (Exit-BaselineBootstrap -Code 0)
 	}
 }
 
@@ -1330,7 +1350,7 @@ if ($ComplianceCheck)
 	if (-not (Test-Path -LiteralPath $resolvedProfilePath))
 	{
 		Write-Error "Profile file not found: $resolvedProfilePath"
-		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+		return (Exit-BaselineBootstrap -Code 1)
 	}
 
 	try
@@ -1341,7 +1361,7 @@ if ($ComplianceCheck)
 	catch
 	{
 		Write-Error "Failed to read profile '$resolvedProfilePath': $_"
-		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+		return (Exit-BaselineBootstrap -Code 1)
 	}
 
 	# Load the manifest for state detection.
@@ -1349,7 +1369,7 @@ if ($ComplianceCheck)
 	if (-not $complianceManifest -or $complianceManifest.Count -eq 0)
 	{
 		Write-Error 'Failed to load tweak manifest for compliance checking.'
-		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+		return (Exit-BaselineBootstrap -Code 1)
 	}
 
 	# Run the compliance check.
@@ -1417,9 +1437,9 @@ if ($ComplianceCheck)
 	# Exit with appropriate code.
 	if ($complianceReport.Drifted -gt 0)
 	{
-		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+		return (Exit-BaselineBootstrap -Code 1)
 	}
-	if ($Script:IsEmbeddedHost) { return 0 } else { exit 0 }
+	return (Exit-BaselineBootstrap -Code 0)
 }
 
 # Profile apply mode: load a saved configuration profile and apply every entry to
@@ -1473,7 +1493,7 @@ if ($ApplyProfile)
 	if (-not (Test-Path -LiteralPath $applyResolvedPath))
 	{
 		Write-Error "Profile file not found: $applyResolvedPath"
-		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+		return (Exit-BaselineBootstrap -Code 1)
 	}
 
 	$applyProfile = $null
@@ -1484,7 +1504,7 @@ if ($ApplyProfile)
 	catch
 	{
 		Write-Error "Failed to read profile '$applyResolvedPath': $_"
-		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+		return (Exit-BaselineBootstrap -Code 1)
 	}
 
 	try
@@ -1494,7 +1514,7 @@ if ($ApplyProfile)
 	catch
 	{
 		Write-Error "Failed to import include libraries from profile '$applyResolvedPath': $_"
-		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+		return (Exit-BaselineBootstrap -Code 1)
 	}
 
 	$profileSelections = if ($applyProfile.PSObject.Properties['Selections']) { @($applyProfile.Selections) } else { @() }
@@ -1589,7 +1609,7 @@ if ($ApplyProfile)
 
 		if ($Script:ApplyProfileApplicationsCatalog -is [System.Collections.Generic.Dictionary[string, object]])
 		{
-			return $Script:ApplyProfileApplicationsCatalog
+			return ,$Script:ApplyProfileApplicationsCatalog
 		}
 
 		$catalog = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -1598,7 +1618,7 @@ if ($ApplyProfile)
 		if (-not (Test-Path -LiteralPath $catalogRoot -PathType Container))
 		{
 			$Script:ApplyProfileApplicationsCatalog = $catalog
-			return $Script:ApplyProfileApplicationsCatalog
+			return ,$Script:ApplyProfileApplicationsCatalog
 		}
 
 		foreach ($catalogFile in @(Get-ChildItem -LiteralPath $catalogRoot -Filter '*.json' -File -ErrorAction SilentlyContinue | Sort-Object Name))
@@ -1621,7 +1641,7 @@ if ($ApplyProfile)
 		}
 
 		$Script:ApplyProfileApplicationsCatalog = $catalog
-		return $Script:ApplyProfileApplicationsCatalog
+		return ,$Script:ApplyProfileApplicationsCatalog
 	}
 
 	<#
@@ -1718,7 +1738,7 @@ if ($ApplyProfile)
 	if ($profileSelections.Count -eq 0 -and $profileAppActions.Count -eq 0)
 	{
 		Write-Warning "Profile '$applyResolvedPath' contains no selections. Nothing to apply."
-		if ($Script:IsEmbeddedHost) { return 0 } else { exit 0 }
+		return (Exit-BaselineBootstrap -Code 0)
 	}
 
 	$applyFunctions = [System.Collections.Generic.List[string]]::new()
@@ -1730,7 +1750,7 @@ if ($ApplyProfile)
 		if (-not $applyManifest -or $applyManifest.Count -eq 0)
 		{
 			Write-Error 'Failed to load tweak manifest for profile apply.'
-			if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+			return (Exit-BaselineBootstrap -Code 1)
 		}
 		$applyFunctionAllowList = New-BaselineManifestFunctionAllowList -Manifest $applyManifest
 
@@ -1793,7 +1813,7 @@ if ($ApplyProfile)
 	$applyAppActions = [System.Collections.Generic.List[object]]::new()
 	if ($profileAppActions.Count -gt 0)
 	{
-		$applyCatalog = @(Get-ApplyProfileApplicationsCatalog)
+		$applyCatalog = Get-ApplyProfileApplicationsCatalog
 		foreach ($appAction in $profileAppActions)
 		{
 			$resolvedAppAction = Resolve-ApplyProfileAppActionEntry -AppAction $appAction -Catalog $applyCatalog
@@ -1814,14 +1834,14 @@ if ($ApplyProfile)
 		{
 			Write-Warning "Profile '$applyResolvedPath' did not contain any allowed tweak or app actions."
 			$Global:LASTEXITCODE = 1
-			if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+			return (Exit-BaselineBootstrap -Code 1)
 		}
 
 		Write-Warning "Profile '$applyResolvedPath' produced no applicable changes. Nothing to apply."
 		$emptyExit = Get-BaselineHeadlessExitCode -Total 0
 		Write-LaunchTrace ('Profile apply: no work selected, exitCode={0} reason={1}' -f [int]$emptyExit.ExitCode, [string]$emptyExit.Reason)
 		$Global:LASTEXITCODE = [int]$emptyExit.ExitCode
-		if ($Script:IsEmbeddedHost) { return [int]$emptyExit.ExitCode } else { exit ([int]$emptyExit.ExitCode) }
+		return (Exit-BaselineBootstrap -Code ([int]$emptyExit.ExitCode))
 	}
 
 	Write-Host ''
@@ -1869,17 +1889,19 @@ if ($ApplyProfile)
 		Write-Host ''
 		Write-Host "  Total: $idx command$(if ($idx -ne 1) { 's' }) would be executed." -ForegroundColor Cyan
 		$Global:LASTEXITCODE = 0
-		if ($Script:IsEmbeddedHost) { return 0 } else { exit 0 }
+		return (Exit-BaselineBootstrap -Code 0)
 	}
 
 	$Global:BaselineHeadlessCommands = if ($applyFunctions.Count -gt 0) { $applyFunctions.ToArray() } else { @() }
 	Invoke-Command -ScriptBlock { InitialActions }
-	Add-SessionStatistic -Name 'ApplyRunCount'
+        Add-SessionStatistic -Name 'ApplyRunCount'
 
-	$applyErrors = [int]$applyValidationErrors
-	$applyAppErrors = 0
-	try
-	{
+        $applyErrors = [int]$applyValidationErrors
+        $applyAppErrors = 0
+        $applyFinalizationErrors = 0
+        $applyFinalizationFailures = [System.Collections.Generic.List[string]]::new()
+        try
+        {
 	foreach ($call in $applyFunctions)
 	{
 		$tokens = $null; $parseErrors = $null
@@ -1922,11 +1944,27 @@ if ($ApplyProfile)
 			continue
 		}
 		$namedArguments = $invocation.NamedArguments
+		$positionalArguments = $invocation.PositionalArguments
 		$operationScope = Start-BaselineOperationScope -Name $functionName
 		$operationThrew = $false
 		try
 		{
-			& $resolvedCmd @namedArguments
+			if ($namedArguments.Count -gt 0 -and $positionalArguments.Count -gt 0)
+			{
+				& $resolvedCmd @namedArguments @positionalArguments
+			}
+			elseif ($namedArguments.Count -gt 0)
+			{
+				& $resolvedCmd @namedArguments
+			}
+			elseif ($positionalArguments.Count -gt 0)
+			{
+				& $resolvedCmd @positionalArguments
+			}
+			else
+			{
+				& $resolvedCmd
+			}
 		}
 		catch
 		{
@@ -1966,28 +2004,39 @@ if ($ApplyProfile)
 		# if a tweak threw out of the loop above. Same tracked contract
 		# the headless-functions path uses: never block, never throw, never pop
 		# a dialog.
-		try { Invoke-Command -ScriptBlock { PostActions; Errors } }
-		catch { Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.ApplyProfile.PostActions' -Severity Warning }
+                try { Invoke-Command -ScriptBlock { PostActions; Errors } }
+                catch
+                {
+                        $applyFinalizationErrors++
+                        [void]$applyFinalizationFailures.Add(('PostActions: {0}' -f $_.Exception.Message))
+                        Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.ApplyProfile.PostActions' -Severity Warning
+                }
 
-		try
-		{
-			Write-AuditRecord -Action 'ProfileApply' -Mode 'Profile' -ProfilePath $applyResolvedPath -Details @{
-				Entries    = $applyFunctions.Count
-				AppActions = $applyAppActions.Count
-				Failed     = ($applyErrors + $applyAppErrors)
-			}
-		}
-		catch { Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.ApplyProfile.Audit' -Severity Warning }
+                try
+                {
+                        Write-AuditRecord -Action 'ProfileApply' -Mode 'Profile' -ProfilePath $applyResolvedPath -Details @{
+                                Entries              = $applyFunctions.Count
+                                AppActions           = $applyAppActions.Count
+                                Failed               = ($applyErrors + $applyAppErrors + $applyFinalizationErrors)
+                                FinalizationFailures = @($applyFinalizationFailures)
+                        }
+                }
+                catch
+                {
+                        $applyFinalizationErrors++
+                        [void]$applyFinalizationFailures.Add(('Audit: {0}' -f $_.Exception.Message))
+                        Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.ApplyProfile.Audit' -Severity Warning
+                }
 
-		$applyTotal = [int]$applyFunctions.Count + [int]$applyAppActions.Count
-		$applyTotalFailed = [int]$applyErrors + [int]$applyAppErrors
-		$applySucceeded = $applyTotal - $applyTotalFailed
-		if ($applySucceeded -lt 0) { $applySucceeded = 0 }
-		$applyExit = Get-BaselineHeadlessExitCode -Total $applyTotal -Succeeded $applySucceeded -Failed $applyTotalFailed
-		Write-LaunchTrace ('Profile apply finished: exitCode={0} reason={1} total={2} succeeded={3} failed={4}' -f [int]$applyExit.ExitCode, [string]$applyExit.Reason, $applyTotal, $applySucceeded, $applyTotalFailed)
-		$Global:LASTEXITCODE = [int]$applyExit.ExitCode
-	}
-	if ($Script:IsEmbeddedHost) { return [int]$Global:LASTEXITCODE } else { exit ([int]$Global:LASTEXITCODE) }
+                $applyTotal = [int]$applyFunctions.Count + [int]$applyAppActions.Count + [int]$applyFinalizationErrors
+                $applyTotalFailed = [int]$applyErrors + [int]$applyAppErrors + [int]$applyFinalizationErrors
+                $applySucceeded = $applyTotal - $applyTotalFailed
+                if ($applySucceeded -lt 0) { $applySucceeded = 0 }
+                $applyExit = Get-BaselineHeadlessExitCode -Total $applyTotal -Succeeded $applySucceeded -Failed $applyTotalFailed
+                Write-LaunchTrace ('Profile apply finished: exitCode={0} reason={1} total={2} succeeded={3} failed={4} finalizationFailures={5}' -f [int]$applyExit.ExitCode, [string]$applyExit.Reason, $applyTotal, $applySucceeded, $applyTotalFailed, ($applyFinalizationFailures -join '; '))
+                $Global:LASTEXITCODE = [int]$applyExit.ExitCode
+        }
+	return (Exit-BaselineBootstrap -Code ([int]$Global:LASTEXITCODE))
 }
 
 # Headless mode: run specific functions or a preset from the command line
@@ -2020,13 +2069,13 @@ if ($Functions)
 	{
 		LogError "Failed to load tweak manifest for headless execution: $($_.Exception.Message)"
 		$Global:LASTEXITCODE = 1
-		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+		return (Exit-BaselineBootstrap -Code 1)
 	}
 	if (-not $headlessManifest -or $headlessManifest.Count -eq 0)
 	{
 		LogError 'Failed to load tweak manifest for headless execution.'
 		$Global:LASTEXITCODE = 1
-		if ($Script:IsEmbeddedHost) { return 1 } else { exit 1 }
+		return (Exit-BaselineBootstrap -Code 1)
 	}
 	$headlessFunctionAllowList = New-BaselineManifestFunctionAllowList -Manifest $headlessManifest
 	$dryRunManifest = if ($DryRun) { $headlessManifest } else { $null }
@@ -2192,7 +2241,7 @@ if ($Functions)
 		Write-Host '  No changes were applied.' -ForegroundColor Cyan
 		Write-Host ''
 		$Global:LASTEXITCODE = if ($dryRunRejected -gt 0) { 1 } else { 0 }
-		if ($Script:IsEmbeddedHost) { return [int]$Global:LASTEXITCODE } else { exit ([int]$Global:LASTEXITCODE) }
+		return (Exit-BaselineBootstrap -Code ([int]$Global:LASTEXITCODE))
 	}
 
 	# Always run PostActions/Errors and emit the structured exit code, even if a
@@ -2212,7 +2261,7 @@ if ($Functions)
 		Write-LaunchTrace ('Headless function run finished: exitCode={0} reason={1} total={2} succeeded={3} failed={4}' -f [int]$headlessExit.ExitCode, [string]$headlessExit.Reason, $headlessTotal, $headlessSucceeded, $headlessFailed)
 		$Global:LASTEXITCODE = [int]$headlessExit.ExitCode
 	}
-	if ($Script:IsEmbeddedHost) { return [int]$Global:LASTEXITCODE } else { exit ([int]$Global:LASTEXITCODE) }
+	return (Exit-BaselineBootstrap -Code ([int]$Global:LASTEXITCODE))
 }
 
 # Restart under Windows PowerShell 5.1 unless we are already running there
@@ -2246,7 +2295,7 @@ if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -ne [System.Thr
 		[void]$staArgumentList.Add([string]$argument)
 	}
 	Start-Process -FilePath $staHost -ArgumentList $staArgumentList.ToArray()
-	if ($Script:IsEmbeddedHost) { return } else { exit }
+	return (Exit-BaselineBootstrap -Code 0)
 }
 
 # Signal to InitialActions/PostActions that we are running in GUI mode.

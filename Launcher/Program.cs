@@ -699,7 +699,8 @@ namespace Baseline.RunLauncher
                 localAppData = Path.Combine(Path.GetTempPath(), "Baseline_LocalAppData");
             }
 
-            var isPortableLocation = appBase.StartsWith(localAppData, StringComparison.OrdinalIgnoreCase);
+            var isPortableLocation = appBase.StartsWith(localAppData, StringComparison.OrdinalIgnoreCase)
+                && !IsCurrentUserInstallLocation(appBase, localAppData);
 
             if (isPortableLocation)
             {
@@ -729,6 +730,27 @@ namespace Baseline.RunLauncher
 
             portable = false;
             return tmp;
+        }
+
+        /// <summary>
+        /// Determines whether the executable is running from the current-user installer layout.
+        /// </summary>
+        /// <param name="appBase">The application base directory.</param>
+        /// <param name="localAppData">The resolved LocalAppData directory.</param>
+        /// <returns>True when the path is the known current-user install location.</returns>
+        private static bool IsCurrentUserInstallLocation(string appBase, string localAppData)
+        {
+            if (string.IsNullOrWhiteSpace(appBase) || string.IsNullOrWhiteSpace(localAppData))
+            {
+                return false;
+            }
+
+            var expected = Path.GetFullPath(Path.Combine(localAppData, "Programs", "Baseline"))
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var actual = Path.GetFullPath(appBase)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            return string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>

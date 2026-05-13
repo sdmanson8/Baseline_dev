@@ -347,15 +347,20 @@ function Get-BaselineLocalizedString
         [object[]]$FormatArgs = @()
     )
 
-    # Keep the English fallback for English UI only; non-English sessions should
-    # not leak hardcoded English when a translation key is missing.
     $cultureName = [string]([System.Environment]::GetEnvironmentVariable('BASELINE_LANGUAGE'))
     if ([string]::IsNullOrWhiteSpace($cultureName))
     {
         $cultureName = [string][System.Threading.Thread]::CurrentThread.CurrentUICulture.Name
     }
-    $template = if ([string]::IsNullOrWhiteSpace($cultureName) -or ($cultureName -match '^(?i)en(-|$)')) { $Fallback } else { '' }
-    $localizationSource = if ($null -ne $Global:Localization) { $Global:Localization } elseif ($null -ne $Localization) { $Localization } else { $null }
+    $template = $Fallback
+    $foundTranslation = $false
+    $localizationVariable = Get-Variable -Name Localization -Scope Global -ErrorAction SilentlyContinue
+    if ($null -eq $localizationVariable)
+    {
+        $localizationVariable = Get-Variable -Name Localization -ErrorAction SilentlyContinue
+    }
+
+    $localizationSource = if ($null -ne $localizationVariable) { $localizationVariable.Value } else { $null }
     if ($null -ne $localizationSource)
     {
         $candidate = $null
@@ -371,6 +376,29 @@ function Get-BaselineLocalizedString
         if (-not [string]::IsNullOrWhiteSpace($candidate))
         {
             $template = $candidate
+            $foundTranslation = $true
+        }
+    }
+
+    if (-not $foundTranslation)
+    {
+        $warningKey = '{0}|{1}' -f $cultureName, $Key
+        if (-not (Get-Variable -Name CachedBaselineMissingLocalizationWarnings -Scope Script -ErrorAction SilentlyContinue))
+        {
+            $Script:CachedBaselineMissingLocalizationWarnings = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        }
+
+        if ($Script:CachedBaselineMissingLocalizationWarnings.Add($warningKey))
+        {
+            $warningMessage = "Missing localization key '$Key' for culture '$cultureName'; using English fallback text."
+            if (Get-Command -Name 'LogWarning' -CommandType Function -ErrorAction SilentlyContinue)
+            {
+                LogWarning $warningMessage
+            }
+            else
+            {
+                Write-Warning $warningMessage
+            }
         }
     }
 

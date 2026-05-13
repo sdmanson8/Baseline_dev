@@ -142,6 +142,12 @@ Describe 'Launcher identity host' {
         $script:LauncherProgramContent | Should -Match '"TargetComputer"'
     }
 
+    It 'does not treat the current-user installer layout as portable mode' {
+        $script:LauncherProgramContent | Should -Match 'IsCurrentUserInstallLocation\(appBase, localAppData\)'
+        $script:LauncherProgramContent | Should -Match 'Path\.Combine\(localAppData, "Programs", "Baseline"\)'
+        $script:LauncherProgramContent | Should -Match '&& !IsCurrentUserInstallLocation\(appBase, localAppData\)'
+    }
+
     It 'invokes the embedded bootstrap with named command-line parameters preserved' {
         $script:LauncherProgramContent | Should -Match 'powershell\.AddCommand\(launcherScript\)'
         $script:LauncherProgramContent | Should -Match 'BindPowerShellInvocationArguments\(powershell, normalizedArgs\)'
@@ -211,12 +217,83 @@ Describe 'Embedded host bootstrap flow' {
         $script:BootstrapContent | Should -Match '\$namedArguments\s*=\s*\$invocation\.NamedArguments'
         $script:BootstrapContent | Should -Match '& \$resolvedCmd @namedArguments'
     }
+
+    It 'uses an explicit bootstrap exit helper for embedded host exit codes' {
+        $script:BootstrapContent | Should -Match 'function Exit-BaselineBootstrap'
+        $script:BootstrapContent | Should -Match '\$Global:LASTEXITCODE = \[int\]\$Code'
+        $script:BootstrapContent | Should -Match 'return \(Exit-BaselineBootstrap -Code 2\)'
+        $script:BootstrapContent | Should -Not -Match 'if \(\$Script:IsEmbeddedHost\) \{ return \} else \{ exit \}'
+    }
+
+    It 'routes audited bootstrap abort scenarios through explicit non-zero exit codes' {
+        $script:BootstrapContent | Should -Match 'if \(-not \$Script:ModuleRootExists -or \$MissingRequired -or -not \$RegionFiles\)[\s\S]+?return \(Exit-BaselineBootstrap -Code 2\)'
+        $script:BootstrapContent | Should -Match 'if \(@\(\$Script:CliIntent\.Errors\)\.Count -gt 0\)[\s\S]+?return \(Exit-BaselineBootstrap -Code 2\)'
+        $script:BootstrapContent | Should -Match 'Preset catalog helpers missing[\s\S]+?return \(Exit-BaselineBootstrap -Code 2\)'
+        $script:BootstrapContent | Should -Match 'Single-instance helper is missing[\s\S]+?return \(Exit-BaselineBootstrap -Code 2\)'
+        $script:BootstrapContent | Should -Match '\$Localization\.UnsupportedPowerShell[\s\S]+?return \(Exit-BaselineBootstrap -Code 2\)'
+    }
+
+    It 'keeps apply-profile app catalogs non-enumerated and preserves positional arguments' {
+        $script:BootstrapContent | Should -Match 'return ,\$Script:ApplyProfileApplicationsCatalog'
+        $script:BootstrapContent | Should -Match '\$applyCatalog = Get-ApplyProfileApplicationsCatalog'
+        $script:BootstrapContent | Should -Not -Match '\$applyCatalog = @\(Get-ApplyProfileApplicationsCatalog\)'
+        $script:BootstrapContent | Should -Match '\$positionalArguments\s*=\s*\$invocation\.PositionalArguments'
+        $script:BootstrapContent | Should -Match '& \$resolvedCmd @namedArguments @positionalArguments'
+    }
+
+    It 'reflects apply-profile finalization failures in the final exit accounting' {
+        $script:BootstrapContent | Should -Match '\$applyFinalizationErrors = 0'
+        $script:BootstrapContent | Should -Match '\$applyFinalizationFailures = \[System\.Collections\.Generic\.List\[string\]\]::new\(\)'
+        $script:BootstrapContent | Should -Match '\$applyFinalizationErrors\+\+'
+        $script:BootstrapContent | Should -Match 'FinalizationFailures = @\(\$applyFinalizationFailures\)'
+        $script:BootstrapContent | Should -Match '\$applyTotal = \[int\]\$applyFunctions\.Count \+ \[int\]\$applyAppActions\.Count \+ \[int\]\$applyFinalizationErrors'
+        $script:BootstrapContent | Should -Match '\$applyTotalFailed = \[int\]\$applyErrors \+ \[int\]\$applyAppErrors \+ \[int\]\$applyFinalizationErrors'
+        $script:BootstrapContent | Should -Match 'finalizationFailures=\{5\}'
+    }
+
+    It 'resolves apply-profile AppActions against catalog metadata without skipping them' {
+        $tokens = $null
+        $parseErrors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseInput($script:BootstrapContent, [ref]$tokens, [ref]$parseErrors)
+        $parseErrors | Should -BeNullOrEmpty
+        $resolverAst = $ast.Find({
+            param($node)
+            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+            $node.Name -eq 'Resolve-ApplyProfileAppActionEntry'
+        }, $true)
+        $resolverAst | Should -Not -BeNullOrEmpty
+        Invoke-Expression $resolverAst.Extent.Text
+
+        $catalog = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        $catalog['winget:mozilla.firefox'] = [pscustomobject]@{
+            Name = 'Mozilla Firefox'
+            WinGetId = 'Mozilla.Firefox'
+            EntityType = 'application'
+            SubCategory = 'Browsers'
+            SupportsExecution = $true
+        }
+
+        $resolved = Resolve-ApplyProfileAppActionEntry -AppAction ([pscustomobject]@{
+            AppId = 'winget:mozilla.firefox'
+            Action = 'Install'
+        }) -Catalog $catalog
+
+        $resolved | Should -Not -BeNullOrEmpty
+        $resolved.Name | Should -Be 'Mozilla Firefox'
+        $resolved.WinGetId | Should -Be 'Mozilla.Firefox'
+        $resolved.Action | Should -Be 'Install'
+        $resolved.SupportsExecution | Should -BeTrue
+    }
 }
 
 Describe 'Foreground helper process selection' {
-    It 'includes the Baseline process name anywhere the GUI window is searched by title' {
-        $script:UwpAppsContent | Should -Match 'Get-Process -Name Baseline, powershell, WindowsTerminal'
-        ([regex]::Matches($script:SystemWindowsFeaturesContent, 'Get-Process -Name Baseline, powershell, WindowsTerminal')).Count | Should -Be 2
-        $script:TelemetryServicesContent | Should -Match 'Get-Process -Name Baseline, powershell, WindowsTerminal'
+    It 'keeps GUI dialogs on the shared no-focus-stealing foreground helper' {
+        $script:UwpAppsContent | Should -Match 'Initialize-WpfWindowForeground -Window \$Form'
+        ([regex]::Matches($script:SystemWindowsFeaturesContent, 'Initialize-WpfWindowForeground -Window \$Form')).Count | Should -Be 2
+        $script:TelemetryServicesContent | Should -Match 'Initialize-WpfWindowForeground -Window \$Form'
+
+        $script:UwpAppsContent | Should -Not -Match 'Get-Process -Name Baseline, powershell, WindowsTerminal'
+        $script:SystemWindowsFeaturesContent | Should -Not -Match 'Get-Process -Name Baseline, powershell, WindowsTerminal'
+        $script:TelemetryServicesContent | Should -Not -Match 'Get-Process -Name Baseline, powershell, WindowsTerminal'
     }
 }

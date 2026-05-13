@@ -1,6 +1,49 @@
 ﻿<#
     .SYNOPSIS
 #>
+function Set-GuiSettingsStoreUnavailable
+{
+	param(
+		[Parameter(Mandatory = $true)]
+		[string]$Path,
+
+		[Parameter(Mandatory = $true)]
+		[string]$Message
+	)
+
+	$Script:GuiSettingsStoreStatus = [pscustomobject]@{
+		Available = $false
+		Path      = $Path
+		Message   = $Message
+		UpdatedAt = [DateTimeOffset]::UtcNow
+	}
+
+	$warning = "GUI settings store unavailable at '$Path': $Message"
+	if (Get-Command -Name 'LogWarning' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		LogWarning $warning
+	}
+	else
+	{
+		Write-Warning $warning
+	}
+}
+
+function Get-GuiSettingsStoreStatus
+{
+	if (-not (Get-Variable -Name GuiSettingsStoreStatus -Scope Script -ErrorAction SilentlyContinue))
+	{
+		$Script:GuiSettingsStoreStatus = [pscustomobject]@{
+			Available = $true
+			Path      = $null
+			Message   = $null
+			UpdatedAt = [DateTimeOffset]::UtcNow
+		}
+	}
+
+	return $Script:GuiSettingsStoreStatus
+}
+
 function Get-GuiSettingsProfileDirectory
 {
 	param (
@@ -46,7 +89,7 @@ function Get-GuiSettingsProfileDirectory
 	}
 	catch
 	{
-		$null = $_
+		Set-GuiSettingsStoreUnavailable -Path $baseDir -Message $_.Exception.Message
 	}
 
 	return $baseDir

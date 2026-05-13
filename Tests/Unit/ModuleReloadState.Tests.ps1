@@ -18,6 +18,30 @@ Describe 'Module reload state visibility' {
         $script:LoaderContent | Should -Match 'LogWarning\s+\("Baseline loader reset session statistics after module reload because the log path changed from'
     }
 
+    It 'imports core modules with immediate terminating failures and clear module names' {
+        $script:LoaderContent | Should -Match '\$coreModuleImports = @\('
+        $script:LoaderContent | Should -Match 'Logging\.psm1'
+        $script:LoaderContent | Should -Match 'SharedHelpers\.psm1'
+        $script:LoaderContent | Should -Match 'GUIExecution\.psm1'
+        $script:LoaderContent | Should -Match 'Import-Module -Name \$coreImport\.Path.*-ErrorAction Stop'
+        $script:LoaderContent | Should -Match 'Failed to import core module'
+        $script:LoaderContent | Should -Match 'throw'
+    }
+
+    It 'fails immediately when a core module import is missing' {
+        $moduleRoot = Join-Path $TestDrive 'Module'
+        [void](New-Item -ItemType Directory -Path $moduleRoot -Force)
+        Set-Content -LiteralPath (Join-Path $moduleRoot 'Baseline.psm1') -Value $script:LoaderContent -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $moduleRoot 'Logging.psm1') -Value @'
+function LogError { param([string]$Message) $script:LastLoaderError = $Message }
+function Set-LogFile { param([string]$Path) }
+function Initialize-SessionStatistics { }
+'@ -Encoding UTF8
+
+        { Import-Module (Join-Path $moduleRoot 'Baseline.psm1') -Force -ErrorAction Stop } |
+            Should -Throw '*Failed to import core module ''SharedHelpers.psm1''*'
+    }
+
     It 'documents loader reload resets in STATE.md' {
         $script:StateDocContent | Should -Match 'Loader reload behaviour'
         $script:StateDocContent | Should -Match 'session statistics'

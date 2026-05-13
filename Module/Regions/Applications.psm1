@@ -755,12 +755,90 @@ function ConvertTo-ApplicationCommandInvocation
 	.SYNOPSIS
 	Runs streaming process.
 	.DESCRIPTION
-	Runs an external process with no visible window. Stdout and stderr are drained
-	asynchronously so the subprocess never blocks on a full pipe, but the lines are
-	DISCARDED instead of being surfaced in the GUI log. Callers log high-level
-	outcomes (Installing X..., Successfully installed X, Failed to install X) only.
+	Runs an external process with no visible window and captures stdout/stderr so
+	package-manager failures include enough diagnostics for support.
 	Returns the exit code.
 #>
+
+function Get-ApplicationProcessOutputTail
+{
+	[CmdletBinding()]
+	param(
+		[AllowNull()]
+		[string]$Text,
+
+		[int]$MaxLines = 8
+	)
+
+	if ([string]::IsNullOrWhiteSpace($Text)) { return '' }
+
+	$lines = @(
+		[regex]::Split([string]$Text, '\r?\n') |
+			Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+			ForEach-Object { [string]$_.Trim() }
+	)
+	if ($lines.Count -eq 0) { return '' }
+
+	return (($lines | Select-Object -Last $MaxLines) -join ' | ')
+}
+
+function ConvertTo-ApplicationProcessArgumentString
+{
+	[CmdletBinding()]
+	param(
+		[AllowNull()]
+		[object[]]$ArgumentList
+	)
+
+	if (Get-Command -Name 'ConvertTo-BaselineProcessArgumentString' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		return (ConvertTo-BaselineProcessArgumentString -ArgumentList $ArgumentList)
+	}
+
+	$quotedArgs = foreach ($arg in @($ArgumentList))
+	{
+		$value = [string]$arg
+		if ([string]::IsNullOrEmpty($value)) { '""' }
+		elseif ($value -match '[\s"]') { '"' + ($value -replace '"', '\"') + '"' }
+		else { $value }
+	}
+
+	return ($quotedArgs -join ' ')
+}
+
+function Write-ApplicationProcessFailureDiagnostics
+{
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory = $true)]
+		[object]$Result
+	)
+
+	if (-not $Result -or -not $Result.PSObject.Properties['ExitCode'] -or [int]$Result.ExitCode -eq 0)
+	{
+		return
+	}
+
+	$detailParts = [System.Collections.Generic.List[string]]::new()
+	[void]$detailParts.Add(("exitCode={0}" -f [int]$Result.ExitCode))
+	if ($Result.PSObject.Properties['FilePath']) { [void]$detailParts.Add(("file={0}" -f [string]$Result.FilePath)) }
+	if ($Result.PSObject.Properties['Arguments'] -and -not [string]::IsNullOrWhiteSpace([string]$Result.Arguments)) { [void]$detailParts.Add(("args={0}" -f [string]$Result.Arguments)) }
+
+	$stderrTail = if ($Result.PSObject.Properties['StandardError']) { Get-ApplicationProcessOutputTail -Text ([string]$Result.StandardError) } else { '' }
+	$stdoutTail = if ($Result.PSObject.Properties['StandardOutput']) { Get-ApplicationProcessOutputTail -Text ([string]$Result.StandardOutput) } else { '' }
+	if (-not [string]::IsNullOrWhiteSpace($stderrTail)) { [void]$detailParts.Add(("stderr={0}" -f $stderrTail)) }
+	if (-not [string]::IsNullOrWhiteSpace($stdoutTail)) { [void]$detailParts.Add(("stdout={0}" -f $stdoutTail)) }
+
+	$message = "Application process failed: {0}" -f ($detailParts -join '; ')
+	if (Get-Command -Name 'LogWarning' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		LogWarning $message
+	}
+	else
+	{
+		Write-Warning $message
+	}
+}
 
 function Invoke-StreamingProcess
 {
@@ -771,16 +849,21 @@ function Invoke-StreamingProcess
 		[int]$TimeoutSeconds = 900
 	)
 
-	$quotedArgs = foreach ($arg in $ArgumentList)
+	if (Get-Command -Name 'Invoke-BaselineProcess' -CommandType Function -ErrorAction SilentlyContinue)
 	{
-		if ([string]::IsNullOrEmpty($arg)) { '""' }
-		elseif ($arg -match '[\s"]') { '"' + ($arg -replace '"', '\"') + '"' }
-		else { $arg }
+		$result = Invoke-BaselineProcess `
+			-FilePath $FilePath `
+			-ArgumentList $ArgumentList `
+			-TimeoutSeconds $TimeoutSeconds `
+			-CaptureOutput `
+			-AllowAnyExitCode
+		Write-ApplicationProcessFailureDiagnostics -Result $result
+		return [int]$result.ExitCode
 	}
 
 	$psi = [System.Diagnostics.ProcessStartInfo]::new()
 	$psi.FileName = $FilePath
-	$psi.Arguments = ($quotedArgs -join ' ')
+	$psi.Arguments = ConvertTo-ApplicationProcessArgumentString -ArgumentList $ArgumentList
 	$psi.UseShellExecute = $false
 	$psi.CreateNoWindow = $true
 	$psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
@@ -791,9 +874,6 @@ function Invoke-StreamingProcess
 	$process.StartInfo = $psi
 	[void]$process.Start()
 
-	# Drain both pipes to /dev/null in parallel - we just need to prevent the
-	# subprocess from blocking on a full pipe. Reading to end is sufficient and
-	# no LogInfo/LogWarning is emitted per line, keeping the GUI log clean.
 	$stdoutTask = $process.StandardOutput.ReadToEndAsync()
 	$stderrTask = $process.StandardError.ReadToEndAsync()
 	$timedOut = $false
@@ -815,10 +895,19 @@ function Invoke-StreamingProcess
 		throw ([System.TimeoutException]::new(("Process '{0}' timed out after {1} second(s)." -f $FilePath, $TimeoutSeconds)))
 	}
 
-	try { $null = $stdoutTask.GetAwaiter().GetResult() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessCapture.StdoutAwait' }
-	try { $null = $stderrTask.GetAwaiter().GetResult() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessCapture.StderrAwait' }
+	$stdout = ''
+	$stderr = ''
+	try { $stdout = [string]$stdoutTask.GetAwaiter().GetResult() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessCapture.StdoutAwait' }
+	try { $stderr = [string]$stderrTask.GetAwaiter().GetResult() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessCapture.StderrAwait' }
 
 	$exitCode = [int]$process.ExitCode
+	Write-ApplicationProcessFailureDiagnostics -Result ([pscustomobject]@{
+		ExitCode       = $exitCode
+		StandardOutput = $stdout
+		StandardError  = $stderr
+		FilePath        = $FilePath
+		Arguments       = ConvertTo-ApplicationProcessArgumentString -ArgumentList $ArgumentList
+	})
 	try { $process.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ProcessCapture.DisposeProcess' }
 	return $exitCode
 }
@@ -1605,7 +1694,7 @@ function Invoke-StoreInstall
 		Start-Process -FilePath $StoreUri
 
 		# Show themed dialog that blocks until user clicks OK
-		$messageText = Get-BaselineLocalizedString -Key 'Progress_Store_InstallPrompt' -Fallback "Microsoft Store has been opened for $DisplayName.`n`nPlease install the app manually, then click OK to continue with the next app."
+		$messageText = Get-BaselineLocalizedString -Key 'Progress_Store_InstallPrompt' -Fallback "Microsoft Store has been opened for {0}.`n`nPlease install the app manually, then click OK to continue with the next app." -FormatArgs @($DisplayName)
 
 		$dialogResult = GUICommon\Show-ThemedDialog `
 			-Theme $Theme `

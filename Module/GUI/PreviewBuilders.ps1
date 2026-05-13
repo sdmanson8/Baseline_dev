@@ -91,6 +91,43 @@
 		return $null
 	}
 
+	function Get-GuiIndexedControlState
+	{
+		param (
+			[object]$Controls,
+			[int]$Index
+		)
+
+		if ($null -eq $Controls -or $Index -lt 0)
+		{
+			return $null
+		}
+
+		if ($Controls -is [System.Collections.IDictionary])
+		{
+			if ($Controls.Contains($Index))
+			{
+				return $Controls[$Index]
+			}
+
+			$stringIndex = [string]$Index
+			if ($Controls.Contains($stringIndex))
+			{
+				return $Controls[$stringIndex]
+			}
+
+			return $null
+		}
+
+		$controlList = @($Controls)
+		if ($Index -ge $controlList.Count)
+		{
+			return $null
+		}
+
+		return $controlList[$Index]
+	}
+
 	function Get-SelectedTweakRunList
 	{
 		param (
@@ -98,14 +135,14 @@
 			$Controls = $null
 		)
 		$resolvedManifest = @(if ($null -ne $TweakManifest) { $TweakManifest } else { $Script:TweakManifest })
-		$resolvedControls = @(if ($null -ne $Controls) { $Controls } else { $Script:Controls })
+		$resolvedControls = if ($null -ne $Controls) { $Controls } else { $Script:Controls }
 
 		$selectedTweaks = [System.Collections.Generic.List[hashtable]]::new()
 
 		for ($ri = 0; $ri -lt $resolvedManifest.Count; $ri++)
 		{
 			$rt = $resolvedManifest[$ri]
-			$rctl = $resolvedControls[$ri]
+			$rctl = Get-GuiIndexedControlState -Controls $resolvedControls -Index $ri
 			if (Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue)
 			{
 				if (-not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $rt))
@@ -487,7 +524,7 @@
 		for ($ri = 0; $ri -lt $resolvedManifest.Count; $ri++)
 		{
 			$rt = $resolvedManifest[$ri]
-			$rctl = $resolvedControls[$ri]
+			$rctl = Get-GuiIndexedControlState -Controls $resolvedControls -Index $ri
 			if (-not $rctl) { continue }
 			if ($null -ne $rt.Restorable -and -not $rt.Restorable) { continue }
 

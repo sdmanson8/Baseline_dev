@@ -191,7 +191,7 @@ Describe 'Bootstrap CLI intent wiring' {
         $script:BootstrapContent | Should -Match 'Single-instance helper is missing'
         $script:BootstrapContent | Should -Match "Get-Command -Name 'Acquire-BaselineSingleInstance'"
         $script:BootstrapContent | Should -Match '\$Script:SingleInstanceState = & \$singleInstanceAcquireCmd'
-        $script:BootstrapContent | Should -Match '\$Global:LASTEXITCODE = 2'
+        $script:BootstrapContent | Should -Match 'return \(Exit-BaselineBootstrap -Code 2\)'
     }
 
     It 'sources JSON helpers before localization helpers during bootstrap' {

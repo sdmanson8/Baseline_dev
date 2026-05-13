@@ -20,6 +20,19 @@ $script:LocaleCases = @(
     }
 )
 
+$script:AllLocaleCases = @(
+    Get-ChildItem -LiteralPath $localizationDir -Recurse -Filter '*.json' -File | Where-Object {
+        $_.Name -match $localeFilePattern
+    } | Sort-Object FullName | ForEach-Object {
+        @{
+            LocaleName = $_.Name
+            LocalePath = $_.FullName
+            LocaleCode = $_.BaseName
+            LocaleDirectory = $_.Directory.Name
+        }
+    }
+)
+
 Describe 'Localization key-set integrity' {
     BeforeAll {
     $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
@@ -43,6 +56,12 @@ Describe 'Localization key-set integrity' {
 
         $script:SourceMap = Get-BaselineTestSourceText -Path $script:SourcePath | ConvertFrom-Json -ErrorAction Stop
         $script:SourceKeys = @($script:SourceMap.PSObject.Properties.Name)
+        $script:SourceKeySet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+        foreach ($key in $script:SourceKeys)
+        {
+            [void]$script:SourceKeySet.Add([string]$key)
+        }
+
         $sortedSourceKeys = [string[]]@($script:SourceKeys | ForEach-Object { [string]$_ })
         [System.Array]::Sort($sortedSourceKeys, [System.StringComparer]::Ordinal)
         $sourcePayload = [System.Text.Encoding]::UTF8.GetBytes(($sortedSourceKeys -join "`n"))
@@ -124,11 +143,150 @@ Describe 'Localization key-set integrity' {
     It '<LocaleName> preserves every source key' -ForEach $script:LocaleCases {
         $localeMap = Get-BaselineTestSourceText -Path $LocalePath | ConvertFrom-Json -ErrorAction Stop
         $localeKeys = @($localeMap.PSObject.Properties.Name)
-        $missingKeys = @($script:SourceKeys | Where-Object { $_ -notin $localeKeys })
-        $extraKeys = @($localeKeys | Where-Object { $_ -notin $script:SourceKeys })
+        $localeKeySet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+        foreach ($key in $localeKeys)
+        {
+            [void]$localeKeySet.Add([string]$key)
+        }
+
+        $missingKeys = @($script:SourceKeys | Where-Object { -not $localeKeySet.Contains([string]$_) })
+        $extraKeys = @($localeKeys | Where-Object { -not $script:SourceKeySet.Contains([string]$_) })
 
         $missingKeys | Should -BeNullOrEmpty -Because "Locale file '$LocaleName' must never drop canonical keys."
         $extraKeys | Should -BeNullOrEmpty -Because "Locale file '$LocaleName' must not invent keys outside the canonical source set."
+    }
+}
+
+Describe 'Runtime localization source coverage' {
+    BeforeAll {
+        $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
+        if (-not (Test-Path -LiteralPath $sourceContentHelperPath)) { $sourceContentHelperPath = Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1' }
+        . $sourceContentHelperPath
+
+        $script:RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+        $script:LocalizationDir = Join-Path $script:RepoRoot 'Localizations'
+        $sourcePath = Join-Path $script:LocalizationDir 'English (United States)/en-US.json'
+        $sourceMap = Get-BaselineTestSourceText -Path $sourcePath | ConvertFrom-Json -ErrorAction Stop
+        $script:RuntimeSourceKeys = @($sourceMap.PSObject.Properties.Name)
+        $script:RuntimeSourceKeySet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+        foreach ($key in $script:RuntimeSourceKeys)
+        {
+            [void]$script:RuntimeSourceKeySet.Add([string]$key)
+        }
+
+        $todoPath = Join-Path $script:RepoRoot 'todo.md'
+        $script:TodoLocalizationKeys = @()
+        if (Test-Path -LiteralPath $todoPath -PathType Leaf)
+        {
+            $todoContent = Get-BaselineTestSourceText -Path $todoPath
+            $script:TodoLocalizationKeys = @(
+                [regex]::Matches($todoContent, '(?m)^(Bootstrap|Progress)_[A-Za-z0-9_]+$') |
+                    ForEach-Object { [string]$_.Value } |
+                    Sort-Object -Unique
+            )
+        }
+
+        $script:RuntimeLocalizationCallKeys = [System.Collections.Generic.List[object]]::new()
+        foreach ($rootName in @('Bootstrap', 'Module'))
+        {
+            $rootPath = Join-Path $script:RepoRoot $rootName
+            if (-not (Test-Path -LiteralPath $rootPath -PathType Container)) { continue }
+
+            foreach ($file in @(Get-ChildItem -LiteralPath $rootPath -Recurse -Include '*.ps1','*.psm1' -File -ErrorAction SilentlyContinue))
+            {
+                $tokens = $null
+                $parseErrors = $null
+                $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$parseErrors)
+                if ($parseErrors -and $parseErrors.Count -gt 0) { continue }
+
+                $commands = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.CommandAst] }, $true)
+                foreach ($cmd in $commands)
+                {
+                    $commandName = $cmd.GetCommandName()
+                    if ($commandName -notin @('Get-BaselineLocalizedString', 'Get-BaselineBilingualString')) { continue }
+
+                    $elements = @($cmd.CommandElements)
+                    $literalKey = $null
+                    $literalFallback = $null
+                    $hasLiteralFallback = $false
+                    for ($i = 1; $i -lt $elements.Count; $i++)
+                    {
+                        $element = $elements[$i]
+                        if ($element -isnot [System.Management.Automation.Language.CommandParameterAst]) { continue }
+
+                        $parameterName = [string]$element.ParameterName
+                        if ($parameterName -notin @('Key', 'Fallback')) { continue }
+
+                        $valueAst = $element.Argument
+                        if ($null -eq $valueAst -and ($i + 1) -lt $elements.Count -and $elements[$i + 1] -isnot [System.Management.Automation.Language.CommandParameterAst])
+                        {
+                            $i++
+                            $valueAst = $elements[$i]
+                        }
+
+                        if ($valueAst -is [System.Management.Automation.Language.StringConstantExpressionAst])
+                        {
+                            if ($parameterName -eq 'Key')
+                            {
+                                $literalKey = [string]$valueAst.Value
+                            }
+                            elseif ($parameterName -eq 'Fallback')
+                            {
+                                $literalFallback = [string]$valueAst.Value
+                                $hasLiteralFallback = $true
+                            }
+                        }
+                    }
+
+                    if ($null -ne $literalKey)
+                    {
+                        [void]$script:RuntimeLocalizationCallKeys.Add([pscustomobject]@{
+                            Key                = $literalKey
+                            File               = $file.FullName.Substring($script:RepoRoot.Length + 1)
+                            Line               = $cmd.Extent.StartLineNumber
+                            Fallback           = $literalFallback
+                            HasLiteralFallback = $hasLiteralFallback
+                        })
+                    }
+                }
+            }
+        }
+    }
+
+    It 'keeps every literal runtime Baseline localization key in en-US.json' {
+        $missingRuntimeKeys = @(
+            $script:RuntimeLocalizationCallKeys |
+                Where-Object { -not $script:RuntimeSourceKeySet.Contains([string]$_.Key) } |
+                Sort-Object Key, File, Line |
+                ForEach-Object { '{0} ({1}:{2})' -f $_.Key, $_.File, $_.Line }
+        )
+
+        $missingRuntimeKeys | Should -BeNullOrEmpty -Because "literal runtime localization keys must exist in en-US.json: $($missingRuntimeKeys -join '; ')"
+    }
+
+    It 'keeps every explicit todo.md runtime localization key in en-US.json' {
+        $missingTodoKeys = @(
+            $script:TodoLocalizationKeys |
+                Where-Object { -not $script:RuntimeSourceKeySet.Contains([string]$_) }
+        )
+
+        $script:TodoLocalizationKeys.Count | Should -BeGreaterThan 0 -Because 'todo.md must expose the audited runtime localization key list.'
+        $missingTodoKeys | Should -BeNullOrEmpty -Because "todo.md runtime localization keys must exist in en-US.json: $($missingTodoKeys -join ', ')"
+    }
+
+    It 'keeps operational runtime localization fallbacks visible' {
+        $emptyOperationalFallbacks = @(
+            $script:RuntimeLocalizationCallKeys |
+                Where-Object {
+                    [string]$_.Key -match '^(Bootstrap|Progress)_' -and
+                    [bool]$_.HasLiteralFallback -and
+                    [string]::IsNullOrWhiteSpace([string]$_.Fallback)
+                } |
+                Sort-Object Key, File, Line |
+                ForEach-Object { '{0} ({1}:{2})' -f $_.Key, $_.File, $_.Line }
+        )
+
+        $emptyOperationalFallbacks | Should -BeNullOrEmpty -Because "operational/progress keys need visible English fallback text: $($emptyOperationalFallbacks -join '; ')"
     }
 }
 
@@ -171,11 +329,11 @@ Describe 'Localization value integrity' {
             param([string]$Value)
 
             $argumentCount = 0
-            $matches = @([regex]::Matches($Value, '\{([0-9]+)(?:,[^{}]+)?(?::[^{}]+)?\}'))
-            if ($matches.Count -gt 0)
+            $formatMatches = @([regex]::Matches($Value, '\{([0-9]+)(?:,[^{}]+)?(?::[^{}]+)?\}'))
+            if ($formatMatches.Count -gt 0)
             {
                 $maxIndex = 0
-                foreach ($match in $matches)
+                foreach ($match in $formatMatches)
                 {
                     $index = [int]$match.Groups[1].Value
                     if ($index -gt $maxIndex)
@@ -193,6 +351,22 @@ Describe 'Localization value integrity' {
             }
 
             [void][string]::Format([System.Globalization.CultureInfo]::InvariantCulture, $Value, $formatArguments)
+        }
+
+        function New-ProtectedBrandZeroWidthPattern {
+            param([string]$Brand)
+
+            $zeroWidth = '[\u200B\u200C\u200D\u2060\uFEFF]'
+            $chars = $Brand.ToCharArray() | ForEach-Object { [regex]::Escape([string]$_) }
+            return '(?i)' + ($chars -join "$zeroWidth*")
+        }
+
+        $script:ZeroWidthCharacterPattern = '[\u200B\u200C\u200D\u2060\uFEFF]'
+        $script:ControlCharacterPattern = '[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'
+        $script:ProtectedBrandPatterns = @{}
+        foreach ($brand in @('Adobe', 'Microsoft', 'WinGet', 'Chocolatey', 'PowerShell'))
+        {
+            $script:ProtectedBrandPatterns[$brand] = New-ProtectedBrandZeroWidthPattern -Brand $brand
         }
     }
 
@@ -226,6 +400,34 @@ Describe 'Localization value integrity' {
 
         $formatErrors = @($formatErrors)
         $formatErrors | Should -BeNullOrEmpty -Because "Locale file '$LocaleName' contains strings that can throw during .NET formatting: $($formatErrors -join '; ')"
+    }
+
+    It '<LocaleName> has no control characters or zero-width protected brand names' -ForEach $script:AllLocaleCases {
+        $rawText = Get-BaselineTestSourceText -Path $LocalePath
+        $controlCharacterFindings = @(
+            [regex]::Matches($rawText, $script:ControlCharacterPattern) |
+                ForEach-Object { 'offset {0}' -f $_.Index }
+        )
+
+        $localeMap = $rawText | ConvertFrom-Json -ErrorAction Stop
+        $protectedBrandFindings = foreach ($prop in $localeMap.PSObject.Properties)
+        {
+            $value = [string]$prop.Value
+            foreach ($brand in $script:ProtectedBrandPatterns.Keys)
+            {
+                $brandMatches = [regex]::Matches($value, [string]$script:ProtectedBrandPatterns[$brand])
+                foreach ($brandMatch in $brandMatches)
+                {
+                    if ($brandMatch.Value -match $script:ZeroWidthCharacterPattern)
+                    {
+                        '{0}: {1}' -f $prop.Name, $brand
+                    }
+                }
+            }
+        }
+
+        $controlCharacterFindings | Should -BeNullOrEmpty -Because "Locale file '$LocaleName' must not contain JSON control characters outside standard whitespace: $($controlCharacterFindings -join '; ')"
+        @($protectedBrandFindings) | Should -BeNullOrEmpty -Because "Locale file '$LocaleName' must not split protected brand names with zero-width characters: $($protectedBrandFindings -join '; ')"
     }
 }
 

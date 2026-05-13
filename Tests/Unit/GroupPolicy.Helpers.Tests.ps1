@@ -18,3 +18,11 @@ Describe 'GroupPolicy helper swallowed-exception routing' {
         $script:GroupPolicyHelpersContent | Should -Match "Source 'GroupPolicy\.GetBaselineGpoEnvironmentSummary\.ScanPolicyRoot'"
     }
 }
+
+Describe 'GroupPolicy report partial failure visibility' {
+    It 'includes unreadable manifest fragments in formatted reports' {
+        $script:GroupPolicyHelpersContent | Should -Match 'PartialFailureCount'
+        $script:GroupPolicyHelpersContent | Should -Match 'Report incomplete'
+        $script:GroupPolicyHelpersContent | Should -Match 'PartialFailures'
+    }
+}

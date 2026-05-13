@@ -2901,7 +2901,7 @@ function Invoke-BaselineAutoUpdate
 				$response.Close()
 			}
 
-			[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'Bootstrap_InstallingUpdate' -Fallback '' -FormatArgs @($latestTag)) -Completed 100 -Total 100)
+			[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'Bootstrap_InstallingUpdate' -Fallback 'Installing update {0}...' -FormatArgs @($latestTag)) -Completed 100 -Total 100)
 
 			$releaseManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-BaselineJson
 			Assert-BaselineUpdateFileHash -Path $zipPath -Manifest $releaseManifest -Name $releaseAssetName

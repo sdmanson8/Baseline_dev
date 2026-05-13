@@ -227,6 +227,35 @@ function Test-StaleTestReportGate
     Write-ReleaseGateResult -Name 'Tests/TestReport.json freshness' -Result Pass -Detail ("Generated {0:o}" -f $generatedUtc)
 }
 
+function Test-ReleaseModuleIntegrityGate
+{
+    [CmdletBinding()]
+    param()
+
+    Write-Host "`n=== Module Integrity Manifest Gate ===" -ForegroundColor Cyan
+
+    $moduleRoot = Join-Path $repoRoot 'Module'
+    $jsonHelper = Join-Path $moduleRoot 'SharedHelpers/Json.Helpers.ps1'
+    $integrityHelper = Join-Path $moduleRoot 'SharedHelpers/Integrity.Helpers.ps1'
+    if (-not (Test-Path -LiteralPath $jsonHelper -PathType Leaf) -or -not (Test-Path -LiteralPath $integrityHelper -PathType Leaf))
+    {
+        Write-ReleaseGateResult -Name 'Module integrity manifest' -Result Fail -Detail 'Integrity helper files are missing'
+        return
+    }
+
+    try
+    {
+        . $jsonHelper
+        . $integrityHelper
+        [void](Test-BaselineModuleIntegrity -ModuleRoot $moduleRoot)
+        Write-ReleaseGateResult -Name 'Module integrity manifest' -Result Pass
+    }
+    catch
+    {
+        Write-ReleaseGateResult -Name 'Module integrity manifest' -Result Fail -Detail $_.Exception.Message
+    }
+}
+
 function Test-ReleaseZipHygieneGate
 {
     [CmdletBinding()]
@@ -298,6 +327,7 @@ if ($smokeExitCode -ne 0)
 }
 
 Test-ReleaseAuthenticodeGate
+Test-ReleaseModuleIntegrityGate
 Test-StaleTestReportGate
 Test-ReleaseZipHygieneGate
 

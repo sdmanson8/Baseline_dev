@@ -90,6 +90,12 @@ Describe 'Bootstrap release integrity helpers' {
         $script:bootstrapContent | Should -Match 'Write-BootstrapSwallowedException -ErrorRecord \$_ -Source ''Bootstrap\.Enable-Tls12'' -Severity Warning'
     }
 
+    It 'fails visibly when execution-critical bootstrap cache cleanup fails' {
+        $script:bootstrapContent | Should -Match 'Remove-Item -LiteralPath \$CacheRoot -Recurse -Force -ErrorAction Stop'
+        $script:bootstrapContent | Should -Match 'Failed to clean bootstrap cache'
+        $script:bootstrapContent | Should -Not -Match 'Remove-Item -LiteralPath \$CacheRoot -Recurse -Force -ErrorAction SilentlyContinue'
+    }
+
     It 'returns the expected SHA-256 for an asset in the manifest' {
         $result = Get-RawBootstrapReleaseAssetSha256 -ManifestPath $script:manifestPath -AssetName $script:archiveName
 

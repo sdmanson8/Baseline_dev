@@ -104,9 +104,9 @@ Describe 'Integrity helper — mode resolution' {
         Get-BaselineIntegrityMode | Should -Be 'Audit'
     }
 
-    It 'falls back to Off for unknown values' {
+    It 'throws for unknown values instead of silently disabling integrity' {
         $env:BASELINE_INTEGRITY_MODE = 'whatever'
-        Get-BaselineIntegrityMode | Should -Be 'Off'
+        { Get-BaselineIntegrityMode } | Should -Throw '*Invalid BASELINE_INTEGRITY_MODE*'
     }
 }
 

@@ -9,9 +9,11 @@
     importing. Tampered files cause the load to abort.
 
     Activation is opt-in via env var BASELINE_INTEGRITY_MODE. When unset or
-    set to 'Off', verification is skipped entirely (zero overhead). When set
-    to 'Strict', a missing manifest is a hard failure; when set to 'Audit',
-    a missing manifest is logged and treated as a no-op.
+    set to 'Off', verification is skipped entirely (zero overhead). Invalid
+    values are configuration errors. When set to 'Strict', a missing manifest
+    is a hard failure; when set to 'Audit', a missing manifest is logged and
+    treated as a no-op, but an existing manifest with mismatched files still
+    fails because the checked-in release integrity contract was violated.
 #>
 
 function Get-BaselineIntegrityManifestPath
@@ -43,7 +45,11 @@ function Get-BaselineIntegrityMode
         'strict' { return 'Strict' }
         'audit'  { return 'Audit' }
         'off'    { return 'Off' }
-        default  { return 'Off' }
+        default
+        {
+            throw [System.ArgumentException]::new(
+                "Invalid BASELINE_INTEGRITY_MODE value '$value'. Expected one of: Off, Audit, Strict.")
+        }
     }
 }
 
@@ -226,6 +232,14 @@ function Invoke-BaselineModuleIntegrityGate
             throw [System.IO.FileNotFoundException]::new(
                 "Baseline integrity manifest not found at '$manifestPath' but BASELINE_INTEGRITY_MODE=Strict requires one.",
                 $manifestPath)
+        }
+        if (Get-Command -Name 'LogWarning' -CommandType Function -ErrorAction SilentlyContinue)
+        {
+            LogWarning "Baseline integrity manifest not found at '$manifestPath'; BASELINE_INTEGRITY_MODE=Audit will skip verification."
+        }
+        else
+        {
+            Write-Warning "Baseline integrity manifest not found at '$manifestPath'; BASELINE_INTEGRITY_MODE=Audit will skip verification."
         }
         return
     }
