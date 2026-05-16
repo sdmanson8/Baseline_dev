@@ -1,5 +1,4 @@
-﻿
-# Dialog helper split file loaded by Module\GUI\DialogHelpers.ps1.
+
 
 	<#
 	    .SYNOPSIS
@@ -279,7 +278,6 @@ $scrollBarStyleXaml
 			}
 		}.GetNewClosure())
 
-				# P5 rollback checkpoint: Show-GuiRemoteConsoleDialog part extracted to Module/GUI/DialogHelpers/RemoteDialogs/Show-GuiRemoteConsoleDialog/IncidentReproductionPackContextMenu.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'RemoteDialogs\Show-GuiRemoteConsoleDialog\IncidentReproductionPackContextMenu.ps1')
 
 		if ($dlgTitleBar) { $dlgTitleBar.Add_MouseLeftButtonDown({ $dlg.DragMove() }.GetNewClosure()) }
@@ -300,7 +298,6 @@ $scrollBarStyleXaml
 				& $refreshConsole
 			}.GetNewClosure())
 		}
-				# P5 rollback checkpoint: Show-GuiRemoteConsoleDialog part extracted to Module/GUI/DialogHelpers/RemoteDialogs/Show-GuiRemoteConsoleDialog/RemoteConnectionButton.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'RemoteDialogs\Show-GuiRemoteConsoleDialog\RemoteConnectionButton.ps1')
 
 		$dlg.Add_ContentRendered({

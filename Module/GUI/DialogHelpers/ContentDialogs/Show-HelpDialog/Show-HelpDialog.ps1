@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Show-HelpDialog in Module\GUI\DialogHelpers\ContentDialogs.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 if ($btnDownloadBaseline)
 		{
 			# "Check for Update" has been moved to the Help menu. Hide the in-dialog button.

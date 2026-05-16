@@ -23,7 +23,7 @@ BeforeAll {
 
 Describe 'Audit retention settings' {
     It 'persists the retention window in GUI settings snapshots' {
-        $script:GuiContent | Should -Match 'SchemaVersion = 18'
+        $script:GuiContent | Should -Match 'SchemaVersion = 19'
         $script:GuiContent | Should -Match 'AuditRetentionDays'
         $script:GuiContent | Should -Match '\$Script:AuditRetentionDays = \[int\]\$desiredAuditRetentionDays'
         $script:GuiContent | Should -Match '\$Script:Ctx.UI.AuditRetentionDays = \[int\]\$desiredAuditRetentionDays'

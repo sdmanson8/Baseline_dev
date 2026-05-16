@@ -1,4 +1,4 @@
-﻿using module ..\Logging.psm1
+using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 
@@ -54,6 +54,43 @@ function Test-BaselineAppxPackagePresence
 	}
 }
 
+function Start-BaselineInitialActionsSplashSystemStep
+{
+	param(
+		[Parameter(Mandatory = $false)]
+		[object]
+		$LoadingSplash = $Global:LoadingSplash
+	)
+
+	if (-not $Global:GUIMode -or -not $LoadingSplash -or -not $LoadingSplash.IsAlive)
+	{
+		return
+	}
+
+	$stepStates = $null
+	if ($LoadingSplash -is [hashtable] -and $LoadingSplash.ContainsKey('StepStates'))
+	{
+		$stepStates = $LoadingSplash['StepStates']
+	}
+
+	if ($stepStates -is [System.Collections.IDictionary] -and $stepStates.Contains('system') -and [string]$stepStates['system'] -eq 'in_progress')
+	{
+		return
+	}
+
+	try
+	{
+		if (Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Set-BootstrapLoadingSplashStep -Splash $LoadingSplash -StepId 'system' -Status 'in_progress' -SubAction ''
+		}
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'InitialActions.SplashSystemStep'
+	}
+}
+
 #region InitialActions
 function InitialActions
 {
@@ -89,6 +126,8 @@ function InitialActions
 
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_BeginningInitialChecks' -Fallback 'Beginning Initial Checks:')
 
+	Start-BaselineInitialActionsSplashSystemStep
+
 	# Clear the $Error variable
 	$Global:Error.Clear()
 
@@ -105,14 +144,12 @@ function InitialActions
 	$Script:CompilerParameters = [System.CodeDom.Compiler.CompilerParameters]::new("System.dll")
 	$Script:CompilerParameters.TempFiles = [System.CodeDom.Compiler.TempFileCollection]::new($env:TEMP, $false)
 	$Script:CompilerParameters.GenerateInMemory = $true
-			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/ShellStringWinApi.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\ShellStringWinApi.ps1')
 	if (-not ("WinAPI.GetStrings" -as [type]))
 	{
 		Add-Type @Signature
 	}
 
-			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/ForegroundWindowWinApi.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\ForegroundWindowWinApi.ps1')
 
 	if (-not ("WinAPI.ForegroundWindow" -as [type]))
@@ -149,10 +186,8 @@ function InitialActions
 
 	# Checking whether Windows was broken by 3rd party harmful tweakers, trojans, or custom Windows images
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingWindowsIntegrity' -Fallback 'Checking whether Windows was broken by 3rd party harmful tweakers, trojans, or custom Windows images')
-			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/KnownTweakerDetectionMap.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\KnownTweakerDetectionMap.ps1')
 	$DetectedTweakers = New-Object System.Collections.Generic.List[string]
-			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/KnownTweakerWarnings.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\KnownTweakerWarnings.ps1')
 
 		# Checking whether Windows was broken by 3rd party harmful tweakers, trojans, or custom Windows images
@@ -170,7 +205,6 @@ function InitialActions
 			}
 		}
 
-				# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/OptionalProbeInvoker.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\OptionalProbeInvoker.ps1')
 
 		$AutoSettingsPS = & $InvokeOptionalProbe {
@@ -198,7 +232,6 @@ function InitialActions
 			Get-Volume | Where-Object -FilterScript {$_.FileSystemLabel -eq "ChlorideOS"}
 		}
 
-				# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/AdditionalTweakerDetectionMap.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\AdditionalTweakerDetectionMap.ps1')
 	foreach ($Tweaker in $Tweakers.Keys)
 	{
@@ -218,7 +251,6 @@ function InitialActions
 		}
 	}
 
-			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/HarmfulTweakerNetworkCleanup.ps1; re-inline here if rollback is needed.
 		$__baselineExtractedPartDidReturn = $false
 		$__baselineExtractedPartHasReturnValue = $false
 		$__baselineExtractedPartReturnValue = $null
@@ -227,7 +259,6 @@ function InitialActions
 
 	# Checking whether Windows Feature Experience Pack was removed by harmful tweakers
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingFeatureExperiencePack' -Fallback 'Checking whether Windows Feature Experience Pack was removed by harmful tweakers')
-			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/FeatureExperiencePackPresenceCheck.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\FeatureExperiencePackPresenceCheck.ps1')
 
 	# Checking whether EventLog service is running
@@ -239,13 +270,11 @@ function InitialActions
 
 	# Checking whether the Microsoft Store being an important system component was removed
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingMicrosoftStore' -Fallback 'Checking whether the Microsoft Store being an important system component was removed')
-			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/MicrosoftStorePresenceCheck.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\MicrosoftStorePresenceCheck.ps1')
 
 	#region Defender checks
 	# Checking whether necessary Microsoft Defender components exists
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingDefenderComponents' -Fallback 'Checking whether necessary Microsoft Defender components exists')
-			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/RequiredWindowsFiles.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\RequiredWindowsFiles.ps1')
 	foreach ($File in $Files)
 	{
@@ -264,7 +293,6 @@ function InitialActions
 
 	# Checking whether WMI is corrupted
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingWmi' -Fallback 'Checking whether WMI is corrupted')
-			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/DefenderWmiHealthCheck.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\DefenderWmiHealthCheck.ps1')
 
 	# Check Microsoft Defender state
@@ -276,25 +304,21 @@ function InitialActions
 	$Script:RealtimeMonitoringEnabled = $false
 	$Script:BehaviorMonitoringEnabled = $false
 
-			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/SecurityCenterAntivirusProducts.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\SecurityCenterAntivirusProducts.ps1')
 
 	# Checking services
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingServices' -Fallback 'Checking services')
-				# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/DefenderServiceHealth.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\DefenderServiceHealth.ps1')
 
 	$Script:DefenderServices = Test-BaselineDefenderServicesHealthy -Services $Services
 
 	# Checking Get-MpPreference cmdlet
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingGetMpPreference' -Fallback 'Checking Get-MpPreference cmdlet')
-			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/DefenderPreferenceHealthCheck.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\DefenderPreferenceHealthCheck.ps1')
 
 	# Check Microsoft Defender state
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingMicrosoftDefenderState' -Fallback 'Checking Microsoft Defender state')
 	$DefenderState = $null
-			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/DefenderPolicyState.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\DefenderPolicyState.ps1')
 
 	if (Get-Command -Name 'Set-BaselineDefenderExecutionAvailability' -CommandType Function -ErrorAction SilentlyContinue)
@@ -303,11 +327,14 @@ function InitialActions
 	}
 	#endregion Defender checks
 
-	# Checking whether LGPO.exe exists in the Assets folder
-	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingLgpoExists' -Fallback 'Checking whether LGPO.exe exists in the Assets folder')
-	if (-not (Test-Path -Path "$PSScriptRoot\..\..\Assets\LGPO.exe"))
+	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingBaselinePolicyToolExists' -Fallback 'Checking whether Baseline policy tool exists in the Assets folder')
+	try
 	{
-		LogWarning (Get-BaselineBilingualString -Key 'Bin' -Fallback 'There are no files in "{0}" folder. Please, re-download the archive.' -FormatArgs @([IO.Path]::GetFullPath("$PSScriptRoot\..\..\Assets")))
+		$null = Resolve-BaselinePolicyToolPath
+	}
+	catch
+	{
+		LogWarning $_.Exception.Message
 	}
 
 	# Enable back the SysMain service if it was disabled by harmful tweakers
@@ -335,8 +362,13 @@ function InitialActions
 
 	# PowerShell 5.1 (7.5 too) interprets 8.3 file name literally, if an environment variable contains a non-Latin word
 	# https://github.com/PowerShell/PowerShell/issues/21070
-	Get-ChildItem -Path "$env:TEMP\Computer.txt", "$env:TEMP\User.txt" -Force -ErrorAction Ignore |
-		Remove-Item -Force -ErrorAction Ignore | Out-Null
+	foreach ($temporaryPolicyFile in @((Join-Path $env:TEMP 'Computer.txt'), (Join-Path $env:TEMP 'User.txt')))
+	{
+		if (Test-Path -LiteralPath $temporaryPolicyFile)
+		{
+			Remove-Item -LiteralPath $temporaryPolicyFile -Force -ErrorAction Ignore
+		}
+	}
 
 	$Global:BaselinePostActionRequirements = @{
 		EnsurePrintManagementConsole = $false
@@ -360,20 +392,15 @@ function InitialActions
 		Clear-Host
 	}
 
-	# Extract the localized "Browse" string from shell32.dll
 	$Script:Browse = Get-LocalizedShellString -ResourceId 9015 -Fallback 'Browse'
-	# Extract the localized "&No" string from shell32.dll
 	$Script:No = Get-LocalizedShellString -ResourceId 33232 -Fallback 'No' -StripAccelerators
-	# Extract the localized "&Yes" string from shell32.dll
 	$Script:Yes = Get-LocalizedShellString -ResourceId 33224 -Fallback 'Yes' -StripAccelerators
 	$Script:KeyboardArrows = Get-BaselineBilingualString -Key 'KeyboardArrows' -Fallback 'Please use the arrow keys {0} and {1} on your keyboard to select your answer' -FormatArgs @([System.Char]::ConvertFromUtf32(0x2191), [System.Char]::ConvertFromUtf32(0x2193))
-	# Extract the localized "Skip" string from shell32.dll
 	$Script:Skip = Get-LocalizedShellString -ResourceId 16956 -Fallback 'Skip'
 
 	Write-Information -MessageData "Baseline | Windows Utility" -InformationAction Continue
 
 	# Display a warning message about whether a user has customized the preset file
-			# P5 rollback checkpoint: InitialActions part extracted to Module/Regions/InitialActions/InitialActions/StartupWarningAndSplashFinalization.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'InitialActions\InitialActions\StartupWarningAndSplashFinalization.ps1')
 
 	LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_InitialChecksFinished' -Fallback 'Initial Checks finished, continuing with Main Script') -addGap

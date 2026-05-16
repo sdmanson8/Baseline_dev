@@ -177,8 +177,7 @@ function AdobeNetworkBlock
 					LogInfo "Backed up original hosts file to $hosts.bak"
 				}
 
-				# Merge instead of clobber (winutil #4106): keep existing entries (StevenBlack /
-				# pi-hole / corporate split-DNS), append only block-list lines not already
+				# Merge instead of clobber: keep existing entries from other
 				# present, wrapped in BEGIN/END markers so re-runs are idempotent.
 				$tempFile = Join-Path $Env:TEMP "BaselineAdobeBlock_$([guid]::NewGuid().ToString('N')).hosts"
 				Invoke-WebRequest $hostsUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop | Out-Null

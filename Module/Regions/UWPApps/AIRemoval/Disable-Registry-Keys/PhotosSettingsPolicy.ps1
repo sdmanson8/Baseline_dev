@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Disable-Registry-Keys in Module\Regions\UWPApps\AIRemoval.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 if (Test-Path $uwpPhotosSettings) {
         [GC]::Collect()
         $null = Invoke-AIRemovalReg -ArgumentList @('unload', 'HKU\TEMP') -AllowedExitCodes @(0, 1)

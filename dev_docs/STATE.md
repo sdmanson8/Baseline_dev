@@ -48,7 +48,7 @@ These `$Script:` variables hold references to functions that are captured after 
 | `$SetGameModeStateScript` | `Set-GameModeState` | SearchFilterHandlers |
 | `$SaveCurrentTabScrollOffsetScript` | `Save-CurrentTabScrollOffset` | SearchFilterHandlers |
 
-These are called via `& $Script:ClearTabContentCacheScript` — never by function name in the extracted files.
+These are called via `& $Script:ClearTabContentCacheScript` and not by function name from the extracted files.
 
 ---
 
@@ -62,7 +62,7 @@ These cannot be gated behind accessors without breaking something:
 | `$Controls` | WPF control array indexed by manifest position. Wrapping would add overhead to every tweak card read. |
 | `$TweakManifest` | Loaded once at startup, read universally. Immutable after load. |
 | `$CurrentTheme` | Read by all UI construction code. Immutable during a theme session. |
-| `$MainForm`, `$ContentScroll`, `$PrimaryTabs`, `$HeaderBorder`, `$ActionButtonBar`, `$BtnPreviewRun`, `$BtnRun`, `$BtnDefaults`, `$StatusText`, `$RunPathContextLabel`, `$ChkScan`, `$ChkTheme`, `$Form` | WPF shell controls accessed from dot-sourced event handlers and execution transitions. |
+| `$MainForm`, `$ContentScroll`, `$PrimaryTabs`, `$HeaderBorder`, `$ActionButtonBar`, `$BtnPreviewRun`, `$BtnRun`, `$BtnDefaults`, `$StatusText`, `$RunPathContextLabel`, `$ChkScan`, `$ChkTheme`, `$Form` | WPF shell controls accessed from loaded event handlers and execution transitions. |
 
 ---
 

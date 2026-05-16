@@ -6,7 +6,8 @@
     Builds a temporary installer payload archive, extracts it as the setup payload,
     stamps version and path defines into the unified Baseline-Setup.iss script,
     then compiles it with ISCC.exe to produce a single
-    Baseline-setup-<version>-<channel>.exe.
+    Baseline-<version>-<channel>-setup.exe for prerelease channels, or
+    Baseline-<version>-setup.exe for stable releases.
     This is a maintainer-facing packaging script.
 
     .EXAMPLE
@@ -25,6 +26,7 @@ param (
     [int]$IsccTimeoutSeconds = 3600,
     [switch]$IncludeDocs,
     [switch]$GenerateScriptOnly,
+    [switch]$RefreshInstallerTranslations,
     [switch]$Force
 )
 
@@ -442,7 +444,7 @@ function Import-InstallerLocalizationTable
         return @{}
     }
 
-    $jsonObject = Get-Content -LiteralPath $localeFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    $jsonObject = ConvertFrom-InstallerJsonFile -Path $localeFile
     $table = @{}
     foreach ($property in $jsonObject.PSObject.Properties)
     {
@@ -521,7 +523,7 @@ function Get-InstallerLocalizationSource
         }
         else
         {
-            $sourceMap[$definition.OutputKey] = if ($null -eq $localizedValue) { '' } else { $localizedValue }
+            $sourceMap[$definition.OutputKey] = if ([string]::IsNullOrWhiteSpace($localizedValue)) { [string]$definition.Fallback } else { $localizedValue }
         }
     }
 
@@ -595,6 +597,159 @@ function ConvertTo-StringMap
 <#
     .SYNOPSIS
 #>
+function Read-InstallerUtf8Text
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    $utf8Strict = New-Object -TypeName System.Text.UTF8Encoding -ArgumentList @($false, $true)
+    return [System.IO.File]::ReadAllText($Path, $utf8Strict)
+}
+
+<#
+    .SYNOPSIS
+#>
+function ConvertFrom-InstallerJsonFile
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    $jsonText = Read-InstallerUtf8Text -Path $Path
+    return ($jsonText | ConvertFrom-Json -ErrorAction Stop)
+}
+
+<#
+    .SYNOPSIS
+#>
+function Get-InstallerMojibakeMarker
+{
+    [CmdletBinding()]
+    param()
+
+    @(
+        [string][char]0xFFFD
+        [string][char]0x00C3
+        [string][char]0x00C2
+        ([string][char]0x00E1 + [string][char]0x2030)
+        ([string][char]0x00E6 + [string][char]0x2039)
+    )
+}
+
+<#
+    .SYNOPSIS
+#>
+function Assert-InstallerTextEncodingClean
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyString()]
+        [string]$Text,
+
+        [Parameter(Mandatory)]
+        [string]$Context
+    )
+
+    foreach ($marker in (Get-InstallerMojibakeMarker))
+    {
+        if ($Text.Contains($marker))
+        {
+            $codePoints = @($marker.ToCharArray() | ForEach-Object { 'U+{0:X4}' -f [int][char]$_ }) -join ' '
+            throw "$Context contains mojibake marker $codePoints."
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+#>
+function Get-InstallerLocalizationEnglishInvariantKeys
+{
+    [CmdletBinding()]
+    param()
+
+    @()
+}
+
+<#
+    .SYNOPSIS
+#>
+function Assert-InstallerLocalizationWorkspaceComplete
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Root
+    )
+
+    $sourcePath = Join-Path $Root 'en.json'
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf))
+    {
+        throw "Installer localization source file missing: $sourcePath"
+    }
+
+    $sourceMap = ConvertTo-StringMap -JsonObject (ConvertFrom-InstallerJsonFile -Path $sourcePath)
+    $englishInvariantKeys = @(Get-InstallerLocalizationEnglishInvariantKeys)
+    foreach ($localeFile in @(Get-ChildItem -LiteralPath $Root -Filter '*.json' -File | Where-Object { $_.Name -ne 'en.json' }))
+    {
+        $localeMap = ConvertTo-StringMap -JsonObject (ConvertFrom-InstallerJsonFile -Path $localeFile.FullName)
+        foreach ($key in $sourceMap.Keys)
+        {
+            if (-not $localeMap.Contains($key))
+            {
+                throw "Installer localization '$($localeFile.Name)' is missing required key '$key'."
+            }
+
+            $value = [string]$localeMap[$key]
+            if ([string]::IsNullOrWhiteSpace($value))
+            {
+                throw "Installer localization '$($localeFile.Name)' has a blank value for '$key'."
+            }
+
+            Assert-InstallerTextEncodingClean -Text $value -Context "Installer localization '$($localeFile.Name)' key '$key'"
+
+            if (($value -eq [string]$sourceMap[$key]) -and ($key -notin $englishInvariantKeys))
+            {
+                throw "Installer localization '$($localeFile.Name)' still matches English source for '$key'."
+            }
+        }
+    }
+}
+
+<#
+    .SYNOPSIS
+#>
+function Reset-InstallerLocalizationWorkspaceFromSource
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Root
+    )
+
+    $sourcePath = Join-Path $Root 'en.json'
+    $sourceMap = ConvertTo-StringMap -JsonObject (ConvertFrom-InstallerJsonFile -Path $sourcePath)
+    foreach ($localeFile in @(Get-ChildItem -LiteralPath $Root -Filter '*.json' -File | Where-Object { $_.Name -ne 'en.json' }))
+    {
+        $localeMap = [ordered]@{}
+        foreach ($key in $sourceMap.Keys)
+        {
+            $localeMap[$key] = [string]$sourceMap[$key]
+        }
+
+        $localeMap | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $localeFile.FullName -Encoding UTF8
+    }
+}
+
+<#
+    .SYNOPSIS
+#>
 function Initialize-InstallerLocalizationWorkspace
 {
     [CmdletBinding()]
@@ -643,7 +798,7 @@ function Initialize-InstallerLocalizationWorkspace
             }
             else
             {
-                $localeMap[$key] = ''
+                $localeMap[$key] = [string]$SourceMap[$key]
             }
         }
 
@@ -717,12 +872,49 @@ function Get-InstallerFileSha256
 <#
     .SYNOPSIS
 #>
+function Get-InstallerSetupFileName
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Version,
+
+        [Parameter(Mandatory)]
+        [string]$ChannelToken
+    )
+
+    $versionSegment = $Version.Trim()
+    if ($versionSegment.StartsWith('v', [System.StringComparison]::OrdinalIgnoreCase))
+    {
+        $versionSegment = $versionSegment.Substring(1)
+    }
+
+    $channelSegment = $ChannelToken.Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($channelSegment) -or $channelSegment -eq 'stable')
+    {
+        return "Baseline-$versionSegment-setup.exe"
+    }
+
+    $channelSuffix = "-$channelSegment"
+    if ($versionSegment.EndsWith($channelSuffix, [System.StringComparison]::OrdinalIgnoreCase))
+    {
+        return "Baseline-$versionSegment-setup.exe"
+    }
+
+    return "Baseline-$versionSegment-$channelSegment-setup.exe"
+}
+
+<#
+    .SYNOPSIS
+#>
 function Invoke-InstallerLocalizationTranslation
 {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$Root
+        [string]$Root,
+
+        [switch]$RefreshTranslations
     )
 
     # ── Cache check ──────────────────────────────────────────────────────────
@@ -743,7 +935,23 @@ function Invoke-InstallerLocalizationTranslation
             if ($cachedFile.Name -eq 'en.json') { continue }
             Copy-Item -LiteralPath $cachedFile.FullName -Destination (Join-Path $Root $cachedFile.Name) -Force
         }
-        return
+
+        try
+        {
+            Assert-InstallerLocalizationWorkspaceComplete -Root $Root
+            return
+        }
+        catch
+        {
+            Write-Host "  [locale-cache] Invalid ($cacheKey) — discarding stale translations: $($_.Exception.Message)" -ForegroundColor Yellow
+            Remove-Item -LiteralPath $cacheFolder -Recurse -Force -ErrorAction SilentlyContinue
+            Reset-InstallerLocalizationWorkspaceFromSource -Root $Root
+        }
+    }
+
+    if (-not $RefreshTranslations)
+    {
+        throw "Installer localization cache is missing or invalid for key '$cacheKey'. Run Tools/New-InstallerPackage.ps1 with -RefreshInstallerTranslations only after maintainer approval to refresh translations."
     }
 
     Write-Host "  [locale-cache] Miss ($cacheKey) — running translation pass..." -ForegroundColor DarkGray
@@ -757,17 +965,20 @@ function Invoke-InstallerLocalizationTranslation
 
     $oldRoot = $env:LOCALIZATION_ROOT
     $oldSource = $env:LOCALIZATION_SOURCE_FILE
+    $oldFailOnRemaining = $env:LOCALIZATION_FAIL_ON_REMAINING
 
     Push-Location $repoRoot
     try
     {
         $env:LOCALIZATION_ROOT = $Root
         $env:LOCALIZATION_SOURCE_FILE = 'en.json'
+        $env:LOCALIZATION_FAIL_ON_REMAINING = '1'
         & node $fillScript
         if ($LASTEXITCODE -ne 0)
         {
             throw "Localization translation helper failed with exit code $LASTEXITCODE."
         }
+        Assert-InstallerLocalizationWorkspaceComplete -Root $Root
     }
     finally
     {
@@ -787,6 +998,15 @@ function Invoke-InstallerLocalizationTranslation
         else
         {
             Remove-Item Env:LOCALIZATION_SOURCE_FILE -ErrorAction SilentlyContinue
+        }
+
+        if ($null -ne $oldFailOnRemaining)
+        {
+            $env:LOCALIZATION_FAIL_ON_REMAINING = $oldFailOnRemaining
+        }
+        else
+        {
+            Remove-Item Env:LOCALIZATION_FAIL_ON_REMAINING -ErrorAction SilentlyContinue
         }
 
         Pop-Location
@@ -839,7 +1059,7 @@ function New-InstallerLocalizationFunction
             continue
         }
 
-        $localeData[$locale.ToLowerInvariant()] = ConvertTo-StringMap -JsonObject (Get-Content -LiteralPath $localePath -Raw | ConvertFrom-Json)
+        $localeData[$locale.ToLowerInvariant()] = ConvertTo-StringMap -JsonObject (ConvertFrom-InstallerJsonFile -Path $localePath)
     }
 
     $sb = New-Object System.Text.StringBuilder
@@ -1067,7 +1287,7 @@ try
 
     # ── Stamp defines into a working copy of the .iss ────────────────────────
 
-    $issContent = Get-Content -LiteralPath $templateIss -Raw
+    $issContent = Read-InstallerUtf8Text -Path $templateIss
     $installerLocaleCodes = Get-InstallerLocaleCodes -TemplateContent $issContent
     $installerLocalizationRoot = Join-Path $tempRoot 'installer-localization'
     $installerLocalizationSource = Get-InstallerLocalizationSource -UICulture 'en-US' -RepoRoot $repoRoot
@@ -1078,7 +1298,7 @@ try
         -LocaleCodes $installerLocaleCodes `
         -RepoRoot $repoRoot
 
-    Invoke-InstallerLocalizationTranslation -Root $installerLocalizationRoot
+    Invoke-InstallerLocalizationTranslation -Root $installerLocalizationRoot -RefreshTranslations:$RefreshInstallerTranslations
 
     # ISPP double-quoted #define strings interpret C-style escapes (\r, \t, \n, etc.),
     # so raw Windows paths like "...\runneradmin\..." get mangled. Double the
@@ -1108,6 +1328,8 @@ try
                   [Environment]::NewLine + [Environment]::NewLine +
                   $issContent.Substring($functionEnd)
 
+    Assert-InstallerTextEncodingClean -Text $issContent -Context 'Generated installer script'
+
     $stampedIss = Join-Path $tempScripts "Baseline-Setup-$Version.iss"
     $utf8WithBom = New-Object System.Text.UTF8Encoding -ArgumentList $true
     [System.IO.File]::WriteAllText($stampedIss, $issContent, $utf8WithBom)
@@ -1136,7 +1358,7 @@ try
         throw 'Inno Setup compiler (ISCC.exe) not found. Install Inno Setup 6 or pass -IsccPath.'
     }
 
-    $setupFileName = "Baseline-setup-$Version-$setupChannelToken.exe"
+    $setupFileName = Get-InstallerSetupFileName -Version $Version -ChannelToken $setupChannelToken
     $setupPath     = Join-Path $resolvedOutput $setupFileName
 
     if ((Test-Path -LiteralPath $setupPath -PathType Leaf) -and -not $Force)

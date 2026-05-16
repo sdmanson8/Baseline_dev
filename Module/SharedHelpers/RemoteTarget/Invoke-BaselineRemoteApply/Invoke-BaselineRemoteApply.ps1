@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Invoke-BaselineRemoteApply in Module\SharedHelpers\RemoteTarget.Helpers.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 foreach ($computer in @($ComputerName))
 	{
 		if (-not $cancelEngaged -and $policyGate.Allowed)
@@ -131,7 +129,6 @@ foreach ($computer in @($ComputerName))
 					$profileContent = Get-Content -LiteralPath $profilePath -Raw -ErrorAction Stop
 					$profile = $profileContent | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop
 
-					# Extract entries from the profile and build headless command list.
 					$profileEntries = @()
 					if ($profile.PSObject.Properties['Entries'] -and $profile.Entries)
 					{

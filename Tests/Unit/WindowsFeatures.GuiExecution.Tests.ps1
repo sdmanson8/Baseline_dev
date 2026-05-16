@@ -50,4 +50,13 @@ Describe 'Windows Features GUI execution' {
         $script:SystemWindowsFeaturesContent | Should -Not -Match 'throw "No optional features were selected for installation\."'
         $script:SystemWindowsFeaturesContent | Should -Not -Match 'throw "No Windows features were selected\."'
     }
+
+    It 'marks preset-matched empty feature lists as skipped instead of successful' {
+        $script:SystemWindowsFeaturesContent | Should -Match 'Skipping optional features because no preset-matched Optional features were found\.'
+        $script:SystemWindowsFeaturesContent | Should -Match 'Skipping Windows features because no preset-matched Windows features were found\.'
+        $script:SystemWindowsFeaturesContent | Should -Match 'Installing optional features'' \}\)\" -Status warning'
+        $script:SystemWindowsFeaturesContent | Should -Match 'Enabling Windows features'' \}\)\" -Status warning'
+        $script:SystemWindowsFeaturesContent | Should -Not -Match 'No preset-matched Optional features were found\. Moving on\.'
+        $script:SystemWindowsFeaturesContent | Should -Not -Match 'No preset-matched Windows features were found\. Moving on\.'
+    }
 }

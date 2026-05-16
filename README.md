@@ -168,7 +168,7 @@ Windows 11 Non-Interactive
 
 ## Installation & trust
 
-Download the channel-stamped release zip from the [GitHub Releases](https://github.com/sdmanson8/Baseline_dev/releases) page: `Baseline-<version>-stable.zip` for stable releases or `Baseline-<version>-beta.zip` for beta releases. The zip contains `Baseline-setup-<version>-<channel>.exe` such as `Baseline-setup-4.0.0-beta.exe`, which runs either as a per-machine installer or as a portable extract; you choose on the first wizard page.
+Download the channel-stamped release zip from the [GitHub Releases](https://github.com/sdmanson8/Baseline_dev/releases) page: `Baseline-<version>-stable.zip` for stable releases or `Baseline-<version>-beta.zip` for beta releases. The zip contains `Baseline-<version>-setup.exe` for stable releases or `Baseline-<version>-<channel>-setup.exe` for prerelease channels, such as `Baseline-4.0.0-beta-setup.exe`, which runs either as a per-machine installer or as a portable extract; you choose on the first wizard page.
 
 > **Baseline 4.x public preview releases ship unsigned.** Code signing (HSM-held certificate, timestamp authority) is planned but not in place yet. See [dev_docs/Installer-Signing-Policy.md](dev_docs/Installer-Signing-Policy.md) for the full posture and the `-AllowUnsignedPreview` / `BASELINE_PREVIEW_UNSIGNED` opt-in used by release tools.
 
@@ -197,7 +197,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File $bootstrap
 
 The bootstrap pulls the latest channel-stamped release zip from GitHub, downloads the matching `Baseline-<version>-<channel>.zip.sha256.json` manifest, verifies SHA-256 for the zip and the contained setup executable, and then runs the setup. After setup exits, if an installed `Baseline.exe` can be found it is launched (honoring `-Preset` / `BASELINE_PRESET`). If it cannot be found, launch Baseline from the Start Menu.
 
-> **Security note:** Do not execute remote bootstrap content directly from a pipeline. The release payload is hash-verified before execution, but the bootstrap entry script is not separately signature-validated or hash-pinned. For higher assurance, download the release assets manually from the Releases page, verify the published hash manifest yourself, and run `Baseline-setup-<version>-<channel>.exe` directly.
+> **Security note:** Do not execute remote bootstrap content directly from a pipeline. The release payload is hash-verified before execution, but the bootstrap entry script is not separately signature-validated or hash-pinned. For higher assurance, download the release assets manually from the Releases page, verify the published hash manifest yourself, and run `Baseline-<version>-<channel>-setup.exe` directly.
 
 To run a preset through the bootstrap flow, set `BASELINE_PRESET` first:
 
@@ -245,6 +245,20 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File $bootstrap
 ```
 
 > **Note:** Headless runs may require `Set-ExecutionPolicy Bypass -Scope Process` if your execution policy blocks unsigned scripts.
+
+### Interactive console mode
+
+```powershell
+.\Baseline.exe -ConsoleGui
+```
+
+```powershell
+.\Baseline.exe -ConsoleGui -Preset Basic
+```
+
+`-ConsoleGui` starts a local terminal menu for systems where you want an interactive flow without WPF. Categories can be expanded or collapsed, items can be multi-selected, and pressing `Enter` hands the selected command list to the same headless runner used by `-Functions` and presets. `-ConsoleGui -Preset <name>` opens the menu with that preset's items pre-selected instead of applying them immediately.
+
+Console mode is local and interactive. Do not use it over WinRM or other non-interactive remoting channels; use `-NoGui` with `-Preset`, `-Functions`, or `-ProfilePath` for automation.
 
 ### Unattended / scripted use
 
@@ -342,7 +356,11 @@ Exit codes are emitted from both the headless `-Functions` / `-ProfilePath` path
 
 ### Remote and managed deployment support
 
-Baseline supports advanced remote automation over WinRM / PowerShell Remoting:
+Baseline's "headless" mode currently means local non-interactive execution: no WPF windows, no modal dialogs, and no input prompts on the machine where Baseline is running.
+
+PowerShell Remoting / WinRM support is experimental and advanced. Remote targeting is available for controlled environments, but it is not equivalent to a normal desktop logon session. GUI/WPF paths must stay bypassed during remote execution; use `-NoGui` for direct remote script calls and do not use `-ConsoleGui` over WinRM.
+
+Baseline supports these remote automation surfaces:
 
 - remote compliance checks
 - remote apply workflows
@@ -353,6 +371,14 @@ Baseline supports advanced remote automation over WinRM / PowerShell Remoting:
 - read-only review mode
 
 Remote use is intended for advanced users who already control the target environment. Validate WinRM, firewall access, credentials, domain policy, and audit requirements before running against managed machines.
+
+WinRM-specific risks to validate before remote use:
+
+- HKCU/user-scope tweaks apply to the remoting account, not necessarily the desktop user you intended to configure.
+- App installs through `winget` or Chocolatey can fail in non-interactive/session-0-style contexts where package managers require a logged-in profile, Store context, or user consent surface.
+- UAC and elevation behavior is different over WinRM; the remoting endpoint must run with the privileges required by the selected changes.
+- Tasks that require Explorer, visible display state, Store/AppX user context, or a fully loaded logged-in profile can fail remotely even when they work in the local GUI.
+- WPF and GUI paths are unsupported in remote execution. Use `-NoGui -Preset <name>`, `-NoGui -Functions ...`, or `-NoGui -ProfilePath <profile>` for automation.
 
 ### Interactive session / tab completion
 
@@ -447,7 +473,7 @@ This generates fresh `Minimal`, `Basic`, and `Balanced` preset files and validat
 powershell -File .\Tools\New-ReleasePackage.ps1
 ```
 
-This produces `Baseline-<version>-stable.zip` or `Baseline-<version>-beta.zip` plus the matching `.zip.sha256.json` in `dist/`. The zip contains `Baseline-setup-<version>-<channel>.exe`; the setup supports both install and portable modes.
+This produces `Baseline-<version>-stable.zip` or `Baseline-<version>-beta.zip` plus the matching `.zip.sha256.json` in `dist/`. The zip contains `Baseline-<version>-setup.exe` for stable releases or `Baseline-<version>-<channel>-setup.exe` for prerelease channels; the setup supports both install and portable modes.
 
 ### Advanced release and support tools
 

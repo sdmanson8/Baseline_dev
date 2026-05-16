@@ -10,7 +10,7 @@ BeforeAll {
 
     . (Join-Path $repoRoot 'Module/SharedHelpers/ConfigReview.Helpers.ps1')
 
-    # Stub localization before dot-sourcing ReviewMode so the function
+    # Stub localization before loading ReviewMode so the function
     # references resolve at call time without dragging in UxPolicy.
     function global:Get-UxLocalizedString {
         param(

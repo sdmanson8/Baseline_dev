@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Show-ReadmeDialog in Module\GUI\DialogHelpers\ContentDialogs.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 try
 		{
 			$webView2RuntimeLoaded = Test-BaselineWebView2RuntimeReady

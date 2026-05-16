@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     VM-based integration test runner for Baseline.
 
@@ -730,7 +730,6 @@ function Invoke-GroupPolicyTests
 {
     Write-Host "`n=== Group Policy Tests ===" -ForegroundColor Cyan
 
-    # Test: LanmanWorkstationGuestAuthPolicy (LGPO-backed toggle)
     # This uses Set-Policy under the hood.
     # Verify the registry side-effect at:
     #   HKLM:\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation
@@ -749,11 +748,10 @@ function Invoke-GroupPolicyTests
     }
     catch { }
 
-    # Check if Set-Policy / LGPO is available
     $setPolicyAvailable = Get-Command -Name 'Set-Policy' -ErrorAction SilentlyContinue
     if (-not $setPolicyAvailable)
     {
-        Write-TestResult -Category 'GroupPolicy' -Name 'Set-Policy command available' -Result Skip -Detail 'Set-Policy not loaded; LGPO infrastructure may not be present'
+        Write-TestResult -Category 'GroupPolicy' -Name 'Set-Policy command available' -Result Skip -Detail 'Set-Policy not loaded; Baseline policy infrastructure may not be present'
         return
     }
 

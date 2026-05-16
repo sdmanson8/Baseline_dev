@@ -122,8 +122,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - Version bumped from 2.0.0-beta to 3.0.0-beta across module manifest, entry scripts, and asset scripts
 - Window sizing now clamps MinWidth, MinHeight, and dimensions to the available work area so the GUI fits on low-resolution screens (e.g. 1024x768)
-- GUI.psm1 further modularized: 35 extracted scripts in Module/GUI/ (up from 14), core orchestrator at ~2,970 lines
-- Region modules extracted: System.psm1 (5 sub-modules), UIPersonalization.psm1 (3), PrivacyTelemetry.psm1 (2), SystemTweaks.psm1 (2), Defender.psm1 (2)
+- GUI.psm1 further modularized: 35 scripts in Module/GUI/ (up from 14), core orchestrator at ~2,970 lines
+- Region modules split: System.psm1 (5 sub-modules), UIPersonalization.psm1 (3), PrivacyTelemetry.psm1 (2), SystemTweaks.psm1 (2), Defender.psm1 (2)
 - Tab content architecture: TabControl used as header-only strip with manual content management via single ScrollViewer
 - Button styling rebuilt with programmatic ControlTemplate via FrameworkElementFactory (7 variants)
 - CheckBox toggle-switch implemented as custom XAML ControlTemplate with animated thumb
@@ -234,7 +234,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   - Automated GUI test layer added: 6 test categories
   - Desktop integration matrix run and documented: Win10 + Win11 validated
   - GUI state surface reduction across top 5 files by $Script: references
-  - Large module extraction: 14 sub-modules extracted from System, UIPersonalization, PrivacyTelemetry, SystemTweaks, Defender
+  - Large module split: 14 sub-modules moved from System, UIPersonalization, PrivacyTelemetry, SystemTweaks, Defender
   - Runtime Write-Host audit across 10 files
   - ExecutionPolicy Bypass audit across 6 files with documentation
   - Remote expression execution audit with safety comments
@@ -248,7 +248,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - GUI window no longer overflows screen on high-DPI displays due to missing DPI awareness
 - GUI now fits 1024x768 and other low-resolution screens by clamping to available work area
 - Header toolbar no longer clips the language button — dynamic MinWidth adjustment measures actual header width at render time
-- Language selector now resolves bundled localization files reliably across module and extracted GUI roots, restores saved language from the same resolved path, and keeps the header globe icon on the shared Fluent System Icons pipeline
+- Language selector now resolves bundled localization files reliably across module roots, restores saved language from the same resolved path, and keeps the header globe icon on the shared Fluent System Icons pipeline
 - GUI localization no longer falls back to English when a non-English language is selected; hashtable-backed localization lookups now resolve correctly across the live interface
 - Restored sessions and startup initialization now reapply the selected language to active controls instead of leaving existing GUI content in English
 - Light theme no longer makes the custom minimize, maximize, and close buttons effectively disappear; caption buttons now restyle with the active title-bar theme
@@ -301,10 +301,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Limited retry to Direct-recovery, restorable, non-removal, non-action items only
 - Batch execution now runs fully headless with no mid-run interactive dialogs
 - Package/install/uninstall operations shown as a distinct summary category with heavier treatment than simple toggles
-- Extracted Game Mode logic from Manifest.Helpers into dedicated GameMode.Helpers module
-- Extracted Scenario Mode logic into dedicated ScenarioMode.Helpers module
-- Extracted preset resolution logic from entry script into Preset.Helpers module
-- Extracted recovery/undo logic into dedicated Recovery.Helpers module
+- Moved Game Mode logic from Manifest.Helpers into dedicated GameMode.Helpers module
+- Moved Scenario Mode logic into dedicated ScenarioMode.Helpers module
+- Moved preset resolution logic from entry script into Preset.Helpers module
+- Moved recovery/undo logic into dedicated Recovery.Helpers module
 - Moved Game Mode data files into organized Module/Data/GameMode/ subdirectory
 - Reduced Manifest.Helpers from 1,760 to 641 lines by splitting responsibilities
 - Reduced Baseline.ps1 from 548 to 443 lines — now purely a launcher/dispatcher

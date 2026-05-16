@@ -1,5 +1,45 @@
-# P5 rollback checkpoint: extracted from Start-GuiAppExecutionRun in Module\GUI\ExecutionOrchestration\ExecutionRunOrchestration.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
+function Get-GuiAppProgressOutcomeRank
+{
+	param(
+		[string]$Status
+	)
+
+	if ([string]::IsNullOrWhiteSpace($Status)) { return -1 }
+
+	switch -Regex ([string]$Status)
+	{
+		'^(Failed|Error|Timed Out / Unknown Final State)$' { return 40 }
+		'^(Partial|Warning|Timed Out)$' { return 30 }
+		'^(Skipped|Already Removed|Already Installed)$' { return 10 }
+		'^(Success|Updated)$' { return 0 }
+		default { return 20 }
+	}
+}
+
+function Set-GuiAppProgressOutcome
+{
+	param(
+		[Parameter(Mandatory = $true)]
+		[hashtable]$RunState,
+
+		[string]$Status
+	)
+
+	if ([string]::IsNullOrWhiteSpace($Status)) { return }
+
+	$currentStatus = if ($RunState.ContainsKey('AppOutcome')) { [string]$RunState['AppOutcome'] } else { $null }
+	if ([string]::IsNullOrWhiteSpace($currentStatus))
+	{
+		$RunState['AppOutcome'] = [string]$Status
+		return
+	}
+
+	if ((Get-GuiAppProgressOutcomeRank -Status $Status) -ge (Get-GuiAppProgressOutcomeRank -Status $currentStatus))
+	{
+		$RunState['AppOutcome'] = [string]$Status
+	}
+}
+
 try
 		{
 			if ($wasAppsModeActive)
@@ -100,7 +140,7 @@ try
 								$Script:RunState['AppCompletedCount'] = [Math]::Min($completedCount, [int]$Script:RunState['AppProgressTotal'])
 								if (-not [string]::IsNullOrWhiteSpace($appStatus))
 								{
-									$Script:RunState['AppOutcome'] = $appStatus
+									Set-GuiAppProgressOutcome -RunState $Script:RunState -Status $appStatus
 								}
 								if ($Script:ExecutionProgressBar -or $Script:ExecutionProgressText)
 								{
@@ -146,7 +186,7 @@ try
 								$status = if ((Test-GuiObjectField -Object $qEntry -FieldName 'Status')) { [string]$qEntry.Status } else { $null }
 								if (-not [string]::IsNullOrWhiteSpace($status))
 								{
-									$Script:RunState['AppOutcome'] = $status
+									Set-GuiAppProgressOutcome -RunState $Script:RunState -Status $status
 								}
 								if (-not [bool]$Script:RunState['AppUseStructuredProgress'])
 								{
@@ -164,7 +204,7 @@ try
 								$status = if ((Test-GuiObjectField -Object $qEntry -FieldName 'Status')) { [string]$qEntry.Status } else { $null }
 								if (-not [string]::IsNullOrWhiteSpace($status))
 								{
-									$Script:RunState['AppOutcome'] = $status
+									Set-GuiAppProgressOutcome -RunState $Script:RunState -Status $status
 								}
 								if (-not [bool]$Script:RunState['AppUseStructuredProgress'])
 								{
@@ -285,6 +325,10 @@ try
 					& $Script:AppDrainQueue
 
 					GUIExecution\Complete-GuiExecutionWorker -Worker $Script:ExecutionWorker
+					if ($Script:RunState['AppResult'] -and (Test-GuiObjectField -Object $Script:RunState['AppResult'] -FieldName 'Outcome') -and -not [string]::IsNullOrWhiteSpace([string]$Script:RunState['AppResult'].Outcome))
+					{
+						$Script:RunState['AppOutcome'] = [string]$Script:RunState['AppResult'].Outcome
+					}
 					$Script:ExecutionWorker = $null
 					$Script:ExecutionRunspace = $null
 					$Script:ExecutionRunPowerShell = $null

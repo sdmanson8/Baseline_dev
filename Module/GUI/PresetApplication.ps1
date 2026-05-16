@@ -320,7 +320,6 @@
 			Set-SharedProgressBarState -ProgressBar $progressBar -Completed 0 -Total $totalCount
 		}
 
-				# P5 rollback checkpoint: Apply-TabPresetSelections part extracted to Module/GUI/PresetApplication/Apply-TabPresetSelections/Apply-TabPresetSelections.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'PresetApplication\Apply-TabPresetSelections\Apply-TabPresetSelections.ps1')
 
 		if ($progressBar)

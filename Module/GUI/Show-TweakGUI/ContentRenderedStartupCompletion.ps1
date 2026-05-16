@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Show-TweakGUI in Module\Regions\GUI.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 Register-GuiEventHandler -Source $Form -EventName 'ContentRendered' -Handler ({
 		if ($startupPresentationCompleted) { return }
 		$startupPresentationCompleted = $true
@@ -85,6 +83,97 @@ Register-GuiEventHandler -Source $Form -EventName 'ContentRendered' -Handler ({
 
 						& $trace 'SplashClose runspace: GuiReady signaled, revealing GUI before splash close'
 
+						$setMainWindowPresentation = {
+							param([bool]$Activate)
+
+							if (-not $mainWindow -or -not $mainWindow.Dispatcher -or $mainWindow.Dispatcher.HasShutdownStarted)
+							{
+								return
+							}
+
+							$mainWindow.Dispatcher.Invoke([System.Action]{
+								try { $mainWindow.ShowInTaskbar = $true } catch { $null = $_ }
+								try { $mainWindow.Opacity = 1 } catch { $null = $_ }
+								try
+								{
+									if ($mainWindow.WindowState -eq [System.Windows.WindowState]::Minimized)
+									{
+										$mainWindow.WindowState = [System.Windows.WindowState]::Normal
+									}
+								}
+								catch { $null = $_ }
+								try
+								{
+									if ($mainWindow.Visibility -ne [System.Windows.Visibility]::Visible)
+									{
+										$mainWindow.Visibility = [System.Windows.Visibility]::Visible
+									}
+								}
+								catch { $null = $_ }
+								try { $mainWindow.ShowActivated = $true } catch { $null = $_ }
+								if ($Activate)
+								{
+									$mainWindowHandle = [IntPtr]::Zero
+									try
+									{
+										if (-not ("WinAPI.ForegroundWindow" -as [type]))
+										{
+											Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+namespace WinAPI
+{
+	public static class ForegroundWindow
+	{
+		[DllImport("user32.dll")]
+		public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+
+		[DllImport("user32.dll")]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+		[DllImport("user32.dll")]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+	}
+}
+"@ -ErrorAction Stop | Out-Null
+										}
+										$mainWindowInterop = New-Object System.Windows.Interop.WindowInteropHelper($mainWindow)
+										$mainWindowHandle = $mainWindowInterop.Handle
+										if ($mainWindowHandle -eq [IntPtr]::Zero -and $mainWindowInterop.PSObject.Methods['EnsureHandle'])
+										{
+											$mainWindowHandle = $mainWindowInterop.EnsureHandle()
+										}
+										if ($mainWindowHandle -ne [IntPtr]::Zero)
+										{
+											$hwndTopMost = [IntPtr]::new(-1)
+											[WinAPI.ForegroundWindow]::ShowWindowAsync($mainWindowHandle, 5) | Out-Null
+											[WinAPI.ForegroundWindow]::ShowWindowAsync($mainWindowHandle, 9) | Out-Null
+											[WinAPI.ForegroundWindow]::SetWindowPos($mainWindowHandle, $hwndTopMost, 0, 0, 0, 0, 0x43) | Out-Null
+											[WinAPI.ForegroundWindow]::SetForegroundWindow($mainWindowHandle) | Out-Null
+										}
+									}
+									catch { $null = $_ }
+									try { $mainWindow.Topmost = $true } catch { $null = $_ }
+									try { $null = $mainWindow.Activate() } catch { $null = $_ }
+									try { $null = $mainWindow.Focus() } catch { $null = $_ }
+									try { Start-Sleep -Milliseconds 900 } catch { $null = $_ }
+									try { $mainWindow.Topmost = $false } catch { $null = $_ }
+									try
+									{
+										if ($mainWindowHandle -ne [IntPtr]::Zero -and ("WinAPI.ForegroundWindow" -as [type]))
+										{
+											$hwndNoTopMost = [IntPtr]::new(-2)
+											[WinAPI.ForegroundWindow]::SetWindowPos($mainWindowHandle, $hwndNoTopMost, 0, 0, 0, 0, 0x43) | Out-Null
+										}
+									}
+									catch { $null = $_ }
+								}
+							})
+						}.GetNewClosure()
+
 						try
 						{
 							if ($splash -is [hashtable] -and $splash.ContainsKey('CompletionAnimationDeadlineUtc') -and $splash['CompletionAnimationDeadlineUtc'] -is [datetime])
@@ -105,15 +194,9 @@ Register-GuiEventHandler -Source $Form -EventName 'ContentRendered' -Handler ({
 						# is visible (desktop flashes).
 						try
 						{
-							if ($mainWindow -and $mainWindow.Dispatcher -and -not $mainWindow.Dispatcher.HasShutdownStarted)
-							{
-								$mainWindow.Dispatcher.Invoke([System.Action]{
-									try { $mainWindow.ShowInTaskbar = $true } catch { $null = $_ }
-									try { $mainWindow.Opacity = 1 } catch { $null = $_ }
-								})
-							}
+							& $setMainWindowPresentation $false
 						}
-						catch { & $trace ("SplashClose runspace: mainWindow taskbar/opacity transition failed: {0}" -f $_.Exception.Message); $null = $_ }
+						catch { & $trace ("SplashClose runspace: mainWindow presentation transition failed: {0}" -f $_.Exception.Message); $null = $_ }
 
 						$splashDispatcher = if ($splash -is [hashtable] -and $splash.ContainsKey('Dispatcher')) { $splash['Dispatcher'] } else { $null }
 						if ($splashDispatcher -and -not $splashDispatcher.HasShutdownStarted)
@@ -131,6 +214,13 @@ Register-GuiEventHandler -Source $Form -EventName 'ContentRendered' -Handler ({
 						}
 
 						& $trace 'SplashClose runspace: splash window closed'
+
+						try
+						{
+							& $setMainWindowPresentation $true
+							& $trace 'SplashClose runspace: mainWindow activated after splash close'
+						}
+						catch { & $trace ("SplashClose runspace: mainWindow activation transition failed: {0}" -f $_.Exception.Message); $null = $_ }
 
 						# Brief wait for window close to propagate, then shut
 						# down the splash's runspace so it doesn't leak.

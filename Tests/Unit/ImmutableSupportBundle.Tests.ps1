@@ -146,7 +146,6 @@ Describe 'Export-BaselineSupportBundle -Immutable' {
         }
 
         $extractDir = Join-Path $script:TempRoot ('extract-{0}' -f [guid]::NewGuid().ToString('N'))
-        # Remove read-only before extraction
         $zipItem = Get-Item -LiteralPath $result.OutputPath
         $zipItem.Attributes = $zipItem.Attributes -band (-bnot [System.IO.FileAttributes]::ReadOnly)
         Expand-Archive -LiteralPath $result.OutputPath -DestinationPath $extractDir -Force

@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Restore-GuiSettingsSnapshot in Module\GUI\SessionState.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 try
 		{
 			$Script:CategoryFilter = $desiredCategory

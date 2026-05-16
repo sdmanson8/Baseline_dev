@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from InitialActions in Module\Regions\InitialActions.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 if ($SecurityCenterAvailable)
 	{
 		$DefenderProduct = $SecurityCenterProducts | Where-Object { $_.instanceGuid -eq "{D68DDC3A-831F-4fae-9E44-DA132C1ACF46}" } | Select-Object -First 1

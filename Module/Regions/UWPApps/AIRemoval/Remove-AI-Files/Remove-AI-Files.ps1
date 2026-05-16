@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Remove-AI-Files in Module\Regions\UWPApps\AIRemoval.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 $airRemovalRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 if ($revert) {
         if (Test-Path "$airRemovalRoot\AIRemoval\Backup\AIFiles") {

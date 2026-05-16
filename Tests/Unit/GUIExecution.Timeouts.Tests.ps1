@@ -31,6 +31,8 @@ BeforeAll {
 
     $filePath = Join-Path $PSScriptRoot '../../Module/GUIExecution.psm1'
     $script:GuiExecutionContent = Get-BaselineTestSourceText -Path $filePath
+    $script:AppExecutionRunContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration/ExecutionRunOrchestration/Start-GuiAppExecutionRun/Start-GuiAppExecutionRun.ps1')
+    $script:SharedHelpersContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/SharedHelpers.psm1')
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions)
@@ -149,5 +151,28 @@ Describe 'GUI execution action host exports and logging bootstrap' {
 
     It 'preseeds the requested log path before importing the loader in background runspaces' {
         ([regex]::Matches($script:GuiExecutionContent, '\$Global:LogFilePath = \$bgLogFilePath\s*\r?\n\s*Import-Module \$bgLoaderPath -Force -Global -ErrorAction Stop')).Count | Should -Be 3
+    }
+
+    It 'defines shared object-field helpers and seeds operation mode into runspaces' {
+        $script:SharedHelpersContent | Should -Match 'function Test-GuiObjectField'
+        $script:SharedHelpersContent | Should -Match "'Test-GuiObjectField'"
+        $script:GuiExecutionContent | Should -Match 'function Test-GuiExecutionObjectField'
+        $script:GuiExecutionContent | Should -Match 'function Get-GuiExecutionOperationMode'
+        $script:GuiExecutionContent | Should -Match "SessionStateProxy\.SetVariable\('bgOperationMode'"
+        $script:GuiExecutionContent | Should -Match 'OperationMode\s+=\s+\$resolvedOperationMode'
+        $script:GuiExecutionContent | Should -Match 'Set-BaselineOperationMode -Mode \(\[string\]\$bgOperationMode\)'
+        $script:GuiExecutionContent | Should -Match '\$Global:BaselineOperationMode = \[string\]\$InvocationOperationMode'
+        $script:GuiExecutionContent | Should -Match 'Set-BaselineOperationMode -Mode \(\[string\]\$InvocationOperationMode\)'
+    }
+
+    It 'prevents later app progress events from downgrading failed or partial outcomes' {
+        $script:AppExecutionRunContent | Should -Match 'function Get-GuiAppProgressOutcomeRank'
+        $script:AppExecutionRunContent | Should -Match 'function Set-GuiAppProgressOutcome'
+        $script:AppExecutionRunContent | Should -Match 'Get-GuiAppProgressOutcomeRank -Status \$Status'
+        $script:AppExecutionRunContent | Should -Match 'Get-GuiAppProgressOutcomeRank -Status \$currentStatus'
+        $script:AppExecutionRunContent | Should -Match 'Set-GuiAppProgressOutcome -RunState \$Script:RunState -Status \$appStatus'
+        $script:AppExecutionRunContent | Should -Match 'Set-GuiAppProgressOutcome -RunState \$Script:RunState -Status \$status'
+        $script:AppExecutionRunContent | Should -Match '\$Script:RunState\[''AppResult''\].*FieldName ''Outcome'''
+        $script:AppExecutionRunContent | Should -Match '\$Script:RunState\[''AppOutcome''\] = \[string\]\$Script:RunState\[''AppResult''\]\.Outcome'
     }
 }

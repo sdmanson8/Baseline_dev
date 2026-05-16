@@ -1,9 +1,13 @@
-# P5 rollback checkpoint: extracted from Start-GuiExecutionWorker in Module\GUIExecution.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 $worker = [powershell]::Create().AddScript({
 		try
 		{
 			$Global:GUIMode = $true
+			if ([string]::IsNullOrWhiteSpace([string]$bgOperationMode))
+			{
+				$bgOperationMode = 'ReadWrite'
+			}
+			$Global:BaselineOperationMode = [string]$bgOperationMode
+			[System.Environment]::SetEnvironmentVariable('BASELINE_OPERATION_MODE', [string]$bgOperationMode, [System.EnvironmentVariableTarget]::Process)
 			$Script:RunState = $runState
 
 			# Load JSON and localization helpers in the background runspace before importing the execution module.
@@ -21,6 +25,10 @@ $worker = [powershell]::Create().AddScript({
 			{
 				$Global:LogFilePath = $bgLogFilePath
 				Import-Module $bgLoaderPath -Force -Global -ErrorAction Stop
+				if (Get-Command -Name Set-BaselineOperationMode -ErrorAction SilentlyContinue)
+				{
+					Set-BaselineOperationMode -Mode ([string]$bgOperationMode)
+				}
 			}
 			catch
 			{
@@ -56,6 +64,7 @@ $worker = [powershell]::Create().AddScript({
 				-UICulture $bgUICulture `
 				-LogFilePath $bgLogFilePath `
 				-LogMode $bgLogMode `
+				-OperationMode $bgOperationMode `
 				-LogQueue $Script:RunState['LogQueue']
 
 			$stepIndex = 0
@@ -248,6 +257,7 @@ $worker = [powershell]::Create().AddScript({
 							-UICulture $bgUICulture `
 							-LogFilePath $bgLogFilePath `
 							-LogMode $bgLogMode `
+							-OperationMode $bgOperationMode `
 							-LogQueue $Script:RunState['LogQueue']
 					}
 

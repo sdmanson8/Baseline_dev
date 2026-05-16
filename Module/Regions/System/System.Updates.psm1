@@ -2020,7 +2020,7 @@ function UpdateMicrosoftProducts
 	)
 
 	# Remove all policies in order to make changes visible in UI only if it's possible
-	Remove-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name AllowMUUpdateService -Force -ErrorAction SilentlyContinue | Out-Null
+	Remove-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name AllowMUUpdateService -Force -ErrorAction Ignore | Out-Null
 	Set-Policy -Scope Computer -Path SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name AllowMUUpdateService -Type CLEAR | Out-Null
 
 	switch ($PSCmdlet.ParameterSetName)
@@ -2036,7 +2036,7 @@ function UpdateMicrosoftProducts
 		{
 			Write-ConsoleStatus -Action "Disabling receiving updates for other Microsoft products"
 			LogInfo "Disabling receiving updates for other Microsoft products"
-			Remove-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings -Name AllowMUUpdateService -Force -ErrorAction SilentlyContinue | Out-Null
+			Remove-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings -Name AllowMUUpdateService -Force -ErrorAction Ignore | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}

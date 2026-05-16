@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from EdgeRemoval in Module\Regions\UWPApps.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 function Test-LegacyEdgeInstalled
 	{
 		$packages = Get-LegacyEdgePackages

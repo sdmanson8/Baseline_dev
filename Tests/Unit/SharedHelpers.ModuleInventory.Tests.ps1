@@ -1,4 +1,4 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
     $script:ModulePath = Join-Path $PSScriptRoot '../../Module/SharedHelpers.psm1'
@@ -75,6 +75,39 @@ Describe 'SharedHelpers helper module inventory' {
         $schedulerModule.ExportedCommands.Keys | Should -Contain 'Register-BaselineWindowsUpdateScheduledRun'
         $cliModeModule.ExportedCommands.Keys | Should -Contain 'Get-BaselinePresetCatalog'
         $cliModeModule.ExportedCommands.Keys | Should -Contain 'Format-BaselinePresetCatalog'
+    }
+
+    It 'imports helper slices with fail-fast diagnostics' {
+        $content = Get-Content -LiteralPath $script:ModulePath -Raw -Encoding UTF8
+
+        $content | Should -Match 'Import-Module -Name \$helperModulePath.*-ErrorAction Stop'
+        $content | Should -Match 'Failed to import shared helper module'
+        $content | Should -Match '\$helperModuleName'
+        $content | Should -Match '\$helperModulePath'
+        $content | Should -Match 'New-Object System\.InvalidOperationException'
+    }
+
+    It 'fails startup with helper module context when a helper slice import fails' {
+        $sourceModuleRoot = Split-Path -Path $script:ModulePath -Parent
+        $testModuleRoot = Join-Path $TestDrive 'Module'
+        New-Item -ItemType Directory -Path $testModuleRoot -Force | Out-Null
+
+        Copy-Item -LiteralPath $script:ModulePath -Destination $testModuleRoot -Force
+        Copy-Item -LiteralPath (Join-Path $sourceModuleRoot 'SharedHelpers') -Destination $testModuleRoot -Recurse -Force
+        Copy-Item -LiteralPath (Join-Path $sourceModuleRoot 'SharedHelperModules') -Destination $testModuleRoot -Recurse -Force
+
+        $brokenHelperPath = Join-Path $testModuleRoot 'SharedHelperModules/Baseline.SharedHelpers.Json.psm1'
+        Set-Content -LiteralPath $brokenHelperPath -Encoding UTF8 -Value "throw 'broken helper import'"
+
+        { Import-Module (Join-Path $testModuleRoot 'SharedHelpers.psm1') -Force -ErrorAction Stop } |
+            Should -Throw "*Failed to import shared helper module 'Baseline.SharedHelpers.Json'*broken helper import*"
+    }
+
+    It 'exports one policy-tool resolver that points at the bundled executable' {
+        Import-Module $script:ModulePath -Force
+
+        Get-Command -Name Resolve-BaselinePolicyToolPath -CommandType Function | Should -Not -BeNullOrEmpty
+        Resolve-BaselinePolicyToolPath | Should -Match '\\Assets\\BaselinePolicyTool\.exe$'
     }
 
     It 'removes helper slice modules when SharedHelpers is unloaded' {

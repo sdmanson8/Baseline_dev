@@ -289,7 +289,11 @@ function New-BaselineLifecyclePlaybook
 	if ([string]::IsNullOrWhiteSpace($targetVersionText) -and -not [string]::IsNullOrWhiteSpace($InstallerPath))
 	{
 		$leaf = [System.IO.Path]::GetFileNameWithoutExtension($InstallerPath)
-		$match = [regex]::Match($leaf, '^Baseline-(?:setup-|portable-)?(?<Version>.+)$', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+		$match = [regex]::Match($leaf, '^Baseline-(?<Version>.+)-setup$', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+		if (-not $match.Success)
+		{
+			$match = [regex]::Match($leaf, '^Baseline-portable-(?<Version>.+)$', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+		}
 		if ($match.Success)
 		{
 			$targetVersionText = [string]$match.Groups['Version'].Value
@@ -710,4 +714,3 @@ function New-BaselineIncidentReproductionPack
 		}
 	}
 }
-

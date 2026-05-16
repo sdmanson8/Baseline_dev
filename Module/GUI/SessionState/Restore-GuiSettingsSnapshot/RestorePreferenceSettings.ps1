@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Restore-GuiSettingsSnapshot in Module\GUI\SessionState.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 try
 		{
 			$Script:AutoScanOnLaunch = $desiredAutoScanOnLaunch
@@ -40,7 +38,7 @@ try
 					$Script:Ctx.Mode.Game = $desiredGameMode
 				}
 			}
-			$Script:DefaultStartupMode = if ($desiredAdvanced) { 'Expert' } else { 'Safe' }
+			$Script:DefaultStartupMode = $desiredDefaultStartupMode
 			if (Get-Command -Name 'Set-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
 			{
 				try { Set-BaselineUserPreference -Key 'Theme' -Value $desiredTheme } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveThemePreference' }
@@ -87,8 +85,6 @@ try
 			if ($Script:MenuTools) { $Script:MenuTools.Visibility = [System.Windows.Visibility]::Visible }
 			if ($Script:MenuToolsAppsManager) { $Script:MenuToolsAppsManager.Visibility = [System.Windows.Visibility]::Visible }
 			if ($Script:MenuToolsUpdateAllApps) { $Script:MenuToolsUpdateAllApps.Visibility = [System.Windows.Visibility]::Visible }
-			if ($Script:MenuToolsAdvanced) { $Script:MenuToolsAdvanced.Visibility = $modeHidden }
-			if ($Script:MenuToolsDeploymentMediaBuilder) { $Script:MenuToolsDeploymentMediaBuilder.Visibility = $modeHidden }
 			if ($Script:MenuToolsApproveRemoteTargets) { $Script:MenuToolsApproveRemoteTargets.Visibility = $modeHidden }
 			if ($Script:MenuToolsSaveRemoteApprovalPolicy) { $Script:MenuToolsSaveRemoteApprovalPolicy.Visibility = $modeHidden }
 			if ($Script:MenuToolsLoadRemoteApprovalPolicy) { $Script:MenuToolsLoadRemoteApprovalPolicy.Visibility = $modeHidden }

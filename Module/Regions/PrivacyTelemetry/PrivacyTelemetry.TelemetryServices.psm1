@@ -1,4 +1,4 @@
-﻿using module ..\..\GUICommon.psm1
+using module ..\..\GUICommon.psm1
 using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
@@ -316,7 +316,6 @@ function ScheduledTasks
 		$NonInteractive
 	)
 
-			# P5 rollback checkpoint: ScheduledTasks part extracted to Module/Regions/PrivacyTelemetry/TelemetryServices/ScheduledTasks/ModulePathResolution.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'TelemetryServices\ScheduledTasks\ModulePathResolution.ps1')
 
 	#region Variables
@@ -329,7 +328,6 @@ function ScheduledTasks
 	$SelectedTaskNamesProvided = $PSBoundParameters.ContainsKey('SelectedTaskNames')
 
 	# The following tasks will have their checkboxes checked
-			# P5 rollback checkpoint: ScheduledTasks part extracted to Module/Regions/PrivacyTelemetry/TelemetryServices/ScheduledTasks/ScheduledTaskList.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'TelemetryServices\ScheduledTasks\ScheduledTaskList.ps1')
 
 	<#
@@ -363,7 +361,6 @@ function ScheduledTasks
 
 	    	#>
 
-			# P5 rollback checkpoint: ScheduledTasks part extracted to Module/Regions/PrivacyTelemetry/TelemetryServices/ScheduledTasks/ScheduledTaskOperation.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'TelemetryServices\ScheduledTasks\ScheduledTaskOperation.ps1')
 
 	# Getting list of all scheduled tasks according to the conditions
@@ -488,7 +485,8 @@ function ScheduledTasks
 	$bc = New-Object System.Windows.Media.BrushConverter
 	$Theme = Get-ScheduledTasksPickerTheme
 	$UseDarkMode = Resolve-ScheduledTasksPickerUseDarkMode
-	Set-ScheduledTasksPickerSurface -Window $Form -RootBorder $RootBorder -PanelContainer $PanelContainer -ScrollViewer $Scroll -Theme $Theme -BrushConverter $bc -UseDarkMode $UseDarkMode
+	$setScheduledTasksPickerSurface = ${function:Set-ScheduledTasksPickerSurface}
+	& $setScheduledTasksPickerSurface -Window $Form -RootBorder $RootBorder -PanelContainer $PanelContainer -ScrollViewer $Scroll -Theme $Theme -BrushConverter $bc -UseDarkMode $UseDarkMode
 	if (Get-Command -Name 'Set-GuiWindowChromeTheme' -CommandType Function -ErrorAction SilentlyContinue)
 	{
 		[void](Set-GuiWindowChromeTheme -Window $Form -UseDarkMode $UseDarkMode)
@@ -516,7 +514,7 @@ function ScheduledTasks
 
 		try
 		{
-			Set-ScheduledTasksPickerSurface -Window $Window -RootBorder $RootBorder -PanelContainer $PanelContainer -ScrollViewer $Scroll -Theme $Theme -BrushConverter $bc -UseDarkMode $UseDarkMode
+			& $setScheduledTasksPickerSurface -Window $Window -RootBorder $RootBorder -PanelContainer $PanelContainer -ScrollViewer $Scroll -Theme $Theme -BrushConverter $bc -UseDarkMode $UseDarkMode
 		}
 		catch
 		{

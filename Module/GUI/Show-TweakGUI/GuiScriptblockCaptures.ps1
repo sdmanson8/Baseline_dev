@@ -1,6 +1,4 @@
-# P5 rollback checkpoint: extracted from Show-TweakGUI in Module\Regions\GUI.psm1.
 # Purpose: late handler captures, initial theme, and action icon wiring.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 $Script:ClearTabContentCacheScript = ${function:Clear-TabContentCache}
 	$Script:BuildTabContentScript = ${function:Build-TabContent}
 	$Script:UpdateCurrentTabContentScript = ${function:Update-CurrentTabContent}

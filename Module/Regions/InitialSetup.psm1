@@ -188,7 +188,6 @@ function CheckWinGet
 	$resetWinGetAvailabilityCommand = Get-Command -Name 'Reset-WinGetAvailabilityState' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
 	$updateStartupSplashState = {
 		param(
-			[string]$StatusText,
 			[switch]$Indeterminate,
 			[switch]$HideProgressBar
 		)
@@ -200,7 +199,7 @@ function CheckWinGet
 
 		try
 		{
-			& $startupSplashUpdateCommand -Splash $LoadingSplash -StatusText $StatusText -Indeterminate:$Indeterminate -HideProgressBar:$HideProgressBar | Out-Null
+			& $startupSplashUpdateCommand -Splash $LoadingSplash -Indeterminate:$Indeterminate -HideProgressBar:$HideProgressBar | Out-Null
 		}
 		catch
 		{
@@ -229,7 +228,7 @@ function CheckWinGet
 
 		$checkingStatusText = Get-BaselineLocalizedString -Key 'Progress_CheckingInstallStatus' -Fallback 'Checking installation status...'
 		Write-ConsoleStatus -Action $checkingStatusText
-		& $updateStartupSplashState -StatusText $checkingStatusText -Indeterminate
+		& $updateStartupSplashState -Indeterminate
 
 		$wingetVersion = Get-WinGetVersion
 		if ($wingetVersion)
@@ -242,28 +241,28 @@ function CheckWinGet
 			}
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerAlreadyInstalled' -Fallback '{0} is already installed and working. Version: {1}' -FormatArgs @('WinGet', $wingetVersion))
 			Write-ConsoleStatus -Status success
-			& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready') -Indeterminate
+			& $updateStartupSplashState -Indeterminate
 			return
 		}
 
 		LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerNotFunctional' -Fallback '{0} not found or not functional' -FormatArgs @('WinGet'))
 		$installStatusText = Get-BaselineLocalizedString -Key 'Progress_Installing' -Fallback 'Installing {0}...' -FormatArgs @('WinGet')
 		Write-ConsoleStatus -Action $installStatusText
-		& $updateStartupSplashState -StatusText $installStatusText -Indeterminate
+		& $updateStartupSplashState -Indeterminate
 
 		try
 		{
 			$installerUrl = [string]$installerMetadata.Uri
-			$installerPath = Join-Path $env:TEMP ("winget-install-{0}.ps1" -f $installerVersion)
+			$installerPath = Join-Path $env:TEMP ("Baseline-WinGetBootstrap-{0}.ps1" -f $installerVersion)
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_DownloadingPackageManagerInstaller' -Fallback 'Downloading {0} installer from {1}' -FormatArgs @('WinGet', $installerUrl))
 			Invoke-DownloadFile -Uri $installerUrl -OutFile $installerPath
 
 			if (-not (Test-Path $installerPath) -or (Get-Item $installerPath).Length -eq 0)
 			{
-				throw "winget installer download failed or produced an empty file at $installerPath"
+				throw "Baseline WinGet bootstrap download failed or produced an empty file at $installerPath"
 			}
 
-			& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_Processing' -Fallback 'Processing {0}...' -FormatArgs @('WinGet installer verification')) -Indeterminate
+			& $updateStartupSplashState -Indeterminate
 			$null = Assert-FileHash `
 				-Path $installerPath `
 				-ExpectedSha256 $installerSha256 `
@@ -271,8 +270,7 @@ function CheckWinGet
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerDownloadVerified' -Fallback 'Download and SHA-256 verification completed for {0} v{1}' -FormatArgs @('WinGet', $installerVersion))
 
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_ExecutingInstallerScript' -Fallback 'Executing installer script...')
-			$executingStatusText = Get-BaselineLocalizedString -Key 'Progress_Installing' -Fallback 'Installing {0}...' -FormatArgs @('WinGet')
-			& $updateStartupSplashState -StatusText $executingStatusText -Indeterminate
+			& $updateStartupSplashState -Indeterminate
 
 			$process = Invoke-BaselineProcess -FilePath 'powershell.exe' -ArgumentList (@(
 				'-NoProfile',
@@ -286,7 +284,7 @@ function CheckWinGet
 				$stdoutLines = @(([string]$process.StandardOutput -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
 				foreach ($stdoutLine in $stdoutLines)
 				{
-					LogInfo "winget-installer: $stdoutLine"
+					LogInfo "Baseline WinGet bootstrap: $stdoutLine"
 				}
 			}
 
@@ -296,7 +294,7 @@ function CheckWinGet
 				$stderrLines = @(([string]$process.StandardError -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
 				foreach ($stderrLine in $stderrLines)
 				{
-					LogError "winget-installer: $stderrLine"
+					LogError "Baseline WinGet bootstrap: $stderrLine"
 				}
 			}
 
@@ -321,7 +319,7 @@ function CheckWinGet
 			{
 				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerValidationSucceeded' -Fallback '{0} validation succeeded. Version: {1}' -FormatArgs @('WinGet', $wingetVersion))
 				Write-ConsoleStatus -Status success
-				& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready') -Indeterminate
+				& $updateStartupSplashState -Indeterminate
 				return
 			}
 
@@ -329,7 +327,7 @@ function CheckWinGet
 			{
 				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationCompletedButUnavailable' -Fallback '{0} installation completed, but {1} is not available in the current session yet. A new session may be required.' -FormatArgs @('WinGet', 'winget.exe'))
 				Write-ConsoleStatus -Status success
-				& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready') -Indeterminate
+				& $updateStartupSplashState -Indeterminate
 				return
 			}
 
@@ -349,7 +347,7 @@ function CheckWinGet
 			$repairStatusText = Get-BaselineLocalizedString -Key 'Progress_WinGet_Updating' -Fallback 'Updating WinGet...'
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_AttemptingPackageManagerRepair' -Fallback 'Attempting {0} repair via {1}...' -FormatArgs @('WinGet', 'Microsoft.WinGet.Client'))
 			Write-ConsoleStatus -Action $repairStatusText
-			& $updateStartupSplashState -StatusText $repairStatusText -Indeterminate
+			& $updateStartupSplashState -Indeterminate
 
 			try
 			{
@@ -364,13 +362,13 @@ function CheckWinGet
 				{
 					LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairSucceeded' -Fallback '{0} repair succeeded. Version: {1}' -FormatArgs @('WinGet', $wingetVersion))
 					Write-ConsoleStatus -Status success
-					& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready') -Indeterminate
+					& $updateStartupSplashState -Indeterminate
 					return
 				}
 
 				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairCompletedButUnavailable' -Fallback '{0} repair completed but {1} still not resolvable in this session.' -FormatArgs @('WinGet', 'winget.exe'))
 				Write-ConsoleStatus -Status success
-				& $updateStartupSplashState -StatusText (Get-BaselineLocalizedString -Key 'Progress_WinGet_Ready' -Fallback 'WinGet is ready') -Indeterminate
+				& $updateStartupSplashState -Indeterminate
 			}
 			catch
 			{
@@ -440,7 +438,6 @@ function Initialize-PackageManagersBootstrap
 	$resetChocolateyAvailabilityCommand = Get-Command -Name 'Reset-ChocolateyAvailabilityState' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
 	$updateStartupSplashState = {
 		param(
-			[string]$StatusText,
 			[switch]$Indeterminate,
 			[switch]$HideProgressBar
 		)
@@ -452,7 +449,7 @@ function Initialize-PackageManagersBootstrap
 
 		try
 		{
-			& $startupSplashUpdateCommand -Splash $LoadingSplash -StatusText $StatusText -Indeterminate:$Indeterminate -HideProgressBar:$HideProgressBar | Out-Null
+			& $startupSplashUpdateCommand -Splash $LoadingSplash -Indeterminate:$Indeterminate -HideProgressBar:$HideProgressBar | Out-Null
 		}
 		catch
 		{
@@ -519,7 +516,7 @@ function Initialize-PackageManagersBootstrap
 	{
 		$checkingStatusText = Get-BaselineLocalizedString -Key 'Progress_CheckingInstallStatus' -Fallback 'Checking installation status...'
 		Write-ConsoleStatus -Action $checkingStatusText
-		& $updateStartupSplashState -StatusText $checkingStatusText -Indeterminate
+		& $updateStartupSplashState -Indeterminate
 
 		if ($IncludeWinGet)
 		{
@@ -612,7 +609,7 @@ function Initialize-PackageManagersBootstrap
 			}
 
 			Write-ConsoleStatus -Action $installStatusText
-			& $updateStartupSplashState -StatusText $installStatusText -Indeterminate
+			& $updateStartupSplashState -Indeterminate
 
 			while ($jobs.Count -gt 0)
 			{
@@ -672,16 +669,7 @@ function Initialize-PackageManagersBootstrap
 				$jobs = @($jobs | Where-Object { $_.State -eq 'Running' })
 				if ($jobs.Count -gt 0)
 				{
-					$runningNames = @($jobs | ForEach-Object { [string]$_.Name })
-					$runningStatusText = if ($runningNames.Count -gt 1)
-					{
-						Get-BaselineLocalizedString -Key 'Progress_InstallingPackageManagers' -Fallback 'Installing WinGet and Chocolatey...'
-					}
-					else
-					{
-						Get-BaselineLocalizedString -Key 'Progress_Installing' -Fallback 'Installing {0}...' -FormatArgs @([string]$runningNames[0].Replace('Bootstrap', ''))
-					}
-					& $updateStartupSplashState -StatusText $runningStatusText -Indeterminate
+					& $updateStartupSplashState -Indeterminate
 				}
 			}
 		}

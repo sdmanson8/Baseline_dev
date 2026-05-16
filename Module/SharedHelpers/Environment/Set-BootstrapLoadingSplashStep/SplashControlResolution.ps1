@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Set-BootstrapLoadingSplashStep in Module\SharedHelpers\Environment.Helpers.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 if ($Splash -is [hashtable])
 	{
 		if ($Splash.ContainsKey('Window'))            { $window         = $Splash['Window'] }

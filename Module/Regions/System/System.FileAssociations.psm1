@@ -1,4 +1,4 @@
-﻿using module ..\..\Logging.psm1
+using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
 
@@ -58,7 +58,6 @@ function Set-Association
 	$AssociationFailed = $false
 
 	# Suppress all output from the entire function
-			# P5 rollback checkpoint: Set-Association part extracted to Module/Regions/System/FileAssociations/Set-Association/Set-Association.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'FileAssociations\Set-Association\Set-Association.ps1')
 
 	if ($AssociationFailed)
@@ -417,10 +416,8 @@ Applies the Baseline behavior for change the location of the each user folder us
 		.NOTES
 		User files or folders won't be moved to a new location
 	#>
-			# P5 rollback checkpoint: Set-UserShellFolderLocation part extracted to Module/Regions/System/FileAssociations/Set-UserShellFolderLocation/UserShellFolderWriter.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'FileAssociations\Set-UserShellFolderLocation\UserShellFolderWriter.ps1')
 
-			# P5 rollback checkpoint: Set-UserShellFolderLocation part extracted to Module/Regions/System/FileAssociations/Set-UserShellFolderLocation/UserShellFolderLocationWorkflow.ps1; re-inline here if rollback is needed.
 		$__baselineExtractedPartDidReturn = $false
 		$__baselineExtractedPartHasReturnValue = $false
 		$__baselineExtractedPartReturnValue = $null

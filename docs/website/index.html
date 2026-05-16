@@ -166,8 +166,13 @@ ul {
 <div class="card">
     <h2>📦 Deployment</h2>
     <p>
-        Supports standalone execution, PowerShell Remoting, Group Policy, Microsoft Intune,
-        and SCCM/MECM deployments.
+        Supports standalone execution, local <code>-NoGui</code> automation, scheduled tasks,
+        Group Policy, Microsoft Intune, and SCCM/MECM deployments.
+    </p>
+    <p>
+        PowerShell Remoting / WinRM is experimental and advanced. Remote execution must keep
+        GUI/WPF paths bypassed with <code>-NoGui</code>; do not use <code>-ConsoleGui</code>
+        over WinRM.
     </p>
 </div>
 

@@ -1,4 +1,3 @@
-﻿# PresetManagement split file loaded by Module\GUI\PresetManagement.ps1.
 
 	<#
 	    .SYNOPSIS

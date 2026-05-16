@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from SharedPrinterConnectionErrors in Module\Regions\SystemTweaks\SystemTweaks.SMBRepair.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 foreach ($registrySetting in @(
 		@{ Path = $rpcPath; Name = "RpcUseNamedPipeProtocol"; Value = 1; Type = "DWord"; Description = "Enabled RPC named-pipe protocol for printer connections" },
 		@{ Path = $rpcPath; Name = "RpcProtocols"; Value = 7; Type = "DWord"; Description = "Enabled RPC protocol bitmask 7 for printer connections" },
@@ -127,8 +125,9 @@ foreach ($registrySetting in @(
 		}
 		else
 		{
-			& netsh advfirewall firewall set rule group="File and Printer Sharing" new enable=Yes | Out-Null
-			& netsh advfirewall firewall set rule group="Network Discovery" new enable=Yes | Out-Null
+			$netshPath = Join-Path $env:SystemRoot 'System32\netsh.exe'
+			$null = Invoke-BaselineProcess -FilePath $netshPath -ArgumentList @('advfirewall', 'firewall', 'set', 'rule', 'group=File and Printer Sharing', 'new', 'enable=Yes') -TimeoutSeconds 120 -AllowedExitCodes @(0)
+			$null = Invoke-BaselineProcess -FilePath $netshPath -ArgumentList @('advfirewall', 'firewall', 'set', 'rule', 'group=Network Discovery', 'new', 'enable=Yes') -TimeoutSeconds 120 -AllowedExitCodes @(0)
 			LogInfo "File and printer sharing firewall rules enabled via netsh"
 		}
 	}

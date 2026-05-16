@@ -1,4 +1,4 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
     $sourceContentHelperPath = Join-Path $PSScriptRoot 'Support/SourceContent.Helpers.ps1'
@@ -460,8 +460,8 @@ Describe 'InitialActions hosts-cleanup wiring' {
         $script:initialActionsContent | Should -Match 'BASELINE_AUTO_STRIP_HOSTS'
     }
 
-    It 'reads the AutoStripWindowsSpyBlockerHosts user preference' {
-        $script:initialActionsContent | Should -Match 'AutoStripWindowsSpyBlockerHosts'
+    It 'reads the AutoStripBaselineHosts user preference' {
+        $script:initialActionsContent | Should -Match 'AutoStripBaselineHosts'
     }
 
     It 'guards Set-Content + Notepad behind the AutoStrip branch' {

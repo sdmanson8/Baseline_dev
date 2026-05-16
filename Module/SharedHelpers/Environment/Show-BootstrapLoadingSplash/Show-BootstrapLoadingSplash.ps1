@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Show-BootstrapLoadingSplash in Module\SharedHelpers\Environment.Helpers.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables, throws with the original inline behavior, and bridges caller-level returns back to the parent function.
 try
 	{
 		Write-EnvironmentLaunchTrace ('Bootstrap splash helper entered: embedded={0} startUpdatesPulse={1}' -f [System.Environment]::GetEnvironmentVariable('BASELINE_EMBEDDED_HOST'), [bool]$StartUpdatesPulse)
@@ -148,7 +146,6 @@ try
 		$splashLocStepFinalize   = Get-BaselineLocalizedString -Key 'Bootstrap_StepFinalizing' -Fallback 'Finalizing Baseline Configuration'
 		$runspace.SessionStateProxy.SetVariable('splashLocSubtitle', $splashLocSubtitle)
 		$runspace.SessionStateProxy.SetVariable('splashLocLoading', $splashLocLoading)
-		$runspace.SessionStateProxy.SetVariable('splashLocCheckingForUpdates', (Get-BaselineLocalizedString -Key 'Bootstrap_CheckingForUpdates' -Fallback 'Checking for updates...'))
 		$runspace.SessionStateProxy.SetVariable('splashLocStepUpdates', $splashLocStepUpdates)
 		$runspace.SessionStateProxy.SetVariable('splashLocStepSystem', $splashLocStepSystem)
 		$runspace.SessionStateProxy.SetVariable('splashLocStepWinget', $splashLocStepWinget)
@@ -246,7 +243,7 @@ try
 	FontFamily="Segoe UI"
 	ShowInTaskbar="True"
 	ShowActivated="False"
-	Topmost="False"
+	Topmost="True"
 	WindowStyle="None"
 	AllowsTransparency="True"
 	SnapsToDevicePixels="True"
@@ -768,9 +765,7 @@ namespace WinAPI {
 								$stepApplied = $false
 								if ($startUpdatesPulse)
 								{
-									$statusTextControl = if ($syncHash.ContainsKey('StatusText')) { $syncHash['StatusText'] } else { $null }
 									$subActionPanelControl = if ($syncHash.ContainsKey('SubActionPanel')) { $syncHash['SubActionPanel'] } else { $null }
-									if ($statusTextControl) { $statusTextControl.Text = $splashLocCheckingForUpdates }
 									if ($subActionPanelControl) { $subActionPanelControl.Visibility = [System.Windows.Visibility]::Collapsed }
 								}
 

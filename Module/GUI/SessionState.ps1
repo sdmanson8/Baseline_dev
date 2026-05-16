@@ -1,4 +1,3 @@
-﻿
 # GUI session state, undo snapshots, and settings profile management
 
 <#
@@ -898,7 +897,11 @@ function Import-GuiRemoteTargetApprovalPolicy
 		# System scan is transient machine state. Persisting it across launches can silently
 		# re-run expensive detection work during startup, so session snapshots always store it off.
 		$scanEnabled = $false
-		$currentPrimaryTab = if ($PrimaryTabs -and $PrimaryTabs.SelectedItem -and $PrimaryTabs.SelectedItem.Tag) {
+		$searchResultsTabTag = if (Get-Variable -Name 'SearchResultsTabTag' -Scope Script -ErrorAction SilentlyContinue) { [string]$Script:SearchResultsTabTag } else { $null }
+		$currentPrimaryTab = if (-not [string]::IsNullOrWhiteSpace($searchText) -and -not [string]::IsNullOrWhiteSpace($searchResultsTabTag) -and [string]$Script:CurrentPrimaryTab -eq $searchResultsTabTag) {
+			$searchResultsTabTag
+		}
+		elseif ($PrimaryTabs -and $PrimaryTabs.SelectedItem -and $PrimaryTabs.SelectedItem.Tag) {
 			[string]$PrimaryTabs.SelectedItem.Tag
 		}
 		elseif ($Script:CurrentPrimaryTab) {
@@ -911,14 +914,59 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$currentSafeMode = if ($Script:Ctx -and $Script:Ctx.ContainsKey('Mode') -and $null -ne $Script:Ctx.Mode -and $Script:Ctx.Mode.ContainsKey('Safe')) { [bool]$Script:Ctx.Mode.Safe } else { [bool]$Script:SafeMode }
 		$currentAdvancedMode = if ($Script:Ctx -and $Script:Ctx.ContainsKey('Mode') -and $null -ne $Script:Ctx.Mode -and $Script:Ctx.Mode.ContainsKey('Expert')) { [bool]$Script:Ctx.Mode.Expert } else { [bool]$Script:AdvancedMode }
 		$currentModePreference = Resolve-GuiModePreference -SafeMode $currentSafeMode -AdvancedMode $currentAdvancedMode
+		$currentDefaultStartupModeRaw = if (Get-Variable -Name 'DefaultStartupMode' -Scope Script -ErrorAction SilentlyContinue) { [string]$Script:DefaultStartupMode } else { $null }
+		$currentDefaultStartupMode = if ($currentDefaultStartupModeRaw -in @('Safe', 'Expert'))
+		{
+			$currentDefaultStartupModeRaw
+		}
+		elseif (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			[string](Get-BaselineUserPreference -Key 'DefaultStartupMode' -Default 'Safe')
+		}
+		else
+		{
+			'Safe'
+		}
+		if ($currentDefaultStartupMode -notin @('Safe', 'Expert')) { $currentDefaultStartupMode = 'Safe' }
 		$currentAppsModeActive = if (Get-Variable -Name 'AppsModeActive' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:AppsModeActive } else { $false }
 		$currentUpdatesModeActive = if (Get-Variable -Name 'UpdatesModeActive' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:UpdatesModeActive } else { $false }
 		$currentDeploymentMediaModeActive = if (Get-Variable -Name 'DeploymentMediaModeActive' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:DeploymentMediaModeActive } else { $false }
 		$currentNavigationMode = if ($currentUpdatesModeActive) { 'Updates' } elseif ($currentDeploymentMediaModeActive) { 'DeploymentMedia' } elseif ($currentAppsModeActive) { 'Apps' } else { 'Optimize' }
 
+		$explicitDefinitionsByFunction = @{}
+		$snapshotExplicitDefinitions = [System.Collections.Generic.List[object]]::new()
+		if ($Script:ExplicitPresetSelectionDefinitions)
+		{
+			$Script:ExplicitPresetSelectionDefinitions.GetEnumerator() |
+				Sort-Object Key |
+				ForEach-Object {
+					$definitionCopy = Copy-GuiExplicitSelectionDefinition -Definition $_.Value -FunctionName ([string]$_.Key)
+					if ($definitionCopy)
+					{
+						$explicitDefinitionsByFunction[[string]$_.Key] = $definitionCopy
+						[void]$snapshotExplicitDefinitions.Add($definitionCopy)
+					}
+				}
+		}
+		$addSessionExplicitDefinition = {
+			param (
+				[string]$FunctionName,
+				[object]$Definition
+			)
+
+			if ([string]::IsNullOrWhiteSpace($FunctionName)) { return }
+			if ($explicitDefinitionsByFunction.ContainsKey($FunctionName)) { return }
+
+			$definitionCopy = Copy-GuiExplicitSelectionDefinition -Definition $Definition -FunctionName $FunctionName -Source 'Session'
+			if (-not $definitionCopy) { return }
+
+			$explicitDefinitionsByFunction[$FunctionName] = $definitionCopy
+			[void]$snapshotExplicitDefinitions.Add($definitionCopy)
+		}
+
 		$snapshot = [ordered]@{
 			Schema = 'Baseline.GuiSettings'
-			SchemaVersion = 18
+			SchemaVersion = 19
 			SavedAt = (Get-Date).ToString('o')
 			Theme = $themeName
 			Language = if ($Script:SelectedLanguage) { [string]$Script:SelectedLanguage } else { 'en' }
@@ -946,6 +994,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			ScanEnabled = $scanEnabled
 			AutoScanOnLaunch = [bool]$Script:AutoScanOnLaunch
 			RestoreLastSession = if ($null -ne $Script:RestoreLastSession) { [bool]$Script:RestoreLastSession } else { $true }
+			DefaultStartupMode = $currentDefaultStartupMode
 			AutoCheckUpdates = if ($null -ne $Script:AutoCheckUpdates) { [bool]$Script:AutoCheckUpdates } else { $true }
 			UpdateCheckFrequency = if ($Script:UpdateCheckFrequency) { [string]$Script:UpdateCheckFrequency } else { 'Startup' }
 			UpdateBranch = if ($Script:UpdateBranch) { [string]$Script:UpdateBranch } elseif (Get-Command -Name 'Get-BaselineDefaultUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineDefaultUpdateBranch } else { 'Stable' }
@@ -981,13 +1030,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			CurrentPrimaryTab = $currentPrimaryTab
 			LastStandardPrimaryTab = if ($Script:LastStandardPrimaryTab) { [string]$Script:LastStandardPrimaryTab } else { $null }
 			ExplicitSelections = @($Script:ExplicitPresetSelections)
-			ExplicitSelectionDefinitions = @(
-				$Script:ExplicitPresetSelectionDefinitions.GetEnumerator() |
-					Sort-Object Key |
-					ForEach-Object {
-						Copy-GuiExplicitSelectionDefinition -Definition $_.Value -FunctionName ([string]$_.Key)
-					}
-			)
+			ExplicitSelectionDefinitions = $null
 			Controls = $null
 		}
 
@@ -996,6 +1039,8 @@ function Import-GuiRemoteTargetApprovalPolicy
 		{
 			$manifest = $Script:TweakManifest[$i]
 			$control = $Script:Controls[$i]
+			$manifestFunction = [string]$manifest.Function
+			$explicitDefinition = if (-not [string]::IsNullOrWhiteSpace($manifestFunction) -and $explicitDefinitionsByFunction.ContainsKey($manifestFunction)) { $explicitDefinitionsByFunction[$manifestFunction] } else { $null }
 			$entry = [ordered]@{
 				Index = $i
 				Function = $manifest.Function
@@ -1007,9 +1052,34 @@ function Import-GuiRemoteTargetApprovalPolicy
 				'Date'
 				{
 					$controlIsEnabled = if ($control -and (Test-GuiObjectField -Object $control -FieldName 'IsEnabled')) { [bool]$control.IsEnabled } else { $true }
-					$entry.IsChecked = if ($controlIsEnabled -and $control -and (Test-GuiObjectField -Object $control -FieldName 'IsChecked')) { [bool]$control.IsChecked } else { $false }
+					if ($explicitDefinition -and [string]$explicitDefinition.Type -eq 'Date' -and (Test-GuiObjectField -Object $explicitDefinition -FieldName 'Run'))
+					{
+						$entry.IsChecked = [bool]$explicitDefinition.Run
+					}
+					elseif ($explicitDefinition -and [string]$explicitDefinition.Type -eq 'Date' -and (
+						((Test-GuiObjectField -Object $explicitDefinition -FieldName 'DateValue') -and -not [string]::IsNullOrWhiteSpace([string]$explicitDefinition.DateValue)) -or
+						((Test-GuiObjectField -Object $explicitDefinition -FieldName 'Value') -and -not [string]::IsNullOrWhiteSpace([string]$explicitDefinition.Value)) -or
+						((Test-GuiObjectField -Object $explicitDefinition -FieldName 'SelectedDate') -and -not [string]::IsNullOrWhiteSpace([string]$explicitDefinition.SelectedDate))))
+					{
+						$entry.IsChecked = $true
+					}
+					else
+					{
+						$entry.IsChecked = if ($controlIsEnabled -and $control -and (Test-GuiObjectField -Object $control -FieldName 'IsChecked')) { [bool]$control.IsChecked } else { $false }
+					}
 					$selectedDate = $null
-					if ($control)
+					if ($explicitDefinition -and [string]$explicitDefinition.Type -eq 'Date')
+					{
+						foreach ($dateFieldName in @('DateValue', 'Value', 'SelectedDate'))
+						{
+							if ((Test-GuiObjectField -Object $explicitDefinition -FieldName $dateFieldName) -and -not [string]::IsNullOrWhiteSpace([string]$explicitDefinition.$dateFieldName))
+							{
+								$selectedDate = [string]$explicitDefinition.$dateFieldName
+								break
+							}
+						}
+					}
+					if (-not $selectedDate -and $control)
 					{
 						if ((Test-GuiObjectField -Object $control -FieldName 'SelectedDate') -and $control.SelectedDate)
 						{
@@ -1021,11 +1091,24 @@ function Import-GuiRemoteTargetApprovalPolicy
 						}
 					}
 					$entry.SelectedDate = $selectedDate
+					if (-not $explicitDefinition -and [bool]$entry.IsChecked)
+					{
+						& $addSessionExplicitDefinition -FunctionName $manifestFunction -Definition ([pscustomobject]@{
+							Function = $manifestFunction
+							Type = 'Date'
+							Run = $true
+							Value = $selectedDate
+						})
+					}
 				}
 				'Choice'
 				{
 					$selectedIndex = -1
-					if ($control -and (Test-GuiObjectField -Object $control -FieldName 'SelectedIndex'))
+					if ($explicitDefinition -and [string]$explicitDefinition.Type -eq 'Choice' -and (Test-GuiObjectField -Object $explicitDefinition -FieldName 'Value') -and -not [string]::IsNullOrWhiteSpace([string]$explicitDefinition.Value) -and $manifest.Options)
+					{
+						$selectedIndex = [array]::IndexOf(@($manifest.Options), [string]$explicitDefinition.Value)
+					}
+					elseif ($control -and (Test-GuiObjectField -Object $control -FieldName 'SelectedIndex'))
 					{
 						$selectedIndex = [int]$control.SelectedIndex
 					}
@@ -1036,17 +1119,63 @@ function Import-GuiRemoteTargetApprovalPolicy
 					}
 					$entry.SelectedIndex = [int]$selectedIndex
 					$entry.SelectedValue = $selectedValue
+					if (-not $explicitDefinition -and $selectedIndex -ge 0 -and -not [string]::IsNullOrWhiteSpace($selectedValue))
+					{
+						& $addSessionExplicitDefinition -FunctionName $manifestFunction -Definition ([pscustomobject]@{
+							Function = $manifestFunction
+							Type = 'Choice'
+							Value = $selectedValue
+						})
+					}
 				}
 				default
 				{
 					$controlIsEnabled = if ($control -and (Test-GuiObjectField -Object $control -FieldName 'IsEnabled')) { [bool]$control.IsEnabled } else { $true }
-					$entry.IsChecked = if ($controlIsEnabled -and $control -and (Test-GuiObjectField -Object $control -FieldName 'IsChecked')) { [bool]$control.IsChecked } else { $false }
+					if ($explicitDefinition -and [string]$explicitDefinition.Type -eq 'Toggle')
+					{
+						$entry.IsChecked = ((Test-GuiObjectField -Object $explicitDefinition -FieldName 'State') -and [string]$explicitDefinition.State -eq 'On')
+					}
+					elseif ($explicitDefinition -and [string]$explicitDefinition.Type -eq 'Action' -and (Test-GuiObjectField -Object $explicitDefinition -FieldName 'Run'))
+					{
+						$entry.IsChecked = [bool]$explicitDefinition.Run
+					}
+					elseif ($explicitDefinition -and [string]$explicitDefinition.Type -eq 'NumericRange')
+					{
+						$entry.IsChecked = $true
+					}
+					else
+					{
+						$entry.IsChecked = if ($controlIsEnabled -and $control -and (Test-GuiObjectField -Object $control -FieldName 'IsChecked')) { [bool]$control.IsChecked } else { $false }
+					}
+					if (-not $explicitDefinition -and [bool]$entry.IsChecked)
+					{
+						switch ([string]$manifest.Type)
+						{
+							'Toggle'
+							{
+								& $addSessionExplicitDefinition -FunctionName $manifestFunction -Definition ([pscustomobject]@{
+									Function = $manifestFunction
+									Type = 'Toggle'
+									State = 'On'
+								})
+							}
+							'Action'
+							{
+								& $addSessionExplicitDefinition -FunctionName $manifestFunction -Definition ([pscustomobject]@{
+									Function = $manifestFunction
+									Type = 'Action'
+									Run = $true
+								})
+							}
+						}
+					}
 				}
 			}
 
 			$controlList.Add([pscustomobject]$entry)
 		}
 
+		$snapshot.ExplicitSelectionDefinitions = $snapshotExplicitDefinitions.ToArray()
 		$snapshot.Controls = $controlList.ToArray()
 		return [pscustomobject]$snapshot
 	}
@@ -1086,8 +1215,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 		Initialize-GuiSelectionStateStores
 		$Script:ExplicitPresetSelections.Clear()
 		$Script:ExplicitPresetSelectionDefinitions.Clear()
-				# P5 rollback checkpoint: Restore-GuiSettingsSnapshot part extracted to Module/GUI/SessionState/Restore-GuiSettingsSnapshot/RestoreExplicitSelectionState.ps1; re-inline here if rollback is needed.
-		. (Join-Path $PSScriptRoot 'SessionState\Restore-GuiSettingsSnapshot\RestoreExplicitSelectionState.ps1')
 
 		$desiredTheme = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'Theme')) { [string]$Snapshot.Theme } else { 'System' }
 		# System scan must be rerun explicitly for the current machine state instead of being
@@ -1134,6 +1261,23 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$desiredIncludePrereleaseUpdates = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'IncludePrereleaseUpdates')) { [bool]$Snapshot.IncludePrereleaseUpdates } elseif (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'IncludePrereleaseUpdates' -Default $false) } else { if ($null -ne $Script:IncludePrereleaseUpdates) { [bool]$Script:IncludePrereleaseUpdates } else { $false } }
 		$desiredSafe = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'SafeMode')) { [bool]$Snapshot.SafeMode } else { $false }
 		$desiredAdvanced = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AdvancedMode')) { [bool]$Snapshot.AdvancedMode } else { $false }
+		$desiredDefaultStartupMode = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'DefaultStartupMode') -and ([string]$Snapshot.DefaultStartupMode -in @('Safe', 'Expert')))
+		{
+			[string]$Snapshot.DefaultStartupMode
+		}
+		elseif (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			[string](Get-BaselineUserPreference -Key 'DefaultStartupMode' -Default 'Safe')
+		}
+		elseif ((Get-Variable -Name 'DefaultStartupMode' -Scope Script -ErrorAction SilentlyContinue) -and ($Script:DefaultStartupMode -in @('Safe', 'Expert')))
+		{
+			[string]$Script:DefaultStartupMode
+		}
+		else
+		{
+			'Safe'
+		}
+		if ($desiredDefaultStartupMode -notin @('Safe', 'Expert')) { $desiredDefaultStartupMode = 'Safe' }
 		$desiredRequireRunConfirmation = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RequireRunConfirmation')) { [bool]$Snapshot.RequireRunConfirmation } else { $true }
 		$desiredPreviewBeforeRunDefault = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'PreviewBeforeRunDefault')) { [bool]$Snapshot.PreviewBeforeRunDefault } else { $false }
 		$desiredGameMode = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'GameMode')) { [bool]$Snapshot.GameMode } else { $false }
@@ -1241,10 +1385,10 @@ function Import-GuiRemoteTargetApprovalPolicy
 				[void](Set-BaselineThreadCulture -UICulture $desiredLanguage)
 				$env:BASELINE_LANGUAGE = $desiredLanguage
             }
-        }
+		}
 
 		$Script:FilterUiUpdating = $true
-				# P5 rollback checkpoint: Restore-GuiSettingsSnapshot part extracted to Module/GUI/SessionState/Restore-GuiSettingsSnapshot/RestorePreferenceSettings.ps1; re-inline here if rollback is needed.
+		# P5 rollback checkpoint: Restore-GuiSettingsSnapshot preferences split to SessionState/Restore-GuiSettingsSnapshot/RestorePreferenceSettings.ps1.
 		. (Join-Path $PSScriptRoot 'SessionState\Restore-GuiSettingsSnapshot\RestorePreferenceSettings.ps1')
 
 		$Script:RequireRunConfirmation = $desiredRequireRunConfirmation
@@ -1265,6 +1409,8 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$Script:ExperimentalFeatures = $desiredExperimentalFeatures
 		$null = Set-PlatformFilterState -PlatformFilter $desiredPlatform
 		$null = Set-HideUnavailableItemsState -HideUnavailableItems $desiredHideUnavailableItems
+		# P5 rollback checkpoint: Restore-GuiSettingsSnapshot selection replay split to SessionState/Restore-GuiSettingsSnapshot/RestoreExplicitSelectionState.ps1.
+		. (Join-Path $PSScriptRoot 'SessionState\Restore-GuiSettingsSnapshot\RestoreExplicitSelectionState.ps1')
 		$Script:SearchText = $desiredSearch
 		$Script:AppsSearchText = $desiredAppsSearch
 		$Script:AuditRetentionDays = [int]$desiredAuditRetentionDays
@@ -1318,7 +1464,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 		Update-SearchResultsTabState
 
 		$Script:FilterUiUpdating = $true
-				# P5 rollback checkpoint: Restore-GuiSettingsSnapshot part extracted to Module/GUI/SessionState/Restore-GuiSettingsSnapshot/RestoreFilterAndSearchState.ps1; re-inline here if rollback is needed.
+		# P5 rollback checkpoint: Restore-GuiSettingsSnapshot filter/search split to SessionState/Restore-GuiSettingsSnapshot/RestoreFilterAndSearchState.ps1.
 		. (Join-Path $PSScriptRoot 'SessionState\Restore-GuiSettingsSnapshot\RestoreFilterAndSearchState.ps1')
 
 		Update-CategoryFilterList -PrimaryTab $(if ($desiredSearch) { $Script:SearchResultsTabTag } else { $desiredTab })
@@ -1336,7 +1482,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			Update-AppsViewModeControls
 		}
 
-				# P5 rollback checkpoint: Restore-GuiSettingsSnapshot part extracted to Module/GUI/SessionState/Restore-GuiSettingsSnapshot/RestoreNavigationMode.ps1; re-inline here if rollback is needed.
+		# P5 rollback checkpoint: Restore-GuiSettingsSnapshot navigation split to SessionState/Restore-GuiSettingsSnapshot/RestoreNavigationMode.ps1.
 		. (Join-Path $PSScriptRoot 'SessionState\Restore-GuiSettingsSnapshot\RestoreNavigationMode.ps1')
 
 		if (Get-Command -Name 'Set-DesignModeState' -CommandType Function -ErrorAction SilentlyContinue)

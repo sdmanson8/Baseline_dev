@@ -32,7 +32,7 @@ Describe 'Resolve-BaselineLocalizationDirectory' {
         Resolve-BaselineLocalizationDirectory -BasePath $moduleRoot | Should -Be $script:ExpectedLocalizationPath
     }
 
-    It 'finds the localization directory from the extracted GUI script root' {
+    It 'finds the localization directory from the GUI module root' {
         $moduleRoot = Join-Path $script:RepoRoot 'Module/GUI'
 
         Resolve-BaselineLocalizationDirectory -BasePath $moduleRoot | Should -Be $script:ExpectedLocalizationPath

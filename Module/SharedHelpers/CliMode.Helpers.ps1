@@ -32,15 +32,17 @@ function Resolve-BaselineCliIntent
 
 		Key normalizations:
 		  - `-ConfigFile <path>` without `-Run/-Apply` is treated as Apply
-		    (with a warning) — never silently no-op like winutil's bug.
+		    (with a warning) so supplied automation input is never ignored.
 		  - `-ApplyPreset <name>` implies Apply.
 		  - `-ListPresets` short-circuits the rest; mode = ListPresets, exit 0.
 		  - `-NoGui` forces headless mode even if no other intent flag was set.
+		  - `-ConsoleGui` starts the local interactive console menu and never
+		    promotes a preset into unattended apply.
 		  - Conflicts (e.g. ListPresets + Apply) become Errors with a clear
 		    explanation rather than ambiguous behaviour.
 
 		Output object (pscustomobject):
-		  Mode         : 'Gui' | 'Headless' | 'ListPresets'
+		  Mode         : 'Gui' | 'Headless' | 'ConsoleGui' | 'ListPresets'
 		  Apply        : [bool]
 		  PresetName   : [string] (empty if not applicable)
 		  ConfigPath   : [string] (empty if not applicable)
@@ -66,15 +68,17 @@ function Resolve-BaselineCliIntent
 
 	$listPresets = [bool](& $get 'ListPresets' $false)
 	$noGui = [bool](& $get 'NoGui' $false)
+	$consoleGui = [bool](& $get 'ConsoleGui' $false)
 	$apply = [bool](& $get 'Apply' $false)
 	$applyProfile = [bool](& $get 'ApplyProfile' $false)
 	$dryRun = [bool](& $get 'DryRun' $false)
+	$applyPresetName = [string](& $get 'ApplyPreset' '')
 	$configPath = [string](& $get 'ConfigFile' '')
 	if ([string]::IsNullOrWhiteSpace($configPath))
 	{
 		$configPath = [string](& $get 'ProfilePath' '')
 	}
-	$presetName = [string](& $get 'ApplyPreset' '')
+	$presetName = $applyPresetName
 	if ([string]::IsNullOrWhiteSpace($presetName))
 	{
 		$presetName = [string](& $get 'Preset' '')
@@ -87,6 +91,10 @@ function Resolve-BaselineCliIntent
 	{
 		$errors.Add('-ListPresets cannot be combined with apply / config / preset arguments.')
 	}
+	if ($listPresets -and $consoleGui)
+	{
+		$errors.Add('-ListPresets cannot be combined with -ConsoleGui.')
+	}
 
 	if ($listPresets)
 	{
@@ -94,6 +102,33 @@ function Resolve-BaselineCliIntent
 			Mode = 'ListPresets'
 			Apply = $false
 			PresetName = ''
+			ConfigPath = ''
+			NoGui = $true
+			DryRun = $dryRun
+			Warnings = @($warnings)
+			Errors = @($errors)
+		}
+	}
+
+	if ($consoleGui)
+	{
+		if ($noGui)
+		{
+			$errors.Add('-ConsoleGui cannot be combined with -NoGui. Use -ConsoleGui for the interactive console menu or -NoGui for unattended automation.')
+		}
+		if ($apply -or $applyProfile -or -not [string]::IsNullOrWhiteSpace($configPath))
+		{
+			$errors.Add('-ConsoleGui cannot be combined with apply/profile arguments. Use -NoGui for unattended profile automation.')
+		}
+		if (-not [string]::IsNullOrWhiteSpace($applyPresetName))
+		{
+			$errors.Add('-ConsoleGui cannot be combined with -ApplyPreset. Use -ConsoleGui -Preset <name> to preselect a preset in the console menu.')
+		}
+
+		return [pscustomobject]@{
+			Mode = 'ConsoleGui'
+			Apply = $false
+			PresetName = $presetName
 			ConfigPath = ''
 			NoGui = $true
 			DryRun = $dryRun

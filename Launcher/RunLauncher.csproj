@@ -14,7 +14,7 @@
     <!-- Maintainer note: Windows PowerShell 5.1 is still loaded from the GAC_MSIL assembly path. -->
     <PlatformTarget>AnyCPU</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>12.0</LangVersion>
     <Deterministic>true</Deterministic>
     <AddAppConfigToBuildOutputs>false</AddAppConfigToBuildOutputs>
     <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>

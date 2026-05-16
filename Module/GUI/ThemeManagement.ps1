@@ -1,4 +1,4 @@
-﻿# Theme palette definitions, fallback/repair, and brush conversion utilities
+# Theme palette definitions, fallback/repair, and brush conversion utilities
 
 	$Script:DarkTheme = @{
 		WindowBg      = "#0E111A"
@@ -222,74 +222,18 @@
 			[string]$ThemeName = 'Dark'
 		)
 
-		$repairedTheme = @{}
-		if ($Theme)
-		{
-			foreach ($key in $Theme.Keys)
-			{
-				$repairedTheme[$key] = $Theme[$key]
-			}
-		}
-
-		# Ensure core interactive colors always exist before downstream theme repair runs.
-		$defaultColors = @{
-			'TabHoverBg' = '#343C55'
-			'TextPrimary' = '#F4F7FF'
-			'FocusRing' = '#9ACAFF'
-			'AccentBlue' = '#7CB7FF'
-			'AccentHover' = '#9ACAFF'
-			'AccentPress' = '#4D9CFF'
-			'HeaderBg' = '#151824'
-			'TextSecondary' = '#CDD6EA'
-		}
-		foreach ($key in $defaultColors.Keys)
-		{
-			if (-not $repairedTheme.ContainsKey($key) -or [string]::IsNullOrWhiteSpace([string]$repairedTheme[$key]))
-			{
-				$repairedTheme[$key] = $defaultColors[$key]
-				Write-GuiThemeFallbackWarning -Context "Repair-GuiThemePalette/$ThemeName" -Message "Added missing color '$key' with $($defaultColors[$key])."
-			}
-		}
-
 		$primaryTheme = if ($ThemeName -eq 'Light') { $Script:LightTheme } else { $Script:DarkTheme }
 		$secondaryTheme = if ($ThemeName -eq 'Light') { $Script:DarkTheme } else { $Script:LightTheme }
-		$requiredKeys = [System.Collections.Generic.HashSet[string]]::new()
-		foreach ($sourceTheme in @($primaryTheme, $secondaryTheme))
-		{
-			if (-not $sourceTheme) { continue }
-			foreach ($key in $sourceTheme.Keys)
-			{
-				[void]$requiredKeys.Add([string]$key)
-			}
+		$warningHandler = {
+			param(
+				[string]$Context,
+				[string]$Message
+			)
+
+			Write-GuiThemeFallbackWarning -Context $Context -Message $Message
 		}
 
-		foreach ($key in $requiredKeys)
-		{
-			$currentValue = if ($repairedTheme.ContainsKey($key)) { [string]$repairedTheme[$key] } else { $null }
-			if (-not [string]::IsNullOrWhiteSpace($currentValue))
-			{
-				continue
-			}
-
-			$fallbackValue = $null
-			if ($primaryTheme -and $primaryTheme.ContainsKey($key) -and -not [string]::IsNullOrWhiteSpace([string]$primaryTheme[$key]))
-			{
-				$fallbackValue = [string]$primaryTheme[$key]
-			}
-			elseif ($secondaryTheme -and $secondaryTheme.ContainsKey($key) -and -not [string]::IsNullOrWhiteSpace([string]$secondaryTheme[$key]))
-			{
-				$fallbackValue = [string]$secondaryTheme[$key]
-			}
-			else
-			{
-				$fallbackValue = '#7CB7FF'
-			}
-
-			$repairedTheme[$key] = $fallbackValue
-			Write-GuiThemeFallbackWarning -Context "Repair-GuiThemePalette/$ThemeName" -Message "Filled missing color '$key' with $fallbackValue."
-		}
-
-		return $repairedTheme
+		return (GUICommon\Repair-GuiThemePalette -Theme $Theme -ThemeName $ThemeName -ReferenceThemes @($primaryTheme, $secondaryTheme) -WarningHandler $warningHandler)
 	}
 
 	<#

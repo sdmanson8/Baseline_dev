@@ -243,6 +243,34 @@ function Show-GuiDeploymentMediaBuilderFolderDialog
 	return $null
 }
 
+function Set-GuiDeploymentMediaBuilderIsoValidationMessage
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$Message,
+
+		[string]$Summary = 'ISO detection is waiting for a valid source ISO.'
+	)
+
+	$Script:DeploymentMediaDetectedIsoInfo = $null
+	if ($Script:CmbDeploymentMediaDetectedEdition)
+	{
+		$Script:CmbDeploymentMediaDetectedEdition.Items.Clear()
+		$Script:CmbDeploymentMediaDetectedEdition.IsEnabled = $false
+	}
+	Reset-GuiDeploymentMediaBuilderStartState
+	if ($Script:TxtDeploymentMediaDetectedIsoSummary)
+	{
+		$Script:TxtDeploymentMediaDetectedIsoSummary.Text = $Summary
+	}
+	if ($Script:TxtDeploymentMediaPlanPreview)
+	{
+		$Script:TxtDeploymentMediaPlanPreview.Text = $Message
+	}
+	Set-GuiDeploymentMediaBuilderStatus -Message $Message -Tone 'warning' -ShowBanner
+}
+
 function Invoke-GuiDeploymentMediaBuilderDetectIso
 {
 	[CmdletBinding()]
@@ -252,7 +280,24 @@ function Invoke-GuiDeploymentMediaBuilderDetectIso
 
 	try
 	{
-		$isoInfo = Get-GuiDeploymentMediaIsoImageInfo -SourceIso ([string]$Script:TxtDeploymentMediaSourceIso.Text)
+		$sourceIso = ([string]$Script:TxtDeploymentMediaSourceIso.Text).Trim()
+		if ([string]::IsNullOrWhiteSpace($sourceIso))
+		{
+			Set-GuiDeploymentMediaBuilderIsoValidationMessage -Message 'Select a Windows ISO before detecting editions.' -Summary 'No ISO selected.'
+			return
+		}
+		if ([System.IO.Path]::GetExtension($sourceIso) -ne '.iso')
+		{
+			Set-GuiDeploymentMediaBuilderIsoValidationMessage -Message 'Source ISO must be an .iso file.' -Summary 'The selected source is not an ISO file.'
+			return
+		}
+		if (-not (Test-Path -LiteralPath $sourceIso -PathType Leaf -ErrorAction SilentlyContinue))
+		{
+			Set-GuiDeploymentMediaBuilderIsoValidationMessage -Message ('Source ISO does not exist: {0}' -f $sourceIso) -Summary 'The selected ISO path does not exist.'
+			return
+		}
+
+		$isoInfo = Get-GuiDeploymentMediaIsoImageInfo -SourceIso $sourceIso
 		$Script:DeploymentMediaDetectedIsoInfo = $isoInfo
 		if ($Script:CmbDeploymentMediaDetectedEdition)
 		{
@@ -404,9 +449,23 @@ function Initialize-GuiDeploymentMediaBuilderView
 		$Script:CmbDeploymentMediaOutputMode.SelectedIndex = 0
 	}
 
+	$resetStartStateScript = ${function:Reset-GuiDeploymentMediaBuilderStartState}
+	$setStatusScript = ${function:Set-GuiDeploymentMediaBuilderStatus}
+	$fileDialogScript = ${function:Show-GuiDeploymentMediaBuilderFileDialog}
+	$folderDialogScript = ${function:Show-GuiDeploymentMediaBuilderFolderDialog}
+	$detectIsoScript = ${function:Invoke-GuiDeploymentMediaBuilderDetectIso}
+	$previewPlanScript = ${function:Invoke-GuiDeploymentMediaBuilderPreviewPlan}
+	$startBuildScript = ${function:Invoke-GuiDeploymentMediaBuilderStartBuild}
+	$syncTextScript = ${function:Sync-GuiDeploymentMediaBuilderViewText}
+	$sourceIsoTextBox = $Script:TxtDeploymentMediaSourceIso
+	$autounattendTextBox = $Script:TxtDeploymentMediaAutounattend
+	$workingDirectoryTextBox = $Script:TxtDeploymentMediaWorkingDirectory
+	$driverSourceTextBox = $Script:TxtDeploymentMediaDriverSource
+	$usbTargetRootTextBox = $Script:TxtDeploymentMediaUsbTargetRoot
+
 	$markPlanDirty = {
-		Reset-GuiDeploymentMediaBuilderStartState
-		Set-GuiDeploymentMediaBuilderStatus -Message 'Preview the build plan after changing inputs.' -Tone 'muted'
+		& $resetStartStateScript
+		& $setStatusScript -Message 'Preview the build plan after changing inputs.' -Tone 'muted'
 	}.GetNewClosure()
 
 	foreach ($textBox in @(
@@ -444,50 +503,54 @@ function Initialize-GuiDeploymentMediaBuilderView
 	if ($Script:BtnDeploymentMediaBrowseIso)
 	{
 		Register-GuiEventHandler -Source $Script:BtnDeploymentMediaBrowseIso -EventName 'Click' -Handler ({
-			$path = Show-GuiDeploymentMediaBuilderFileDialog -Filter 'Windows ISO (*.iso)|*.iso'
-			if ($path -and $Script:TxtDeploymentMediaSourceIso) { $Script:TxtDeploymentMediaSourceIso.Text = $path }
+			$path = & $fileDialogScript -Filter 'Windows ISO (*.iso)|*.iso'
+			if ($path -and $sourceIsoTextBox)
+			{
+				$sourceIsoTextBox.Text = $path
+				& $setStatusScript -Message 'ISO selected. Run Detect Editions to inspect available images.' -Tone 'muted'
+			}
 		}.GetNewClosure()) | Out-Null
 	}
 	if ($Script:BtnDeploymentMediaBrowseAutounattend)
 	{
 		Register-GuiEventHandler -Source $Script:BtnDeploymentMediaBrowseAutounattend -EventName 'Click' -Handler ({
-			$path = Show-GuiDeploymentMediaBuilderFileDialog -Filter 'Answer files (*.xml)|*.xml'
-			if ($path -and $Script:TxtDeploymentMediaAutounattend) { $Script:TxtDeploymentMediaAutounattend.Text = $path }
+			$path = & $fileDialogScript -Filter 'Answer files (*.xml)|*.xml'
+			if ($path -and $autounattendTextBox) { $autounattendTextBox.Text = $path }
 		}.GetNewClosure()) | Out-Null
 	}
 	if ($Script:BtnDeploymentMediaBrowseWorking)
 	{
 		Register-GuiEventHandler -Source $Script:BtnDeploymentMediaBrowseWorking -EventName 'Click' -Handler ({
-			$path = Show-GuiDeploymentMediaBuilderFolderDialog -Description 'Select the deployment media working directory.'
-			if ($path -and $Script:TxtDeploymentMediaWorkingDirectory) { $Script:TxtDeploymentMediaWorkingDirectory.Text = $path }
+			$path = & $folderDialogScript -Description 'Select the deployment media working directory.'
+			if ($path -and $workingDirectoryTextBox) { $workingDirectoryTextBox.Text = $path }
 		}.GetNewClosure()) | Out-Null
 	}
 	if ($Script:BtnDeploymentMediaBrowseDrivers)
 	{
 		Register-GuiEventHandler -Source $Script:BtnDeploymentMediaBrowseDrivers -EventName 'Click' -Handler ({
-			$path = Show-GuiDeploymentMediaBuilderFolderDialog -Description 'Select the deployment driver source directory.'
-			if ($path -and $Script:TxtDeploymentMediaDriverSource) { $Script:TxtDeploymentMediaDriverSource.Text = $path }
+			$path = & $folderDialogScript -Description 'Select the deployment driver source directory.'
+			if ($path -and $driverSourceTextBox) { $driverSourceTextBox.Text = $path }
 		}.GetNewClosure()) | Out-Null
 	}
 	if ($Script:BtnDeploymentMediaBrowseUsbTarget)
 	{
 		Register-GuiEventHandler -Source $Script:BtnDeploymentMediaBrowseUsbTarget -EventName 'Click' -Handler ({
-			$path = Show-GuiDeploymentMediaBuilderFolderDialog -Description 'Select the removable drive root.'
-			if ($path -and $Script:TxtDeploymentMediaUsbTargetRoot) { $Script:TxtDeploymentMediaUsbTargetRoot.Text = [System.IO.Path]::GetPathRoot($path) }
+			$path = & $folderDialogScript -Description 'Select the removable drive root.'
+			if ($path -and $usbTargetRootTextBox) { $usbTargetRootTextBox.Text = [System.IO.Path]::GetPathRoot($path) }
 		}.GetNewClosure()) | Out-Null
 	}
 	if ($Script:BtnDeploymentMediaDetectIso)
 	{
-		Register-GuiEventHandler -Source $Script:BtnDeploymentMediaDetectIso -EventName 'Click' -Handler ({ Invoke-GuiDeploymentMediaBuilderDetectIso }.GetNewClosure()) | Out-Null
+		Register-GuiEventHandler -Source $Script:BtnDeploymentMediaDetectIso -EventName 'Click' -Handler ({ & $detectIsoScript }.GetNewClosure()) | Out-Null
 	}
 	if ($Script:BtnDeploymentMediaPreviewPlan)
 	{
-		Register-GuiEventHandler -Source $Script:BtnDeploymentMediaPreviewPlan -EventName 'Click' -Handler ({ Invoke-GuiDeploymentMediaBuilderPreviewPlan }.GetNewClosure()) | Out-Null
+		Register-GuiEventHandler -Source $Script:BtnDeploymentMediaPreviewPlan -EventName 'Click' -Handler ({ & $previewPlanScript }.GetNewClosure()) | Out-Null
 	}
 	if ($Script:BtnDeploymentMediaStartBuild)
 	{
-		Register-GuiEventHandler -Source $Script:BtnDeploymentMediaStartBuild -EventName 'Click' -Handler ({ Invoke-GuiDeploymentMediaBuilderStartBuild }.GetNewClosure()) | Out-Null
+		Register-GuiEventHandler -Source $Script:BtnDeploymentMediaStartBuild -EventName 'Click' -Handler ({ & $startBuildScript }.GetNewClosure()) | Out-Null
 	}
 
-	Sync-GuiDeploymentMediaBuilderViewText
+	& $syncTextScript
 }

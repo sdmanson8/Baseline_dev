@@ -7,11 +7,13 @@ BeforeAll {
 
 
     $filePath = Join-Path $PSScriptRoot '../../Module/GUI/ThemeManagement.ps1'
+    $guiCommonPath = Join-Path $PSScriptRoot '../../Module/GUICommon.psm1'
     $applyThemePath = Join-Path $PSScriptRoot '../../Module/GUI/ApplyTheme.ps1'
     $script:RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
     $script:DarkThemeResourcePath = Join-Path $script:RepoRoot 'Module/GUI/Themes/Dark.xaml'
     $script:LightThemeResourcePath = Join-Path $script:RepoRoot 'Module/GUI/Themes/Light.xaml'
     $script:ApplyThemeContent = Get-BaselineTestSourceText -Path $applyThemePath
+    Import-Module -Force -DisableNameChecking $guiCommonPath
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {

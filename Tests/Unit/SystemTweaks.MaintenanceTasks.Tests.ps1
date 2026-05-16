@@ -1,4 +1,4 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
     # Stubs for module-level dependencies normally pulled in via `using module`.
@@ -24,7 +24,6 @@ BeforeAll {
     # CleanupTask register/delete so WinRT is never hit.
     . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Toast.Helpers.ps1')
 
-    # AST-extract the consumer module so `using module` directives are
     # bypassed and the function bodies execute in the test scope.
     $consumerPath = Join-Path $PSScriptRoot '../../Module/Regions/SystemTweaks/SystemTweaks.MaintenanceTasks.psm1'
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($consumerPath, [ref]$null, [ref]$null)
@@ -34,7 +33,6 @@ BeforeAll {
     }
 
     # Re-declare the script-scope constants the module sets at top-level —
-    # the AST extract above only covers function definitions.
     $script:BaselineMaintenanceTaskPath = 'Baseline'
     $script:BaselineCleanupTaskName = 'Windows Cleanup'
     $script:BaselineCleanupNotificationTaskName = 'Windows Cleanup Notification'

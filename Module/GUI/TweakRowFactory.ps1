@@ -1,6 +1,5 @@
-﻿	# Pre-computed shared resources for card hover effects.
+	# Pre-computed shared resources for card hover effects.
 
-# P5 rollback checkpoint: TweakRowFactory helpers are split into Module\GUI\TweakRowFactory\*.ps1.
 # Keep this explicit order so defaults and metadata helpers load before row factories and Build-TweakRow.
 $tweakRowFactorySplitRoot = Join-Path $PSScriptRoot 'TweakRowFactory'
 . (Join-Path $tweakRowFactorySplitRoot 'RowStateDefaults.ps1')

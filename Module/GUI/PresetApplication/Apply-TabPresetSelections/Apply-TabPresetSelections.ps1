@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Apply-TabPresetSelections in Module\GUI\PresetApplication.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 for ($index = 0; $index -lt $totalCount; $index++)
 		{
 			$stats.ProcessedCount++

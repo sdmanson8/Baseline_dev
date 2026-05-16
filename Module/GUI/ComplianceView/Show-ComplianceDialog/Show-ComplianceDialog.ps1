@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Show-ComplianceDialog in Module\GUI\ComplianceView.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 $btnBrowse.Add_Click({
 		$openDialog = New-Object Microsoft.Win32.OpenFileDialog
 		$openDialog.Title = (& $getLocalizedString -Key 'GuiComplianceBrowseTitle' -Fallback 'Select Configuration Profile or Snapshot')

@@ -216,7 +216,11 @@ function Invoke-SystemOptimizations
 
 	try
 	{
-		Remove-Item -Path (Join-Path $env:USERPROFILE 'Desktop\Your Phone.lnk') -Force -ErrorAction SilentlyContinue
+		$yourPhoneShortcutPath = Join-Path $env:USERPROFILE 'Desktop\Your Phone.lnk'
+		if (Test-Path -LiteralPath $yourPhoneShortcutPath)
+		{
+			Remove-Item -LiteralPath $yourPhoneShortcutPath -Force -ErrorAction Ignore
+		}
 		LogInfo 'Removed Your Phone desktop shortcut if present'
 	}
 	catch

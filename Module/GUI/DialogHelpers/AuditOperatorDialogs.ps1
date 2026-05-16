@@ -1,5 +1,4 @@
 
-# Dialog helper split file loaded by Module\GUI\DialogHelpers.ps1.
 
 	<#
 	    .SYNOPSIS
@@ -227,7 +226,6 @@
 		$killEngageLabel = Get-UxLocalizedString -Key 'GuiOperatorKillEngage' -Fallback 'Engage Kill Switch'
 		$killClearLabel = Get-UxLocalizedString -Key 'GuiOperatorKillClear' -Fallback 'Clear Kill Switch'
 
-				# P5 rollback checkpoint: Show-GuiOperatorConsoleDialog part extracted to Module/GUI/DialogHelpers/AuditOperatorDialogs/Show-GuiOperatorConsoleDialog/Show-GuiOperatorConsoleDialog.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'AuditOperatorDialogs\Show-GuiOperatorConsoleDialog\Show-GuiOperatorConsoleDialog.ps1')
 
 		$reader = [System.Xml.XmlNodeReader]::new($xaml)
@@ -956,12 +954,11 @@
 		}
 		$exePaths = @(
 			$(if ($resolvedRepoRoot) { Join-Path $resolvedRepoRoot 'Baseline.exe' }),
-			$(if ($resolvedRepoRoot) { Join-Path $resolvedRepoRoot 'Baseline-setup-4.0.0-beta.exe' }),
+			$(if ($resolvedRepoRoot) { Join-Path $resolvedRepoRoot 'Baseline-4.0.0-beta-setup.exe' }),
 			$(if ($resolvedRepoRoot) { Join-Path $resolvedRepoRoot 'Baseline-4.0.0-beta.zip' })
 		)
 		$artifactVerificationCmd = Get-GuiRuntimeCommand -Name 'Get-BaselineReleaseArtifactVerification' -CommandType 'Function'
 
-				# P5 rollback checkpoint: Show-GuiReleaseStatusDialog part extracted to Module/GUI/DialogHelpers/AuditOperatorDialogs/Show-GuiReleaseStatusDialog/Show-GuiReleaseStatusDialog.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'AuditOperatorDialogs\Show-GuiReleaseStatusDialog\Show-GuiReleaseStatusDialog.ps1')
 
 		$reader = [System.Xml.XmlNodeReader]::new($xaml)
@@ -1111,4 +1108,3 @@
 		[void]($dlg.ShowDialog())
 		return $null
 	}
-

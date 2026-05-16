@@ -555,7 +555,7 @@ function CapsLock
 		{
 			Write-ConsoleStatus -Action "Enabling Caps Lock"
 			LogInfo "Enabling Caps Lock"
-			Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout" -Name "Scancode Map" -Force -ErrorAction SilentlyContinue | Out-Null
+			Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout" -Name "Scancode Map" -Force -ErrorAction Ignore | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 	}
@@ -1257,10 +1257,10 @@ function RegistryBackup
 				New-ItemProperty -Path $configurationManagerPath -Name EnablePeriodicBackup -Type DWord -Value 1 -Force -ErrorAction Stop | Out-Null
 				New-ItemProperty -Path $configurationManagerPath -Name BackupCount -Type DWord -Value 2 -Force -ErrorAction Stop | Out-Null
 
-				$existingTask = Get-ScheduledTask -TaskName 'AutoRegBackup' -ErrorAction SilentlyContinue
+				$existingTask = Get-ScheduledTask -TaskName 'AutoRegBackup' -ErrorAction Ignore
 				if ($existingTask)
 				{
-					Unregister-ScheduledTask -TaskName 'AutoRegBackup' -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+					Unregister-ScheduledTask -TaskName 'AutoRegBackup' -Confirm:$false -ErrorAction Ignore | Out-Null
 				}
 
 				$action = New-ScheduledTaskAction -Execute 'schtasks' -Argument '/run /i /tn "\\Microsoft\\Windows\\Registry\\RegIdleBackup"'
@@ -1283,7 +1283,7 @@ function RegistryBackup
 				$configurationManagerPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Configuration Manager"
 				Remove-ItemProperty -Path $configurationManagerPath -Name EnablePeriodicBackup -Force -ErrorAction Ignore | Out-Null
 				Remove-ItemProperty -Path $configurationManagerPath -Name BackupCount -Force -ErrorAction Ignore | Out-Null
-				Unregister-ScheduledTask -TaskName 'AutoRegBackup' -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+				Unregister-ScheduledTask -TaskName 'AutoRegBackup' -Confirm:$false -ErrorAction Ignore | Out-Null
 				Write-ConsoleStatus -Status success
 			}
 			catch
@@ -1493,7 +1493,7 @@ function VerboseStatus
 				If ($isWorkstation) {
 					Set-ItemProperty -LiteralPath "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "VerboseStatus" -Type DWord -Value 1 -ErrorAction Stop | Out-Null
 				} Else {
-					Remove-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "VerboseStatus" -ErrorAction SilentlyContinue | Out-Null
+					Remove-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "VerboseStatus" -ErrorAction Ignore | Out-Null
 				}
 				Write-ConsoleStatus -Status success
 			}
@@ -1519,7 +1519,7 @@ function VerboseStatus
 					$isWorkstation = (Get-CimInstance -Class "Win32_OperatingSystem").ProductType -eq 1
 				}
 				If ($isWorkstation) {
-					Remove-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "VerboseStatus" -ErrorAction SilentlyContinue | Out-Null
+					Remove-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "VerboseStatus" -ErrorAction Ignore | Out-Null
 				} Else {
 					Set-ItemProperty -LiteralPath "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "VerboseStatus" -Type DWord -Value 0 -ErrorAction Stop | Out-Null
 				}

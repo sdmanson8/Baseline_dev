@@ -1,6 +1,4 @@
-# P5 rollback checkpoint: extracted from Show-GuiSettingsDialog in Module\GUI\DialogHelpers\SettingsDialogs.ps1.
 # Purpose: localized settings labels and theme palette initialization.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 $bc = New-SafeBrushConverter -Context 'DialogHelpers-Settings'
 	$windowTitle = Get-UxLocalizedString -Key 'GuiSettings' -Fallback 'Settings'
 	$windowSubtitle = Get-UxLocalizedString -Key 'GuiSettingsSubtitle' -Fallback 'Configure how Baseline looks and behaves. These are user preferences only.'

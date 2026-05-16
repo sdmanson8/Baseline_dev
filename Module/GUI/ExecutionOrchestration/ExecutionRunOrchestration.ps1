@@ -1,5 +1,4 @@
-﻿
-# ExecutionOrchestration split file loaded by Module\GUI\ExecutionOrchestration.ps1.
+
 
 	<#
 	    .SYNOPSIS
@@ -368,7 +367,6 @@
 		Set-Variable -Name 'GUIRunState' -Scope Global -Value $Script:RunState['LogQueue']
 		Set-UILogHandler { param($entry) $Script:RunState['LogQueue'].Enqueue($entry) }
 
-				# P5 rollback checkpoint: Start-GuiAppExecutionRun part extracted to Module/GUI/ExecutionOrchestration/ExecutionRunOrchestration/Start-GuiAppExecutionRun/Start-GuiAppExecutionRun.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'ExecutionRunOrchestration\Start-GuiAppExecutionRun\Start-GuiAppExecutionRun.ps1')
 	}
 
@@ -550,7 +548,6 @@
 		$executionSummary = @($ExecutionSummary)
 		$gameModeContext = Get-ExecutionGameModeContext
 		$summaryPayload = GUIExecution\Get-GuiExecutionSummaryPayload -Results $executionSummary
-				# P5 rollback checkpoint: Complete-GuiExecutionRun part extracted to Module/GUI/ExecutionOrchestration/ExecutionRunOrchestration/Complete-GuiExecutionRun/InterruptedRunResumeState.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'ExecutionRunOrchestration\Complete-GuiExecutionRun\InterruptedRunResumeState.ps1')
 		if ($Script:RunState)
 		{
@@ -578,7 +575,6 @@
 		$summaryNeedsRefresh = $false
 		$settingsAppsFeaturesHealthAssessment = $null
 		$screenSnippingHealthAssessment = $null
-				# P5 rollback checkpoint: Complete-GuiExecutionRun part extracted to Module/GUI/ExecutionOrchestration/ExecutionRunOrchestration/Complete-GuiExecutionRun/PostRunHealthAssessment.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'ExecutionRunOrchestration\Complete-GuiExecutionRun\PostRunHealthAssessment.ps1')
 
 		if ($settingsAppsFeaturesHealthAssessment -and -not [bool]$settingsAppsFeaturesHealthAssessment.Healthy)
@@ -605,7 +601,6 @@
 			}
 		}
 
-				# P5 rollback checkpoint: Complete-GuiExecutionRun part extracted to Module/GUI/ExecutionOrchestration/ExecutionRunOrchestration/Complete-GuiExecutionRun/RemoteAndDefaultsCompletion.ps1; re-inline here if rollback is needed.
 		$__baselineExtractedPartDidReturn = $false
 		$__baselineExtractedPartHasReturnValue = $false
 		$__baselineExtractedPartReturnValue = $null
@@ -652,7 +647,6 @@
 		$dlgMsg = "Completed $CompletedCount of $Script:TotalRunnableTweaks. $summaryCountsText"
 		$rollbackCommandList = @()
 
-				# P5 rollback checkpoint: Complete-GuiExecutionRun part extracted to Module/GUI/ExecutionOrchestration/ExecutionRunOrchestration/Complete-GuiExecutionRun/GameModeSummaryDialog.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'ExecutionRunOrchestration\Complete-GuiExecutionRun\GameModeSummaryDialog.ps1')
 
 		while ($true)
@@ -1829,8 +1823,8 @@
 					$Script:ExecutionRunTimer = $null
 				}
 				try { Exit-ExecutionView } catch { $null = $_ }
-				# winutil #4376 / PR #4404: every early exit out of the apply
-				# pipeline must clear the busy flag and re-enable the controls
+				# Every early exit out of the apply pipeline must clear the busy
+				# flag and re-enable the controls
 				# so a thrown pump-tick body doesn't leave the GUI permanently
 				# spinning ("Applying tweaks" with hourglass cursor). The
 				# success path above already does this; this catch did not.
@@ -1848,8 +1842,8 @@
 		}
 		$executionPumpTickFn = $Script:ExecutionPumpTickFn
 
-		# winutil #4376 / PR #4404: a synchronous throw between RunInProgress=$true
-		# (above) and the first pump-tick would also leave the GUI stuck. Wrap the
+		# A synchronous throw between RunInProgress=$true (above) and the first
+		# pump-tick would also leave the GUI stuck. Wrap the
 		# timer setup + initial tick so the cleanup contract above runs even if
 		# DispatcherTimer construction or the first invocation fails before the
 		# pump-tick body's own catch can fire.

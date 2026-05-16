@@ -1,4 +1,4 @@
-﻿
+
 	. (Join-Path $Script:GuiExtractedRoot 'TweakVisualization.ps1')
 
 		    # Scriptblock stored in Script: scope so all closures and timer ticks can access it directly.

@@ -10,7 +10,6 @@
 # Implementation notes:
 #   - Use a *per-user* named Mutex ("Local\\..." prefix) so two users on the
 #     same RDS host can each run their own Baseline instance.
-#   - Helper is split into pure pieces so the mutex name + decision tree
 #     can be unit-tested without spawning a real second process.
 
 <#

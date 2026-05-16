@@ -228,7 +228,7 @@ Describe 'Invoke-UCPDBypassed' {
 
 Describe 'Baseline auto-update setup flow contract' {
     It 'uses the release setup executable instead of replacing Baseline.exe directly' {
-        $script:EnvironmentHelpersContent | Should -Match "Baseline-setup-\*\.exe"
+        $script:EnvironmentHelpersContent | Should -Match "Baseline-\*-setup\.exe"
         $script:EnvironmentHelpersContent | Should -Match "/BASELINEUPDATE=1"
         $script:EnvironmentHelpersContent | Should -Match "/BASELINEUPDATETARGETDIR=`"\{0\}`""
         $script:EnvironmentHelpersContent | Should -Match "/RELAUNCH=`"\{0\}`""
@@ -242,7 +242,7 @@ Describe 'Baseline auto-update setup flow contract' {
         $script:EnvironmentHelpersContent | Should -Match '\$releaseAssetPattern = Get-BaselineUpdateAssetPattern -Branch \$updateBranch'
         $script:EnvironmentHelpersContent | Should -Match 'Get-BaselineUpdateAsset -Assets @\(\$release\.assets\) -Pattern \$releaseAssetPattern'
         $script:EnvironmentHelpersContent | Should -Match 'Expand-Archive -LiteralPath \$zipPath'
-        $script:EnvironmentHelpersContent | Should -Match 'Release zip must contain exactly one Baseline-setup-\*\.exe'
+        $script:EnvironmentHelpersContent | Should -Match 'Release zip must contain exactly one Baseline-\*-setup\.exe'
         $script:EnvironmentHelpersContent | Should -Match 'Assert-BaselineUpdateFileHash -Path \$zipPath'
         $script:EnvironmentHelpersContent | Should -Match 'Assert-BaselineUpdateFileHash -Path \$setupPath'
     }
@@ -250,6 +250,14 @@ Describe 'Baseline auto-update setup flow contract' {
     It 'uses channel-qualified release zip asset patterns' {
         Get-BaselineUpdateAssetPattern -Branch Stable | Should -Be 'Baseline-*-stable.zip'
         Get-BaselineUpdateAssetPattern -Branch Beta | Should -Be 'Baseline-*-beta.zip'
+    }
+
+    It 'formats splash download telemetry as transfer rate and remaining time only' {
+        Format-BaselineDownloadStatus -VersionTag 'v9.9.9' -BytesReceived 50MB -TotalBytes 100MB -ElapsedSeconds 10 |
+            Should -Be '5 MB/s - 00:10 remaining'
+
+        Format-BaselineDownloadStatus -VersionTag 'v9.9.9' -BytesReceived 50MB -TotalBytes 0 -ElapsedSeconds 10 |
+            Should -Be ''
     }
 
     It 'uses uninstall registration to identify installed update mode' {
@@ -507,12 +515,11 @@ Describe 'Show-BootstrapLoadingSplash' {
         $script:EnvironmentHelpersContent | Should -Not -Match 'ShowInTaskbar="False"'
     }
 
-    It 'shows the startup splash without forcing foreground focus' {
+    It 'keeps the startup splash above the main window without taking keyboard focus' {
         $script:EnvironmentHelpersContent | Should -Match 'ShowActivated="False"'
-        $script:EnvironmentHelpersContent | Should -Match 'Topmost="False"'
+        $script:EnvironmentHelpersContent | Should -Match 'Topmost="True"'
         $script:EnvironmentHelpersContent | Should -Match '\$recordSplashShownAction = \{'
         $script:EnvironmentHelpersContent | Should -Not -Match '\$showSplashForegroundAction = \{'
-        $script:EnvironmentHelpersContent | Should -Not -Match '\$splash\.Topmost = \$true'
         $script:EnvironmentHelpersContent | Should -Not -Match '\[void\]\$splash\.Activate\(\)'
         $script:EnvironmentHelpersContent | Should -Not -Match '\[void\]\$splash\.Focus\(\)'
         $script:EnvironmentHelpersContent | Should -Match 'Bootstrap splash loaded'
@@ -549,7 +556,7 @@ Describe 'Show-BootstrapLoadingSplash' {
 
     It 'primes the first splash step immediately and upgrades that prime for startup update checks' {
         $script:EnvironmentHelpersContent | Should -Match '\[switch\]\$StartUpdatesPulse'
-        $script:EnvironmentHelpersContent | Should -Match 'splashLocCheckingForUpdates'
+        $script:EnvironmentHelpersContent | Should -Not -Match 'splashLocCheckingForUpdates'
         $script:EnvironmentHelpersContent | Should -Match '\$splashStepOrder = @\(''system'', ''winget'', ''chocolatey'', ''finalize''\)'
         $script:EnvironmentHelpersContent | Should -Match '\$splashStepOrder = @\(''updates''\) \+ \$splashStepOrder'
         $script:EnvironmentHelpersContent | Should -Match 'if \(\$startUpdatesPulse\)[\s\S]*\$updatesStepXaml = @"'
@@ -945,8 +952,8 @@ Describe 'Invoke-BaselineAutoUpdate' {
     }
 
     It 'keeps the startup update check on determinate checklist progress' {
-        $script:EnvironmentHelpersContent | Should -Match '(?s)Set-BootstrapLoadingSplashState\s+-Splash \$Splash\s+-StatusText\s+\(Get-BaselineLocalizedString\s+-Key ''Bootstrap_CheckingForUpdates''\s+-Fallback ''Checking for updates\.\.\.''\)\s+-Completed 0\s+-Total 5'
-        $script:EnvironmentHelpersContent | Should -Not -Match '(?s)Set-BootstrapLoadingSplashState\s+-Splash \$Splash\s+-StatusText\s+\(Get-BaselineLocalizedString\s+-Key ''Bootstrap_CheckingForUpdates''\s+-Fallback ''Checking for updates\.\.\.''\)\s+-Indeterminate'
+        $script:EnvironmentHelpersContent | Should -Match 'Set-BootstrapLoadingSplashState\s+-Splash \$Splash\s+-Completed 0\s+-Total 5'
+        $script:EnvironmentHelpersContent | Should -Not -Match '(?s)Set-BootstrapLoadingSplashState\s+-Splash \$Splash\s+-StatusText\s+\(Get-BaselineLocalizedString\s+-Key ''Bootstrap_CheckingForUpdates''\s+-Fallback ''Checking for updates\.\.\.''\)'
     }
 
     It 'does not query GitHub again before the configured daily interval elapses' {
@@ -1118,8 +1125,8 @@ Describe 'Bootstrap splash defaults' {
         $script:EnvironmentHelpersContent | Should -Match 'Text="\{Binding RelativeSource=\{RelativeSource AncestorType=Window\}, Path=Title\}"'
     }
 
-    It 'uses non-empty splash text fallbacks for initialization and idle restore' {
-        ([regex]::Matches($script:EnvironmentHelpersContent, "Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait\.\.\.'")).Count | Should -Be 3
+    It 'uses non-empty splash text fallbacks for initialization' {
+        ([regex]::Matches($script:EnvironmentHelpersContent, "Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait\.\.\.'")).Count | Should -Be 1
         $script:EnvironmentHelpersContent | Should -Match "GuiSplashSubtitle' -Fallback 'Review, preview, and apply system changes safely'"
         $script:EnvironmentHelpersContent | Should -Not -Match 'GuiSplashAutoClose|autoCloseEsc|This window will close automatically when ready'
     }
@@ -1161,9 +1168,10 @@ Describe 'Bootstrap splash progress' {
         $progressBar.Maximum | Should -Be 330
     }
 
-    It 'shows the splash status line for indeterminate updates even when the status text is blank' {
+    It 'hides the splash status line for indeterminate updates when the status text is blank' {
         $dispatcher = [EnvironmentHelpersSplashTestDispatcher]::new()
         $statusText = [EnvironmentHelpersSplashTestElement]::new()
+        $statusText.Text = 'Checking installation status...'
         $subActionPanel = [EnvironmentHelpersSplashTestElement]::new()
         $subActionPanel.Visibility = [System.Windows.Visibility]::Collapsed
         $progressBar = [EnvironmentHelpersSplashTestProgressBar]::new()
@@ -1180,7 +1188,8 @@ Describe 'Bootstrap splash progress' {
 
         Set-BootstrapLoadingSplashState -Splash $splash -StatusText ([string]::Empty) -Indeterminate | Should -BeTrue
 
-        $subActionPanel.Visibility | Should -Be ([System.Windows.Visibility]::Visible)
+        $statusText.Text | Should -Be ''
+        $subActionPanel.Visibility | Should -Be ([System.Windows.Visibility]::Collapsed)
         $progressBar.Visibility | Should -Be ([System.Windows.Visibility]::Visible)
         $progressBar.IsIndeterminate | Should -BeTrue
     }

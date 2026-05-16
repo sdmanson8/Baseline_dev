@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Cursors in Module\Regions\Cursors.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 switch ($PSCmdlet.ParameterSetName)
 	{
 		"Dark"

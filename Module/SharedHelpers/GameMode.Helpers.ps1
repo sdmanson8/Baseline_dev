@@ -1077,7 +1077,7 @@ function Get-GameModeProfilePlan
 
 function Get-GameModeProfileCommandList
 {
-	<# .SYNOPSIS Extracts the command list from a Game Mode profile plan. #>
+	<# .SYNOPSIS Reads the command list from a Game Mode profile plan. #>
 	param (
 		[array]$Manifest,
 		[ValidateSet('Casual', 'Competitive', 'Streaming', 'Troubleshooting')]

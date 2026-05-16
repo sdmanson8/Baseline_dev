@@ -144,11 +144,11 @@ Describe 'Execution orchestration timer wiring' {
     }
 }
 
-Describe 'GUI apply pipeline busy-state cleanup (winutil #4376 / PR #4404)' {
-    # Background: winutil's `Invoke-WinUtilAutoRun` had multiple early-return
-    # branches that forgot to clear `$sync.ProcessRunning = $false`, leaving
-    # the GUI permanently spinning on "Applying tweaks". Baseline's equivalent
-    # is the `RunInProgress` flag on `$Script:GuiState` plus the disabled
+Describe 'GUI apply pipeline busy-state cleanup' {
+    # Background: apply paths with multiple early-return branches must clear
+    # the run-in-progress state, or the GUI can remain permanently spinning on
+    # "Applying tweaks". Baseline's state is the `RunInProgress` flag on
+    # `$Script:GuiState` plus the disabled
     # `PrimaryTabs` / `BtnRun` / `BtnPreviewRun` / `BtnDefaults` /
     # `Set-GuiActionButtonsEnabled` / `ChkScan` / `ChkTheme` / search controls.
     # These tests pin that EVERY exit path out of the apply pipeline restores
@@ -191,17 +191,17 @@ Describe 'GUI apply pipeline busy-state cleanup (winutil #4376 / PR #4404)' {
         ([regex]::Matches($script:ExecutionContent, 'GuiLogExecutionTimerStartFailed')).Count | Should -Be 1
     }
 
-    It 'forbids leading Start-Sleep on any wait loop (winutil #4404 5-second hang)' {
-        # winutil's busy-wait loop slept BEFORE checking ProcessRunning, so the
-        # "nothing to do" case took 5+ seconds to no-op. Apply pipeline must not
-        # introduce any Start-Sleep — DispatcherTimer is the cooperative pump.
+    It 'forbids leading Start-Sleep on any wait loop' {
+        # A busy-wait loop that sleeps before checking work state makes a
+        # no-op run look hung. Apply pipeline must not introduce any
+        # Start-Sleep; DispatcherTimer is the cooperative pump.
         $script:ExecutionContent | Should -Not -Match 'Start-Sleep'
     }
 
-    It 'forbids modal MessageBox dialogs on the apply path (winutil #4404 unattended trap)' {
-        # winutil's Invoke-WPFInstall popped a MessageBox.Show on empty selection
-        # which permanently hung unattended runs. Apply path must use Show-ThemedDialog
-        # (which the headless host can stub) or LogWarning, never MessageBox::Show.
+    It 'forbids modal MessageBox dialogs on the apply path' {
+        # Empty-selection handling must not show modal MessageBox dialogs that
+        # can hang unattended runs. Apply path must use Show-ThemedDialog
+        # (which the headless host can stub) or LogWarning.
         $script:ExecutionContent | Should -Not -Match '\[System\.Windows\.MessageBox\]::Show'
         $script:ExecutionContent | Should -Not -Match '\[System\.Windows\.Forms\.MessageBox\]::Show'
     }

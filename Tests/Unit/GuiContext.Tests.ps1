@@ -1,7 +1,6 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
-    # Extract functions from GuiContext.ps1 via AST - safe because ParseFile
     # only parses (no execution) and we only evaluate FunctionDefinitionAst
     # nodes, which merely define functions without side effects.
     $filePath = Join-Path $PSScriptRoot '../../Module/GUI/GuiContext.ps1'

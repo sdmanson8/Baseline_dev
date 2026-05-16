@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Show-PlanSummaryDialog in Module\GUI\PlanSummaryPanel.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 if ($null -ne $PreflightResults -and $null -ne $PreflightResults.AllResults)
 	{
 		$preflightLabel = New-Object System.Windows.Controls.TextBlock

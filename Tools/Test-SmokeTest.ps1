@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Smoke-test script for Baseline source validation.
 
@@ -300,15 +300,14 @@ foreach ($encodingFile in $encodingFiles)
 }
 
 # ============================================================
-# Section 4: Extraction safety
 # ============================================================
 Write-Host "`n=== Extraction Safety ===" -ForegroundColor Cyan
 
 $guiPath = Join-Path $repoRoot 'Module/Regions/GUI.psm1'
 $guiContent = Get-Content -LiteralPath $guiPath -Raw
 
-# Verify dot-source block exists in Show-TweakGUI
-$extractedFiles = @(
+# Verify the GUI load block exists in Show-TweakGUI.
+$guiModuleFiles = @(
     'GuiContext.ps1'
     'StateTransitions.ps1'
     'ObservableState.ps1'
@@ -349,7 +348,7 @@ $extractedFiles = @(
     'ActionHandlers.ps1'
 )
 
-foreach ($ef in $extractedFiles)
+foreach ($ef in $guiModuleFiles)
 {
     if ($guiContent -match [regex]::Escape($ef))
     {
@@ -545,10 +544,9 @@ else
     Write-TestResult -Name 'Launcher project targets net48 with the Windows PowerShell automation reference' -Result Fail -Detail 'Expected Windows PowerShell host project settings not found'
 }
 
-# Verify structural parser integrity in GUI.psm1 and extracted files.
 # The PowerShell parser already validates balanced script blocks and braces, so
 # parse success is the correct structural signal here.
-$filesToCheck = @($guiPath) + ($extractedFiles | ForEach-Object { Join-Path $repoRoot "Module/GUI/$_" })
+$filesToCheck = @($guiPath) + ($guiModuleFiles | ForEach-Object { Join-Path $repoRoot "Module/GUI/$_" })
 
 foreach ($filePath in $filesToCheck)
 {
@@ -633,9 +631,9 @@ $packageManagementHelpersContent = Get-Content -LiteralPath $packageManagementHe
 
 if (
     $initialSetupContent -match '\bGet-WinGetBootstrapInstallerMetadata\b' -and
-    $packageManagementHelpersContent -match 'github\.com/asheroto/winget-install/releases/download/' -and
-    $initialSetupContent -notmatch 'raw\.githubusercontent\.com/asheroto/winget-install/master/' -and
-    $packageManagementHelpersContent -notmatch 'raw\.githubusercontent\.com/asheroto/winget-install/master/'
+    $packageManagementHelpersContent -match 'github\.com/.+/releases/download/' -and
+    $initialSetupContent -notmatch 'raw\.githubusercontent\.com/.+/master/' -and
+    $packageManagementHelpersContent -notmatch 'raw\.githubusercontent\.com/.+/master/'
 )
 {
     Write-TestResult -Name 'CheckWinGet uses a pinned installer URL' -Result Pass

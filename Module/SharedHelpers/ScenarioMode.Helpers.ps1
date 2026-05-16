@@ -260,7 +260,7 @@ function Get-ScenarioProfilePlan
 
 function Get-ScenarioProfileCommandList
 {
-	<# .SYNOPSIS Extracts the command list from a scenario profile plan. #>
+	<# .SYNOPSIS Reads the command list from a scenario profile plan. #>
 	param (
 		[array]$Manifest,
 		[ValidateSet('Workstation', 'Privacy', 'Recovery')]

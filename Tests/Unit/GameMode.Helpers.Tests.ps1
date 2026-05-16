@@ -1,7 +1,6 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
-    # Extract inner functions from both Manifest.Helpers.ps1 (for Get-TweakManifestEntryValue
     # and Test-TweakManifestEntryField) and GameMode.Helpers.ps1 via AST.
     # Uses Invoke-Expression on function definition AST nodes - safe because
     # ParseFile only parses (no execution) and we only evaluate FunctionDefinitionAst

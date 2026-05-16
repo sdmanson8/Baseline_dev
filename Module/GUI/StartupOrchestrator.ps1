@@ -14,7 +14,7 @@
 #          retries.
 # Phase 3: Remove stale %LOCALAPPDATA%\Temp\Baseline\RC\<old-version>\
 #          directories from prior launcher versions. Best-effort.
-# Phase 4: Verify the on-disk extracted module against the bundled
+# Phase 4: Verify the on-disk GUI module against the bundled
 #          integrity.manifest.json. Logs warnings on hash mismatch but
 #          doesn't auto-rebuild — that's the launcher's job.
 
@@ -129,7 +129,6 @@ function Invoke-StaleRcDirCleanup
 	$rcRoot = Join-Path $env:LOCALAPPDATA 'Temp\Baseline\RC'
 	if (-not (Test-Path -LiteralPath $rcRoot)) { return 0 }
 	$deleted = 0
-	# Old RC dirs hold the launcher's prior extraction. They aren't loaded
 	# by the current process so deletion should succeed; if a user has two
 	# Baseline instances open across versions, the locked files just stay.
 	foreach ($dir in (Get-ChildItem -LiteralPath $rcRoot -Directory -ErrorAction SilentlyContinue))

@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Show-GuiOperatorConsoleDialog in Module\GUI\DialogHelpers\AuditOperatorDialogs.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 [xml]$xaml = @"
 <Window
 	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Set-UserShellFolderLocation in Module\Regions\System\System.FileAssociations.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables, throws with the original inline behavior, and bridges caller-level returns back to the parent function.
 switch ($PSCmdlet.ParameterSetName)
 	{
 		"Root"
@@ -419,7 +417,6 @@ switch ($PSCmdlet.ParameterSetName)
 			Write-Host "Changing user folders location to the default one"
 			LogInfo "Changing user folders location to the default one"
 			# Desktop
-			# Extract the localized "Desktop" string from shell32.dll
 			$CurrentUserFolderLocation = Get-ItemPropertyValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name Desktop
 			Write-Verbose -Message ($Localization.CurrentUserFolderLocation -f [WinAPI.GetStrings]::GetString(21769), $CurrentUserFolderLocation) -Verbose
 			LogWarning $Localization.FilesWontBeMoved
@@ -444,7 +441,6 @@ switch ($PSCmdlet.ParameterSetName)
 			until ($Choice -ne $KeyboardArrows)
 
 			# Documents
-			# Extract the localized "Documents" string from shell32.dll
 			$CurrentUserFolderLocation = Get-ItemPropertyValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name Personal
 			Write-Verbose -Message ($Localization.CurrentUserFolderLocation -f [WinAPI.GetStrings]::GetString(21770), $CurrentUserFolderLocation) -Verbose
 			LogWarning $Localization.FilesWontBeMoved
@@ -469,7 +465,6 @@ switch ($PSCmdlet.ParameterSetName)
 			until ($Choice -ne $KeyboardArrows)
 
 			# Downloads
-			# Extract the localized "Downloads" string from shell32.dll
 			$CurrentUserFolderLocation = Get-ItemPropertyValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "{374DE290-123F-4565-9164-39C4925E467B}"
 			Write-Verbose -Message ($Localization.CurrentUserFolderLocation -f [WinAPI.GetStrings]::GetString(21798), $CurrentUserFolderLocation) -Verbose
 			LogWarning $Localization.FilesWontBeMoved
@@ -494,7 +489,6 @@ switch ($PSCmdlet.ParameterSetName)
 			until ($Choice -ne $KeyboardArrows)
 
 			# Music
-			# Extract the localized "Music" string from shell32.dll
 			$CurrentUserFolderLocation = Get-ItemPropertyValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "My Music"
 			Write-Verbose -Message ($Localization.CurrentUserFolderLocation -f [WinAPI.GetStrings]::GetString(21790), $CurrentUserFolderLocation) -Verbose
 			LogWarning $Localization.FilesWontBeMoved
@@ -519,7 +513,6 @@ switch ($PSCmdlet.ParameterSetName)
 			until ($Choice -ne $KeyboardArrows)
 
 			# Pictures
-			# Extract the localized "Pictures" string from shell32.dll
 			$CurrentUserFolderLocation = Get-ItemPropertyValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "My Pictures"
 			Write-Verbose -Message ($Localization.CurrentUserFolderLocation -f [WinAPI.GetStrings]::GetString(21779), $CurrentUserFolderLocation) -Verbose
 			LogWarning $Localization.FilesWontBeMoved
@@ -544,7 +537,6 @@ switch ($PSCmdlet.ParameterSetName)
 			until ($Choice -ne $KeyboardArrows)
 
 			# Videos
-			# Extract the localized "Pictures" string from shell32.dll
 			$CurrentUserFolderLocation = Get-ItemPropertyValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "My Video"
 			Write-Verbose -Message ($Localization.CurrentUserFolderLocation -f [WinAPI.GetStrings]::GetString(21791), $CurrentUserFolderLocation) -Verbose
 			LogWarning $Localization.FilesWontBeMoved

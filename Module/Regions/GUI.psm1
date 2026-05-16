@@ -3,8 +3,6 @@ using module ..\SharedHelpers.psm1
 using module ..\GUICommon.psm1
 using module ..\GUIExecution.psm1
 
-
-# GUI scripts are dot-sourced here so their $Script: state belongs to GUI.psm1.
 $Script:GuiLayout = GUICommon\Get-GuiLayout
 $Script:GuiFontSizeWarnings = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 $Script:SetButtonChromeScript = $null
@@ -269,58 +267,6 @@ function New-WpfSetter
 
 <#
     .SYNOPSIS
-    Checks GUI object field.
-
-    #>
-
-function Test-GuiObjectField
-{
-	param(
-		[object]$Object,
-		[string]$FieldName
-	)
-
-	if ($null -eq $Object -or [string]::IsNullOrWhiteSpace($FieldName))
-	{
-		return $false
-	}
-
-	if ($Object -is [System.Collections.IDictionary])
-	{
-		return [bool]$Object.Contains($FieldName)
-	}
-
-	return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName])
-}
-
-<#
-    .SYNOPSIS
-    Gets GUI object field.
-
-    #>
-
-function Get-GuiObjectField
-{
-	param(
-		[object]$Object,
-		[string]$FieldName
-	)
-
-	if (-not (Test-GuiObjectField -Object $Object -FieldName $FieldName))
-	{
-		return $null
-	}
-
-	if ($Object -is [System.Collections.IDictionary])
-	{
-		return $Object[$FieldName]
-	}
-
-	return $Object.$FieldName
-}
-
-<#
-    .SYNOPSIS
     Gets GUI runtime failure details.
 
     #>
@@ -569,7 +515,7 @@ function Write-GuiRuntimeWarning
 #>
 
 #region Detect & Visibility Scriptblocks
-# Defined in Module/GUI/DetectScriptblocks.ps1 and dot-sourced so the hashtables
+# Defined in Module/GUI/DetectScriptblocks.ps1 and loaded so the hashtables
 # land in this module's $Script: scope. Kept as a separate file because the
 # block was nearly 400 lines of hashtable literal.
 . (Join-Path $PSScriptRoot '..' | Join-Path -ChildPath 'GUI' | Join-Path -ChildPath 'DetectScriptblocks.ps1')
@@ -631,9 +577,8 @@ function Show-TweakGUI
 	# so the window renders at native resolution on high-DPI displays.
 	try { GUICommon\Initialize-GuiDpiAwareness } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Regions.GUI.ShowTweakGUI.InitializeGuiDpiAwareness' }
 
-	# --- Extracted function groups (dot-sourced to reduce file size) ---
+	# --- GUI function groups ---
 	$Script:GuiExtractedRoot = Join-Path (Split-Path $PSScriptRoot -Parent) 'GUI'
-	# P5 rollback checkpoint: Show-TweakGUI part extracted to Module/GUI/Show-TweakGUI/StartupTrace.ps1; re-inline here if rollback is needed.
 	. (Join-Path $PSScriptRoot '..\GUI\Show-TweakGUI\StartupTrace.ps1')
 	& $traceGuiStartup 'Show-TweakGUI start'
 	if (Test-GuiStartupSplashAbortRequested -Splash $Global:LoadingSplash)
@@ -668,7 +613,6 @@ function Show-TweakGUI
 	. (Join-Path $Script:GuiExtractedRoot 'ExecutionOrchestration.ps1')
 	& $traceGuiStartup 'Core GUI scripts loaded'
 
-	# P5 rollback checkpoint: Show-TweakGUI part extracted to Module/GUI/Show-TweakGUI/ManifestImport.ps1; re-inline here if rollback is needed.
 	$__baselineExtractedPartDidReturn = $false
 	$__baselineExtractedPartHasReturnValue = $false
 	$__baselineExtractedPartReturnValue = $null
@@ -677,7 +621,6 @@ function Show-TweakGUI
 	& $traceGuiStartup 'Manifest ready'
 
 	# Write-GuiRuntimeWarning is defined at module scope so Dispatcher.BeginInvoke closures and .GetNewClosure() scriptblocks can resolve it.
-	# P5 rollback checkpoint: Show-TweakGUI setup extracted to Module/GUI/Show-TweakGUI/WpfCategoryInitialization.ps1; re-inline here if rollback is needed.
 	. (Join-Path $PSScriptRoot '..\GUI\Show-TweakGUI\WpfCategoryInitialization.ps1')
 
 	. (Join-Path $Script:GuiExtractedRoot 'EventInfrastructure.ps1')
@@ -725,7 +668,6 @@ function Show-TweakGUI
 	. (Join-Path $Script:GuiExtractedRoot 'AuditView.ps1')
 
 
-	# --- Dialog and tab management extractions (after XAML controls are available) ---
 	. (Join-Path $Script:GuiExtractedRoot 'DialogHelpers.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'ReviewMode.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'AddCustomAppDialog.ps1')
@@ -781,7 +723,6 @@ function Show-TweakGUI
 	$Script:RunInProgress = $false
 
 	# --- Observable State: reactive UI bindings ---
-	# P5 rollback checkpoint: Show-TweakGUI part extracted to Module/GUI/Show-TweakGUI/ObservableGuiState.ps1; re-inline here if rollback is needed.
 	. (Join-Path $PSScriptRoot '..\GUI\Show-TweakGUI\ObservableGuiState.ps1')
 
 	# Subscriber: StatusText -> $StatusText.Text
@@ -816,7 +757,6 @@ function Show-TweakGUI
 	$Script:Ctx.UI.StatusText = $StatusText
 	$Script:Ctx.Run.InProgress = $false
 
-	# P5 rollback checkpoint: Show-TweakGUI part extracted to Module/GUI/Show-TweakGUI/WindowClosingHandler.ps1; re-inline here if rollback is needed.
 	. (Join-Path $PSScriptRoot '..\GUI\Show-TweakGUI\WindowClosingHandler.ps1')
 
 	$Script:StartupSessionSnapshot = $null
@@ -834,7 +774,6 @@ function Show-TweakGUI
 	}
 
 	$startupRestoreLastSession = if ($null -ne $Script:RestoreLastSession) { [bool]$Script:RestoreLastSession } else { $true }
-	# P5 rollback checkpoint: Show-TweakGUI part extracted to Module/GUI/Show-TweakGUI/StartupSessionRestoreProbe.ps1; re-inline here if rollback is needed.
 	. (Join-Path $PSScriptRoot '..\GUI\Show-TweakGUI\StartupSessionRestoreProbe.ps1')
 	& $traceGuiStartup ("Startup session resolved: firstRun={0}; restorePending={1}; tab={2}" -f $Script:StartupIsFirstRun, $Script:StartupRestoreSessionPending, $Script:StartupHydratePrimaryTab)
 
@@ -849,7 +788,6 @@ function Show-TweakGUI
 	$Script:UpdateCategoryFilterListScript = ${function:Update-CategoryFilterList}
 	$Script:UpdateSearchResultsTabStateScript = ${function:Update-SearchResultsTabState}
 
-	# P5 rollback checkpoint: Show-TweakGUI part extracted to Module/GUI/Show-TweakGUI/VisibleContentRefresh.ps1; re-inline here if rollback is needed.
 	. (Join-Path $PSScriptRoot '..\GUI\Show-TweakGUI\VisibleContentRefresh.ps1')
 
 	# Subscribers: filter state -> sync $Script: variables and refresh UI
@@ -871,7 +809,6 @@ function Show-TweakGUI
 
 	# Late-bind function captures for handlers that run from WPF event contexts
 	# where Show-TweakGUI's local scope isn't on the call chain.
-	# P5 rollback checkpoint: Show-TweakGUI setup extracted to Module/GUI/Show-TweakGUI/GuiScriptblockCaptures.ps1; re-inline here if rollback is needed.
 	. (Join-Path $PSScriptRoot '..\GUI\Show-TweakGUI\GuiScriptblockCaptures.ps1')
 	Set-StaticControlTabOrder
 	Set-GuiActionButtonsEnabled -Enabled $true
@@ -879,7 +816,6 @@ function Show-TweakGUI
 
 	$shouldRestoreLastSession = if ($null -ne $Script:RestoreLastSession) { [bool]$Script:RestoreLastSession } else { $true }
 	$restoredSessionStatusText = Get-UxLocalizedString -Key 'GuiLogSessionRestoredPreviousState' -Fallback ''
-	# P5 rollback checkpoint: Show-TweakGUI part extracted to Module/GUI/Show-TweakGUI/StartupSessionRestoreApply.ps1; re-inline here if rollback is needed.
 	. (Join-Path $PSScriptRoot '..\GUI\Show-TweakGUI\StartupSessionRestoreApply.ps1')
 	Update-GuiLocalizationStrings
 	Update-PrimaryTabHeaders
@@ -888,37 +824,35 @@ function Show-TweakGUI
 
 	$startBaselineDownloadScript = Get-GuiFunctionCapture -Name 'Start-BaselineDownload'
 	$hideBaselineUpdateOverlayScript = Get-GuiFunctionCapture -Name 'Hide-BaselineUpdateOverlay'
-	# P5 rollback checkpoint: Show-TweakGUI part extracted to Module/GUI/Show-TweakGUI/UpdateDownloadHandler.ps1; re-inline here if rollback is needed.
 	. (Join-Path $PSScriptRoot '..\GUI\Show-TweakGUI\UpdateDownloadHandler.ps1')
 
-	if ($BtnDownloadYes)
+	$Script:UpdateOverlayPrimaryClickAction = $Script:DownloadStartEvent
+	$Script:UpdateOverlaySecondaryClickAction = {
+		if ($hideBaselineUpdateOverlayScript)
+		{
+			& $hideBaselineUpdateOverlayScript
+		}
+	}.GetNewClosure()
+	if ($Script:UpdateOverlayState)
 	{
-		$BtnDownloadYes.Add_Click($Script:DownloadStartEvent)
-	}
-	if ($BtnDownloadNo)
-	{
-		$BtnDownloadNo.Add_Click({
-			if ($hideBaselineUpdateOverlayScript)
-			{
-				& $hideBaselineUpdateOverlayScript
-			}
-		}.GetNewClosure())
+		$Script:UpdateOverlayState.PrimaryAction = $Script:DownloadStartEvent
+		$Script:UpdateOverlayState.SecondaryAction = $Script:UpdateOverlaySecondaryClickAction
+		$Script:UpdateOverlayState.PrimaryCloses = $false
+		$Script:UpdateOverlayState.SecondaryCloses = $true
 	}
 
 	# Resolve all first-run dependencies ONCE, here, while module scope is valid.
-	# P5 rollback checkpoint: Show-TweakGUI setup extracted to Module/GUI/Show-TweakGUI/FirstRunAndSplashHandoff.ps1; re-inline here if rollback is needed.
 	. (Join-Path $PSScriptRoot '..\GUI\Show-TweakGUI\FirstRunAndSplashHandoff.ps1')
 	$startupPresentationCompleted = $false
-	# P5 rollback checkpoint: Show-TweakGUI part extracted to Module/GUI/Show-TweakGUI/ContentRenderedStartupCompletion.ps1; re-inline here if rollback is needed.
 	. (Join-Path $PSScriptRoot '..\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1')
 	& $traceGuiStartup 'ContentRendered startup handler registered'
 
-	# Activate immediately only when the GUI is visible at ShowDialog time.
+	# The startup splash stays above the main window, so the main window can be activated at ShowDialog time.
 	if (& $testGuiStartupSplashAbortBlock -Splash $startupSplashHandle)
 	{
 		Stop-GuiStartupSplashAbortProcess -Trace $traceGuiStartup -Message 'Show-TweakGUI aborted before ShowDialog because startup splash was closed'
 	}
-	$Form.ShowActivated = -not $hasLiveStartupSplash
+	$Form.ShowActivated = $true
 	Initialize-WpfWindowForeground -Window $Form
 	& $traceGuiStartup 'Window activation policy initialized'
 
@@ -927,7 +861,6 @@ function Show-TweakGUI
 	& $traceGuiStartup 'Pre-show initialization complete'
 
 	# Show the GUI
-	# P5 rollback checkpoint: Show-TweakGUI part extracted to Module/GUI/Show-TweakGUI/ShowDialogErrorHandling.ps1; re-inline here if rollback is needed.
 	. (Join-Path $PSScriptRoot '..\GUI\Show-TweakGUI\ShowDialogErrorHandling.ps1')
 
 	LogInfo (Get-UxBilingualLocalizedString -Key 'GuiLogGuiClosed' -Fallback 'GUI closed')

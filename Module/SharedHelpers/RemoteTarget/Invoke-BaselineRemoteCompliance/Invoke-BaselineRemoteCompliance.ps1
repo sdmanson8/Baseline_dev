@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Invoke-BaselineRemoteCompliance in Module\SharedHelpers\RemoteTarget.Helpers.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 foreach ($computer in @($ComputerName))
 	{
 		if (-not $cancelEngaged -and $policyGate.Allowed)

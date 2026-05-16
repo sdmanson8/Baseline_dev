@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from UWPApps in Module\Regions\UWPApps.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 function Request-GuiUWPAppsSelection
 	{
 		param
@@ -209,9 +207,13 @@ function Request-GuiUWPAppsSelection
 			{
 				$surfaceTheme = if ($resolvedUseDarkMode) { $Script:DarkTheme } else { $Script:LightTheme }
 			}
-			elseif (Get-Command -Name 'Repair-GuiThemePalette' -CommandType Function -ErrorAction SilentlyContinue)
+			else
 			{
-				$surfaceTheme = Repair-GuiThemePalette -Theme $surfaceTheme -ThemeName $(if ($resolvedUseDarkMode) { 'Dark' } else { 'Light' })
+				$repairGuiThemePalette = Get-Command -Name 'GUICommon\Repair-GuiThemePalette' -CommandType Function -ErrorAction SilentlyContinue
+				if ($repairGuiThemePalette)
+				{
+					$surfaceTheme = & $repairGuiThemePalette -Theme $surfaceTheme -ThemeName $(if ($resolvedUseDarkMode) { 'Dark' } else { 'Light' })
+				}
 			}
 
 			$defaultThemeColors = if ($resolvedUseDarkMode)

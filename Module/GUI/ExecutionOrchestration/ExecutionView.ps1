@@ -1,4 +1,3 @@
-﻿# ExecutionOrchestration split file loaded by Module\GUI\ExecutionOrchestration.ps1.
 
 	<#
 	    .SYNOPSIS

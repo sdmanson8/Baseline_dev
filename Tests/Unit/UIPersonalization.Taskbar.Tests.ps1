@@ -356,7 +356,7 @@ Describe 'UIPersonalization.Taskbar toggle functions' {
         }
     }
 
-    Context 'BatteryPercentage (winutil PR #4412)' {
+    Context 'BatteryPercentage' {
         BeforeEach {
             $script:hasBattery = $true
             function Get-CimInstance {

@@ -565,13 +565,13 @@ Describe 'Source quality guardrails' {
         $unexpectedDuplicates.Count | Should -Be 0
     }
 
-    It 'keeps extracted Show-TweakGUI scripts in the GUI owner folder as complete dot-sourced statements' {
+    It 'keeps Show-TweakGUI scripts in the GUI owner folder as complete load statements' {
         $guiModulePath = Join-Path $script:RepoRoot 'Module/Regions/GUI.psm1'
         $partsRoot = Join-Path $script:RepoRoot 'Module/GUI/Show-TweakGUI'
         $guiContent = Get-BaselineTestSourceText -Path $guiModulePath
         $resolvedPaths = @(Get-BaselineTestSourcePathSet -Path $guiModulePath)
 
-        $guiContent | Should -Not -Match '(?m)^\s*(Ad|\$S|\$f)\s*# P5 rollback checkpoint'
+        $guiContent | Should -Not -Match '(?m)^\s*(Ad|\$S|\$f)\s*#'
         @(Get-ChildItem -LiteralPath $partsRoot -Filter 'Step*.ps1' -File).Count | Should -Be 0
 
         $partNames = @(
@@ -768,12 +768,39 @@ Describe 'Source quality guardrails' {
         $content | Should -Match 'TimeStamperCertificate'
         $content | Should -Match 'AllowUnsignedPreview'
         $content | Should -Match 'BASELINE_PREVIEW_UNSIGNED'
+        $content | Should -Match 'PrivateData\.Prerelease'
         $content | Should -Match 'Test-StaleTestReportGate'
         $content | Should -Match 'Tests/TestReport\.json'
         $content | Should -Match 'Get-ReleaseGateInputFile'
+        $content | Should -Match 'Test-ReleaseArtifactSetGate'
+        $content | Should -Match 'Release artifact identity exclusivity'
+        $content | Should -Match 'Loose setup bytes differ from ZIP-contained setup'
+        $content | Should -Match 'Manifest hash does not match current file bytes'
+        $content | Should -Match 'Test-GeneratedInstallerScriptEncodingGate'
+        $content | Should -Match 'Generated installer script encoding'
+        $content | Should -Match 'Mojibake marker'
         $content | Should -Match 'Test-ReleaseZipHygieneGate'
         $content | Should -Match '\(bin\|obj\)'
         $content | Should -Match 'FileListAbsolute'
+    }
+
+    It 'runs release smoke in CI only after final artifacts and a fresh test report exist' {
+        $workflowPath = Join-Path $script:RepoRoot '.github/workflows/ci.yml'
+        $content = Get-BaselineTestSourceText -Path $workflowPath
+
+        $packageIndex = $content.IndexOf('name: Build release package')
+        $reportIndex = $content.IndexOf('name: Regenerate release test report')
+        $smokeIndex = $content.LastIndexOf('name: Run release smoke tests')
+
+        $packageIndex | Should -BeGreaterOrEqual 0
+        $reportIndex | Should -BeGreaterThan $packageIndex
+        $smokeIndex | Should -BeGreaterThan $reportIndex
+        $content.Substring(0, $packageIndex) | Should -Not -Match 'Test-ReleaseSmoke\.ps1'
+        $content | Should -Match 'Export-TestReport\.ps1'
+        $content | Should -Match 'Import-PowerShellDataFile -LiteralPath \.\\Module\\Baseline\.psd1'
+        $content | Should -Match '\$manifest\.PrivateData\.Prerelease'
+        $content | Should -Match '\$releaseSmokeArgs \+= ''-AllowUnsignedPreview'''
+        $content | Should -Match 'Test-ReleaseSmoke\.ps1 @releaseSmokeArgs'
     }
 
     It 'documents the ProgramData runtime cache and hash-verified reuse contract' {

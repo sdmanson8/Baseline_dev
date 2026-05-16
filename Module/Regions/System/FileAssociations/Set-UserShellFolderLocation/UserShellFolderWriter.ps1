@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Set-UserShellFolderLocation in Module\Regions\System\System.FileAssociations.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 function Set-UserShellFolder
 	{
 		[CmdletBinding()]

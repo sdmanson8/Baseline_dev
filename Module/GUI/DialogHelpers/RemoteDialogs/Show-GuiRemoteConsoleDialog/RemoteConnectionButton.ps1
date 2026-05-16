@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Show-GuiRemoteConsoleDialog in Module\GUI\DialogHelpers\RemoteDialogs.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 if ($btnConnect)
 		{
 			$btnConnect.Content = (Get-UxLocalizedString -Key 'GuiRemoteConnectTitle' -Fallback 'Connect to Computer')

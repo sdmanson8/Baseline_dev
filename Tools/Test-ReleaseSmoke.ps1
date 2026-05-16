@@ -61,9 +61,21 @@ function Test-UnsignedPreviewAllowed
     [CmdletBinding()]
     param()
 
-    if ($AllowUnsignedPreview) { return $true }
     $value = [string][Environment]::GetEnvironmentVariable('BASELINE_PREVIEW_UNSIGNED')
-    return ($value -match '^(?i:1|true|yes|on)$')
+    $explicitPreviewOptIn = [bool]$AllowUnsignedPreview -or ($value -match '^(?i:1|true|yes|on)$')
+    if (-not $explicitPreviewOptIn)
+    {
+        return $false
+    }
+
+    $manifestPath = Join-Path $repoRoot 'Module/Baseline.psd1'
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf))
+    {
+        return $false
+    }
+
+    $manifest = Import-PowerShellDataFile -LiteralPath $manifestPath
+    return [bool]($manifest -and $manifest.PrivateData -and $manifest.PrivateData.Prerelease)
 }
 
 function Test-ReleaseArtifactSignature
@@ -131,7 +143,7 @@ function Test-ReleaseAuthenticodeGate
     foreach ($searchRoot in @($repoRoot, (Join-Path $repoRoot 'dist')))
     {
         if (-not (Test-Path -LiteralPath $searchRoot -PathType Container)) { continue }
-        foreach ($setup in @(Get-ChildItem -LiteralPath $searchRoot -Filter 'Baseline-setup-*.exe' -File -ErrorAction SilentlyContinue))
+        foreach ($setup in @(Get-ChildItem -LiteralPath $searchRoot -Filter 'Baseline-*-setup.exe' -File -ErrorAction SilentlyContinue))
         {
             if (-not $artifactPaths.Contains($setup.FullName))
             {
@@ -140,10 +152,10 @@ function Test-ReleaseAuthenticodeGate
         }
     }
 
-    $setupCount = @($artifactPaths | Where-Object { [System.IO.Path]::GetFileName($_) -like 'Baseline-setup-*.exe' }).Count
+    $setupCount = @($artifactPaths | Where-Object { [System.IO.Path]::GetFileName($_) -like 'Baseline-*-setup.exe' }).Count
     if ($setupCount -eq 0)
     {
-        Write-ReleaseGateResult -Name 'Authenticode: setup artifact presence' -Result Fail -Detail 'No Baseline-setup-*.exe artifact found in repo root or dist'
+        Write-ReleaseGateResult -Name 'Authenticode: setup artifact presence' -Result Fail -Detail 'No Baseline-*-setup.exe artifact found in repo root or dist'
     }
 
     foreach ($artifactPath in $artifactPaths)
@@ -313,6 +325,340 @@ function Test-ReleaseZipHygieneGate
     }
 }
 
+function Get-ReleaseArtifactSha256
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $stream = [System.IO.File]::OpenRead($Path)
+    try
+    {
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        try
+        {
+            $hashBytes = $sha256.ComputeHash($stream)
+        }
+        finally
+        {
+            $sha256.Dispose()
+        }
+    }
+    finally
+    {
+        $stream.Dispose()
+    }
+
+    return ([System.BitConverter]::ToString($hashBytes)).Replace('-', '').ToUpperInvariant()
+}
+
+function Get-ReleaseZipEntrySha256
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Entry
+    )
+
+    $stream = $Entry.Open()
+    try
+    {
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        try
+        {
+            $hashBytes = $sha256.ComputeHash($stream)
+        }
+        finally
+        {
+            $sha256.Dispose()
+        }
+    }
+    finally
+    {
+        $stream.Dispose()
+    }
+
+    return ([System.BitConverter]::ToString($hashBytes)).Replace('-', '').ToUpperInvariant()
+}
+
+function Get-ReleaseArtifactIdentity
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.IO.FileInfo]$File
+    )
+
+    $baseName = $null
+    $kind = $null
+    if ($File.Name -match '^Baseline-(.+)-setup\.exe$')
+    {
+        $baseName = $Matches[1]
+        $kind = 'setup'
+    }
+    elseif ($File.Name -match '^Baseline-(.+)\.zip$')
+    {
+        $baseName = $Matches[1]
+        $kind = 'zip'
+    }
+    else
+    {
+        return $null
+    }
+
+    $version = $baseName
+    $channel = 'stable'
+    if ($baseName -match '^(.+)-(stable|beta|preview|alpha|rc)$')
+    {
+        $version = $Matches[1]
+        $channel = $Matches[2].ToLowerInvariant()
+    }
+
+    [pscustomobject]@{
+        File     = $File
+        Kind     = $kind
+        Version  = $version
+        Channel  = $channel
+        Identity = ('{0}|{1}' -f $version, $channel)
+    }
+}
+
+function Get-ReleaseHashManifestFileHash
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Manifest,
+
+        [Parameter(Mandatory = $true)]
+        [string]$FileName
+    )
+
+    if (-not $Manifest.files)
+    {
+        return $null
+    }
+
+    $property = $Manifest.files.PSObject.Properties[$FileName]
+    if (-not $property)
+    {
+        return $null
+    }
+
+    return ([string]$property.Value).ToUpperInvariant()
+}
+
+function Test-ReleaseArtifactManifest
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.IO.FileInfo]$Artifact
+    )
+
+    $manifestPath = $Artifact.FullName + '.sha256.json'
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf))
+    {
+        Write-ReleaseGateResult -Name "Release manifest: $($Artifact.Name)" -Result Fail -Detail 'Missing .sha256.json manifest'
+        return $null
+    }
+
+    try
+    {
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $expectedHash = Get-ReleaseHashManifestFileHash -Manifest $manifest -FileName $Artifact.Name
+        if ([string]::IsNullOrWhiteSpace($expectedHash))
+        {
+            Write-ReleaseGateResult -Name "Release manifest: $($Artifact.Name)" -Result Fail -Detail 'Manifest does not contain artifact hash'
+            return $manifest
+        }
+
+        $actualHash = Get-ReleaseArtifactSha256 -Path $Artifact.FullName
+        if ($actualHash -ne $expectedHash)
+        {
+            Write-ReleaseGateResult -Name "Release manifest: $($Artifact.Name)" -Result Fail -Detail 'Manifest hash does not match current file bytes'
+            return $manifest
+        }
+
+        Write-ReleaseGateResult -Name "Release manifest: $($Artifact.Name)" -Result Pass
+        return $manifest
+    }
+    catch
+    {
+        Write-ReleaseGateResult -Name "Release manifest: $($Artifact.Name)" -Result Fail -Detail $_.Exception.Message
+        return $null
+    }
+}
+
+function Test-ReleaseArtifactSetGate
+{
+    [CmdletBinding()]
+    param()
+
+    Write-Host "`n=== Release Artifact Set Gate ===" -ForegroundColor Cyan
+
+    $distRoot = Join-Path $repoRoot 'dist'
+    if (-not (Test-Path -LiteralPath $distRoot -PathType Container))
+    {
+        Write-ReleaseGateResult -Name 'Release artifact set' -Result Skip -Detail 'dist directory missing'
+        return
+    }
+
+    $artifacts = @(
+        Get-ChildItem -LiteralPath $distRoot -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^Baseline-(.+-setup\.exe|.+\.zip)$' }
+    )
+
+    if ($artifacts.Count -eq 0)
+    {
+        Write-ReleaseGateResult -Name 'Release artifact set' -Result Skip -Detail 'No release artifacts found in dist'
+        return
+    }
+
+    $identities = @($artifacts | ForEach-Object { Get-ReleaseArtifactIdentity -File $_ } | Where-Object { $null -ne $_ })
+    $identityNames = @($identities | Select-Object -ExpandProperty Identity -Unique)
+    if ($identityNames.Count -ne 1)
+    {
+        Write-ReleaseGateResult -Name 'Release artifact identity exclusivity' -Result Fail -Detail ($identityNames -join ', ')
+    }
+    else
+    {
+        Write-ReleaseGateResult -Name 'Release artifact identity exclusivity' -Result Pass -Detail $identityNames[0]
+    }
+
+    $manifestsByArtifact = @{}
+    foreach ($artifact in $artifacts)
+    {
+        $manifestsByArtifact[$artifact.Name] = Test-ReleaseArtifactManifest -Artifact $artifact
+    }
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $looseSetupsByName = @{}
+    foreach ($setup in @($artifacts | Where-Object { $_.Name -like 'Baseline-*-setup.exe' }))
+    {
+        $looseSetupsByName[$setup.Name] = $setup
+    }
+
+    foreach ($zipFile in @($artifacts | Where-Object { $_.Extension -eq '.zip' }))
+    {
+        $zipManifest = $manifestsByArtifact[$zipFile.Name]
+        $archive = [System.IO.Compression.ZipFile]::OpenRead($zipFile.FullName)
+        try
+        {
+            $setupEntries = @(
+                $archive.Entries |
+                    Where-Object { [System.IO.Path]::GetFileName([string]$_.FullName) -like 'Baseline-*-setup.exe' }
+            )
+
+            if ($setupEntries.Count -ne 1)
+            {
+                Write-ReleaseGateResult -Name "ZIP setup payload: $($zipFile.Name)" -Result Fail -Detail "Expected one setup exe, found $($setupEntries.Count)"
+                continue
+            }
+
+            $entry = $setupEntries[0]
+            $entryName = [System.IO.Path]::GetFileName([string]$entry.FullName)
+            $entryHash = Get-ReleaseZipEntrySha256 -Entry $entry
+            $manifestEntryHash = if ($zipManifest) { Get-ReleaseHashManifestFileHash -Manifest $zipManifest -FileName $entryName } else { $null }
+
+            if (-not [string]::IsNullOrWhiteSpace($manifestEntryHash) -and $entryHash -ne $manifestEntryHash)
+            {
+                Write-ReleaseGateResult -Name "ZIP setup manifest: $($zipFile.Name)" -Result Fail -Detail "$entryName hash differs from zip manifest"
+            }
+            else
+            {
+                Write-ReleaseGateResult -Name "ZIP setup manifest: $($zipFile.Name)" -Result Pass -Detail $entryName
+            }
+
+            if ($looseSetupsByName.ContainsKey($entryName))
+            {
+                $looseHash = Get-ReleaseArtifactSha256 -Path $looseSetupsByName[$entryName].FullName
+                if ($looseHash -ne $entryHash)
+                {
+                    Write-ReleaseGateResult -Name "Loose setup matches ZIP: $entryName" -Result Fail -Detail 'Loose setup bytes differ from ZIP-contained setup'
+                }
+                else
+                {
+                    Write-ReleaseGateResult -Name "Loose setup matches ZIP: $entryName" -Result Pass
+                }
+            }
+        }
+        finally
+        {
+            $archive.Dispose()
+        }
+    }
+}
+
+function Get-ReleaseMojibakeMarker
+{
+    [CmdletBinding()]
+    param()
+
+    @(
+        [string][char]0xFFFD
+        [string][char]0x00C3
+        [string][char]0x00C2
+        ([string][char]0x00E1 + [string][char]0x2030)
+        ([string][char]0x00E6 + [string][char]0x2039)
+    )
+}
+
+function Test-GeneratedInstallerScriptEncodingGate
+{
+    [CmdletBinding()]
+    param()
+
+    Write-Host "`n=== Generated Installer Script Encoding Gate ===" -ForegroundColor Cyan
+
+    $distRoot = Join-Path $repoRoot 'dist'
+    if (-not (Test-Path -LiteralPath $distRoot -PathType Container))
+    {
+        Write-ReleaseGateResult -Name 'Generated installer script encoding' -Result Skip -Detail 'dist directory missing'
+        return
+    }
+
+    $generatedScripts = @(Get-ChildItem -LiteralPath $distRoot -Filter 'Baseline-Setup-*.iss' -File -ErrorAction SilentlyContinue)
+    if ($generatedScripts.Count -eq 0)
+    {
+        Write-ReleaseGateResult -Name 'Generated installer script encoding' -Result Skip -Detail 'No generated setup scripts found'
+        return
+    }
+
+    $utf8Strict = New-Object -TypeName System.Text.UTF8Encoding -ArgumentList @($false, $true)
+    foreach ($scriptFile in $generatedScripts)
+    {
+        try
+        {
+            $content = [System.IO.File]::ReadAllText($scriptFile.FullName, $utf8Strict)
+            $badMarker = $null
+            foreach ($marker in (Get-ReleaseMojibakeMarker))
+            {
+                if ($content.Contains($marker))
+                {
+                    $badMarker = @($marker.ToCharArray() | ForEach-Object { 'U+{0:X4}' -f [int][char]$_ }) -join ' '
+                    break
+                }
+            }
+
+            if ($badMarker)
+            {
+                Write-ReleaseGateResult -Name "Generated installer script encoding: $($scriptFile.Name)" -Result Fail -Detail "Mojibake marker $badMarker"
+            }
+            else
+            {
+                Write-ReleaseGateResult -Name "Generated installer script encoding: $($scriptFile.Name)" -Result Pass
+            }
+        }
+        catch
+        {
+            Write-ReleaseGateResult -Name "Generated installer script encoding: $($scriptFile.Name)" -Result Fail -Detail $_.Exception.Message
+        }
+    }
+}
+
 $smokeTestPath = Join-Path $PSScriptRoot 'Test-SmokeTest.ps1'
 if (-not (Test-Path -LiteralPath $smokeTestPath -PathType Leaf))
 {
@@ -327,6 +673,8 @@ if ($smokeExitCode -ne 0)
 }
 
 Test-ReleaseAuthenticodeGate
+Test-ReleaseArtifactSetGate
+Test-GeneratedInstallerScriptEncodingGate
 Test-ReleaseModuleIntegrityGate
 Test-StaleTestReportGate
 Test-ReleaseZipHygieneGate

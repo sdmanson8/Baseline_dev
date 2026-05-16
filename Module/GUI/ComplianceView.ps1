@@ -145,7 +145,6 @@ function Show-ComplianceDialog
 	}
 
 	# --- Browse handler ---
-			# P5 rollback checkpoint: Show-ComplianceDialog part extracted to Module/GUI/ComplianceView/Show-ComplianceDialog/Show-ComplianceDialog.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'ComplianceView\Show-ComplianceDialog\Show-ComplianceDialog.ps1')
 
 	# --- Fix Drift handler ---

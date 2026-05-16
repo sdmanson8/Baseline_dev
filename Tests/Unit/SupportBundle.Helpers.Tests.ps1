@@ -175,6 +175,53 @@ Describe 'Export-BaselineSupportBundle' {
         Test-Path -LiteralPath (Join-Path $extractDir 'bundle-index.json') | Should -BeTrue
     }
 
+    It 'packages the selected session log and classifies errors from it' {
+        $caseRoot = Join-Path $script:TempRoot 'SelectedSessionLog'
+        New-Item -ItemType Directory -Path $caseRoot -Force | Out-Null
+        $selectedLogPath = Join-Path $caseRoot 'selected-session.log'
+        @(
+            '13-05-2026 07:18 INFO: selected session started'
+            "13-05-2026 07:18 ERROR: Cannot find path 'C:\Temp\Missing.txt' because it does not exist."
+        ) | Set-Content -LiteralPath $selectedLogPath -Encoding UTF8
+
+        $otherLogPath = Join-Path $caseRoot 'current-session.log'
+        '13-05-2026 07:18 INFO: current session without errors' | Set-Content -LiteralPath $otherLogPath -Encoding UTF8
+
+        $previousGlobalLogPathVariable = Get-Variable -Name LogFilePath -Scope Global -ErrorAction SilentlyContinue
+        $Global:LogFilePath = $otherLogPath
+        $bundlePath = Join-Path $caseRoot 'selected-session-bundle.zip'
+        try {
+            $result = Export-BaselineSupportBundle -OutputPath $bundlePath -IncludeTestReport:$false -SessionLogPath $selectedLogPath
+        }
+        finally {
+            if ($previousGlobalLogPathVariable) {
+                Set-Variable -Name LogFilePath -Scope Global -Value $previousGlobalLogPathVariable.Value
+            }
+            else {
+                Remove-Variable -Name LogFilePath -Scope Global -ErrorAction SilentlyContinue
+            }
+        }
+
+        $extractDir = Join-Path $caseRoot 'extract'
+        Expand-Archive -LiteralPath $result.OutputPath -DestinationPath $extractDir -Force
+
+        $copiedLogPath = Join-Path $extractDir 'Logs\baseline.log'
+        Test-Path -LiteralPath $copiedLogPath | Should -BeTrue
+        (Get-Content -LiteralPath $copiedLogPath -Raw) | Should -Match 'Missing\.txt'
+
+        $metadata = Get-Content -LiteralPath (Join-Path $extractDir 'metadata.json') -Raw | ConvertFrom-Json
+        $metadata.SelectedSessionLog.SourcePath | Should -Be ([System.IO.Path]::GetFullPath($selectedLogPath))
+        $metadata.SelectedSessionLog.SourceFileName | Should -Be 'selected-session.log'
+
+        $index = Get-Content -LiteralPath (Join-Path $extractDir 'bundle-index.json') -Raw | ConvertFrom-Json
+        $index.Files.DailyLog | Should -Be 'Logs/baseline.log'
+        $index.Files.Errors | Should -Be 'errors.json'
+
+        $errors = Get-Content -LiteralPath (Join-Path $extractDir 'errors.json') -Raw | ConvertFrom-Json
+        $errors.Source | Should -Be ([System.IO.Path]::GetFullPath($selectedLogPath))
+        $errors.Counts.DEPENDENCY | Should -BeGreaterThan 0
+    }
+
     It 'adds deep-link artifacts when a run is targeted' {
         $historyRoot = Join-Path $script:TempRoot 'LocalAppDataDeepLink'
         $historyDir = Join-Path $historyRoot 'Baseline'

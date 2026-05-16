@@ -5,6 +5,11 @@
 #define MyAppPublisher "sdmanson8"
 #define MyAppExeName   "Baseline.exe"
 #define MyAppId        "{{D5A779F1-8936-4E66-A24D-9A4E43A2A4D9}}"
+#if MyAppChannelToken == "stable"
+#define MySetupBaseFilename "Baseline-" + MyAppVersion + "-setup"
+#else
+#define MySetupBaseFilename "Baseline-" + MyAppVersion + "-" + MyAppChannelToken + "-setup"
+#endif
 
 ; MySourceRoot and MyOutputDir are injected by New-InstallerPackage.ps1 at build time
 #define MySourceRoot "."
@@ -33,7 +38,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 
 OutputDir={#MyOutputDir}
-OutputBaseFilename=Baseline-setup-{#MyAppVersion}-{#MyAppChannelToken}
+OutputBaseFilename={#MySetupBaseFilename}
 SetupIconFile={#MySourceRoot}\Assets\baseline-setup.ico
 Uninstallable=IsInstallMode
 CreateUninstallRegKey=IsInstallMode
@@ -1446,6 +1451,9 @@ begin
 
   if not FileExists(Dest) then
     RaiseException('Portable Baseline.exe was not found after extraction: ' + Dest);
+
+  if not SaveStringToFile(GPortablePath + '\Baseline.portable', 'portable=1'#13#10, False) then
+    RaiseException('Portable marker could not be written: ' + GPortablePath + '\Baseline.portable');
 
   if GDesktop then
     CreateShellLink(

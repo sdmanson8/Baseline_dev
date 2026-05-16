@@ -412,7 +412,7 @@ function Set-RegistryValueSafe
 			$currentValueKind = $null
 		}
 
-		$existingProperty = Get-ItemProperty -Path $Path -ErrorAction SilentlyContinue
+		$existingProperty = Get-ItemProperty -Path $Path -ErrorAction Ignore
 		if ($existingProperty -and $existingProperty.PSObject.Properties[$Name])
 		{
 			$currentValue = $existingProperty.PSObject.Properties[$Name].Value
@@ -522,7 +522,7 @@ function Remove-RegistryValueSafe
 					continue
 				}
 
-				$existingProperty = Get-ItemProperty -Path $singlePath -ErrorAction SilentlyContinue
+				$existingProperty = Get-ItemProperty -Path $singlePath -ErrorAction Ignore
 				if (-not ($existingProperty -and $existingProperty.PSObject.Properties[$singleName]))
 				{
 					continue

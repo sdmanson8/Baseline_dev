@@ -2,7 +2,7 @@
 # ------------------------------------------------------------------
 # DiffView.ps1
 # Visual diff dialog showing "Current State -> After Run" for each
-# selected tweak.  Dot-sourced inside Show-TweakGUI so all $Script:
+# selected tweak. Loaded inside Show-TweakGUI so all $Script:
 # and local UI variables remain in scope.
 # ------------------------------------------------------------------
 
@@ -379,7 +379,6 @@
 
 		try { $listStack.BeginInit() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'DiffView.Show-DiffViewFromSelection.BeginInit' }
 
-				# P5 rollback checkpoint: Show-DiffViewDialog part extracted to Module/GUI/DiffView/Show-DiffViewDialog/Show-DiffViewDialog.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'DiffView\Show-DiffViewDialog\Show-DiffViewDialog.ps1')
 
 		try { $listStack.EndInit() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'DiffView.Show-DiffViewFromSelection.EndInit' }

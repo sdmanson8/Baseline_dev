@@ -1,4 +1,3 @@
-# ActionHandlers split file loaded by Module\GUI\ActionHandlers.ps1.
 
 	#region System scan state
 	$buildTabContentCommand = Get-GuiRuntimeCommand -Name 'Build-TabContent' -CommandType 'Function'
@@ -217,8 +216,7 @@
 
 	# Capture file-dialog function for use inside .GetNewClosure() handlers
 	# (.GetNewClosure() captures variables but not functions from the parent scope).
-		$showGuiFileSaveDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiFileSaveDialog' -CommandType 'Function'
-		$showGuiFolderPickerDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiFolderPickerDialog' -CommandType 'Function'
+	$showGuiFileSaveDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiFileSaveDialog' -CommandType 'Function'
 
 	# Export System State button
 	$BtnExportSystemState = New-PresetButton -Label (Get-UxLocalizedString -Key 'GuiFooterExportSystemState' -Fallback 'Export System State') -Variant 'Subtle' -Compact -Muted
@@ -573,6 +571,251 @@
 		}
 	}.GetNewClosure()) | Out-Null
 
+	function Get-GuiSupportBundleSessionLogChoices
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param ()
+
+		$choices = [System.Collections.Generic.List[object]]::new()
+		$seen = @{}
+		$rootSeen = @{}
+		$logRoots = [System.Collections.Generic.List[string]]::new()
+		$addChoice = {
+			param (
+				[string]$Path,
+				[switch]$Current
+			)
+
+			if ([string]::IsNullOrWhiteSpace($Path)) { return }
+
+			$resolvedPath = $null
+			try { $resolvedPath = [System.IO.Path]::GetFullPath([string]$Path) }
+			catch { return }
+
+			$key = $resolvedPath.ToLowerInvariant()
+			if ($seen.ContainsKey($key)) { return }
+
+			$item = Get-Item -LiteralPath $resolvedPath -ErrorAction SilentlyContinue
+			if (-not $item -or $item.PSIsContainer) { return }
+
+			$timestampText = $item.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')
+			$fileName = [System.IO.Path]::GetFileName($resolvedPath)
+			$displayName = if ($Current)
+			{
+				'Current session log - {0} - {1}' -f $timestampText, $fileName
+			}
+			else
+			{
+				'{0} - {1}' -f $timestampText, $fileName
+			}
+
+			$seen[$key] = $true
+			[void]$choices.Add([pscustomobject]@{
+				DisplayName   = $displayName
+				Path          = $resolvedPath
+				FileName      = $fileName
+				LastWriteTime = $item.LastWriteTime
+				IsCurrent     = [bool]$Current
+			})
+		}.GetNewClosure()
+
+		$currentLogPath = $null
+		$globalLogFileVariable = Get-Variable -Name 'LogFilePath' -Scope Global -ErrorAction SilentlyContinue
+		if ($globalLogFileVariable -and $globalLogFileVariable.Value)
+		{
+			$currentLogPath = [string]$globalLogFileVariable.Value
+			& $addChoice -Path $currentLogPath -Current
+		}
+
+		$addRoot = {
+			param ([string]$Root)
+			if ([string]::IsNullOrWhiteSpace($Root)) { return }
+			try { $resolvedRoot = [System.IO.Path]::GetFullPath([string]$Root) }
+			catch { return }
+			$key = $resolvedRoot.ToLowerInvariant()
+			if (-not $rootSeen.ContainsKey($key))
+			{
+				$rootSeen[$key] = $true
+				[void]$logRoots.Add($resolvedRoot)
+			}
+		}.GetNewClosure()
+
+		if (-not [string]::IsNullOrWhiteSpace($currentLogPath))
+		{
+			$currentLogDirectory = Split-Path -Path $currentLogPath -Parent
+			& $addRoot $currentLogDirectory
+			if (-not [string]::IsNullOrWhiteSpace($currentLogDirectory))
+			{
+				$currentLogDirectoryLeaf = Split-Path -Path $currentLogDirectory -Leaf
+				if ($currentLogDirectoryLeaf -match '^\d{4}-\d{2}-\d{2}$')
+				{
+					& $addRoot (Split-Path -Path $currentLogDirectory -Parent)
+				}
+			}
+		}
+
+		$defaultLogDirectory = $null
+		if (Get-Command -Name 'Get-BaselineLogDirectory' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			try { $defaultLogDirectory = [string](Get-BaselineLogDirectory) } catch { $defaultLogDirectory = $null }
+		}
+		& $addRoot $defaultLogDirectory
+
+		if (-not [string]::IsNullOrWhiteSpace($defaultLogDirectory) -and (Get-Command -Name 'Get-BaselineConfiguredLogDirectory' -CommandType Function -ErrorAction SilentlyContinue))
+		{
+			try { & $addRoot ([string](Get-BaselineConfiguredLogDirectory -DefaultDirectory $defaultLogDirectory)) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.ConfiguredLogDirectory' }
+		}
+
+		foreach ($root in @($logRoots))
+		{
+			if ([string]::IsNullOrWhiteSpace($root) -or -not (Test-Path -LiteralPath $root -PathType Container)) { continue }
+
+			$candidateDirectories = [System.Collections.Generic.List[string]]::new()
+			[void]$candidateDirectories.Add($root)
+			try
+			{
+				foreach ($childDirectory in @(Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue))
+				{
+					[void]$candidateDirectories.Add($childDirectory.FullName)
+				}
+			}
+			catch
+			{
+				Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.EnumerateLogDirectories'
+			}
+
+			foreach ($candidateDirectory in @($candidateDirectories))
+			{
+				try
+				{
+					foreach ($logFile in @(Get-ChildItem -LiteralPath $candidateDirectory -File -Filter '*.log' -ErrorAction SilentlyContinue))
+					{
+						& $addChoice -Path $logFile.FullName
+					}
+				}
+				catch
+				{
+					Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.EnumerateLogFiles'
+				}
+			}
+		}
+
+		return @($choices | Sort-Object -Property @{ Expression = 'IsCurrent'; Descending = $true }, @{ Expression = 'LastWriteTime'; Descending = $true } | Select-Object -First 60)
+	}
+
+	function Show-GuiSupportBundleSessionLogDialog
+	{
+		param (
+			[Parameter(Mandatory = $true)]
+			[object[]]$Choices
+		)
+
+		$availableChoices = @($Choices | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_.Path) })
+		if ($availableChoices.Count -eq 0)
+		{
+			[void](Show-ThemedDialog -Title 'Export Support Bundle' -Message 'No Baseline session logs were found to include in the support bundle.' -Buttons @('OK') -AccentButton 'OK')
+			return $null
+		}
+
+		$window = New-Object System.Windows.Window
+		$window.Title = 'Export Support Bundle'
+		$window.Width = 760
+		$window.Height = 420
+		$window.MinWidth = 560
+		$window.MinHeight = 320
+		$window.WindowStartupLocation = 'CenterOwner'
+		$window.ResizeMode = 'CanResizeWithGrip'
+		if ($Script:MainForm) { $window.Owner = $Script:MainForm }
+
+		$layout = New-Object System.Windows.Controls.Grid
+		$layout.Margin = New-Object System.Windows.Thickness 18
+		foreach ($height in @('Auto', '*', 'Auto', 'Auto'))
+		{
+			$rowDefinition = New-Object System.Windows.Controls.RowDefinition
+			if ($height -eq '*')
+			{
+				$rowDefinition.Height = New-Object System.Windows.GridLength 1, ([System.Windows.GridUnitType]::Star)
+			}
+			else
+			{
+				$rowDefinition.Height = [System.Windows.GridLength]::Auto
+			}
+			[void]$layout.RowDefinitions.Add($rowDefinition)
+		}
+
+		$prompt = New-Object System.Windows.Controls.TextBlock
+		$prompt.Text = 'Select the session log to include in the support bundle.'
+		$prompt.FontSize = 15
+		$prompt.FontWeight = [System.Windows.FontWeights]::SemiBold
+		$prompt.Margin = New-Object System.Windows.Thickness 0, 0, 0, 12
+		[System.Windows.Controls.Grid]::SetRow($prompt, 0)
+		[void]$layout.Children.Add($prompt)
+
+		$listBox = New-Object System.Windows.Controls.ListBox
+		$listBox.DisplayMemberPath = 'DisplayName'
+		$listBox.ItemsSource = $availableChoices
+		$listBox.SelectedIndex = 0
+		$listBox.MinHeight = 180
+		[System.Windows.Controls.Grid]::SetRow($listBox, 1)
+		[void]$layout.Children.Add($listBox)
+
+		$pathText = New-Object System.Windows.Controls.TextBlock
+		$pathText.Margin = New-Object System.Windows.Thickness 0, 10, 0, 14
+		$pathText.TextWrapping = [System.Windows.TextWrapping]::Wrap
+		$pathText.FontSize = 12
+		$pathText.Opacity = 0.78
+		$pathText.Text = [string]$availableChoices[0].Path
+		[System.Windows.Controls.Grid]::SetRow($pathText, 2)
+		[void]$layout.Children.Add($pathText)
+
+		$buttonPanel = New-Object System.Windows.Controls.StackPanel
+		$buttonPanel.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+		$buttonPanel.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+		[System.Windows.Controls.Grid]::SetRow($buttonPanel, 3)
+		[void]$layout.Children.Add($buttonPanel)
+
+		$cancelButton = New-Object System.Windows.Controls.Button
+		$cancelButton.Content = 'Cancel'
+		$cancelButton.MinWidth = 92
+		$cancelButton.Margin = New-Object System.Windows.Thickness 0, 0, 8, 0
+		$cancelButton.IsCancel = $true
+		[void]$buttonPanel.Children.Add($cancelButton)
+
+		$exportButton = New-Object System.Windows.Controls.Button
+		$exportButton.Content = 'Continue'
+		$exportButton.MinWidth = 104
+		$exportButton.IsDefault = $true
+		[void]$buttonPanel.Children.Add($exportButton)
+
+		$listBox.Add_SelectionChanged({
+			if ($listBox.SelectedItem)
+			{
+				$pathText.Text = [string]$listBox.SelectedItem.Path
+			}
+		}.GetNewClosure())
+
+		$selectAndClose = {
+			if ($listBox.SelectedItem)
+			{
+				$window.Tag = $listBox.SelectedItem
+				$window.DialogResult = $true
+			}
+		}.GetNewClosure()
+		$exportButton.Add_Click($selectAndClose)
+		$listBox.Add_MouseDoubleClick($selectAndClose)
+
+		$window.Content = $layout
+		if ($window.ShowDialog() -eq $true -and $window.Tag)
+		{
+			return $window.Tag
+		}
+
+		return $null
+	}
+
+	$getSupportBundleSessionLogChoicesCommand = Get-GuiRuntimeCommand -Name 'Get-GuiSupportBundleSessionLogChoices' -CommandType 'Function'
+	$showSupportBundleSessionLogDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiSupportBundleSessionLogDialog' -CommandType 'Function'
+
 	# Export Support Bundle action
 	if ($MenuToolsExportSupportBundle)
 	{
@@ -580,14 +823,23 @@
 			if (& $testGuiRunInProgressCapture) { return }
 			try
 			{
-				$selectedFolder = & $showGuiFolderPickerDialogCommand -Description 'Select a folder to save the support bundle.'
-				if ([string]::IsNullOrWhiteSpace($selectedFolder))
+				$selectedSessionLog = & $showSupportBundleSessionLogDialogCommand -Choices @(& $getSupportBundleSessionLogChoicesCommand)
+				if ($null -eq $selectedSessionLog)
 				{
+					& $setGuiStatusTextCommand -Text 'Support bundle export cancelled.' -Tone 'accent'
 					return
 				}
 
 				$defaultFileName = 'Baseline_SupportBundle_{0}_{1}.zip' -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'), (Get-BaselineRunId)
-				$savePath = Join-Path -Path $selectedFolder -ChildPath $defaultFileName
+				$savePath = & $showGuiFileSaveDialogCommand -Title 'Export Support Bundle' `
+					-Filter 'ZIP Archives (*.zip)|*.zip|All Files (*.*)|*.*' `
+					-DefaultExtension 'zip' `
+					-FileName $defaultFileName
+				if ([string]::IsNullOrWhiteSpace($savePath))
+				{
+					& $setGuiStatusTextCommand -Text 'Support bundle export cancelled.' -Tone 'accent'
+					return
+				}
 
 				$sessionSnapshot = & $getGuiSettingsSnapshotCommand
 				$sessionStatePath = Join-Path ([System.IO.Path]::GetTempPath()) ('BaselineSupportBundleSession_{0}.json' -f [guid]::NewGuid().ToString('N'))
@@ -598,6 +850,10 @@
 						SchemaVersion = 1
 						SavedAt = (Get-Date).ToString('o')
 						State = $sessionSnapshot
+						SupportBundle = [ordered]@{
+							SelectedSessionLogPath = [string]$selectedSessionLog.Path
+							SelectedSessionLogName = [string]$selectedSessionLog.FileName
+						}
 					}
 					($sessionPayload | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $sessionStatePath -Encoding UTF8 -Force
 
@@ -637,9 +893,10 @@
 					}
 					catch { $connectivityResults = @() }
 
-					$result = & $exportSupportBundleCommand -OutputPath $savePath -ProfilePath $sessionStatePath -SystemSnapshot $systemSnapshot -PreSnapshot $preRunSnapshot -PostSnapshot $postRunSnapshot -Manifest $Script:TweakManifest -IncludeAuditLog -IncludeTestReport -ConnectivityResults $connectivityResults
+					$result = & $exportSupportBundleCommand -OutputPath $savePath -ProfilePath $sessionStatePath -SessionLogPath ([string]$selectedSessionLog.Path) -SystemSnapshot $systemSnapshot -PreSnapshot $preRunSnapshot -PostSnapshot $postRunSnapshot -Manifest $Script:TweakManifest -IncludeAuditLog -IncludeTestReport -ConnectivityResults $connectivityResults
 					& $setGuiStatusTextCommand -Text ("Support bundle exported: {0}" -f $result.OutputPath) -Tone 'success'
-					LogInfo ("Exported support bundle to {0}" -f $result.OutputPath)
+					LogInfo ("Exported support bundle to {0} using session log {1}" -f $result.OutputPath, [string]$selectedSessionLog.Path)
+					[void](Invoke-UserLaunch -FilePath 'explorer.exe' -ArgumentList @('/select,"{0}"' -f [string]$result.OutputPath) -Description 'support bundle output')
 				}
 				finally
 				{
@@ -804,31 +1061,6 @@
 			{
 				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to open removal persistence')
 				[void](Show-ThemedDialog -Title 'Removal Persistence' -Message ("Failed to open removal persistence.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
-			}
-		}.GetNewClosure()) | Out-Null
-	}
-
-	if ($MenuToolsDeploymentMediaBuilder)
-	{
-		Register-GuiEventHandler -Source $MenuToolsDeploymentMediaBuilder -EventName 'Click' -Handler ({
-			if (& $testGuiRunInProgressCapture) { return }
-			try
-			{
-				$deploymentMediaBuilderDialogCommand = $showGuiDeploymentMediaBuilderDialogCommand
-				if (-not $deploymentMediaBuilderDialogCommand)
-				{
-					$deploymentMediaBuilderDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiDeploymentMediaBuilderDialog' -CommandType 'Function'
-				}
-				if (-not $deploymentMediaBuilderDialogCommand)
-				{
-					throw 'Deployment Media Builder dialog command is not available.'
-				}
-				$null = & $deploymentMediaBuilderDialogCommand
-			}
-			catch
-			{
-				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to open deployment media builder')
-				[void](Show-ThemedDialog -Title 'Deployment Media Builder' -Message ("Failed to open deployment media builder.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}.GetNewClosure()) | Out-Null
 	}

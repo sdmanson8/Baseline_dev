@@ -3991,7 +3991,6 @@ function Invoke-BaselineRemoteCompliance
 	})
 
 	$cancelEngaged = $false
-			# P5 rollback checkpoint: Invoke-BaselineRemoteCompliance part extracted to Module/SharedHelpers/RemoteTarget/Invoke-BaselineRemoteCompliance/Invoke-BaselineRemoteCompliance.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'RemoteTarget\Invoke-BaselineRemoteCompliance\Invoke-BaselineRemoteCompliance.ps1')
 
 	if ($cancelEngaged)
@@ -4106,7 +4105,6 @@ function Invoke-BaselineRemoteApply
 	})
 
 	$cancelEngaged = $false
-			# P5 rollback checkpoint: Invoke-BaselineRemoteApply part extracted to Module/SharedHelpers/RemoteTarget/Invoke-BaselineRemoteApply/Invoke-BaselineRemoteApply.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'RemoteTarget\Invoke-BaselineRemoteApply\Invoke-BaselineRemoteApply.ps1')
 
 	if ($cancelEngaged)

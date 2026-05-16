@@ -1,6 +1,5 @@
-﻿# Preset button builders, selection state, policy checks, and tab-level preset application
+# Preset button builders, selection state, policy checks, and tab-level preset application
 
-# P5 rollback checkpoint: preset helpers are split into Module\GUI\PresetManagement\*.ps1.
 # Keep this explicit order so metadata and path helpers load before selection-state helpers.
 $Script:PresetManagementRoot = $PSScriptRoot
 $presetManagementSplitRoot = Join-Path $Script:PresetManagementRoot 'PresetManagement'

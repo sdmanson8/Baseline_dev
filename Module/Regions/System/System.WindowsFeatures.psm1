@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Configures Windows feature and capability selection.
 
@@ -396,7 +396,6 @@ function WindowsCapabilities
 		$NonInteractive
 	)
 
-			# P5 rollback checkpoint: WindowsCapabilities part extracted to Module/Regions/System/WindowsFeatures/WindowsCapabilities/ModulePathResolution.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsCapabilities\ModulePathResolution.ps1')
 	$guiCommonPath = Resolve-SystemPickerGuiCommonPath -ModulePath $modulePath
 	$sharedHelpersPath = Resolve-SystemPickerSharedHelpersPath -ModulePath $modulePath
@@ -421,7 +420,6 @@ function WindowsCapabilities
 
 	#region XAML Markup
 	# This block defines the dialog XAML used at runtime.
-			# P5 rollback checkpoint: WindowsCapabilities part extracted to Module/Regions/System/WindowsFeatures/WindowsCapabilities/CapabilitySelectionDialogXaml.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsCapabilities\CapabilitySelectionDialogXaml.ps1')
 	#endregion XAML Markup
 
@@ -435,9 +433,10 @@ function WindowsCapabilities
 	# Apply theme styling
 	$Theme = Get-SystemPickerTheme
 	$UseDarkMode = Resolve-SystemPickerUseDarkMode
-	if (Get-Command -Name 'Repair-GuiThemePalette' -CommandType Function -ErrorAction SilentlyContinue)
+	$repairGuiThemePalette = Get-Command -Name 'GUICommon\Repair-GuiThemePalette' -CommandType Function -ErrorAction SilentlyContinue
+	if ($repairGuiThemePalette)
 	{
-		$Theme = Repair-GuiThemePalette -Theme $Theme -ThemeName $(if ($UseDarkMode) { 'Dark' } else { 'Light' })
+		$Theme = & $repairGuiThemePalette -Theme $Theme -ThemeName $(if ($UseDarkMode) { 'Dark' } else { 'Light' })
 	}
 	$windowBgDefault = if ($UseDarkMode) { [string]$Script:DarkTheme.WindowBg } else { [string]$Script:LightTheme.WindowBg }
 	$borderColorDefault = if ($UseDarkMode) { [string]$Script:DarkTheme.BorderColor } else { [string]$Script:LightTheme.BorderColor }
@@ -452,7 +451,6 @@ function WindowsCapabilities
 	}
 
 	#region Functions
-			# P5 rollback checkpoint: WindowsCapabilities part extracted to Module/Regions/System/WindowsFeatures/WindowsCapabilities/CapabilityPatternMatching.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsCapabilities\CapabilityPatternMatching.ps1')
 
 	<#
@@ -486,7 +484,6 @@ function WindowsCapabilities
 
 	#>
 
-			# P5 rollback checkpoint: WindowsCapabilities part extracted to Module/Regions/System/WindowsFeatures/WindowsCapabilities/SelectAllCapabilityHandler.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsCapabilities\SelectAllCapabilityHandler.ps1')
 
 	# Friendly display names live in SharedHelpers/WindowsFeatures.Helpers.ps1
@@ -498,7 +495,6 @@ function WindowsCapabilities
 
 	    	#>
 
-			# P5 rollback checkpoint: WindowsCapabilities part extracted to Module/Regions/System/WindowsFeatures/WindowsCapabilities/CapabilityFriendlyName.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsCapabilities\CapabilityFriendlyName.ps1')
 
 	<#
@@ -520,7 +516,6 @@ function WindowsCapabilities
 
 	    	#>
 
-			# P5 rollback checkpoint: WindowsCapabilities part extracted to Module/Regions/System/WindowsFeatures/WindowsCapabilities/CapabilityControlFactory.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsCapabilities\CapabilityControlFactory.ps1')
 	#endregion Functions
 
@@ -584,7 +579,6 @@ function WindowsCapabilities
 	}
 
 	# Getting list of all capabilities according to the conditions
-			# P5 rollback checkpoint: WindowsCapabilities part extracted to Module/Regions/System/WindowsFeatures/WindowsCapabilities/CapabilityQuery.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsCapabilities\CapabilityQuery.ps1')
 
 	if (-not $Capabilities)
@@ -597,8 +591,8 @@ function WindowsCapabilities
 			}
 		}
 		LogInfo "Optional Features:"
-		LogInfo "No preset-matched Optional features were found. Moving on."
-		Write-ConsoleStatus -Action "$(if ($PSCmdlet.ParameterSetName -eq 'Uninstall') { 'Uninstalling optional features' } else { 'Installing optional features' })" -Status success
+		LogInfo "Skipping optional features because no preset-matched Optional features were found."
+		Write-ConsoleStatus -Action "$(if ($PSCmdlet.ParameterSetName -eq 'Uninstall') { 'Uninstalling optional features' } else { 'Installing optional features' })" -Status warning
 		return
 	}
 
@@ -629,7 +623,6 @@ function WindowsCapabilities
 		return
 	}
 
-	# P5 rollback checkpoint: WindowsCapabilities part extracted to Module/Regions/System/WindowsFeatures/WindowsCapabilities/CapabilityDialogForegroundActivation.ps1; re-inline here if rollback is needed.
 	. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsCapabilities\CapabilityDialogForegroundActivation.ps1')
 	$Button.IsEnabled = $false
 	$Window.Add_Loaded({$Capabilities | Add-CapabilityControl})
@@ -649,7 +642,6 @@ function WindowsCapabilities
 	{
 		[void](GUICommon\Add-GuiPopupWindowChrome -Window $Form -RootBorder $RootBorder -PanelContainer $PanelContainer -Title $windowsCapabilitiesTitle -Theme $Theme -UseDarkMode $UseDarkMode)
 	}
-			# P5 rollback checkpoint: WindowsCapabilities part extracted to Module/Regions/System/WindowsFeatures/WindowsCapabilities/CapabilityDialogThemeCallback.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsCapabilities\CapabilityDialogThemeCallback.ps1')
 	if (Test-Path -Path Function:\Register-GuiPopupThemeWindow)
 	{
@@ -757,18 +749,7 @@ function WindowsFeatures
 		$NonInteractive
 	)
 
-	$modulePath = if (-not [string]::IsNullOrWhiteSpace([string]$PSCommandPath))
-	{
-		[string]$PSCommandPath
-	}
-	elseif ($MyInvocation.MyCommand.Module -and -not [string]::IsNullOrWhiteSpace([string]$MyInvocation.MyCommand.Module.Path))
-	{
-		[string]$MyInvocation.MyCommand.Module.Path
-	}
-	else
-	{
-		$null
-	}
+		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsCapabilities\ModulePathResolution.ps1')
 	$guiCommonPath = Resolve-SystemPickerGuiCommonPath -ModulePath $modulePath
 
 	Add-Type -AssemblyName PresentationCore, PresentationFramework
@@ -789,7 +770,6 @@ function WindowsFeatures
 
 	#region XAML Markup
 	# This block defines the dialog XAML used at runtime.
-			# P5 rollback checkpoint: WindowsFeatures part extracted to Module/Regions/System/WindowsFeatures/WindowsFeatures/FeatureSelectionDialogXaml.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsFeatures\FeatureSelectionDialogXaml.ps1')
 	#endregion XAML Markup
 
@@ -803,9 +783,10 @@ function WindowsFeatures
 	# Apply theme styling
 	$Theme = Get-SystemPickerTheme
 	$UseDarkMode = Resolve-SystemPickerUseDarkMode
-	if (Get-Command -Name 'Repair-GuiThemePalette' -CommandType Function -ErrorAction SilentlyContinue)
+	$repairGuiThemePalette = Get-Command -Name 'GUICommon\Repair-GuiThemePalette' -CommandType Function -ErrorAction SilentlyContinue
+	if ($repairGuiThemePalette)
 	{
-		$Theme = Repair-GuiThemePalette -Theme $Theme -ThemeName $(if ($UseDarkMode) { 'Dark' } else { 'Light' })
+		$Theme = & $repairGuiThemePalette -Theme $Theme -ThemeName $(if ($UseDarkMode) { 'Dark' } else { 'Light' })
 	}
 	$windowBgDefault = if ($UseDarkMode) { [string]$Script:DarkTheme.WindowBg } else { [string]$Script:LightTheme.WindowBg }
 	$borderColorDefault = if ($UseDarkMode) { [string]$Script:DarkTheme.BorderColor } else { [string]$Script:LightTheme.BorderColor }
@@ -827,7 +808,6 @@ function WindowsFeatures
 
 	    	#>
 
-			# P5 rollback checkpoint: WindowsFeatures part extracted to Module/Regions/System/WindowsFeatures/WindowsFeatures/FeaturePatternMatching.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsFeatures\FeaturePatternMatching.ps1')
 
 	<#
@@ -861,7 +841,6 @@ function WindowsFeatures
 
 	#>
 
-			# P5 rollback checkpoint: WindowsFeatures part extracted to Module/Regions/System/WindowsFeatures/WindowsFeatures/SelectAllFeatureHandler.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsFeatures\SelectAllFeatureHandler.ps1')
 
 	<#
@@ -883,7 +862,6 @@ function WindowsFeatures
 
 	    	#>
 
-			# P5 rollback checkpoint: WindowsFeatures part extracted to Module/Regions/System/WindowsFeatures/WindowsFeatures/FeatureControlFactory.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsFeatures\FeatureControlFactory.ps1')
 
 	if ($Global:GUIMode -and -not $CollectSelectionOnly -and -not $SelectedFeatureNamesProvided -and -not $UseDefaultSelection)
@@ -904,7 +882,6 @@ function WindowsFeatures
 	}
 
 	# Getting list of all optional features according to the conditions
-			# P5 rollback checkpoint: WindowsFeatures part extracted to Module/Regions/System/WindowsFeatures/WindowsFeatures/FeatureQuery.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsFeatures\FeatureQuery.ps1')
 
 	if (-not $Features)
@@ -917,8 +894,8 @@ function WindowsFeatures
 			}
 		}
 		LogInfo "Windows Features:"
-		LogInfo "No preset-matched Windows features were found. Moving on."
-		Write-ConsoleStatus -Action "$(if ($PSCmdlet.ParameterSetName -eq 'Disable') { 'Disabling Windows features' } else { 'Enabling Windows features' })" -Status success
+		LogInfo "Skipping Windows features because no preset-matched Windows features were found."
+		Write-ConsoleStatus -Action "$(if ($PSCmdlet.ParameterSetName -eq 'Disable') { 'Disabling Windows features' } else { 'Enabling Windows features' })" -Status warning
 		return
 	}
 

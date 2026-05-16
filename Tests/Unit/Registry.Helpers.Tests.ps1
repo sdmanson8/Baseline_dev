@@ -1,7 +1,7 @@
 ﻿Set-StrictMode -Version Latest
 
 BeforeAll {
-    # Extract inner functions from the dot-sourced file via AST.
+    # Read inner functions from the loaded file via AST.
     # Uses Invoke-Expression on function definition AST nodes - safe because
     # ParseFile only parses (no execution) and we only evaluate FunctionDefinitionAst
     # nodes, which merely define functions without side effects.

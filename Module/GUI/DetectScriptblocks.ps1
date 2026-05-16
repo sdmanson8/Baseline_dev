@@ -19,7 +19,10 @@ function Invoke-GuiDetectScriptblock
 		return $DefaultValue
 	}
 
-	return (& $Detect)
+	return (& {
+		Set-StrictMode -Off
+		& $Detect
+	})
 }
 
 function Get-GuiDetectMpPreference

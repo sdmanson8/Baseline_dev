@@ -86,7 +86,7 @@ Describe 'Test-BaselineToastRuntimeAvailable' {
 
 Describe 'Send-BaselineToastXml' {
     It 'returns $false when the toast runtime is unavailable, without throwing' {
-        # Override Test-BaselineToastRuntimeAvailable inside the dot-sourced
+        # Override Test-BaselineToastRuntimeAvailable inside the loaded
         # script scope so Send-BaselineToastXml takes the unavailable path
         # regardless of host capability.
         function Test-BaselineToastRuntimeAvailable { return $false }

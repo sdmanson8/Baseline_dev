@@ -1,5 +1,5 @@
 ﻿# Safe Mode / Expert Mode state toggle functions.
-# Dot-sourced inside Show-TweakGUI.
+# Loaded inside Show-TweakGUI.
 #
 # Single unified toggle: ChkSafeMode checked = Safe Mode, unchecked = Expert Mode.
 # The toggle label updates dynamically to reflect the active mode.
@@ -115,8 +115,6 @@
 		if ($Script:MenuTools)                  { $Script:MenuTools.Visibility                  = 'Visible' }
 		if ($Script:MenuToolsAppsManager)       { $Script:MenuToolsAppsManager.Visibility       = 'Visible' }
 		if ($Script:MenuToolsUpdateAllApps)     { $Script:MenuToolsUpdateAllApps.Visibility     = 'Visible' }
-		if ($Script:MenuToolsAdvanced)          { $Script:MenuToolsAdvanced.Visibility          = $safeModeHidden }
-		if ($Script:MenuToolsDeploymentMediaBuilder) { $Script:MenuToolsDeploymentMediaBuilder.Visibility = $safeModeHidden }
 		if ($Script:MenuToolsApproveRemoteTargets) { $Script:MenuToolsApproveRemoteTargets.Visibility = $safeModeHidden }
 		if ($Script:MenuToolsSaveRemoteApprovalPolicy) { $Script:MenuToolsSaveRemoteApprovalPolicy.Visibility = $safeModeHidden }
 		if ($Script:MenuToolsLoadRemoteApprovalPolicy) { $Script:MenuToolsLoadRemoteApprovalPolicy.Visibility = $safeModeHidden }
@@ -226,8 +224,6 @@
 		if ($Script:MenuTools)                  { $Script:MenuTools.Visibility                  = 'Visible' }
 		if ($Script:MenuToolsAppsManager)       { $Script:MenuToolsAppsManager.Visibility       = 'Visible' }
 		if ($Script:MenuToolsUpdateAllApps)     { $Script:MenuToolsUpdateAllApps.Visibility     = 'Visible' }
-		if ($Script:MenuToolsAdvanced)          { $Script:MenuToolsAdvanced.Visibility          = 'Visible' }
-		if ($Script:MenuToolsDeploymentMediaBuilder) { $Script:MenuToolsDeploymentMediaBuilder.Visibility = 'Visible' }
 		if ($Script:MenuToolsApproveRemoteTargets) { $Script:MenuToolsApproveRemoteTargets.Visibility = 'Visible' }
 		if ($Script:MenuToolsSaveRemoteApprovalPolicy) { $Script:MenuToolsSaveRemoteApprovalPolicy.Visibility = 'Visible' }
 		if ($Script:MenuToolsLoadRemoteApprovalPolicy) { $Script:MenuToolsLoadRemoteApprovalPolicy.Visibility = 'Visible' }

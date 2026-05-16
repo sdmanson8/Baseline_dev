@@ -1,4 +1,4 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
     . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
@@ -33,33 +33,29 @@ BeforeAll {
 }
 
 Describe 'Deployment Media Builder menu wiring' {
-    It 'declares Advanced Tools > Deployment Media Builder in the Tools menu' {
-        $script:XamlContent | Should -Match 'Name="MenuToolsAdvanced"'
-        $script:XamlContent | Should -Match 'Name="MenuToolsDeploymentMediaBuilder"'
-        $idxAdvanced = $script:XamlContent.IndexOf('Name="MenuToolsAdvanced"')
-        $idxItem = $script:XamlContent.IndexOf('Name="MenuToolsDeploymentMediaBuilder"')
-        $idxItem | Should -BeGreaterThan $idxAdvanced
+    It 'does not expose Advanced Tools as a Tools menu action' {
+        $script:XamlContent | Should -Not -Match 'Name="MenuToolsAdvanced"'
+        $script:XamlContent | Should -Not -Match 'Name="MenuToolsDeploymentMediaBuilder"'
+        $script:XamlContent | Should -Not -Match 'Advanced Tools\.\.\.'
     }
 
-    It 'wires FindName + script assignments in WindowSetup.ps1' {
-        $script:WindowSetupContent | Should -Match '\$MenuToolsAdvanced = \$Form\.FindName\("MenuToolsAdvanced"\)'
-        $script:WindowSetupContent | Should -Match '\$MenuToolsDeploymentMediaBuilder = \$Form\.FindName\("MenuToolsDeploymentMediaBuilder"\)'
-        $script:WindowSetupContent | Should -Match '\$Script:MenuToolsAdvanced = \$MenuToolsAdvanced'
-        $script:WindowSetupContent | Should -Match '\$Script:MenuToolsDeploymentMediaBuilder = \$MenuToolsDeploymentMediaBuilder'
+    It 'does not wire removed Advanced Tools controls in WindowSetup.ps1' {
+        $script:WindowSetupContent | Should -Not -Match 'MenuToolsAdvanced'
+        $script:WindowSetupContent | Should -Not -Match 'MenuToolsDeploymentMediaBuilder'
     }
 
-    It 'localizes and enables the menu item through the normal menu surfaces' {
-        $script:StyleContent | Should -Match 'GuiMenuToolsAdvanced'
-        $script:StyleContent | Should -Match 'GuiMenuToolsDeploymentMediaBuilder'
-        $script:StyleContent | Should -Match 'MenuToolsDeploymentMediaBuilder\.IsEnabled = \$Enabled'
-        $script:ActionHandlersContent | Should -Match 'GuiMenuToolsDeploymentMediaBuilder'
+    It 'does not localize or enable removed Advanced Tools menu surfaces' {
+        $script:StyleContent | Should -Not -Match 'GuiMenuToolsAdvanced'
+        $script:StyleContent | Should -Not -Match 'MenuToolsAdvanced'
+        $script:ActionHandlersContent | Should -Not -Match 'GuiMenuToolsAdvanced'
+        $script:StyleContent | Should -Not -Match 'GuiMenuToolsDeploymentMediaBuilder'
     }
 
-    It 'hides advanced deployment media tools in Safe Mode and restores them in Expert Mode' {
-        $script:ModeContent | Should -Match 'MenuToolsAdvanced.*\$safeModeHidden'
-        $script:ModeContent | Should -Match 'MenuToolsDeploymentMediaBuilder.*\$safeModeHidden'
-        $script:ModeContent | Should -Match 'MenuToolsDeploymentMediaBuilder.*''Visible'''
-        $script:SessionRestoreContent | Should -Match 'MenuToolsDeploymentMediaBuilder.*\$modeHidden'
+    It 'does not reference Advanced Tools in mode visibility restores' {
+        $script:ModeContent | Should -Not -Match 'MenuToolsAdvanced'
+        $script:SessionRestoreContent | Should -Not -Match 'MenuToolsAdvanced'
+        $script:ModeContent | Should -Not -Match 'MenuToolsDeploymentMediaBuilder'
+        $script:SessionRestoreContent | Should -Not -Match 'MenuToolsDeploymentMediaBuilder'
     }
 
     It 'dot-sources DeploymentMediaBuilderDialog.ps1 from Module/Regions/GUI.psm1' {
@@ -103,6 +99,76 @@ Describe 'Deployment Media Builder top navigation view' {
         $script:ViewContent | Should -Match 'function Get-GuiDeploymentMediaBuilderPlan'
         $script:ViewContent | Should -Match 'New-GuiDeploymentMediaBuildPlan'
         $script:ViewContent | Should -Match 'Invoke-GuiDeploymentMediaBuild -Plan \$plan'
+    }
+
+    It 'captures view commands before registering WPF handlers' {
+        foreach ($expected in @(
+            '\$resetStartStateScript = \$\{function:Reset-GuiDeploymentMediaBuilderStartState\}',
+            '\$setStatusScript = \$\{function:Set-GuiDeploymentMediaBuilderStatus\}',
+            '\$fileDialogScript = \$\{function:Show-GuiDeploymentMediaBuilderFileDialog\}',
+            '\$folderDialogScript = \$\{function:Show-GuiDeploymentMediaBuilderFolderDialog\}',
+            '\$detectIsoScript = \$\{function:Invoke-GuiDeploymentMediaBuilderDetectIso\}',
+            '\$previewPlanScript = \$\{function:Invoke-GuiDeploymentMediaBuilderPreviewPlan\}',
+            '\$startBuildScript = \$\{function:Invoke-GuiDeploymentMediaBuilderStartBuild\}',
+            '\$syncTextScript = \$\{function:Sync-GuiDeploymentMediaBuilderViewText\}',
+            '& \$resetStartStateScript',
+            '& \$setStatusScript -Message',
+            '\$path = & \$fileDialogScript -Filter',
+            '\$path = & \$folderDialogScript -Description',
+            '\{ & \$detectIsoScript \}\.GetNewClosure\(\)',
+            '\{ & \$previewPlanScript \}\.GetNewClosure\(\)',
+            '\{ & \$startBuildScript \}\.GetNewClosure\(\)'
+        )) {
+            $script:ViewContent | Should -Match $expected
+        }
+
+        foreach ($unexpected in @(
+            '\{ Invoke-GuiDeploymentMediaBuilderDetectIso \}\.GetNewClosure\(\)',
+            '\{ Invoke-GuiDeploymentMediaBuilderPreviewPlan \}\.GetNewClosure\(\)',
+            '\{ Invoke-GuiDeploymentMediaBuilderStartBuild \}\.GetNewClosure\(\)',
+            '\$path = Show-GuiDeploymentMediaBuilderFileDialog -Filter',
+            '\$path = Show-GuiDeploymentMediaBuilderFolderDialog -Description'
+        )) {
+            $script:ViewContent | Should -Not -Match $unexpected
+        }
+    }
+
+    It 'validates Detect Editions input before ISO inspection' {
+        $script:ViewContent | Should -Match 'function Set-GuiDeploymentMediaBuilderIsoValidationMessage'
+        $script:ViewContent | Should -Match '\$sourceIso = \(\[string\]\$Script:TxtDeploymentMediaSourceIso\.Text\)\.Trim\(\)'
+        $script:ViewContent | Should -Match 'Select a Windows ISO before detecting editions\.'
+        $script:ViewContent | Should -Match 'Source ISO must be an \.iso file\.'
+        $script:ViewContent | Should -Match 'Source ISO does not exist: \{0\}'
+        $script:ViewContent | Should -Match 'Get-GuiDeploymentMediaIsoImageInfo -SourceIso \$sourceIso'
+        $script:ViewContent | Should -Not -Match 'Get-GuiDeploymentMediaIsoImageInfo -SourceIso \(\[string\]\$Script:TxtDeploymentMediaSourceIso\.Text\)'
+    }
+
+    It 'captures target text boxes for browse button handlers' {
+        foreach ($expected in @(
+            '\$sourceIsoTextBox = \$Script:TxtDeploymentMediaSourceIso',
+            '\$autounattendTextBox = \$Script:TxtDeploymentMediaAutounattend',
+            '\$workingDirectoryTextBox = \$Script:TxtDeploymentMediaWorkingDirectory',
+            '\$driverSourceTextBox = \$Script:TxtDeploymentMediaDriverSource',
+            '\$usbTargetRootTextBox = \$Script:TxtDeploymentMediaUsbTargetRoot',
+            '\$sourceIsoTextBox\.Text = \$path',
+            '\$autounattendTextBox\.Text = \$path',
+            '\$workingDirectoryTextBox\.Text = \$path',
+            '\$driverSourceTextBox\.Text = \$path',
+            '\$usbTargetRootTextBox\.Text = \[System\.IO\.Path\]::GetPathRoot\(\$path\)',
+            'ISO selected\. Run Detect Editions to inspect available images\.'
+        )) {
+            $script:ViewContent | Should -Match $expected
+        }
+
+        foreach ($unexpected in @(
+            '\$Script:TxtDeploymentMediaSourceIso\.Text = \$path',
+            '\$Script:TxtDeploymentMediaAutounattend\.Text = \$path',
+            '\$Script:TxtDeploymentMediaWorkingDirectory\.Text = \$path',
+            '\$Script:TxtDeploymentMediaDriverSource\.Text = \$path',
+            '\$Script:TxtDeploymentMediaUsbTargetRoot\.Text = \[System\.IO\.Path\]::GetPathRoot\(\$path\)'
+        )) {
+            $script:ViewContent | Should -Not -Match $unexpected
+        }
     }
 }
 
@@ -199,12 +265,9 @@ Describe 'Deployment Media Builder click handler integration' {
         $script:ActionHandlersContent | Should -Match 'Show-GuiDeploymentMediaBuilderDialog not found'
     }
 
-    It 'registers a guarded click handler on MenuToolsDeploymentMediaBuilder' {
-        $script:ActionHandlersContent | Should -Match 'if \(\$MenuToolsDeploymentMediaBuilder\)'
-        $script:ActionHandlersContent | Should -Match 'Register-GuiEventHandler -Source \$MenuToolsDeploymentMediaBuilder -EventName ''Click'''
-        $idxIf = $script:ActionHandlersContent.IndexOf('if ($MenuToolsDeploymentMediaBuilder)')
-        $tail = $script:ActionHandlersContent.Substring($idxIf)
-        $tail | Should -Match 'if \(& \$testGuiRunInProgressCapture\) \{ return \}'
-        $tail | Should -Match 'Deployment Media Builder dialog command is not available\.'
+    It 'does not expose the removed direct Advanced Tools click handler' {
+        $script:ActionHandlersContent | Should -Not -Match 'if \(\$MenuToolsAdvanced\)'
+        $script:ActionHandlersContent | Should -Not -Match 'Register-GuiEventHandler -Source \$MenuToolsAdvanced -EventName ''Click'''
+        $script:ActionHandlersContent | Should -Not -Match 'Deployment Media Builder dialog command is not available\.'
     }
 }

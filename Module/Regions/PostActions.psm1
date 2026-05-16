@@ -220,7 +220,6 @@ function PostActions
 		}
 	}
 
-			# P5 rollback checkpoint: PostActions part extracted to Module/Regions/PostActions/PostActions/PostActions.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'PostActions\PostActions\PostActions.ps1')
 }
 #endregion Post Actions

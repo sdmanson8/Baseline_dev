@@ -25,7 +25,9 @@ namespace Baseline.RunLauncher
         private const string LauncherPathVar = "BASELINE_LAUNCHER_PATH";
         private const string StateRootVar = "BASELINE_STATE_ROOT";
         private const string PortableModeVar = "BASELINE_PORTABLE_MODE";
+        private const string PortableMarkerFileName = "Baseline.portable";
         private const string InstallerModeVar = "BASELINE_INSTALLER_MODE";
+        private const string IntegrityModeVar = "BASELINE_INTEGRITY_MODE";
         private const string LanguageVar = "BASELINE_LANGUAGE";
         private const string PowerShellExecutionPolicyPreferenceVar = "PSExecutionPolicyPreference";
         private const string PayloadPrefix = "BaselinePayload/";
@@ -192,7 +194,7 @@ namespace Baseline.RunLauncher
         // ── Runtime hydration ─────────────────────────────────────────────────────
 
         /// <summary>
-        /// Ensures the embedded runtime payload is extracted and ready to execute.
+        /// Ensures the embedded runtime payload is hydrated and ready to execute.
         /// </summary>
         /// <returns>The hydrated runtime root directory.</returns>
         private static string EnsureHydratedRuntime(string launcherPath)
@@ -699,23 +701,24 @@ namespace Baseline.RunLauncher
                 localAppData = Path.Combine(Path.GetTempPath(), "Baseline_LocalAppData");
             }
 
-            var isPortableLocation = appBase.StartsWith(localAppData, StringComparison.OrdinalIgnoreCase)
-                && !IsCurrentUserInstallLocation(appBase, localAppData);
-
-            if (isPortableLocation)
+            if (IsExplicitPortableModeRequested(appBase))
             {
                 var p = Path.Combine(appBase, "Data");
-                if (CanWrite(p))
+                if (CanWrite(p, out var portableFailure))
                 {
                     portable = true;
                     return p;
                 }
+
+                throw new InvalidOperationException(
+                    $"Portable mode was requested by {PortableMarkerFileName} or {PortableModeVar}, but the portable data directory is not writable: {p}. {portableFailure}");
             }
 
+            string localAppDataFailure = null;
             if (!string.IsNullOrWhiteSpace(localAppData))
             {
                 var s = Path.Combine(localAppData, "Baseline", "UserState");
-                if (CanWrite(s))
+                if (CanWrite(s, out localAppDataFailure))
                 {
                     portable = false;
                     return s;
@@ -723,9 +726,12 @@ namespace Baseline.RunLauncher
             }
 
             var tmp = Path.Combine(Path.GetTempPath(), "Baseline", "UserState");
-            if (!CanWrite(tmp))
+            if (!CanWrite(tmp, out var tempFailure))
             {
-                throw new InvalidOperationException("No writable state directory available.");
+                var details = string.IsNullOrWhiteSpace(localAppDataFailure)
+                    ? tempFailure
+                    : $"LocalAppData: {localAppDataFailure}; Temp: {tempFailure}";
+                throw new InvalidOperationException($"No writable state directory available. {details}");
             }
 
             portable = false;
@@ -733,24 +739,41 @@ namespace Baseline.RunLauncher
         }
 
         /// <summary>
-        /// Determines whether the executable is running from the current-user installer layout.
+        /// Determines whether portable mode was explicitly requested.
         /// </summary>
-        /// <param name="appBase">The application base directory.</param>
-        /// <param name="localAppData">The resolved LocalAppData directory.</param>
-        /// <returns>True when the path is the known current-user install location.</returns>
-        private static bool IsCurrentUserInstallLocation(string appBase, string localAppData)
+        /// <returns>True when the environment flag or portable marker is present.</returns>
+        private static bool IsExplicitPortableModeRequested(string appBase)
         {
-            if (string.IsNullOrWhiteSpace(appBase) || string.IsNullOrWhiteSpace(localAppData))
+            var envValue = Environment.GetEnvironmentVariable(PortableModeVar);
+            if (IsTruthyEnvironmentValue(envValue))
+            {
+                return true;
+            }
+
+            if (string.IsNullOrWhiteSpace(appBase))
             {
                 return false;
             }
 
-            var expected = Path.GetFullPath(Path.Combine(localAppData, "Programs", "Baseline"))
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var actual = Path.GetFullPath(appBase)
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var markerPath = Path.Combine(appBase, PortableMarkerFileName);
+            return File.Exists(markerPath);
+        }
 
-            return string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+        /// <summary>
+        /// Determines whether an environment value is an explicit truthy flag.
+        /// </summary>
+        private static bool IsTruthyEnvironmentValue(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            var normalized = value.Trim();
+            return string.Equals(normalized, "1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(normalized, "true", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(normalized, "yes", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(normalized, "on", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -758,7 +781,7 @@ namespace Baseline.RunLauncher
         /// </summary>
         /// <param name="path">The path to test.</param>
         /// <returns>True when write access is available.</returns>
-        private static bool CanWrite(string path)
+        private static bool CanWrite(string path, out string failure)
         {
             try
             {
@@ -766,22 +789,12 @@ namespace Baseline.RunLauncher
                 var probe = Path.Combine(path, ".write-probe");
                 File.WriteAllText(probe, "ok");
                 File.Delete(probe);
+                failure = null;
                 return true;
             }
-            catch (UnauthorizedAccessException)
+            catch (Exception ex)
             {
-                return false;
-            }
-            catch (IOException)
-            {
-                return false;
-            }
-            catch (System.Security.SecurityException)
-            {
-                return false;
-            }
-            catch (Exception)
-            {
+                failure = ex.Message;
                 return false;
             }
         }
@@ -817,6 +830,10 @@ namespace Baseline.RunLauncher
             Environment.SetEnvironmentVariable(PortableModeVar, portable ? "1" : "0", EnvironmentVariableTarget.Process);
             Environment.SetEnvironmentVariable(InstallerModeVar, installer ? "1" : "0", EnvironmentVariableTarget.Process);
             Environment.SetEnvironmentVariable(PowerShellExecutionPolicyPreferenceVar, "Bypass", EnvironmentVariableTarget.Process);
+            if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(IntegrityModeVar)))
+            {
+                Environment.SetEnvironmentVariable(IntegrityModeVar, "Strict", EnvironmentVariableTarget.Process);
+            }
             if (!string.IsNullOrWhiteSpace(lang))
             {
                 Environment.SetEnvironmentVariable(LanguageVar, lang, EnvironmentVariableTarget.Process);

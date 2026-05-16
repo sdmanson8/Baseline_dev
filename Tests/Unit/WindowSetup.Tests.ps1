@@ -24,6 +24,13 @@ Describe 'WindowSetup swallowed-exception routing' {
         $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''RestoreLastSession'' -Default \$true'
     }
 
+    It 'loads and applies the default startup mode user preference during GUI startup' {
+        $script:WindowSetupContent | Should -Match '\$Script:DefaultStartupMode = ''Safe'''
+        $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''DefaultStartupMode'' -Default \$Script:DefaultStartupMode'
+        $script:WindowSetupContent | Should -Match '\$Script:AdvancedMode = \[string\]::Equals\(\[string\]\$Script:DefaultStartupMode, ''Expert'''
+        $script:WindowSetupContent | Should -Match '\$Script:SafeMode = -not \[bool\]\$Script:AdvancedMode'
+    }
+
     It 'applies persisted debug logging without forcing it for restored sessions' {
         $script:WindowSetupContent | Should -Not -Match 'Keep verbose logging on while the restored session rehydrates'
         $script:WindowSetupContent | Should -Match 'Set-BaselineDebugLogging -Enabled \(\[bool\]\$Script:DebugLoggingEnabled\)'

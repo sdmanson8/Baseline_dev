@@ -128,7 +128,6 @@
 		    .SYNOPSIS
 		#>
 
-				# P5 rollback checkpoint: Invoke-GuiSystemScan part extracted to Module/GUI/SystemScan/Invoke-GuiSystemScan/Invoke-GuiSystemScan.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SystemScan\Invoke-GuiSystemScan\Invoke-GuiSystemScan.ps1')
 
 		$Script:ScanEnabled = $true

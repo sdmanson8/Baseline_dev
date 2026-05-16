@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from WindowsFeatures in Module\Regions\System\System.WindowsFeatures.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 function Add-FeatureControl
 	{
 		[CmdletBinding()]

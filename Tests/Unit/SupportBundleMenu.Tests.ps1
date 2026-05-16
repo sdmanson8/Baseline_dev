@@ -25,6 +25,12 @@ Describe 'Support bundle GUI wiring' {
         $script:GuiContent | Should -Match 'Export Support Bundle\.\.\.'
         $script:ActionHandlersContent | Should -Match "Get-GuiRuntimeCommand -Name 'Export-BaselineSupportBundle'"
         $script:ActionHandlersContent | Should -Match 'Register-GuiEventHandler -Source \$MenuToolsExportSupportBundle -EventName ''Click'''
+        $script:ActionHandlersContent | Should -Match 'Show-GuiSupportBundleSessionLogDialog'
+        $script:ActionHandlersContent | Should -Match 'Get-GuiSupportBundleSessionLogChoices'
+        $script:ActionHandlersContent | Should -Match 'Show-GuiFileSaveDialog'
+        $script:ActionHandlersContent | Should -Match '-SessionLogPath'
+        $script:ActionHandlersContent | Should -Match "Invoke-UserLaunch -FilePath 'explorer.exe'"
+        $script:ActionHandlersContent | Should -Not -Match 'Select a folder to save the support bundle'
         $script:ActionHandlersContent | Should -Match 'PreRunSnapshot'
         $script:ActionHandlersContent | Should -Match 'PostRunSnapshot'
         $script:ActionHandlersContent | Should -Match '-PreSnapshot'

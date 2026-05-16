@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from InitialActions in Module\Regions\InitialActions.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 $Tweakers = @{
 			# https://forum.ru-board.com/topic.cgi?forum=62&topic=30617&start=1600#14
 			AutoSettingsPS   = "$AutoSettingsPS"

@@ -26,6 +26,16 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
+function Write-BootstrapInstallCleanupWarning
+{
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
+
+    Write-Warning ("Bootstrap installer cleanup: {0}" -f $Message)
+}
+
 $helpersPath = Join-Path $PSScriptRoot 'Helpers\Bootstrap.Helpers.ps1'
 if (-not (Test-Path -LiteralPath $helpersPath -PathType Leaf))
 {
@@ -39,7 +49,7 @@ $Preset = Resolve-BootstrapPreset -Preset $Preset
 $setupExe = Find-BootstrapSetupExecutable -ExtractRoot $ExtractRoot
 if (-not $setupExe)
 {
-    throw "Baseline-setup-*.exe was not found in the extracted archive under $ExtractRoot."
+    throw "Baseline-*-setup.exe was not found in the extracted archive under $ExtractRoot."
 }
 
 $setupHash = Assert-BootstrapReleaseAssetHash -ManifestPath $ManifestPath -AssetName ([System.IO.Path]::GetFileName($setupExe)) -FilePath $setupExe -Label 'Setup executable'
@@ -70,18 +80,19 @@ if (-not $setupProcess.WaitForExit([int][TimeSpan]::FromMinutes(30).TotalMillise
                 [void]$taskkill.Start()
                 if (-not $taskkill.WaitForExit(5000))
                 {
-                    try { $taskkill.Kill() } catch { }
+                    try { $taskkill.Kill() } catch { Write-BootstrapInstallCleanupWarning ("taskkill cleanup process could not be stopped: {0}" -f $_.Exception.Message) }
                 }
             }
             finally
             {
-                try { $taskkill.Dispose() } catch { }
+                try { $taskkill.Dispose() } catch { Write-BootstrapInstallCleanupWarning ("taskkill cleanup process could not be disposed: {0}" -f $_.Exception.Message) }
             }
         }
     }
     catch
     {
-        try { $setupProcess.Kill() } catch { }
+        Write-BootstrapInstallCleanupWarning ("setup process tree cleanup failed: {0}" -f $_.Exception.Message)
+        try { $setupProcess.Kill() } catch { Write-BootstrapInstallCleanupWarning ("setup process fallback kill failed: {0}" -f $_.Exception.Message) }
     }
 
     throw 'Baseline setup timed out after 30 minutes.'

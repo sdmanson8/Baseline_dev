@@ -140,6 +140,35 @@ function Test-IgnorableErrorRecord
 		return $false
 	}
 
+	$targetText = if ($null -ne $ErrorRecord.TargetObject) { [string]$ErrorRecord.TargetObject } else { '' }
+	$messageText = [string]$ErrorRecord.Exception.Message
+	$registryPrefixes = @(
+		'HKLM:\',
+		'HKCU:\',
+		'HKCR:\',
+		'HKU:\',
+		'HKCC:\',
+		'HKEY_LOCAL_MACHINE\',
+		'HKEY_CURRENT_USER\',
+		'HKEY_CLASSES_ROOT\',
+		'HKEY_USERS\',
+		'HKEY_CURRENT_CONFIG\'
+	)
+	$registryAbsence = $false
+	foreach ($registryPrefix in $registryPrefixes)
+	{
+		if ($targetText.StartsWith($registryPrefix, [System.StringComparison]::OrdinalIgnoreCase) -or
+			$messageText.IndexOf($registryPrefix, [System.StringComparison]::OrdinalIgnoreCase) -ge 0)
+		{
+			$registryAbsence = $true
+			break
+		}
+	}
+	if ($registryAbsence -and ([string]$ErrorRecord.CategoryInfo.Category -in @('ObjectNotFound', 'InvalidArgument', 'InvalidOperation')))
+	{
+		return $true
+	}
+
 	return Test-IgnorableErrorMessage -Message $ErrorRecord.Exception.Message
 }
 
@@ -237,7 +266,7 @@ function Get-BaselineErrorCatalog
 			Message = 'Baseline could not finish starting one of the components it needs.'
 			NextSteps = @(
 				'Close Baseline and open it again.'
-				'If this keeps happening, make sure the full Baseline folder is extracted and intact.'
+				'If this keeps happening, make sure the full Baseline folder is complete and intact.'
 				'Check the log file below for the failing step.'
 			)
 		}

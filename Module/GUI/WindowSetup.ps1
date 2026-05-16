@@ -477,8 +477,6 @@
 	$MenuToolsAppsManager       = $Form.FindName("MenuToolsAppsManager")
 	$MenuToolsUpdateAllApps     = $Form.FindName("MenuToolsUpdateAllApps")
 	$MenuToolsExportSupportBundle = $Form.FindName("MenuToolsExportSupportBundle")
-	$MenuToolsAdvanced = $Form.FindName("MenuToolsAdvanced")
-	$MenuToolsDeploymentMediaBuilder = $Form.FindName("MenuToolsDeploymentMediaBuilder")
 	$MenuToolsApproveRemoteTargets = $Form.FindName("MenuToolsApproveRemoteTargets")
 	$MenuToolsSaveRemoteApprovalPolicy = $Form.FindName("MenuToolsSaveRemoteApprovalPolicy")
 	$MenuToolsLoadRemoteApprovalPolicy = $Form.FindName("MenuToolsLoadRemoteApprovalPolicy")
@@ -532,8 +530,6 @@
 	$Script:MenuToolsAppsManager         = $MenuToolsAppsManager
 	$Script:MenuToolsUpdateAllApps       = $MenuToolsUpdateAllApps
 	$Script:MenuToolsExportSupportBundle = $MenuToolsExportSupportBundle
-	$Script:MenuToolsAdvanced = $MenuToolsAdvanced
-	$Script:MenuToolsDeploymentMediaBuilder = $MenuToolsDeploymentMediaBuilder
 	$Script:MenuToolsApproveRemoteTargets = $MenuToolsApproveRemoteTargets
 	$Script:MenuToolsSaveRemoteApprovalPolicy = $MenuToolsSaveRemoteApprovalPolicy
 	$Script:MenuToolsLoadRemoteApprovalPolicy = $MenuToolsLoadRemoteApprovalPolicy
@@ -721,6 +717,20 @@
 	$Script:DownloadExtractEvent = $null
 	$Script:UpdateCheckPrimaryClickEvent = $null
 	$Script:UpdateCheckSecondaryClickEvent = $null
+	$Script:UpdateOverlayPrimaryClickEvent = $null
+	$Script:UpdateOverlaySecondaryClickEvent = $null
+	$Script:UpdateOverlayPrimaryPreviewMouseDownEvent = $null
+	$Script:UpdateOverlayPrimaryPreviewMouseUpEvent = $null
+	$Script:UpdateOverlayPreviewMouseDownEvent = $null
+	$Script:UpdateOverlayPreviewMouseUpEvent = $null
+	$Script:UpdateOverlayPrimaryClickAction = $null
+	$Script:UpdateOverlaySecondaryClickAction = $null
+	$Script:UpdateOverlayState = [hashtable]::Synchronized(@{
+		PrimaryAction = $null
+		SecondaryAction = $null
+		PrimaryCloses = $false
+		SecondaryCloses = $true
+	})
 	Initialize-BaselineUpdateOverlay
 	$Script:SearchText = ''
 	$Script:AppsSearchText = ''
@@ -861,6 +871,7 @@
 	$Script:DebugLoggingEnabled = $false
 	$Script:LogLevel = 'All'
 	$Script:LogFileDirectory = ''
+	$Script:DefaultStartupMode = 'Safe'
 	$Script:UIDensity = if (Get-Command -Name 'Get-BaselineUiDensity' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineUiDensity } else { 'Comfort' }
 	try
 	{
@@ -882,6 +893,8 @@
 			$Script:LogLevel = [string](Get-BaselineUserPreference -Key 'LogLevel' -Default 'All')
 			if (Get-Command -Name 'Normalize-GuiLogLevel' -CommandType Function -ErrorAction SilentlyContinue) { $Script:LogLevel = Normalize-GuiLogLevel -Level $Script:LogLevel }
 			$Script:LogFileDirectory = [string](Get-BaselineUserPreference -Key 'LogFileDirectory' -Default '')
+			$Script:DefaultStartupMode = [string](Get-BaselineUserPreference -Key 'DefaultStartupMode' -Default $Script:DefaultStartupMode)
+			if ($Script:DefaultStartupMode -notin @('Safe', 'Expert')) { $Script:DefaultStartupMode = 'Safe' }
 			$Script:UIDensity = if (Get-Command -Name 'Normalize-BaselineUiDensity' -CommandType Function -ErrorAction SilentlyContinue) { Normalize-BaselineUiDensity -Density ([string](Get-BaselineUserPreference -Key 'UIDensity' -Default $Script:UIDensity)) } else { [string](Get-BaselineUserPreference -Key 'UIDensity' -Default $Script:UIDensity) }
 			$Script:AppsPackageSourcePreference = [string](Get-BaselineUserPreference -Key 'AppsPackageSourcePreference' -Default $Script:AppsPackageSourcePreference)
 		}
@@ -899,6 +912,7 @@
 		$Script:IncludePrereleaseUpdates = $false
 		$Script:DebugLoggingEnabled = $false
 		$Script:LogFileDirectory = ''
+		$Script:DefaultStartupMode = 'Safe'
 		$Script:AppsPackageSourcePreference = 'auto'
 	}
 	if (Get-Command -Name 'Set-BaselineDebugLogging' -CommandType Function -ErrorAction SilentlyContinue)
@@ -911,8 +925,8 @@
 		try { Set-GuiPerfTraceState -Enabled ([bool]$Script:DebugLoggingEnabled) }
 		catch { Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.ApplyPerfTraceState' }
 	}
-	$Script:SafeMode = $true
-	$Script:AdvancedMode = $false
+	$Script:AdvancedMode = [string]::Equals([string]$Script:DefaultStartupMode, 'Expert', [System.StringComparison]::OrdinalIgnoreCase)
+	$Script:SafeMode = -not [bool]$Script:AdvancedMode
 
 	# Auto-detect language from system UI culture. Session restore may override this.
 	$Script:SelectedLanguage = $null

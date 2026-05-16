@@ -11,16 +11,183 @@ function Initialize-BaselineUpdateOverlay
 	param ()
 
 	if (-not $Script:CustomPBarContainer -or -not $Script:UpdateDialogOverlay) { return }
+	$writeOverlayDebug = if ($Script:WriteBaselineUpdateOverlayDebugScript -is [scriptblock]) { $Script:WriteBaselineUpdateOverlayDebugScript } else { { param([string]$Message) } }
+	$updateDialogOverlay = $Script:UpdateDialogOverlay
+	& $writeOverlayDebug 'Initialize-BaselineUpdateOverlay started.'
 
-	Ensure-SheenProgressBarType
-
-	$sharedProgress = New-SharedProgressBarHost -Maximum 100 -Value 0
-	$windowsFormsHost = $sharedProgress.Host
-	$progressBar = $sharedProgress.ProgressBar
+	$progressBar = New-Object System.Windows.Controls.ProgressBar
+	$progressBar.Minimum = 0
+	$progressBar.Maximum = 100
+	$progressBar.Value = 0
+	$progressBar.Height = 10
+	$progressBar.BorderThickness = [System.Windows.Thickness]::new(0)
+	$progressBar.IsHitTestVisible = $false
+	$progressBar.Focusable = $false
 	$Script:CustomProgressBar = $progressBar
-	$Script:CustomProgressHost = $windowsFormsHost
-	$Script:CustomPBarContainer.Child = $windowsFormsHost
+	$Script:CustomProgressHost = $progressBar
+	$Script:CustomPBarContainer.Child = $progressBar
+	$customProgressBar = $progressBar
+	if (-not $Script:UpdateOverlayState)
+	{
+		$Script:UpdateOverlayState = [hashtable]::Synchronized(@{
+			PrimaryAction = $null
+			SecondaryAction = $null
+			PrimaryCloses = $false
+			SecondaryCloses = $true
+		})
+	}
+
+	$overlayState = $Script:UpdateOverlayState
+	$closeOverlayDirect = {
+		param($eventArgs, [string]$Source = 'Direct')
+
+		& $writeOverlayDebug ("Close requested via {0}; primaryCloses={1}; secondaryCloses={2}; overlayVisible={3}" -f $Source, [bool]$overlayState.PrimaryCloses, [bool]$overlayState.SecondaryCloses, $(if ($updateDialogOverlay) { [string]$updateDialogOverlay.Visibility } else { '<missing>' }))
+
+		if ($eventArgs -and $eventArgs.PSObject.Properties['Handled'])
+		{
+			try { $eventArgs.Handled = $true } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DirectClose.MarkHandled' }
+		}
+		$overlayState.PrimaryCloses = $false
+		$overlayState.PrimaryAction = $null
+		$overlayState.SecondaryCloses = $true
+		$Script:UpdateOverlayPrimaryClickAction = $null
+		$Script:UpdateCheckPrimaryClickEvent = $null
+		$Script:UpdateCheckSecondaryClickEvent = $null
+		if ($customProgressBar)
+		{
+			$customProgressBar.IsIndeterminate = $false
+			$customProgressBar.Value = 0
+		}
+		if ($updateDialogOverlay)
+		{
+			$updateDialogOverlay.Visibility = [System.Windows.Visibility]::Collapsed
+			$updateDialogOverlay.IsHitTestVisible = $false
+		}
+		& $writeOverlayDebug 'Overlay collapsed by direct close.'
+	}.GetNewClosure()
+
+	if ($Script:BtnDownloadYes -and -not $Script:UpdateOverlayPrimaryClickEvent)
+	{
+		$Script:UpdateOverlayPrimaryClickEvent = {
+			param($sender, $eventArgs)
+
+			if ([bool]$overlayState.PrimaryCloses)
+			{
+				& $closeOverlayDirect $eventArgs 'PrimaryClick'
+				return
+			}
+
+			& $writeOverlayDebug 'Primary click routed to primary action.'
+			$action = $overlayState.PrimaryAction
+			if ($action) { & $action $sender $eventArgs }
+		}.GetNewClosure()
+		$Script:BtnDownloadYes.Add_Click($Script:UpdateOverlayPrimaryClickEvent)
+	}
+	if ($Script:BtnDownloadYes -and -not $Script:UpdateOverlayPrimaryPreviewMouseDownEvent)
+	{
+		$Script:UpdateOverlayPrimaryPreviewMouseDownEvent = {
+			param($sender, $eventArgs)
+
+			& $writeOverlayDebug ("Primary preview mouse down; primaryCloses={0}" -f [bool]$overlayState.PrimaryCloses)
+			if ([bool]$overlayState.PrimaryCloses)
+			{
+				& $closeOverlayDirect $eventArgs 'PrimaryPreviewMouseDown'
+			}
+		}.GetNewClosure()
+		$Script:BtnDownloadYes.Add_PreviewMouseLeftButtonDown($Script:UpdateOverlayPrimaryPreviewMouseDownEvent)
+	}
+	if ($Script:BtnDownloadYes -and -not $Script:UpdateOverlayPrimaryPreviewMouseUpEvent)
+	{
+		$Script:UpdateOverlayPrimaryPreviewMouseUpEvent = {
+			param($sender, $eventArgs)
+
+			& $writeOverlayDebug ("Primary preview mouse up; primaryCloses={0}" -f [bool]$overlayState.PrimaryCloses)
+			if ([bool]$overlayState.PrimaryCloses)
+			{
+				& $closeOverlayDirect $eventArgs 'PrimaryPreviewMouseUp'
+			}
+		}.GetNewClosure()
+		$Script:BtnDownloadYes.Add_PreviewMouseLeftButtonUp($Script:UpdateOverlayPrimaryPreviewMouseUpEvent)
+	}
+	if ($updateDialogOverlay -and -not $Script:UpdateOverlayPreviewMouseDownEvent)
+	{
+		$Script:UpdateOverlayPreviewMouseDownEvent = {
+			param($sender, $eventArgs)
+
+			& $writeOverlayDebug ("Overlay preview mouse down; primaryCloses={0}" -f [bool]$overlayState.PrimaryCloses)
+			if ([bool]$overlayState.PrimaryCloses)
+			{
+				& $closeOverlayDirect $eventArgs 'OverlayPreviewMouseDown'
+			}
+		}.GetNewClosure()
+		$updateDialogOverlay.Add_PreviewMouseLeftButtonDown($Script:UpdateOverlayPreviewMouseDownEvent)
+	}
+	if ($updateDialogOverlay -and -not $Script:UpdateOverlayPreviewMouseUpEvent)
+	{
+		$Script:UpdateOverlayPreviewMouseUpEvent = {
+			param($sender, $eventArgs)
+
+			& $writeOverlayDebug ("Overlay preview mouse up; primaryCloses={0}" -f [bool]$overlayState.PrimaryCloses)
+			if ([bool]$overlayState.PrimaryCloses)
+			{
+				& $closeOverlayDirect $eventArgs 'OverlayPreviewMouseUp'
+			}
+		}.GetNewClosure()
+		$updateDialogOverlay.Add_PreviewMouseLeftButtonUp($Script:UpdateOverlayPreviewMouseUpEvent)
+	}
+	if ($Script:BtnDownloadNo -and -not $Script:UpdateOverlaySecondaryClickEvent)
+	{
+		$Script:UpdateOverlaySecondaryClickEvent = {
+			param($sender, $eventArgs)
+
+			if ([bool]$overlayState.SecondaryCloses)
+			{
+				& $closeOverlayDirect $eventArgs 'SecondaryClick'
+				return
+			}
+
+			& $writeOverlayDebug 'Secondary click routed to secondary action.'
+			$action = $overlayState.SecondaryAction
+			if ($action) { & $action $sender $eventArgs }
+		}.GetNewClosure()
+		$Script:BtnDownloadNo.Add_Click($Script:UpdateOverlaySecondaryClickEvent)
+	}
+	& $writeOverlayDebug 'Initialize-BaselineUpdateOverlay completed.'
 }
+
+function Write-BaselineUpdateOverlayDebug
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$Message
+	)
+
+	$envDebug = [System.Environment]::GetEnvironmentVariable('BASELINE_UPDATE_OVERLAY_DEBUG')
+	$envEnabled = (-not [string]::IsNullOrWhiteSpace($envDebug)) -and $envDebug -notin @('0', 'false', 'False', 'off', 'Off')
+	$debugEnabled = $envEnabled
+	if (-not $debugEnabled -and (Get-Command -Name 'Get-BaselineDebugLogging' -CommandType Function -ErrorAction SilentlyContinue))
+	{
+		try { $debugEnabled = [bool](Get-BaselineDebugLogging) } catch { $debugEnabled = $false }
+	}
+	if (-not $debugEnabled) { return }
+
+	$line = '[UpdateOverlay] {0}' -f $Message
+	try { LogDebug $line } catch { $null = $_ }
+	try
+	{
+		$base = if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) { [System.IO.Path]::GetTempPath() } else { $env:LOCALAPPDATA }
+		$dir = Join-Path $base 'Temp\Baseline'
+		if (-not (Test-Path -LiteralPath $dir)) { [void](New-Item -ItemType Directory -Path $dir -Force) }
+		$path = Join-Path $dir 'update-overlay-debug.log'
+		[System.IO.File]::AppendAllText($path, ('{0} {1}{2}' -f (Get-Date).ToString('o'), $line, [Environment]::NewLine), [System.Text.Encoding]::UTF8)
+	}
+	catch
+	{
+		$null = $_
+	}
+}
+$Script:WriteBaselineUpdateOverlayDebugScript = ${function:Write-BaselineUpdateOverlayDebug}
 
 <#
     .SYNOPSIS
@@ -38,17 +205,34 @@ function Show-BaselineUpdateOverlay
 		[string]$SecondaryButtonText = (Get-UxLocalizedString -Key 'GuiCloseButton' -Fallback 'Cancel'),
 		[bool]$ShowButtons = $true,
 		[bool]$ShowProgressPct = $true,
+		[bool]$PrimaryButtonCloses = $false,
+		[bool]$SecondaryButtonCloses = $true,
 		[switch]$Indeterminate
 	)
 
+	$writeOverlayDebug = if ($Script:WriteBaselineUpdateOverlayDebugScript -is [scriptblock]) { $Script:WriteBaselineUpdateOverlayDebugScript } else { { param([string]$Message) } }
 	if ($Script:UpdateDialogOverlay)
 	{
 		$Script:UpdateDialogOverlay.Visibility = [System.Windows.Visibility]::Visible
+		$Script:UpdateDialogOverlay.IsHitTestVisible = $true
 	}
+	& $writeOverlayDebug ("Show overlay: title='{0}'; primary='{1}'; showButtons={2}; primaryCloses={3}; secondaryCloses={4}" -f $Title, $PrimaryButtonText, [bool]$ShowButtons, [bool]$PrimaryButtonCloses, [bool]$SecondaryButtonCloses)
 	if ($Script:CustomProgressBar)
 	{
 		$Script:CustomProgressBar.IsIndeterminate = [bool]$Indeterminate
 		$Script:CustomProgressBar.Value = 0
+	}
+	if ($Script:UpdateOverlayState)
+	{
+		$Script:UpdateOverlayState.PrimaryCloses = [bool]$PrimaryButtonCloses
+		$Script:UpdateOverlayState.SecondaryCloses = [bool]$SecondaryButtonCloses
+		if ($PrimaryButtonCloses)
+		{
+			$primaryCloseAction = New-BaselineUpdateOverlayCloseAction
+			$Script:UpdateOverlayState.PrimaryAction = $primaryCloseAction
+			$Script:UpdateOverlayPrimaryClickAction = $primaryCloseAction
+			$Script:UpdateCheckPrimaryClickEvent = $primaryCloseAction
+		}
 	}
 	if ($Script:TxtOverlayTitle) { $Script:TxtOverlayTitle.Text = [string]$Title }
 	if ($Script:TxtUpdateDescription) { $Script:TxtUpdateDescription.Text = [string]$Description }
@@ -63,6 +247,12 @@ function Show-BaselineUpdateOverlay
 		$Script:BtnDownloadYes.Content = [string]$PrimaryButtonText
 		$Script:BtnDownloadYes.Visibility = if ($ShowButtons) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
 		$Script:BtnDownloadYes.IsEnabled = [bool]$ShowButtons
+		$Script:BtnDownloadYes.IsDefault = $false
+		$Script:BtnDownloadYes.IsCancel = $false
+		if ($PrimaryButtonCloses)
+		{
+			try { [void]$Script:BtnDownloadYes.Focus() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.ShowOverlay.FocusPrimaryClose' }
+		}
 	}
 	if ($Script:BtnDownloadNo)
 	{
@@ -70,6 +260,48 @@ function Show-BaselineUpdateOverlay
 		$Script:BtnDownloadNo.Visibility = if ($ShowButtons) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
 		$Script:BtnDownloadNo.IsEnabled = [bool]$ShowButtons
 	}
+}
+
+function New-BaselineUpdateOverlayCloseAction
+{
+	[CmdletBinding()]
+	[OutputType([scriptblock])]
+	param ()
+
+	$writeOverlayDebug = if ($Script:WriteBaselineUpdateOverlayDebugScript -is [scriptblock]) { $Script:WriteBaselineUpdateOverlayDebugScript } else { { param([string]$Message) } }
+	$updateDialogOverlay = $Script:UpdateDialogOverlay
+	$customProgressBar = $Script:CustomProgressBar
+	$overlayState = $Script:UpdateOverlayState
+	$downloadStartEvent = $Script:DownloadStartEvent
+	return {
+		param($sender, $eventArgs)
+
+		if ($eventArgs -and $eventArgs.PSObject.Properties['Handled'])
+		{
+			try { $eventArgs.Handled = $true } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.CloseAction.MarkHandled' }
+		}
+		& $writeOverlayDebug ("Close action invoked; overlayVisible={0}" -f $(if ($updateDialogOverlay) { [string]$updateDialogOverlay.Visibility } else { '<missing>' }))
+
+		$Script:UpdateCheckPrimaryClickEvent = $null
+		$Script:UpdateCheckSecondaryClickEvent = $null
+		$Script:UpdateOverlayPrimaryClickAction = $downloadStartEvent
+		if ($overlayState)
+		{
+			$overlayState.PrimaryCloses = $false
+			$overlayState.PrimaryAction = $downloadStartEvent
+		}
+		if ($customProgressBar)
+		{
+			$customProgressBar.IsIndeterminate = $false
+			$customProgressBar.Value = 0
+		}
+		if ($updateDialogOverlay)
+		{
+			$updateDialogOverlay.Visibility = [System.Windows.Visibility]::Collapsed
+			$updateDialogOverlay.IsHitTestVisible = $false
+		}
+		& $writeOverlayDebug 'Overlay collapsed by close action.'
+	}.GetNewClosure()
 }
 
 <#
@@ -81,6 +313,8 @@ function Show-BaselineUpdateCheckDialog
 	[CmdletBinding()]
 	param ()
 
+	$writeOverlayDebug = if ($Script:WriteBaselineUpdateOverlayDebugScript -is [scriptblock]) { $Script:WriteBaselineUpdateOverlayDebugScript } else { { param([string]$Message) } }
+	& $writeOverlayDebug 'Show-BaselineUpdateCheckDialog started.'
 	$title = (Get-UxLocalizedString -Key 'GuiUpdateDialogTitle' -Fallback 'Update Baseline')
 	$checkingDescription = (Get-UxLocalizedString -Key 'GuiUpdateCheckDescription' -Fallback 'Checking GitHub releases for a newer Baseline version.')
 	$checkingStatus = (Get-UxLocalizedString -Key 'GuiUpdateCheckStatus' -Fallback 'Checking for updates...')
@@ -95,15 +329,7 @@ function Show-BaselineUpdateCheckDialog
 	$offlineStatus = (Get-UxLocalizedString -Key 'GuiUpdateCheckOfflineStatus' -Fallback 'Skipped (offline).')
 	$releasePageUrl = 'https://github.com/sdmanson8/Baseline/releases/latest'
 	$currentVersion = '0.0.0'
-	$hideBaselineUpdateOverlayCommand = Get-GuiRuntimeCommand -Name 'Hide-BaselineUpdateOverlay' -CommandType 'Function'
-	$hideBaselineUpdateOverlayAction = {
-		if ($hideBaselineUpdateOverlayCommand)
-		{
-			try { & $hideBaselineUpdateOverlayCommand } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.HideUpdateOverlayCommand' }
-		}
-
-		Hide-BaselineUpdateOverlay
-	}.GetNewClosure()
+	$hideBaselineUpdateOverlayAction = New-BaselineUpdateOverlayCloseAction
 	$showSingleCloseButton = {
 		if ($Script:BtnDownloadNo)
 		{
@@ -116,39 +342,36 @@ function Show-BaselineUpdateCheckDialog
 
 		if (-not $Script:BtnDownloadYes) { return }
 
-		if ($Script:UpdateCheckPrimaryClickEvent)
-		{
-			try { $Script:BtnDownloadYes.Remove_Click($Script:UpdateCheckPrimaryClickEvent) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckPrimaryClickEvent' }
-			$Script:UpdateCheckPrimaryClickEvent = $null
-		}
-		if ($Script:DownloadStartEvent)
-		{
-			try { $Script:BtnDownloadYes.Remove_Click($Script:DownloadStartEvent) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveDownloadStartEvent' }
-		}
-		if ($Script:DownloadExtractEvent)
-		{
-			try { $Script:BtnDownloadYes.Remove_Click($Script:DownloadExtractEvent) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveDownloadExtractEvent' }
-		}
-
 		$Script:UpdateCheckPrimaryClickEvent = $Handler.GetNewClosure()
-		$Script:BtnDownloadYes.Add_Click($Script:UpdateCheckPrimaryClickEvent)
+		$Script:UpdateOverlayPrimaryClickAction = $Script:UpdateCheckPrimaryClickEvent
+		if ($Script:UpdateOverlayState)
+		{
+			$Script:UpdateOverlayState.PrimaryCloses = $false
+			$Script:UpdateOverlayState.PrimaryAction = $Script:UpdateCheckPrimaryClickEvent
+		}
 	}
 	$setUpdateCheckCloseClickEvent = {
 		param ([scriptblock]$Handler)
 
 		if (-not $Script:BtnDownloadNo) { return }
 
-		if ($Script:UpdateCheckSecondaryClickEvent)
-		{
-			try { $Script:BtnDownloadNo.Remove_Click($Script:UpdateCheckSecondaryClickEvent) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveUpdateCheckSecondaryClickEvent' }
-			$Script:UpdateCheckSecondaryClickEvent = $null
-		}
-
 		$Script:UpdateCheckSecondaryClickEvent = $Handler.GetNewClosure()
-		$Script:BtnDownloadNo.Add_Click($Script:UpdateCheckSecondaryClickEvent)
+		$Script:UpdateOverlaySecondaryClickAction = $Script:UpdateCheckSecondaryClickEvent
+		if ($Script:UpdateOverlayState)
+		{
+			$Script:UpdateOverlayState.SecondaryCloses = $true
+			$Script:UpdateOverlayState.SecondaryAction = $Script:UpdateCheckSecondaryClickEvent
+		}
 	}
 	$wireCloseButtons = {
-		& $setUpdateCheckPrimaryClickEvent $hideBaselineUpdateOverlayAction
+		& $writeOverlayDebug 'Wiring single close button actions.'
+		$Script:UpdateCheckPrimaryClickEvent = $hideBaselineUpdateOverlayAction.GetNewClosure()
+		$Script:UpdateOverlayPrimaryClickAction = $Script:UpdateCheckPrimaryClickEvent
+		if ($Script:UpdateOverlayState)
+		{
+			$Script:UpdateOverlayState.PrimaryCloses = $true
+			$Script:UpdateOverlayState.PrimaryAction = $Script:UpdateCheckPrimaryClickEvent
+		}
 		& $setUpdateCheckCloseClickEvent $hideBaselineUpdateOverlayAction
 	}
 
@@ -182,10 +405,11 @@ function Show-BaselineUpdateCheckDialog
 			$releasePageUrl = Get-BaselineUpdateReleasePageUrl -Branch $updateBranch
 		}
 		$checkResult = Invoke-BaselineUpdateCheck -CurrentVersion $currentVersion -UpdateBranch $updateBranch -IncludePrerelease:$includePrerelease
+		& $writeOverlayDebug ("Update check completed: status='{0}'; updateAvailable={1}; latest='{2}'" -f [string]$checkResult.Status, [bool]$checkResult.IsUpdateAvailable, [string]$checkResult.LatestVersion)
 		$release = $checkResult.Release
 		if ([string]$checkResult.Status -eq 'Skipped (offline)')
 		{
-			Show-BaselineUpdateOverlay -Title $title -Description $offlineDescription -StatusText $offlineStatus -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
+			Show-BaselineUpdateOverlay -Title $title -Description $offlineDescription -StatusText $offlineStatus -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false -PrimaryButtonCloses:$true
 			& $showSingleCloseButton
 			& $wireCloseButtons
 			return
@@ -193,7 +417,7 @@ function Show-BaselineUpdateCheckDialog
 		if ([string]$checkResult.Status -eq 'Failed')
 		{
 			$errorStatus = if ([string]::IsNullOrWhiteSpace([string]$checkResult.Message)) { $errorDescription } else { [string]$checkResult.Message }
-			Show-BaselineUpdateOverlay -Title $title -Description $errorDescription -StatusText $errorStatus -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
+			Show-BaselineUpdateOverlay -Title $title -Description $errorDescription -StatusText $errorStatus -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false -PrimaryButtonCloses:$true
 			& $showSingleCloseButton
 			& $wireCloseButtons
 			return
@@ -201,7 +425,7 @@ function Show-BaselineUpdateCheckDialog
 		if (-not $release -or -not [bool]$checkResult.IsUpdateAvailable)
 		{
 			$latestText = if ([string]::IsNullOrWhiteSpace([string]$checkResult.LatestVersion)) { [string]$currentVersion } else { [string]$checkResult.LatestVersion }
-			Show-BaselineUpdateOverlay -Title $title -Description $upToDateDescription -StatusText ($upToDateStatus -f $latestText) -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
+			Show-BaselineUpdateOverlay -Title $title -Description $upToDateDescription -StatusText ($upToDateStatus -f $latestText) -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false -PrimaryButtonCloses:$true
 			& $showSingleCloseButton
 			& $wireCloseButtons
 			return
@@ -229,7 +453,7 @@ function Show-BaselineUpdateCheckDialog
 		{
 			$availableDescription = (Get-UxLocalizedString -Key 'GuiUpdateCheckAvailableDescription' -Fallback 'A newer version of Baseline is available on GitHub Releases.') -f $latestTag
 			$availableStatus = (Get-UxLocalizedString -Key 'GuiUpdateCheckAvailableStatus' -Fallback 'Update available: {0}.') -f $latestTag
-			Show-BaselineUpdateOverlay -Title $title -Description $availableDescription -StatusText $availableStatus -PrimaryButtonText $openReleaseLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
+			Show-BaselineUpdateOverlay -Title $title -Description $availableDescription -StatusText $availableStatus -PrimaryButtonText $openReleaseLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false -PrimaryButtonCloses:$false
 			& $setUpdateCheckPrimaryClickEvent {
 				try
 				{
@@ -245,13 +469,14 @@ function Show-BaselineUpdateCheckDialog
 			return
 		}
 
-		Show-BaselineUpdateOverlay -Title $title -Description $errorDescription -StatusText ($availableStatus -f $latestTag) -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
+		Show-BaselineUpdateOverlay -Title $title -Description $errorDescription -StatusText ($availableStatus -f $latestTag) -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false -PrimaryButtonCloses:$true
 		& $showSingleCloseButton
 		& $wireCloseButtons
 	}
 	catch
 	{
-		Show-BaselineUpdateOverlay -Title $title -Description $errorDescription -StatusText $_.Exception.Message -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false
+		& $writeOverlayDebug ("Update check failed: {0}" -f $_.Exception.Message)
+		Show-BaselineUpdateOverlay -Title $title -Description $errorDescription -StatusText $_.Exception.Message -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false -PrimaryButtonCloses:$true
 		& $showSingleCloseButton
 		& $wireCloseButtons
 	}
@@ -278,10 +503,8 @@ function Hide-BaselineUpdateOverlay
 	[CmdletBinding()]
 	param ()
 
-	if ($Script:UpdateDialogOverlay)
-	{
-		$Script:UpdateDialogOverlay.Visibility = [System.Windows.Visibility]::Collapsed
-	}
+	$closeAction = New-BaselineUpdateOverlayCloseAction
+	& $closeAction
 }
 
 <#
@@ -401,13 +624,11 @@ function Start-BaselineDownload
 			if ($Script:BtnDownloadYes) { $Script:BtnDownloadYes.IsEnabled = $true }
 			if ($Script:BtnDownloadNo) { $Script:BtnDownloadNo.IsEnabled = $true }
 
-			if ($Script:BtnDownloadYes -and $Script:DownloadStartEvent)
+			$Script:UpdateOverlayPrimaryClickAction = $Script:DownloadExtractEvent
+			if ($Script:UpdateOverlayState)
 			{
-				try { $Script:BtnDownloadYes.Remove_Click($Script:DownloadStartEvent) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.RemoveDownloadStartEvent' }
-			}
-			if ($Script:BtnDownloadYes -and $Script:DownloadExtractEvent)
-			{
-				$Script:BtnDownloadYes.Add_Click($Script:DownloadExtractEvent)
+				$Script:UpdateOverlayState.PrimaryCloses = $false
+				$Script:UpdateOverlayState.PrimaryAction = $Script:DownloadExtractEvent
 			}
 
 			try { $ps.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposePowerShell' }

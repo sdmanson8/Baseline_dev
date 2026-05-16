@@ -29,7 +29,7 @@ function DiskCleanup
 	$null = Invoke-BaselineProcess `
 		-FilePath 'powershell.exe' `
 		-ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ScriptPath) `
-		-TimeoutSeconds 7200
+		-TimeoutSeconds 3000
 	LogInfo "Disk cleanup child script completed"
 	Write-ConsoleStatus -Status success
 }

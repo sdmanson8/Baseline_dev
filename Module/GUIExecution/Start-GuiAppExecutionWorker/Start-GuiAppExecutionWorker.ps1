@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Start-GuiAppExecutionWorker in Module\GUIExecution.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 $worker = [powershell]::Create().AddScript({
 		$bgTracePath = Join-Path $env:TEMP 'Baseline-AppWorker-trace.txt'
 		function Write-BgTrace
@@ -69,6 +67,12 @@ $worker = [powershell]::Create().AddScript({
 		try
 		{
 			$Global:GUIMode = $true
+			if ([string]::IsNullOrWhiteSpace([string]$bgOperationMode))
+			{
+				$bgOperationMode = 'ReadWrite'
+			}
+			$Global:BaselineOperationMode = [string]$bgOperationMode
+			[System.Environment]::SetEnvironmentVariable('BASELINE_OPERATION_MODE', [string]$bgOperationMode, [System.EnvironmentVariableTarget]::Process)
 			$Script:RunState = $runState
 			Write-BgTrace "GUIMode set, RunState assigned"
 
@@ -80,13 +84,13 @@ $worker = [powershell]::Create().AddScript({
 			Write-BgTrace ("bgHelperPath={0} exists={1}" -f $bgHelperPath, (Test-Path $bgHelperPath))
 			Write-BgTrace ("bgJsonHelperPath={0} exists={1}" -f $bgJsonHelperPath, (Test-Path $bgJsonHelperPath))
 			# Import-BaselineLocalization calls ConvertFrom-BaselineJson, which
-			# lives in Json.Helpers.ps1. It must be dot-sourced FIRST, otherwise
+			# lives in Json.Helpers.ps1. It must be available first, otherwise
 			# the worker dies with "CommandNotFoundException: ConvertFrom-BaselineJson"
 			# before reaching Invoke-ApplicationAction.
 			. $bgJsonHelperPath
-			Write-BgTrace "dot-sourced Json.Helpers"
+			Write-BgTrace "Json.Helpers ready"
 			. $bgHelperPath
-			Write-BgTrace "dot-sourced Localization.Helpers"
+			Write-BgTrace "Localization.Helpers ready"
 			$Global:Localization = Import-BaselineLocalization -BaseDirectory $bgLocDir -UICulture $bgUICulture
 			Write-BgTrace "Import-BaselineLocalization done"
 			[void](Set-BaselineThreadCulture -UICulture $bgUICulture)
@@ -99,6 +103,10 @@ $worker = [powershell]::Create().AddScript({
 				Write-BgTrace "Import-Module Applications.psm1 START"
 				$Global:LogFilePath = $bgLogFilePath
 				Import-Module $bgLoaderPath -Force -Global -ErrorAction Stop
+				if (Get-Command -Name Set-BaselineOperationMode -ErrorAction SilentlyContinue)
+				{
+					Set-BaselineOperationMode -Mode ([string]$bgOperationMode)
+				}
 				Write-BgTrace "Import-Module Applications.psm1 DONE"
 			}
 			catch
@@ -134,6 +142,7 @@ $worker = [powershell]::Create().AddScript({
 				-UICulture $bgUICulture `
 				-LogFilePath $bgLogFilePath `
 				-LogMode $bgLogMode `
+				-OperationMode $bgOperationMode `
 				-LogQueue $(if ($Script:RunState) { $Script:RunState['LogQueue'] } else { $null })
 
 			try
@@ -229,6 +238,7 @@ $worker = [powershell]::Create().AddScript({
 								-UICulture $bgUICulture `
 								-LogFilePath $bgLogFilePath `
 								-LogMode $bgLogMode `
+								-OperationMode $bgOperationMode `
 								-LogQueue $(if ($Script:RunState) { $Script:RunState['LogQueue'] } else { $null })
 						}
 
@@ -266,6 +276,7 @@ $worker = [powershell]::Create().AddScript({
 									-UICulture $bgUICulture `
 									-LogFilePath $bgLogFilePath `
 									-LogMode $bgLogMode `
+									-OperationMode $bgOperationMode `
 									-LogQueue $(if ($Script:RunState) { $Script:RunState['LogQueue'] } else { $null })
 							}
 

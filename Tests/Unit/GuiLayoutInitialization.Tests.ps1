@@ -14,7 +14,7 @@ BeforeAll {
 }
 
 Describe 'GUI layout sharing' {
-    It 'defines a guarded GUI font-size resolver before extracted GUI scripts load' {
+    It 'defines a guarded GUI font-size resolver before GUI scripts load' {
         $guiContent | Should -Match 'function Get-GuiSafeFontSize'
         $guiContent | Should -Match '\$Script:GuiFontSizeWarnings\s*='
     }
@@ -30,7 +30,7 @@ Describe 'GUI layout sharing' {
         $guiCommonContent | Should -Match "'Get-GuiLayout'"
     }
 
-    It 'initializes GuiLayout before dot-sourcing extracted GUI scripts' {
+    It 'initializes GuiLayout before loading GUI scripts' {
         $layoutAssignment = [regex]::Match($guiContent, '\$Script:GuiLayout\s*=\s*GUICommon\\Get-GuiLayout')
         $firstExtractedScriptLoad = [regex]::Match($guiContent, '\.\s+\(Join-Path\s+\$Script:GuiExtractedRoot\s+''[^'']+\.ps1''\)')
 

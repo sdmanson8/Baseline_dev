@@ -1,4 +1,3 @@
-﻿# ActionHandlers split file loaded by Module\GUI\ActionHandlers.ps1.
 
 	#region Theme toggle handler
 	Register-GuiEventHandler -Source $ChkTheme -EventName 'Checked' -Handler ({

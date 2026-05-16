@@ -10,7 +10,6 @@
 # Back-end helpers only; the manifest integration that exposes the toggles
 # in OS Hardening is implemented in a separate slice.
 #
-# Surface split:
 #   * "Registry settings" -- a flat catalog of (path, name, type, value)
 #     records that get applied via a single bulk apply / restore primitive.
 #     Each setting backs its prior value up to a Baseline-owned key so the

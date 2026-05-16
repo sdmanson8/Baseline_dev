@@ -29,7 +29,7 @@ function Get-NewBadgeAddedInVersionsMap
 	$dataPath = $null
 	if ($Script:GuiExtractedRoot)
 	{
-		# Module/Data is a sibling of Module/GUI in the extracted layout.
+		# Module/Data is a sibling of Module/GUI in the runtime layout.
 		$candidate = Join-Path (Split-Path -Path $Script:GuiExtractedRoot -Parent) 'Data\AddedInVersions.json'
 		if (Test-Path -LiteralPath $candidate) { $dataPath = $candidate }
 	}

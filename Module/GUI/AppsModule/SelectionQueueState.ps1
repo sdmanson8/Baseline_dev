@@ -1,4 +1,3 @@
-﻿# AppsModule split file loaded by Module\GUI\AppsModule.ps1.
 
 <#
     .SYNOPSIS

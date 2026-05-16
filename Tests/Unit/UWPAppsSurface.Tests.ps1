@@ -15,8 +15,9 @@ Describe 'UWP apps picker surface' {
         $script:UwpAppsContent | Should -Match 'return \$true'
         $script:UwpAppsContent | Should -Match '\[object\]\s*\$UseDarkMode'
         $script:UwpAppsContent | Should -Match 'GUICommon\\Get-GuiBooleanValue -Value \$UseDarkMode -Default \(Resolve-UWPAppsPickerUseDarkMode\)'
-        ([regex]::Matches($script:UwpAppsContent, 'Set-UWPAppsPickerSurface -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer')).Count | Should -Be 2
-        $script:UwpAppsContent | Should -Match 'Repair-GuiThemePalette -Theme \$surfaceTheme -ThemeName'
+        $script:UwpAppsContent | Should -Match '\$setUWPAppsPickerSurface = \$\{function:Set-UWPAppsPickerSurface\}'
+        ([regex]::Matches($script:UwpAppsContent, '& \$setUWPAppsPickerSurface -Window \$Form -RootBorder \$RootBorder -PanelContainer \$PanelContainer')).Count | Should -Be 2
+        $script:UwpAppsContent | Should -Match '& \$repairGuiThemePalette -Theme \$surfaceTheme -ThemeName'
         $script:UwpAppsContent | Should -Match '\$defaultThemeColors = if \(\$resolvedUseDarkMode\)'
         $script:UwpAppsContent | Should -Match '\$getThemeColor = \{'
         $script:UwpAppsContent | Should -Match '\[void\]\$BrushConverter\.ConvertFromString\(\$value\)'

@@ -1,7 +1,6 @@
 
 # App-focused helpers used by the Baseline GUI.
 
-# P5 rollback checkpoint: AppsModule helpers are split into Module\GUI\AppsModule\*.ps1.
 # Keep this explicit order so catalog, state, and chrome helpers load before orchestration entrypoints.
 $appsModuleSplitRoot = Join-Path $PSScriptRoot 'AppsModule'
 . (Join-Path $appsModuleSplitRoot 'CatalogHelpers.ps1')
@@ -381,7 +380,6 @@ function Build-AppsViewCards
 		$Script:TxtAppsProgressText.Text = $buildProgressLabel
 	}
 
-			# P5 rollback checkpoint: Build-AppsViewCards part extracted to Module/GUI/AppsModule/Build-AppsViewCards/Build-AppsViewCards.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'AppsModule\Build-AppsViewCards\Build-AppsViewCards.ps1')
 
 	if (-not $cacheReady)

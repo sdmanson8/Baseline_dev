@@ -1,7 +1,5 @@
 
-# P5 rollback checkpoint: extracted from Show-TweakGUI in Module\Regions\GUI.psm1.
 # Purpose: first-run dependency and startup splash resolution.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 $firstRunDialogDispatcher = if ($Form -and $Form.Dispatcher) { $Form.Dispatcher } else { $null }
 	$closeLoadingSplashBlock = (Get-Item function:Close-LoadingSplashWindow -ErrorAction Stop).ScriptBlock
 	$testGuiStartupSplashLiveBlock = (Get-Item function:Test-GuiStartupSplashLive -ErrorAction Stop).ScriptBlock
@@ -71,7 +69,6 @@ $firstRunDialogDispatcher = if ($Form -and $Form.Dispatcher) { $Form.Dispatcher 
 	{
 		$startupSplashAbortWatchdog = Start-GuiStartupSplashAbortWatchdog -Splash $startupSplashHandle
 	}
-			# P5 rollback checkpoint: Show-TweakGUI part extracted to Module/GUI/Show-TweakGUI/WindowPresentation.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'WindowPresentation.ps1')
 	& $traceGuiStartup 'Startup visibility applied'
 

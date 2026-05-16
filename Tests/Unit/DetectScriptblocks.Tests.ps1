@@ -34,6 +34,14 @@ Describe 'Invoke-GuiDetectScriptblock' {
         $result | Should -Be $true
     }
 
+    It 'keeps missing object properties non-fatal for registry-style detection probes' {
+        $result = Invoke-GuiDetectScriptblock -Detect {
+            ([pscustomobject]@{}).MissingRegistryValue -ne 1
+        } -DefaultValue $false
+
+        $result | Should -Be $true
+    }
+
     It 'routes expected detection catches through Write-SwallowedException and keeps Defender probes quiet' {
         $script:DetectScriptblocksContent | Should -Match 'DetectScriptblocks\.RegistryBackup\.LoadAutoRegBackupTask'
         $script:DetectScriptblocksContent | Should -Match 'function Get-GuiDetectMpPreference'

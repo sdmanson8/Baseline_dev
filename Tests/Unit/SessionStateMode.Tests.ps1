@@ -39,10 +39,22 @@ BeforeAll {
     function Copy-GuiExplicitSelectionDefinition {
         param(
             [object]$Definition,
-            [string]$FunctionName
+            [string]$FunctionName,
+            [string]$Source = $null
         )
 
-        return $Definition
+        if (-not $Definition) { return $null }
+        $copy = [ordered]@{}
+        foreach ($property in $Definition.PSObject.Properties) {
+            $copy[$property.Name] = $property.Value
+        }
+        if (-not [string]::IsNullOrWhiteSpace($FunctionName)) {
+            $copy['Function'] = $FunctionName
+        }
+        if (-not [string]::IsNullOrWhiteSpace($Source)) {
+            $copy['Source'] = $Source
+        }
+        return [pscustomobject]$copy
     }
 }
 
@@ -124,6 +136,7 @@ Describe 'GUI session snapshots' {
         $script:PrimaryTabs = $null
         $script:SelectedLanguage = $null
         $script:CurrentPrimaryTab = $null
+        $script:SearchResultsTabTag = '__SearchResults'
         $script:SearchText = ''
         $script:AppsSearchText = ''
         $script:UIDensity = 'Compact'
@@ -197,6 +210,7 @@ Describe 'GUI session snapshots' {
         $snapshot.UIDensity | Should -Be 'Compact'
         $snapshot.AutoScanOnLaunch | Should -Be $true
         $snapshot.RestoreLastSession | Should -Be $false
+        $snapshot.DefaultStartupMode | Should -Be 'Safe'
         $snapshot.AutoCheckUpdates | Should -Be $false
         $snapshot.UpdateCheckFrequency | Should -Be 'Weekly'
         $snapshot.UpdateBranch | Should -Be 'Beta'
@@ -265,16 +279,80 @@ Describe 'GUI session snapshots' {
 
         $snapshot.Controls[0].IsChecked | Should -BeFalse
     }
+
+    It 'persists disabled selected controls when an explicit selection definition owns the state' {
+        $script:TweakManifest = @(
+            [pscustomobject]@{
+                Function = 'ExplicitToggle'
+                Type = 'Toggle'
+            }
+        )
+        $script:Controls = @(
+            [pscustomobject]@{
+                IsChecked = $true
+                IsEnabled = $false
+            }
+        )
+        $script:ExplicitPresetSelectionDefinitions['ExplicitToggle'] = [pscustomobject]@{
+            Function = 'ExplicitToggle'
+            Type = 'Toggle'
+            State = 'On'
+            Source = 'Preset'
+        }
+
+        $snapshot = Get-GuiSettingsSnapshot
+
+        $snapshot.Controls[0].IsChecked | Should -BeTrue
+        @($snapshot.ExplicitSelectionDefinitions).Count | Should -Be 1
+        $snapshot.ExplicitSelectionDefinitions[0].Function | Should -Be 'ExplicitToggle'
+    }
+
+    It 'records checked inline search result controls as session selection definitions' {
+        $script:SearchText = 'defender'
+        $script:CurrentPrimaryTab = $script:SearchResultsTabTag
+        $script:LastStandardPrimaryTab = 'Privacy'
+        $script:PrimaryTabs = [pscustomobject]@{
+            SelectedItem = [pscustomobject]@{ Tag = 'System' }
+        }
+        $script:TweakManifest = @(
+            [pscustomobject]@{
+                Function = 'SearchToggle'
+                Type = 'Toggle'
+            }
+        )
+        $script:Controls = @(
+            [pscustomobject]@{
+                IsChecked = $true
+                IsEnabled = $true
+            }
+        )
+
+        $snapshot = Get-GuiSettingsSnapshot
+
+        $snapshot.CurrentPrimaryTab | Should -Be $script:SearchResultsTabTag
+        $snapshot.LastStandardPrimaryTab | Should -Be 'Privacy'
+        @($snapshot.ExplicitSelectionDefinitions).Count | Should -Be 1
+        $snapshot.ExplicitSelectionDefinitions[0].Function | Should -Be 'SearchToggle'
+        $snapshot.ExplicitSelectionDefinitions[0].Type | Should -Be 'Toggle'
+        $snapshot.ExplicitSelectionDefinitions[0].State | Should -Be 'On'
+        $snapshot.ExplicitSelectionDefinitions[0].Source | Should -Be 'Session'
+    }
 }
 
 Describe 'GUI session restore mode wiring' {
     It 'restores Safe or Expert through Set-GuiMode instead of only script flags' {
         $script:SessionStateContent | Should -Match '\$desiredViewMode = if \(\$desiredSafe\) \{ ''Safe'' \} elseif \(\$desiredAdvanced\) \{ ''Expert'' \} else \{ ''Standard'' \}'
         $script:SessionStateContent | Should -Match 'Set-GuiMode -ViewMode \$desiredViewMode -GameMode \$desiredGameMode'
-        $script:SessionStateContent | Should -Match '\$Script:DefaultStartupMode = if \(\$desiredAdvanced\) \{ ''Expert'' \} else \{ ''Safe'' \}'
+        $script:SessionStateContent | Should -Match '\$Script:DefaultStartupMode = \$desiredDefaultStartupMode'
     }
 
-    It 'persists restored theme and startup mode preferences' {
+    It 'round-trips explicit default startup mode through session restore' {
+        $script:SessionStateContent | Should -Match 'DefaultStartupMode = \$currentDefaultStartupMode'
+        $script:SessionStateContent | Should -Match '\$desiredDefaultStartupMode = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''DefaultStartupMode''\)'
+        $script:SessionStateContent | Should -Match 'Get-BaselineUserPreference -Key ''DefaultStartupMode'' -Default ''Safe'''
+    }
+
+    It 'persists restored theme and explicit startup mode preferences' {
         $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''Theme'' -Value \$desiredTheme'
         $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''DefaultStartupMode'' -Value \$Script:DefaultStartupMode'
     }
@@ -308,6 +386,15 @@ Describe 'GUI session restore mode wiring' {
         $script:SessionStateContent | Should -Match '\$Script:SearchUiUpdating = \$true'
         $script:SessionStateContent | Should -Match "Get-Command -Name 'Sync-GuiSearchInputChrome'"
         $script:SessionStateContent | Should -Match 'Sync-GuiSearchInputChrome'
+    }
+
+    It 'replays explicit selection state after restored mode and filter preferences are in place' {
+        $preferenceRestoreIndex = $script:SessionStateContent.IndexOf("RestorePreferenceSettings.ps1")
+        $selectionRestoreIndex = $script:SessionStateContent.IndexOf("RestoreExplicitSelectionState.ps1")
+
+        $preferenceRestoreIndex | Should -BeGreaterThan -1
+        $selectionRestoreIndex | Should -BeGreaterThan -1
+        $selectionRestoreIndex | Should -BeGreaterThan $preferenceRestoreIndex
     }
 
     It 'restores UI density without forcing a system scan' {

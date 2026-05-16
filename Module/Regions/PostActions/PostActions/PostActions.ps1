@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from PostActions in Module\Regions\PostActions.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 try
 	{
 	#region Refresh Environment
@@ -66,33 +64,34 @@ public static void PostMessage()
 	#endregion Refresh Environment
 
 	#region Other actions
-	# Rebuild Local Group Policy data if this run generated LGPO input files.
 	# Apply policies found in registry to re-build database database because gpedit.msc relies in its own database
-	if ((Test-Path -Path "$env:TEMP\Computer.txt") -or (Test-Path -Path "$env:TEMP\User.txt"))
+	$computerPolicyFile = Join-Path $env:TEMP 'Computer.txt'
+	$userPolicyFile = Join-Path $env:TEMP 'User.txt'
+	if ((Test-Path -LiteralPath $computerPolicyFile) -or (Test-Path -LiteralPath $userPolicyFile))
 	{
 		Invoke-PostActionStep -Action "Applying Local Group Policy updates" -ScriptBlock {
-			$lgpoPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '..\Binaries\LGPO.exe'
+			$baselinePolicyToolPath = Resolve-BaselinePolicyToolPath
 
-			if (Test-Path -Path "$env:TEMP\Computer.txt")
+			if (Test-Path -LiteralPath $computerPolicyFile)
 			{
 				LogInfo "Importing Local Group Policy computer settings"
-				Invoke-PostActionProcess -FilePath $lgpoPath `
-					-ArgumentList @('/t', "$env:TEMP\Computer.txt") `
-					-Description 'LGPO import for Computer.txt' `
+				Invoke-PostActionProcess -FilePath $baselinePolicyToolPath `
+					-ArgumentList @('/t', $computerPolicyFile) `
+					-Description 'Baseline policy import for Computer.txt' `
 					-TimeoutSeconds 120 `
-					-StandardOutputPath "$env:TEMP\LGPOOutput.txt" `
-					-StandardErrorPath "$env:TEMP\LGPOError.txt"
+					-StandardOutputPath "$env:TEMP\BaselinePolicyOutput.txt" `
+					-StandardErrorPath "$env:TEMP\BaselinePolicyError.txt"
 			}
 
-			if (Test-Path -Path "$env:TEMP\User.txt")
+			if (Test-Path -LiteralPath $userPolicyFile)
 			{
 				LogInfo "Importing Local Group Policy user settings"
-				Invoke-PostActionProcess -FilePath $lgpoPath `
-					-ArgumentList @('/t', "$env:TEMP\User.txt") `
-					-Description 'LGPO import for User.txt' `
+				Invoke-PostActionProcess -FilePath $baselinePolicyToolPath `
+					-ArgumentList @('/t', $userPolicyFile) `
+					-Description 'Baseline policy import for User.txt' `
 					-TimeoutSeconds 120 `
-					-StandardOutputPath "$env:TEMP\LGPOOutput.txt" `
-					-StandardErrorPath "$env:TEMP\LGPOError.txt"
+					-StandardOutputPath "$env:TEMP\BaselinePolicyOutput.txt" `
+					-StandardErrorPath "$env:TEMP\BaselinePolicyError.txt"
 			}
 
 			LogInfo $Localization.GPOUpdate
@@ -107,7 +106,13 @@ public static void PostMessage()
 
 	# PowerShell 5.1 (7.5 too) interprets 8.3 file name literally, if an environment variable contains a non-Latin word
 	# https://github.com/PowerShell/PowerShell/issues/21070
-	Get-ChildItem -Path "$env:TEMP\Computer.txt", "$env:TEMP\User.txt" -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue | Out-Null
+	foreach ($temporaryPolicyFile in @((Join-Path $env:TEMP 'Computer.txt'), (Join-Path $env:TEMP 'User.txt')))
+	{
+		if (Test-Path -LiteralPath $temporaryPolicyFile)
+		{
+			Remove-Item -LiteralPath $temporaryPolicyFile -Force -ErrorAction SilentlyContinue
+		}
+	}
 
 	Invoke-PostActionStep -Action "Restarting Explorer shell" -ScriptBlock {
 		# Kill all explorer instances in case "launch folder windows in a separate process" enabled

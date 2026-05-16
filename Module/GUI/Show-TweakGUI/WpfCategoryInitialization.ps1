@@ -1,7 +1,5 @@
 
-# P5 rollback checkpoint: extracted from Show-TweakGUI in Module\Regions\GUI.psm1.
 # Purpose: WPF loading and category/index initialization.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 	Add-Type -AssemblyName System.Windows.Forms, System.Drawing, WindowsFormsIntegration
 
@@ -32,7 +30,6 @@ Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 	{
 		try { $Script:GuiModuleBasePath = Split-Path -Parent (Split-Path -Parent $PSScriptRoot) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Regions.GUI.ResolveModuleBase.PSScriptRoot' }
 	}
-			# P5 rollback checkpoint: Show-TweakGUI part extracted to Module/GUI/Show-TweakGUI/ModulePathResolution.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'ModulePathResolution.ps1')
 
 	if (-not [string]::IsNullOrWhiteSpace([string]$Script:GuiModuleBasePath))
@@ -56,10 +53,8 @@ Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 
 	# Map manifest categories to primary tabs
 	$CategoryToPrimary = @{}
-			# P5 rollback checkpoint: Show-TweakGUI part extracted to Module/GUI/Show-TweakGUI/CategoryPathMapping.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'CategoryPathMapping.ps1')
 	$Script:UpdatesPrimaryTabFunctions = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-			# P5 rollback checkpoint: Show-TweakGUI part extracted to Module/GUI/Show-TweakGUI/AvailabilityStateOverrides.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'AvailabilityStateOverrides.ps1')
 
 	# Ensure all manifest categories map somewhere
@@ -77,12 +72,10 @@ Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 	# scanning the full manifest for normal tab-scoped filter updates.
 	$Script:TweakSearchHaystacks = @{}
 	$Script:TweakIndicesByPrimaryTab = @{}
-			# P5 rollback checkpoint: Show-TweakGUI part extracted to Module/GUI/Show-TweakGUI/PrimaryTabTweakIndex.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'PrimaryTabTweakIndex.ps1')
 	Remove-Variable -Name __hi, __t, __owning, __sb, __p, __tags -ErrorAction SilentlyContinue
 	& $traceGuiStartup 'Search indexes ready'
 
-	# --- Phase 2 extractions (after WPF assemblies are loaded) ---
 	. (Join-Path $Script:GuiExtractedRoot 'ThemeManagement.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'IconRegistry.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'IconFactory.ps1')

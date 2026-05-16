@@ -1,4 +1,4 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/SystemTweaks/SystemTweaks.Startup.psm1'
@@ -10,7 +10,6 @@ BeforeAll {
 
     # Re-publish the module-scope tables that Get-BaselineStartupEntries reads via
     # $script:BaselineStartupRunPaths / $script:BaselineStartupFolderPaths. The AST
-    # extract above only captures function bodies, not top-level $script: assignments.
     $script:BaselineStartupRunPaths = @(
         [pscustomobject]@{ Source='HKLM\Run';     Scope='Machine';     Path='HKLM:\Software\Microsoft\Windows\CurrentVersion\Run';                ApprovedKey='HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run';   IsRunOnce=$false }
         [pscustomobject]@{ Source='HKLM\RunOnce'; Scope='Machine';     Path='HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce';            ApprovedKey=$null;                                                                              IsRunOnce=$true  }

@@ -1,4 +1,3 @@
-﻿# TweakRowFactory split file loaded by Module\GUI\TweakRowFactory.ps1.
 
 	<#
 	    .SYNOPSIS

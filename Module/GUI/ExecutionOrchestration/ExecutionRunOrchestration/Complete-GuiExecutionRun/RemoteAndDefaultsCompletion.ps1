@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Complete-GuiExecutionRun in Module\GUI\ExecutionOrchestration\ExecutionRunOrchestration.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables, throws with the original inline behavior, and bridges caller-level returns back to the parent function.
 if ($RemoteExecution)
 		{
 			$remoteLabel = if (-not [string]::IsNullOrWhiteSpace([string]$RemoteTargetLabel)) { [string]$RemoteTargetLabel } else { 'remote target' }

@@ -1,5 +1,4 @@
-﻿# ActionHandlers split file loaded by Module\GUI\ActionHandlers.ps1.
-
+﻿
 	#region Top Menu Bar handlers
 	# Menu items route to existing buttons by raising their Click event, reusing all existing logic.
 	$raiseButtonClick = {
@@ -799,7 +798,6 @@
 			& $raiseButtonClick $BtnUpdateAllApps
 		}.GetNewClosure()) | Out-Null
 	}
-
 	# Help menu
 	if ($MenuHelpHelp)
 	{
@@ -1119,8 +1117,6 @@
 	if ($MenuToolsAppsManager)         { $MenuToolsAppsManager.Header         = (Get-UxLocalizedString -Key 'GuiMenuToolsAppsManager' -Fallback 'Apps Manager') }
 	if ($MenuToolsUpdateAllApps)       { $MenuToolsUpdateAllApps.Header       = (Get-UxLocalizedString -Key 'GuiMenuToolsUpdateAllApps' -Fallback 'Update All Applications') }
 	if ($MenuToolsExportSupportBundle) { $MenuToolsExportSupportBundle.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsExportSupportBundle' -Fallback 'Export Support Bundle...') }
-	if ($MenuToolsAdvanced)            { $MenuToolsAdvanced.Header            = (Get-UxLocalizedString -Key 'GuiMenuToolsAdvanced' -Fallback 'Advanced Tools') }
-	if ($MenuToolsDeploymentMediaBuilder) { $MenuToolsDeploymentMediaBuilder.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeploymentMediaBuilder' -Fallback 'Deployment Media Builder...') }
 	if ($MenuToolsApproveRemoteTargets){ $MenuToolsApproveRemoteTargets.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsApproveRemoteTargets' -Fallback 'Approve Target List...') }
 	if ($MenuToolsSaveRemoteApprovalPolicy){ $MenuToolsSaveRemoteApprovalPolicy.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsSaveRemoteApprovalPolicy' -Fallback 'Save Remote Approval Policy...') }
 	if ($MenuToolsLoadRemoteApprovalPolicy){ $MenuToolsLoadRemoteApprovalPolicy.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsLoadRemoteApprovalPolicy' -Fallback 'Load Remote Approval Policy...') }

@@ -1,4 +1,3 @@
-﻿# Dialog helper split file loaded by Module\GUI\DialogHelpers.ps1.
 
 <#
 	    .SYNOPSIS

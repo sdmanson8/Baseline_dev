@@ -712,7 +712,7 @@ function ConnectionSharing
 		{
 			Write-ConsoleStatus -Action "Enabling Internet Connection Sharing (ICS)"
 			LogInfo "Enabling Internet Connection Sharing (ICS)"
-			Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Network Connections" -Name "NC_ShowSharedAccessUI" -ErrorAction SilentlyContinue | Out-Null
+			Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Network Connections" -Name "NC_ShowSharedAccessUI" -ErrorAction Ignore | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 		"Disable"
@@ -840,7 +840,7 @@ function NCSIProbe
 		{
 			Write-ConsoleStatus -Action "Enabling Network Connectivity Status Indicator (NCSI) active probe"
 			LogInfo "Enabling Network Connectivity Status Indicator (NCSI) active probe"
-			Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\NetworkConnectivityStatusIndicator" -Name "NoActiveProbe" -ErrorAction SilentlyContinue | Out-Null
+			Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\NetworkConnectivityStatusIndicator" -Name "NoActiveProbe" -ErrorAction Ignore | Out-Null
 			Write-ConsoleStatus -Status success
 		}
 		"Disable"

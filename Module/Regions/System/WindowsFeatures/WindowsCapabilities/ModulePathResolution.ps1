@@ -1,6 +1,31 @@
-# P5 rollback checkpoint: extracted from WindowsCapabilities in Module\Regions\System\System.WindowsFeatures.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
-$modulePath = if (-not [string]::IsNullOrWhiteSpace([string]$PSCommandPath))
+function Resolve-SystemPickerModulePath
+{
+	param(
+		[Parameter(Mandatory = $true)]
+		[string]$StartPath
+	)
+
+	$cursor = if (Test-Path -LiteralPath $StartPath -PathType Leaf) { Split-Path -Path $StartPath -Parent } else { $StartPath }
+	while (-not [string]::IsNullOrWhiteSpace([string]$cursor))
+	{
+		$candidate = Join-Path -Path $cursor -ChildPath 'System.WindowsFeatures.psm1'
+		if (Test-Path -LiteralPath $candidate -PathType Leaf)
+		{
+			return $candidate
+		}
+
+		$parent = Split-Path -Path $cursor -Parent
+		if ([string]::Equals([string]$parent, [string]$cursor, [System.StringComparison]::OrdinalIgnoreCase))
+		{
+			break
+		}
+		$cursor = $parent
+	}
+
+	return $null
+}
+
+$systemPickerSeedPath = if (-not [string]::IsNullOrWhiteSpace([string]$PSCommandPath))
 	{
 		[string]$PSCommandPath
 	}
@@ -12,3 +37,4 @@ $modulePath = if (-not [string]::IsNullOrWhiteSpace([string]$PSCommandPath))
 	{
 		$null
 	}
+$modulePath = if ($systemPickerSeedPath) { Resolve-SystemPickerModulePath -StartPath $systemPickerSeedPath } else { $null }

@@ -671,8 +671,6 @@
 		if ($Script:MenuToolsAppsManager)        { $Script:MenuToolsAppsManager.Header        = (Get-UxLocalizedString -Key 'GuiMenuToolsAppsManager' -Fallback 'Apps Manager') }
 		if ($Script:MenuToolsUpdateAllApps)      { $Script:MenuToolsUpdateAllApps.Header      = (Get-UxLocalizedString -Key 'GuiMenuToolsUpdateAllApps' -Fallback 'Update All Applications') }
 		if ($Script:MenuToolsExportSupportBundle){ $Script:MenuToolsExportSupportBundle.Header = (New-GuiLabeledIconContent -IconName 'Archive' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsExportSupportBundle' -Fallback 'Export Support Bundle...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
-		if ($Script:MenuToolsAdvanced)           { $Script:MenuToolsAdvanced.Header           = (New-GuiLabeledIconContent -IconName 'Toolbox' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsAdvanced' -Fallback 'Advanced Tools') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
-		if ($Script:MenuToolsDeploymentMediaBuilder){ $Script:MenuToolsDeploymentMediaBuilder.Header = (New-GuiLabeledIconContent -IconName 'WindowSettings' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsDeploymentMediaBuilder' -Fallback 'Deployment Media Builder...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
 		if ($Script:MenuToolsApproveRemoteTargets){ $Script:MenuToolsApproveRemoteTargets.Header = (New-GuiLabeledIconContent -IconName 'Shield' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsApproveRemoteTargets' -Fallback 'Approve Target List...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
 		if ($Script:MenuToolsSaveRemoteApprovalPolicy){ $Script:MenuToolsSaveRemoteApprovalPolicy.Header = (New-GuiLabeledIconContent -IconName 'Document' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsSaveRemoteApprovalPolicy' -Fallback 'Save Remote Approval Policy...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
 		if ($Script:MenuToolsLoadRemoteApprovalPolicy){ $Script:MenuToolsLoadRemoteApprovalPolicy.Header = (New-GuiLabeledIconContent -IconName 'Document' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsLoadRemoteApprovalPolicy' -Fallback 'Load Remote Approval Policy...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
@@ -927,7 +925,7 @@
 			$modeSubtitleKey = if ($Script:UpdatesModeActive) { 'Nav_WindowsUpdatesSubtitle' } elseif ($Script:DeploymentMediaModeActive) { 'Nav_DeploymentMediaSubtitle' } elseif ($Script:AppsModeActive) { 'Nav_SoftwareAndAppsSubtitle' } else { 'Nav_OptimizeSubtitle' }
 			$modeSubtitleFallback = if ($Script:UpdatesModeActive) { 'Manage Windows Update' } elseif ($Script:DeploymentMediaModeActive) { 'Build Windows setup media' } elseif ($Script:AppsModeActive) { 'Manage installed applications' } else { 'Configure system behavior' }
 			$Script:ModeSubtitle.Text = (Get-UxLocalizedString -Key $modeSubtitleKey -Fallback $modeSubtitleFallback)
-			$Script:ModeSubtitle.HorizontalAlignment = if ($Script:UpdatesModeActive -or $Script:DeploymentMediaModeActive) { [System.Windows.HorizontalAlignment]::Center } elseif ($Script:AppsModeActive) { [System.Windows.HorizontalAlignment]::Right } else { [System.Windows.HorizontalAlignment]::Left }
+			$Script:ModeSubtitle.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
 		}
 		if (Get-Command -Name 'Sync-GuiDeploymentMediaBuilderViewText' -CommandType Function -ErrorAction SilentlyContinue)
 		{
@@ -1708,7 +1706,6 @@
 		if ($Script:MenuFileSettings) { $Script:MenuFileSettings.IsEnabled = $Enabled }
 		if ($Script:MenuFileAuditSettings) { $Script:MenuFileAuditSettings.IsEnabled = $Enabled }
 		if ($Script:MenuToolsExportSupportBundle) { $Script:MenuToolsExportSupportBundle.IsEnabled = $Enabled }
-		if ($Script:MenuToolsDeploymentMediaBuilder) { $Script:MenuToolsDeploymentMediaBuilder.IsEnabled = $Enabled }
 		if ($Script:MenuToolsApproveRemoteTargets) { $Script:MenuToolsApproveRemoteTargets.IsEnabled = ($Enabled -and $isRemoteConnected) }
 		if ($Script:MenuToolsSaveRemoteApprovalPolicy) { $Script:MenuToolsSaveRemoteApprovalPolicy.IsEnabled = ($Enabled -and $isRemoteConnected -and $isRemoteApprovalReady) }
 		if ($Script:MenuToolsLoadRemoteApprovalPolicy) { $Script:MenuToolsLoadRemoteApprovalPolicy.IsEnabled = ($Enabled -and $isRemoteConnected) }

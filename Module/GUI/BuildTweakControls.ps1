@@ -1,4 +1,4 @@
-﻿	$Script:Controls = @{}
+	$Script:Controls = @{}
 	# Function-name -> manifest-index map for linked-toggle lookups in closures
 	$Script:FunctionToIndex = @{}
 	$Script:Ctx.Data.Controls = $Script:Controls

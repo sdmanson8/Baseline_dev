@@ -3,6 +3,12 @@
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/SystemTweaks/SystemTweaks.SMBRepair.psm1'
     $source = Get-Content -Raw $filePath
+    $script:SmbRepairSource = $source
+    $script:SystemTweaksManifest = Get-Content -Raw (Join-Path $PSScriptRoot '../../Module/Data/SystemTweaks.json') | ConvertFrom-Json
+    $script:RegistryCompatibilitySettingsSource = Get-Content -Raw (Join-Path $PSScriptRoot '../../Module/Regions/SystemTweaks/SMBRepair/SharedPrinterConnectionErrors/RegistryCompatibilitySettings.ps1')
+    $script:NetworkCacheFlushSource = Get-Content -Raw (Join-Path $PSScriptRoot '../../Module/Regions/SystemTweaks/SMBRepair/SharedPrinterConnectionErrors/NetworkCacheFlush.ps1')
+    $script:TcpCompatibilitySettingsSource = Get-Content -Raw (Join-Path $PSScriptRoot '../../Module/Regions/SystemTweaks/SMBRepair/SharedPrinterConnectionErrors/TcpCompatibilitySettings.ps1')
+    $script:SharedPrinterDiscoverySource = Get-Content -Raw (Join-Path $PSScriptRoot '../../Module/Regions/SystemTweaks/SMBRepair/SharedPrinterConnectionErrors/SharedPrinterDiscovery.ps1')
     # Strip `using module` lines so Invoke-Expression does not try to resolve the real Logging/SharedHelpers
     $source = [regex]::Replace($source, '^using module[^\r\n]*[\r\n]+', '', 'Multiline')
     $sb = [scriptblock]::Create($source)
@@ -10,6 +16,45 @@ BeforeAll {
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
         Invoke-Expression $fn.Extent.Text
+    }
+}
+
+Describe 'SharedPrinterConnectionErrors bounded system-file scan' {
+    It 'does not run SFC unless RunSystemFileCheck is explicitly requested' {
+        $script:SmbRepairSource | Should -Match '\[switch\]\s*\$RunSystemFileCheck'
+        $script:SmbRepairSource | Should -Match 'if \(\$RunSystemFileCheck\)'
+        $script:SmbRepairSource | Should -Match "-TimeoutSeconds 1800"
+        $script:SmbRepairSource | Should -Not -Match "-TimeoutSeconds 3600"
+        $script:SharedPrinterDiscoverySource | Should -Match 'if \(\$RunSystemFileCheck\)'
+        $script:SharedPrinterDiscoverySource | Should -Match "-TimeoutSeconds 1800"
+        $script:SharedPrinterDiscoverySource | Should -Not -Match "-TimeoutSeconds 3600"
+    }
+}
+
+Describe 'SharedPrinterConnectionErrors execution bounds' {
+    It 'declares enough GUI execution time for the full printer repair action' {
+        $entry = $script:SystemTweaksManifest.Entries | Where-Object Function -eq 'SharedPrinterConnectionErrors' | Select-Object -First 1
+
+        [int]$entry.TimeoutSeconds | Should -BeGreaterOrEqual 900
+    }
+
+    It 'runs printer repair native commands through the bounded process helper' {
+        $script:SmbRepairSource | Should -Match 'function Stop-SharedPrinterSpoolerService'
+        $script:SmbRepairSource | Should -Match 'Invoke-BaselineProcess -FilePath \$scExePath'
+        $script:SmbRepairSource | Should -Match 'Invoke-BaselineProcess -FilePath \$regExePath'
+        $script:NetworkCacheFlushSource | Should -Match 'Invoke-BaselineProcess -FilePath \$ipconfigPath'
+        $script:NetworkCacheFlushSource | Should -Match 'Invoke-BaselineProcess -FilePath \$nbtstatPath'
+        $script:NetworkCacheFlushSource | Should -Match 'Invoke-BaselineProcess -FilePath \$wmicPath'
+        $script:RegistryCompatibilitySettingsSource | Should -Match 'Invoke-BaselineProcess -FilePath \$netshPath'
+        $script:TcpCompatibilitySettingsSource | Should -Match 'Invoke-BaselineProcess -FilePath \$netshPath'
+        $script:SharedPrinterDiscoverySource | Should -Match 'Invoke-BaselineProcess -FilePath \$regExePath'
+        @(
+            $script:SmbRepairSource,
+            $script:NetworkCacheFlushSource,
+            $script:RegistryCompatibilitySettingsSource,
+            $script:TcpCompatibilitySettingsSource,
+            $script:SharedPrinterDiscoverySource
+        ) -join "`n" | Should -Not -Match '&\s+(reg|ipconfig|nbtstat|wmic|netsh)'
     }
 }
 

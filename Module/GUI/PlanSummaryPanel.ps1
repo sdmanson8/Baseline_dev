@@ -1,4 +1,4 @@
-﻿
+
 # Plan Summary Panel - pre-run "what will happen" dialog shown after the user
 # clicks Run but before tweaks execute.  Provides a category breakdown,
 # impact summary cards, pre-flight status, and a scrollable tweak list.
@@ -134,7 +134,6 @@ function Show-PlanSummaryDialog
 	$bodyStack.Margin = [System.Windows.Thickness]::new(24, 16, 24, 16)
 
 	# -- Pre-flight status section ------------------------------------
-			# P5 rollback checkpoint: Show-PlanSummaryDialog part extracted to Module/GUI/PlanSummaryPanel/Show-PlanSummaryDialog/PreflightResultsSection.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'PlanSummaryPanel\Show-PlanSummaryDialog\PreflightResultsSection.ps1')
 
 	# -- Impact summary cards -----------------------------------------
@@ -264,7 +263,6 @@ function Show-PlanSummaryDialog
 	# Sort tweaks by category then name for a consistent display
 	$sortedTweaks = @($selected | Sort-Object @{ Expression = { [string]$_.Category } }, @{ Expression = { [string]$_.Name } })
 
-			# P5 rollback checkpoint: Show-PlanSummaryDialog part extracted to Module/GUI/PlanSummaryPanel/Show-PlanSummaryDialog/TweakPlanRows.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'PlanSummaryPanel\Show-PlanSummaryDialog\TweakPlanRows.ps1')
 
 	$bodyScroll.Content = $bodyStack

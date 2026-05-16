@@ -34,7 +34,7 @@ Describe 'Bootstrap release integrity helpers' {
         New-Item -ItemType Directory -Path $script:fixtureRoot -Force | Out-Null
 
         $script:archiveName = 'Baseline-4.0.0-stable.zip'
-        $script:setupName = 'Baseline-setup-4.0.0-beta.exe'
+        $script:setupName = 'Baseline-4.0.0-beta-setup.exe'
         $script:archivePath = Join-Path $script:fixtureRoot $script:archiveName
         $script:setupPath = Join-Path $script:fixtureRoot $script:setupName
         $script:manifestPath = Join-Path $script:fixtureRoot ($script:archiveName + '.sha256.json')

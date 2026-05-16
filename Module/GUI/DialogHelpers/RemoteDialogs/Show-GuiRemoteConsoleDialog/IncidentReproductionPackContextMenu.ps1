@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Show-GuiRemoteConsoleDialog in Module\GUI\DialogHelpers\RemoteDialogs.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 $ctxIncidentPack.Add_Click({
 			$selected = $lstRecentRemoteRuns.SelectedItem
 			if ($selected -and (Test-GuiObjectField -Object $selected -FieldName 'BundlePath') -and -not [string]::IsNullOrWhiteSpace($selected.BundlePath))

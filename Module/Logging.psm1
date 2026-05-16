@@ -331,7 +331,6 @@ function Set-LogFile {
     Reset-LogStatistics
 
     # Use [System.IO] directly throughout because Microsoft.PowerShell.Management
-    # cmdlets (Split-Path, Test-Path, New-Item, Set-Content, Add-Content) aren't
     # guaranteed to be loaded inside the embedded PowerShell host Baseline.exe
     # spins up during bootstrap. A single failed cmdlet here would prevent the
     # session log file from ever being created.

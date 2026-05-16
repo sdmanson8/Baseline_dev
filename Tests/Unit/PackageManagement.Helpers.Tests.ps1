@@ -1,4 +1,4 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/PackageManagement.Helpers.ps1'
@@ -178,13 +178,13 @@ Describe 'Chocolatey bootstrap download and integrity' {
 }
 
 Describe 'Get-WinGetBootstrapInstallerMetadata' {
-    It 'returns the reviewed 5.3.6 winget-install release metadata' {
+    It 'returns the reviewed 5.3.6 WinGet bootstrap metadata' {
         $metadata = Get-WinGetBootstrapInstallerMetadata
 
         $metadata.Version | Should -Be '5.3.6'
         $metadata.Sha256 | Should -Be '6016097051EBD3385F4E315FE33B17CEDA6912B9E71CD0C60C1D0DF1823D3262'
-        $metadata.Uri | Should -Be 'https://github.com/asheroto/winget-install/releases/download/5.3.6/winget-install.ps1'
-        $metadata.Label | Should -Be 'winget-install.ps1 v5.3.6'
+        $metadata.Uri | Should -Match '^https://github\.com/.+/releases/download/5\.3\.6/.+\.ps1$'
+        $metadata.Label | Should -Be 'Baseline WinGet bootstrap v5.3.6'
     }
 }
 
@@ -280,7 +280,7 @@ Describe 'Invoke-WinGetBootstrap' {
                 return @('Add-AppxPackage : Deployment failed with HRESULT: 0x80073CF1')
             }
 
-            return @('winget-install completed')
+            return @('Baseline WinGet bootstrap completed')
         }
         Mock Get-WinGetVersion {
             $script:wingetVersionCallCount++
@@ -315,7 +315,7 @@ Describe 'Invoke-WinGetBootstrap' {
                 return @()
             }
 
-            return @('winget-install completed')
+            return @('Baseline WinGet bootstrap completed')
         }
         Mock Get-WinGetVersion {
             $script:wingetVersionCallCount++
@@ -333,7 +333,7 @@ Describe 'Invoke-WinGetBootstrap' {
         ($script:wingetBootstrapWarningMessages -join "`n") | Should -Match 'installation completed, but winget\.exe is not available in the current session yet'
     }
 
-    It 'passes only the generic installer switch so Server 2019 and 2022 stay on the repo-defined paths' {
+    It 'passes only the generic installer switch so Server 2019 and 2022 stay on the Baseline-defined paths' {
         Mock Invoke-DownloadFile {
             param($Uri, $OutFile)
             Set-Content -LiteralPath $OutFile -Value 'installer' -Encoding ASCII

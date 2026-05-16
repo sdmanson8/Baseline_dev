@@ -1,4 +1,4 @@
-﻿using module ..\Logging.psm1
+using module ..\Logging.psm1
 using module ..\GUICommon.psm1
 using module ..\SharedHelpers.psm1
 
@@ -517,7 +517,6 @@ function EdgeRemoval
 	    .EXAMPLE
 	    Test-LegacyEdgeInstalled
 	#>
-			# P5 rollback checkpoint: EdgeRemoval part extracted to Module/Regions/UWPApps/EdgeRemoval/EdgeDetectionHelpers.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'UWPApps\EdgeRemoval\EdgeDetectionHelpers.ps1')
 	<#
 	    .SYNOPSIS
@@ -529,7 +528,6 @@ function EdgeRemoval
 	    .EXAMPLE
 	    Remove-ChromiumEdge
 	#>
-			# P5 rollback checkpoint: EdgeRemoval part extracted to Module/Regions/UWPApps/EdgeRemoval/ChromiumEdgeRemoval.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'UWPApps\EdgeRemoval\ChromiumEdgeRemoval.ps1')
 
 	# --- Main flow ---
@@ -786,7 +784,7 @@ function Notifications
     Enable or disable the reverted Windows 11 Start Menu layout.
 
     .DESCRIPTION
-    Uses ViVeTool to toggle the supported Start Menu feature ID on eligible Windows 11 builds and keeps the temporary tool under the Baseline temp folder.
+    Toggles the supported Start Menu feature ID on eligible Windows 11 builds and keeps the temporary tool under the Baseline temp folder.
 
     .PARAMETER Enable
     Apply the reverted Start Menu feature toggle.
@@ -809,11 +807,11 @@ function RevertStartMenu
 		[switch]$Disable
 	)
 
-	$viveToolUrl = "https://github.com/thebookisclosed/ViVe/releases/download/v0.3.4/ViVeTool-v0.3.4-IntelAmd.zip"
+	$baselineStartMenuToolUrl = "https://github.com/thebookisclosed/ViVe/releases/download/v0.3.4/ViVeTool-v0.3.4-IntelAmd.zip"
 	$featureId = "47205210"
-	$tempDir = "$env:TEMP\ViVeTool"
+	$tempDir = "$env:TEMP\BaselineStartMenuTool"
 	$SupportedMessage = "Revert Start Menu is only supported on Windows 11 24H2 build 26100.7019+ or 26H1 build 28000.1575+ and newer. Skipping."
-	$DownloadFailedMessage = "Unable to download ViVeTool from GitHub. Skipping Revert Start Menu."
+	$DownloadFailedMessage = "Unable to download Baseline Start Menu tool from GitHub. Skipping Revert Start Menu."
 	$IsRevertStartMenuSupported = Test-Windows11FeatureBranchSupport -Thresholds @(
 		@{ DisplayVersion = "24H2"; Build = 26100; UBR = 7019 },
 		@{ DisplayVersion = "26H1"; Build = 28000; UBR = 1575 }
@@ -842,27 +840,24 @@ function RevertStartMenu
 				}
 				New-Item -Path $tempDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
 				
-				# Download ViVeTool
-				$zipPath = "$tempDir\ViVeTool.zip"
-				Invoke-WebRequest $viveToolUrl -OutFile $zipPath -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop | Out-Null
-				LogInfo "Downloaded ViVeTool"
+				$zipPath = "$tempDir\BaselineStartMenuTool.zip"
+				Invoke-WebRequest $baselineStartMenuToolUrl -OutFile $zipPath -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop | Out-Null
+				LogInfo "Downloaded Baseline Start Menu tool"
 				
-				# Extract
 				Expand-Archive $zipPath -DestinationPath $tempDir -Force -ErrorAction Stop | Out-Null
-				LogInfo "Extracted ViVeTool"
+				LogInfo "Prepared Baseline Start Menu tool"
 				
-				# Run ViVeTool
-				$viveExe = "$tempDir\ViVeTool.exe"
-				if (-not (Test-Path $viveExe))
+				$baselineStartMenuToolExe = "$tempDir\ViVeTool.exe"
+				if (-not (Test-Path $baselineStartMenuToolExe))
 				{
-					throw "ViVeTool.exe was not found after extraction"
+					throw "Baseline Start Menu tool was not found after preparation"
 				}
-				$ViVeProcess = Invoke-BaselineProcess -FilePath $viveExe -ArgumentList @('/disable', "/id:$featureId") -TimeoutSeconds 300
-				if ($ViVeProcess.ExitCode -ne 0)
+				$baselineStartMenuToolProcess = Invoke-BaselineProcess -FilePath $baselineStartMenuToolExe -ArgumentList @('/disable', "/id:$featureId") -TimeoutSeconds 300
+				if ($baselineStartMenuToolProcess.ExitCode -ne 0)
 				{
-					throw "ViVeTool returned exit code $($ViVeProcess.ExitCode)"
+					throw "Baseline Start Menu tool returned exit code $($baselineStartMenuToolProcess.ExitCode)"
 				}
-				LogInfo "Applied ViVeTool setting to disable feature $featureId"
+				LogInfo "Applied Baseline Start Menu setting to disable feature $featureId"
 				
 				# Cleanup
 				Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
@@ -906,27 +901,24 @@ function RevertStartMenu
 				}
 				New-Item -Path $tempDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
 
-				# Download ViVeTool
-				$zipPath = "$tempDir\ViVeTool.zip"
-				Invoke-WebRequest $viveToolUrl -OutFile $zipPath -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop | Out-Null
-				LogInfo "Downloaded ViVeTool"
+				$zipPath = "$tempDir\BaselineStartMenuTool.zip"
+				Invoke-WebRequest $baselineStartMenuToolUrl -OutFile $zipPath -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop | Out-Null
+				LogInfo "Downloaded Baseline Start Menu tool"
 
-				# Extract
 				Expand-Archive $zipPath -DestinationPath $tempDir -Force -ErrorAction Stop | Out-Null
-				LogInfo "Extracted ViVeTool"
+				LogInfo "Prepared Baseline Start Menu tool"
 
-				# Run ViVeTool
-				$viveExe = "$tempDir\ViVeTool.exe"
-				if (-not (Test-Path $viveExe))
+				$baselineStartMenuToolExe = "$tempDir\ViVeTool.exe"
+				if (-not (Test-Path $baselineStartMenuToolExe))
 				{
-					throw "ViVeTool.exe was not found after extraction"
+					throw "Baseline Start Menu tool was not found after preparation"
 				}
-				$ViVeProcess = Invoke-BaselineProcess -FilePath $viveExe -ArgumentList @('/enable', "/id:$featureId") -TimeoutSeconds 300
-				if ($ViVeProcess.ExitCode -ne 0)
+				$baselineStartMenuToolProcess = Invoke-BaselineProcess -FilePath $baselineStartMenuToolExe -ArgumentList @('/enable', "/id:$featureId") -TimeoutSeconds 300
+				if ($baselineStartMenuToolProcess.ExitCode -ne 0)
 				{
-					throw "ViVeTool returned exit code $($ViVeProcess.ExitCode)"
+					throw "Baseline Start Menu tool returned exit code $($baselineStartMenuToolProcess.ExitCode)"
 				}
-				LogInfo "Applied ViVeTool setting to enable feature $featureId"
+				LogInfo "Applied Baseline Start Menu setting to enable feature $featureId"
 
 				# Cleanup
 				Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
@@ -1058,16 +1050,8 @@ function UWPApps
 	$script:UWPAppsSelectionSeed = if ($null -ne $SelectedPackages) { @($SelectedPackages) } else { @() }
 	$script:UWPAppsExecutionResult = $null
 	$SelectedPackagesProvided = $PSBoundParameters.ContainsKey('SelectedPackages')
-			# P5 rollback checkpoint: UWPApps part extracted to Module/Regions/UWPApps/UWPApps/ModulePathResolution.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'UWPApps\UWPApps\ModulePathResolution.ps1')
-	$guiCommonPath = if ($modulePath)
-	{
-		Join-Path -Path (Split-Path -Path (Split-Path -Path $modulePath -Parent) -Parent) -ChildPath 'GUICommon.psm1'
-	}
-	else
-	{
-		$null
-	}
+	$guiCommonPath = Resolve-UWPAppsGuiCommonPath -StartPath $modulePath
 
 	<#
 	    .SYNOPSIS
@@ -1075,10 +1059,9 @@ function UWPApps
 
 	    	#>
 
-			# P5 rollback checkpoint: UWPApps part extracted to Module/Regions/UWPApps/UWPApps/GuiUwpAppsSelection.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'UWPApps\UWPApps\GuiUwpAppsSelection.ps1')
+		$setUWPAppsPickerSurface = ${function:Set-UWPAppsPickerSurface}
 
-				# P5 rollback checkpoint: UWPApps part extracted to Module/Regions/UWPApps/UWPApps/UwpAppsParameterSetExecution.ps1; re-inline here if rollback is needed.
 		$__baselineExtractedPartDidReturn = $false
 		$__baselineExtractedPartHasReturnValue = $false
 		$__baselineExtractedPartReturnValue = $null

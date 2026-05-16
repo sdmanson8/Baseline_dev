@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from ScheduledTasks in Module\Regions\PrivacyTelemetry\PrivacyTelemetry.TelemetryServices.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 function Invoke-ScheduledTasksOperation
 	{
 		param (
@@ -110,7 +108,7 @@ function Invoke-ScheduledTasksOperation
 
 		if ($modulePath -and (Get-Command -Name 'Start-GuiPopupCommandAsync' -ErrorAction SilentlyContinue))
 		{
-			[void](GUICommon\Start-GuiPopupCommandAsync -Window $Form -ModulePath $modulePath -CommandName 'ScheduledTasks' -CommandParameters $commandParameters)
+			[void](GUICommon\Start-GuiPopupCommandAsync -Window $Form -ModulePath $modulePath -AdditionalModulePaths @($guiCommonPath) -CommandName 'ScheduledTasks' -CommandParameters $commandParameters)
 			return
 		}
 

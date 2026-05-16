@@ -122,7 +122,6 @@ function Cursors
 		try
 		{
 			# Download cursors, then verify the
-			# archive fingerprint before extraction.
 			Invoke-DownloadFile `
 				-Uri $cursorArchiveUrl `
 				-OutFile $cursorArchivePath
@@ -138,7 +137,6 @@ function Cursors
 		}
 	}
 
-			# P5 rollback checkpoint: Cursors part extracted to Module/Regions/Cursors/Cursors/Cursors.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'Cursors\Cursors\Cursors.ps1')
 
 	# Reload cursor on-the-fly

@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Show-TweakGUI in Module\Regions\GUI.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables, throws with the original inline behavior, and bridges caller-level returns back to the parent function.
 if (-not $Script:ManifestLoadedFromData)
 	{
 		try

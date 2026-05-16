@@ -18,7 +18,7 @@ The cache contains the embedded runtime payload extracted from `Baseline.exe`, i
 - `Localizations/**/*.json`
 - embedded runtime libraries such as `Markdig.dll`
 
-The hydrated root is considered ready only when the launcher finds the sentinel file
+The extracted root is considered ready only when the launcher finds the sentinel file
 `.baseline-runtime-ready`, the hydration manifest `.baseline-runtime-manifest.sha256`, and every
 expected embedded payload file hashes to the SHA-256 value recorded for the embedded resource.
 
@@ -32,7 +32,7 @@ Otherwise it:
 1. reads the public bundle version from assembly metadata
 2. derives a build ID from the assembly module version ID
 3. derives a launcher fingerprint from the signed launcher binary
-4. uses `%ProgramData%\Baseline\RuntimeCache\RC\<version>\4\<buildId>\<launcherFingerprint>\` as the hydration target
+4. uses `%ProgramData%\Baseline\RuntimeCache\RC\<version>\4\<buildId>\<launcherFingerprint>\` as the extraction target
 5. reuses that directory only if the sentinel, manifest, and all per-file hashes validate
 
 ## Hydration Behaviour

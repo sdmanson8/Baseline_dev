@@ -1,9 +1,9 @@
-﻿<#
+<#
     .SYNOPSIS
     Bootstrap startup helpers for Baseline.
 
     .DESCRIPTION
-    Contains helper functions dot-sourced by Bootstrap\Baseline.ps1 during startup.
+    Contains helper functions used by Bootstrap\Baseline.ps1 during startup.
     Public function names, signatures, defaults, and return shapes stay owned by the parent startup flow.
 #>
 
@@ -327,6 +327,412 @@ function ConvertTo-HeadlessCommandArgumentLiteral
 	return ("'{0}'" -f ($text -replace "'", "''"))
 }
 
+function Test-BaselinePowerShellRemotingSession
+{
+	[CmdletBinding()]
+	[OutputType([bool])]
+	param (
+		[AllowNull()]
+		[object]$SenderInfo = $(Get-Variable -Name 'PSSenderInfo' -ValueOnly -ErrorAction SilentlyContinue)
+	)
+
+	return ($null -ne $SenderInfo)
+}
+
+function Show-BaselineConsoleSplash
+{
+	[CmdletBinding()]
+	param (
+		[string]$PresetName
+	)
+
+	$subtitle = if ([string]::IsNullOrWhiteSpace([string]$PresetName))
+	{
+		'Loading local interactive console'
+	}
+	else
+	{
+		"Loading local interactive console with preset '$PresetName'"
+	}
+
+	try { Clear-Host } catch { $null = $_ }
+	Write-Host ''
+	Write-Host '  Baseline' -ForegroundColor Cyan
+	Write-Host "  $subtitle" -ForegroundColor DarkGray
+	Write-Host ''
+
+	$frames = @('|', '/', '-', '\')
+	for ($i = 0; $i -lt 16; $i++)
+	{
+		$frame = $frames[$i % $frames.Count]
+		$dotCount = ($i % 4)
+		$dots = ''.PadRight($dotCount, '.')
+		Write-Host ("`r  [{0}] Preparing menu{1}   " -f $frame, $dots) -NoNewline -ForegroundColor Cyan
+		Start-Sleep -Milliseconds 55
+	}
+
+	Write-Host "`r  [*] Console menu ready       " -ForegroundColor Green
+	Start-Sleep -Milliseconds 120
+}
+
+function New-BaselineConsoleGuiCatalog
+{
+	[CmdletBinding()]
+	param (
+		[object[]]$Manifest,
+		[string[]]$PreselectedCommands = @()
+	)
+
+	$commandByFunction = New-Object 'System.Collections.Hashtable' ([System.StringComparer]::OrdinalIgnoreCase)
+	foreach ($commandLine in @($PreselectedCommands))
+	{
+		if ([string]::IsNullOrWhiteSpace([string]$commandLine)) { continue }
+		$functionName = Get-HeadlessPresetCommandFunctionName -CommandLine ([string]$commandLine)
+		if ([string]::IsNullOrWhiteSpace([string]$functionName)) { continue }
+		$commandByFunction[[string]$functionName] = ([string]$commandLine).Trim()
+	}
+
+	$items = [System.Collections.Generic.List[object]]::new()
+	$categories = [System.Collections.Generic.List[string]]::new()
+	$categorySeen = New-Object 'System.Collections.Hashtable' ([System.StringComparer]::OrdinalIgnoreCase)
+	$expanded = New-Object 'System.Collections.Hashtable' ([System.StringComparer]::OrdinalIgnoreCase)
+	$index = 0
+
+	foreach ($entry in @($Manifest))
+	{
+		if ($null -eq $entry) { continue }
+
+		$functionName = [string](Get-TweakManifestEntryValue -Entry $entry -FieldName 'Function')
+		if ([string]::IsNullOrWhiteSpace($functionName)) { continue }
+
+		$defaultCommand = Get-TweakManifestDefaultCommand -Entry $entry
+		if ([string]::IsNullOrWhiteSpace([string]$defaultCommand)) { continue }
+
+		$name = [string](Get-TweakManifestEntryValue -Entry $entry -FieldName 'Name')
+		if ([string]::IsNullOrWhiteSpace($name)) { $name = $functionName }
+
+		$category = [string](Get-TweakManifestEntryValue -Entry $entry -FieldName 'Category')
+		if ([string]::IsNullOrWhiteSpace($category)) { $category = 'Other' }
+
+		if (-not $categorySeen.Contains($category))
+		{
+			$categorySeen[$category] = $true
+			[void]$categories.Add($category)
+			$expanded[$category] = $true
+		}
+
+		$preselected = [bool]$commandByFunction.Contains($functionName)
+		$command = if ($preselected) { [string]$commandByFunction[$functionName] } else { [string]$defaultCommand }
+		$risk = [string](Get-TweakManifestEntryValue -Entry $entry -FieldName 'Risk')
+		$type = [string](Get-TweakManifestEntryValue -Entry $entry -FieldName 'Type')
+
+		[void]$items.Add([pscustomobject]@{
+			Index       = $index
+			Name        = $name
+			Function    = $functionName
+			Category    = $category
+			Type        = $type
+			Risk        = $risk
+			CommandLine = $command
+			Selected    = $preselected
+		})
+		$index++
+	}
+
+	return [pscustomobject]@{
+		Categories = $categories.ToArray()
+		Items      = $items.ToArray()
+		Expanded   = $expanded
+	}
+}
+
+function Get-BaselineConsoleGuiCategoryStats
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[object]$Catalog,
+		[Parameter(Mandatory = $true)]
+		[string]$Category
+	)
+
+	$total = 0
+	$selected = 0
+	foreach ($item in @($Catalog.Items))
+	{
+		if ($null -eq $item -or -not ([string]$item.Category).Equals($Category, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+		$total++
+		if ([bool]$item.Selected) { $selected++ }
+	}
+
+	return [pscustomobject]@{
+		Total = $total
+		Selected = $selected
+	}
+}
+
+function Get-BaselineConsoleGuiRowList
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[object]$Catalog
+	)
+
+	$rows = [System.Collections.Generic.List[object]]::new()
+	foreach ($category in @($Catalog.Categories))
+	{
+		if ([string]::IsNullOrWhiteSpace([string]$category)) { continue }
+		$expanded = if ($Catalog.Expanded.Contains($category)) { [bool]$Catalog.Expanded[$category] } else { $true }
+		$stats = Get-BaselineConsoleGuiCategoryStats -Catalog $Catalog -Category ([string]$category)
+		[void]$rows.Add([pscustomobject]@{
+			Kind     = 'Category'
+			Category = [string]$category
+			Expanded = $expanded
+			Selected = [int]$stats.Selected
+			Total    = [int]$stats.Total
+			Item     = $null
+		})
+
+		if (-not $expanded) { continue }
+		foreach ($item in @($Catalog.Items))
+		{
+			if ($null -eq $item -or -not ([string]$item.Category).Equals([string]$category, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+			[void]$rows.Add([pscustomobject]@{
+				Kind     = 'Item'
+				Category = [string]$category
+				Expanded = $true
+				Selected = if ([bool]$item.Selected) { 1 } else { 0 }
+				Total    = 1
+				Item     = $item
+			})
+		}
+	}
+
+	return $rows.ToArray()
+}
+
+function Set-BaselineConsoleGuiCategorySelection
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[object]$Catalog,
+		[Parameter(Mandatory = $true)]
+		[string]$Category,
+		[Parameter(Mandatory = $true)]
+		[bool]$Selected
+	)
+
+	foreach ($item in @($Catalog.Items))
+	{
+		if ($null -eq $item -or -not ([string]$item.Category).Equals($Category, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+		$item.Selected = [bool]$Selected
+	}
+}
+
+function Get-BaselineConsoleGuiSelectedCommands
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[object]$Catalog
+	)
+
+	$commands = [System.Collections.Generic.List[string]]::new()
+	foreach ($item in @($Catalog.Items | Sort-Object Index))
+	{
+		if ($null -eq $item -or -not [bool]$item.Selected) { continue }
+		if ([string]::IsNullOrWhiteSpace([string]$item.CommandLine)) { continue }
+		[void]$commands.Add([string]$item.CommandLine)
+	}
+
+	return $commands.ToArray()
+}
+
+function Write-BaselineConsoleGuiView
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[object]$Catalog,
+		[Parameter(Mandatory = $true)]
+		[object[]]$Rows,
+		[int]$CursorIndex = 0,
+		[string]$PresetName
+	)
+
+	$selectedCount = @(Get-BaselineConsoleGuiSelectedCommands -Catalog $Catalog).Count
+	$totalCount = @($Catalog.Items).Count
+
+	try { Clear-Host } catch { $null = $_ }
+	Write-Host ''
+	Write-Host '  Baseline Console' -ForegroundColor Cyan
+	if ([string]::IsNullOrWhiteSpace([string]$PresetName))
+	{
+		Write-Host "  Selected: $selectedCount / $totalCount" -ForegroundColor DarkGray
+	}
+	else
+	{
+		Write-Host "  Preset: $PresetName    Selected: $selectedCount / $totalCount" -ForegroundColor DarkGray
+	}
+	Write-Host '  Up/Down navigate  Space select  Enter run  A select category  C collapse/expand  Q quit' -ForegroundColor DarkGray
+	Write-Host ''
+
+	$height = 24
+	try
+	{
+		if ([Console]::WindowHeight -gt 10)
+		{
+			$height = [Math]::Max(8, [Console]::WindowHeight - 8)
+		}
+	}
+	catch
+	{
+		$height = 24
+	}
+
+	$start = 0
+	if ($CursorIndex -ge $height)
+	{
+		$start = $CursorIndex - $height + 1
+	}
+	$end = [Math]::Min($Rows.Count - 1, $start + $height - 1)
+
+	for ($i = $start; $i -le $end; $i++)
+	{
+		$row = $Rows[$i]
+		$isCurrent = ($i -eq $CursorIndex)
+		$prefix = if ($isCurrent) { '>' } else { ' ' }
+
+		if ([string]$row.Kind -eq 'Category')
+		{
+			$marker = if ([bool]$row.Expanded) { '[-]' } else { '[+]' }
+			$text = (' {0} {1} {2} ({3}/{4})' -f $prefix, $marker, [string]$row.Category, [int]$row.Selected, [int]$row.Total)
+			Write-Host $text -ForegroundColor $(if ($isCurrent) { 'Cyan' } else { 'Yellow' })
+			continue
+		}
+
+		$item = $row.Item
+		$check = if ([bool]$item.Selected) { '[x]' } else { '[ ]' }
+		$risk = if ([string]::IsNullOrWhiteSpace([string]$item.Risk)) { '?' } else { [string]$item.Risk }
+		$text = (' {0}   {1} {2}  ({3}, {4})' -f $prefix, $check, [string]$item.Name, [string]$item.Function, $risk)
+		$color = if ($isCurrent) { 'Cyan' } elseif ([bool]$item.Selected) { 'Green' } else { 'Gray' }
+		Write-Host $text -ForegroundColor $color
+	}
+
+	if ($Rows.Count -gt $height)
+	{
+		Write-Host ''
+		Write-Host ("  Showing {0}-{1} of {2}" -f ($start + 1), ($end + 1), $Rows.Count) -ForegroundColor DarkGray
+	}
+}
+
+function Show-BaselineConsoleGui
+{
+	[CmdletBinding()]
+	param (
+		[object[]]$Manifest,
+		[string[]]$PreselectedCommands = @(),
+		[string]$PresetName
+	)
+
+	try
+	{
+		if ([Console]::IsInputRedirected)
+		{
+			throw '-ConsoleGui requires an interactive console. Use -NoGui with -Preset, -Functions, or -ProfilePath for automation.'
+		}
+	}
+	catch [System.InvalidOperationException]
+	{
+		throw '-ConsoleGui requires an interactive console. Use -NoGui with -Preset, -Functions, or -ProfilePath for automation.'
+	}
+
+	Show-BaselineConsoleSplash -PresetName $PresetName
+	$catalog = New-BaselineConsoleGuiCatalog -Manifest $Manifest -PreselectedCommands $PreselectedCommands
+	if (-not $catalog -or -not $catalog.Items -or @($catalog.Items).Count -eq 0)
+	{
+		throw 'No executable manifest entries are available for the console menu.'
+	}
+
+	$cursor = 0
+	while ($true)
+	{
+		$rows = @(Get-BaselineConsoleGuiRowList -Catalog $catalog)
+		if ($rows.Count -eq 0)
+		{
+			return @()
+		}
+		if ($cursor -lt 0) { $cursor = 0 }
+		if ($cursor -ge $rows.Count) { $cursor = $rows.Count - 1 }
+
+		Write-BaselineConsoleGuiView -Catalog $catalog -Rows $rows -CursorIndex $cursor -PresetName $PresetName
+		$key = [Console]::ReadKey($true)
+
+		switch ($key.Key)
+		{
+			'UpArrow'
+			{
+				if ($cursor -gt 0) { $cursor-- }
+				continue
+			}
+			'DownArrow'
+			{
+				if ($cursor -lt ($rows.Count - 1)) { $cursor++ }
+				continue
+			}
+			'Spacebar'
+			{
+				$row = $rows[$cursor]
+				if ([string]$row.Kind -eq 'Category')
+				{
+					$selectCategory = ([int]$row.Selected -lt [int]$row.Total)
+					Set-BaselineConsoleGuiCategorySelection -Catalog $catalog -Category ([string]$row.Category) -Selected $selectCategory
+				}
+				elseif ($row.Item)
+				{
+					$row.Item.Selected = -not [bool]$row.Item.Selected
+				}
+				continue
+			}
+			'Enter'
+			{
+				return @(Get-BaselineConsoleGuiSelectedCommands -Catalog $catalog)
+			}
+			'A'
+			{
+				$row = $rows[$cursor]
+				$category = [string]$row.Category
+				if (-not [string]::IsNullOrWhiteSpace($category))
+				{
+					Set-BaselineConsoleGuiCategorySelection -Catalog $catalog -Category $category -Selected $true
+				}
+				continue
+			}
+			'C'
+			{
+				$row = $rows[$cursor]
+				$category = [string]$row.Category
+				if (-not [string]::IsNullOrWhiteSpace($category))
+				{
+					$current = if ($catalog.Expanded.Contains($category)) { [bool]$catalog.Expanded[$category] } else { $true }
+					$catalog.Expanded[$category] = -not $current
+				}
+				continue
+			}
+			'Q'
+			{
+				return $null
+			}
+			'Escape'
+			{
+				return $null
+			}
+		}
+	}
+}
+
 <#
     .SYNOPSIS
     Resolves the bootstrap preset token.
@@ -506,10 +912,10 @@ function Find-BootstrapSetupExecutable
         [string]$ExtractRoot
     )
 
-    $matches = @(Get-ChildItem -Path $ExtractRoot -Filter 'Baseline-setup-*.exe' -Recurse -File -Depth 4 -ErrorAction SilentlyContinue)
+    $matches = @(Get-ChildItem -Path $ExtractRoot -Filter 'Baseline-*-setup.exe' -Recurse -File -Depth 4 -ErrorAction SilentlyContinue)
     if ($matches.Count -ne 1)
     {
-        throw "Expected exactly one Baseline-setup-*.exe under $ExtractRoot. Found $($matches.Count)."
+        throw "Expected exactly one Baseline-*-setup.exe under $ExtractRoot. Found $($matches.Count)."
     }
 
     return $matches[0].FullName

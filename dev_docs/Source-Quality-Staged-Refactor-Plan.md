@@ -51,8 +51,8 @@ Status: Implemented for the oversized-function limit. The public function name a
 
 Extraction contract:
 
-- Settings dialog label/palette initialization, XAML construction, control wiring, language rendering, update state, log folder state, storage state, cache clearing, and save handling are dot-sourced from `Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/` in explicit order.
-- Dot-sourced parts execute in the original caller scope so local variables, event closures, return shape, and default values remain unchanged.
+- Settings dialog label/palette initialization, XAML construction, control wiring, language rendering, update state, log folder state, storage state, cache clearing, and save handling are loaded from `Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/` in explicit order.
+- Loaded parts execute in the original caller scope so local variables, event closures, return shape, and default values remain unchanged.
 
 Tests:
 
@@ -67,8 +67,8 @@ Status: Implemented for the oversized-function limit. The public function name a
 
 Extraction contract:
 
-- GUI startup, manifest loading, category/index setup, theme setup, action wiring, first-run state, startup splash handling, and WPF show/close handling are dot-sourced from `Module/GUI/Show-TweakGUI/` in explicit order.
-- Extracted parts preserve the original caller scope. Parts that contain original caller-level returns bridge that return back to `Show-TweakGUI`.
+- GUI startup, manifest loading, category/index setup, theme setup, action wiring, first-run state, startup splash handling, and WPF show/close handling are loaded from `Module/GUI/Show-TweakGUI/` in explicit order.
+- Loaded parts preserve the original caller scope. Parts that contain original caller-level returns bridge that return back to `Show-TweakGUI`.
 
 Tests:
 

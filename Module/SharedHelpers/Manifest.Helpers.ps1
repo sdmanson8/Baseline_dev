@@ -158,7 +158,7 @@ function ConvertTo-TweakWorkflowSensitivity
 
 function Convert-ToWhyThisMattersText
 {
-	<# .SYNOPSIS Extracts the first sentence and truncates to 180 characters. #>
+	<# .SYNOPSIS Reads the first sentence and truncates to 180 characters. #>
 	param ([string]$Text)
 
 	if ([string]::IsNullOrWhiteSpace($Text))

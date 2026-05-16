@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Build-AppsViewCards in Module\GUI\AppsModule.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 foreach ($app in @($sortedCatalog))
 	{
 		if (-not $app)

@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Internal shared helper loader module for Baseline.
 
@@ -78,7 +78,17 @@ foreach ($helperModuleName in $HelperModuleNames)
         Remove-Module -ModuleInfo $existingHelperModule -Force -ErrorAction SilentlyContinue
     }
 
-    Import-Module -Name $helperModulePath -Force -Global -DisableNameChecking -WarningAction SilentlyContinue | Out-Null
+    try
+    {
+        Import-Module -Name $helperModulePath -Force -Global -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop | Out-Null
+    }
+    catch
+    {
+        $message = "Failed to import shared helper module '$helperModuleName' from '$helperModulePath': $($_.Exception.Message)"
+        Write-Error -Message $message -ErrorAction Continue
+        $exception = New-Object System.InvalidOperationException -ArgumentList $message, $_.Exception
+        throw $exception
+    }
 }
 
 $helperModuleNamesForCleanup = @($HelperModuleNames)
@@ -91,6 +101,68 @@ $ExecutionContext.SessionState.Module.OnRemove = {
         }
     }
 }.GetNewClosure()
+
+function Test-GuiObjectField
+{
+    [CmdletBinding()]
+    param (
+        [AllowNull()]
+        [object]$Object,
+
+        [Parameter(Mandatory = $true)]
+        [string]$FieldName
+    )
+
+    if ($null -eq $Object -or [string]::IsNullOrWhiteSpace($FieldName))
+    {
+        return $false
+    }
+
+    if ($Object -is [System.Collections.IDictionary])
+    {
+        return $Object.Contains($FieldName)
+    }
+
+    return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName])
+}
+
+function Get-GuiObjectField
+{
+    [CmdletBinding()]
+    param (
+        [AllowNull()]
+        [object]$Object,
+
+        [Parameter(Mandatory = $true)]
+        [string]$FieldName
+    )
+
+    if (-not (Test-GuiObjectField -Object $Object -FieldName $FieldName))
+    {
+        return $null
+    }
+
+    if ($Object -is [System.Collections.IDictionary])
+    {
+        return $Object[$FieldName]
+    }
+
+    return $Object.PSObject.Properties[$FieldName].Value
+}
+
+function Resolve-BaselinePolicyToolPath
+{
+    [CmdletBinding()]
+    param()
+
+    $candidate = Join-Path $Script:SharedHelpersRepoRoot 'Assets\BaselinePolicyTool.exe'
+    if (-not (Test-Path -LiteralPath $candidate -PathType Leaf))
+    {
+        throw "Baseline policy tool was expected at '$candidate' but was not found."
+    }
+
+    return [IO.Path]::GetFullPath($candidate)
+}
 
 <#
     .SYNOPSIS
@@ -1050,6 +1122,9 @@ $ExportedFunctions = @(
     'Get-BaselineCliOutputFormat'
     'Format-BaselineCliResult'
     'Write-BaselineCliEvent'
+    'Resolve-BaselinePolicyToolPath'
+    'Test-GuiObjectField'
+    'Get-GuiObjectField'
 	'Get-BaselineFeatureMaturityLevels'
 	'ConvertTo-BaselineFeatureMaturityLevel'
 	'Get-BaselineFeatureMaturityRank'

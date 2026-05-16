@@ -81,6 +81,22 @@ Describe 'First-run startup command wiring' {
         $initialActionsContent | Should -Not -Match 'CheckWinGet\s+-LoadingSplash\s+\$Global:LoadingSplash'
     }
 
+    It 'starts the system splash step as initial checks begin' {
+        $initialActionsContent | Should -Match 'function Start-BaselineInitialActionsSplashSystemStep'
+        $initialActionsContent.Contains("Set-BootstrapLoadingSplashStep -Splash `$LoadingSplash -StepId 'system' -Status 'in_progress' -SubAction ''") | Should -BeTrue
+        $initialActionsContent.Contains("Set-BootstrapLoadingSplashStep -Splash `$Global:LoadingSplash -StepId 'system'") | Should -BeFalse
+
+        $beginChecksIndex = $initialActionsContent.IndexOf("LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_BeginningInitialChecks'")
+        $systemStepIndex = $initialActionsContent.IndexOf('Start-BaselineInitialActionsSplashSystemStep', $beginChecksIndex)
+        $clearErrorIndex = $initialActionsContent.IndexOf('$Global:Error.Clear()', $beginChecksIndex)
+
+        $beginChecksIndex | Should -BeGreaterThan 0
+        $systemStepIndex | Should -BeGreaterThan 0
+        $clearErrorIndex | Should -BeGreaterThan 0
+        $beginChecksIndex | Should -BeLessThan $systemStepIndex
+        $systemStepIndex | Should -BeLessThan $clearErrorIndex
+    }
+
     It 'restores the neutral splash loading text after startup bootstrap' {
         $environmentHelpersContent | Should -Match "GuiSplashLoading' -Fallback 'Please Wait\.\.\.'"
         $environmentHelpersContent | Should -Not -Match "GuiSplashLoading' -Fallback 'Please wait - opening GUI\.\.\.'"
@@ -140,13 +156,13 @@ Describe 'First-run startup command wiring' {
         $initialSetupContent | Should -Match 'Stop-Job -Job \$runningJob -Force -ErrorAction SilentlyContinue'
     }
 
-        It 'uses the shared reviewed winget-install metadata instead of duplicating the release pin' {
+        It 'uses the shared reviewed WinGet bootstrap metadata instead of duplicating the release pin' {
         $initialSetupContent | Should -Match 'Get-WinGetBootstrapInstallerMetadata'
         $initialSetupContent | Should -Not -Match '\$installerVersion\s*=\s*''5\.3\.1'''
         $initialSetupContent | Should -Not -Match '\$installerSha256\s*=\s*''029094EFD9D26A83AEA184B16D15C772D35D64E1288010741F50FD33A1E1F40F'''
     }
 
-    It 'uses the shared generic winget-install arguments so Server 2019 stays on the repo-defined path' {
+    It 'uses the shared generic WinGet bootstrap arguments so Server 2019 stays on the Baseline-defined path' {
         $initialSetupContent | Should -Match 'Get-WinGetBootstrapInstallerArguments'
         $initialSetupContent | Should -Not -Match "'-AlternateInstallMethod'"
     }

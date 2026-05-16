@@ -29,6 +29,12 @@
 	.EXAMPLE Run a preset non-interactively
 	.\Baseline.exe -Preset Basic
 
+	.EXAMPLE Run the local interactive console menu
+	.\Baseline.exe -ConsoleGui
+
+	.EXAMPLE Run the local interactive console menu with preset items pre-selected
+	.\Baseline.exe -ConsoleGui -Preset Basic
+
 	.EXAMPLE Run a Game Mode profile non-interactively
 	.\Baseline.exe -GameModeProfile Competitive
 
@@ -126,6 +132,12 @@ param
 	[Parameter(Mandatory = $false)]
 	[switch]
 	$NoGui,
+
+	# Start the local interactive console menu instead of the WPF GUI.
+	# Optional -Preset preselects that preset's command list in the menu.
+	[Parameter(Mandatory = $false)]
+	[switch]
+	$ConsoleGui,
 
 	# Run the GUI in config-creation mode so detection reads defaults and
 	# the run action becomes Save Config instead of applying changes.
@@ -269,7 +281,58 @@ function Stop-BaselineIfBootstrapSplashAbortRequested
 	Write-LaunchTrace ('Bootstrap splash close requested abort before GUI open: {0}' -f $Phase)
 	$Global:LASTEXITCODE = 0
 	[System.Environment]::Exit(0)
-	try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch { }
+	try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch { Write-LaunchTrace ('Bootstrap fallback process kill failed: {0}' -f $_.Exception.Message) }
+}
+
+function Set-BaselineBootstrapSplashChecklistStep
+{
+	param(
+		[Parameter(Mandatory = $true)]
+		[ValidateSet('updates','system','winget','chocolatey','finalize')]
+		[string]
+		$StepId,
+
+		[Parameter(Mandatory = $true)]
+		[ValidateSet('pending','in_progress','completed')]
+		[string]
+		$Status,
+
+		[Parameter(Mandatory = $false)]
+		[AllowEmptyString()]
+		[string]
+		$SubAction = ''
+	)
+
+	if (-not $Script:BootstrapSplash -or -not $Script:BootstrapSplash.IsAlive)
+	{
+		return
+	}
+
+	$setSplashStepCommand = Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
+	if (-not $setSplashStepCommand)
+	{
+		return
+	}
+
+	try
+	{
+		$stepOrder = @()
+		if ($Script:BootstrapSplash -is [hashtable] -and $Script:BootstrapSplash.ContainsKey('StepOrder') -and $Script:BootstrapSplash['StepOrder'])
+		{
+			$stepOrder = @($Script:BootstrapSplash['StepOrder'])
+		}
+
+		if ($stepOrder.Count -gt 0 -and $stepOrder -notcontains $StepId)
+		{
+			return
+		}
+
+		& $setSplashStepCommand -Splash $Script:BootstrapSplash -StepId $StepId -Status $Status -SubAction $SubAction | Out-Null
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.SplashChecklistStep' -Severity Debug
+	}
 }
 
 Write-LaunchTrace 'Bootstrap start'
@@ -290,6 +353,7 @@ function Test-BaselineAdministrator
 	}
 	catch
 	{
+		Write-LaunchTrace ('Administrator detection failed: {0}' -f $_.Exception.Message)
 		return $false
 	}
 }
@@ -446,6 +510,11 @@ function New-BaselineElevationArgumentList
 		[void]$argumentList.Add('-NoGui')
 	}
 
+	if ($ConsoleGui)
+	{
+		[void]$argumentList.Add('-ConsoleGui')
+	}
+
 	if ($Design)
 	{
 		[void]$argumentList.Add('-Design')
@@ -574,7 +643,6 @@ if ([string]::IsNullOrWhiteSpace($Script:BootstrapDir))
 
 Write-LaunchTrace ("Bootstrap dir resolved: {0}" -f $Script:BootstrapDir)
 
-# P5 rollback checkpoint: bootstrap startup helpers are split into Bootstrap\Helpers\Bootstrap.Helpers.ps1.
 # Keep this explicit import before localization, module loading, and InitialActions.
 $bootstrapHelpersPath = Join-Path $Script:BootstrapDir 'Helpers\Bootstrap.Helpers.ps1'
 if (-not (Test-Path -LiteralPath $bootstrapHelpersPath -PathType Leaf))
@@ -826,6 +894,7 @@ if ($cliIntentCmd)
 		DryRun = [bool]$DryRun
 		ListPresets = [bool]$ListPresets
 		NoGui = [bool]$NoGui
+		ConsoleGui = [bool]$ConsoleGui
 		ApplyPreset = [string]$ApplyPreset
 		ConfigFile = [string]$ProfilePath
 		ProfilePath = [string]$ProfilePath
@@ -889,8 +958,39 @@ if ($ListPresets)
 	return (Exit-BaselineBootstrap -Code 0)
 }
 
+$Script:PowerShellRemotingForcesNoGui = $false
+$isPowerShellRemotingSession = $false
+$remotingSessionCommand = Get-Command -Name 'Test-BaselinePowerShellRemotingSession' -CommandType Function -ErrorAction SilentlyContinue
+if ($remotingSessionCommand)
+{
+	$isPowerShellRemotingSession = [bool](& $remotingSessionCommand)
+}
+if ($isPowerShellRemotingSession)
+{
+	if ($ConsoleGui)
+	{
+		Write-LaunchTrace 'PowerShell Remoting session rejected -ConsoleGui so WPF paths stay bypassed.'
+		Write-Error '-ConsoleGui cannot run inside PowerShell Remoting / WinRM. Use -NoGui with -Preset, -Functions, or -ProfilePath for remote automation.'
+		return (Exit-BaselineBootstrap -Code 2)
+	}
+
+	if (-not $NoGui)
+	{
+		$NoGui = $true
+		$Script:PowerShellRemotingForcesNoGui = $true
+		Write-LaunchTrace 'PowerShell Remoting session forces -NoGui so WPF paths stay bypassed.'
+	}
+}
+
 # Multi-target preview safety: when more than one target is supplied without
 # explicit -Apply, force preview-only mode. The user must opt in to changes.
+$Script:RemoteForcesNoGui = $false
+if ($TargetComputer -and -not $NoGui)
+{
+	$NoGui = $true
+	$Script:RemoteForcesNoGui = $true
+	Write-LaunchTrace 'Remote targeting forces -NoGui so WPF paths stay bypassed.'
+}
 $Script:RemoteTargetCount = if ($TargetComputer) { @($TargetComputer).Count } else { 0 }
 $Script:MultiTargetPreviewOnly = ($Script:RemoteTargetCount -gt 1 -and -not $Apply)
 if ($Script:MultiTargetPreviewOnly)
@@ -936,13 +1036,13 @@ $hasHeadlessWorkIntent = (
 	-not [string]::IsNullOrWhiteSpace([string]$ScenarioProfile) -or
 	-not [string]::IsNullOrWhiteSpace([string]$ProfilePath) -or
 	-not [string]::IsNullOrWhiteSpace([string]$ApplyPreset) -or
-	$ApplyProfile -or $ComplianceCheck -or $ListPresets
+	$ApplyProfile -or $ComplianceCheck -or $ListPresets -or $ConsoleGui
 )
 $hasHeadlessIntent = (
 	$hasHeadlessWorkIntent -or
-	$ComplianceCheck -or $ScheduledRun -or $TargetComputer -or $NoGui
+	$ComplianceCheck -or $ScheduledRun -or $TargetComputer -or $NoGui -or $ConsoleGui
 )
-if ($NoGui -and -not $hasHeadlessWorkIntent)
+if ($NoGui -and -not $Script:RemoteForcesNoGui -and -not $hasHeadlessWorkIntent)
 {
 	Write-LaunchTrace '-NoGui supplied without any headless work intent; exiting cleanly.'
 	Write-Warning '-NoGui supplied with no work to do (no -Preset/-Functions/-ApplyProfile/-ApplyPreset/-ListPresets/-ConfigFile). Exiting.'
@@ -1056,6 +1156,7 @@ if ([string]::IsNullOrWhiteSpace([string]$Script:CurrentAppVersion) -or $Script:
 	$Script:CurrentAppVersion = Resolve-BaselineCurrentVersion
 }
 Invoke-BaselineAutoUpdate -Splash $Script:BootstrapSplash -CurrentVersion $Script:CurrentAppVersion
+Set-BaselineBootstrapSplashChecklistStep -StepId 'system' -Status 'in_progress' -SubAction ''
 Write-LaunchTrace 'Auto-update checked'
 Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'after auto-update check'
 
@@ -1097,6 +1198,22 @@ catch [System.InvalidOperationException]
 	return (Exit-BaselineBootstrap -Code 2)
 }
 
+$initialActionsModulePath = Join-Path $Script:RegionsRoot 'InitialActions.psm1'
+$initialActionsModule = Import-Module -Name $initialActionsModulePath -Force -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop -PassThru
+$Script:InitialActionsCommand = $initialActionsModule.ExportedCommands['InitialActions']
+if (-not $Script:InitialActionsCommand)
+{
+	throw "Required startup command 'InitialActions' was not exported by: $initialActionsModulePath"
+}
+
+function Invoke-BaselineInitialActions
+{
+	[CmdletBinding()]
+	param ()
+
+	& $Script:InitialActionsCommand
+}
+
 Import-BaselineIncludedTweakLibraries -IncludePaths $Include
 
 # Validate mutual exclusion using original bound parameters before any expansion.
@@ -1106,6 +1223,25 @@ Import-BaselineIncludedTweakLibraries -IncludePaths $Include
 	@($Preset, $GameModeProfile, $ScenarioProfile, $(if ($Functions) { 'Functions' }), $(if ($ApplyProfile) { 'ApplyProfile' })) |
 		Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
 )
+if ($ConsoleGui)
+{
+	if ($TargetComputer)
+	{
+		throw '-ConsoleGui is local-only and cannot be combined with -TargetComputer. Use -NoGui for remote automation.'
+	}
+	if ($Functions)
+	{
+		throw '-ConsoleGui cannot be combined with -Functions. Use -Preset to preselect items or select functions from the console menu.'
+	}
+	if ($Apply -or $ApplyProfile -or $ComplianceCheck -or $ScheduledRun -or -not [string]::IsNullOrWhiteSpace([string]$ProfilePath) -or -not [string]::IsNullOrWhiteSpace([string]$ApplyPreset))
+	{
+		throw '-ConsoleGui cannot be combined with apply/profile/compliance arguments. Use -NoGui for unattended automation.'
+	}
+	if ($GameModeProfile -or $ScenarioProfile)
+	{
+		throw '-ConsoleGui currently accepts only an optional -Preset preselection, not Game Mode or scenario profiles.'
+	}
+}
 if ($ComplianceCheck -and $headlessModes.Count -gt 0)
 {
 	throw '-ComplianceCheck cannot be combined with -Preset, -GameModeProfile, -ScenarioProfile, or -Functions.'
@@ -1131,7 +1267,7 @@ if ($PSBoundParameters.ContainsKey('GameModeDecisionOverrides') -and [string]::I
 	throw 'Specify -GameModeProfile when using -GameModeDecisionOverrides.'
 }
 
-if ($DryRun -and -not $ComplianceCheck -and $headlessModes.Count -eq 0)
+if ($DryRun -and -not $ConsoleGui -and -not $ComplianceCheck -and $headlessModes.Count -eq 0)
 {
 	throw 'Specify -Preset, -GameModeProfile, -ScenarioProfile, or -Functions when using -DryRun.'
 }
@@ -1178,7 +1314,48 @@ if ($GameModeProfile)
 
 # Preset mode expands the requested preset into the same command list used by
 # the headless path so the bootstrap can stay non-interactive.
-if ($Preset)
+if ($ConsoleGui)
+{
+	if ($Script:BootstrapSplash)
+	{
+		$null = Close-LoadingSplashWindow -Splash $Script:BootstrapSplash -DisposeResources
+		$Script:BootstrapSplash = $null
+	}
+
+	$consolePresetCommands = @()
+	if ($Preset)
+	{
+		$consolePresetCommands = @(Get-HeadlessPresetCommandList -PresetName $Preset)
+		if (-not $consolePresetCommands -or $consolePresetCommands.Count -eq 0)
+		{
+			throw "Preset '$Preset' did not resolve to any commands."
+		}
+	}
+
+	$consoleManifest = @(Import-TweakManifestFromData)
+	if (-not $consoleManifest -or $consoleManifest.Count -eq 0)
+	{
+		throw 'Failed to load tweak manifest for the console menu.'
+	}
+
+	$consoleSelection = Show-BaselineConsoleGui -Manifest $consoleManifest -PreselectedCommands $consolePresetCommands -PresetName $Preset
+	if ($null -eq $consoleSelection)
+	{
+		Write-LaunchTrace 'Console GUI exited without a selected run.'
+		return (Exit-BaselineBootstrap -Code 0)
+	}
+
+	$Functions = @($consoleSelection | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+	if (-not $Functions -or $Functions.Count -eq 0)
+	{
+		Write-LaunchTrace 'Console GUI returned no selected commands.'
+		Write-Host 'No commands selected.' -ForegroundColor Yellow
+		return (Exit-BaselineBootstrap -Code 0)
+	}
+
+	Write-LaunchTrace ('Console GUI selected {0} command(s).' -f $Functions.Count)
+}
+elseif ($Preset)
 {
 	$Functions = @(Get-HeadlessPresetCommandList -PresetName $Preset)
 	if (-not $Functions -or $Functions.Count -eq 0)
@@ -1893,7 +2070,7 @@ if ($ApplyProfile)
 	}
 
 	$Global:BaselineHeadlessCommands = if ($applyFunctions.Count -gt 0) { $applyFunctions.ToArray() } else { @() }
-	Invoke-Command -ScriptBlock { InitialActions }
+	Invoke-BaselineInitialActions
         Add-SessionStatistic -Name 'ApplyRunCount'
 
         $applyErrors = [int]$applyValidationErrors
@@ -2091,7 +2268,7 @@ if ($Functions)
 	}
 	else
 	{
-		Invoke-Command -ScriptBlock {InitialActions}
+		Invoke-BaselineInitialActions
 	}
 
 	if (-not $DryRun)
@@ -2316,7 +2493,7 @@ Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'before initial checks'
 try
 {
 	Write-LaunchTrace 'InitialActions started'
-	InitialActions
+	Invoke-BaselineInitialActions
 	Write-LaunchTrace 'InitialActions completed'
 	Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'after initial checks'
 }

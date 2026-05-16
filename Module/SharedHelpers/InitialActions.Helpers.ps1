@@ -122,7 +122,7 @@ function Get-BaselineHostsCandidateEntries
 <#
     .SYNOPSIS
     Indicates whether the proportion of invalid hosts entries crosses the trust
-    threshold, in which case the caller should skip the WindowsSpyBlocker
+    threshold, in which case the caller should skip the Baseline hosts
     cleanup entirely.
 #>
 function Test-BaselineHostsDownloadSuspect
@@ -572,16 +572,16 @@ function Resolve-BaselineHostTaintAssessment
 <#
     .SYNOPSIS
     Resolves whether InitialActions should automatically strip detected
-    WindowsSpyBlocker hosts entries or warn the user and leave them in place.
+    Baseline hosts entries or warn the user and leave them in place.
 
     .DESCRIPTION
     Earlier versions silently rewrote the system hosts file and popped Notepad
-    whenever WindowsSpyBlocker entries were detected, which surprised users who
+    whenever Baseline hosts entries were detected, which surprised users who
     had intentionally added third-party telemetry blocks. This helper returns
     the resolved policy from two opt-in sources, in priority order:
       1. The BASELINE_AUTO_STRIP_HOSTS environment variable (for unattended /
          CI runs).
-      2. The AutoStripWindowsSpyBlockerHosts user preference (set via the GUI).
+      2. The AutoStripBaselineHosts user preference (set via the GUI).
     When neither source supplies a truthy value the default policy is to warn
     and skip the strip — destructive cleanup remains opt-in.
 #>

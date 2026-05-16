@@ -1,12 +1,7 @@
-# P5 rollback checkpoint: extracted from SharedPrinterConnectionErrors in Module\Regions\SystemTweaks\SystemTweaks.SMBRepair.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 try
 	{
-		& ipconfig /flushdns | Out-Null
-		if ($LASTEXITCODE -ne 0)
-		{
-			throw "ipconfig returned exit code $LASTEXITCODE while flushing DNS"
-		}
+		$ipconfigPath = Join-Path $env:SystemRoot 'System32\ipconfig.exe'
+		$null = Invoke-BaselineProcess -FilePath $ipconfigPath -ArgumentList @('/flushdns') -TimeoutSeconds 60 -AllowedExitCodes @(0)
 		LogInfo "DNS cache flushed"
 	}
 	catch
@@ -15,13 +10,10 @@ try
 		LogWarning "ipconfig /flushdns failed: $($_.Exception.Message)"
 	}
 
-	try
+try
 	{
-		& nbtstat -R | Out-Null
-		if ($LASTEXITCODE -ne 0)
-		{
-			throw "nbtstat returned exit code $LASTEXITCODE while purging the NetBIOS cache"
-		}
+		$nbtstatPath = Join-Path $env:SystemRoot 'System32\nbtstat.exe'
+		$null = Invoke-BaselineProcess -FilePath $nbtstatPath -ArgumentList @('-R') -TimeoutSeconds 60 -AllowedExitCodes @(0)
 		LogInfo "NetBIOS cache purged (nbtstat -R)"
 	}
 	catch
@@ -30,13 +22,10 @@ try
 		LogWarning "nbtstat -R failed: $($_.Exception.Message)"
 	}
 
-	try
+try
 	{
-		& nbtstat -RR | Out-Null
-		if ($LASTEXITCODE -ne 0)
-		{
-			throw "nbtstat returned exit code $LASTEXITCODE while re-registering NetBIOS names"
-		}
+		$nbtstatPath = Join-Path $env:SystemRoot 'System32\nbtstat.exe'
+		$null = Invoke-BaselineProcess -FilePath $nbtstatPath -ArgumentList @('-RR') -TimeoutSeconds 60 -AllowedExitCodes @(0)
 		LogInfo "NetBIOS names re-registered (nbtstat -RR)"
 	}
 	catch
@@ -66,11 +55,8 @@ try
 		}
 		elseif (Get-Command wmic -ErrorAction SilentlyContinue)
 		{
-			& wmic nicconfig where "(IPEnabled=TRUE)" call SetTcpipNetbios 1 | Out-Null
-			if ($LASTEXITCODE -ne 0)
-			{
-				throw "wmic returned exit code $LASTEXITCODE while enabling NetBIOS"
-			}
+			$wmicPath = Join-Path $env:SystemRoot 'System32\wbem\wmic.exe'
+			$null = Invoke-BaselineProcess -FilePath $wmicPath -ArgumentList @('nicconfig', 'where', '(IPEnabled=TRUE)', 'call', 'SetTcpipNetbios', '1') -TimeoutSeconds 120 -AllowedExitCodes @(0)
 			LogInfo "NetBIOS over TCP/IP enabled via wmic"
 		}
 		else

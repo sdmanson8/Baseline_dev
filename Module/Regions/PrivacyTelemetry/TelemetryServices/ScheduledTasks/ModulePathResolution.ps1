@@ -1,6 +1,34 @@
-# P5 rollback checkpoint: extracted from ScheduledTasks in Module\Regions\PrivacyTelemetry\PrivacyTelemetry.TelemetryServices.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
-$modulePath = if (-not [string]::IsNullOrWhiteSpace([string]$PSCommandPath))
+function Resolve-ScheduledTasksParentPath
+{
+	param(
+		[Parameter(Mandatory = $true)]
+		[string]$StartPath,
+
+		[Parameter(Mandatory = $true)]
+		[string]$FileName
+	)
+
+	$cursor = if (Test-Path -LiteralPath $StartPath -PathType Leaf) { Split-Path -Path $StartPath -Parent } else { $StartPath }
+	while (-not [string]::IsNullOrWhiteSpace([string]$cursor))
+	{
+		$candidate = Join-Path -Path $cursor -ChildPath $FileName
+		if (Test-Path -LiteralPath $candidate -PathType Leaf)
+		{
+			return $candidate
+		}
+
+		$parent = Split-Path -Path $cursor -Parent
+		if ([string]::Equals([string]$parent, [string]$cursor, [System.StringComparison]::OrdinalIgnoreCase))
+		{
+			break
+		}
+		$cursor = $parent
+	}
+
+	return $null
+}
+
+$scheduledTasksSeedPath = if (-not [string]::IsNullOrWhiteSpace([string]$PSCommandPath))
 	{
 		[string]$PSCommandPath
 	}
@@ -12,6 +40,8 @@ $modulePath = if (-not [string]::IsNullOrWhiteSpace([string]$PSCommandPath))
 	{
 		$null
 	}
+$modulePath = if ($scheduledTasksSeedPath) { Resolve-ScheduledTasksParentPath -StartPath $scheduledTasksSeedPath -FileName 'PrivacyTelemetry.TelemetryServices.psm1' } else { $null }
+$guiCommonPath = if ($scheduledTasksSeedPath) { Resolve-ScheduledTasksParentPath -StartPath $scheduledTasksSeedPath -FileName 'GUICommon.psm1' } else { $null }
 
 	function Resolve-ScheduledTasksPickerUseDarkMode
 	{
@@ -154,9 +184,10 @@ $modulePath = if (-not [string]::IsNullOrWhiteSpace([string]$PSCommandPath))
 			$surfaceTheme = Get-ScheduledTasksPickerTheme
 		}
 
-		if ($surfaceTheme -and $surfaceTheme.Count -gt 0 -and (Get-Command -Name 'Repair-GuiThemePalette' -CommandType Function -ErrorAction SilentlyContinue))
+		$repairGuiThemePalette = Get-Command -Name 'GUICommon\Repair-GuiThemePalette' -CommandType Function -ErrorAction SilentlyContinue
+		if ($surfaceTheme -and $surfaceTheme.Count -gt 0 -and $repairGuiThemePalette)
 		{
-			$surfaceTheme = Repair-GuiThemePalette -Theme $surfaceTheme -ThemeName $(if ($resolvedUseDarkMode) { 'Dark' } else { 'Light' })
+			$surfaceTheme = & $repairGuiThemePalette -Theme $surfaceTheme -ThemeName $(if ($resolvedUseDarkMode) { 'Dark' } else { 'Light' })
 		}
 
 		$defaultThemeColors = if ($resolvedUseDarkMode)

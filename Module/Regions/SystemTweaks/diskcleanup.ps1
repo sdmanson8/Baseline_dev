@@ -321,7 +321,6 @@ function Invoke-BuiltInSilentCleanup {
 
     $launchDeadline = (Get-Date).AddSeconds($LaunchTimeoutSeconds)
     $taskDeadline = (Get-Date).AddSeconds($TaskTimeoutSeconds)
-    $runningSeen = $false
 
     while ((Get-Date) -lt $taskDeadline) {
         $newCleanmgrProcess = Get-Process -Name cleanmgr -ErrorAction SilentlyContinue |
@@ -342,16 +341,24 @@ function Invoke-BuiltInSilentCleanup {
             break
         }
 
-        if ($taskState -eq "Running") {
-            $runningSeen = $true
-        } elseif ($runningSeen -or (Get-Date) -ge $launchDeadline) {
+        if ((Get-Date) -ge $launchDeadline) {
             break
         }
 
         Start-Sleep -Milliseconds 500
     }
 
-    return $true
+    try {
+        $currentTask = Get-ScheduledTask -TaskPath "\Microsoft\Windows\DiskCleanup\" -TaskName "SilentCleanup" -ErrorAction Stop
+        if ($currentTask.State -eq "Running" -and (Get-Command -Name Stop-ScheduledTask -ErrorAction SilentlyContinue)) {
+            Stop-ScheduledTask -InputObject $currentTask -ErrorAction SilentlyContinue
+            LogWarning ("SilentCleanup did not launch a trackable cleanmgr.exe process within {0} second(s); stopped the task and using direct cleanmgr.exe." -f $LaunchTimeoutSeconds)
+        }
+    } catch {
+        LogWarning "SilentCleanup state check failed after launch wait: $($_.Exception.Message)"
+    }
+
+    return $false
 }
 
 <#
@@ -367,7 +374,7 @@ try {
     try {
         $usedSilentCleanupTask = Invoke-BuiltInSilentCleanup
     } catch {
-        LogWarning "SilentCleanup task launch failed. Falling back to direct cleanmgr.exe: $($_.Exception.Message)"
+        LogWarning "SilentCleanup task launch failed. Running direct cleanmgr.exe: $($_.Exception.Message)"
     }
 
     if (-not $usedSilentCleanupTask) {
@@ -389,5 +396,5 @@ finally {
 }
 
 # Run DISM component cleanup to remove superseded Windows component store data.
-$null = Invoke-BaselineProcess -FilePath 'Dism.exe' -ArgumentList @('/online', '/Cleanup-Image', '/StartComponentCleanup', '/ResetBase') -TimeoutSeconds 3600
+$null = Invoke-BaselineProcess -FilePath 'Dism.exe' -ArgumentList @('/online', '/Cleanup-Image', '/StartComponentCleanup', '/NoRestart') -TimeoutSeconds 1800
 LogInfo "Running DISM Component Cleanup completed"

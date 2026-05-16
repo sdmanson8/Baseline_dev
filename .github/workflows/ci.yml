@@ -42,17 +42,22 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Audit launcher dependencies
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $output = & dotnet list .\Launcher\RunLauncher.csproj package --vulnerable --include-transitive 2>&1
+          $output | Out-Host
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (($output -join "`n") -match 'has the following vulnerable packages') {
+            throw 'Vulnerable launcher package dependencies were reported.'
+          }
+
       - name: Build launcher
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           & .\Tools\Build-Launcher.ps1 -CopyToRepoRoot
-
-      - name: Run release smoke tests
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-          & .\Tools\Test-ReleaseSmoke.ps1
 
       - name: Install Inno Setup
         shell: powershell
@@ -116,6 +121,12 @@ jobs:
             throw
           }
 
+      - name: Regenerate release test report
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & .\Tools\Export-TestReport.ps1
+
       - name: Upload failed ISCC diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
@@ -170,3 +181,15 @@ jobs:
           $helper = Join-Path (Split-Path -Path $resolved -Parent) 'Helpers\Bootstrap.Helpers.ps1'
           if (-not (Test-Path -LiteralPath $helper -PathType Leaf)) { throw "Bootstrap handoff helper was not found beside $resolved" }
           Write-Host "OK: bootstrap resolves verified handoff script $resolved"
+
+      - name: Run release smoke tests
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $manifest = Import-PowerShellDataFile -LiteralPath .\Module\Baseline.psd1
+          $releaseSmokeArgs = @()
+          if ($manifest -and $manifest.PrivateData -and $manifest.PrivateData.Prerelease) {
+            $releaseSmokeArgs += '-AllowUnsignedPreview'
+          }
+
+          & .\Tools\Test-ReleaseSmoke.ps1 @releaseSmokeArgs

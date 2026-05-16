@@ -1,4 +1,4 @@
-﻿# Compliance checking helpers for Baseline.
+# Compliance checking helpers for Baseline.
 # Provides drift detection by comparing current system state against a saved
 # profile (snapshot) and generating compliance reports with remediation plans.
 #
@@ -103,7 +103,6 @@ function Test-SystemCompliance
 			try { [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::Background) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ComplianceHelpers.Test-SystemCompliance.DispatcherYield' }
 		}
 
-		# Extract the function name and entry name from the profile entry.
 		$functionName = $null
 		$entryName    = $null
 		$desiredValue = $null

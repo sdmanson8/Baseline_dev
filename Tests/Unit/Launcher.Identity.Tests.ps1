@@ -124,6 +124,8 @@ Describe 'Launcher identity host' {
         $script:LauncherProgramContent | Should -Match 'runspace\.ApartmentState = ApartmentState\.STA;'
         $script:LauncherProgramContent | Should -Match 'runspace\.ThreadOptions = PSThreadOptions\.ReuseThread;'
         $script:LauncherProgramContent | Should -Match 'Environment\.SetEnvironmentVariable\(EmbeddedHostVar, "1", EnvironmentVariableTarget\.Process\);'
+        $script:LauncherProgramContent | Should -Match 'BASELINE_INTEGRITY_MODE'
+        $script:LauncherProgramContent | Should -Match 'Environment\.SetEnvironmentVariable\(IntegrityModeVar, "Strict", EnvironmentVariableTarget\.Process\);'
         $script:LauncherProgramContent | Should -Match 'PSExecutionPolicyPreference'
         $script:LauncherProgramContent | Should -Match 'InitialSessionState\.CreateDefault\(\)'
         $script:LauncherProgramContent | Should -Match 'initialSessionState\.ExecutionPolicy = Microsoft\.PowerShell\.ExecutionPolicy\.Bypass;'
@@ -142,10 +144,15 @@ Describe 'Launcher identity host' {
         $script:LauncherProgramContent | Should -Match '"TargetComputer"'
     }
 
-    It 'does not treat the current-user installer layout as portable mode' {
-        $script:LauncherProgramContent | Should -Match 'IsCurrentUserInstallLocation\(appBase, localAppData\)'
-        $script:LauncherProgramContent | Should -Match 'Path\.Combine\(localAppData, "Programs", "Baseline"\)'
-        $script:LauncherProgramContent | Should -Match '&& !IsCurrentUserInstallLocation\(appBase, localAppData\)'
+    It 'requires an explicit portable marker or environment flag before portable state is used' {
+        $script:LauncherProgramContent | Should -Match 'PortableMarkerFileName\s*=\s*"Baseline\.portable"'
+        $script:LauncherProgramContent | Should -Match 'IsExplicitPortableModeRequested\(appBase\)'
+        $script:LauncherProgramContent | Should -Match 'Path\.Combine\(appBase, "Data"\)'
+        $script:LauncherProgramContent | Should -Match 'File\.Exists\(markerPath\)'
+        $script:LauncherProgramContent | Should -Match 'IsTruthyEnvironmentValue\(envValue\)'
+        $script:LauncherProgramContent | Should -Match 'Portable mode was requested'
+        $script:LauncherProgramContent | Should -Not -Match 'IsCurrentUserInstallLocation'
+        $script:LauncherProgramContent | Should -Not -Match 'StartsWith\(localAppData'
     }
 
     It 'invokes the embedded bootstrap with named command-line parameters preserved' {
@@ -178,6 +185,8 @@ Describe 'Launcher identity host' {
         $script:LauncherProjectContent | Should -Match 'System\.Management\.Automation\.dll'
         $script:LauncherProjectContent | Should -Match '<PlatformTarget>AnyCPU</PlatformTarget>'
         $script:LauncherProjectContent | Should -Match '<Prefer32Bit>false</Prefer32Bit>'
+        $script:LauncherProjectContent | Should -Match '<LangVersion>12\.0</LangVersion>'
+        $script:LauncherProjectContent | Should -Not -Match '<LangVersion>latest</LangVersion>'
         $script:LauncherProjectContent | Should -Not -Match 'Microsoft\.PowerShell\.SDK'
     }
 
@@ -223,6 +232,15 @@ Describe 'Embedded host bootstrap flow' {
         $script:BootstrapContent | Should -Match '\$Global:LASTEXITCODE = \[int\]\$Code'
         $script:BootstrapContent | Should -Match 'return \(Exit-BaselineBootstrap -Code 2\)'
         $script:BootstrapContent | Should -Not -Match 'if \(\$Script:IsEmbeddedHost\) \{ return \} else \{ exit \}'
+    }
+
+    It 'invokes InitialActions through a resolved module command in the embedded runspace' {
+        $script:BootstrapContent | Should -Match '\$initialActionsModule = Import-Module -Name \$initialActionsModulePath[\s\S]+-PassThru'
+        $script:BootstrapContent | Should -Match '\$Script:InitialActionsCommand = \$initialActionsModule\.ExportedCommands\[''InitialActions''\]'
+        $script:BootstrapContent | Should -Match 'function Invoke-BaselineInitialActions'
+        $script:BootstrapContent | Should -Match '& \$Script:InitialActionsCommand'
+        $script:BootstrapContent | Should -Not -Match 'Invoke-Command -ScriptBlock \{\s*InitialActions\s*\}'
+        $script:BootstrapContent | Should -Not -Match '\n\tInitialActions\r?\n'
     }
 
     It 'routes audited bootstrap abort scenarios through explicit non-zero exit codes' {

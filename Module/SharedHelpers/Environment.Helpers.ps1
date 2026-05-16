@@ -1,4 +1,4 @@
-﻿
+
 # Shared helpers for Baseline.
 
 <#
@@ -24,6 +24,10 @@ namespace WinAPI
 		[DllImport("user32.dll")]
 		[return: MarshalAs(UnmanagedType.Bool)]
 		public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+		[DllImport("user32.dll")]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 	}
 }
 "@ -ErrorAction Stop | Out-Null
@@ -970,7 +974,6 @@ function Show-BootstrapLoadingSplash
 		[switch]$StartUpdatesPulse
 	)
 
-			# P5 rollback checkpoint: Show-BootstrapLoadingSplash part extracted to Module/SharedHelpers/Environment/Show-BootstrapLoadingSplash/Show-BootstrapLoadingSplash.ps1; re-inline here if rollback is needed.
 		$__baselineExtractedPartDidReturn = $false
 		$__baselineExtractedPartHasReturnValue = $false
 		$__baselineExtractedPartReturnValue = $null
@@ -1072,7 +1075,7 @@ namespace WinAPI
 
 function Format-BaselineDownloadStatus
 {
-	<# .SYNOPSIS Formats the update download status with percent, size, and transfer rate. #>
+	<# .SYNOPSIS Formats the update download status with transfer rate and remaining time. #>
 	[CmdletBinding()]
 	param(
 		[Parameter(Mandatory = $true)]
@@ -1086,24 +1089,34 @@ function Format-BaselineDownloadStatus
 		[double]$ElapsedSeconds = 0
 	)
 
-	$receivedMB = [Math]::Round(($BytesReceived / 1MB), 1)
-	$speedMBps = if ($ElapsedSeconds -gt 0)
+	$speedBytesPerSecond = if ($ElapsedSeconds -gt 0)
 	{
-		[Math]::Round((($BytesReceived / $ElapsedSeconds) / 1MB), 2)
+		[double]$BytesReceived / [double]$ElapsedSeconds
 	}
 	else
 	{
-		0
+		0.0
 	}
 
-	if ($TotalBytes -gt 0)
+	if ($TotalBytes -le 0 -or $BytesReceived -le 0 -or $speedBytesPerSecond -le 0)
 	{
-		$totalMB = [Math]::Round(($TotalBytes / 1MB), 1)
-		$pct = [int]([Math]::Min(99, ($BytesReceived * 100 / $TotalBytes)))
-		return (Get-BaselineLocalizedString -Key 'Bootstrap_DownloadingUpdate' -Fallback 'Downloading update {0}... {1}% ({2} / {3} MB at {4} MB/s)' -FormatArgs @($VersionTag, $pct, $receivedMB, $totalMB, $speedMBps))
+		return ''
 	}
 
-	return (Get-BaselineLocalizedString -Key 'Bootstrap_DownloadingUpdateNoTotal' -Fallback 'Downloading update {0}... {1} MB at {2} MB/s' -FormatArgs @($VersionTag, $receivedMB, $speedMBps))
+	$remainingBytes = [Math]::Max([long]0, ([long]$TotalBytes - [long]$BytesReceived))
+	$remainingSeconds = [int][Math]::Ceiling([double]$remainingBytes / $speedBytesPerSecond)
+	$downloadRate = [Math]::Round(($speedBytesPerSecond / 1MB), 2)
+	$timeSpan = [TimeSpan]::FromSeconds($remainingSeconds)
+	$remainingText = if ($timeSpan.TotalHours -ge 1)
+	{
+		'{0:00}:{1:00}:{2:00}' -f [int][Math]::Floor($timeSpan.TotalHours), $timeSpan.Minutes, $timeSpan.Seconds
+	}
+	else
+	{
+		'{0:00}:{1:00}' -f [int]$timeSpan.Minutes, $timeSpan.Seconds
+	}
+
+	return ('{0} MB/s - {1} remaining' -f $downloadRate, $remainingText)
 }
 
 function Get-BaselineUpdateAsset
@@ -1423,14 +1436,13 @@ function Set-BootstrapLoadingSplashState
 				}
 
 				$hasStatusText = -not [string]::IsNullOrWhiteSpace([string]$StatusText)
-				$showStatusLine = $hasStatusText -or [bool]$Indeterminate
 
 				if ($statusControl -and $hasStatusText)
 				{
 					$statusControl.Text = [string]$StatusText
 				}
 
-				if ($showStatusLine)
+				if ($hasStatusText)
 				{
 					if ($subActionPanel)
 					{
@@ -1439,6 +1451,18 @@ function Set-BootstrapLoadingSplashState
 					elseif ($statusControl)
 					{
 						$statusControl.Visibility = [System.Windows.Visibility]::Visible
+					}
+				}
+				else
+				{
+					if ($statusControl) { $statusControl.Text = '' }
+					if ($subActionPanel)
+					{
+						$subActionPanel.Visibility = [System.Windows.Visibility]::Collapsed
+					}
+					elseif ($statusControl)
+					{
+						$statusControl.Visibility = [System.Windows.Visibility]::Collapsed
 					}
 				}
 
@@ -1557,17 +1581,14 @@ function Set-BootstrapLoadingSplashStep
 	$theme = $null
 	$stepOrder = @('updates','system','winget','chocolatey','finalize')
 
-			# P5 rollback checkpoint: Set-BootstrapLoadingSplashStep part extracted to Module/SharedHelpers/Environment/Set-BootstrapLoadingSplashStep/SplashControlResolution.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'Environment\Set-BootstrapLoadingSplashStep\SplashControlResolution.ps1')
 
 	if (-not $window -or -not $dispatcher -or $dispatcher.HasShutdownStarted) { return $false }
 	if (-not $stepGlyphs -or -not $stepLabels -or -not $stepStates) { return $false }
 
 	$hasSubActionArg = $PSBoundParameters.ContainsKey('SubAction')
-			# P5 rollback checkpoint: Set-BootstrapLoadingSplashStep part extracted to Module/SharedHelpers/Environment/Set-BootstrapLoadingSplashStep/SplashProgressState.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'Environment\Set-BootstrapLoadingSplashStep\SplashProgressState.ps1')
 
-			# P5 rollback checkpoint: Set-BootstrapLoadingSplashStep part extracted to Module/SharedHelpers/Environment/Set-BootstrapLoadingSplashStep/SplashDispatcherUpdate.ps1; re-inline here if rollback is needed.
 		$__baselineExtractedPartDidReturn = $false
 		$__baselineExtractedPartHasReturnValue = $false
 		$__baselineExtractedPartReturnValue = $null
@@ -2778,7 +2799,7 @@ function Invoke-BaselineAutoUpdate
 		}
 
 		Set-DownloadSecurityProtocol
-		[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'Bootstrap_CheckingForUpdates' -Fallback 'Checking for updates...') -Completed 0 -Total 5)
+		[void](Set-BootstrapLoadingSplashState -Splash $Splash -Completed 0 -Total 5)
 		if (Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction SilentlyContinue)
 		{
 			[void](Set-BootstrapLoadingSplashStep -Splash $Splash -StepId 'updates' -Status 'in_progress' -SubAction '')
@@ -2805,7 +2826,7 @@ function Invoke-BaselineAutoUpdate
 		{
 			Set-BaselineUpdateCheckState -Path $statePath -Status 'Up to date' -LatestVersion $latestTag -Message ''
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_AlreadyUpToDate' -Fallback 'Already up to date (latest: {0}).' -FormatArgs @($latestTag))
-			[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...') -Indeterminate)
+			[void](Set-BootstrapLoadingSplashState -Splash $Splash -Indeterminate)
 			return
 		}
 
@@ -2828,7 +2849,7 @@ function Invoke-BaselineAutoUpdate
 
 		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_UpdateAvailable' -Fallback 'Update available: {0}. Downloading...' -FormatArgs @($latestTag))
 		# Download with progress bar
-		[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Format-BaselineDownloadStatus -VersionTag $latestTag -BytesReceived 0 -TotalBytes 0 -ElapsedSeconds 0) -Completed 0 -Total 100)
+		[void](Set-BootstrapLoadingSplashState -Splash $Splash -Completed 0 -Total 100)
 
 		$tmpDir = Join-Path ([System.IO.Path]::GetTempPath()) ("BaselineUpdate_" + [System.Guid]::NewGuid().ToString('N'))
 		$zipPath = Join-Path $tmpDir $releaseAssetName
@@ -2901,16 +2922,16 @@ function Invoke-BaselineAutoUpdate
 				$response.Close()
 			}
 
-			[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'Bootstrap_InstallingUpdate' -Fallback 'Installing update {0}...' -FormatArgs @($latestTag)) -Completed 100 -Total 100)
+			[void](Set-BootstrapLoadingSplashState -Splash $Splash -Completed 100 -Total 100)
 
 			$releaseManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-BaselineJson
 			Assert-BaselineUpdateFileHash -Path $zipPath -Manifest $releaseManifest -Name $releaseAssetName
 			New-Item -ItemType Directory -Path $extractPath -Force | Out-Null
 			Expand-Archive -LiteralPath $zipPath -DestinationPath $extractPath -Force
-			$setupCandidates = @(Get-ChildItem -Path $extractPath -Filter 'Baseline-setup-*.exe' -Recurse -File -ErrorAction Stop)
+			$setupCandidates = @(Get-ChildItem -Path $extractPath -Filter 'Baseline-*-setup.exe' -Recurse -File -ErrorAction Stop)
 			if ($setupCandidates.Count -ne 1)
 			{
-				throw "Release zip must contain exactly one Baseline-setup-*.exe. Found $($setupCandidates.Count)."
+				throw "Release zip must contain exactly one Baseline-*-setup.exe. Found $($setupCandidates.Count)."
 			}
 			$setupPath = [string]$setupCandidates[0].FullName
 			$setupFileName = [System.IO.Path]::GetFileName($setupPath)
@@ -3003,7 +3024,7 @@ del /f /q "%~f0"
 			}
 			else
 			{
-				[void](Set-BootstrapLoadingSplashState -Splash $Splash -StatusText (Get-BaselineLocalizedString -Key 'GuiSplashLoading' -Fallback 'Please Wait...') -Indeterminate)
+				[void](Set-BootstrapLoadingSplashState -Splash $Splash -Indeterminate)
 			}
 		}
 		catch { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.InvokeBaselineAutoUpdate.RestoreSplashState' }
@@ -3426,8 +3447,8 @@ function Get-BaselineOperationMode
 	[OutputType([string])]
 	param ()
 
-	$globalMode = Get-Variable -Name BaselineOperationMode -Scope Global -ValueOnly -ErrorAction SilentlyContinue
-	if (-not [string]::IsNullOrWhiteSpace([string]$globalMode)) { return [string]$globalMode }
+	$globalModeVariable = Get-Variable -Name BaselineOperationMode -Scope Global -ErrorAction SilentlyContinue
+	if ($globalModeVariable -and -not [string]::IsNullOrWhiteSpace([string]$globalModeVariable.Value)) { return [string]$globalModeVariable.Value }
 	$envMode = [System.Environment]::GetEnvironmentVariable('BASELINE_OPERATION_MODE')
 	if (-not [string]::IsNullOrWhiteSpace([string]$envMode)) { return [string]$envMode }
 	return 'ReadWrite'

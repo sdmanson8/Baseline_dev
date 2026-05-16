@@ -46,7 +46,7 @@ Describe 'Remote target approval menu' {
         $script:SessionStateContent | Should -Match 'ApprovedAt'
         $script:SessionStateContent | Should -Match 'ApprovalMessage'
         $script:SessionStateContent | Should -Match 'PinnedBaselineVersion'
-        $script:SessionStateContent | Should -Match 'SchemaVersion = 18'
+        $script:SessionStateContent | Should -Match 'SchemaVersion = 19'
         $script:SessionStateContent | Should -Match 'function Test-GuiRemoteTargetApproval'
         $script:SessionStateContent | Should -Match 'function Set-GuiRemoteTargetApprovalList'
         $script:SessionStateContent | Should -Match 'function Clear-GuiRemoteTargetApprovalList'

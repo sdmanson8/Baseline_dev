@@ -1,4 +1,4 @@
-﻿# GUI context hashtable ($Script:Ctx) - groups $Script: variables by category.
+# GUI context hashtable ($Script:Ctx) - groups $Script: variables by category.
 # Loaded first in Show-TweakGUI. Direct $Script: access still works everywhere.
 
 	<#
@@ -97,7 +97,7 @@
 			}
 			Config = @{
 				ModuleBasePath      = $null
-				ExtractedRoot       = $null
+				ModuleRoot       = $null
 				PresetDirectoryPath = $null
 				DisplayVersion      = $null
 			}

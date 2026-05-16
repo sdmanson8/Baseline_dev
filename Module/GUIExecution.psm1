@@ -11,6 +11,61 @@ using module .\SharedHelpers.psm1
     This is internal runtime plumbing, not user-facing documentation.
 #>
 
+function Get-GuiExecutionOperationMode
+{
+	[CmdletBinding()]
+	param ()
+
+	$mode = $null
+	try
+	{
+		if (Get-Command -Name Get-BaselineOperationMode -ErrorAction SilentlyContinue)
+		{
+			$mode = Get-BaselineOperationMode
+		}
+	}
+	catch
+	{
+		$mode = $null
+	}
+
+	if ([string]::IsNullOrWhiteSpace([string]$mode))
+	{
+		$mode = [System.Environment]::GetEnvironmentVariable('BASELINE_OPERATION_MODE')
+	}
+
+	if ([string]$mode -in @('ReadOnly', 'ReadWrite'))
+	{
+		return [string]$mode
+	}
+
+	return 'ReadWrite'
+}
+
+function Test-GuiExecutionObjectField
+{
+	[CmdletBinding()]
+	param (
+		[AllowNull()]
+		[object]$Object,
+
+		[Parameter(Mandatory = $true)]
+		[string]$FieldName
+	)
+
+	if ($null -eq $Object -or [string]::IsNullOrWhiteSpace($FieldName))
+	{
+		return $false
+	}
+
+	if ($Object -is [System.Collections.IDictionary])
+	{
+		return $Object.Contains($FieldName)
+	}
+
+	return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName])
+}
+
 function Write-GuiExecutionCleanupWarning
 {
 	param ([string]$Message)
@@ -137,7 +192,7 @@ function New-GuiExecutionAppliedTweakMetadata
 
 	$resolvedOutcome = if ([string]::IsNullOrWhiteSpace($Outcome))
 	{
-		Get-GuiExecutionOutcome -Status ([string]$Result.Status) -Detail ([string]$Result.Detail) -RequiresRestart $(if ((Test-GuiObjectField -Object $Result -FieldName 'RequiresRestart')) { [bool]$Result.RequiresRestart } else { $false })
+		Get-GuiExecutionOutcome -Status ([string]$Result.Status) -Detail ([string]$Result.Detail) -RequiresRestart $(if ((Test-GuiExecutionObjectField -Object $Result -FieldName 'RequiresRestart')) { [bool]$Result.RequiresRestart } else { $false })
 	}
 	else
 	{
@@ -146,23 +201,23 @@ function New-GuiExecutionAppliedTweakMetadata
 
 	return [pscustomobject]@{
 		Key                 = [string]$Result.Key
-		Order               = if ((Test-GuiObjectField -Object $Result -FieldName 'Order')) { [int]$Result.Order } else { 0 }
+		Order               = if ((Test-GuiExecutionObjectField -Object $Result -FieldName 'Order')) { [int]$Result.Order } else { 0 }
 		Name                = [string]$Result.Name
 		Function            = [string]$Result.Function
 		Category            = [string]$Result.Category
-		Type                = if ((Test-GuiObjectField -Object $Result -FieldName 'Type')) { [string]$Result.Type } else { $null }
-		TypeLabel           = if ((Test-GuiObjectField -Object $Result -FieldName 'TypeLabel')) { [string]$Result.TypeLabel } else { $null }
-		Selection           = if ((Test-GuiObjectField -Object $Result -FieldName 'Selection')) { [string]$Result.Selection } else { $null }
-		ToggleParam         = if ((Test-GuiObjectField -Object $Result -FieldName 'ToggleParam')) { [string]$Result.ToggleParam } else { $null }
-		RequiresRestart     = if ((Test-GuiObjectField -Object $Result -FieldName 'RequiresRestart')) { [bool]$Result.RequiresRestart } else { $false }
-		Restorable          = if ((Test-GuiObjectField -Object $Result -FieldName 'Restorable')) { $Result.Restorable } else { $null }
-		RecoveryLevel       = if ((Test-GuiObjectField -Object $Result -FieldName 'RecoveryLevel')) { [string]$Result.RecoveryLevel } else { $null }
-		TroubleshootingOnly = if ((Test-GuiObjectField -Object $Result -FieldName 'TroubleshootingOnly')) { [bool]$Result.TroubleshootingOnly } else { $false }
-		FromGameMode        = if ((Test-GuiObjectField -Object $Result -FieldName 'FromGameMode')) { [bool]$Result.FromGameMode } else { $false }
-		GameModeProfile     = if ((Test-GuiObjectField -Object $Result -FieldName 'GameModeProfile')) { [string]$Result.GameModeProfile } else { $null }
-		GameModeOperation   = if ((Test-GuiObjectField -Object $Result -FieldName 'GameModeOperation')) { [string]$Result.GameModeOperation } else { $null }
+		Type                = if ((Test-GuiExecutionObjectField -Object $Result -FieldName 'Type')) { [string]$Result.Type } else { $null }
+		TypeLabel           = if ((Test-GuiExecutionObjectField -Object $Result -FieldName 'TypeLabel')) { [string]$Result.TypeLabel } else { $null }
+		Selection           = if ((Test-GuiExecutionObjectField -Object $Result -FieldName 'Selection')) { [string]$Result.Selection } else { $null }
+		ToggleParam         = if ((Test-GuiExecutionObjectField -Object $Result -FieldName 'ToggleParam')) { [string]$Result.ToggleParam } else { $null }
+		RequiresRestart     = if ((Test-GuiExecutionObjectField -Object $Result -FieldName 'RequiresRestart')) { [bool]$Result.RequiresRestart } else { $false }
+		Restorable          = if ((Test-GuiExecutionObjectField -Object $Result -FieldName 'Restorable')) { $Result.Restorable } else { $null }
+		RecoveryLevel       = if ((Test-GuiExecutionObjectField -Object $Result -FieldName 'RecoveryLevel')) { [string]$Result.RecoveryLevel } else { $null }
+		TroubleshootingOnly = if ((Test-GuiExecutionObjectField -Object $Result -FieldName 'TroubleshootingOnly')) { [bool]$Result.TroubleshootingOnly } else { $false }
+		FromGameMode        = if ((Test-GuiExecutionObjectField -Object $Result -FieldName 'FromGameMode')) { [bool]$Result.FromGameMode } else { $false }
+		GameModeProfile     = if ((Test-GuiExecutionObjectField -Object $Result -FieldName 'GameModeProfile')) { [string]$Result.GameModeProfile } else { $null }
+		GameModeOperation   = if ((Test-GuiExecutionObjectField -Object $Result -FieldName 'GameModeOperation')) { [string]$Result.GameModeOperation } else { $null }
 		Outcome             = $resolvedOutcome
-		Detail              = if ((Test-GuiObjectField -Object $Result -FieldName 'Detail')) { [string]$Result.Detail } else { $null }
+		Detail              = if ((Test-GuiExecutionObjectField -Object $Result -FieldName 'Detail')) { [string]$Result.Detail } else { $null }
 	}
 }
 
@@ -184,7 +239,7 @@ function Get-GuiExecutionSummaryPayload
 	$decorated = @(
 		foreach ($result in $results)
 		{
-			$outcome = Get-GuiExecutionOutcome -Status ([string]$result.Status) -Detail ([string]$result.Detail) -RequiresRestart $(if ((Test-GuiObjectField -Object $result -FieldName 'RequiresRestart')) { [bool]$result.RequiresRestart } else { $false })
+			$outcome = Get-GuiExecutionOutcome -Status ([string]$result.Status) -Detail ([string]$result.Detail) -RequiresRestart $(if ((Test-GuiExecutionObjectField -Object $result -FieldName 'RequiresRestart')) { [bool]$result.RequiresRestart } else { $false })
 			[pscustomobject]@{
 				Result = $result
 				Outcome = $outcome
@@ -216,10 +271,10 @@ function Get-GuiExecutionSummaryPayload
 		DirectUndoEligibleCount = @(
 			$appliedResults |
 				Where-Object {
-					(Test-GuiObjectField -Object $_ -FieldName 'Restorable') -and
+					(Test-GuiExecutionObjectField -Object $_ -FieldName 'Restorable') -and
 					$null -ne $_.Restorable -and
 					[bool]$_.Restorable -and
-					(Test-GuiObjectField -Object $_ -FieldName 'RecoveryLevel') -and
+					(Test-GuiExecutionObjectField -Object $_ -FieldName 'RecoveryLevel') -and
 					[string]$_.RecoveryLevel -eq 'Direct'
 				}
 		).Count
@@ -529,9 +584,13 @@ function New-GuiExecutionActionHost
 
 		[string]$LogMode,
 
+		[string]$OperationMode,
+
 		[AllowNull()]
 		$LogQueue
 	)
+
+	$resolvedOperationMode = if ([string]::IsNullOrWhiteSpace([string]$OperationMode)) { Get-GuiExecutionOperationMode } else { [string]$OperationMode }
 
 	$runspace = [runspacefactory]::CreateRunspace()
 	$runspace.ApartmentState = 'STA'
@@ -542,10 +601,17 @@ function New-GuiExecutionActionHost
 	$runspace.SessionStateProxy.SetVariable('bgUICulture', $UICulture)
 	$runspace.SessionStateProxy.SetVariable('bgLogFilePath', $LogFilePath)
 	$runspace.SessionStateProxy.SetVariable('bgLogMode', $LogMode)
+	$runspace.SessionStateProxy.SetVariable('bgOperationMode', $resolvedOperationMode)
 	$runspace.SessionStateProxy.SetVariable('bgGuiLogQueue', $LogQueue)
 
 	$initializer = [powershell]::Create().AddScript({
 		$Global:GUIMode = $true
+		if ([string]::IsNullOrWhiteSpace([string]$bgOperationMode))
+		{
+			$bgOperationMode = 'ReadWrite'
+		}
+		$Global:BaselineOperationMode = [string]$bgOperationMode
+		[System.Environment]::SetEnvironmentVariable('BASELINE_OPERATION_MODE', [string]$bgOperationMode, [System.EnvironmentVariableTarget]::Process)
 		$bgModuleRoot = Split-Path $bgLoaderPath -Parent
 		$bgJsonHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Json.Helpers.ps1'
 		$bgHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Localization.Helpers.ps1'
@@ -555,6 +621,10 @@ function New-GuiExecutionActionHost
 		[void](Set-BaselineThreadCulture -UICulture $bgUICulture)
 		$Global:LogFilePath = $bgLogFilePath
 		Import-Module $bgLoaderPath -Force -Global -ErrorAction Stop
+		if (Get-Command -Name Set-BaselineOperationMode -ErrorAction SilentlyContinue)
+		{
+			Set-BaselineOperationMode -Mode ([string]$bgOperationMode)
+		}
 		Set-LogFile -Path $bgLogFilePath
 		Set-LogMode -Mode $bgLogMode
 		if ($bgGuiLogQueue)
@@ -598,7 +668,8 @@ function New-GuiExecutionActionHost
 	}
 
 	return [pscustomobject]@{
-		Runspace = $runspace
+		Runspace      = $runspace
+		OperationMode = $resolvedOperationMode
 	}
 }
 
@@ -651,11 +722,36 @@ function Invoke-GuiExecutionActionHostCommand
 		[hashtable]$RunState = $null
 	)
 
+	$invocationOperationMode = if ((Test-GuiExecutionObjectField -Object $ActionHost -FieldName 'OperationMode') -and -not [string]::IsNullOrWhiteSpace([string]$ActionHost.OperationMode))
+	{
+		[string]$ActionHost.OperationMode
+	}
+	else
+	{
+		Get-GuiExecutionOperationMode
+	}
+
 	$powerShell = [powershell]::Create().AddScript({
 		param (
 			[string]$InvocationCommandName,
-			[hashtable]$InvocationCommandArguments
+			[hashtable]$InvocationCommandArguments,
+			[string]$InvocationOperationMode
 		)
+
+		if ([string]::IsNullOrWhiteSpace([string]$InvocationOperationMode))
+		{
+			$InvocationOperationMode = [System.Environment]::GetEnvironmentVariable('BASELINE_OPERATION_MODE')
+		}
+		if ([string]::IsNullOrWhiteSpace([string]$InvocationOperationMode))
+		{
+			$InvocationOperationMode = 'ReadWrite'
+		}
+		$Global:BaselineOperationMode = [string]$InvocationOperationMode
+		[System.Environment]::SetEnvironmentVariable('BASELINE_OPERATION_MODE', [string]$InvocationOperationMode, [System.EnvironmentVariableTarget]::Process)
+		if (Get-Command -Name Set-BaselineOperationMode -ErrorAction SilentlyContinue)
+		{
+			Set-BaselineOperationMode -Mode ([string]$InvocationOperationMode)
+		}
 
 		$errorBaseline = if ($Global:Error) { $Global:Error.Count } else { 0 }
 		$resolvedCommand = Get-Command -Name $InvocationCommandName -ErrorAction Stop | Select-Object -First 1
@@ -673,7 +769,7 @@ function Invoke-GuiExecutionActionHostCommand
 		{
 			throw $newErrors[0]
 		}
-	}).AddArgument($CommandName).AddArgument($CommandArguments)
+	}).AddArgument($CommandName).AddArgument($CommandArguments).AddArgument($invocationOperationMode)
 	$powerShell.Runspace = $ActionHost.Runspace
 
 	$startedAt = Get-Date
@@ -779,12 +875,12 @@ function Test-GuiExecutionInvocationTimedOut
 		return $false
 	}
 
-	if ((Test-GuiObjectField -Object $InvocationResult -FieldName 'TimedOut') -and [bool]$InvocationResult.TimedOut)
+	if ((Test-GuiExecutionObjectField -Object $InvocationResult -FieldName 'TimedOut') -and [bool]$InvocationResult.TimedOut)
 	{
 		return $true
 	}
 
-	if ((Test-GuiObjectField -Object $InvocationResult -FieldName 'ErrorTypeName') -and [string]$InvocationResult.ErrorTypeName -eq 'System.TimeoutException')
+	if ((Test-GuiExecutionObjectField -Object $InvocationResult -FieldName 'ErrorTypeName') -and [string]$InvocationResult.ErrorTypeName -eq 'System.TimeoutException')
 	{
 		return $true
 	}
@@ -832,14 +928,14 @@ function New-GuiExecutionAppBatchEntry
 	}
 
 	$entry = [ordered]@{
-		SelectionKey   = if ((Test-GuiObjectField -Object $Route -FieldName 'SelectionKey')) { [string]$Route.SelectionKey } else { $null }
-		WinGetId       = if ((Test-GuiObjectField -Object $Route -FieldName 'WinGetId')) { [string]$Route.WinGetId } else { $null }
-		ChocoId        = if ((Test-GuiObjectField -Object $Route -FieldName 'ChocoId')) { [string]$Route.ChocoId } else { $null }
-		Name           = if ((Test-GuiObjectField -Object $Route -FieldName 'DisplayName')) { [string]$Route.DisplayName } else { $null }
-		EntityType     = if ((Test-GuiObjectField -Object $Route -FieldName 'EntityType')) { [string]$Route.EntityType } else { $null }
-		Route          = if ((Test-GuiObjectField -Object $Route -FieldName 'Route')) { [string]$Route.Route } else { $null }
-		SelectedSource = if ((Test-GuiObjectField -Object $Route -FieldName 'SelectedSource')) { [string]$Route.SelectedSource } else { $null }
-		PackageId      = if ((Test-GuiObjectField -Object $Route -FieldName 'PackageId')) { [string]$Route.PackageId } else { $null }
+		SelectionKey   = if ((Test-GuiExecutionObjectField -Object $Route -FieldName 'SelectionKey')) { [string]$Route.SelectionKey } else { $null }
+		WinGetId       = if ((Test-GuiExecutionObjectField -Object $Route -FieldName 'WinGetId')) { [string]$Route.WinGetId } else { $null }
+		ChocoId        = if ((Test-GuiExecutionObjectField -Object $Route -FieldName 'ChocoId')) { [string]$Route.ChocoId } else { $null }
+		Name           = if ((Test-GuiExecutionObjectField -Object $Route -FieldName 'DisplayName')) { [string]$Route.DisplayName } else { $null }
+		EntityType     = if ((Test-GuiExecutionObjectField -Object $Route -FieldName 'EntityType')) { [string]$Route.EntityType } else { $null }
+		Route          = if ((Test-GuiExecutionObjectField -Object $Route -FieldName 'Route')) { [string]$Route.Route } else { $null }
+		SelectedSource = if ((Test-GuiExecutionObjectField -Object $Route -FieldName 'SelectedSource')) { [string]$Route.SelectedSource } else { $null }
+		PackageId      = if ((Test-GuiExecutionObjectField -Object $Route -FieldName 'PackageId')) { [string]$Route.PackageId } else { $null }
 	}
 
 	if (-not [string]::IsNullOrWhiteSpace($Error))
@@ -1179,6 +1275,7 @@ function Start-GuiExecutionWorker
 	$bgRunspace.ApartmentState = 'STA'
 	$bgRunspace.ThreadOptions = 'ReuseThread'
 	$bgRunspace.Open()
+	$operationMode = Get-GuiExecutionOperationMode
 	$bgRunspace.SessionStateProxy.SetVariable('runState', $RunState)
 	$bgRunspace.SessionStateProxy.SetVariable('tweakList', @($TweakList))
 	$bgRunspace.SessionStateProxy.SetVariable('executionMode', $Mode)
@@ -1187,10 +1284,10 @@ function Start-GuiExecutionWorker
 	$bgRunspace.SessionStateProxy.SetVariable('bgUICulture', $UICulture)
 	$bgRunspace.SessionStateProxy.SetVariable('bgLogFilePath', $LogFilePath)
 	$bgRunspace.SessionStateProxy.SetVariable('bgLogMode', $LogMode)
+	$bgRunspace.SessionStateProxy.SetVariable('bgOperationMode', $operationMode)
 	$bgRunspace.SessionStateProxy.SetVariable('bgForceUnsupported', [bool]$ForceUnsupported)
 	$bgRunspace.SessionStateProxy.SetVariable('GUIRunState', $RunState['LogQueue'])
 
-			# P5 rollback checkpoint: Start-GuiExecutionWorker part extracted to Module/GUIExecution/Start-GuiExecutionWorker/Start-GuiExecutionWorker.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'GUIExecution\Start-GuiExecutionWorker\Start-GuiExecutionWorker.ps1')
 
 	$worker.Runspace = $bgRunspace
@@ -1273,6 +1370,7 @@ function Start-GuiAppExecutionWorker
 	$bgRunspace.ApartmentState = 'STA'
 	$bgRunspace.ThreadOptions = 'ReuseThread'
 	$bgRunspace.Open()
+	$operationMode = Get-GuiExecutionOperationMode
 	if ($RunState)
 	{
 		$bgRunspace.SessionStateProxy.SetVariable('runState', $RunState)
@@ -1286,6 +1384,7 @@ function Start-GuiAppExecutionWorker
 	$bgRunspace.SessionStateProxy.SetVariable('bgUICulture', $UICulture)
 	$bgRunspace.SessionStateProxy.SetVariable('bgLogFilePath', $LogFilePath)
 	$bgRunspace.SessionStateProxy.SetVariable('bgLogMode', $LogMode)
+	$bgRunspace.SessionStateProxy.SetVariable('bgOperationMode', $operationMode)
 	$bgRunspace.SessionStateProxy.SetVariable('runAction', $Action)
 	$bgRunspace.SessionStateProxy.SetVariable('packageId', $resolvedWinGetId)
 	$bgRunspace.SessionStateProxy.SetVariable('chocolateyId', $resolvedChocoId)
@@ -1295,7 +1394,6 @@ function Start-GuiAppExecutionWorker
 	$bgRunspace.SessionStateProxy.SetVariable('preferredSource', $PreferredSource)
 	$bgRunspace.SessionStateProxy.SetVariable('packageManagerAvailabilityState', $PackageManagerAvailabilityState)
 
-			# P5 rollback checkpoint: Start-GuiAppExecutionWorker part extracted to Module/GUIExecution/Start-GuiAppExecutionWorker/Start-GuiAppExecutionWorker.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'GUIExecution\Start-GuiAppExecutionWorker\Start-GuiAppExecutionWorker.ps1')
 
 	$worker.Runspace = $bgRunspace

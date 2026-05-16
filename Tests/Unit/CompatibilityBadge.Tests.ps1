@@ -1,7 +1,6 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
-    # Extract Get-CompatibilityBadgeInfo from the split TweakRowFactory source
     # via AST so we can exercise the real helper without spinning up WPF.
     $filePath = Join-Path $PSScriptRoot '../../Module/GUI/TweakRowFactory/MetadataDetails.ps1'
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)

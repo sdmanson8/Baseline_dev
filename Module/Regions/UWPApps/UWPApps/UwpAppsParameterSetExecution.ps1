@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from UWPApps in Module\Regions\UWPApps.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables, throws with the original inline behavior, and bridges caller-level returns back to the parent function.
 switch ($PSCmdlet.ParameterSetName)
 		{
 		"Install"
@@ -228,7 +226,7 @@ switch ($PSCmdlet.ParameterSetName)
 	                $__baselineExtractedPartHasReturnValue = $false; $__baselineExtractedPartDidReturn = $true; return
 	            }
 				$RootBorder = $Form.FindName("RootBorder")
-				Set-UWPAppsPickerSurface -Window $Form -RootBorder $RootBorder -PanelContainer $PanelContainer -Theme $currentTheme -BrushConverter $bc -UseDarkMode $isDarkMode
+				& $setUWPAppsPickerSurface -Window $Form -RootBorder $RootBorder -PanelContainer $PanelContainer -Theme $currentTheme -BrushConverter $bc -UseDarkMode $isDarkMode
 	            $uwpAppsTitle               = GUICommon\Get-GuiPopupLocalizedString -Key 'Tweak_UWPApps' -Fallback 'UWP Apps (Bulk)'
 	            $Form.Title                 = $uwpAppsTitle
 				if (Test-Path -Path Function:\Add-GuiPopupWindowChrome)
@@ -255,7 +253,7 @@ switch ($PSCmdlet.ParameterSetName)
 
 				try
 				{
-					Set-UWPAppsPickerSurface -Window $Window -RootBorder $RootBorder -PanelContainer $PanelContainer -Theme $Theme -BrushConverter $bc -UseDarkMode $UseDarkMode
+					& $setUWPAppsPickerSurface -Window $Window -RootBorder $RootBorder -PanelContainer $PanelContainer -Theme $Theme -BrushConverter $bc -UseDarkMode $UseDarkMode
 				}
 				catch
 				{
@@ -1170,7 +1168,7 @@ switch ($PSCmdlet.ParameterSetName)
 				}
 
 				$RootBorder = $Form.FindName("RootBorder")
-				Set-UWPAppsPickerSurface -Window $Form -RootBorder $RootBorder -PanelContainer $PanelContainer -Theme $currentTheme -BrushConverter $bc -UseDarkMode $isDarkMode
+				& $setUWPAppsPickerSurface -Window $Form -RootBorder $RootBorder -PanelContainer $PanelContainer -Theme $currentTheme -BrushConverter $bc -UseDarkMode $isDarkMode
 
 				$uwpAppsTitle               = GUICommon\Get-GuiPopupLocalizedString -Key 'Tweak_UWPApps' -Fallback 'UWP Apps (Bulk)'
 				$Form.Title                 = $uwpAppsTitle
@@ -1198,7 +1196,7 @@ switch ($PSCmdlet.ParameterSetName)
 
 				try
 				{
-					Set-UWPAppsPickerSurface -Window $Window -RootBorder $RootBorder -PanelContainer $PanelContainer -Theme $Theme -BrushConverter $bc -UseDarkMode $UseDarkMode
+					& $setUWPAppsPickerSurface -Window $Window -RootBorder $RootBorder -PanelContainer $PanelContainer -Theme $Theme -BrushConverter $bc -UseDarkMode $UseDarkMode
 				}
 				catch
 				{

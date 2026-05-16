@@ -243,7 +243,13 @@ async function translateFile(localeEntry)
     const locale = readJsonFile(filePath);
     const lang = fileName.replace(/\.json$/, '');
 
-    const targetKeys = Object.keys(en).filter((key) => !exemptKeys.has(key) && locale[key] === en[key]);
+    const targetKeys = Object.keys(en).filter((key) =>
+        !exemptKeys.has(key) &&
+        (!Object.prototype.hasOwnProperty.call(locale, key) ||
+            typeof locale[key] !== 'string' ||
+            locale[key].trim() === '' ||
+            locale[key] === en[key])
+    );
     if (targetKeys.length === 0)
     {
         console.log(`[SKIP] ${fileName} already has no exact-English leakage`);
@@ -322,7 +328,13 @@ async function translateFile(localeEntry)
 
         fs.writeFileSync(filePath, `${JSON.stringify(locale, null, 2)}\n`, 'utf8');
 
-        const remaining = Object.keys(en).filter((key) => !exemptKeys.has(key) && locale[key] === en[key]);
+        const remaining = Object.keys(en).filter((key) =>
+            !exemptKeys.has(key) &&
+            (!Object.prototype.hasOwnProperty.call(locale, key) ||
+                typeof locale[key] !== 'string' ||
+                locale[key].trim() === '' ||
+                locale[key] === en[key])
+        );
         console.log(`[DONE] ${fileName}: translated ${translatedCount} source string(s), remaining exact-English leaks=${remaining.length}`);
 
         return { fileName, translated: translatedCount, remaining: remaining.length };
@@ -369,6 +381,10 @@ async function main()
 
     const remainingTotal = results.reduce((sum, result) => sum + result.remaining, 0);
     console.log(`All done. Remaining exact-English leaks across processed files: ${remainingTotal}`);
+    if (/^(1|true|yes|on)$/i.test(String(process.env.LOCALIZATION_FAIL_ON_REMAINING || '')) && remainingTotal > 0)
+    {
+        throw new Error(`Localization generation left ${remainingTotal} untranslated or blank value(s).`);
+    }
 }
 
 main().catch((error) =>

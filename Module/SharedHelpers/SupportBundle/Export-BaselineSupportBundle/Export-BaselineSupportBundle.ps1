@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Export-BaselineSupportBundle in Module\SharedHelpers\SupportBundle.Helpers.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables, throws with the original inline behavior, and bridges caller-level returns back to the parent function.
 try
 	{
 		$null = New-Item -Path $stagingDir -ItemType Directory -Force
@@ -75,6 +73,23 @@ try
 			$activeRunId = [string]$globalRunIdVariable.Value
 		}
 
+		$selectedSessionLogPath = $null
+		if (-not [string]::IsNullOrWhiteSpace($SessionLogPath))
+		{
+			try
+			{
+				$candidateSessionLogPath = [System.IO.Path]::GetFullPath([string]$SessionLogPath)
+				if (Test-Path -LiteralPath $candidateSessionLogPath -PathType Leaf)
+				{
+					$selectedSessionLogPath = $candidateSessionLogPath
+				}
+			}
+			catch
+			{
+				$selectedSessionLogPath = $null
+			}
+		}
+
 		$metadata = [ordered]@{
 			Schema          = 'Baseline.SupportBundle'
 			SchemaVersion   = 2
@@ -90,6 +105,12 @@ try
 			OS              = [System.Environment]::OSVersion.VersionString
 			OutputFile      = [System.IO.Path]::GetFileName($OutputPath)
 			ProfilePath     = $ProfilePath
+			SelectedSessionLog = if ($selectedSessionLogPath) {
+				[ordered]@{
+					SourcePath     = $selectedSessionLogPath
+					SourceFileName = [System.IO.Path]::GetFileName($selectedSessionLogPath)
+				}
+			} else { $null }
 			AuditRetention  = [ordered]@{
 				Days   = [int]$AuditRetentionDays
 				Cutoff = (Get-Date).AddDays(-1 * [int]$AuditRetentionDays).ToString('o')
@@ -534,7 +555,7 @@ try
 		try
 		{
 			$globalLogFileVariable = Get-Variable -Name 'LogFilePath' -Scope Global -ErrorAction SilentlyContinue
-			$dailyLogPath = if ($globalLogFileVariable -and $globalLogFileVariable.Value) { [string]$globalLogFileVariable.Value } else { $null }
+			$dailyLogPath = if ($selectedSessionLogPath) { $selectedSessionLogPath } elseif ($globalLogFileVariable -and $globalLogFileVariable.Value) { [string]$globalLogFileVariable.Value } else { $null }
 			if (-not [string]::IsNullOrWhiteSpace($dailyLogPath) -and (Test-Path -LiteralPath $dailyLogPath))
 			{
 				$destDailyLogPath = Join-Path $logsDir 'baseline.log'
@@ -675,7 +696,7 @@ try
 		try
 		{
 			$globalLogFileVariable = Get-Variable -Name 'LogFilePath' -Scope Global -ErrorAction SilentlyContinue
-			$dailyLogPath = if ($globalLogFileVariable -and $globalLogFileVariable.Value) { [string]$globalLogFileVariable.Value } else { $null }
+			$dailyLogPath = if ($selectedSessionLogPath) { $selectedSessionLogPath } elseif ($globalLogFileVariable -and $globalLogFileVariable.Value) { [string]$globalLogFileVariable.Value } else { $null }
 			if (-not [string]::IsNullOrWhiteSpace($dailyLogPath) -and (Test-Path -LiteralPath $dailyLogPath))
 			{
 				$classified = Get-BaselineSupportBundleClassifiedErrors -LogPath $dailyLogPath -MaxErrors 20

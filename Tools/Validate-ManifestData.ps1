@@ -1,4 +1,4 @@
-﻿<#
+<#
 	.SYNOPSIS
 	Internal validation tool for tweak metadata files under Module/Data.
 
@@ -373,7 +373,7 @@ foreach ($regionFile in (Get-ChildItem -LiteralPath $regionDir -Filter '*.psm1' 
 		if (-not [string]::IsNullOrWhiteSpace($fn)) { [void]$functionNames.Add($fn) }
 	}
 
-	# Also scan extracted sub-module directories (e.g. Module/Regions/System/*.psm1)
+	# Also scan loaded sub-module directories (e.g. Module/Regions/System/*.psm1)
 	$subModuleDir = Join-Path $regionDir $regionName
 	if (Test-Path -LiteralPath $subModuleDir -PathType Container)
 	{
@@ -1215,7 +1215,6 @@ if (Test-Path -LiteralPath $presetDir)
 			$manifestEntry = $manifestEntriesByFunction[$functionName]
 			$entryType = [string]$manifestEntry.Type
 
-			# Extract the parameter value from the preset command (everything after the function name).
 			$paramValue = $null
 			if ($parts.Count -gt 1)
 			{
@@ -1260,7 +1259,6 @@ if (Test-Path -LiteralPath $presetDir)
 			{
 				if ($null -ne $manifestEntry.Options -and @($manifestEntry.Options).Count -gt 0)
 				{
-					# Handle compound parameters like "-Shortcuts Edge, Store" by extracting the first token.
 					$firstToken = ($paramValue -split '\s+', 2)[0].Trim()
 					$optionValues = @($manifestEntry.Options | ForEach-Object { [string]$_ })
 					if ($optionValues -notcontains $firstToken)

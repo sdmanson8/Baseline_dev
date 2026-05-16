@@ -9,6 +9,7 @@ BeforeAll {
     $sharedScrollBarsPath = Join-Path $PSScriptRoot '../../Module/GUICommon/SharedScrollBars.ps1'
     $dpiAwarenessPath = Join-Path $PSScriptRoot '../../Module/GUICommon/DpiAwareness.ps1'
     $popupWindowsPath = Join-Path $PSScriptRoot '../../Module/GUICommon/PopupWindows.ps1'
+    $themePalettePath = Join-Path $PSScriptRoot '../../Module/GUICommon/ThemePalette.ps1'
     $executionSummaryDialogCommonPath = Join-Path $PSScriptRoot '../../Module/GUICommon/ExecutionSummaryDialog.ps1'
     $utilitiesPath = Join-Path $PSScriptRoot '../../Module/GUICommon/Utilities.ps1'
     $styleManagementPath = Join-Path $PSScriptRoot '../../Module/GUI/StyleManagement.ps1'
@@ -31,6 +32,7 @@ BeforeAll {
         Get-BaselineTestSourceText -Path $sharedScrollBarsPath
         Get-BaselineTestSourceText -Path $dpiAwarenessPath
         Get-BaselineTestSourceText -Path $popupWindowsPath
+        Get-BaselineTestSourceText -Path $themePalettePath
     ) -join "`n"
     $styleManagementContent = Get-BaselineTestSourceText -Path $styleManagementPath
     $dialogHelpersContent = Get-BaselineTestSourceText -Path @(
@@ -57,6 +59,12 @@ Describe 'GUI window chrome theming' {
         $guiCommonContent | Should -Match 'function Set-GuiWindowChromeTheme'
         $guiCommonContent | Should -Match 'DwmSetWindowAttribute'
         $guiCommonContent | Should -Match "'Set-GuiWindowChromeTheme'"
+    }
+
+    It 'defines and exports shared theme palette repair for action-host picker runspaces' {
+        $guiCommonContent | Should -Match 'function Repair-GuiThemePalette'
+        $guiCommonContent | Should -Match "'Repair-GuiThemePalette'"
+        $guiCommonContent | Should -Match 'function Write-GuiCommonThemeRepairWarning'
     }
 
     It 'defines and exports a shared popup chrome helper with minimize and close controls' {
@@ -427,9 +435,17 @@ Describe 'GUI window chrome theming' {
 
     It 'repairs the Windows feature picker theme before applying chrome' {
         $systemFeaturesContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/System/System.WindowsFeatures.psm1')
+        $uwpAppsContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/UWPApps.psm1')
+        $telemetryContent = Get-BaselineTestSourceText -Path (Join-Path $PSScriptRoot '../../Module/Regions/PrivacyTelemetry/PrivacyTelemetry.TelemetryServices.psm1')
 
         $systemFeaturesContent | Should -Not -Match '\$UseDarkMode = \$false'
-        $systemFeaturesContent | Should -Match 'Repair-GuiThemePalette -Theme \$Theme -ThemeName'
+        $systemFeaturesContent | Should -Not -Match "Get-Command -Name 'Repair-GuiThemePalette'"
+        $uwpAppsContent | Should -Not -Match "Get-Command -Name 'Repair-GuiThemePalette'"
+        $telemetryContent | Should -Not -Match "Get-Command -Name 'Repair-GuiThemePalette'"
+        ([regex]::Matches($systemFeaturesContent, "Get-Command -Name 'GUICommon\\Repair-GuiThemePalette'")).Count | Should -Be 2
+        ([regex]::Matches($uwpAppsContent, "Get-Command -Name 'GUICommon\\Repair-GuiThemePalette'")).Count | Should -Be 1
+        ([regex]::Matches($telemetryContent, "Get-Command -Name 'GUICommon\\Repair-GuiThemePalette'")).Count | Should -Be 1
+        $systemFeaturesContent | Should -Match '& \$repairGuiThemePalette -Theme \$Theme -ThemeName'
     }
 
     It 'routes popup actions through the shared async runner' {
@@ -439,7 +455,27 @@ Describe 'GUI window chrome theming' {
         $systemFeaturesContent | Should -Match 'function Resolve-SystemPickerGuiCommonPath'
         ([regex]::Matches($systemFeaturesContent, 'GUICommon\\Start-GuiPopupCommandAsync -Window \$Form -ModulePath \$modulePath -AdditionalModulePaths @\(\$sharedHelpersPath, \$guiCommonPath\) -CommandName ''WindowsCapabilities''')).Count | Should -Be 1
         ([regex]::Matches($systemFeaturesContent, 'GUICommon\\Start-GuiPopupCommandAsync -Window \$Form -ModulePath \$modulePath -AdditionalModulePaths @\(\$guiCommonPath\) -CommandName ''WindowsFeatures''')).Count | Should -Be 1
-        ([regex]::Matches($telemetryContent, 'GUICommon\\Start-GuiPopupCommandAsync -Window \$Form -ModulePath \$modulePath -CommandName ''ScheduledTasks''')).Count | Should -Be 1
+        ([regex]::Matches($telemetryContent, 'GUICommon\\Start-GuiPopupCommandAsync -Window \$Form -ModulePath \$modulePath -AdditionalModulePaths @\(\$guiCommonPath\) -CommandName ''ScheduledTasks''')).Count | Should -Be 1
+    }
+
+    It 'resolves split picker async modules from parent module paths' {
+        $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+        $expectedGuiCommonPath = [System.IO.Path]::GetFullPath((Join-Path $repoRoot 'Module/GUICommon.psm1'))
+
+        $modulePath = $null
+        $guiCommonPath = $null
+        . (Join-Path $repoRoot 'Module/Regions/PrivacyTelemetry/TelemetryServices/ScheduledTasks/ModulePathResolution.ps1')
+        [System.IO.Path]::GetFullPath($modulePath) | Should -Be ([System.IO.Path]::GetFullPath((Join-Path $repoRoot 'Module/Regions/PrivacyTelemetry/PrivacyTelemetry.TelemetryServices.psm1')))
+        [System.IO.Path]::GetFullPath($guiCommonPath) | Should -Be $expectedGuiCommonPath
+
+        $modulePath = $null
+        . (Join-Path $repoRoot 'Module/Regions/UWPApps/UWPApps/ModulePathResolution.ps1')
+        [System.IO.Path]::GetFullPath($modulePath) | Should -Be ([System.IO.Path]::GetFullPath((Join-Path $repoRoot 'Module/Regions/UWPApps.psm1')))
+        [System.IO.Path]::GetFullPath((Resolve-UWPAppsGuiCommonPath -StartPath $modulePath)) | Should -Be $expectedGuiCommonPath
+
+        $modulePath = $null
+        . (Join-Path $repoRoot 'Module/Regions/System/WindowsFeatures/WindowsCapabilities/ModulePathResolution.ps1')
+        [System.IO.Path]::GetFullPath($modulePath) | Should -Be ([System.IO.Path]::GetFullPath((Join-Path $repoRoot 'Module/Regions/System/System.WindowsFeatures.psm1')))
     }
 
     It 'prevents popup caption drag chrome from swallowing minimize and close clicks' {

@@ -1,4 +1,4 @@
-﻿# End-to-end scenario: remote dry-run with a fake transport.
+# End-to-end scenario: remote dry-run with a fake transport.
 #
 # Verifies the multi-target preview default and structured CLI output paths
 # without touching real WinRM. The transport is replaced with a stub that
@@ -7,7 +7,6 @@
 BeforeAll {
     $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
     Import-Module (Join-Path $repoRoot 'Module\SharedHelpers.psm1') -Force -ErrorAction Stop
-    # PreflightChecks.ps1 is normally dot-sourced by the GUI module; load it
     # directly so the scenario can call Test-PreflightWinRMReachability without
     # spinning up the full WPF host.
     . (Join-Path $repoRoot 'Module\GUI\PreflightChecks.ps1')

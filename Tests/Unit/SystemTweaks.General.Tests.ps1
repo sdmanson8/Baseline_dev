@@ -1,4 +1,4 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/SystemTweaks/SystemTweaks.General.psm1'
@@ -156,14 +156,14 @@ Describe 'AdobeNetworkBlock' {
         $script:copyCalls.Count | Should -Be 1
         $script:webCalls.Count | Should -Be 1
         $script:webCalls[0].Uri | Should -Match 'Adobe-URL-Block-List'
-        # winutil #4106 fix: must NOT clobber the hosts file directly
+        # Must not clobber the hosts file directly.
         $script:webCalls[0].OutFile | Should -Not -Be "$Env:SystemRoot\System32\drivers\etc\hosts"
         $script:webCalls[0].OutFile | Should -Match 'BaselineAdobeBlock_'
         $script:setContentCalls.Count | Should -Be 1
         $script:consoleStatuses[-1] | Should -Be 'success'
     }
 
-    It 'preserves existing third-party hosts entries when merging (winutil #4106)' {
+    It 'preserves existing Baseline hosts entries when merging' {
         AdobeNetworkBlock -Enable
 
         $written = [string[]]$script:setContentCalls[0].Value

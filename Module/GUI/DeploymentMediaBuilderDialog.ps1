@@ -1,8 +1,7 @@
 # DeploymentMediaBuilderDialog.ps1
 #
-# Guided Windows installation media workflow surfaced from Tools >
-# Advanced Tools. This dialog builds an auditable plan and report before
-# any media build command is allowed to run.
+# Guided Windows installation media workflow. This dialog builds an
+# auditable plan and report before any media build command is allowed to run.
 
 function New-GuiDeploymentMediaBuildPlan
 {

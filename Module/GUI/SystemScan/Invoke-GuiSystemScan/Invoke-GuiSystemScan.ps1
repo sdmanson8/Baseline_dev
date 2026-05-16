@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Invoke-GuiSystemScan in Module\GUI\SystemScan.ps1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 function Get-GuiEnvironmentRecommendationData
 		{
 			$signalLabels = [System.Collections.Generic.List[string]]::new()

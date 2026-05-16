@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Admin utility for disabling and removing Windows AI features such as Copilot, Recall, and related packages.
 
@@ -122,7 +122,6 @@ Import-Module -Name $ManifestPath -ErrorAction Stop
 
 Remove-Module -Name Baseline -Force -ErrorAction Ignore
 
-# Validate that the module can be loaded by the current PowerShell runtime.
 try
 {
 	Import-Module -Name $ManifestPath -PassThru -Force -ErrorAction Stop | Out-Null
@@ -947,8 +946,6 @@ function Set-AIRemovalRegistryValue {
 #>
 
 function Disable-Registry-Keys {
-    # Keep these policy groups together until registry sub-helpers are split.
-
     # Disable AI registry keys.
     Write-Status -msg "$(@('Disabling', 'Enabling')[$revert]) Copilot and Recall - "
     LogInfo "$(@('Disabling', 'Enabling')[$revert]) Copilot and Recall"
@@ -1043,7 +1040,6 @@ function Disable-Registry-Keys {
     # view flags at edge://flags
     $null = Invoke-BaselineProcess -FilePath 'taskkill.exe' -ArgumentList @('/im', 'msedge.exe', '/f') -TimeoutSeconds 60 -AllowedExitCodes @(0, 128)
     $config = "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Local State"
-    # P5 rollback checkpoint: Disable-Registry-Keys part extracted to Module/Regions/UWPApps/AIRemoval/Disable-Registry-Keys/EdgeCopilotFlagPolicy.ps1; re-inline here if rollback is needed.
     . (Join-Path $PSScriptRoot 'AIRemoval\Disable-Registry-Keys\EdgeCopilotFlagPolicy.ps1')
    
     #disable office ai with group policy
@@ -1162,7 +1158,6 @@ function Disable-Registry-Keys {
         LogWarning 'Unable to load the default user hive'
     }
 
-    # P5 rollback checkpoint: Disable-Registry-Keys part extracted to Module/Regions/UWPApps/AIRemoval/Disable-Registry-Keys/DefaultUserAiPolicy.ps1; re-inline here if rollback is needed.
     . (Join-Path $PSScriptRoot 'AIRemoval\Disable-Registry-Keys\DefaultUserAiPolicy.ps1')
 
     #disable ask copilot in context menu
@@ -1183,7 +1178,6 @@ function Disable-Registry-Keys {
 $backupPath = "$PSScriptRoot\AIRemoval\Backup"
     $backupFileWSAI = 'WSAIFabricSvc.reg'
     $backupFileAAR = 'AARSVC.reg'
-    # P5 rollback checkpoint: Disable-Registry-Keys part extracted to Module/Regions/UWPApps/AIRemoval/Disable-Registry-Keys/WSAIFabricServicePolicy.ps1; re-inline here if rollback is needed.
     . (Join-Path $PSScriptRoot 'AIRemoval\Disable-Registry-Keys\WSAIFabricServicePolicy.ps1')
 
     $root = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Capture'
@@ -1237,7 +1231,6 @@ $backupPath = "$PSScriptRoot\AIRemoval\Backup"
 
     #disable ai setting in uwp photos app
     $uwpPhotosSettings = "$env:LOCALAPPDATA\Packages\Microsoft.Windows.Photos_8wekyb3d8bbwe\Settings\settings.dat"
-    # P5 rollback checkpoint: Disable-Registry-Keys part extracted to Module/Regions/UWPApps/AIRemoval/Disable-Registry-Keys/PhotosSettingsPolicy.ps1; re-inline here if rollback is needed.
     . (Join-Path $PSScriptRoot 'AIRemoval\Disable-Registry-Keys\PhotosSettingsPolicy.ps1')
 
     #disable app actions
@@ -1885,10 +1878,8 @@ function Remove-AI-CBS-Packages {
 #>
 
 function Remove-AI-Files {
-    # File removal groups are kept together until AIRemoval is split into package, registry, and file helpers.
 
 
-    # P5 rollback checkpoint: Remove-AI-Files part extracted to Module/Regions/UWPApps/AIRemoval/Remove-AI-Files/Remove-AI-Files.ps1; re-inline here if rollback is needed.
     . (Join-Path $PSScriptRoot 'AIRemoval\Remove-AI-Files\Remove-AI-Files.ps1')
 
     #TEST:

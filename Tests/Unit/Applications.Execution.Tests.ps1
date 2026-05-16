@@ -15,7 +15,7 @@ BeforeAll {
         Invoke-Expression $fn.Extent.Text
     }
 
-    # Apps functions were extracted from GUI.psm1 into Module/GUI/AppsModule.ps1
+    # Apps functions live in Module/GUI/AppsModule.ps1.
     # during Phase 2 decomposition. Parse both so tests find the definitions
     # regardless of which file they currently live in.
     $guiSourceFiles = @(

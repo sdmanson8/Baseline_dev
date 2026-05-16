@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from Show-TweakGUI in Module\Regions\GUI.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 for ($__hi = 0; $__hi -lt $Script:TweakManifest.Count; $__hi++)
 	{
 		$__t = $Script:TweakManifest[$__hi]

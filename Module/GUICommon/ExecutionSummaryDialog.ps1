@@ -1,6 +1,5 @@
-﻿
+
 # NOTE: This function is ~700 lines and contains duplicated status-styling logic
-# for each outcome state. A future refactor should extract:
 #   1. A status-styling lookup table (OutcomeState -> color/icon/label)
 #   2. A card/row builder helper to reduce per-status boilerplate
 #   3. Filter/grouping logic into a separate function
@@ -195,7 +194,6 @@ function Show-GuiCommonExecutionSummaryDialog
 	$filterPillButtons = @{}
 
 	$isPreviewModeForFilter = @($Results | Where-Object { @('Already in desired state', 'Will change', 'Requires restart', 'High-risk changes', 'Not fully restorable', 'Preview') -contains [string]$_.Status }).Count -gt 0
-			# P5 rollback checkpoint: Show-GuiCommonExecutionSummaryDialog part extracted to Module/GUICommon/ExecutionSummaryDialog/Show-GuiCommonExecutionSummaryDialog/StatusFilterChips.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'ExecutionSummaryDialog\Show-GuiCommonExecutionSummaryDialog\StatusFilterChips.ps1')
 	# -- End status filter bar --------------------------------------
 
@@ -267,11 +265,9 @@ function Show-GuiCommonExecutionSummaryDialog
 	$resultIndex = 0
 	$totalResultCount = $displayResults.Count
 
-			# P5 rollback checkpoint: Show-GuiCommonExecutionSummaryDialog part extracted to Module/GUICommon/ExecutionSummaryDialog/Show-GuiCommonExecutionSummaryDialog/ResultRows.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'ExecutionSummaryDialog\Show-GuiCommonExecutionSummaryDialog\ResultRows.ps1')
 
 	# If we cut the loop short, add a "Show all" button that loads the rest.
-			# P5 rollback checkpoint: Show-GuiCommonExecutionSummaryDialog part extracted to Module/GUICommon/ExecutionSummaryDialog/Show-GuiCommonExecutionSummaryDialog/ShowAllResultsExpansion.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'ExecutionSummaryDialog\Show-GuiCommonExecutionSummaryDialog\ShowAllResultsExpansion.ps1')
 
 	# -- Restart-required informational section ---------------------
@@ -343,7 +339,6 @@ function Show-GuiCommonExecutionSummaryDialog
 		Value = (Get-GuiDialogDismissResult -Buttons $Buttons)
 	}
 
-			# P5 rollback checkpoint: Show-GuiCommonExecutionSummaryDialog part extracted to Module/GUICommon/ExecutionSummaryDialog/Show-GuiCommonExecutionSummaryDialog/DialogButtons.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'ExecutionSummaryDialog\Show-GuiCommonExecutionSummaryDialog\DialogButtons.ps1')
 
 	$buttonBorder.Child = $buttonPanel

@@ -4,19 +4,19 @@ BeforeAll {
     . (Join-Path $PSScriptRoot '../Support/SourceContent.Helpers.ps1')
 
     $script:RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
-    $script:ReviewPath = Join-Path $script:RepoRoot 'dev_docs/Sophia-ScanRegistryPolicies-Parity.md'
+    $script:ReviewPath = Join-Path $script:RepoRoot 'dev_docs/Baseline-PolicyImport-Parity.md'
     $script:SystemTweaksManifestPath = Join-Path $script:RepoRoot 'Module/Data/SystemTweaks.json'
     $script:AllManifestContent = Get-BaselineTestSourceText -Path (Get-ChildItem -LiteralPath (Join-Path $script:RepoRoot 'Module/Data') -File -Filter '*.json' | ForEach-Object { $_.FullName })
 }
 
-Describe 'Sophia ScanRegistryPolicies parity review' {
+Describe 'Baseline policy import parity review' {
     It 'records the reviewed decision outside runtime product code' {
         Test-Path -LiteralPath $script:ReviewPath -PathType Leaf | Should -BeTrue
         $content = Get-BaselineTestSourceText -Path $script:ReviewPath
 
-        $content | Should -Match 'Baseline does not import arbitrary pre-existing registry policy values into LGPO state at runtime'
+        $content | Should -Match 'Baseline does not import arbitrary pre-existing registry policy values into Baseline policy state at runtime'
         $content | Should -Match 'Stash review found no related implementation to recover'
-        $content | Should -Match 'Upstream review at `E:\\Github\\Baseline`'
+        $content | Should -Match 'External review found only audit/reference records'
         $content | Should -Match 'reviewed ADMX mappings'
         $content | Should -Match 'require explicit user confirmation before importing anything'
     }

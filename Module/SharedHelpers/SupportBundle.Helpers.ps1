@@ -171,7 +171,7 @@ function Export-BaselineSupportBundle
 		- SHA256 checksums for all included files
 		- Bundle integrity manifest
 		- Provenance tracking (user, machine, timestamp)
-		- Read-only file attributes on extracted contents
+		- Read-only file attributes on working contents
 	#>
 	[CmdletBinding()]
 	param (
@@ -183,6 +183,8 @@ function Export-BaselineSupportBundle
 		[string]$SignoffReason,
 
 		[string]$ProfilePath,
+
+		[string]$SessionLogPath,
 
 		[object]$ComplianceReport,
 
@@ -249,7 +251,6 @@ function Export-BaselineSupportBundle
 		Operation = @($DeepLinkOperation | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_.Trim() })
 	}
 
-			# P5 rollback checkpoint: Export-BaselineSupportBundle part extracted to Module/SharedHelpers/SupportBundle/Export-BaselineSupportBundle/Export-BaselineSupportBundle.ps1; re-inline here if rollback is needed.
 		$__baselineExtractedPartDidReturn = $false
 		$__baselineExtractedPartHasReturnValue = $false
 		$__baselineExtractedPartReturnValue = $null

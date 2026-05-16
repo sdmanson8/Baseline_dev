@@ -1,10 +1,10 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
     # Json helpers must load first - Preset.Helpers calls ConvertFrom-BaselineJson.
     . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Json.Helpers.ps1')
 
-    # Extract inner functions from the dot-sourced file via AST.
+    # Read inner functions from the loaded file via AST.
     # Uses Invoke-Expression on function definition AST nodes - safe because
     # ParseFile only parses (no execution) and we only evaluate FunctionDefinitionAst
     # nodes, which merely define functions without side effects.
@@ -355,7 +355,6 @@ OtherFunction -Disable
 
 Describe 'ConvertTo-TweakPresetTier' {
     BeforeAll {
-        # ConvertTo-TweakPresetTier lives in Manifest.Helpers.ps1 - extract it too
         $manifestPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Manifest.Helpers.ps1'
         $ast2 = [System.Management.Automation.Language.Parser]::ParseFile($manifestPath, [ref]$null, [ref]$null)
         $functions2 = $ast2.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)

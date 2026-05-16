@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from SharedPrinterConnectionErrors in Module\Regions\SystemTweaks\SystemTweaks.SMBRepair.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 try
 	{
 		$regKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey(

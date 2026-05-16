@@ -31,7 +31,8 @@ pester-full.log
 .vscode/
 .codex*/
 AGENTS.md
-todo.md
+# todo.md carries audited project contracts used by tests.
+!todo.md
 .DS_Store
 *.zip.sha256.json
 /.dotnet-home 

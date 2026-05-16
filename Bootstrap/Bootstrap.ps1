@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Download and install Baseline from GitHub.
 
@@ -13,7 +13,7 @@
     downloads the release zip, verifies it, extracts it to a folder under the
     user's Downloads directory, and then runs Bootstrap.Install.ps1 from inside
     the verified archive. The packaged installer script locates and verifies
-    Baseline-setup-<version>-<channel>.exe before running it. When BASELINE_PRESET is
+    Baseline-<version>-<channel>-setup.exe before running it. When BASELINE_PRESET is
     set or -Preset is supplied, the preset is forwarded to the installed launcher.
 
     .NOTES

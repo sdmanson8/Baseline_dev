@@ -1,4 +1,3 @@
-﻿# ActionHandlers split file loaded by Module\GUI\ActionHandlers.ps1.
 
 	#region Button handlers
 		$getActiveTweakRunListCommand = Get-GuiRuntimeCommand -Name 'Get-ActiveTweakRunList' -CommandType 'Function'

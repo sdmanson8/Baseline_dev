@@ -1,4 +1,4 @@
-﻿using module ..\..\Logging.psm1
+using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
 
@@ -639,6 +639,100 @@ function SMBSharingCompatibility
 }
 
 
+function Wait-SharedPrinterSpoolerServiceStatus
+{
+	param (
+		[Parameter(Mandatory = $true)]
+		[ValidateSet('Running', 'Stopped')]
+		[string]$Status,
+
+		[int]$TimeoutSeconds = 45
+	)
+
+	$deadline = (Get-Date).AddSeconds([Math]::Max(1, $TimeoutSeconds))
+	do
+	{
+		$service = Get-Service -Name Spooler -ErrorAction SilentlyContinue
+		if (-not $service)
+		{
+			LogWarning "Print Spooler service was not found."
+			return $false
+		}
+
+		if ([string]$service.Status -eq $Status)
+		{
+			LogInfo "Print Spooler: $Status"
+			return $true
+		}
+
+		Start-Sleep -Milliseconds 500
+	}
+	while ((Get-Date) -lt $deadline)
+
+	LogWarning "Print Spooler did not reach '$Status' within $TimeoutSeconds second(s)."
+	return $false
+}
+
+function Stop-SharedPrinterSpoolerService
+{
+	param (
+		[string]$Reason = 'printer repair'
+	)
+
+	$scExePath = Join-Path $env:SystemRoot 'System32\sc.exe'
+	try
+	{
+		$service = Get-Service -Name Spooler -ErrorAction SilentlyContinue
+		if (-not $service)
+		{
+			LogWarning "Print Spooler service was not found while stopping for $Reason."
+			return $false
+		}
+
+		if ([string]$service.Status -eq 'Stopped')
+		{
+			LogInfo "Print Spooler already stopped for $Reason."
+			return $true
+		}
+
+		$null = Invoke-BaselineProcess -FilePath $scExePath -ArgumentList @('stop', 'Spooler') -TimeoutSeconds 30 -AllowedExitCodes @(0, 1056, 1060, 1062)
+		return (Wait-SharedPrinterSpoolerServiceStatus -Status Stopped -TimeoutSeconds 45)
+	}
+	catch
+	{
+		LogWarning "Could not stop the Print Spooler for ${Reason}: $($_.Exception.Message)"
+		return $false
+	}
+}
+
+function Start-SharedPrinterSpoolerService
+{
+	param (
+		[string]$Reason = 'printer repair'
+	)
+
+	$scExePath = Join-Path $env:SystemRoot 'System32\sc.exe'
+	try
+	{
+		$null = Invoke-BaselineProcess -FilePath $scExePath -ArgumentList @('config', 'Spooler', 'start=', 'auto') -TimeoutSeconds 30 -AllowedExitCodes @(0)
+		$service = Get-Service -Name Spooler -ErrorAction SilentlyContinue
+		if ($service -and [string]$service.Status -eq 'Running')
+		{
+			LogInfo "Print Spooler already running after $Reason."
+			return $true
+		}
+
+		$null = Invoke-BaselineProcess -FilePath $scExePath -ArgumentList @('start', 'Spooler') -TimeoutSeconds 30 -AllowedExitCodes @(0, 1056)
+		return (Wait-SharedPrinterSpoolerServiceStatus -Status Running -TimeoutSeconds 45)
+	}
+	catch
+	{
+		LogWarning "Could not start the Print Spooler after ${Reason}: $($_.Exception.Message)"
+		return $false
+	}
+}
+
+
 <#
 .SYNOPSIS
 Repair shared/network printer connection errors.
@@ -651,6 +745,9 @@ Run the optional client-side cleanup path in addition to the host/common printer
 
 .PARAMETER SkipSpoolerSpool
 Skip deleting stale files from the print spool folder.
+
+.PARAMETER RunSystemFileCheck
+Run a bounded SFC repair scan after printer-specific repair steps.
 
 .EXAMPLE
 SharedPrinterConnectionErrors
@@ -677,7 +774,10 @@ function SharedPrinterConnectionErrors
 		$ClientMode,
 
 		[switch]
-		$SkipSpoolerSpool
+		$SkipSpoolerSpool,
+
+		[switch]
+		$RunSystemFileCheck
 	)
 
 	Write-ConsoleStatus -Action "Repairing shared printer connection errors"
@@ -734,24 +834,16 @@ function SharedPrinterConnectionErrors
 	}
 
 	LogInfo "Applying RPC, SMB, Point and Print, and printer pruning registry settings"
-			# P5 rollback checkpoint: SharedPrinterConnectionErrors part extracted to Module/Regions/SystemTweaks/SMBRepair/SharedPrinterConnectionErrors/RegistryCompatibilitySettings.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SMBRepair\SharedPrinterConnectionErrors\RegistryCompatibilitySettings.ps1')
 
 	LogInfo "Refreshing DNS and NetBIOS caches"
-			# P5 rollback checkpoint: SharedPrinterConnectionErrors part extracted to Module/Regions/SystemTweaks/SMBRepair/SharedPrinterConnectionErrors/NetworkCacheFlush.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SMBRepair\SharedPrinterConnectionErrors\NetworkCacheFlush.ps1')
 
 	LogInfo "Stopping the Print Spooler to clear stale jobs"
-	try
-	{
-		Stop-Service -Name Spooler -Force -ErrorAction SilentlyContinue
-	}
-	catch
+	if (-not (Stop-SharedPrinterSpoolerService -Reason 'clearing stale print jobs'))
 	{
 		$hadIssue = $true
-		LogWarning "Could not stop the Print Spooler: $($_.Exception.Message)"
 	}
-	Start-Sleep -Seconds 2
 
 	if (-not $SkipSpoolerSpool)
 	{
@@ -780,18 +872,9 @@ function SharedPrinterConnectionErrors
 		LogInfo "Skipped spool folder purge (-SkipSpoolerSpool)"
 	}
 
-	try
-	{
-		Set-Service -Name Spooler -StartupType Automatic -ErrorAction Stop
-		Start-Service -Name Spooler -ErrorAction SilentlyContinue
-		Start-Sleep -Seconds 2
-		$spoolerStatus = (Get-Service -Name Spooler -ErrorAction Stop).Status
-		LogInfo "Print Spooler: $spoolerStatus"
-	}
-	catch
+	if (-not (Start-SharedPrinterSpoolerService -Reason 'stale print job cleanup'))
 	{
 		$hadIssue = $true
-		LogWarning "Could not restart spooler: $($_.Exception.Message)"
 	}
 
 	LogInfo "PendingFileRenameOperations cleanup"
@@ -856,16 +939,10 @@ function SharedPrinterConnectionErrors
 	}
 
 	LogInfo "Stopping the Print Spooler for print provider cleanup"
-	try
-	{
-		Stop-Service -Name Spooler -Force -ErrorAction SilentlyContinue
-	}
-	catch
+	if (-not (Stop-SharedPrinterSpoolerService -Reason 'print provider cleanup'))
 	{
 		$hadIssue = $true
-		LogWarning "Could not stop the Print Spooler for print provider cleanup: $($_.Exception.Message)"
 	}
-	Start-Sleep -Seconds 2
 
 	try
 	{
@@ -874,11 +951,8 @@ function SharedPrinterConnectionErrors
 		{
 			$csrBackup = Join-Path $env:TEMP "CSR_PrintProvider_backup.reg"
 			$csrNative = $csrPath -replace '^HKLM:\\', 'HKEY_LOCAL_MACHINE\'
-			& reg export $csrNative $csrBackup /y | Out-Null
-			if ($LASTEXITCODE -ne 0)
-			{
-				throw "reg export returned exit code $LASTEXITCODE while backing up the CSR Print Provider key"
-			}
+			$regExePath = Join-Path $env:SystemRoot 'System32\reg.exe'
+			$null = Invoke-BaselineProcess -FilePath $regExePath -ArgumentList @('export', $csrNative, $csrBackup, '/y') -TimeoutSeconds 120 -AllowedExitCodes @(0)
 			LogInfo "Backed up CSR key to $csrBackup"
 			Remove-Item -Path $csrPath -Recurse -Force -ErrorAction Stop
 			LogInfo "Deleted stale CSR Print Provider key (will be recreated by spooler)"
@@ -894,18 +968,9 @@ function SharedPrinterConnectionErrors
 		LogWarning "Could not remove CSR key: $($_.Exception.Message)"
 	}
 
-	try
-	{
-		Set-Service -Name Spooler -StartupType Automatic -ErrorAction Stop
-		Start-Service -Name Spooler -ErrorAction SilentlyContinue
-		Start-Sleep -Seconds 2
-		$spoolerStatus = (Get-Service -Name Spooler -ErrorAction Stop).Status
-		LogInfo "Print Spooler: $spoolerStatus"
-	}
-	catch
+	if (-not (Start-SharedPrinterSpoolerService -Reason 'print provider cleanup'))
 	{
 		$hadIssue = $true
-		LogWarning "Could not restart spooler after CSR cleanup: $($_.Exception.Message)"
 	}
 
 	LogInfo "mscms.dll copy to spooler driver directories"
@@ -949,7 +1014,6 @@ function SharedPrinterConnectionErrors
 	}
 
 	LogInfo "HKCU\\..\\Windows registry ACL"
-			# P5 rollback checkpoint: SharedPrinterConnectionErrors part extracted to Module/Regions/SystemTweaks/SMBRepair/SharedPrinterConnectionErrors/PrinterRegistryAclRepair.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SMBRepair\SharedPrinterConnectionErrors\PrinterRegistryAclRepair.ps1')
 
 	LogInfo "TCP connection tuning (ephemeral ports, TIME_WAIT, backlog)"
@@ -977,23 +1041,28 @@ function SharedPrinterConnectionErrors
 	}
 
 	LogInfo "TCP stack performance (auto-tuning, RSS, chimney)"
-			# P5 rollback checkpoint: SharedPrinterConnectionErrors part extracted to Module/Regions/SystemTweaks/SMBRepair/SharedPrinterConnectionErrors/TcpCompatibilitySettings.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SMBRepair\SharedPrinterConnectionErrors\TcpCompatibilitySettings.ps1')
 
 	LogInfo "Shared printer audit"
-			# P5 rollback checkpoint: SharedPrinterConnectionErrors part extracted to Module/Regions/SystemTweaks/SMBRepair/SharedPrinterConnectionErrors/SharedPrinterDiscovery.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SMBRepair\SharedPrinterConnectionErrors\SharedPrinterDiscovery.ps1')
 
-	LogInfo "Host SFC check"
-	try
+	if ($RunSystemFileCheck)
 	{
-		$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\sfc.exe" -ArgumentList @('/scannow') -TimeoutSeconds 3600 -AllowedExitCodes @(0)
-		LogInfo "SFC completed successfully"
+		LogInfo "Host SFC check"
+		try
+		{
+			$null = Invoke-BaselineProcess -FilePath "$env:SystemRoot\System32\sfc.exe" -ArgumentList @('/scannow') -TimeoutSeconds 1800 -AllowedExitCodes @(0)
+			LogInfo "SFC completed successfully"
+		}
+		catch
+		{
+			$hadIssue = $true
+			LogWarning "SFC did not complete successfully: $($_.Exception.Message)"
+		}
 	}
-	catch
+	else
 	{
-		$hadIssue = $true
-		LogWarning "SFC did not complete successfully: $($_.Exception.Message)"
+		LogInfo "Skipped host SFC check during shared printer repair. Use -RunSystemFileCheck when a full system file repair scan is explicitly required."
 	}
 
 	LogWarning "Restart required to complete shared printer connection repairs."

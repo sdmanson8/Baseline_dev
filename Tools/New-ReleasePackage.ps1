@@ -3,7 +3,7 @@
 	Internal release tool that creates the Baseline release zip and companion SHA-256 manifest.
 
 	.DESCRIPTION
-	Builds the Inno Setup installer (Baseline-setup-<version>-<channel>.exe) via
+	Builds the Inno Setup installer (Baseline-<version>-<channel>-setup.exe) via
 	New-InstallerPackage.ps1, then wraps that setup executable with the verified
 	bootstrap handoff script and helpers in a release zip (Baseline-<version>-<channel>.zip)
 	ready for GitHub Releases. The zip is a distribution wrapper only; the setup
@@ -27,6 +27,7 @@ param (
 	[string]$Prerelease,
 	[string]$ArchiveName,
 	[string]$IsccPath,
+	[switch]$RefreshInstallerTranslations,
 	[switch]$Force
 )
 
@@ -135,6 +136,60 @@ function New-BaselineReleaseZip
 		-DestinationZip $DestinationZip)
 }
 
+function Get-BaselineGeneratedReleaseArtifact
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$OutputDirectory
+	)
+
+	if (-not (Test-Path -LiteralPath $OutputDirectory -PathType Container))
+	{
+		return @()
+	}
+
+	$generatedArtifactNamePatterns = @(
+		'^Baseline-.+-setup\.exe$',
+		'^Baseline-.+-setup\.exe\.sha256\.json$',
+		'^Baseline-\d.+\.zip$',
+		'^Baseline-\d.+\.zip\.sha256\.json$',
+		'^Baseline-Setup-\d.+\.iss$'
+	)
+
+	$artifacts = New-Object System.Collections.Generic.List[System.IO.FileInfo]
+	foreach ($item in @(Get-ChildItem -LiteralPath $OutputDirectory -File -ErrorAction Stop))
+	{
+		foreach ($pattern in $generatedArtifactNamePatterns)
+		{
+			if ($item.Name -match $pattern)
+			{
+				[void]$artifacts.Add($item)
+				break
+			}
+		}
+	}
+
+	return @($artifacts | Sort-Object -Property FullName -Unique)
+}
+
+function Clear-BaselineReleaseOutputDirectory
+{
+	[CmdletBinding(SupportsShouldProcess = $true)]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$OutputDirectory
+	)
+
+	foreach ($artifact in @(Get-BaselineGeneratedReleaseArtifact -OutputDirectory $OutputDirectory))
+	{
+		if ($PSCmdlet.ShouldProcess($artifact.FullName, 'Remove stale release artifact'))
+		{
+			Remove-Item -LiteralPath $artifact.FullName -Force -ErrorAction Stop
+		}
+	}
+}
+
 $repoRoot = Split-Path -Path $PSScriptRoot -Parent
 $moduleManifestPath = Join-Path $repoRoot 'Module/Baseline.psd1'
 $newInstallerScript = Join-Path $repoRoot 'Tools/New-InstallerPackage.ps1'
@@ -184,6 +239,11 @@ else
 	$ArchiveName
 }
 
+if ($Force)
+{
+	Clear-BaselineReleaseOutputDirectory -OutputDirectory $resolvedOutputDirectory
+}
+
 $archivePath = Join-Path $resolvedOutputDirectory $resolvedArchiveName
 $hashManifestPath = Join-Path $resolvedOutputDirectory ($resolvedArchiveName + '.sha256.json')
 if ((Test-Path -LiteralPath $archivePath -PathType Leaf) -and -not $Force)
@@ -207,6 +267,7 @@ $installerArgs = @{
 	Force           = $true
 }
 if (-not [string]::IsNullOrWhiteSpace($IsccPath)) { $installerArgs['IsccPath'] = $IsccPath }
+if ($RefreshInstallerTranslations) { $installerArgs['RefreshInstallerTranslations'] = $true }
 
 $installerOutput = & $newInstallerScript @installerArgs
 $installerResult = @($installerOutput) | Where-Object { $_ -is [pscustomobject] -and $_.PSObject.Properties['InstallerPath'] } | Select-Object -Last 1

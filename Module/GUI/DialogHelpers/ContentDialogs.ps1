@@ -1,5 +1,4 @@
 
-# Dialog helper split file loaded by Module\GUI\DialogHelpers.ps1.
 
 	<#
 	    .SYNOPSIS
@@ -847,7 +846,6 @@
 		$btnClose.IsDefault = $true
 		$btnClose.IsCancel = $true
 
-				# P5 rollback checkpoint: Show-HelpDialog part extracted to Module/GUI/DialogHelpers/ContentDialogs/Show-HelpDialog/Show-HelpDialog.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'ContentDialogs\Show-HelpDialog\Show-HelpDialog.ps1')
 
 		Register-GuiEventHandler -Source $btnClose -EventName 'Click' -Handler { $dlg.Close() }
@@ -1841,7 +1839,6 @@
 
 		$webView2Ready = $false
 		$readmeWebView = $null
-				# P5 rollback checkpoint: Show-ReadmeDialog part extracted to Module/GUI/DialogHelpers/ContentDialogs/Show-ReadmeDialog/Show-ReadmeDialog.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'ContentDialogs\Show-ReadmeDialog\Show-ReadmeDialog.ps1')
 
 		$readmeThemeCallback = {

@@ -1,4 +1,3 @@
-﻿# AppsModule split file loaded by Module\GUI\AppsModule.ps1.
 
 function Get-ApplicationEntityType
 {
@@ -775,6 +774,25 @@ function Get-AppsCatalogCandidateDirectories
 	param ()
 
 	$candidateCatalogDirectories = [System.Collections.Generic.List[string]]::new()
+	$candidateModuleRoots = [System.Collections.Generic.List[string]]::new()
+	$addCandidateModuleRoot = {
+		param ([string]$Path)
+
+		if ([string]::IsNullOrWhiteSpace([string]$Path))
+		{
+			return
+		}
+
+		try
+		{
+			[void]$candidateModuleRoots.Add([System.IO.Path]::GetFullPath([string]$Path))
+		}
+		catch
+		{
+			$null = $_
+		}
+	}.GetNewClosure()
+
 	foreach ($basePath in @($Script:GuiModuleBasePath))
 	{
 		if ([string]::IsNullOrWhiteSpace([string]$basePath))
@@ -784,15 +802,41 @@ function Get-AppsCatalogCandidateDirectories
 
 		try
 		{
-			[void]$candidateCatalogDirectories.Add((Join-Path -Path $basePath -ChildPath 'Data\AppsCategory'))
-			if ((Split-Path -Path $basePath -Leaf) -ieq 'Regions')
+			& $addCandidateModuleRoot $basePath
+
+			$basePathLeaf = Split-Path -Path $basePath -Leaf
+			if (($basePathLeaf -ieq 'Regions') -or ($basePathLeaf -ieq 'GUI'))
 			{
 				$moduleRoot = Split-Path -Path $basePath -Parent
 				if (-not [string]::IsNullOrWhiteSpace([string]$moduleRoot))
 				{
-					[void]$candidateCatalogDirectories.Add((Join-Path -Path $moduleRoot -ChildPath 'Data\AppsCategory'))
+					& $addCandidateModuleRoot $moduleRoot
 				}
 			}
+			else
+			{
+				$parentPath = Split-Path -Path $basePath -Parent
+				if (-not [string]::IsNullOrWhiteSpace([string]$parentPath) -and ((Split-Path -Path $parentPath -Leaf) -ieq 'GUI'))
+				{
+					$moduleRoot = Split-Path -Path $parentPath -Parent
+					if (-not [string]::IsNullOrWhiteSpace([string]$moduleRoot))
+					{
+						& $addCandidateModuleRoot $moduleRoot
+					}
+				}
+			}
+		}
+		catch
+		{
+			$null = $_
+		}
+	}
+
+	foreach ($moduleRoot in @($candidateModuleRoots | Select-Object -Unique))
+	{
+		try
+		{
+			[void]$candidateCatalogDirectories.Add((Join-Path -Path $moduleRoot -ChildPath 'Data\AppsCategory'))
 		}
 		catch
 		{
@@ -1150,4 +1194,3 @@ function Get-BaselineApplicationsCatalog
 	$Script:BaselineApplicationsCatalogByCategory[$effectiveCategory] = @($catalog)
 	return $Script:BaselineApplicationsCatalog
 }
-

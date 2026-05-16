@@ -1,4 +1,4 @@
-﻿using module ..\..\Logging.psm1
+using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
 
@@ -748,10 +748,8 @@ function Invoke-UIPersonalizationTaskbarShortcutUnpin
 
 	#>
 
-			# P5 rollback checkpoint: Invoke-UIPersonalizationTaskbarShortcutUnpin part extracted to Module/Regions/UIPersonalization/Taskbar/Invoke-UIPersonalizationTaskbarShortcutUnpin/PinnedItemHelpers.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'Taskbar\Invoke-UIPersonalizationTaskbarShortcutUnpin\PinnedItemHelpers.ps1')
 
-	# Extract the localized "Unpin from taskbar" string from shell32.dll
 	$LocalizedString = [WinAPI.GetStrings]::GetString(5387)
 	$AppsFolder = (New-Object -ComObject Shell.Application).NameSpace("shell:::{4234d49b-0245-4df3-b780-3893943456e1}")
 
@@ -763,7 +761,6 @@ function Invoke-UIPersonalizationTaskbarShortcutUnpin
 	# Always initialize the list; populated on ARM64 and Windows 10
 	$DeferredUnpinNames = [System.Collections.Generic.List[string]]::new()
 
-			# P5 rollback checkpoint: Invoke-UIPersonalizationTaskbarShortcutUnpin part extracted to Module/Regions/UIPersonalization/Taskbar/Invoke-UIPersonalizationTaskbarShortcutUnpin/ShortcutUnpinWorkflow.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'Taskbar\Invoke-UIPersonalizationTaskbarShortcutUnpin\ShortcutUnpinWorkflow.ps1')
 
 	# ARM64 and Windows 10: run COM unpin in a background STA runspace with timeout

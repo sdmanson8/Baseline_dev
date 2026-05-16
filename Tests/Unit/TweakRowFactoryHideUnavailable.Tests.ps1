@@ -1,7 +1,6 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
-    # Extract the Test-TweakRowVisible function from TweakRowFactory.ps1 via AST
     # so the test exercises the real source without loading the full GUI module.
     $splitRoot = Join-Path $PSScriptRoot '../../Module/GUI/TweakRowFactory'
     $sourceFiles = @(

@@ -9,7 +9,7 @@
     decoration, themed dialogs (including the execution-summary and
     risk-decision dialogs), and settings/session-state persistence used by
     the Baseline GUI runtime. Function bodies live in Module/GUICommon/*.ps1
-    and are dot-sourced below so they run in this module's scope.
+    and run in this module's scope.
 #>
 
 Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase -ErrorAction SilentlyContinue
@@ -26,6 +26,7 @@ $Script:GuiCommonRoot = Join-Path $PSScriptRoot 'GUICommon'
 . (Join-Path $Script:GuiCommonRoot 'Accessors.ps1')
 . (Join-Path $Script:GuiCommonRoot 'Layout.ps1')
 . (Join-Path $Script:GuiCommonRoot 'Utilities.ps1')
+. (Join-Path $Script:GuiCommonRoot 'ThemePalette.ps1')
 . (Join-Path $Script:GuiCommonRoot 'DpiAwareness.ps1')
 . (Join-Path $Script:GuiCommonRoot 'WindowChrome.ps1')
 . (Join-Path $Script:GuiCommonRoot 'SharedScrollBars.ps1')
@@ -42,6 +43,7 @@ Export-ModuleMember -Function @(
 	'Get-GuiCommonSafeFontSize'
 	'Get-GuiBooleanValue'
 	'Get-GuiPopupLocalizedString'
+	'Repair-GuiThemePalette'
 	'Set-GuiWindowChromeTheme'
 	'Get-GuiSharedScrollBarStyleXaml'
 	'Add-GuiSharedScrollBarResources'

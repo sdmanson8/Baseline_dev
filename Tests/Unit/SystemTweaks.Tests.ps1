@@ -10,7 +10,7 @@ BeforeAll {
         }
     }
 
-    # Also scan extracted sub-modules (e.g. SystemTweaks.SMBRepair.psm1)
+    # Also scan loaded sub-modules (e.g. SystemTweaks.SMBRepair.psm1)
     $subModuleDir = Join-Path $PSScriptRoot '../../Module/Regions/SystemTweaks'
     if (Test-Path $subModuleDir) {
         foreach ($subFile in (Get-ChildItem -LiteralPath $subModuleDir -Filter '*.psm1' -File)) {

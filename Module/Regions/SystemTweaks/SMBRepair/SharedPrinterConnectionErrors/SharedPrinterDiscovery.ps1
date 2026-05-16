@@ -1,5 +1,3 @@
-# P5 rollback checkpoint: extracted from SharedPrinterConnectionErrors in Module\Regions\SystemTweaks\SystemTweaks.SMBRepair.psm1.
-# Contract: dot-sourced in the caller scope; preserves local variables and throws with the original inline behavior.
 try
 	{
 		if (Get-Command Get-Printer -ErrorAction SilentlyContinue)
@@ -69,16 +67,10 @@ try
 		LogInfo "KIR reboot required for this change to take effect."
 
 		LogInfo "Stopping the Print Spooler for client-side CSR cleanup"
-		try
-		{
-			Stop-Service -Name Spooler -Force -ErrorAction SilentlyContinue
-		}
-		catch
+		if (-not (Stop-SharedPrinterSpoolerService -Reason 'client-side CSR cleanup'))
 		{
 			$hadIssue = $true
-			LogWarning "Could not stop the Print Spooler for client-side cleanup: $($_.Exception.Message)"
 		}
-		Start-Sleep -Seconds 2
 
 		try
 		{
@@ -87,11 +79,8 @@ try
 			{
 				$bak = Join-Path $env:TEMP "CSR_Client_backup.reg"
 				$native = $clientCsrPath -replace '^HKLM:\\', 'HKEY_LOCAL_MACHINE\'
-				& reg export $native $bak /y | Out-Null
-				if ($LASTEXITCODE -ne 0)
-				{
-					throw "reg export returned exit code $LASTEXITCODE while backing up the client CSR Print Provider key"
-				}
+				$regExePath = Join-Path $env:SystemRoot 'System32\reg.exe'
+				$null = Invoke-BaselineProcess -FilePath $regExePath -ArgumentList @('export', $native, $bak, '/y') -TimeoutSeconds 120 -AllowedExitCodes @(0)
 				Remove-Item -Path $clientCsrPath -Recurse -Force -ErrorAction Stop
 				LogInfo "Deleted CSR Print Provider key on client (backed up to $bak)"
 			}
@@ -139,48 +128,40 @@ try
 			LogWarning "mscms.dll not found at $clientSrc -- run sfc /scannow"
 		}
 
-		LogInfo "Client-side SFC system file check"
-		try
+		if ($RunSystemFileCheck)
 		{
-			$sfc = Invoke-BaselineProcess -FilePath 'sfc.exe' -ArgumentList @('/scannow') -TimeoutSeconds 3600
-			if ($sfc.ExitCode -eq 0)
+			LogInfo "Client-side SFC system file check"
+			try
 			{
-				LogInfo "SFC completed -- no violations found"
+				$sfc = Invoke-BaselineProcess -FilePath 'sfc.exe' -ArgumentList @('/scannow') -TimeoutSeconds 1800
+				if ($sfc.ExitCode -eq 0)
+				{
+					LogInfo "SFC completed -- no violations found"
+				}
+				else
+				{
+					LogWarning "SFC ExitCode $($sfc.ExitCode) -- check CBS.log for details"
+				}
 			}
-			else
+			catch
 			{
-				LogWarning "SFC ExitCode $($sfc.ExitCode) -- check CBS.log for details"
+				$hadIssue = $true
+				LogWarning "SFC could not be run: $($_.Exception.Message)"
 			}
 		}
-		catch
+		else
 		{
-			$hadIssue = $true
-			LogWarning "SFC could not be run: $($_.Exception.Message)"
+			LogInfo "Skipped client-side SFC check during shared printer repair. Use -RunSystemFileCheck when a full system file repair scan is explicitly required."
 		}
 
 		LogInfo "Final client spooler restart"
-		try
-		{
-			Stop-Service -Name Spooler -Force -ErrorAction SilentlyContinue
-		}
-		catch
+		if (-not (Stop-SharedPrinterSpoolerService -Reason 'final client restart'))
 		{
 			$hadIssue = $true
-			LogWarning "Could not stop the Print Spooler for the final client restart: $($_.Exception.Message)"
 		}
-		Start-Sleep -Seconds 2
 
-		try
-		{
-			Set-Service -Name Spooler -StartupType Automatic -ErrorAction Stop
-			Start-Service -Name Spooler -ErrorAction SilentlyContinue
-			Start-Sleep -Seconds 2
-			$spoolerStatus = (Get-Service -Name Spooler -ErrorAction Stop).Status
-			LogInfo "Print Spooler: $spoolerStatus"
-		}
-		catch
+		if (-not (Start-SharedPrinterSpoolerService -Reason 'final client restart'))
 		{
 			$hadIssue = $true
-			LogWarning "Could not restart the Print Spooler on the client: $($_.Exception.Message)"
 		}
 	}

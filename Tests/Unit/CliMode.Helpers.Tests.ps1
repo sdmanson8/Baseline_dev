@@ -77,6 +77,22 @@ Describe 'Resolve-BaselineCliIntent' {
         $r.Apply | Should -BeFalse
     }
 
+    It 'returns ConsoleGui mode without promoting a preset to apply' {
+        $r = Resolve-BaselineCliIntent -ParamValues @{ ConsoleGui = $true; Preset = 'Basic' }
+        $r.Mode | Should -Be 'ConsoleGui'
+        $r.NoGui | Should -BeTrue
+        $r.Apply | Should -BeFalse
+        $r.PresetName | Should -Be 'Basic'
+        $r.Warnings.Count | Should -Be 0
+        $r.Errors.Count | Should -Be 0
+    }
+
+    It 'rejects ConsoleGui with unattended apply arguments' {
+        $r = Resolve-BaselineCliIntent -ParamValues @{ ConsoleGui = $true; ApplyPreset = 'Basic' }
+        $r.Mode | Should -Be 'ConsoleGui'
+        $r.Errors.Count | Should -BeGreaterThan 0
+    }
+
     It 'falls back to ProfilePath when ConfigFile not given' {
         $r = Resolve-BaselineCliIntent -ParamValues @{ ProfilePath = 'C:/legacy.json'; Apply = $true }
         $r.ConfigPath | Should -Be 'C:/legacy.json'
@@ -102,7 +118,7 @@ Describe 'Resolve-BaselineCliIntent' {
 Describe 'Bootstrap CLI intent wiring' {
     It 'normalizes ApplyPreset before preset expansion' {
         $normalizeIndex = $script:BootstrapContent.IndexOf('$Preset = $ApplyPreset')
-        $presetExpansionIndex = $script:BootstrapContent.IndexOf('# Preset mode expands the requested preset')
+        $presetExpansionIndex = $script:BootstrapContent.IndexOf('elseif ($Preset)')
 
         $normalizeIndex | Should -BeGreaterThan 0
         $presetExpansionIndex | Should -BeGreaterThan 0
@@ -119,7 +135,7 @@ Describe 'Bootstrap CLI intent wiring' {
     }
 
     It 'exits before showing the bootstrap splash for NoGui without work' {
-        $noGuiExitIndex = $script:BootstrapContent.IndexOf('if ($NoGui -and -not $hasHeadlessWorkIntent)')
+        $noGuiExitIndex = $script:BootstrapContent.IndexOf('if ($NoGui -and -not $Script:RemoteForcesNoGui -and -not $hasHeadlessWorkIntent)')
         $splashIndex = $script:BootstrapContent.IndexOf("Get-Command -Name 'Show-BootstrapLoadingSplash'")
 
         $noGuiExitIndex | Should -BeGreaterThan 0
@@ -136,6 +152,41 @@ Describe 'Bootstrap CLI intent wiring' {
         $script:BootstrapContent | Should -Match '\$Script:BootstrapSplash = & \$showBootstrapSplashCommand -StartUpdatesPulse'
     }
 
+    It 'routes ConsoleGui before unattended preset expansion' {
+        $script:BootstrapContent | Should -Match '\[switch\]\s*\r?\n\s*\$ConsoleGui'
+        $script:BootstrapContent | Should -Match 'ConsoleGui = \[bool\]\$ConsoleGui'
+        $script:BootstrapContent | Should -Match '\$hasHeadlessWorkIntent[\s\S]*\$ConsoleGui'
+
+        $consoleBranchIndex = $script:BootstrapContent.IndexOf('$consoleSelection = Show-BaselineConsoleGui')
+        $presetExpansionIndex = $script:BootstrapContent.IndexOf('elseif ($Preset)', $consoleBranchIndex)
+
+        $consoleBranchIndex | Should -BeGreaterThan 0
+        $presetExpansionIndex | Should -BeGreaterThan 0
+        $consoleBranchIndex | Should -BeLessThan $presetExpansionIndex
+    }
+
+    It 'forces remote targeting through NoGui' {
+        $script:BootstrapContent | Should -Match 'Remote targeting forces -NoGui'
+        $script:BootstrapContent | Should -Match '\$Script:RemoteForcesNoGui = \$false'
+        $script:BootstrapContent | Should -Match '\$Script:RemoteForcesNoGui = \$true'
+        $script:BootstrapContent | Should -Match '\$TargetComputer -and -not \$NoGui'
+        $script:BootstrapContent | Should -Match '\$NoGui -and -not \$Script:RemoteForcesNoGui -and -not \$hasHeadlessWorkIntent'
+    }
+
+    It 'forces direct PowerShell Remoting sessions through NoGui before splash intent is computed' {
+        $script:BootstrapContent | Should -Match 'Test-BaselinePowerShellRemotingSession'
+        $script:BootstrapContent | Should -Match 'PowerShell Remoting session forces -NoGui'
+        $script:BootstrapContent | Should -Match 'PowerShell Remoting session rejected -ConsoleGui'
+        $script:BootstrapContent | Should -Match '\$Script:PowerShellRemotingForcesNoGui = \$true'
+
+        $remotingIndex = $script:BootstrapContent.IndexOf('$isPowerShellRemotingSession')
+        $headlessIntentIndex = $script:BootstrapContent.IndexOf('$hasHeadlessWorkIntent = (')
+
+        $remotingIndex | Should -BeGreaterThan 0
+        $headlessIntentIndex | Should -BeGreaterThan 0
+        $remotingIndex | Should -BeLessThan $headlessIntentIndex
+    }
+
     It 'materializes headless modes as an array before counting them' {
         $script:BootstrapContent | Should -Match '\[string\[\]\]\$headlessModes = @\('
         $script:BootstrapContent | Should -Match '\$headlessModes.Count -gt 1'
@@ -150,6 +201,19 @@ Describe 'Bootstrap CLI intent wiring' {
         $startPulseIndex | Should -BeGreaterThan 0
         $autoUpdateIndex | Should -BeGreaterThan 0
         $startPulseIndex | Should -BeLessThan $autoUpdateIndex
+    }
+
+    It 'hands the startup splash from updates to system checks immediately after auto-update' {
+        $script:BootstrapContent | Should -Match 'function Set-BaselineBootstrapSplashChecklistStep'
+        $autoUpdateIndex = $script:BootstrapContent.IndexOf('Invoke-BaselineAutoUpdate -Splash $Script:BootstrapSplash -CurrentVersion $Script:CurrentAppVersion')
+        $systemStepIndex = $script:BootstrapContent.IndexOf("Set-BaselineBootstrapSplashChecklistStep -StepId 'system' -Status 'in_progress' -SubAction ''", $autoUpdateIndex)
+        $initialActionsIndex = $script:BootstrapContent.IndexOf('$initialActionsModulePath = Join-Path $Script:RegionsRoot ''InitialActions.psm1''')
+
+        $autoUpdateIndex | Should -BeGreaterThan 0
+        $systemStepIndex | Should -BeGreaterThan 0
+        $initialActionsIndex | Should -BeGreaterThan 0
+        $autoUpdateIndex | Should -BeLessThan $systemStepIndex
+        $systemStepIndex | Should -BeLessThan $initialActionsIndex
     }
 
     It 'logs the bootstrap splash as shown only after the splash content rendered' {

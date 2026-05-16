@@ -1,5 +1,4 @@
-﻿
-# Dialog helper split file loaded by Module\GUI\DialogHelpers.ps1.
+
 
 	<#
 	    .SYNOPSIS
@@ -689,17 +688,14 @@ function Show-GuiSettingsDialog
 
 	if (-not $Current) { $Current = @{} }
 
-		# P5 rollback checkpoint: Show-GuiSettingsDialog setup extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/SettingsLocalizedTextAndCaptures.ps1; re-inline here if rollback is needed.
 	. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\SettingsLocalizedTextAndCaptures.ps1')
 
-			# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/SettingsDialogXaml.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\SettingsDialogXaml.ps1')
 
 		$reader = [System.Xml.XmlNodeReader]::new($xaml)
 		$dlg = [Windows.Markup.XamlReader]::Load($reader)
 		$dlg.Owner = $Form
 
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/ThemedDialogBridge.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\ThemedDialogBridge.ps1')
 
 		$rootBorder = $dlg.FindName('RootBorder')
@@ -772,7 +768,6 @@ function Show-GuiSettingsDialog
 		$settingsAccentBrush = ConvertTo-GuiBrush -Color $accentBlue -Context 'DialogHelpers.ShowGuiSettingsDialog.Accent' -FallbackColor '#7CB7FF'
 		$settingsSelectionBrush = ConvertTo-GuiBrush -Color $selectionSurface -Context 'DialogHelpers.ShowGuiSettingsDialog.Selection' -FallbackColor '#202638'
 
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/SettingsSystemBrushes.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\SettingsSystemBrushes.ps1')
 
 		$applySettingsComboItemTheme = {
@@ -787,7 +782,6 @@ function Show-GuiSettingsDialog
 			& $applySettingsSystemBrushes $item
 		}.GetNewClosure()
 
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/SettingsInputTheme.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\SettingsInputTheme.ps1')
 
 		if ($btnSettingsLanguage)
@@ -808,7 +802,6 @@ function Show-GuiSettingsDialog
 		if ($btnRefreshStorageUsage) { Set-ButtonChrome -Button $btnRefreshStorageUsage -Variant 'Subtle' -Compact -Muted }
 		if ($btnClearCache) { Set-ButtonChrome -Button $btnClearCache -Variant 'Secondary' -Compact }
 		if ($btnSettingsCheckNow) { Set-ButtonChrome -Button $btnSettingsCheckNow -Variant 'Secondary' -Compact }
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/SupportBundleExportLink.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\SupportBundleExportLink.ps1')
 
 		$addComboItem = {
@@ -821,7 +814,6 @@ function Show-GuiSettingsDialog
 			[void]$combo.Items.Add($ci)
 		}
 
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/ComboSelectionHelpers.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\ComboSelectionHelpers.ps1')
 
 		$formatLanguageDisplay = {
@@ -836,7 +828,6 @@ function Show-GuiSettingsDialog
 		}
 
 		$languageEntries = @(Get-GuiLanguageEntries -LocalizationDirectory $Script:GuiLocalizationDirectoryPath)
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/LanguageStateInitialization.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\LanguageStateInitialization.ps1')
 		if ([string]::IsNullOrWhiteSpace($settingsLanguageState.Code) -or [string]$settingsLanguageState.Code -eq 'en') { $settingsLanguageState.Code = 'en-US' }
 
@@ -848,7 +839,6 @@ function Show-GuiSettingsDialog
 
 		$languageUiState = @{ Render = $null }
 
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/LanguageSelectionHandlers.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\LanguageSelectionHandlers.ps1')
 
 		$languageUiState.Render = $renderLanguageList
@@ -866,7 +856,6 @@ function Show-GuiSettingsDialog
 			}.GetNewClosure())
 		}
 
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/LanguagePopupHandlers.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\LanguagePopupHandlers.ps1')
 
 		if ($cmbDefaultStartupMode)
@@ -876,7 +865,6 @@ function Show-GuiSettingsDialog
 			& $selectComboByTag $cmbDefaultStartupMode ($(if ($Current.ContainsKey('DefaultStartupMode') -and -not [string]::IsNullOrWhiteSpace([string]$Current.DefaultStartupMode)) { [string]$Current.DefaultStartupMode } else { 'Safe' }))
 		}
 
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/UpdateSettingsControls.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\UpdateSettingsControls.ps1')
 
 		if ($cmbTheme)
@@ -887,7 +875,6 @@ function Show-GuiSettingsDialog
 			& $selectComboByTag $cmbTheme ($(if ($Current.ContainsKey('Theme') -and -not [string]::IsNullOrWhiteSpace([string]$Current.Theme)) { [string]$Current.Theme } elseif ($Script:ThemePreference) { [string]$Script:ThemePreference } else { 'System' }))
 		}
 
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/UIDensitySelection.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\UIDensitySelection.ps1')
 
 		if ($cmbAuditRetention)
@@ -908,7 +895,6 @@ function Show-GuiSettingsDialog
 			& $selectComboByTag $cmbPackageSource ($(if ($Current.ContainsKey('AppsPackageSourcePreference') -and -not [string]::IsNullOrWhiteSpace([string]$Current.AppsPackageSourcePreference)) { [string]$Current.AppsPackageSourcePreference } else { 'auto' }))
 		}
 
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/LogLevelSelection.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\LogLevelSelection.ps1')
 
 		foreach ($settingsCombo in @($cmbDefaultStartupMode, $cmbUpdateFrequency, $cmbUpdateBranch, $cmbTheme, $cmbUIDensity, $cmbAuditRetention, $cmbPackageSource, $cmbLogLevel))
@@ -939,7 +925,6 @@ function Show-GuiSettingsDialog
 			Message = ''
 		}
 		$currentVersionText = if ($Current.ContainsKey('CurrentVersion') -and -not [string]::IsNullOrWhiteSpace([string]$Current.CurrentVersion)) { [string]$Current.CurrentVersion } else { '0.0.0' }
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/UpdateStatusDisplay.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\UpdateStatusDisplay.ps1')
 		$getUpdateBranchSelection = {
 			$defaultUpdateBranch = if (Get-Command -Name 'Get-BaselineDefaultUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineDefaultUpdateBranch } else { 'Stable' }
@@ -958,7 +943,6 @@ function Show-GuiSettingsDialog
 			}
 			return $currentBranch
 		}.GetNewClosure()
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/UpdateAutomationControls.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\UpdateAutomationControls.ps1')
 		& $refreshUpdateDisplay
 		if ($chkAutoCheckUpdates)
@@ -970,7 +954,6 @@ function Show-GuiSettingsDialog
 		{
 			$cmbUpdateBranch.Add_SelectionChanged({ & $refreshUpdateDisplay }.GetNewClosure())
 		}
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/UpdateCheckNowHandler.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\UpdateCheckNowHandler.ps1')
 		$settingsLogState = @{
 			DefaultDirectory = $defaultLogDirectory
@@ -984,7 +967,6 @@ function Show-GuiSettingsDialog
 			}
 			return [string]$settingsLogState.DefaultDirectory
 		}.GetNewClosure()
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/LogFolderDisplay.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\LogFolderDisplay.ps1')
 		& $refreshLogFolderDisplay
 
@@ -994,7 +976,6 @@ function Show-GuiSettingsDialog
 			$chkAdvancedMode.Add_Unchecked({ & $refreshLogFolderDisplay }.GetNewClosure())
 		}
 
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/LogFolderBrowseHandler.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\LogFolderBrowseHandler.ps1')
 
 		$getGuiBaselineStorageRoot = {
@@ -1011,13 +992,11 @@ function Show-GuiSettingsDialog
 			return ([System.IO.Path]::Combine($localAppData, 'Temp', 'Baseline'))
 		}.GetNewClosure()
 
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/StorageSizeHelpers.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\StorageSizeHelpers.ps1')
 
 		$showGuiClearCacheDialog = ${function:Show-GuiClearCacheDialog}
 		$showThemedDialog = $settingsShowThemedDialog
 
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/StorageUsageDisplay.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\StorageUsageDisplay.ps1')
 		& $refreshStorageDisplay
 
@@ -1028,7 +1007,6 @@ function Show-GuiSettingsDialog
 			}.GetNewClosure())
 		}
 
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/ClearCacheHandler.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\ClearCacheHandler.ps1')
 
 		if ($cmbDefaultStartupMode)
@@ -1051,7 +1029,6 @@ function Show-GuiSettingsDialog
 			$btnCancel.IsCancel = $true
 			$btnCancel.Add_Click({ $dlg.Close() }.GetNewClosure())
 		}
-				# P5 rollback checkpoint: Show-GuiSettingsDialog part extracted to Module/GUI/DialogHelpers/SettingsDialogs/Show-GuiSettingsDialog/SaveSettingsHandler.ps1; re-inline here if rollback is needed.
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\SaveSettingsHandler.ps1')
 
 		$dlg.Add_KeyDown({

@@ -14,7 +14,7 @@ function Update-ProcessPathFromRegistry
 
 function Get-ApplicationPackageIdCandidates
 {
-	<# .SYNOPSIS Splits a package identifier into normalized candidate IDs. #>
+	<# .SYNOPSIS Separates a package identifier into normalized candidate IDs. #>
 	param(
 		[string]$PackageId
 	)
@@ -573,7 +573,7 @@ function Get-PackageManagerBootstrapFailureSummary
 
 function Get-WinGetBootstrapInstallerMetadata
 {
-	<# .SYNOPSIS Returns the reviewed winget-install release metadata Baseline bootstraps from. #>
+	<# .SYNOPSIS Returns the reviewed WinGet bootstrap metadata. #>
 	[CmdletBinding()]
 	param()
 
@@ -583,7 +583,7 @@ function Get-WinGetBootstrapInstallerMetadata
 		Version = $version
 		Sha256  = '6016097051EBD3385F4E315FE33B17CEDA6912B9E71CD0C60C1D0DF1823D3262'
 		Uri     = "https://github.com/asheroto/winget-install/releases/download/$version/winget-install.ps1"
-		Label   = "winget-install.ps1 v$version"
+		Label   = "Baseline WinGet bootstrap v$version"
 	}
 }
 
@@ -593,11 +593,10 @@ function Get-WinGetBootstrapInstallerMetadata
 
 function Get-WinGetBootstrapInstallerArguments
 {
-	<# .SYNOPSIS Returns the generic winget-install arguments Baseline passes to the installer. #>
+	<# .SYNOPSIS Returns the generic WinGet bootstrap arguments Baseline passes to the installer. #>
 	[CmdletBinding()]
 	param()
 
-	# Keep the invocation generic so winget-install can choose the correct Server 2019/2022/2025 path itself.
 	return @('-Force')
 }
 
@@ -649,16 +648,16 @@ function Invoke-WinGetBootstrap
 		try
 		{
 			$installerUrl = [string]$installerMetadata.Uri
-			$installerPath = Join-Path $env:TEMP ("winget-install-{0}.ps1" -f $installerVersion)
-			$stdoutLog = Join-Path $env:TEMP "winget-install-stdout.log"
-			$stderrLog = Join-Path $env:TEMP "winget-install-stderr.log"
+			$installerPath = Join-Path $env:TEMP ("Baseline-WinGetBootstrap-{0}.ps1" -f $installerVersion)
+			$stdoutLog = Join-Path $env:TEMP "Baseline-WinGetBootstrap-stdout.log"
+			$stderrLog = Join-Path $env:TEMP "Baseline-WinGetBootstrap-stderr.log"
 
 			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_DownloadingPackageManagerInstaller' -Fallback 'Downloading {0} installer from {1}' -FormatArgs @('WinGet', $installerUrl))
 			Invoke-DownloadFile -Uri $installerUrl -OutFile $installerPath
 
 			if (-not (Test-Path -LiteralPath $installerPath) -or (Get-Item -LiteralPath $installerPath).Length -eq 0)
 			{
-				throw "winget installer download failed or produced an empty file at $installerPath"
+				throw "Baseline WinGet bootstrap download failed or produced an empty file at $installerPath"
 			}
 
 			$null = Assert-FileHash `
@@ -699,7 +698,7 @@ function Invoke-WinGetBootstrap
 			}
 			foreach ($stdoutLine in $stdoutLines)
 			{
-				LogInfo "winget-installer: $stdoutLine"
+				LogInfo "Baseline WinGet bootstrap: $stdoutLine"
 			}
 
 			if ($stderrLines.Count -eq 0)
@@ -708,7 +707,7 @@ function Invoke-WinGetBootstrap
 			}
 			foreach ($stderrLine in $stderrLines)
 			{
-				LogError "winget-installer: $stderrLine"
+				LogError "Baseline WinGet bootstrap: $stderrLine"
 			}
 
 			$installerExitedCleanly = ($process.ExitCode -eq 0 -or $null -eq $process.ExitCode)

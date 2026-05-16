@@ -1,9 +1,9 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/PostActions.psm1'
+    $script:PostActionsExtractedContent = Get-Content -Raw (Join-Path $PSScriptRoot '../../Module/Regions/PostActions/PostActions/PostActions.ps1')
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
-    # Extract *all* function definitions (including nested helpers) so we can
     # test the small post-action helper functions in isolation.
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     # Exclude the outer PostActions function itself (it performs global state
@@ -11,6 +11,17 @@ BeforeAll {
     foreach ($fn in $functions) {
         if ($fn.Name -eq 'PostActions') { continue }
         Invoke-Expression $fn.Extent.Text
+    }
+}
+
+Describe 'PostActions temporary policy cleanup' {
+    It 'removes optional Baseline policy temp files only after literal path existence checks' {
+        $script:PostActionsExtractedContent | Should -Match 'Join-Path \$env:TEMP ''Computer\.txt'''
+        $script:PostActionsExtractedContent | Should -Match 'Test-Path -LiteralPath \$temporaryPolicyFile'
+        $script:PostActionsExtractedContent | Should -Match 'Remove-Item -LiteralPath \$temporaryPolicyFile'
+        $script:PostActionsExtractedContent | Should -Match 'Resolve-BaselinePolicyToolPath'
+        $script:PostActionsExtractedContent | Should -Not -Match 'Binaries\\'
+        $script:PostActionsExtractedContent | Should -Not -Match 'Get-ChildItem -Path "\$env:TEMP\\Computer\.txt", "\$env:TEMP\\User\.txt"'
     }
 }
 

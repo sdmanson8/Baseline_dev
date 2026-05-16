@@ -22,5 +22,5 @@ Public function names, signatures, parameter defaults, aliases, return shapes, a
 
 - `Bootstrap/Baseline.ps1`: `Bootstrap/Helpers/Bootstrap.Helpers.ps1` is imported immediately after `$Script:BootstrapDir` is resolved and before localization helpers, shared helpers, `InitialActions`, or GUI imports run.
 - `Bootstrap/Bootstrap.ps1`: remains self-contained only for the pre-trust download/verify/extract boundary. After the release zip hash is verified, it runs `Bootstrap/Bootstrap.Install.ps1` from inside the verified archive.
-- `Bootstrap/Bootstrap.Install.ps1`: imports `Bootstrap/Helpers/Bootstrap.Helpers.ps1` from the verified archive before locating, verifying, and running `Baseline-setup-*.exe`.
+- `Bootstrap/Bootstrap.Install.ps1`: imports `Bootstrap/Helpers/Bootstrap.Helpers.ps1` from the verified archive before locating, verifying, and running `Baseline-*-setup.exe`.
 - GUI parent files: preserve the current explicit parent order when each P5.2-P5.7 split is performed; add rollback checkpoint comments beside each new dot-source group.

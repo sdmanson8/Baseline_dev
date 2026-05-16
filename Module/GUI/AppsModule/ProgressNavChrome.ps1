@@ -1,4 +1,3 @@
-﻿# AppsModule split file loaded by Module\GUI\AppsModule.ps1.
 
 <#
     .SYNOPSIS
@@ -576,7 +575,7 @@ function Set-GuiUpdatesMode
 		$subtitleKey = if ($Enable) { 'Nav_WindowsUpdatesSubtitle' } else { 'Nav_OptimizeSubtitle' }
 		$subtitleFallback = if ($Enable) { 'Manage Windows Update' } else { 'Configure system behavior' }
 		$Script:ModeSubtitle.Text = (Get-UxLocalizedString -Key $subtitleKey -Fallback $subtitleFallback)
-		$Script:ModeSubtitle.HorizontalAlignment = if ($Enable) { [System.Windows.HorizontalAlignment]::Center } else { [System.Windows.HorizontalAlignment]::Left }
+		$Script:ModeSubtitle.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
 	}
 
 	if ($Script:TweaksView) { $Script:TweaksView.Visibility = $visible }
@@ -689,7 +688,7 @@ function Set-GuiDeploymentMediaMode
 		$subtitleKey = if ($Enable) { 'Nav_DeploymentMediaSubtitle' } else { 'Nav_OptimizeSubtitle' }
 		$subtitleFallback = if ($Enable) { 'Build Windows setup media' } else { 'Configure system behavior' }
 		$Script:ModeSubtitle.Text = (Get-UxLocalizedString -Key $subtitleKey -Fallback $subtitleFallback)
-		$Script:ModeSubtitle.HorizontalAlignment = if ($Enable) { [System.Windows.HorizontalAlignment]::Center } else { [System.Windows.HorizontalAlignment]::Left }
+		$Script:ModeSubtitle.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
 	}
 
 	if ($Script:TweaksView) { $Script:TweaksView.Visibility = if ($Enable) { $collapsed } else { $visible } }
@@ -848,7 +847,7 @@ function Set-GuiAppsMode
 		$subtitleKey = if ($Enable) { 'Nav_SoftwareAndAppsSubtitle' } else { 'Nav_OptimizeSubtitle' }
 		$subtitleFallback = if ($Enable) { 'Manage installed applications' } else { 'Configure system behavior' }
 		$Script:ModeSubtitle.Text = (Get-UxLocalizedString -Key $subtitleKey -Fallback $subtitleFallback)
-		$Script:ModeSubtitle.HorizontalAlignment = if ($Enable) { [System.Windows.HorizontalAlignment]::Right } else { [System.Windows.HorizontalAlignment]::Left }
+		$Script:ModeSubtitle.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
 	}
 	if ($Enable -and -not $Script:AppsOperationInProgress -and -not $Script:AppsCacheRefreshInProgress)
 	{
