@@ -37,7 +37,7 @@ foreach (
 	    .SYNOPSIS
 	    Resolves GUI primary tab for tweak.
 
-	    	#>
+		#>
 
 	function Resolve-GuiPrimaryTabForTweak
 	{

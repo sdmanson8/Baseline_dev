@@ -105,7 +105,9 @@ function Test-BaselineSingleInstanceLockAvailable
 		# with a zero-timeout WaitOne. If the existing owner is alive, we
 		# get $false back and we do NOT own the mutex.
 		$gotIt = $false
-		try { $gotIt = $mutex.WaitOne(0) } catch { $gotIt = $false }
+		try { $gotIt = $mutex.WaitOne(0) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SingleInstance.Helpers.Test-BaselineSingleInstanceLockAvailable:catch108' -Severity Debug }
+		 $gotIt = $false }
 		if ($gotIt)
 		{
 			return [pscustomobject]@{
@@ -126,6 +128,8 @@ function Test-BaselineSingleInstanceLockAvailable
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SingleInstance.Helpers.Test-BaselineSingleInstanceLockAvailable:catch127' -Severity Debug }
+
 		return [pscustomobject]@{
 			Acquired = $false
 			CreatedNew = $false
@@ -244,7 +248,9 @@ function Find-BaselineRunningInstance
 	$candidates = @()
 	if ($ProcessLister)
 	{
-		try { $candidates = @(& $ProcessLister) } catch { $candidates = @() }
+		try { $candidates = @(& $ProcessLister) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SingleInstance.Helpers.Find-BaselineRunningInstance:catch247' -Severity Debug }
+		 $candidates = @() }
 	}
 	else
 	{
@@ -262,6 +268,8 @@ function Find-BaselineRunningInstance
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SingleInstance.Helpers.Find-BaselineRunningInstance:catch263' -Severity Debug }
+
 			$candidates = @()
 		}
 	}
@@ -282,7 +290,9 @@ function Find-BaselineRunningInstance
 			}
 			if (-not $nameMatched) { continue }
 			$handle = [IntPtr]::Zero
-			try { $handle = [IntPtr]$p.MainWindowHandle } catch { $handle = [IntPtr]::Zero }
+			try { $handle = [IntPtr]$p.MainWindowHandle } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SingleInstance.Helpers.Find-BaselineRunningInstance:catch285' -Severity Debug }
+			 $handle = [IntPtr]::Zero }
 			if ($handle -eq [IntPtr]::Zero) { continue }
 			$matches += [pscustomobject]@{
 				ProcessId = [int]$p.Id
@@ -292,6 +302,8 @@ function Find-BaselineRunningInstance
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SingleInstance.Helpers.Find-BaselineRunningInstance:catch293' -Severity Debug }
+
 			$null = $_
 		}
 	}
@@ -456,6 +468,8 @@ namespace Baseline.SingleInstance
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SingleInstance.Helpers.Invoke-BaselineSingleInstanceForeground:catch457' -Severity Debug }
+
 		return [pscustomobject]@{
 			Succeeded = $false
 			Reason = $_.Exception.Message

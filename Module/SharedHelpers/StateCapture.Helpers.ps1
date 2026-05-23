@@ -38,6 +38,8 @@ function ConvertTo-StateCaptureComparableText
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'StateCapture.Helpers.ConvertTo-StateCaptureComparableText:catch39' -Severity Debug }
+
 			return [string]$Value
 		}
 	}
@@ -93,6 +95,39 @@ function Get-TweakCurrentStateValue
     .SYNOPSIS
 #>
 
+function Invoke-StateCaptureProgressCallback
+{
+	[CmdletBinding()]
+	param (
+		[AllowNull()]
+		[scriptblock]$ProgressCallback,
+
+		[Parameter(Mandatory = $true)]
+		[object]$Progress
+	)
+
+	if ($null -eq $ProgressCallback)
+	{
+		return
+	}
+
+	try
+	{
+		& $ProgressCallback $Progress
+	}
+	catch
+	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Write-SwallowedException -ErrorRecord $_ -Source 'StateCapture.ProgressCallback'
+		}
+	}
+}
+
+<#
+    .SYNOPSIS
+#>
+
 function New-SystemStateSnapshot
 {
 	<# .SYNOPSIS Captures a full system state snapshot by evaluating Detect scriptblocks across the manifest. #>
@@ -101,13 +136,25 @@ function New-SystemStateSnapshot
 		[Parameter(Mandatory = $true)]
 		[array]$Manifest,
 
-		[string]$CategoryFilter = $null
+		[string]$CategoryFilter = $null,
+
+		[AllowNull()]
+		[scriptblock]$ProgressCallback = $null
 	)
 
 	$entries = [System.Collections.ArrayList]::new()
 	$timestamp = [datetime]::UtcNow.ToString('o')
 
 	$osVersionString = $null
+	Invoke-StateCaptureProgressCallback -ProgressCallback $ProgressCallback -Progress ([pscustomobject]@{
+		Stage    = 'SystemInfo'
+		Index    = 0
+		Total    = 0
+		Name     = 'System information'
+		Function = 'Get-OSInfo'
+		Key      = 'System information|Get-OSInfo'
+		Category = 'System'
+	})
 	try
 	{
 		$osInfo = Get-OSInfo
@@ -118,6 +165,8 @@ function New-SystemStateSnapshot
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'StateCapture.Helpers.New-SystemStateSnapshot:catch164' -Severity Debug }
+
 		$osVersionString = $null
 	}
 
@@ -133,10 +182,13 @@ function New-SystemStateSnapshot
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'StateCapture.Helpers.New-SystemStateSnapshot:catch179' -Severity Debug }
+
 			$osVersionString = 'Unknown'
 		}
 	}
 
+	$candidateEntries = [System.Collections.ArrayList]::new()
 	foreach ($entry in @($Manifest))
 	{
 		if (-not $entry) { continue }
@@ -156,6 +208,29 @@ function New-SystemStateSnapshot
 
 		$detectBlock = Get-TweakManifestEntryValue -Entry $entry -FieldName 'Detect'
 		if ($null -eq $detectBlock) { continue }
+
+		[void]$candidateEntries.Add($entry)
+	}
+
+	$entryIndex = 0
+	$totalEntries = [int]$candidateEntries.Count
+	foreach ($entry in @($candidateEntries))
+	{
+		$entryIndex++
+		$functionName = [string](Get-TweakManifestEntryValue -Entry $entry -FieldName 'Function')
+		$entryName    = [string](Get-TweakManifestEntryValue -Entry $entry -FieldName 'Name')
+		$entryCategory = [string](Get-TweakManifestEntryValue -Entry $entry -FieldName 'Category')
+		$entryKey     = '{0}|{1}' -f $entryName, $functionName
+
+		Invoke-StateCaptureProgressCallback -ProgressCallback $ProgressCallback -Progress ([pscustomobject]@{
+			Stage    = 'EntryStart'
+			Index    = $entryIndex
+			Total    = $totalEntries
+			Name     = $entryName
+			Function = $functionName
+			Key      = $entryKey
+			Category = $entryCategory
+		})
 
 		$stateValue = Get-TweakCurrentStateValue -Entry $entry
 		[void]$entries.Add($stateValue)

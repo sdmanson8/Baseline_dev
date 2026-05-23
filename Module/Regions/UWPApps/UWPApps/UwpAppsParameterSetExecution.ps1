@@ -286,28 +286,28 @@ switch ($PSCmdlet.ParameterSetName)
             #region Functions
             function Get-MissingAppxPackages
             {
-            	            <#
-            	                .SYNOPSIS
-            	                Return the supported Appx packages that are currently missing.
+	            <#
+	                .SYNOPSIS
+	                Return the supported Appx packages that are currently missing.
 
-            	                .DESCRIPTION
-            	                Builds the Baseline package list for the current OS and returns the packages that are not installed for the current user or all users.
+	                .DESCRIPTION
+	                Builds the Baseline package list for the current OS and returns the packages that are not installed for the current user or all users.
 
-            	                .PARAMETER AllUsers
-            	                Check package presence across all users when running with administrative rights.
+	                .PARAMETER AllUsers
+	                Check package presence across all users when running with administrative rights.
 
-            	                .EXAMPLE
-            	                Get-MissingAppxPackages -AllUsers
-            	            #>
-           	[CmdletBinding()]
-           	param
-           	(
-          		[switch]
-          		$AllUsers
-           	)
+	                .EXAMPLE
+	                Get-MissingAppxPackages -AllUsers
+	            #>
+	[CmdletBinding()]
+	param
+	(
+		[switch]
+		$AllUsers
+	)
 
-           	# Check if running as admin for AllUsers queries
-           	$IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+	# Check if running as admin for AllUsers queries
+	$IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 			$CommonPackages = @(
 				@{ Name = "Microsoft.OutlookForWindows"; DisplayName = "Microsoft Outlook" }
@@ -325,62 +325,62 @@ switch ($PSCmdlet.ParameterSetName)
 				$CommonPackages += @{ Name = "Microsoft.WindowsSoundRecorder"; DisplayName = "Voice Recorder" }
 			}
 
-           	$MissingPackages = @()
-           	$InstalledCount = 0
-           	$ExcludedCount = 0
+	$MissingPackages = @()
+	$InstalledCount = 0
+	$ExcludedCount = 0
 
-           	foreach ($Package in $CommonPackages)
-           	{
-          		if ($Package.Name -in $ExcludedAppxPackages)
-          		{
-         			$ExcludedCount++
-         			continue
-          		}
+	foreach ($Package in $CommonPackages)
+	{
+		if ($Package.Name -in $ExcludedAppxPackages)
+		{
+			$ExcludedCount++
+			continue
+		}
 
-          		# Check if package is installed
-          		$Installed = $null
+		# Check if package is installed
+		$Installed = $null
 
-          		if ($AllUsers)
-          		{
-         			if ($IsAdmin)
-         			{
-            				# Admin: Check all users
-            				$Installed = Get-AppxPackage -Name $Package.Name -AllUsers -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
-         			}
-         			else
-         			{
-            				# Non-admin: Can only check current user
-            				$Installed = Get-AppxPackage -Name $Package.Name -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
-            				if (-not $script:AllUsersWarningShown)
-            				{
-           					LogWarning "Running without admin rights - 'All Users' mode will only check current user"
-           					$script:AllUsersWarningShown = $true
-            				}
-         			}
-          		}
-          		else
-          		{
-         			# Current user only
-         			$Installed = Get-AppxPackage -Name $Package.Name -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
-          		}
+		if ($AllUsers)
+		{
+			if ($IsAdmin)
+			{
+				# Admin: Check all users
+				$Installed = Get-AppxPackage -Name $Package.Name -AllUsers -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+			}
+			else
+			{
+				# Non-admin: Can only check current user
+				$Installed = Get-AppxPackage -Name $Package.Name -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+				if (-not $script:AllUsersWarningShown)
+				{
+					LogWarning "Running without admin rights - 'All Users' mode will only check current user"
+					$script:AllUsersWarningShown = $true
+				}
+			}
+		}
+		else
+		{
+			# Current user only
+			$Installed = Get-AppxPackage -Name $Package.Name -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+		}
 
-          		if ($null -eq $Installed)
-          		{
-         			$MissingPackages += [PSCustomObject]@{
-            				Name = $Package.Name
-            				PackageFullName = $Package.Name
-            				DisplayName = $Package.DisplayName
-         			}
-          		}
-          		else
-          		{
-         			$InstalledCount++
-         			#LogInfo "Already installed: $($Package.DisplayName)"
-          		}
-           	}
+		if ($null -eq $Installed)
+		{
+			$MissingPackages += [PSCustomObject]@{
+				Name = $Package.Name
+				PackageFullName = $Package.Name
+				DisplayName = $Package.DisplayName
+			}
+		}
+		else
+		{
+			$InstalledCount++
+			#LogInfo "Already installed: $($Package.DisplayName)"
+		}
+	}
 
-           	#LogInfo "Package scan complete: $($MissingPackages.Count) missing, $InstalledCount installed, $ExcludedCount excluded"
-           	return $MissingPackages | Sort-Object -Property DisplayName
+	#LogInfo "Package scan complete: $($MissingPackages.Count) missing, $InstalledCount installed, $ExcludedCount excluded"
+	return $MissingPackages | Sort-Object -Property DisplayName
             }
 
             <#
@@ -408,7 +408,7 @@ switch ($PSCmdlet.ParameterSetName)
                             #>
             function ButtonInstallClick
             {
-           	if ($CollectSelectionOnly)
+	if ($CollectSelectionOnly)
                 {
                     $script:UWPAppsSelectionResult = [PSCustomObject]@{
                         Mode = 'Install'
@@ -442,113 +442,115 @@ switch ($PSCmdlet.ParameterSetName)
                     }
                 }
 
-           	$Window.Close()
+	$Window.Close()
 
-           	$SuccessfulPackages = [System.Collections.Generic.List[string]]::new()
-           	$ManualPackages = [System.Collections.Generic.List[string]]::new()
+	$SuccessfulPackages = [System.Collections.Generic.List[string]]::new()
+	$ManualPackages = [System.Collections.Generic.List[string]]::new()
                 $scope = if ($CheckBoxForAllUsers.IsChecked) { "all users" } else { "current user" }
 
-           	# Store URLs for apps that need Store installation
-           	$StoreUrls = @{
-          		"Microsoft.WindowsCalculator" = "ms-windows-store://pdp/?productid=9WZDNCRFHVN5"
-          		"Microsoft.WindowsCamera" = "ms-windows-store://pdp/?productid=9WZDNCRFJBBG"
-          		"Microsoft.Windows.Photos" = "ms-windows-store://pdp/?productid=9WZDNCRFJBH4"
-          		"DolbyLaboratories.DolbyAccess" = "ms-windows-store://pdp/?productid=9N0866FS04W8"
-          		"Microsoft.GamingServices" = "ms-windows-store://pdp/?productid=9MWPM2CQNLHN"
-          		"Microsoft.OutlookForWindows" = "ms-windows-store://pdp/?productid=9NRX63209R7B"
-          		"MSTeams" = "ms-windows-store://pdp/?productid=XP8BT8DW290MPM"
-          		"Microsoft.YourPhone" = "ms-windows-store://pdp/?productid=9NMPJ99VJBWV"
-           	}
+	# Store URLs for apps that need Store installation
+	$StoreUrls = @{
+		"Microsoft.WindowsCalculator" = "ms-windows-store://pdp/?productid=9WZDNCRFHVN5"
+		"Microsoft.WindowsCamera" = "ms-windows-store://pdp/?productid=9WZDNCRFJBBG"
+		"Microsoft.Windows.Photos" = "ms-windows-store://pdp/?productid=9WZDNCRFJBH4"
+		"DolbyLaboratories.DolbyAccess" = "ms-windows-store://pdp/?productid=9N0866FS04W8"
+		"Microsoft.GamingServices" = "ms-windows-store://pdp/?productid=9MWPM2CQNLHN"
+		"Microsoft.OutlookForWindows" = "ms-windows-store://pdp/?productid=9NRX63209R7B"
+		"MSTeams" = "ms-windows-store://pdp/?productid=XP8BT8DW290MPM"
+		"Microsoft.YourPhone" = "ms-windows-store://pdp/?productid=9NMPJ99VJBWV"
+	}
 
-           	# Winget package mappings
-           	$WingetMap = @{
-          		"Microsoft.WindowsCalculator" = "Microsoft.WindowsCalculator"
-          		"Microsoft.WindowsCamera" = "Microsoft.WindowsCamera"
-          		"Microsoft.Windows.Photos" = "Microsoft.Windows.Photos"
-          		"Microsoft.OutlookForWindows" = "Microsoft.OutlookForWindows"
-          		"MSTeams" = "Microsoft.Teams"
-          		"Microsoft.GamingServices" = "Microsoft.GamingServices"
-          		"Microsoft.YourPhone" = "Microsoft.YourPhone"
-          		"DolbyLaboratories.DolbyAccess" = "DolbyLaboratories.DolbyAccess"
-           	}
+	# Winget package mappings
+	$WingetMap = @{
+		"Microsoft.WindowsCalculator" = "Microsoft.WindowsCalculator"
+		"Microsoft.WindowsCamera" = "Microsoft.WindowsCamera"
+		"Microsoft.Windows.Photos" = "Microsoft.Windows.Photos"
+		"Microsoft.OutlookForWindows" = "Microsoft.OutlookForWindows"
+		"MSTeams" = "Microsoft.Teams"
+		"Microsoft.GamingServices" = "Microsoft.GamingServices"
+		"Microsoft.YourPhone" = "Microsoft.YourPhone"
+		"DolbyLaboratories.DolbyAccess" = "DolbyLaboratories.DolbyAccess"
+	}
 
-           	foreach ($PackageName in $PackagesToInstall)
-           	{
-          		try {
-         			# METHOD 1: Check if package files exist and register them
-         			$WindowsAppsPath = "$env:ProgramFiles\WindowsApps"
-         			$PackageFolders = Get-ChildItem -Path $WindowsAppsPath -Directory -ErrorAction SilentlyContinue |
-            				Where-Object {$_.Name -like "*$PackageName*"} |
-            				Sort-Object LastWriteTime -Descending
+	foreach ($PackageName in $PackagesToInstall)
+	{
+		try {
+			# METHOD 1: Check if package files exist and register them
+			$WindowsAppsPath = "$env:ProgramFiles\WindowsApps"
+			$PackageFolders = Get-ChildItem -Path $WindowsAppsPath -Directory -ErrorAction SilentlyContinue |
+				Where-Object {$_.Name -like "*$PackageName*"} |
+				Sort-Object LastWriteTime -Descending
 
-         			$Installed = $false
-         			foreach ($Folder in $PackageFolders)
-         			{
-            				$ManifestPath = Join-Path $Folder.FullName "AppXManifest.xml"
-            				if (Test-Path $ManifestPath)
-            				{
-           					#LogInfo "Found existing package files for $PackageName. Registering..."
-           					try {
-          						Add-AppxPackage -DisableDevelopmentMode -Register $ManifestPath -ErrorAction Stop
-          						Start-Sleep -Seconds 2
+			$Installed = $false
+			foreach ($Folder in $PackageFolders)
+			{
+				$ManifestPath = Join-Path $Folder.FullName "AppXManifest.xml"
+				if (Test-Path $ManifestPath)
+				{
+					#LogInfo "Found existing package files for $PackageName. Registering..."
+					try {
+						Add-AppxPackage -DisableDevelopmentMode -Register $ManifestPath -ErrorAction Stop
+						Start-Sleep -Seconds 2
 
-          						$VerifyInstall = Get-AppxPackage -Name $PackageName -AllUsers:$CheckBoxForAllUsers.IsChecked -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
-          						if ($VerifyInstall)
-          						{
-         							$SuccessfulPackages.Add($PackageName)
-         							#LogInfo "Successfully registered $PackageName for $scope"
-         							$Installed = $true
-         							break
-          						}
-           					}
-           					catch {
-          						if ($_.Exception.Message -like "*0x80073D02*")
-          						{
-         							#LogInfo "$PackageName registration failed - system components in use"
-         							$ManualPackages.Add($PackageName)
-         							$Installed = $true
-         							break
-          						}
-           					}
-                    	}
-         			}
+						$VerifyInstall = Get-AppxPackage -Name $PackageName -AllUsers:$CheckBoxForAllUsers.IsChecked -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+						if ($VerifyInstall)
+						{
+							$SuccessfulPackages.Add($PackageName)
+							#LogInfo "Successfully registered $PackageName for $scope"
+							$Installed = $true
+							break
+						}
+					}
+					catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UwpAppsParameterSetExecution.ButtonInstallClick:catch504' -Severity Debug }
 
-         			if ($Installed) { continue }
+						if ($_.Exception.Message -like "*0x80073D02*")
+						{
+							#LogInfo "$PackageName registration failed - system components in use"
+							$ManualPackages.Add($PackageName)
+							$Installed = $true
+							break
+						}
+					}
+	}
+			}
 
-         			# METHOD 2: Try provisioned packages
-         			#LogInfo "Checking provisioned packages for $PackageName..."
-         			$Provisioned = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
-            				Where-Object {$_.DisplayName -eq $PackageName -or $_.PackageName -like "*$PackageName*"}
+			if ($Installed) { continue }
 
-         			if ($Provisioned)
-         			{
-           				try {
-           					Add-AppxProvisionedPackage -Online -PackageName $Provisioned.PackageName -SkipLicense -ErrorAction Stop | Out-Null
-           					Start-Sleep -Seconds 3
+			# METHOD 2: Try provisioned packages
+			#LogInfo "Checking provisioned packages for $PackageName..."
+			$Provisioned = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
+				Where-Object {$_.DisplayName -eq $PackageName -or $_.PackageName -like "*$PackageName*"}
 
-           					$VerifyInstall = Get-AppxPackage -Name $PackageName -AllUsers:$CheckBoxForAllUsers.IsChecked -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
-           					if ($VerifyInstall)
-           					    {
-              						$SuccessfulPackages.Add($PackageName)
-              						#LogInfo "Successfully installed $PackageName for $scope"
-              						continue
-           					    }
+			if ($Provisioned)
+			{
+				try {
+					Add-AppxProvisionedPackage -Online -PackageName $Provisioned.PackageName -SkipLicense -ErrorAction Stop | Out-Null
+					Start-Sleep -Seconds 3
+
+					$VerifyInstall = Get-AppxPackage -Name $PackageName -AllUsers:$CheckBoxForAllUsers.IsChecked -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+					if ($VerifyInstall)
+					    {
+						$SuccessfulPackages.Add($PackageName)
+						#LogInfo "Successfully installed $PackageName for $scope"
+						continue
+					    }
                             }
-            				catch {
-           					LogWarning "Provisioned package installation did not complete for $PackageName. Trying other recovery methods."
-            				}
-         			}
+				catch {
+					LogWarning "Provisioned package installation did not complete for $PackageName. Trying other recovery methods."
+				}
+			}
 
-         			# METHOD 3: Try winget
-         			#LogInfo "Trying winget for $PackageName..."
-         			$WingetPath = Get-Command winget -ErrorAction SilentlyContinue
-         			if ($WingetPath)
-         			{
-            				$WingetID = $WingetMap[$PackageName]
-           				if ($WingetID)
-            				{
-           					if ($CheckBoxForAllUsers.IsChecked)
-           					{
+			# METHOD 3: Try winget
+			#LogInfo "Trying winget for $PackageName..."
+			$WingetPath = Get-Command winget -ErrorAction SilentlyContinue
+			if ($WingetPath)
+			{
+				$WingetID = $WingetMap[$PackageName]
+				if ($WingetID)
+				{
+					if ($CheckBoxForAllUsers.IsChecked)
+					{
 								$WingetProcess = Invoke-BaselineProcess -FilePath 'winget' -ArgumentList @(
 									'install',
 									'--exact',
@@ -560,9 +562,9 @@ switch ($PSCmdlet.ParameterSetName)
 									'--accept-package-agreements',
 									'--accept-source-agreements'
 								) -TimeoutSeconds 1800
-           					}
-           					else
-           					{
+					}
+					else
+					{
 								$WingetProcess = Invoke-BaselineProcess -FilePath 'winget' -ArgumentList @(
 									'install',
 									'--exact',
@@ -574,29 +576,29 @@ switch ($PSCmdlet.ParameterSetName)
 									'--accept-package-agreements',
 									'--accept-source-agreements'
 								) -TimeoutSeconds 1800
-           					}
+					}
 
 								if ($WingetProcess.ExitCode -ne 0)
 								{
 									LogWarning "winget failed to install $PackageName with exit code $($WingetProcess.ExitCode). Trying other recovery methods."
 								}
 
-           					Start-Sleep -Seconds 5
-           					$AfterWinget = Get-AppxPackage -Name $PackageName -AllUsers:$CheckBoxForAllUsers.IsChecked -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+					Start-Sleep -Seconds 5
+					$AfterWinget = Get-AppxPackage -Name $PackageName -AllUsers:$CheckBoxForAllUsers.IsChecked -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
 
-           					if ($AfterWinget)
-           					{
-          						$SuccessfulPackages.Add($PackageName)
-          						#LogInfo "Successfully installed $PackageName for $scope"
-          						continue
-           					}
+					if ($AfterWinget)
+					{
+						$SuccessfulPackages.Add($PackageName)
+						#LogInfo "Successfully installed $PackageName for $scope"
+						continue
+					}
                         }
-         			}
+			}
 
-         			# METHOD 4: Try Microsoft Store as last resort
-         			$StoreUrl = $StoreUrls[$PackageName]
-         			if ($StoreUrl)
-         			{
+			# METHOD 4: Try Microsoft Store as last resort
+			$StoreUrl = $StoreUrls[$PackageName]
+			if ($StoreUrl)
+			{
                             if ($NonInteractive)
                             {
                                 LogWarning "$PackageName requires Microsoft Store or manual follow-up in noninteractive mode."
@@ -604,57 +606,59 @@ switch ($PSCmdlet.ParameterSetName)
                                 continue
                             }
 
-            				#LogInfo "Opening Microsoft Store for $PackageName. Please install manually..."
-            				Start-Process $StoreUrl
+				#LogInfo "Opening Microsoft Store for $PackageName. Please install manually..."
+				Start-Process $StoreUrl
 
-            				# Show themed dialog that blocks until user clicks OK
-            				$messageText = "Microsoft Store has been opened for $PackageName.`n`nPlease install the app manually, then click OK to continue with the next app."
-            				$dialogParams = @{
-            					Title = if ($Localization.PSObject.Properties['ManualInstallRequired']) { $Localization.ManualInstallRequired } else { 'Manual Installation Required' }
-            					Message = $messageText
-            					Buttons = @('OK')
-            				}
+				# Show themed dialog that blocks until user clicks OK
+				$messageText = "Microsoft Store has been opened for $PackageName.`n`nPlease install the app manually, then click OK to continue with the next app."
+                            $currentTheme = Get-UWPAppsPickerTheme
+                            $isDarkMode = Resolve-UWPAppsPickerUseDarkMode
+				$dialogParams = @{
+                                Theme = $currentTheme
+                                ApplyButtonChrome = { param($Button, $Variant) }
+					Title = if ($Localization.PSObject.Properties['ManualInstallRequired']) { $Localization.ManualInstallRequired } else { 'Manual Installation Required' }
+					Message = $messageText
+					Buttons = @('OK')
+                                UseDarkMode = $isDarkMode
+                                AccentButton = 'OK'
+				}
 
-            				# Pass theme if available
-            				if (Test-Path -Path Variable:\Script:CurrentTheme)
-            				{
-            					$dialogParams['Theme'] = $Script:CurrentTheme
-            				}
-            				if (Test-Path -Path Function:\Set-ButtonChrome)
-            				{
-            					$dialogParams['ApplyButtonChrome'] = ${function:Set-ButtonChrome}
-            				}
-            				if (Test-Path -Path Variable:\Script:CurrentThemeName)
-            				{
-            					$dialogParams['UseDarkMode'] = ($Script:CurrentThemeName -eq 'Dark')
-            				}
+				# Pass theme if available
+				if (Test-Path -Path Variable:\Script:CurrentTheme)
+				{
+					$dialogParams['Theme'] = $Script:CurrentTheme
+				}
+				if (Test-Path -Path Function:\Set-ButtonChrome)
+				{
+					$dialogParams['ApplyButtonChrome'] = ${function:Set-ButtonChrome}
+				}
 
-            				GUICommon\Show-ThemedDialog @dialogParams
+                            GUICommon\Show-GuiCommonThemedDialog @dialogParams
 
-            				Start-Sleep -Seconds 2
-            				$AfterStore = Get-AppxPackage -Name $PackageName -AllUsers:$CheckBoxForAllUsers.IsChecked -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
-            				if ($AfterStore)
-            				{
-               					$SuccessfulPackages.Add($PackageName)
-               					#LogInfo "Successfully installed $PackageName for $scope"
-            				}
-            				else
-            				{
-               					$ManualPackages.Add($PackageName)
-               					LogWarning "$PackageName requires manual installation from the Microsoft Store."
-            				}
-         			}
-         			else
-         			{
+				Start-Sleep -Seconds 2
+				$AfterStore = Get-AppxPackage -Name $PackageName -AllUsers:$CheckBoxForAllUsers.IsChecked -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+				if ($AfterStore)
+				{
+					$SuccessfulPackages.Add($PackageName)
+					#LogInfo "Successfully installed $PackageName for $scope"
+				}
+				else
+				{
+					$ManualPackages.Add($PackageName)
+					LogWarning "$PackageName requires manual installation from the Microsoft Store."
+				}
+			}
+			else
+			{
                         LogWarning "$PackageName could not be installed automatically and needs manual follow-up."
-            			$ManualPackages.Add($PackageName)
-         			}
-          		}
-          		catch {
-         			LogWarning "$PackageName - Installation needs manual follow-up: $($_.Exception.Message)"
-         			$ManualPackages.Add($PackageName)
-          		}
-           	}
+			$ManualPackages.Add($PackageName)
+			}
+		}
+		catch {
+			LogWarning "$PackageName - Installation needs manual follow-up: $($_.Exception.Message)"
+			$ManualPackages.Add($PackageName)
+		}
+	}
 
             # Log results
             if ($SuccessfulPackages.Count -gt 0)
@@ -695,57 +699,57 @@ switch ($PSCmdlet.ParameterSetName)
 
             function Add-UWPAppsInstallPickerControl
             {
-           	param($Packages, $Panel)
+	param($Packages, $Panel)
 
             $selectionSeed = @($script:UWPAppsSelectionSeed)
             $useSelectionSeed = ($selectionSeed.Count -gt 0)
 
-           	foreach ($Package in $Packages)
-           	{
-          		$CheckBox = New-Object System.Windows.Controls.CheckBox
-          		$CheckBox.Tag = $Package.PackageFullName
-          		$CheckBox.IsChecked = $(if ($useSelectionSeed) { $Package.PackageFullName -in $selectionSeed } else { $true })
-          		$CheckBox.Margin = "5,5,5,5"
-          		$CheckBox.VerticalAlignment = "Center"
+	foreach ($Package in $Packages)
+	{
+		$CheckBox = New-Object System.Windows.Controls.CheckBox
+		$CheckBox.Tag = $Package.PackageFullName
+		$CheckBox.IsChecked = $(if ($useSelectionSeed) { $Package.PackageFullName -in $selectionSeed } else { $true })
+		$CheckBox.Margin = "5,5,5,5"
+		$CheckBox.VerticalAlignment = "Center"
 
-          		$LabelPanel = New-Object System.Windows.Controls.StackPanel
-          		$LabelPanel.Orientation = "Horizontal"
-          		$LabelPanel.VerticalAlignment = "Center"
+		$LabelPanel = New-Object System.Windows.Controls.StackPanel
+		$LabelPanel.Orientation = "Horizontal"
+		$LabelPanel.VerticalAlignment = "Center"
 
-          		$TextBlock = New-Object System.Windows.Controls.TextBlock
-          		$TextBlock.Text = $Package.DisplayName
+		$TextBlock = New-Object System.Windows.Controls.TextBlock
+		$TextBlock.Text = $Package.DisplayName
 				$TextBlock.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI')
 				if ($Form -and $Form.Foreground) { $TextBlock.Foreground = $Form.Foreground }
-          		$TextBlock.Margin = "5,5,5,5"
-          		$TextBlock.VerticalAlignment = "Center"
-          		[void]$LabelPanel.Children.Add($TextBlock)
+		$TextBlock.Margin = "5,5,5,5"
+		$TextBlock.VerticalAlignment = "Center"
+		[void]$LabelPanel.Children.Add($TextBlock)
 
-          		$tooltipText = if ([string]::IsNullOrWhiteSpace([string]$Package.PackageFullName)) { [string]$Package.DisplayName } else { [string]$Package.PackageFullName }
-          		$infoIcon = GUICommon\New-GuiPopupInfoIcon -TooltipText $tooltipText -Theme $currentTheme -UseDarkMode $isDarkMode
-          		$infoPanel = New-Object System.Windows.Controls.StackPanel
-          		$infoPanel.Orientation = "Horizontal"
-          		$infoPanel.VerticalAlignment = "Center"
-          		$infoPanel.HorizontalAlignment = "Right"
-          		$infoPanel.Margin = [System.Windows.Thickness]::new(8, 0, 10, 0)
-          		$infoPanel.Children.Add($infoIcon) | Out-Null
+		$tooltipText = if ([string]::IsNullOrWhiteSpace([string]$Package.PackageFullName)) { [string]$Package.DisplayName } else { [string]$Package.PackageFullName }
+		$infoIcon = GUICommon\New-GuiPopupInfoIcon -TooltipText $tooltipText -Theme $currentTheme -UseDarkMode $isDarkMode
+		$infoPanel = New-Object System.Windows.Controls.StackPanel
+		$infoPanel.Orientation = "Horizontal"
+		$infoPanel.VerticalAlignment = "Center"
+		$infoPanel.HorizontalAlignment = "Right"
+		$infoPanel.Margin = [System.Windows.Thickness]::new(8, 0, 10, 0)
+		$infoPanel.Children.Add($infoIcon) | Out-Null
 
-          		$StackPanel = New-Object System.Windows.Controls.DockPanel
-          		$StackPanel.LastChildFill = $true
-          		$StackPanel.Margin = "2,2,2,2"
-          		[System.Windows.Controls.DockPanel]::SetDock($CheckBox, [System.Windows.Controls.Dock]::Left)
-          		$StackPanel.Children.Add($CheckBox) | Out-Null
-          		[System.Windows.Controls.DockPanel]::SetDock($infoPanel, [System.Windows.Controls.Dock]::Right)
-          		$StackPanel.Children.Add($infoPanel) | Out-Null
-          		$StackPanel.Children.Add($LabelPanel) | Out-Null
+		$StackPanel = New-Object System.Windows.Controls.DockPanel
+		$StackPanel.LastChildFill = $true
+		$StackPanel.Margin = "2,2,2,2"
+		[System.Windows.Controls.DockPanel]::SetDock($CheckBox, [System.Windows.Controls.Dock]::Left)
+		$StackPanel.Children.Add($CheckBox) | Out-Null
+		[System.Windows.Controls.DockPanel]::SetDock($infoPanel, [System.Windows.Controls.Dock]::Right)
+		$StackPanel.Children.Add($infoPanel) | Out-Null
+		$StackPanel.Children.Add($LabelPanel) | Out-Null
 
-          		$Panel.Children.Add($StackPanel) | Out-Null
+		$Panel.Children.Add($StackPanel) | Out-Null
                 if ($CheckBox.IsChecked)
                 {
-          		    $PackagesToInstall.Add($Package.PackageFullName) | Out-Null
+		    $PackagesToInstall.Add($Package.PackageFullName) | Out-Null
                 }
 
-          		$CheckBox.Add_Click({Invoke-UWPAppsInstallPickerCheckBoxClick})
-           	}
+		$CheckBox.Add_Click({Invoke-UWPAppsInstallPickerCheckBoxClick})
+	}
         }
 
             <#
@@ -756,16 +760,16 @@ switch ($PSCmdlet.ParameterSetName)
 
             function Invoke-UWPAppsInstallPickerCheckBoxClick
             {
-           	$CheckBox = $_.Source
-           	if ($CheckBox.IsChecked)
-           	{
-          		$PackagesToInstall.Add($CheckBox.Tag) | Out-Null
-           	}
-           	else
-           	{
-          		$PackagesToInstall.Remove($CheckBox.Tag)
-           	}
-           	ButtonInstallSetIsEnabled
+	$CheckBox = $_.Source
+	if ($CheckBox.IsChecked)
+	{
+		$PackagesToInstall.Add($CheckBox.Tag) | Out-Null
+	}
+	else
+	{
+		$PackagesToInstall.Remove($CheckBox.Tag)
+	}
+	ButtonInstallSetIsEnabled
             }
 
             <#
@@ -776,27 +780,27 @@ switch ($PSCmdlet.ParameterSetName)
 
             function Invoke-UWPAppsInstallSelectAllClick
             {
-           	$CheckBox = $_.Source
+	$CheckBox = $_.Source
 
-           	if ($CheckBox.IsChecked)
-           	{
-          		$PackagesToInstall.Clear()
-          		foreach ($Item in $PanelContainer.Children)
-          		{
-         			$ChildCheckBox = $Item.Children[0]
-         			$ChildCheckBox.IsChecked = $true
-         			$PackagesToInstall.Add($ChildCheckBox.Tag) | Out-Null
-          		}
-           	}
-           	else
-           	{
-          		$PackagesToInstall.Clear()
-          		foreach ($Item in $PanelContainer.Children)
-          		{
-         			$Item.Children[0].IsChecked = $false
-          		}
-           	}
-           	ButtonInstallSetIsEnabled
+	if ($CheckBox.IsChecked)
+	{
+		$PackagesToInstall.Clear()
+		foreach ($Item in $PanelContainer.Children)
+		{
+			$ChildCheckBox = $Item.Children[0]
+			$ChildCheckBox.IsChecked = $true
+			$PackagesToInstall.Add($ChildCheckBox.Tag) | Out-Null
+		}
+	}
+	else
+	{
+		$PackagesToInstall.Clear()
+		foreach ($Item in $PanelContainer.Children)
+		{
+			$Item.Children[0].IsChecked = $false
+		}
+	}
+	ButtonInstallSetIsEnabled
             }
 
             <#
@@ -807,14 +811,14 @@ switch ($PSCmdlet.ParameterSetName)
 
             function ButtonInstallSetIsEnabled
             {
-           	$ButtonInstall.IsEnabled = ($PackagesToInstall.Count -gt 0)
+	$ButtonInstall.IsEnabled = ($PackagesToInstall.Count -gt 0)
             }
             #endregion Functions
 
             # Check "For all users" checkbox if specified
             if ($ForAllUsers)
             {
-           	$CheckBoxForAllUsers.IsChecked = $true
+	$CheckBoxForAllUsers.IsChecked = $true
             }
 
             $PackagesToInstall = [System.Collections.Generic.List[string]]::new()
@@ -822,7 +826,7 @@ switch ($PSCmdlet.ParameterSetName)
 
             if ($MissingPackages.Count -eq 0)
             {
-           	LogWarning "Skipping UWP app install because no apps were missing for the chosen scope."
+	LogWarning "Skipping UWP app install because no apps were missing for the chosen scope."
                 if (-not $CollectSelectionOnly)
                 {
                     Write-ConsoleStatus -Status warning
@@ -839,9 +843,9 @@ switch ($PSCmdlet.ParameterSetName)
             }
             else
             {
-           	Add-UWPAppsInstallPickerControl -Packages $MissingPackages -Panel $PanelContainer
+	Add-UWPAppsInstallPickerControl -Packages $MissingPackages -Panel $PanelContainer
 
-           	if ($PackagesToInstall.Count -gt 0)
+	if ($PackagesToInstall.Count -gt 0)
 	{
 		$ButtonInstall.IsEnabled = $true
 	}
@@ -1309,7 +1313,7 @@ switch ($PSCmdlet.ParameterSetName)
 			    .SYNOPSIS
 			    Creates UWP apps info icon.
 
-			    			#>
+						#>
 
 			function New-UwpAppsInfoIcon
 			{
@@ -1324,7 +1328,7 @@ switch ($PSCmdlet.ParameterSetName)
 			    .SYNOPSIS
 			    Adds control.
 
-			    			#>
+						#>
 
 			function Add-UWPAppsUninstallPickerControl
 			{
@@ -1451,7 +1455,7 @@ switch ($PSCmdlet.ParameterSetName)
 			    .SYNOPSIS
 			    Runs check box for all users click.
 
-			    			#>
+						#>
 
 			function Invoke-UWPAppsUninstallForAllUsersClick
 			{
@@ -1470,7 +1474,7 @@ switch ($PSCmdlet.ParameterSetName)
 			    .SYNOPSIS
 			    Runs button uninstall click.
 
-			    			#>
+						#>
 			function ButtonUninstallClick
 			{
                 if ($CollectSelectionOnly)
@@ -1626,7 +1630,7 @@ switch ($PSCmdlet.ParameterSetName)
 			    .SYNOPSIS
 			    Runs check box click.
 
-			    			#>
+						#>
 
 			function Invoke-UWPAppsUninstallPickerCheckBoxClick
 			{
@@ -1648,7 +1652,7 @@ switch ($PSCmdlet.ParameterSetName)
 			    .SYNOPSIS
 			    Runs check box select all click.
 
-			    			#>
+						#>
 
 			function Invoke-UWPAppsUninstallSelectAllClick
 			{
@@ -1693,7 +1697,7 @@ switch ($PSCmdlet.ParameterSetName)
 			    .SYNOPSIS
 			    Runs button uninstall set is enabled.
 
-			    			#>
+						#>
 
 			function ButtonUninstallSetIsEnabled
 			{

@@ -3,9 +3,9 @@
 	Configures hardware power and device blocking settings.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies Baseline's hardware power and device blocking settings in GUI and headless runs.
 	.PARAMETER Enable
 	Enable Block Razer Software Installs
@@ -408,7 +408,7 @@ function ServicesManual
 				$_.Exception.Message -like "*Cannot find any service with service name*"
 			)
 			{
-				LogWarning "Service $Name was not found"
+				LogInfo "Skipping service $Name because it is not available on this system."
 			}
 			else
 			{

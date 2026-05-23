@@ -3,9 +3,9 @@
 	Configures appearance and pointer precision settings.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies Baseline's appearance and pointer precision settings in GUI and headless runs.
 	.PARAMETER Enable
 	Enable enhanced pointer precision
@@ -103,9 +103,9 @@ function EnhPointerPrecision
 	Play or disable Windows startup sound
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for play or disable Windows startup sound.
 	.PARAMETER Enable
 	Play Windows startup sound
@@ -187,9 +187,9 @@ function StartupSound
 	Control the volume ducking preference used when Windows detects communications activity
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for control the volume ducking preference used when Windows detects communications activity.
 	.PARAMETER MuteAll
 	Mute all other sounds
@@ -334,9 +334,9 @@ function SoundDuckingPreference
 	Allow or prevent Narrator from ducking audio while it speaks
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for allow or prevent Narrator from ducking audio while it speaks.
 	.PARAMETER Enable
 	Allow Narrator to lower the volume of other apps while speaking
@@ -424,9 +424,9 @@ function NarratorAudioDucking
 	Allow or prevent SpeechOneCore voice activation for apps
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for allow or prevent SpeechOneCore voice activation for apps.
 	.PARAMETER Enable
 	Allow voice activation for apps using the SpeechOneCore stack
@@ -514,9 +514,9 @@ function SpeechOneCoreVoiceActivation
 	Play or disable accessibility activation sounds
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for play or disable accessibility activation sounds.
 	.PARAMETER Enable
 	Play sounds when accessibility features are activated
@@ -604,9 +604,9 @@ function AccessibilityActivationSounds
 	Play or disable accessibility warning sounds
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for play or disable accessibility warning sounds.
 	.PARAMETER Enable
 	Play warning sounds when accessibility features are used
@@ -694,9 +694,9 @@ function AccessibilityWarningSounds
 	Window title bar color adapts to the prevalent background color
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for window title bar color adapts to the prevalent background color.
 	.PARAMETER Enable
 	Enable title bar color to match prevalent background color
@@ -778,9 +778,9 @@ function TitleBarColor
 	Windows visual effects performance and appearance settings
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for windows visual effects performance and appearance settings.
 	.PARAMETER Performance
 	Adjust visual effects for best performance
@@ -936,9 +936,9 @@ function VisualFX
 	Title bar window shake
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for title bar window shake.
 	.PARAMETER Enable
 	When I grab a windows's title bar and shake it, minimize all other windows
@@ -1025,9 +1025,9 @@ function AeroShaking
 	The default app mode
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the default app mode.
 	.PARAMETER Dark
 	Set the default app mode to dark
@@ -1158,9 +1158,9 @@ function DesktopRegistry
     Windows build number and edition display on desktop
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for windows build number and edition display on desktop.
     .PARAMETER Enable
     Enable the build number and edition display
@@ -1242,9 +1242,9 @@ function BuildNumberOnDesktop
 	A different input method for each app window
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for a different input method for each app window.
 	.PARAMETER Enable
 	Let me use a different input method for each app window
@@ -1320,9 +1320,9 @@ function AppsLanguageSwitch
 	The Print screen button usage
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the Print screen button usage.
 	.PARAMETER Enable
 	Use the Print screen button to open screen snipping
@@ -1404,9 +1404,9 @@ function PrtScnSnippingTool
 	Dynamic Lighting RGB control
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for dynamic Lighting RGB control.
 	.PARAMETER Enable
 	Enable Dynamic Lighting RGB control for compatible devices

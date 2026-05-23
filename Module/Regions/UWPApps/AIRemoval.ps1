@@ -51,15 +51,15 @@
 
 param(
     [switch]$nonInteractive,
-    [ValidateSet('DisableRegKeys',          
-        'PreventAIPackageReinstall',     
-        'DisableCopilotPolicies',       
-        'RemoveAppxPackages',        
-        'RemoveRecallFeature', 
-        'RemoveCBSPackages',         
-        'RemoveAIFiles',               
-        'HideAIComponents',            
-        'DisableRewrite',       
+    [ValidateSet('DisableRegKeys',
+        'PreventAIPackageReinstall',
+        'DisableCopilotPolicies',
+        'RemoveAppxPackages',
+        'RemoveRecallFeature',
+        'RemoveCBSPackages',
+        'RemoveAIFiles',
+        'HideAIComponents',
+        'DisableRewrite',
         'RemoveRecallTasks',
         'RemoveVoiceAccess')]
     [array]$Options,
@@ -140,6 +140,8 @@ try {
     }
 }
 catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\Regions\UWPApps\AIRemoval.ps1:142' -Severity Debug }
+
     # Silently skip - background runspaces do not support WindowTitle
 }
 
@@ -242,10 +244,10 @@ Add-Type -AssemblyName System.Windows.Forms
 
 function RunTrusted {
     param(
-        [String]$command, 
+        [String]$command,
         $psversion,
         [string]$logFile
-        ) 
+        )
 
     $psexe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
     if (-not (Test-Path -LiteralPath $psexe -PathType Leaf)) {
@@ -258,7 +260,7 @@ function RunTrusted {
     if (!$logFile -and (Get-AIRemovalLogFilePath)) {
         $logFile = Get-AIRemovalLogFilePath
     }
-    
+
     $trustedScriptDirectory = Join-Path $env:ProgramData 'Baseline\AIRemoval'
     New-Item -Path $trustedScriptDirectory -ItemType Directory -Force -ErrorAction Stop | Out-Null
     $trustedOperationId = [guid]::NewGuid().ToString('N')
@@ -345,7 +347,9 @@ catch {
 
         LogInfo 'Temporarily changing TrustedInstaller service command to run AIRemoval privileged cleanup.'
         $null = Invoke-BaselineProcess -FilePath 'sc.exe' -ArgumentList @('config', 'TrustedInstaller', 'binPath=', $trustedCommand) -TimeoutSeconds 60
-        $null = Invoke-BaselineProcess -FilePath 'sc.exe' -ArgumentList @('start', 'TrustedInstaller') -TimeoutSeconds 120
+        # The payload is a transient PowerShell process, not a service process.
+        # SCM exit code 1053 is acceptable here; the marker/error files below are the authoritative result.
+        $null = Invoke-BaselineProcess -FilePath 'sc.exe' -ArgumentList @('start', 'TrustedInstaller') -TimeoutSeconds 120 -AllowedExitCodes @(0, 1053)
         $trustedDeadline = [DateTime]::UtcNow.AddMinutes(20)
         while ((-not (Test-Path -LiteralPath $trustedMarkerPath -PathType Leaf)) -and
                (-not (Test-Path -LiteralPath $trustedErrorPath -PathType Leaf)) -and
@@ -377,6 +381,8 @@ catch {
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AIRemoval.RunTrusted:catch380' -Severity Debug }
+
         $trustedFailure = $_
     }
     finally
@@ -593,10 +599,10 @@ function Write-AIRemovalFileSafely {
         [string]$Value,
         [switch]$Append
     )
-    
+
     $mutexName = "Global\AIRemovalLogLock"
     $mutex = New-Object System.Threading.Mutex($false, $mutexName)
-    
+
     $acquired = $mutex.WaitOne(5000)
     try {
         if ($acquired) {
@@ -654,15 +660,15 @@ function New-AIRemovalRestorePoint {
             LogError 'Unable to Start VSS Service -  Can not create restore point!'
             return
         }
-        
+
     }
     #enable system protection to allow restore points
     $restoreEnabled = Get-ComputerRestorePoint -ErrorAction SilentlyContinue
     if (!$restoreEnabled) {
        # Write-Status -msg 'Enabling Restore Points on System - '
        # LogInfo 'Enabling Restore Points on System'
-        Enable-ComputerRestore -Drive "$env:SystemDrive\" 
-        
+        Enable-ComputerRestore -Drive "$env:SystemDrive\"
+
     }
 
     if ($nonInteractive) {
@@ -678,7 +684,7 @@ function New-AIRemovalRestorePoint {
         Write-Status -msg "Creating Restore Point - "
         LogInfo "Creating Restore Point: [$restorePointName]"
        # Write-Status -msg 'This may take a moment - please wait'
-        Checkpoint-Computer -Description $restorePointName -RestorePointType 'MODIFY_SETTINGS' 
+        Checkpoint-Computer -Description $restorePointName -RestorePointType 'MODIFY_SETTINGS'
         Write-ConsoleStatus -Status success
 }
     else {
@@ -694,7 +700,7 @@ function New-AIRemovalRestorePoint {
         Write-Status -msg "Creating Restore Point - "
         LogInfo "Creating Restore Point: [$restorePointName]"
        # Write-Status -msg 'This may take a moment - please wait'
-        Checkpoint-Computer -Description $restorePointName -RestorePointType 'MODIFY_SETTINGS' 
+        Checkpoint-Computer -Description $restorePointName -RestorePointType 'MODIFY_SETTINGS'
         Write-ConsoleStatus -Status success
 }
 
@@ -708,10 +714,10 @@ function New-AIRemovalRestorePoint {
 
 function Set-UwpAppRegistryEntry {
     # modified to work in windows powershell from https://github.com/agadiffe/WindowsMize/blob/fe78912ccb1c83d440bd2123f5e43a6156fab31a/src/modules/applications/settings/public/Set-UwpAppSetting.ps1
-    <# 
+    <#
     .SYNOPSIS
         Modifies UWP app registry entries in the settings.dat file.
-    
+
     .EXAMPLE
         PS> $setting = [PSCustomObject]@{
                 Name  = 'VideoAutoplay'
@@ -754,43 +760,43 @@ function Set-UwpAppRegistryEntry {
         # The Microsoft example waits for process exit only, not for registry hive availability.
         # https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/wait-process?view=powershell-7.5#example-1-stop-a-process-and-wait
 
-        # since we are trying multiple times while the processes are stopping this will work as soon as the file is freed 
+        # since we are trying multiple times while the processes are stopping this will work as soon as the file is freed
         do {
             $loadResult = Invoke-AIRemovalReg -ArgumentList @('LOAD', $AppSettingsRegMountPath, $FilePath) -AllowedExitCodes @(0, 1)
             $global:LASTEXITCODE = $loadResult.ExitCode
             $attempts++
         } while ($LASTEXITCODE -ne 0 -and $attempts -lt $max)
-    
+
         if ($LASTEXITCODE -ne 0) {
             LogError 'Unable to load settings.dat'
             return
         }
-      
+
     }
 
     process {
         $Value = $InputObject.Value
         $Value = switch ($InputObject.Type) {
-            '5f5e10b' { 
+            '5f5e10b' {
                 # Single byte for boolean
                 '{0:x2}' -f [byte][int]$Value
             }
-            '5f5e10c' { 
-                # Unicode string 
+            '5f5e10c' {
+                # Unicode string
                 $bytes = [System.Text.Encoding]::Unicode.GetBytes($Value + "`0")
-                ($bytes | ForEach-Object { '{0:x2}' -f $_ }) -join ' ' 
+                ($bytes | ForEach-Object { '{0:x2}' -f $_ }) -join ' '
             }
-            '5f5e104' { 
+            '5f5e104' {
                 # Int32
                 $bytes = [BitConverter]::GetBytes([int]$Value)
                 ($bytes | ForEach-Object { '{0:x2}' -f $_ }) -join ' '
             }
-            '5f5e105' { 
+            '5f5e105' {
                 # UInt32
                 $bytes = [BitConverter]::GetBytes([uint32]$Value)
                 ($bytes | ForEach-Object { '{0:x2}' -f $_ }) -join ' '
             }
-            '5f5e106' { 
+            '5f5e106' {
                 # Int64
                 $bytes = [BitConverter]::GetBytes([int64]$Value)
                 ($bytes | ForEach-Object { '{0:x2}' -f $_ }) -join ' '
@@ -798,11 +804,11 @@ function Set-UwpAppRegistryEntry {
         }
 
         $Value = $Value -replace '\s+', ','
-    
+
         # create timestamp for remaining bytes
         $timestampBytes = [BitConverter]::GetBytes([int64](Get-Date).ToFileTime())
         $Timestamp = ($timestampBytes | ForEach-Object { '{0:x2}' -f $_ }) -join ','
-    
+
         # build registry content
         if ($InputObject.Path) {
             $RegKey = $InputObject.Path
@@ -884,6 +890,8 @@ if (`$LASTEXITCODE -eq 0) {
         return ([string]$currentValue -eq [string]$Value)
     }
     catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AIRemoval.Invoke-TrustedRegistryWrite:catch888' -Severity Debug }
+
         return $false
     }
 }
@@ -932,7 +940,7 @@ function Set-AIRemovalRegistryValue {
     if ($SkipOnAccessDenied) {
         $params.OnAccessDenied = {
             param($DeniedPath, $DeniedName)
-            LogWarning "Skipping registry value '$DeniedName' at '$DeniedPath' because access was denied."
+            LogInfo "Skipping registry value '$DeniedName' at '$DeniedPath' because access was denied."
         }
     }
 
@@ -950,23 +958,23 @@ function Disable-Registry-Keys {
     Write-Status -msg "$(@('Disabling', 'Enabling')[$revert]) Copilot and Recall - "
     LogInfo "$(@('Disabling', 'Enabling')[$revert]) Copilot and Recall"
     <#
-    #new keys related to windows ai schedled task 
-    #npu check 
-    Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /v 'HardwareCompatibility' /t REG_DWORD /d '0' /f 
+    #new keys related to windows ai schedled task
+    #npu check
+    Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /v 'HardwareCompatibility' /t REG_DWORD /d '0' /f
     #dont know
     Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /v 'ITManaged' /t REG_DWORD /d '0' /f
-    #enabled by windows ai schedled task 
-    #set to 1 in the us 
+    #enabled by windows ai schedled task
+    #set to 1 in the us
     Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /v 'AllowedInRegion' /t REG_DWORD /d '0' /f
-    #enabled by windows ai schelded task 
-    # policy enabled = 1 when recall is enabled in group policy 
+    #enabled by windows ai schelded task
+    # policy enabled = 1 when recall is enabled in group policy
     Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /v 'PolicyConfigured' /t REG_DWORD /d '0' /f
     Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /v 'PolicyEnabled' /t REG_DWORD /d '0' /f
     # Mark hardware compatibility checks as not satisfied.
     Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /v 'FTDisabledState' /t REG_DWORD /d '0' /f
     # Disable additional NPU/driver eligibility checks.
     Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /v 'MeetsAdditionalDriverRequirements' /t REG_DWORD /d '0' /f
-    #sucess from last run 
+    #sucess from last run
     Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /v 'LastOperationKind' /t REG_DWORD /d '2' /f
     #doesnt install recall for me so 0
     Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /v 'AttemptedInstallCount' /t REG_DWORD /d '0' /f
@@ -977,7 +985,7 @@ function Disable-Registry-Keys {
     #>
 
     if (!$revert) {
-        #removing it does not get remade on restart so we will just remove it for now 
+        #removing it does not get remade on restart so we will just remove it for now
         Reg.exe delete 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsAI\LastConfiguration' /f *>$null
 
         Reg.exe delete 'HKCU\Software\Microsoft\Windows\Shell\Copilot' /v 'CopilotLogonTelemetryTime' /f *>$null
@@ -985,7 +993,7 @@ function Disable-Registry-Keys {
         Reg.exe delete 'HKCU\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\SystemAppData\Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe\WebViewHostStartupId' /f *>$null
         Reg.exe delete 'HKCU\Software\Microsoft\Copilot' /v 'WakeApp' /f *>$null
     }
-    
+
     #set for local machine and current user to be sure
     $hives = @('HKLM', 'HKCU')
     foreach ($hive in $hives) {
@@ -1035,17 +1043,17 @@ function Disable-Registry-Keys {
     Reg.exe add 'HKLM\SOFTWARE\Policies\Microsoft\Edge' /v 'AIGenThemesEnabled' /t REG_DWORD /d @('0', '1')[$revert] /f *>$null
     Reg.exe add 'HKLM\SOFTWARE\Policies\Microsoft\Edge' /v 'DevToolsGenAiSettings' /t REG_DWORD /d @('2', '1')[$revert] /f *>$null
     Reg.exe add 'HKLM\SOFTWARE\Policies\Microsoft\Edge' /v 'ShareBrowsingHistoryWithCopilotSearchAllowed' /t REG_DWORD /d @('0', '1')[$revert] /f *>$null
-    #disable edge copilot mode 
+    #disable edge copilot mode
     # "enabled_labs_experiments":["edge-copilot-mode@2"]
     # view flags at edge://flags
     $null = Invoke-BaselineProcess -FilePath 'taskkill.exe' -ArgumentList @('/im', 'msedge.exe', '/f') -TimeoutSeconds 60 -AllowedExitCodes @(0, 128)
     $config = "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Local State"
     . (Join-Path $PSScriptRoot 'AIRemoval\Disable-Registry-Keys\EdgeCopilotFlagPolicy.ps1')
-   
+
     #disable office ai with group policy
     Reg.exe add 'HKLM\SOFTWARE\Policies\Microsoft\office\16.0\common\ai\training\general' /v 'disabletraining' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
     Reg.exe add 'HKLM\SOFTWARE\Policies\Microsoft\office\16.0\common\ai\training\specific\adaptivefloatie' /v 'disabletrainingofadaptivefloatie' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
-    #disable connected experiences in office should prevent copilot from working 
+    #disable connected experiences in office should prevent copilot from working
     Reg.exe add 'HKCU\Software\Policies\Microsoft\office\16.0\common\privacy' /v 'controllerconnectedservicesenabled' /t REG_DWORD /d @('2', '1')[$revert] /f *>$null
     Reg.exe add 'HKCU\Software\Policies\Microsoft\office\16.0\common\privacy' /v 'usercontentdisabled' /t REG_DWORD /d @('2', '1')[$revert] /f *>$null
     #disable copilot buttons in word
@@ -1079,7 +1087,7 @@ function Disable-Registry-Keys {
     Reg.exe add 'HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsCopilot' /v 'AllowCopilotRuntime' /t REG_DWORD /d @('0', '1')[$revert] /f *>$null
     Reg.exe add 'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins' /v 'CopilotPWAPin' /t REG_DWORD /d @('0', '1')[$revert] /f *>$null
     Reg.exe add 'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins' /v 'RecallPin' /t REG_DWORD /d @('0', '1')[$revert] /f *>$null
-    #disable copilot background app access 
+    #disable copilot background app access
     Reg.exe add 'HKCU\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications\Microsoft.Copilot_8wekyb3d8bbwe' /v 'DisabledByUser' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
     Reg.exe add 'HKCU\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications\Microsoft.Copilot_8wekyb3d8bbwe' /v 'Disabled' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
     Reg.exe add 'HKCU\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications\Microsoft.Copilot_8wekyb3d8bbwe' /v 'SleepDisabled' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
@@ -1087,7 +1095,7 @@ function Disable-Registry-Keys {
     Reg.exe add 'HKCU\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications\Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe' /v 'Disabled' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
     Reg.exe add 'HKCU\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications\Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe' /v 'SleepDisabled' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
     #disable for all users
-    $sids = (Get-ChildItem 'registry::HKEY_USERS').Name | Where-Object { $_ -like 'HKEY_USERS\S-1-5-21*' -and $_ -notlike '*Classes*' } 
+    $sids = (Get-ChildItem 'registry::HKEY_USERS').Name | Where-Object { $_ -like 'HKEY_USERS\S-1-5-21*' -and $_ -notlike '*Classes*' }
     foreach ($sid in $sids) {
         Reg.exe add "$sid\Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins" /v 'CopilotPWAPin' /t REG_DWORD /d @('0', '1')[$revert] /f *>$null
         Reg.exe add "$sid\Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband\AuxilliaryPins" /v 'RecallPin' /t REG_DWORD /d @('0', '1')[$revert] /f *>$null
@@ -1096,10 +1104,10 @@ function Disable-Registry-Keys {
     Reg.exe add 'HKLM\SYSTEM\ControlSet001\Control\FeatureManagement\Overrides\8\1853569164' /v 'EnabledState' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
     Reg.exe add 'HKLM\SYSTEM\ControlSet001\Control\FeatureManagement\Overrides\8\4098520719' /v 'EnabledState' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
     Reg.exe add 'HKLM\SYSTEM\ControlSet001\Control\FeatureManagement\Overrides\8\929719951' /v 'EnabledState' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
-    #enable new feature to hide ai actions in context menu when none are avaliable 
+    #enable new feature to hide ai actions in context menu when none are avaliable
     Reg.exe add 'HKLM\SYSTEM\ControlSet001\Control\FeatureManagement\Overrides\8\1646260367' /v 'EnabledState' /t REG_DWORD /d @('2', '0')[$revert] /f *>$null
     #disable additional ai velocity ids found from: https://github.com/phantomofearth/windows-velocity-feature-lists
-    #keep in mind these may or may not do anything depending on the windows build 
+    #keep in mind these may or may not do anything depending on the windows build
     #disable copilot nudges
     Reg.exe add 'HKLM\SYSTEM\ControlSet001\Control\FeatureManagement\Overrides\8\1546588812' /v 'EnabledState' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
     Reg.exe add 'HKLM\SYSTEM\ControlSet001\Control\FeatureManagement\Overrides\8\203105932' /v 'EnabledState' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
@@ -1114,7 +1122,7 @@ function Disable-Registry-Keys {
     #Reg.exe add 'HKLM\SYSTEM\ControlSet001\Control\FeatureManagement\Overrides\8\2931206798' /v 'EnabledState' /t REG_DWORD /d '2' /f
     #Reg.exe add 'HKLM\SYSTEM\ControlSet001\Control\FeatureManagement\Overrides\8\3098978958' /v 'EnabledState' /t REG_DWORD /d '2' /f
     #Reg.exe add 'HKLM\SYSTEM\ControlSet001\Control\FeatureManagement\Overrides\8\3233196686' /v 'EnabledState' /t REG_DWORD /d '2' /f
-    #disable core ai / click to do with feature management 
+    #disable core ai / click to do with feature management
     Reg.exe add 'HKLM\SYSTEM\ControlSet001\Control\FeatureManagement\Overrides\8\2283032206' /v 'EnabledState' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
     Reg.exe add 'HKLM\SYSTEM\ControlSet001\Control\FeatureManagement\Overrides\8\502943886' /v 'EnabledState' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
     #disable ask copilot (taskbar search)
@@ -1122,14 +1130,14 @@ function Disable-Registry-Keys {
     Set-AIRemovalRegistryValue -Path 'HKCU:\Software\Microsoft\Windows\Shell\BrandedKey' -Name 'BrandedKeyChoiceType' -Type String -Value @('Search', 'App')[$revert] -TryTrustedInstallerOnAccessDenied -SkipOnAccessDenied | Out-Null
     Set-AIRemovalRegistryValue -Path 'HKCU:\Software\Microsoft\Windows\Shell\BrandedKey' -Name 'AppAumid' -Type String -Value @(' ', 'Microsoft.Copilot_8wekyb3d8bbwe!App')[$revert] -TryTrustedInstallerOnAccessDenied -SkipOnAccessDenied | Out-Null
     Set-AIRemovalRegistryValue -Path 'HKCU:\SOFTWARE\Policies\Microsoft\Windows\CopilotKey' -Name 'SetCopilotHardwareKey' -Type String -Value @(' ', 'Microsoft.Copilot_8wekyb3d8bbwe!App')[$revert]
-    #disable recall customized homepage 
+    #disable recall customized homepage
     Set-AIRemovalRegistryValue -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\SettingSync\WindowsSettingHandlers' -Name 'A9HomeContentEnabled' -Type DWord -Value @([int]0, [int]1)[$revert]
-    #disable typing data harvesting for ai training 
+    #disable typing data harvesting for ai training
     Set-AIRemovalRegistryValue -Path 'HKCU:\Software\Microsoft\InputPersonalization' -Name 'RestrictImplicitInkCollection' -Type DWord -Value @([int]1, [int]0)[$revert]
     Set-AIRemovalRegistryValue -Path 'HKCU:\Software\Microsoft\InputPersonalization' -Name 'RestrictImplicitTextCollection' -Type DWord -Value @([int]1, [int]0)[$revert]
     Set-AIRemovalRegistryValue -Path 'HKCU:\Software\Microsoft\InputPersonalization\TrainedDataStore' -Name 'HarvestContacts' -Type DWord -Value @([int]0, [int]1)[$revert]
     Set-AIRemovalRegistryValue -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\CPSS\Store\InkingAndTypingPersonalization' -Name 'Value' -Type DWord -Value @([int]0, [int]1)[$revert]
-    #hide copilot ads in settings home page 
+    #hide copilot ads in settings home page
     Reg.exe add 'HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent' /v 'DisableConsumerAccountStateContent' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
     #disable office hub startup
     Reg.exe add 'HKCU\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\SystemAppData\Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe\WebViewHostStartupId' /v 'State' /t REG_DWORD /d @('1', '2')[$revert] /f *>$null
@@ -1172,6 +1180,8 @@ function Disable-Registry-Keys {
         Stop-Service -Name WSAIFabricSvc -Force -ErrorAction SilentlyContinue | Out-Null
     }
     catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AIRemoval.Disable-Registry-Keys:catch1176' -Severity Debug }
+
         #ignore error when svc is already removed
     }
     Write-ConsoleStatus -Status success
@@ -1205,9 +1215,9 @@ $backupPath = "$PSScriptRoot\AIRemoval\Backup"
         }
     }
 
-    #disable gaming copilot 
+    #disable gaming copilot
     #found from: https://github.com/meetrevision/playbook/issues/197
-    #not sure this really does anything in my testing gaming copilot still appears 
+    #not sure this really does anything in my testing gaming copilot still appears
     if ($revert) {
         $command = "reg delete 'HKLM\SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId\Microsoft.Xbox.GamingAI.Companion.Host.GamingCompanionHostOptions' /f"
         RunTrusted -command $command -psversion $psversion -logFile $logFile
@@ -1218,13 +1228,13 @@ $backupPath = "$PSScriptRoot\AIRemoval\Backup"
     "
         RunTrusted -command $command -psversion $psversion -logFile $logFile
     }
-    
 
-    #remove windows ai dll contracts 
+
+    #remove windows ai dll contracts
     $command = "
     Reg delete 'HKLM\SOFTWARE\Microsoft\WindowsRuntime\WellKnownContracts' /v 'Windows.AI.Actions.ActionsContract' /f
     Reg delete 'HKLM\SOFTWARE\Microsoft\WindowsRuntime\WellKnownContracts' /v 'Windows.AI.Agents.AgentsContract' /f
-    Reg delete 'HKLM\SOFTWARE\Microsoft\WindowsRuntime\WellKnownContracts' /v 'Windows.AI.MachineLearning.MachineLearningContract' /f 
+    Reg delete 'HKLM\SOFTWARE\Microsoft\WindowsRuntime\WellKnownContracts' /v 'Windows.AI.MachineLearning.MachineLearningContract' /f
     Reg delete 'HKLM\SOFTWARE\Microsoft\WindowsRuntime\WellKnownContracts' /v 'Windows.AI.MachineLearning.Preview.MachineLearningPreviewContract' /f
     "
     RunTrusted -command $command -psversion $psversion -logFile $logFile
@@ -1242,14 +1252,14 @@ $backupPath = "$PSScriptRoot\AIRemoval\Backup"
         LogInfo "$(@('Disabling','Enabling')[$revert]) App Actions"
 
         $apps = @(
-            'Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe' 
-            'Microsoft.Office.ActionsServer_8wekyb3d8bbwe' 
-            'MSTeams_8wekyb3d8bbwe' 
-            'Microsoft.Paint_8wekyb3d8bbwe' 
+            'Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe'
+            'Microsoft.Office.ActionsServer_8wekyb3d8bbwe'
+            'MSTeams_8wekyb3d8bbwe'
+            'Microsoft.Paint_8wekyb3d8bbwe'
             'Microsoft.Windows.Photos_8wekyb3d8bbwe'
             'MicrosoftWindows.Client.CBS_cw5n1h2txyewy' #describe image (system)
         )
-     
+
         foreach ($app in $apps) {
             $setting = [PSCustomObject]@{
                 Name  = $app
@@ -1257,12 +1267,12 @@ $backupPath = "$PSScriptRoot\AIRemoval\Backup"
                 Value = @('1', '0')[$revert] # 1 = disable    0 = enable
                 Type  = '5f5e10b'
             }
-            
+
             $setting | Set-UwpAppRegistryEntry -FilePath $settingsDat
         }
         Write-ConsoleStatus -Status success
 }
-    
+
 
     #force policy changes
     #Write-Status -msg 'Applying Registry Changes'
@@ -1329,7 +1339,7 @@ function Remove-Voice-Access {
 #>
 
 function Install-NOAIPackage {
-    
+
     if (!$revert) {
         $package = Get-WindowsPackage -Online | Where-Object { $_.PackageName -like '*SdManson8*' }
         if (!$package) {
@@ -1386,12 +1396,16 @@ function Install-NOAIPackage {
                 Remove-WindowsPackage -Online -PackageName $package.PackageName -NoRestart -IgnoreCheck -ErrorAction Stop >$null
             }
             catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AIRemoval.Install-NOAIPackage:catch1390' -Severity Debug }
+
                 $null = Invoke-AIRemovalDism -ArgumentList @('/Online', '/remove-package', ('/PackageName:{0}' -f $package.PackageName), '/NoRestart', '/IgnoreCheck')
             }
-            #remove reg install location 
+            #remove reg install location
             $regPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Packages'
             Get-ChildItem $regPath | ForEach-Object {
-                $value = try { Get-ItemProperty "registry::$($_.Name)" -ErrorAction SilentlyContinue } catch { $null }
+                $value = try { Get-ItemProperty "registry::$($_.Name)" -ErrorAction SilentlyContinue } catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AIRemoval.Install-NOAIPackage:catch1396' -Severity Debug }
+                 $null }
                 if ($value -and $value.PSPath -like '*SdManson8*') {
                     Remove-Item -Path $value.PSPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
                 }
@@ -1399,21 +1413,25 @@ function Install-NOAIPackage {
         }
     }
     else {
-        
+
         $package = Get-WindowsPackage -Online | Where-Object { $_.PackageName -like '*SdManson8*' }
         if ($package) {
-            Write-Status 'Removing Custom Windows Update Package - ' 
+            Write-Status 'Removing Custom Windows Update Package - '
             LogInfo 'Removing Custom Windows Update Package'
             try {
                 Remove-WindowsPackage -Online -PackageName $package.PackageName -NoRestart -IgnoreCheck -ErrorAction Stop >$null
             }
             catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AIRemoval.Install-NOAIPackage:catch1412' -Severity Debug }
+
                 $null = Invoke-AIRemovalDism -ArgumentList @('/Online', '/remove-package', ('/PackageName:{0}' -f $package.PackageName), '/NoRestart', '/IgnoreCheck')
             }
-            #remove reg install location 
+            #remove reg install location
             $regPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Packages'
             Get-ChildItem $regPath | ForEach-Object {
-                $value = try { Get-ItemProperty "registry::$($_.Name)" -ErrorAction SilentlyContinue } catch { $null }
+                $value = try { Get-ItemProperty "registry::$($_.Name)" -ErrorAction SilentlyContinue } catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AIRemoval.Install-NOAIPackage:catch1418' -Severity Debug }
+                 $null }
                 if ($value -and $value.PSPath -like '*SdManson8*') {
                     Remove-Item -Path $value.PSPath -Recurse -Force -ErrorAction SilentlyContinue| Out-Null
                 }
@@ -1423,7 +1441,7 @@ function Install-NOAIPackage {
         else {
             LogError 'Unable to Find Update Package'
         }
-        
+
     }
 
 }
@@ -1467,7 +1485,7 @@ function Disable-Copilot-Policies {
             $newJSONContent = $jsonContent | ConvertTo-Json -Depth 100
             Set-Content $JSONPath -Value $newJSONContent -Force
             $total = ($copilotPolicies.count) + ($recallPolicies.count)
-            Write-Status -msg "CoPilot Policies $(@('Disabled','Enabled')[$revert]) - " 
+            Write-Status -msg "CoPilot Policies $(@('Disabled','Enabled')[$revert]) - "
             LogInfo "$total CoPilot Policies $(@('Disabled','Enabled')[$revert])"
             Write-ConsoleStatus -Status success
 }
@@ -1475,10 +1493,10 @@ function Disable-Copilot-Policies {
             LogError 'CoPilot Not Found in IntegratedServicesRegionPolicySet'
         }
 
-    
+
     }
 
-    #additional json path for visual assist 
+    #additional json path for visual assist
     $visualAssistPath = "$env:windir\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\VisualAssist\VisualAssistActions.json"
     if (Test-Path $visualAssistPath) {
         Write-Status -msg "$(@('Disabling','Enabling')[$revert]) Generative AI in Visual Assist - "
@@ -1493,7 +1511,7 @@ function Disable-Copilot-Policies {
         Set-Content $visualAssistPath -Value $newJSONContent -Force
         Write-ConsoleStatus -Status success
 }
-    
+
 }
 
 # Download Store packages and dependencies for backup or restore scenarios.
@@ -1565,7 +1583,7 @@ function Remove-AI-Appx-Packages {
                 $downloadedFiles = DownloadAppxPackage -PackageFamilyName $package -outputDir $appxBackup
                 $bundle = $downloadedFiles | Where-Object { $_ -match '\.appxbundle$' -or $_ -match '\.msixbundle$' } | Select-Object -First 1
                 if ($bundle) {
-                    Add-AppPackage $bundle  
+                    Add-AppPackage $bundle
                 }
             }
 
@@ -1579,10 +1597,10 @@ function Remove-AI-Appx-Packages {
 }
     else {
 
-        #to make this part faster make a txt file in temp with chunck of removal 
-        #code and then just run that from run 
+        #to make this part faster make a txt file in temp with chunck of removal
+        #code and then just run that from run
         #trusted function due to the design of having it hidden from the user
-        
+
         $packageRemovalPath = "$($tempDir)aiPackageRemoval.ps1"
         if (!(test-path $packageRemovalPath)) {
             New-Item $packageRemovalPath -Force | Out-Null
@@ -1643,7 +1661,7 @@ function Remove-AI-Appx-Packages {
 
             $backuppath = New-Item $appxBackup -Name 'PackageFamilyNames.txt' -ItemType File -Force
 
-            $familyNames = get-appxpackage -allusers | Where-Object { $aipackages -contains $_.Name } 
+            $familyNames = get-appxpackage -allusers | Where-Object { $aipackages -contains $_.Name }
             foreach ($familyName in $familyNames) {
                 Add-Content -Path $backuppath.FullName -Value $familyName.PackageFamilyName | Out-Null
             }
@@ -1693,7 +1711,7 @@ $aipackages = @(
     'WindowsWorkload.ImageTextSearch.Stx.*'
 )
 
-$provisioned = get-appxprovisionedpackage -online 
+$provisioned = get-appxprovisionedpackage -online
 $appxpackage = get-appxpackage -allusers
 $store = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore'
 $users = @('S-1-5-18'); if (test-path $store) { $users += $((Get-ChildItem $store -ea 0 | Where-Object { $_ -like '*S-1-5-21*' }).PSChildName) }
@@ -1702,15 +1720,15 @@ $users = @('S-1-5-18'); if (test-path $store) { $users += $((Get-ChildItem $stor
 foreach ($choice in $aipackages) {
     foreach ($appx in $($provisioned | Where-Object { $_.PackageName -like "*$choice*" })) {
 
-        $PackageName = $appx.PackageName 
+        $PackageName = $appx.PackageName
         $PackageFamilyName = ($appxpackage | Where-Object { $_.Name -eq $appx.DisplayName }).PackageFamilyName
         New-Item "$store\Deprovisioned\$PackageFamilyName" -force
-     
+
         Set-NonRemovableAppsPolicy -Online -PackageFamilyName $PackageFamilyName -NonRemovable 0
-       
-        foreach ($sid in $users) { 
+
+        foreach ($sid in $users) {
             New-Item "$store\EndOfLife\$sid\$PackageName" -force
-        }  
+        }
         remove-appxprovisionedpackage -packagename $PackageName -online -allusers
     }
     foreach ($appx in $($appxpackage | Where-Object { $_.PackageFullName -like "*$choice*" })) {
@@ -1719,20 +1737,20 @@ foreach ($choice in $aipackages) {
         $PackageFamilyName = $appx.PackageFamilyName
         New-Item "$store\Deprovisioned\$PackageFamilyName" -force
         Set-NonRemovableAppsPolicy -Online -PackageFamilyName $PackageFamilyName -NonRemovable 0
-       
+
         #remove inbox apps
         $inboxApp = "$store\InboxApplications\$PackageFullName"
         Remove-Item -Path $inboxApp -Force
-       
+
         #get all installed user sids for package due to not all showing up in reg
-        foreach ($user in $appx.PackageUserInformation) { 
+        foreach ($user in $appx.PackageUserInformation) {
             $sid = $user.UserSecurityID.SID
             if ($users -notcontains $sid) {
                 $users += $sid
             }
             New-Item "$store\EndOfLife\$sid\$PackageFullName" -force
-            remove-appxpackage -package $PackageFullName -User $sid 
-        } 
+            remove-appxpackage -package $PackageFullName -User $sid
+        }
         remove-appxpackage -package $PackageFullName -allusers
     }
 }
@@ -1756,7 +1774,7 @@ foreach ($choice in $aipackages) {
                 $command = "&`"$($tempDir)aiPackageRemoval.ps1`""
                 RunTrusted -command $command -psversion $psversion -logFile $logFile
             }
-    
+
         }while ($packages -and $attempts -lt 10)
 
         Write-ConsoleStatus -Status success
@@ -1769,7 +1787,7 @@ foreach ($choice in $aipackages) {
         Reg.exe add 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages\Microsoft.Copilot_8wekyb3d8bbwe' /v 'RemovePackage' /t REG_DWORD /d '1' /f *>$null
         Reg.exe add 'HKLM\SOFTWARE\Policies\Microsoft\Windows\Appx\RemoveDefaultMicrosoftStorePackages\Microsoft.MicrosoftOfficeHub_8wekyb3d8bbwe' /v 'RemovePackage' /t REG_DWORD /d '1' /f *>$null
 
-        ## undo eol unblock trick to prevent latest cumulative update (LCU) failing 
+        ## undo eol unblock trick to prevent latest cumulative update (LCU) failing
         #  $eolPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\EndOfLife'
         #  $eolKeys = (Get-ChildItem $eolPath).Name
         #  foreach ($path in $eolKeys) {
@@ -1800,17 +1818,21 @@ function Remove-Recall-Optional-Feature {
                     Disable-WindowsOptionalFeature -Online -FeatureName 'Recall' -Remove -NoRestart -ErrorAction Stop | Out-Null
                 }
                 catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AIRemoval.Remove-Recall-Optional-Feature:catch1804' -Severity Debug }
+
                     $null = Invoke-AIRemovalDism -ArgumentList @('/Online', '/Disable-Feature', '/FeatureName:Recall', '/Remove', '/NoRestart', '/Quiet')
                 }
             }
         }
         catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AIRemoval.Remove-Recall-Optional-Feature:catch1809' -Severity Debug }
+
             $dismResult = Invoke-AIRemovalDism -ArgumentList @('/Online', '/Get-FeatureInfo', '/FeatureName:Recall') -CaptureOutput
             $dismOutput = $dismResult.StandardOutput
-    
+
             if ($dismResult.ExitCode -eq 0) {
                 $isDisabledWithPayloadRemoved = $dismOutput | Select-String -Pattern 'State\s*:\s*Disabled with Payload Removed'
-        
+
                 if (!$isDisabledWithPayloadRemoved) {
                     $null = Invoke-AIRemovalDism -ArgumentList @('/Online', '/Disable-Feature', '/FeatureName:Recall', '/Remove', '/NoRestart', '/Quiet')
                 }
@@ -1835,8 +1857,10 @@ function Remove-AI-CBS-Packages {
         $regPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Packages'
         $ProgressPreference = 'SilentlyContinue'
         Get-ChildItem $regPath | ForEach-Object {
-            $value = try { Get-ItemPropertyValue "registry::$($_.Name)" -Name Visibility -ErrorAction SilentlyContinue | Out-Null } catch { $null }
-    
+            $value = try { Get-ItemPropertyValue "registry::$($_.Name)" -Name Visibility -ErrorAction SilentlyContinue | Out-Null } catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AIRemoval.Remove-AI-CBS-Packages:catch1840' -Severity Debug }
+             $null }
+
             if ($null -ne $value) {
                 if ($value -eq 2 -and $_.PSChildName -like '*AIX*' -or $_.PSChildName -like '*Recall*' -or $_.PSChildName -like '*Copilot*' -or $_.PSChildName -like '*CoreAI*') {
                     Set-ItemProperty "registry::$($_.Name)" -Name Visibility -Value 1 -Force | Out-Null
@@ -1851,21 +1875,23 @@ function Remove-AI-CBS-Packages {
                                 Remove-Item $path.FullName -Force -ErrorAction SilentlyContinue | Out-Null
                             }
                         }
-                        
+
                     }
                     catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AIRemoval.Remove-AI-CBS-Packages:catch1858' -Severity Debug }
+
                         $null = Invoke-AIRemovalDism -ArgumentList @('/Online', '/Remove-Package', ('/PackageName:{0}' -f $_.PSChildName), '/NoRestart')
                         $paths = Get-ChildItem "$env:windir\servicing\Packages" -Filter "*$($_.PSChildName)*" -ErrorAction SilentlyContinue
                         foreach ($path in $paths) {
                             if ($path) {
                                 Remove-Item $path.FullName -Force -ErrorAction SilentlyContinue | Out-Null
                             }
-                        }                    
+                        }
                     }
-        
+
                 }
             }
-            
+
         }
         Write-ConsoleStatus -Status success
 }
@@ -1884,7 +1910,7 @@ function Remove-AI-Files {
 
     #TEST:
     # remove ai components from component storage
-    # this will prevent sfc from trying to repair files removed 
+    # this will prevent sfc from trying to repair files removed
     # but seems to prevent windows update from working
     <#
     $compPath = "$env:systemroot\System32\config\COMPONENTS"
@@ -1901,7 +1927,7 @@ function Remove-AI-Files {
         $paths = Get-ChildItem 'registry::HKLM\COMPONENTS\DerivedData\Components' | Where-Object { $_.PSChildName -like '*copilot*' -or
             $_.PSChildName -like '*userexperience-aix*' -or
             $_.PSChildName -like '*userexperience-recall*' -or
-            $_.PSChildName -like '*userexperience-coreai*' } 
+            $_.PSChildName -like '*userexperience-coreai*' }
 
         if ($paths) {
             Write-Status -msg 'Removing AI Components Found in Component Storage - '
@@ -1915,7 +1941,7 @@ function Remove-AI-Files {
                 reg.exe export $path.Name "$backupPath\$($path.PSChildName).reg" /y >$null
                 reg.exe delete $path.Name /f
             }
-            
+
         }
         else {
             Write-Status -msg 'No Ai Components Found in Component Storage'
@@ -1940,9 +1966,9 @@ $existingSettings = try { Get-ItemPropertyValue 'HKLM:\SOFTWARE\Microsoft\Window
     #early return if the user has already customized this with showonly rather than hide, in this event ill assume the user has knowledge of this key and aicomponents is likely not shown anyway
     if ($existingSettings -like '*showonly*') {
         LogError 'SettingsPageVisibility contains "showonly" - Skipping!'
-        return 
+        return
     }
-    
+
     if ($revert) {
         #if the key is not just hide ai components then just remove it and retain the rest
         if ($existingSettings -ne 'hide:aicomponents;appactions;') {
@@ -1956,21 +1982,21 @@ $existingSettings = try { Get-ItemPropertyValue 'HKLM:\SOFTWARE\Microsoft\Window
     }
     else {
         if ($existingSettings -and $existingSettings -notlike '*aicomponents;*') {
-           
+
             if (!($existingSettings.endswith(';'))) {
-                #doesnt have trailing ; so need to add it 
+                #doesnt have trailing ; so need to add it
                 $newval = $existingSettings + ';aicomponents;appactions;'
             }
             else {
                 $newval = $existingSettings + 'aicomponents;appactions;'
             }
-            
+
             Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' /v 'SettingsPageVisibility' /t REG_SZ /d $newval /f >$null
         }
         elseif ($null -eq $existingSettings) {
             Reg.exe add 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' /v 'SettingsPageVisibility' /t REG_SZ /d 'hide:aicomponents;appactions;' /f >$null
         }
-       
+
     }
         Write-ConsoleStatus -Status success
 }
@@ -2020,7 +2046,7 @@ Get-ScheduledTask -TaskName "*Office Actions Server*" -ErrorAction SilentlyConti
     }
     Remove-Item 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree\Microsoft\Office\Office Actions Server' -Recurse -Force -ErrorAction SilentlyContinue
 "@
-        
+
         $subScript = "$($tempDir)RemoveRecallTasks.ps1"
         New-Item "$subScript" -Force | Out-Null
         Set-Content "$subScript" -Value $code -Force | Out-Null
@@ -2028,7 +2054,7 @@ Get-ScheduledTask -TaskName "*Office Actions Server*" -ErrorAction SilentlyConti
         $command = "&`"$subScript`""
         RunTrusted -command $command -psversion $psversion -logFile $logFile
         Start-Sleep 1
-        
+
         #when just running this option alone the tasks will be remade so we need to at least ensure they are disabled
         $command = "
         Get-ScheduledTask -TaskName '*Office Actions Server*' -ErrorAction SilentlyContinue | Disable-ScheduledTask -ErrorAction SilentlyContinue
@@ -2054,16 +2080,16 @@ if ($nonInteractive) {
         New-AIRemovalRestorePoint -nonInteractive
     }
     if ($AllOptions) {
-        Disable-Registry-Keys 
+        Disable-Registry-Keys
         Install-NOAIPackage
-        Disable-Copilot-Policies 
-        Remove-AI-Appx-Packages 
-        Remove-Recall-Optional-Feature 
-        Remove-AI-CBS-Packages 
-        Remove-AI-Files 
-        Hide-AI-Components 
-        Disable-Notepad-Rewrite 
-        Remove-Recall-Tasks 
+        Disable-Copilot-Policies
+        Remove-AI-Appx-Packages
+        Remove-Recall-Optional-Feature
+        Remove-AI-CBS-Packages
+        Remove-AI-Files
+        Hide-AI-Components
+        Disable-Notepad-Rewrite
+        Remove-Recall-Tasks
     }
     else {
         #loop through options array and run desired tweaks
@@ -2124,14 +2150,14 @@ else {
     $mainGrid.RowDefinitions.Add($contentRow) | Out-Null
 
     $toggleRow = New-Object System.Windows.Controls.RowDefinition
-    $toggleRow.Height = [System.Windows.GridLength]::new(130) 
+    $toggleRow.Height = [System.Windows.GridLength]::new(130)
     $mainGrid.RowDefinitions.Add($toggleRow) | Out-Null
 
     $bottomRow = New-Object System.Windows.Controls.RowDefinition
     $bottomRow.Height = [System.Windows.GridLength]::new(80)
     $mainGrid.RowDefinitions.Add($bottomRow) | Out-Null
 
-   
+
     $title = New-Object System.Windows.Controls.TextBlock
     $title.Text = 'Remove Windows AI'
     $title.FontSize = 18
@@ -2150,7 +2176,7 @@ else {
     $mainGrid.Children.Add($scrollViewer) | Out-Null
 
     $scrollViewerStyle = @'
-<Style xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
+<Style xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
        TargetType="{x:Type ScrollViewer}">
     <Setter Property="Template">
@@ -2162,7 +2188,7 @@ else {
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <ScrollContentPresenter Grid.Column="0" Margin="0,0,15,0"/>
-                    <ScrollBar Grid.Column="1" 
+                    <ScrollBar Grid.Column="1"
                                Name="PART_VerticalScrollBar"
                                Value="{TemplateBinding VerticalOffset}"
                                Maximum="{TemplateBinding ScrollableHeight}"
@@ -2243,7 +2269,7 @@ else {
                                                                     <Setter Property="Template">
                                                                         <Setter.Value>
                                                                             <ControlTemplate TargetType="Thumb">
-                                                                                <Border Background="{TemplateBinding Background}" 
+                                                                                <Border Background="{TemplateBinding Background}"
                                                                                         CornerRadius="6"
                                                                                         Margin="2"/>
                                                                             </ControlTemplate>
@@ -2289,15 +2315,15 @@ else {
 
     $checkboxes = @{}
     $functions = @(
-        'Disable-Registry-Keys'          
+        'Disable-Registry-Keys'
         'Prevent-AI-Package-Reinstall'
-        'Disable-Copilot-Policies'       
-        'Remove-AI-Appx-Packages'        
-        'Remove-Recall-Optional-Feature' 
-        'Remove-AI-CBS-Packages'         
-        'Remove-AI-Files'               
-        'Hide-AI-Components'            
-        'Disable-Notepad-Rewrite'       
+        'Disable-Copilot-Policies'
+        'Remove-AI-Appx-Packages'
+        'Remove-Recall-Optional-Feature'
+        'Remove-AI-CBS-Packages'
+        'Remove-AI-Files'
+        'Hide-AI-Components'
+        'Disable-Notepad-Rewrite'
         'Remove-Recall-Tasks'
         'Remove-Voice-Access'
     )
@@ -2306,7 +2332,7 @@ else {
         $optionContainer = New-Object System.Windows.Controls.DockPanel
         $optionContainer.Margin = '0,5,0,5'
         $optionContainer.LastChildFill = $false
-    
+
         $checkbox = New-Object System.Windows.Controls.CheckBox
         $checkbox.Content = $func.Replace('-', ' ')
         $checkbox.FontSize = 14
@@ -2319,7 +2345,7 @@ else {
         }
         [System.Windows.Controls.DockPanel]::SetDock($checkbox, 'Left')
         $checkboxes[$func] = $checkbox
-    
+
         $infoButton = New-Object System.Windows.Controls.Button
         $infoButton.Content = '?'
         $infoButton.Width = 25
@@ -2333,19 +2359,19 @@ else {
         $infoButton.VerticalAlignment = 'Center'
         $infoButton.Cursor = 'Hand'
         [System.Windows.Controls.DockPanel]::SetDock($infoButton, 'Right')
-    
+
         $infoTemplate = @'
 <ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" TargetType="Button">
-    <Border Background="{TemplateBinding Background}" 
-            BorderBrush="{TemplateBinding BorderBrush}" 
-            BorderThickness="{TemplateBinding BorderThickness}" 
+    <Border Background="{TemplateBinding Background}"
+            BorderBrush="{TemplateBinding BorderBrush}"
+            BorderThickness="{TemplateBinding BorderThickness}"
             CornerRadius="12">
         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
     </Border>
 </ControlTemplate>
 '@
         $infoButton.Template = [System.Windows.Markup.XamlReader]::Parse($infoTemplate)
-    
+
         $infoButton.Add_Click({
                 param($eventSource, $e)
                 $funcName = $functions | Where-Object { $checkboxes[$_] -eq $optionContainer.Children[0] }
@@ -2355,7 +2381,7 @@ else {
                     $checkboxInContainer = $parentContainer.Children | Where-Object { $_ -is [System.Windows.Controls.CheckBox] }
                     $funcName = $functions | Where-Object { ($checkboxes[$_].Content -replace ' ', '-') -eq ($checkboxInContainer.Content -replace ' ', '-') }
                 }
-        
+
                 # Find the correct function name
                 foreach ($f in $functions) {
                     if ($checkboxes[$f].Parent -eq $eventSource.Parent) {
@@ -2363,11 +2389,11 @@ else {
                         break
                     }
                 }
-        
+
                 $description = $functionDescriptions[$funcName]
                 [System.Windows.MessageBox]::Show($description, $funcName, [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
             })
-    
+
         $optionContainer.Children.Add($checkbox) | Out-Null
         $optionContainer.Children.Add($infoButton) | Out-Null
         $stackPanel.Children.Add($optionContainer) | Out-Null
@@ -2386,12 +2412,12 @@ else {
             [bool]$IsChecked = $false,
             [string]$Name = 'iOSToggle'
         )
-                
+
         $styleXaml = @'
-            <ResourceDictionary 
+            <ResourceDictionary
                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-                
+
                 <Style x:Key="CleanToggleStyle" TargetType="{x:Type ToggleButton}">
                     <Setter Property="Background" Value="Transparent"/>
                     <Setter Property="BorderBrush" Value="Transparent"/>
@@ -2406,24 +2432,24 @@ else {
                             <ControlTemplate TargetType="{x:Type ToggleButton}">
                                 <Grid>
                                     <!-- Switch Track -->
-                                    <Border x:Name="SwitchTrack" 
-                                            Width="40" Height="24" 
-                                            Background="#E5E5E7" 
+                                    <Border x:Name="SwitchTrack"
+                                            Width="40" Height="24"
+                                            Background="#E5E5E7"
                                             CornerRadius="12"
                                             BorderThickness="0">
-                                        
+
                                         <!-- Switch Thumb -->
-                                        <Border x:Name="SwitchThumb" 
-                                                Width="20" Height="20" 
-                                                Background="White" 
+                                        <Border x:Name="SwitchThumb"
+                                                Width="20" Height="20"
+                                                Background="White"
                                                 CornerRadius="10"
                                                 HorizontalAlignment="Left"
                                                 VerticalAlignment="Center"
                                                 Margin="2,0,0,0">
                                             <Border.Effect>
-                                                <DropShadowEffect Color="#00000040" 
-                                                                  Direction="270" 
-                                                                  ShadowDepth="1" 
+                                                <DropShadowEffect Color="#00000040"
+                                                                  Direction="270"
+                                                                  ShadowDepth="1"
                                                                   BlurRadius="3"
                                                                   Opacity="0.4"/>
                                             </Border.Effect>
@@ -2433,7 +2459,7 @@ else {
                                         </Border>
                                     </Border>
                                 </Grid>
-                                
+
                                 <ControlTemplate.Triggers>
                                     <!-- Checked State (ON) -->
                                     <Trigger Property="IsChecked" Value="True">
@@ -2441,16 +2467,16 @@ else {
                                             <BeginStoryboard>
                                                 <Storyboard>
                                                     <!-- Slide thumb to right -->
-                                                    <DoubleAnimation 
+                                                    <DoubleAnimation
                                                         Storyboard.TargetName="ThumbTransform"
                                                         Storyboard.TargetProperty="X"
-                                                        To="16" 
+                                                        To="16"
                                                         Duration="0:0:0.2"/>
                                                     <!-- Change track color to green -->
-                                                    <ColorAnimation 
+                                                    <ColorAnimation
                                                         Storyboard.TargetName="SwitchTrack"
                                                         Storyboard.TargetProperty="Background.Color"
-                                                        To="#34C759" 
+                                                        To="#34C759"
                                                         Duration="0:0:0.2"/>
                                                 </Storyboard>
                                             </BeginStoryboard>
@@ -2459,16 +2485,16 @@ else {
                                             <BeginStoryboard>
                                                 <Storyboard>
                                                     <!-- Slide thumb to left -->
-                                                    <DoubleAnimation 
+                                                    <DoubleAnimation
                                                         Storyboard.TargetName="ThumbTransform"
                                                         Storyboard.TargetProperty="X"
-                                                        To="0" 
+                                                        To="0"
                                                         Duration="0:0:0.2"/>
                                                     <!-- Change track color to gray -->
-                                                    <ColorAnimation 
+                                                    <ColorAnimation
                                                         Storyboard.TargetName="SwitchTrack"
                                                         Storyboard.TargetProperty="Background.Color"
-                                                        To="#E5E5E7" 
+                                                        To="#E5E5E7"
                                                         Duration="0:0:0.2"/>
                                                 </Storyboard>
                                             </BeginStoryboard>
@@ -2481,39 +2507,39 @@ else {
                 </Style>
             </ResourceDictionary>
 '@
-                
+
         $reader = New-Object System.Xml.XmlNodeReader([xml]$styleXaml)
         $resourceDict = [System.Windows.Markup.XamlReader]::Load($reader)
-                
+
         $toggleButton = New-Object System.Windows.Controls.Primitives.ToggleButton
         $toggleButton.Name = $Name
         $toggleButton.IsChecked = $IsChecked
         $toggleButton.Style = $resourceDict['CleanToggleStyle']
         $ParentControl.Children.Add($toggleButton) | Out-Null
-                
+
         return $toggleButton
     }
-    
+
     $toggleGrid = New-Object System.Windows.Controls.Grid
-    [System.Windows.Controls.Grid]::SetRow($toggleGrid, 2)  
+    [System.Windows.Controls.Grid]::SetRow($toggleGrid, 2)
     $toggleGrid.Margin = '20,10,55,15'
-        
+
     $row1 = New-Object System.Windows.Controls.RowDefinition
     $row1.Height = [System.Windows.GridLength]::Auto
     $row2 = New-Object System.Windows.Controls.RowDefinition
     $row2.Height = [System.Windows.GridLength]::Auto
     $toggleGrid.RowDefinitions.Add($row1) | Out-Null
     $toggleGrid.RowDefinitions.Add($row2) | Out-Null
-        
+
     $mainGrid.Children.Add($toggleGrid) | Out-Null
 
     $togglePanel1 = New-Object System.Windows.Controls.DockPanel
     $togglePanel1.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
     $togglePanel1.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-    $togglePanel1.Margin = New-Object System.Windows.Thickness(0, 0, 0, 10) 
+    $togglePanel1.Margin = New-Object System.Windows.Thickness(0, 0, 0, 10)
     $togglePanel1.LastChildFill = $false
     [System.Windows.Controls.Grid]::SetRow($togglePanel1, 0)
-        
+
     $toggleLabel1 = New-Object System.Windows.Controls.TextBlock
     $toggleLabel1.Text = 'Revert Mode:'
     $toggleLabel1.Foreground = [System.Windows.Media.Brushes]::White
@@ -2521,7 +2547,7 @@ else {
     $toggleLabel1.Margin = New-Object System.Windows.Thickness(0, 0, 10, 0)
     [System.Windows.Controls.DockPanel]::SetDock($toggleLabel1, 'Left')
     $togglePanel1.Children.Add($toggleLabel1) | Out-Null
-        
+
     $revertModeToggle = Add-iOSToggleToUI -ParentControl $togglePanel1 -IsChecked $revert
     [System.Windows.Controls.DockPanel]::SetDock($revertModeToggle, 'Left')
 
@@ -2542,9 +2568,9 @@ else {
 
     $revertInfoTemplate = @'
 <ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" TargetType="Button">
-    <Border Background="{TemplateBinding Background}" 
-            BorderBrush="{TemplateBinding BorderBrush}" 
-            BorderThickness="{TemplateBinding BorderThickness}" 
+    <Border Background="{TemplateBinding Background}"
+            BorderBrush="{TemplateBinding BorderBrush}"
+            BorderThickness="{TemplateBinding BorderThickness}"
             CornerRadius="12">
         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
     </Border>
@@ -2564,7 +2590,7 @@ else {
     $togglePanel2.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
     $togglePanel2.LastChildFill = $false
     [System.Windows.Controls.Grid]::SetRow($togglePanel2, 1)
-        
+
     $toggleLabel2 = New-Object System.Windows.Controls.TextBlock
     $toggleLabel2.Text = 'Backup Mode:'
     $toggleLabel2.Foreground = [System.Windows.Media.Brushes]::White
@@ -2572,7 +2598,7 @@ else {
     $toggleLabel2.Margin = New-Object System.Windows.Thickness(0, 0, 10, 0)
     [System.Windows.Controls.DockPanel]::SetDock($toggleLabel2, 'Left')
     $togglePanel2.Children.Add($toggleLabel2) | Out-Null
-        
+
     $backupModeToggle = Add-iOSToggleToUI -ParentControl $togglePanel2 -IsChecked $backup
     [System.Windows.Controls.DockPanel]::SetDock($backupModeToggle, 'Left')
 
@@ -2593,9 +2619,9 @@ else {
 
     $backupInfoTemplate = @'
 <ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" TargetType="Button">
-    <Border Background="{TemplateBinding Background}" 
-            BorderBrush="{TemplateBinding BorderBrush}" 
-            BorderThickness="{TemplateBinding BorderThickness}" 
+    <Border Background="{TemplateBinding Background}"
+            BorderBrush="{TemplateBinding BorderBrush}"
+            BorderThickness="{TemplateBinding BorderThickness}"
             CornerRadius="12">
         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
     </Border>
@@ -2610,24 +2636,24 @@ else {
     $togglePanel2.Children.Add($backupInfoButton) | Out-Null
     $toggleGrid.Children.Add($togglePanel2) | Out-Null
     # Keep backup mode and revert mode mutually exclusive.
-    $backupModeToggle.Add_Checked({ 
+    $backupModeToggle.Add_Checked({
             $Global:backup = 1
             $revertModeToggle.IsChecked = $false
         }) | Out-Null
 
-    $backupModeToggle.Add_Unchecked({ 
-            $Global:backup = 0 
+    $backupModeToggle.Add_Unchecked({
+            $Global:backup = 0
         }) | Out-Null
 
-    $revertModeToggle.Add_Checked({ 
-            $Global:revert = 1 
+    $revertModeToggle.Add_Checked({
+            $Global:revert = 1
             $backupModeToggle.IsChecked = $false
         }) | Out-Null
 
-    $revertModeToggle.Add_Unchecked({ 
-            $Global:revert = 0 
+    $revertModeToggle.Add_Unchecked({
+            $Global:revert = 0
         }) | Out-Null
-   
+
     $bottomGrid = New-Object System.Windows.Controls.Grid
     [System.Windows.Controls.Grid]::SetRow($bottomGrid, 3)
     $bottomGrid.Margin = '25,15,25,15'
@@ -2659,9 +2685,9 @@ else {
 
     $cancelTemplate = @'
 <ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" TargetType="Button">
-    <Border Background="{TemplateBinding Background}" 
-            BorderBrush="{TemplateBinding BorderBrush}" 
-            BorderThickness="{TemplateBinding BorderThickness}" 
+    <Border Background="{TemplateBinding Background}"
+            BorderBrush="{TemplateBinding BorderBrush}"
+            BorderThickness="{TemplateBinding BorderThickness}"
             CornerRadius="17">
         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
     </Border>
@@ -2684,9 +2710,9 @@ else {
 
     $applyTemplate = @'
 <ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" TargetType="Button">
-    <Border Background="{TemplateBinding Background}" 
-            BorderBrush="{TemplateBinding BorderBrush}" 
-            BorderThickness="{TemplateBinding BorderThickness}" 
+    <Border Background="{TemplateBinding Background}"
+            BorderBrush="{TemplateBinding BorderBrush}"
+            BorderThickness="{TemplateBinding BorderThickness}"
             CornerRadius="17">
         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
     </Border>
@@ -2697,9 +2723,9 @@ else {
             Write-Status -msg 'Killing AI Processes - '
             # Stop running AI-related processes before changing packages and files.
 
-    start-process msedge.exe 
+    start-process msedge.exe
     Start-Sleep 2
-    Get-Process -Name msedge -ErrorAction SilentlyContinue | Stop-Process -ErrorAction SilentlyContinue | Out-Null 
+    Get-Process -Name msedge -ErrorAction SilentlyContinue | Stop-Process -ErrorAction SilentlyContinue | Out-Null
 
             $aiProcesses = @(
                 'ai.exe'
@@ -2726,10 +2752,10 @@ $progressWindow = New-Object System.Windows.Window
             $progressWindow.Background = [System.Windows.Media.Brushes]::Black
             $progressWindow.Foreground = [System.Windows.Media.Brushes]::White
             $progressWindow.ResizeMode = 'NoResize'
-    
+
             $progressGrid = New-Object System.Windows.Controls.Grid
             $progressWindow.Content = $progressGrid
-    
+
             $progressText = New-Object System.Windows.Controls.TextBlock
             $progressText.Text = 'Initializing - '
             $progressText.FontSize = 14
@@ -2738,22 +2764,22 @@ $progressWindow = New-Object System.Windows.Window
             $progressText.VerticalAlignment = 'Center'
             $progressText.TextWrapping = 'Wrap'
             $progressGrid.Children.Add($progressText) | Out-Null
-    
+
             $progressWindow.Show()
-    
+
             $selectedFunctions = @()
             foreach ($func in $functions) {
                 if ($checkboxes[$func].IsChecked) {
                     $selectedFunctions += $func
                 }
             }
-    
+
             if ($selectedFunctions.Count -eq 0) {
                 $progressWindow.Close()
                 [System.Windows.MessageBox]::Show('No options selected.', 'Nothing to Process', [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
                 return
             }
-    
+
             try {
                 if ($backup) {
                     New-AIRemovalRestorePoint
@@ -2776,16 +2802,16 @@ $progressWindow = New-Object System.Windows.Window
                         'Remove-Recall-Tasks' { Remove-Recall-Tasks }
                         'Remove-Voice-Access' { Remove-Voice-Access }
                     }
-            
+
                     Start-Sleep -Milliseconds 500
                 }
-        
+
                 $progressText.Text = 'Completed successfully!'
                 Start-Sleep -Seconds 2
                 $progressWindow.Close()
-        
+
                 $result = [System.Windows.MessageBox]::Show("AI removal process completed successfully!`n`nWould you like to restart your computer now to ensure all changes take effect?", 'Process Complete', [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
-        
+
                 if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
                     # Remove temporary helper files before restart.
                     try {
@@ -2825,10 +2851,12 @@ $progressWindow = New-Object System.Windows.Window
                     }
                     Restart-Computer -Force
                 }
-        
+
                 $window.Close()
             }
             catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\Regions\UWPApps\AIRemoval.ps1:2833' -Severity Debug }
+
                 $progressWindow.Close()
                 [System.Windows.MessageBox]::Show("An error occurred: $($_.Exception.Message)", 'Error', [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
             }

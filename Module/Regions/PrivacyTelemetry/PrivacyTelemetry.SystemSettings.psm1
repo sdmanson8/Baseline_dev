@@ -3,9 +3,9 @@
     Configures system maintenance and telemetry-related settings.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies Baseline's system maintenance and telemetry-related settings in GUI and headless runs.
     .PARAMETER Enable
     Enable the nightly wake-up for automatic maintenance and Windows updates (default value)
@@ -92,9 +92,9 @@ function MaintenanceWakeUp
     Manage the offering of Malicious Software Removal Tool through Windows Update settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for manage the offering of Malicious Software Removal Tool through Windows Update settings.
     .PARAMETER Enable
     Enable the offering of Malicious Software Removal Tool through Windows Update (default value)
@@ -323,9 +323,9 @@ function UpdateMSProducts
     Updating of NTFS last access timestamps settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for updating of NTFS last access timestamps settings.
     .PARAMETER Enable
     Enable updating of NTFS last access timestamps (default value)
@@ -415,9 +415,9 @@ function NTFSLastAccess
     Shared Experiences feature settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for shared Experiences feature settings.
     .PARAMETER Enable
     Enable the Shared Experiences feature
@@ -512,9 +512,9 @@ function SharedExperiences
 	The sign-in info to automatically finish setting up device after an update
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the sign-in info to automatically finish setting up device after an update.
 	.PARAMETER Disable
 	Do not use sign-in info to automatically finish setting up device after an update
@@ -603,9 +603,9 @@ function SigninInfo
     Sleep start menu and keyboard button feature settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for sleep start menu and keyboard button feature settings.
     .PARAMETER Enable
     Enable the Sleep start menu and keyboard button (default value)
@@ -695,9 +695,9 @@ function SleepButton
     Superfetch service settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for superfetch service settings.
     .PARAMETER Enable
     Enable the Superfetch service (default value)
@@ -775,9 +775,9 @@ function Superfetch
 	Tailored experiences
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for tailored experiences.
 	.PARAMETER Disable
 	Do not let Microsoft use your diagnostic data for personalized tips, ads, and recommendations
@@ -940,9 +940,9 @@ function UWPSwapFile
     Location feature settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for location feature settings.
     .PARAMETER Enable
     Enable the setting "Let websites provide locally relevant content by accessing my language list"
@@ -1021,9 +1021,9 @@ function WebLangList
 	Wi-Fi Sense configuration
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for wi-Fi Sense configuration.
 	.PARAMETER Disable
 	Disable Wi-Fi Sense to prevent automatic connection to open hotspots and sharing of Wi-Fi networks.
@@ -1113,9 +1113,9 @@ function WiFiSense
     Windows Update automatic downloads settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for windows Update automatic downloads settings.
     .PARAMETER Enable
     Enable Windows Update automatic downloads (default value)

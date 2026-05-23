@@ -29,12 +29,21 @@ Describe 'Customizations tab wiring' {
 
     It 'forces the Customizations tab to exist even when no manifest tweaks map to it' {
         $script:BuildPrimaryTabsContent | Should -Match 'if \(\$pKey -eq ''Customizations''\)'
-        $script:BuildPrimaryTabsContent | Should -Match 'Get-BaselineStartupEntries'
+        $script:BuildPrimaryTabsContent | Should -Match 'Get-GuiCustomizationsActionCardCount'
     }
 
-    It 'counts startup entries for the Customizations tab header' {
+    It 'counts rendered action cards for the Customizations tab header' {
+        $script:TabManagementContent | Should -Match 'function Get-GuiCustomizationsActionCardDefinitions'
+        $script:TabManagementContent | Should -Match 'function Get-GuiCustomizationsActionCardCount'
         $script:TabManagementContent | Should -Match 'if \(\$pKey -eq ''Customizations''\)'
-        $script:TabManagementContent | Should -Match 'Get-BaselineStartupEntries'
+        $script:TabManagementContent | Should -Match 'Get-GuiCustomizationsActionCardCount'
+    }
+
+    It 'resolves the Customizations tab count to the rendered action-card count' {
+        . $script:TabManagementPath
+
+        Get-GuiCustomizationsActionCardCount | Should -Be 3
+        @((Get-GuiCustomizationsActionCardDefinitions) | Select-Object -ExpandProperty Key) | Should -Be @('StartupManager', 'UserFolders', 'WslInstall')
     }
 
     It 'localizes and icons the Customizations tab like the other tweak categories' {
@@ -49,6 +58,10 @@ Describe 'Customizations tab wiring' {
     }
 
     It 'hosts Startup Manager, User Folders, and WSL install action cards inside Customizations' {
+        $script:TabManagementContent | Should -Match 'StartupManager'
+        $script:TabManagementContent | Should -Match 'UserFolders'
+        $script:TabManagementContent | Should -Match 'WslInstall'
+        $script:StartupDialogContent | Should -Match 'foreach \(\$definition in @\(Get-GuiCustomizationsActionCardDefinitions\)\)'
         $script:StartupDialogContent | Should -Match 'function New-GuiCustomizationsActionCard'
         $script:StartupDialogContent | Should -Match 'Invoke-GuiCustomizationsStartupManagerAction'
         $script:StartupDialogContent | Should -Match 'Invoke-GuiCustomizationsUserFoldersAction'
@@ -59,7 +72,8 @@ Describe 'Customizations tab wiring' {
         $script:BuildPrimaryTabsContent | Should -Match "BuildPrimaryTabs\.AdaptiveTabLayout\.BringIntoView"
     }
 
-    It 'routes Customizations startup-entry counting failures through Write-SwallowedException' {
-        $script:TabManagementContent | Should -Match "TabManagement\.Get-PrimaryTabItemHeaderText\.CustomizationsStartupEntries"
+    It 'does not count startup entries as Customizations tab items' {
+        $script:TabManagementContent | Should -Not -Match 'Get-BaselineStartupEntries'
+        $script:BuildPrimaryTabsContent | Should -Not -Match 'Get-BaselineStartupEntries'
     }
 }

@@ -634,6 +634,11 @@
 		{
 			return
 		}
+		if ([bool]$Script:GuiSelectionBulkUpdateInProgress)
+		{
+			$Script:GameModePlanSyncPending = $true
+			return
+		}
 
 		$selectedGamingEntries = [System.Collections.Generic.List[hashtable]]::new()
 		$selectedGamingLookup = @{}
@@ -1274,6 +1279,8 @@
 					}
 					catch
 					{
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GameModeUI.New-GameModeAdvancedPanel:catch1280' -Severity Debug }
+
 						if ($showGuiRuntimeFailureScript) { & $showGuiRuntimeFailureScript -Context 'AdvancedPanel/Checked' -Exception $_.Exception }
 					}
 				}.GetNewClosure())
@@ -1330,6 +1337,8 @@
 					}
 					catch
 					{
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GameModeUI.New-GameModeAdvancedPanel:catch1336' -Severity Debug }
+
 						if ($showGuiRuntimeFailureScript) { & $showGuiRuntimeFailureScript -Context 'AdvancedPanel/Unchecked' -Exception $_.Exception }
 					}
 				}.GetNewClosure())

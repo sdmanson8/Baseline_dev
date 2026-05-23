@@ -118,6 +118,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Get-AppsPackageManagerAvailabilityState:catch119' -Severity Debug }
+
 				$wingetAvailable = $false
 			}
 		}
@@ -131,6 +133,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Get-AppsPackageManagerAvailabilityState:catch132' -Severity Debug }
+
 				$chocolateyAvailable = $false
 			}
 		}
@@ -217,6 +221,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Get-ApplicationCacheSignature:catch218' -Severity Debug }
+
 				$snapshot = $CacheState
 			}
 		}
@@ -462,6 +468,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Get-AppActionStateKey:catch463' -Severity Debug }
+
 				$null = $_
 			}
 		}
@@ -990,9 +998,7 @@
 		if (-not $Script:AppsCategoryTabs -or $Script:AppsCategoryTabs.Items.Count -eq 0) { return }
 
 		$activeSearchQuery = if ($Script:AppsModeActive) { [string]$Script:AppsSearchText } else { [string]$Script:SearchText }
-		$currentCategory = if (Get-Command -Name 'Resolve-AppsCatalogCategory' -CommandType Function -ErrorAction SilentlyContinue) { Resolve-AppsCatalogCategory -Category $Script:AppsCategoryFilter } elseif (-not [string]::IsNullOrWhiteSpace([string]$Script:AppsCategoryFilter) -and [string]$Script:AppsCategoryFilter -ne 'All') { [string]$Script:AppsCategoryFilter.Trim() } else { 'Browsers' }
-		$catalog = @(Get-AppsCatalogItemsBySearchStatusAndSourceFilters -SearchQuery $activeSearchQuery)
-		$currentCount = $catalog.Count
+		$categoryCounts = [System.Collections.Generic.Dictionary[string, int]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
 		foreach ($tab in $Script:AppsCategoryTabs.Items)
 		{
@@ -1001,7 +1007,12 @@
 			if ([string]::IsNullOrWhiteSpace($tag)) { continue }
 			$displayName = if ($tab.PSObject.Properties['AppsDisplayName']) { [string]$tab.AppsDisplayName } else { $tag }
 			$iconName = if ($tab.PSObject.Properties['AppsIconName']) { [string]$tab.AppsIconName } else { $null }
-			$headerText = if ($tag -eq $currentCategory) { "$displayName ($currentCount)" } else { $displayName }
+			if (-not $categoryCounts.ContainsKey($tag))
+			{
+				$categoryCatalog = @(Get-AppsCatalogItemsBySearchStatusAndSourceFilters -SearchQuery $activeSearchQuery -Category $tag -SkipPackageManagerAvailabilityRefresh)
+				$categoryCounts[$tag] = [int]$categoryCatalog.Count
+			}
+			$headerText = '{0} ({1})' -f $displayName, $categoryCounts[$tag]
 			if ($iconName -and (Get-Command -Name 'New-GuiLabeledIconContent' -CommandType Function -ErrorAction SilentlyContinue))
 			{
 				$tab.Header = New-GuiLabeledIconContent -IconName $iconName -Text $headerText -IconSize 16 -Gap 6 -AllowTextOnlyFallback
@@ -1011,6 +1022,8 @@
 				$tab.Header = $headerText
 			}
 		}
+
+		Update-AppsCategoryTabVisuals
 	}
 
 	<#
@@ -1154,11 +1167,15 @@
 			$statusForeground = $null
 			if ($Script:CurrentTheme -and -not [string]::IsNullOrWhiteSpace([string]$Script:CurrentTheme.TextPrimary))
 			{
-				try { $statusForeground = $statusBrushConverter.ConvertFromString([string]$Script:CurrentTheme.TextPrimary) } catch { $statusForeground = $null }
+				try { $statusForeground = $statusBrushConverter.ConvertFromString([string]$Script:CurrentTheme.TextPrimary) } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppStatusFilterList:catch1162' -Severity Debug }
+				 $statusForeground = $null }
 			}
 			if (-not $statusForeground)
 			{
-				try { $statusForeground = $statusBrushConverter.ConvertFromString('#F4F7FF') } catch { $statusForeground = $null }
+				try { $statusForeground = $statusBrushConverter.ConvertFromString('#F4F7FF') } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ApplicationsView.Update-AppStatusFilterList:catch1166' -Severity Debug }
+				 $statusForeground = $null }
 			}
 			foreach ($value in $values)
 			{

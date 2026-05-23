@@ -26,32 +26,3 @@ if ($Warning)
 		}
 		until ($Choice -ne $Script:KeyboardArrows)
 	}
-
-	if ($Global:GUIMode -and $Global:LoadingSplash -and $Global:LoadingSplash.IsAlive)
-	{
-		try
-		{
-			if (Get-Command -Name 'Initialize-PackageManagersBootstrap' -CommandType Function -ErrorAction SilentlyContinue)
-			{
-				Initialize-PackageManagersBootstrap -LoadingSplash $Global:LoadingSplash
-			}
-		}
-		catch
-		{
-			LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerStartupBootstrapFailedUnexpectedly' -Fallback 'Package manager startup bootstrap failed unexpectedly: {0}' -FormatArgs @($_.Exception.Message))
-		}
-	}
-
-	if ($Global:LoadingSplash -and $Global:LoadingSplash.IsAlive)
-	{
-		try
-		{
-			if (Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction SilentlyContinue)
-			{
-				Set-BootstrapLoadingSplashStep -Splash $Global:LoadingSplash -StepId 'finalize' -Status 'in_progress' -SubAction ''
-			}
-			# The launcher closes the splash immediately after InitialActions
-			# returns, once startup checks are done and before the GUI builds.
-		}
-		catch { Write-SwallowedException -ErrorRecord $_ -Source 'InitialActions.SplashFinalize.SetStep' }
-	}

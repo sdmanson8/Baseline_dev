@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Initial action helpers for Baseline.
 
@@ -177,6 +177,8 @@ function Get-BaselineDefenderProductStateCode
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialActions.Helpers.Get-BaselineDefenderProductStateCode:catch178' -Severity Debug }
+
         return $null
     }
 
@@ -302,6 +304,8 @@ function Resolve-BaselineSettingsAppsFeaturesHealthAssessment
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialActions.Helpers.Resolve-BaselineSettingsAppsFeaturesHealthAssessment:catch303' -Severity Debug }
+
         $launchError = $_.Exception.Message
     }
 
@@ -313,6 +317,8 @@ function Resolve-BaselineSettingsAppsFeaturesHealthAssessment
         }
         catch
         {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialActions.Helpers.Resolve-BaselineSettingsAppsFeaturesHealthAssessment:catch314' -Severity Debug }
+
             $settingsProcessDetected = $false
         }
 
@@ -332,6 +338,8 @@ function Resolve-BaselineSettingsAppsFeaturesHealthAssessment
                 }
                 catch
                 {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialActions.Helpers.Resolve-BaselineSettingsAppsFeaturesHealthAssessment:catch333' -Severity Debug }
+
                     $settingsProcessDetected = $false
                 }
             }
@@ -348,6 +356,8 @@ function Resolve-BaselineSettingsAppsFeaturesHealthAssessment
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialActions.Helpers.Resolve-BaselineSettingsAppsFeaturesHealthAssessment:catch349' -Severity Debug }
+
         $serviceError = $_.Exception.Message
         $serviceStates = @()
     }
@@ -427,6 +437,8 @@ function Resolve-BaselineScreenSnippingHealthAssessment
         }
         catch
         {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialActions.Helpers.Resolve-BaselineScreenSnippingHealthAssessment:catch428' -Severity Debug }
+
             $packageError = $_.Exception.Message
         }
     }
@@ -442,6 +454,8 @@ function Resolve-BaselineScreenSnippingHealthAssessment
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialActions.Helpers.Resolve-BaselineScreenSnippingHealthAssessment:catch443' -Severity Debug }
+
         $registryError = $_.Exception.Message
     }
 

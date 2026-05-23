@@ -73,9 +73,9 @@ function RemoteCommands {
     Configure the SCHANNEL cipher suite list used by this preset.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for configure the SCHANNEL cipher suite list used by this preset..
     .EXAMPLE
     CipherSuites
@@ -105,9 +105,9 @@ function CipherSuites
     Configure SCHANNEL key exchange algorithm settings.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for configure SCHANNEL key exchange algorithm settings..
     .EXAMPLE
     KeyExchanges
@@ -235,9 +235,9 @@ function Protocols
     Enable strong .NET authentication behavior.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for enable strong .NET authentication behavior..
     .EXAMPLE
     DotNetStrongAuth
@@ -282,9 +282,9 @@ function DotNetStrongAuth
     Disable SCHANNEL cipher entries defined in this preset.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for disable SCHANNEL cipher entries defined in this preset..
     .EXAMPLE
     AESCiphers
@@ -326,9 +326,9 @@ function AESCiphers
     Disable IPv6.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for disable IPv6..
     .EXAMPLE
     IPv6
@@ -357,9 +357,9 @@ function IPv6
     Disable RC2 and RC4 SCHANNEL ciphers.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for disable RC2 and RC4 SCHANNEL ciphers..
     .EXAMPLE
     RC2RC4Ciphers
@@ -429,9 +429,9 @@ function SMBv3Compression
     Disable TCP timestamps.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for disable TCP timestamps..
     .EXAMPLE
     TCPTimestamps
@@ -464,9 +464,9 @@ function TCPTimestamps
     Disable the Triple DES SCHANNEL cipher.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for disable the Triple DES SCHANNEL cipher..
     .EXAMPLE
     TripleDESCipher
@@ -502,9 +502,9 @@ function TripleDESCipher
     Configure SCHANNEL hash algorithm settings.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for configure SCHANNEL hash algorithm settings..
     .EXAMPLE
     HashAlgorithms

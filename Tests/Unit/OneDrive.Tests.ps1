@@ -143,13 +143,13 @@ Describe 'OneDrive' {
         { OneDrive } | Should -Throw
     }
 
-    It 'skips Uninstall when OneDrive is not installed' {
+    It 'treats Uninstall as already satisfied when OneDrive is not installed' {
         $script:installedPackage = $null
         OneDrive -Uninstall
 
-        $script:warningMessages.Count | Should -Be 1
-        $script:warningMessages[0] | Should -Match 'not currently installed'
-        $script:consoleStatuses[-1] | Should -Be 'warning'
+        $script:warningMessages.Count | Should -Be 0
+        $script:infoMessages | Should -Contain 'Skipping OneDrive uninstall because the app is not currently installed.'
+        $script:consoleStatuses[-1] | Should -Be 'success'
         $script:startProcessCalls.Count | Should -Be 0
     }
 
@@ -185,13 +185,14 @@ Describe 'OneDrive' {
         $script:stopProcessCalls | Should -Contain 'OneDrive'
     }
 
-    It 'warns and skips Install when OneDrive is already installed' {
+    It 'treats Install as already satisfied when OneDrive is already installed' {
         $script:installedPackage = [pscustomobject]@{ Name = 'Microsoft OneDrive' }
 
         OneDrive -Install
 
-        $script:warningMessages[0] | Should -Match 'already installed'
-        $script:consoleStatuses[-1] | Should -Be 'warning'
+        $script:warningMessages.Count | Should -Be 0
+        $script:infoMessages | Should -Contain 'Skipping OneDrive install because the app is already installed.'
+        $script:consoleStatuses[-1] | Should -Be 'success'
         $script:startProcessCalls.Count | Should -Be 0
     }
 

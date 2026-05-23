@@ -42,7 +42,7 @@ function Invoke-FeatureSelectAllClick
 	    .SYNOPSIS
 	    Runs disable button.
 
-	    	#>
+		#>
 
 	function DisableButton
 	{
@@ -89,7 +89,7 @@ function Invoke-FeatureSelectAllClick
 	    .SYNOPSIS
 	    Runs enable button.
 
-	    	#>
+		#>
 
 	function EnableButton
 	{
@@ -136,7 +136,7 @@ function Invoke-FeatureSelectAllClick
 	    .SYNOPSIS
 	    Confirms windows features selection.
 
-	    	#>
+		#>
 
 	function Confirm-WindowsFeaturesSelection
 	{
@@ -212,7 +212,7 @@ function Invoke-FeatureSelectAllClick
 	    .SYNOPSIS
 	    Gets feature friendly name.
 
-	    	#>
+		#>
 
 	function Get-FeatureFriendlyName
 	{

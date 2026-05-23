@@ -1,4 +1,4 @@
-﻿# Shared state-transition orchestration for GUI mode and preset changes.
+# Shared state-transition orchestration for GUI mode and preset changes.
 # Loaded inside Show-TweakGUI after GuiContext.ps1.
 #
 # AS-3: Collapses duplicate orchestration patterns found in ModeState.ps1

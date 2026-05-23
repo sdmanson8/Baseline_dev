@@ -267,6 +267,8 @@ $scrollBarStyleXaml
 							<ContentPresenter ContentSource="Header"
 											  HorizontalAlignment="Center"
 											  VerticalAlignment="Center"
+											  TextElement.Foreground="{TemplateBinding Foreground}"
+											  TextElement.FontWeight="{TemplateBinding FontWeight}"
 											  RecognizesAccessKey="True"/>
 						</Border>
 						<ControlTemplate.Triggers>
@@ -316,7 +318,7 @@ $scrollBarStyleXaml
 			<TabControl Name="SettingsTabs" Grid.Row="2" Margin="20,14,20,14"
 						Background="Transparent" BorderThickness="0" Padding="0">
 
-				<TabItem Header="$generalHeading">
+				<TabItem Name="TabSettingsGeneral" Header="$generalHeading">
 					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
 						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
 							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
@@ -386,6 +388,19 @@ $scrollBarStyleXaml
 
 								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,12,0,20" Opacity="0.35"/>
 
+								<TextBlock Style="{StaticResource SectionHeading}" Text="$settingsStartupSplashSection"/>
+								<TextBlock Style="{StaticResource SectionSubtitle}" Text="$settingsStartupSplashSubtitle"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkStartupRunInitialActions" Content="$settingsStartupRunInitialActionsLabel"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkStartupCheckWinGet" Content="$settingsStartupCheckWinGetLabel"/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblStartupWinGetCheckFrequency" Text="$settingsStartupWinGetCheckFrequencyLabel" Margin="22,0,0,4"/>
+								<ComboBox Style="{StaticResource SettingsCombo}" Name="CmbStartupWinGetCheckFrequency" Width="320" HorizontalAlignment="Left" Margin="22,0,0,12"/>
+								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkStartupCheckChocolatey" Content="$settingsStartupCheckChocolateyLabel"/>
+								<TextBlock Style="{StaticResource FieldLabel}" Name="LblStartupChocolateyCheckFrequency" Text="$settingsStartupChocolateyCheckFrequencyLabel" Margin="22,0,0,4"/>
+								<ComboBox Style="{StaticResource SettingsCombo}" Name="CmbStartupChocolateyCheckFrequency" Width="320" HorizontalAlignment="Left" Margin="22,0,0,12"/>
+								<TextBlock Style="{StaticResource HelperText}" Text="$settingsStartupSplashHelper" Margin="0,0,0,14"/>
+
+								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,12,0,20" Opacity="0.35"/>
+
 								<TextBlock Style="{StaticResource SectionHeading}" Text="$settingsUpdatesSection"/>
 								<TextBlock Style="{StaticResource SectionSubtitle}" Text="$settingsUpdatesSubtitle"/>
 								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkAutoCheckUpdates" Content="$settingsAutoCheckUpdatesLabel"/>
@@ -425,7 +440,7 @@ $scrollBarStyleXaml
 					</Border>
 				</TabItem>
 
-				<TabItem Header="$appearanceHeading">
+				<TabItem Name="TabSettingsAppearance" Header="$appearanceHeading">
 					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
 						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
 							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
@@ -443,7 +458,7 @@ $scrollBarStyleXaml
 					</Border>
 				</TabItem>
 
-				<TabItem Header="$safetyHeading">
+				<TabItem Name="TabSettingsSafety" Header="$safetyHeading">
 					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
 						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
 							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
@@ -466,7 +481,7 @@ $scrollBarStyleXaml
 					</Border>
 				</TabItem>
 
-				<TabItem Header="$appsHeading">
+				<TabItem Name="TabSettingsApps" Header="$appsHeading">
 					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
 						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
 							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
@@ -483,7 +498,7 @@ $scrollBarStyleXaml
 					</Border>
 				</TabItem>
 
-				<TabItem Header="$loggingHeading">
+				<TabItem Name="TabSettingsLogging" Header="$loggingHeading">
 					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
 						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
 							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
@@ -532,7 +547,7 @@ $scrollBarStyleXaml
 					</Border>
 				</TabItem>
 
-				<TabItem Header="$advancedHeading">
+				<TabItem Name="TabSettingsAdvanced" Header="$advancedHeading">
 					<Border Background="$cardBg" BorderBrush="$cardBorder" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
 						<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
 							<StackPanel Margin="24,20,24,20" MaxWidth="640" HorizontalAlignment="Left">
@@ -540,9 +555,6 @@ $scrollBarStyleXaml
 								<TextBlock Style="{StaticResource SectionSubtitle}" Text="$settingsAdvancedSubtitle"/>
 
 								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkAdvancedMode" Content="$settingsAdvancedModeLabel"/>
-								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkExperimentalFeatures" Content="$settingsExperimentalFeaturesLabel"/>
-								<TextBlock Style="{StaticResource HelperText}" Text="$settingsExperimentalFeaturesHelper"/>
-								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,8,0,18" Opacity="0.35"/>
 								<CheckBox Style="{StaticResource SettingsCheck}" Name="ChkDesignMode" Content="$settingsDesignModeLabel"/>
 								<TextBlock Style="{StaticResource HelperText}" Text="$settingsDesignModeHelper"/>
 								<Border Background="$($theme.BorderColor)" Height="1" Margin="0,16,0,18" Opacity="0.35"/>

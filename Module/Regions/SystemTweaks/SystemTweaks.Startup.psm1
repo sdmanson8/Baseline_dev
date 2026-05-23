@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 Startup-folder / Run-key enumerator and per-entry enable / disable.
 
@@ -130,6 +130,8 @@ function Get-BaselineStartupApprovedState
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SystemTweaks.Startup.Get-BaselineStartupApprovedState:catch131' -Severity Debug }
+
         return 'enabled'
     }
 
@@ -201,6 +203,8 @@ function Get-BaselineStartupEntries
         }
         catch
         {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SystemTweaks.Startup.Get-BaselineStartupEntries:catch202' -Severity Debug }
+
             continue
         }
 
@@ -238,6 +242,8 @@ function Get-BaselineStartupEntries
         }
         catch
         {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SystemTweaks.Startup.Get-BaselineStartupEntries:catch239' -Severity Debug }
+
             continue
         }
 

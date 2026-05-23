@@ -124,6 +124,10 @@
 		if ($Script:MenuToolsRemovalPersistence) { $Script:MenuToolsRemovalPersistence.Visibility = $safeModeHidden }
 		if ($Script:MenuToolsSepApps)           { $Script:MenuToolsSepApps.Visibility           = $safeModeHidden }
 		if ($Script:MenuToolsExportSupportBundle) { $Script:MenuToolsExportSupportBundle.Visibility = 'Visible' }
+		if (Get-Command -Name 'Update-GuiDeveloperDiagnosticsMenuState' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-GuiDeveloperDiagnosticsMenuState
+		}
 		if ($Script:MenuActionsCheckCompliance) { $Script:MenuActionsCheckCompliance.Visibility = $safeModeHidden }
 		if ($Script:MenuActionsScanSystem)      { $Script:MenuActionsScanSystem.Visibility      = $safeModeHidden }
 		if ($Script:MenuActionsAuditLog)        { $Script:MenuActionsAuditLog.Visibility        = $safeModeHidden }
@@ -233,6 +237,10 @@
 		if ($Script:MenuToolsRemovalPersistence) { $Script:MenuToolsRemovalPersistence.Visibility = 'Visible' }
 		if ($Script:MenuToolsSepApps)           { $Script:MenuToolsSepApps.Visibility           = 'Visible' }
 		if ($Script:MenuToolsExportSupportBundle) { $Script:MenuToolsExportSupportBundle.Visibility = 'Visible' }
+		if (Get-Command -Name 'Update-GuiDeveloperDiagnosticsMenuState' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-GuiDeveloperDiagnosticsMenuState
+		}
 		if ($Script:MenuActionsCheckCompliance) { $Script:MenuActionsCheckCompliance.Visibility = 'Visible' }
 		if ($Script:MenuActionsScanSystem)      { $Script:MenuActionsScanSystem.Visibility      = 'Visible' }
 		if ($Script:MenuActionsAuditLog)        { $Script:MenuActionsAuditLog.Visibility        = 'Visible' }

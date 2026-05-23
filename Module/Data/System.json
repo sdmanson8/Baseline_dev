@@ -1279,6 +1279,7 @@
       "ExtraArgs": null,
       "SubCategory": null,
       "SourceRegion": "System",
+      "TimeoutSeconds": 900,
       "WinDefaultDesc": "OpenSSH Server is not installed",
       "Risk": "High",
       "Tags": [
@@ -2057,6 +2058,7 @@
       "ExtraArgs": null,
       "SubCategory": null,
       "SourceRegion": "System",
+      "TimeoutSeconds": 120,
       "WinDefaultDesc": "Reserved storage is enabled",
       "Risk": "Medium",
       "Tags": [
@@ -2517,7 +2519,7 @@
       "CautionReason": "Repairs Windows Update by stopping services, clearing caches, resetting policies, and re-registering system components. Aggressive mode also runs disk and operating-system repair commands.",
       "LinkedWith": null,
       "Scannable": null,
-      "Restorable": true,
+      "Restorable": false,
       "OnParam": null,
       "OffParam": null,
       "ExtraArgs": null,
@@ -2535,7 +2537,7 @@
       "RequiresRestart": true,
       "WhyThisMatters": "Resets the Windows Update stack: stops services, clears the download cache, re-registers DLLs, and resets BITS jobs. Aggressive mode adds DISM health checks and SFC scans.",
       "PresetTier": "Advanced",
-      "RecoveryLevel": "Direct",
+      "RecoveryLevel": "Manual",
       "CompatibilitySensitivity": "Low"
     },
     {
@@ -2758,6 +2760,7 @@
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
+      "TimeoutSeconds": 900,
       "PlatformSupport": {
         "Windows10": true,
         "Windows11": true,
@@ -2801,7 +2804,8 @@
       "WhyThisMatters": "Installs NFS client support and writes the client configuration defaults. Enables mounting remote NFS exports as drive letters.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "TimeoutSeconds": 900
     },
     {
       "Name": "Hyper-V Management Tools",
@@ -2839,7 +2843,8 @@
       "WhyThisMatters": "Installs the Hyper-V Manager console and PowerShell cmdlets without enabling the hypervisor itself. Lets you manage remote Hyper-V hosts without hosting VMs locally.",
       "PresetTier": "Balanced",
       "RecoveryLevel": "Direct",
-      "CompatibilitySensitivity": "Low"
+      "CompatibilitySensitivity": "Low",
+      "TimeoutSeconds": 900
     },
     {
       "Name": "Windows Manage Default Printer",

@@ -1,6 +1,6 @@
 if ($hiveloaded) {
         try {
-            Write-Status -msg "$(@('Disabling', 'Enabling')[$revert]) AI for new users - " 
+            Write-Status -msg "$(@('Disabling', 'Enabling')[$revert]) AI for new users - "
             LogInfo "$(@('Disabling', 'Enabling')[$revert]) AI for new users"
             Reg.exe add "$defaultUserHiveMount\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" /v 'TurnOffWindowsCopilot' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null
             Reg.exe add "$defaultUserHiveMount\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" /v 'DisableAIDataAnalysis' /t REG_DWORD /d @('1', '0')[$revert] /f *>$null

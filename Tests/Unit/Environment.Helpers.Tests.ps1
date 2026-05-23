@@ -461,6 +461,107 @@ Describe 'Get-BaselineUpdateSettings' {
     }
 }
 
+Describe 'Get-BaselineStartupSplashSettings' {
+    It 'defaults all startup splash work to enabled when no preference file exists' {
+        $settings = Get-BaselineStartupSplashSettings -PreferencePath (Join-Path $TestDrive 'missing-user-prefs.json')
+
+        $settings.RunInitialActions | Should -BeTrue
+        $settings.CheckWinGet | Should -BeTrue
+        $settings.CheckChocolatey | Should -BeTrue
+        $settings.WinGetCheckFrequency | Should -Be 'Startup'
+        $settings.ChocolateyCheckFrequency | Should -Be 'Startup'
+    }
+
+    It 'reads explicit startup splash preferences from the GUI preference file' {
+        $preferencePath = Join-Path $TestDrive 'user-prefs-startup-splash.json'
+        [System.IO.File]::WriteAllText(
+            $preferencePath,
+            (@{
+                Schema = 'Baseline.UserPreferences'
+                SchemaVersion = 1
+                Values = @{
+                    StartupRunInitialActions = $false
+                    StartupCheckWinGet = $false
+                    StartupWinGetCheckFrequency = 'Daily'
+                    StartupCheckChocolatey = $true
+                    StartupChocolateyCheckFrequency = 'Weekly'
+                }
+            } | ConvertTo-Json -Depth 6),
+            [System.Text.Encoding]::UTF8
+        )
+
+        $settings = Get-BaselineStartupSplashSettings -PreferencePath $preferencePath
+
+        $settings.RunInitialActions | Should -BeFalse
+        $settings.CheckWinGet | Should -BeFalse
+        $settings.WinGetCheckFrequency | Should -Be 'Daily'
+        $settings.CheckChocolatey | Should -BeTrue
+        $settings.ChocolateyCheckFrequency | Should -Be 'Weekly'
+    }
+
+    It 'reads the same LOCALAPPDATA user preference path as the GUI store' {
+        $previousLocalAppData = $env:LOCALAPPDATA
+        try
+        {
+            $localAppData = Join-Path $TestDrive 'LocalAppData'
+            $env:LOCALAPPDATA = $localAppData
+            $preferenceDirectory = Join-Path (Join-Path (Join-Path $localAppData 'Baseline') 'UserState') 'Profiles'
+            $preferencePath = Join-Path $preferenceDirectory 'Baseline-user-prefs.json'
+            $null = New-Item -ItemType Directory -Path $preferenceDirectory -Force
+            [System.IO.File]::WriteAllText(
+                $preferencePath,
+                (@{
+                    Schema = 'Baseline.UserPreferences'
+                    SchemaVersion = 1
+                    Values = @{
+                        StartupRunInitialActions = $false
+                        StartupCheckWinGet = $false
+                        StartupCheckChocolatey = $false
+                    }
+                } | ConvertTo-Json -Depth 6),
+                [System.Text.Encoding]::UTF8
+            )
+
+            Get-BaselineUpdatePreferencePath | Should -Be $preferencePath
+            $settings = Get-BaselineStartupSplashSettings
+
+            $settings.RunInitialActions | Should -BeFalse
+            $settings.CheckWinGet | Should -BeFalse
+            $settings.CheckChocolatey | Should -BeFalse
+        }
+        finally
+        {
+            $env:LOCALAPPDATA = $previousLocalAppData
+        }
+    }
+
+    It 'tracks WinGet and Chocolatey startup package-manager check timestamps separately' {
+        $statePath = Join-Path $TestDrive 'startup-package-manager-checks.json'
+        $firstCheck = [datetime]'2026-05-20T00:00:00Z'
+        $secondCheck = [datetime]'2026-05-21T00:00:00Z'
+
+        Set-BaselineStartupPackageManagerCheckState -Path $statePath -WinGet -NowUtc $firstCheck
+        Set-BaselineStartupPackageManagerCheckState -Path $statePath -Chocolatey -NowUtc $secondCheck
+
+        $state = Get-BaselineStartupPackageManagerCheckState -Path $statePath
+        ([datetime]$state.WinGetLastCheckedUtc).ToString('o') | Should -Be $firstCheck.ToUniversalTime().ToString('o')
+        ([datetime]$state.ChocolateyLastCheckedUtc).ToString('o') | Should -Be $secondCheck.ToUniversalTime().ToString('o')
+    }
+
+    It 'uses each package-manager frequency to decide whether startup checks are due' {
+        $statePath = Join-Path $TestDrive 'startup-package-manager-frequency.json'
+        Set-BaselineStartupPackageManagerCheckState -Path $statePath -WinGet -Chocolatey -NowUtc ([datetime]'2026-05-20T00:00:00Z')
+
+        $dailyDue = Get-BaselineStartupPackageManagerCheckDecision -Path $statePath -PackageManager 'WinGet' -Enabled:$true -Frequency 'Daily' -NowUtc ([datetime]'2026-05-21T00:01:00Z')
+        $weeklyBlocked = Get-BaselineStartupPackageManagerCheckDecision -Path $statePath -PackageManager 'Chocolatey' -Enabled:$true -Frequency 'Weekly' -NowUtc ([datetime]'2026-05-21T00:01:00Z')
+        $disabled = Get-BaselineStartupPackageManagerCheckDecision -Path $statePath -PackageManager 'WinGet' -Enabled:$false -Frequency 'Startup' -NowUtc ([datetime]'2026-05-21T00:01:00Z')
+
+        $dailyDue.ShouldCheck | Should -BeTrue
+        $weeklyBlocked.ShouldCheck | Should -BeFalse
+        $disabled.ShouldCheck | Should -BeFalse
+    }
+}
+
 Describe 'Baseline update branch mapping' {
     It 'maps stable and beta branches to their release repositories' {
         ConvertTo-BaselineUpdateBranch -Branch 'stable' | Should -Be 'Stable'
@@ -515,15 +616,32 @@ Describe 'Show-BootstrapLoadingSplash' {
         $script:EnvironmentHelpersContent | Should -Not -Match 'ShowInTaskbar="False"'
     }
 
-    It 'keeps the startup splash above the main window without taking keyboard focus' {
-        $script:EnvironmentHelpersContent | Should -Match 'ShowActivated="False"'
-        $script:EnvironmentHelpersContent | Should -Match 'Topmost="True"'
+    It 'shows the startup splash normally without forcing topmost foreground state' {
+        $script:EnvironmentHelpersContent | Should -Match 'ShowActivated="True"'
+        $script:EnvironmentHelpersContent | Should -Match 'Topmost="False"'
+        $script:EnvironmentHelpersContent | Should -Match 'WindowActive = \$false'
+        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_Activated\(\{[\s\S]*\$syncHash\[''WindowActive''\] = \$true'
+        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_Deactivated\(\{[\s\S]*\$syncHash\[''WindowActive''\] = \$false'
         $script:EnvironmentHelpersContent | Should -Match '\$recordSplashShownAction = \{'
         $script:EnvironmentHelpersContent | Should -Not -Match '\$showSplashForegroundAction = \{'
         $script:EnvironmentHelpersContent | Should -Not -Match '\[void\]\$splash\.Activate\(\)'
         $script:EnvironmentHelpersContent | Should -Not -Match '\[void\]\$splash\.Focus\(\)'
         $script:EnvironmentHelpersContent | Should -Match 'Bootstrap splash loaded'
         $script:EnvironmentHelpersContent | Should -Match 'Bootstrap splash content rendered'
+    }
+
+    It 'restores splash maximized state and exposes a splash maximize control' {
+        $script:EnvironmentHelpersContent | Should -Match 'Resolve-BaselineWindowPlacement -DefaultRect \$defaultRect'
+        $script:EnvironmentHelpersContent | Should -Match 'if \(\[string\]\$placement\.Source -eq ''saved''\)'
+        $script:EnvironmentHelpersContent | Should -Match 'WindowStartupLocation="\$splashWindowStartupLocation"'
+        $script:EnvironmentHelpersContent | Should -Match 'WindowMaximized = \$splashWindowMaximized'
+        $script:EnvironmentHelpersContent | Should -Match 'SetVariable\(''splashWindowMaximized'', \$splashWindowMaximized\)'
+        $script:EnvironmentHelpersContent | Should -Match 'Name="BtnMaximize"'
+        $script:EnvironmentHelpersContent | Should -Match 'WS_MAXIMIZEBOX'
+        $script:EnvironmentHelpersContent | Should -Match '\$btnMax\.Add_Click\(\{ & \$toggleSplashMaximizeAction \}'
+        $script:EnvironmentHelpersContent | Should -Match '\$syncHash\[''WindowMaximized''\]\s*=\s*\$isMaximized'
+        $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_StateChanged\(\{[\s\S]*& \$syncSplashWindowStateAction'
+        $script:EnvironmentHelpersContent | Should -Match '& \$setSplashWindowMaximizedStateAction -Maximized \$true'
     }
 
     It 'uses a danger hover style for the splash close caption button' {
@@ -556,15 +674,18 @@ Describe 'Show-BootstrapLoadingSplash' {
 
     It 'primes the first splash step immediately and upgrades that prime for startup update checks' {
         $script:EnvironmentHelpersContent | Should -Match '\[switch\]\$StartUpdatesPulse'
+        $script:EnvironmentHelpersContent | Should -Match '\[string\[\]\]\$StepOrder = @\(\)'
         $script:EnvironmentHelpersContent | Should -Not -Match 'splashLocCheckingForUpdates'
+        $script:EnvironmentHelpersContent | Should -Match '\$allowedSplashSteps = @\(''updates'', ''system'', ''winget'', ''chocolatey'', ''finalize''\)'
+        $script:EnvironmentHelpersContent | Should -Match 'if \(\$StepOrder -and \$StepOrder\.Count -gt 0\)'
         $script:EnvironmentHelpersContent | Should -Match '\$splashStepOrder = @\(''system'', ''winget'', ''chocolatey'', ''finalize''\)'
-        $script:EnvironmentHelpersContent | Should -Match '\$splashStepOrder = @\(''updates''\) \+ \$splashStepOrder'
-        $script:EnvironmentHelpersContent | Should -Match 'if \(\$startUpdatesPulse\)[\s\S]*\$updatesStepXaml = @"'
+        $script:EnvironmentHelpersContent | Should -Match 'if \(\[bool\]\$StartUpdatesPulse -and \(-not \(\$splashStepOrder -contains ''updates''\)\)\)'
+        $script:EnvironmentHelpersContent | Should -Match '\$stepRowsXaml = \(\$stepRows -join \[System\.Environment\]::NewLine\)'
         $script:EnvironmentHelpersContent | Should -Match '\$syncHash\[''StepOrder''\] = @\(\$splashStepOrder\)'
         $script:EnvironmentHelpersContent | Should -Match 'InitialStepPrimeApplied = \$false'
         $script:EnvironmentHelpersContent | Should -Match 'bootstrapLoadingSplashStepCommand'
         $script:EnvironmentHelpersContent | Should -Match 'bootstrapLoadingSplashStateCommand'
-        $script:EnvironmentHelpersContent | Should -Match '\$initialStepId = if \(\$startUpdatesPulse\) \{ ''updates'' \} else \{ ''system'' \}'
+        $script:EnvironmentHelpersContent | Should -Match '\$initialStepId = if \(\$splashStepOrder\.Count -gt 0\) \{ \[string\]\$splashStepOrder\[0\] \} else \{ ''finalize'' \}'
         $script:EnvironmentHelpersContent | Should -Match 'if \(\$subActionPanelControl\) \{ \$subActionPanelControl\.Visibility = \[System\.Windows\.Visibility\]::Collapsed \}'
         $script:EnvironmentHelpersContent | Should -Match '\$progressBarControl = if \(\$syncHash\.ContainsKey\(''ProgressBar''\)\) \{ \$syncHash\[''ProgressBar''\] \} else \{ \$null \}'
         $script:EnvironmentHelpersContent | Should -Match '\$progressBarControl\.BeginAnimation\(\[System\.Windows\.Controls\.ProgressBar\]::ValueProperty, \$fill, \[System\.Windows\.Media\.Animation\.HandoffBehavior\]::SnapshotAndReplace\)'
@@ -572,10 +693,12 @@ Describe 'Show-BootstrapLoadingSplash' {
         $script:EnvironmentHelpersContent | Should -Match '\$splash\.Add_ContentRendered\(\{[\s\S]*& \$primeInitialStepAction ''ContentRendered'''
     }
 
-    It 'omits the update step when the updates pulse is not active' {
+    It 'removes inactive splash steps from runtime state' {
         $script:EnvironmentHelpersContent | Should -Match "Get-BaselineLocalizedString -Key 'Bootstrap_StepCheckingForUpdates' -Fallback 'Checking for Updates'"
-        $script:EnvironmentHelpersContent | Should -Match 'if \(-not \$startUpdatesPulse\)[\s\S]*\[void\]\$stepGlyphs\.Remove\(''updates''\)'
-        $script:EnvironmentHelpersContent | Should -Match '\$initialStepId = if \(\$startUpdatesPulse\) \{ ''updates'' \} else \{ ''system'' \}'
+        $script:EnvironmentHelpersContent | Should -Match 'foreach \(\$knownStepId in @\(''updates'', ''system'', ''winget'', ''chocolatey'', ''finalize''\)\)'
+        $script:EnvironmentHelpersContent | Should -Match 'if \(-not \$activeSplashStepIds\.ContainsKey\(\$knownStepId\)\)'
+        $script:EnvironmentHelpersContent | Should -Match '\[void\]\$stepGlyphs\.Remove\(\$knownStepId\)'
+        $script:EnvironmentHelpersContent | Should -Match '\$initialStepId = if \(\$splashStepOrder\.Count -gt 0\) \{ \[string\]\$splashStepOrder\[0\] \} else \{ ''finalize'' \}'
         $script:EnvironmentHelpersContent | Should -Not -Match "Bootstrap_StepUpdateCheck"
     }
 

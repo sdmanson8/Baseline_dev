@@ -6,7 +6,7 @@ BeforeAll {
     function LogWarning { param([string]$Message) }
     function Write-ConsoleStatus { param([string]$Action, [string]$Status) }
 
-    # Localization stub — returns the supplied fallback verbatim (with format
+    # Localization stub - returns the supplied fallback verbatim (with format
     # substitution if requested), so tests stay independent of the locale
     # JSON files.
     function Get-BaselineLocalizedString {
@@ -19,7 +19,7 @@ BeforeAll {
         return $Fallback
     }
 
-    # Toast helpers — load the real implementation so XML construction is
+    # Toast helpers - load the real implementation so XML construction is
     # exercised end-to-end. The Send/Show paths are not invoked from
     # CleanupTask register/delete so WinRT is never hit.
     . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Toast.Helpers.ps1')
@@ -32,7 +32,7 @@ BeforeAll {
         Invoke-Expression $fn.Extent.Text
     }
 
-    # Re-declare the script-scope constants the module sets at top-level —
+    # Re-declare the script-scope constants the module sets at top-level -
     $script:BaselineMaintenanceTaskPath = 'Baseline'
     $script:BaselineCleanupTaskName = 'Windows Cleanup'
     $script:BaselineCleanupNotificationTaskName = 'Windows Cleanup Notification'
@@ -384,7 +384,7 @@ Describe 'CleanupTask orchestration' {
         try {
             CleanupTask -Delete
 
-            # Toast AppId helper should NOT be called — protocol got swept inline.
+            # Toast AppId helper should NOT be called - protocol got swept inline.
             $script:unregisterToastCalls.Count | Should -Be 0
             # The protocol HKCR key must have been removed directly.
             ($script:protocolRemovals | Where-Object { $_ -like '*HKEY_CLASSES_ROOT\BaselineCleanup*' }).Count | Should -BeGreaterOrEqual 1
@@ -563,7 +563,7 @@ Describe 'Get-BaselineTempTaskScript' {
         $payload | Should -Match 'Get-ChildItem -Path \$env:TEMP'
         $payload | Should -Match 'CreationTime -lt \(Get-Date\)\.AddDays\(-1\)'
 
-        # Orphan-folder list — the literal $WinREAgent / $SysReset / etc. names
+        # Orphan-folder list - the literal $WinREAgent / $SysReset / etc. names
         # must survive the outer here-string as plain strings.
         foreach ($literal in @('$WinREAgent','$SysReset','$Windows.~WS','$GetCurrent','ESD','Intel','PerfLogs')) {
             $payload | Should -BeLike "*$literal*"
@@ -575,7 +575,7 @@ Describe 'Get-BaselineTempTaskScript' {
         # ReAgentOld.xml gating for the Recovery folder.
         $payload | Should -Match 'ReAgentOld\.xml'
 
-        # Information-only completion toast — no actions, body wired in.
+        # Information-only completion toast - no actions, body wired in.
         $payload | Should -Not -Match 'activationType=\"protocol\"'
         $payload | Should -Match 'Temp cleared\.'
         $payload | Should -Match "CreateToastNotifier\('Baseline'\)"
@@ -778,7 +778,7 @@ Describe 'Invoke-BaselineTempFolderPurge' {
     AfterEach {
         $env:TEMP = $env:TEMP_ORIGINAL
         Remove-Item -Path Env:TEMP_ORIGINAL -ErrorAction SilentlyContinue
-        # Don't touch real orphan paths — the helper only walks paths that exist
+        # Don't touch real orphan paths - the helper only walks paths that exist
         # under TestDrive, so nothing to clean up.
     }
 

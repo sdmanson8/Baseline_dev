@@ -6,9 +6,9 @@ using module ..\..\SharedHelpers.psm1
 	Configures Windows Firewall configuration.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies Baseline's Windows Firewall configuration in GUI and headless runs.
 	.PARAMETER Enable
 	Enable Windows Firewall (default value)
@@ -273,9 +273,9 @@ function LOLBinFirewallRules
 	Microsoft Defender Exploit Guard network protection
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for microsoft Defender Exploit Guard network protection.
 	.PARAMETER Enable
 	Enable Microsoft Defender Exploit Guard network protection
@@ -311,9 +311,9 @@ function NetworkProtection
 		$Disable
 	)
 
-	if (-not $Script:DefenderEnabled)
+	if (-not (Test-BaselineDefenderExecutionAvailable))
 	{
-		LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
+		LogWarning ("Skipping {0}: {1}" -f (Get-TweakSkipLabel $MyInvocation), (Get-BaselineDefenderExecutionUnavailableReason))
 		return
 	}
 

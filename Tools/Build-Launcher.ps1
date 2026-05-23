@@ -19,12 +19,21 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Path $PSScriptRoot -Parent
 $projectPath = Join-Path $repoRoot 'Launcher/RunLauncher.csproj'
+$manifestScript = Join-Path $repoRoot 'Tools/New-ModuleIntegrityManifest.ps1'
 $buildPath = Join-Path $repoRoot '.artifacts/launcher-build'
 
 if (-not (Test-Path -LiteralPath $projectPath -PathType Leaf))
 {
     throw "Launcher project not found: $projectPath"
 }
+
+if (-not (Test-Path -LiteralPath $manifestScript -PathType Leaf))
+{
+    throw "Module integrity manifest generator not found: $manifestScript"
+}
+
+Write-Host "Refreshing module integrity manifest..." -ForegroundColor Cyan
+& $manifestScript
 
 $buildArgs = @(
     'build',

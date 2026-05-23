@@ -61,6 +61,7 @@ Describe 'SharedHelpers helper module inventory' {
         $singleInstanceModule.ExportedCommands.Keys | Should -Contain 'Test-BaselineSingleInstanceLockAvailable'
         $singleInstanceModule.ExportedCommands.Keys | Should -Contain 'Resolve-BaselineSingleInstanceDecision'
         (Get-Module 'Baseline.SharedHelpers.PlatformSupport').ExportedCommands.Keys | Should -Contain 'Get-BaselinePlatformFilterOverride'
+        (Get-Module 'Baseline.SharedHelpers.PlatformSupport').ExportedCommands.Keys | Should -Contain 'Update-BaselineManifestExecutionSupport'
         $remoteTargetModule.ExportedCommands.Keys | Should -Contain 'Resume-BaselineRemoteOrchestration'
         $initialActionsModule.ExportedCommands.Keys | Should -Contain 'Resolve-BaselineSettingsAppsFeaturesHealthAssessment'
         $initialActionsModule.ExportedCommands.Keys | Should -Contain 'Resolve-BaselineScreenSnippingHealthAssessment'

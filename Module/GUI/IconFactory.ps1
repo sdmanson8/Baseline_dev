@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
 #>
 
@@ -120,7 +120,15 @@ function Resolve-GuiBrushInput
         return $null
     }
 
-    $resolvedValue = if ($Value -is [psobject]) { $Value.BaseObject } else { $Value }
+    $resolvedValue = $Value
+    if ($Value -is [System.Management.Automation.PSObject])
+    {
+        $baseObjectProperty = $Value.PSObject.Properties['BaseObject']
+        if ($baseObjectProperty)
+        {
+            $resolvedValue = $baseObjectProperty.Value
+        }
+    }
     if ($resolvedValue -is [System.Windows.Media.Brush])
     {
         return [System.Windows.Media.Brush]$resolvedValue
@@ -143,6 +151,8 @@ function Resolve-GuiBrushInput
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'IconFactory.Resolve-GuiBrushInput:catch152' -Severity Debug }
+
         return $null
     }
 }

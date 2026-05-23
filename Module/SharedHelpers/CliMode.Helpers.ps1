@@ -1,4 +1,4 @@
-﻿# CLI / unattended-mode helpers for Baseline.
+# CLI / unattended-mode helpers for Baseline.
 #
 # These helpers exist so the launcher's CLI surface can be unit-tested without
 # spinning up the full GUI/host pipeline. They intentionally hold no state and
@@ -319,6 +319,8 @@ function Get-BaselinePresetCatalog
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CliMode.Helpers.Get-BaselinePresetCatalog:catch320' -Severity Debug }
+
 			$entry.Error = $_.Exception.Message
 		}
 		$out.Add($entry)
@@ -462,6 +464,8 @@ function Resolve-BaselineCliLogPath
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CliMode.Helpers.Resolve-BaselineCliLogPath:catch463' -Severity Debug }
+
 		return [pscustomobject]@{
 			ResolvedPath = $DefaultPath
 			UsedDefault  = $true
@@ -488,6 +492,8 @@ function Resolve-BaselineCliLogPath
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CliMode.Helpers.Resolve-BaselineCliLogPath:catch489' -Severity Debug }
+
 			return [pscustomobject]@{
 				ResolvedPath = $DefaultPath
 				UsedDefault  = $true

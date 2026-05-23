@@ -73,13 +73,14 @@ Describe 'NetworkStackReset' {
         $script:warningMessages[-1] | Should -Match 'Restart required'
     }
 
-    It 'reports failed and stops when a netsh reset command fails' {
+    It 'continues and reports warning when one netsh reset command is rejected' {
         $script:throwOnCall = 2
 
         NetworkStackReset
 
-        $script:processCalls.Count | Should -Be 2
-        $script:consoleStatuses[-1] | Should -Be 'failed'
-        $script:errorMessages[0] | Should -Match 'netsh failed'
+        $script:processCalls.Count | Should -Be 3
+        $script:consoleStatuses[-1] | Should -Be 'warning'
+        $script:errorMessages.Count | Should -Be 0
+        $script:warningMessages | Should -Contain "Network stack reset step 'Resetting WinHTTP proxy' did not complete: netsh failed"
     }
 }

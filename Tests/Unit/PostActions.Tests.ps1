@@ -25,6 +25,13 @@ Describe 'PostActions temporary policy cleanup' {
     }
 }
 
+Describe 'PostActions Explorer restart' {
+    It 'explicitly relaunches Explorer after stopping the shell' {
+        $script:PostActionsExtractedContent | Should -Match 'Restarting Explorer shell'
+        $script:PostActionsExtractedContent | Should -Match "Invoke-UserLaunch -FilePath 'explorer\.exe' -Description 'Explorer shell restart after post actions'"
+    }
+}
+
 Describe 'Get-PostActionRequirement' {
     BeforeEach {
         $Global:BaselinePostActionRequirements = $null

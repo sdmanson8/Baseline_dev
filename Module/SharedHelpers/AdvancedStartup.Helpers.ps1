@@ -13,6 +13,8 @@ function Get-AdvancedStartupDesktopDirectory
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AdvancedStartup.Helpers.Get-AdvancedStartupDesktopDirectory:catch14' -Severity Debug }
+
 		return (Join-Path $env:USERPROFILE 'Desktop')
 	}
 }
@@ -32,6 +34,8 @@ function Get-AdvancedStartupDownloadsDirectory
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AdvancedStartup.Helpers.Get-AdvancedStartupDownloadsDirectory:catch33' -Severity Debug }
+
 		return (Join-Path $HOME 'Downloads')
 	}
 }

@@ -60,7 +60,7 @@ function Request-GuiUWPAppsSelection
 		    .SYNOPSIS
 		    Sets UWP apps execution result.
 
-		    		#>
+				#>
 
 		function Set-UWPAppsExecutionResult
 		{
@@ -169,7 +169,7 @@ function Request-GuiUWPAppsSelection
 		    .SYNOPSIS
 		    Sets UWP apps picker surface.
 
-		    		#>
+				#>
 
 		function Set-UWPAppsPickerSurface
 		{

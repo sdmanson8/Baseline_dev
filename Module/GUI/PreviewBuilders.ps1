@@ -1,4 +1,4 @@
-﻿# Preview run list builders, selection summaries, and preview narrative generation
+# Preview run list builders, selection summaries, and preview narrative generation
 
 <#
     .SYNOPSIS
@@ -553,19 +553,19 @@
 						RequiresRestart = [bool]$rt.RequiresRestart
 						Impact          = $rt.Impact
 						PresetTier      = $rt.PresetTier
-						Selection       = if ([bool]$rt.WinDefault) { 'Windows default: Enabled' } else { 'Windows default: Disabled' }
+						Selection       = if ([bool]$rt.WinDefault) { 'Recorded default: Enabled' } else { 'Recorded default: Disabled' }
 						ToggleParam     = $defaultParam
 						OnParam         = [string]$rt.OnParam
 						OffParam        = [string]$rt.OffParam
 						WinDefault      = [bool]$rt.WinDefault
 						IsChecked       = [bool]$rt.WinDefault
 						DefaultValue    = [bool]$rt.Default
-						CurrentState    = 'Windows default'
+						CurrentState    = 'Recorded default'
 						CurrentStateTone = 'Primary'
-						StateDetail     = 'This run restores Windows default toggle behavior where possible.'
+						StateDetail     = 'This run restores recorded default toggle behavior where supported.'
 						MatchesDesired  = $false
 						ScenarioTags    = @($visual.ScenarioTags)
-						ReasonIncluded  = 'Included because this run restores the Windows default toggle behavior where possible.'
+						ReasonIncluded  = 'Included because this run restores the recorded default toggle behavior where supported.'
 						BlastRadius     = [string]$visual.BlastRadius
 						IsRemoval       = [bool]$visual.IsRemoval
 						ExtraArgs       = $null
@@ -598,17 +598,17 @@
 						RequiresRestart = [bool]$rt.RequiresRestart
 						Impact          = $rt.Impact
 						PresetTier      = $rt.PresetTier
-						Selection       = "Windows default: $([string]$displayOpts[$defaultIndex])"
+						Selection       = "Recorded default: $([string]$displayOpts[$defaultIndex])"
 						Value           = $rt.Options[$defaultIndex]
 						WinDefault      = [string]$rt.WinDefault
 						WinDefaultIndex = $defaultIndex
 						DefaultValue    = $(if ((Test-GuiObjectField -Object $rt -FieldName 'Default')) { [string]$rt.Default } else { $null })
-						CurrentState    = 'Windows default'
+						CurrentState    = 'Recorded default'
 						CurrentStateTone = 'Primary'
-						StateDetail     = 'This run restores the Windows default choice where possible.'
+						StateDetail     = 'This run restores the recorded default choice where supported.'
 						MatchesDesired  = $false
 						ScenarioTags    = @($visual.ScenarioTags)
-						ReasonIncluded  = 'Included because this run restores the Windows default choice where possible.'
+						ReasonIncluded  = 'Included because this run restores the recorded default choice where supported.'
 						BlastRadius     = [string]$visual.BlastRadius
 						IsRemoval       = [bool]$visual.IsRemoval
 						ExtraArgs       = $rt.ExtraArgs
@@ -645,7 +645,7 @@
 							RequiresRestart = [bool]$rt.RequiresRestart
 							Impact          = $rt.Impact
 							PresetTier      = $rt.PresetTier
-							Selection       = "Windows default: $([string]$defaultSelectionText)"
+							Selection       = "Recorded default: $([string]$defaultSelectionText)"
 							IsChecked       = $true
 							Value           = $defaultValueSource
 							NumericValue    = if ((Test-GuiObjectField -Object $defaultValueSource -FieldName 'NumericValue') -and $null -ne $defaultValueSource.NumericValue) { $defaultValueSource.NumericValue } elseif ($null -ne $defaultACValue -and $null -ne $defaultDCValue -and [string]$defaultACValue -eq [string]$defaultDCValue) { $defaultACValue } else { $null }
@@ -654,12 +654,12 @@
 							Units           = $units
 							WinDefault      = $defaultValueSource
 							DefaultValue    = if ((Test-GuiObjectField -Object $rt -FieldName 'Default')) { $rt.Default } else { $null }
-							CurrentState    = 'Windows default'
+							CurrentState    = 'Recorded default'
 							CurrentStateTone = 'Primary'
-							StateDetail     = 'This run restores the Windows default numeric values where possible.'
+							StateDetail     = 'This run restores the recorded default numeric values where supported.'
 							MatchesDesired  = $false
 							ScenarioTags    = @($visual.ScenarioTags)
-							ReasonIncluded  = 'Included because this run restores the Windows default numeric values where possible.'
+							ReasonIncluded  = 'Included because this run restores the recorded default numeric values where supported.'
 							BlastRadius     = [string]$visual.BlastRadius
 							IsRemoval       = [bool]$visual.IsRemoval
 							ExtraArgs       = $null
@@ -689,9 +689,9 @@
 						RequiresRestart = [bool]$rt.RequiresRestart
 						Impact          = $rt.Impact
 						PresetTier      = $rt.PresetTier
-						Selection       = 'Run Windows default action'
+						Selection       = 'Run recorded default action'
 						WinDefault      = [bool]$rt.WinDefault
-						CurrentState    = 'Windows default'
+						CurrentState    = 'Recorded default'
 						CurrentStateTone = 'Primary'
 						StateDetail     = 'This run restores the default action flow.'
 						MatchesDesired  = $false
@@ -744,7 +744,7 @@
 						RequiresRestart = [bool]$rt.RequiresRestart
 						Impact          = $rt.Impact
 						PresetTier      = $rt.PresetTier
-						Selection       = if ($defaultRun) { if (-not [string]::IsNullOrWhiteSpace($defaultDate)) { $defaultDate } else { 'Windows default: Enabled' } } else { 'Windows default: Disabled' }
+						Selection       = if ($defaultRun) { if (-not [string]::IsNullOrWhiteSpace($defaultDate)) { $defaultDate } else { 'Recorded default: Enabled' } } else { 'Recorded default: Disabled' }
 						Run             = [bool]$defaultRun
 						Value           = $defaultDate
 						DateValue       = $defaultDate
@@ -752,12 +752,12 @@
 						ToggleParam     = if ($defaultRun) { if ((Test-GuiObjectField -Object $rt -FieldName 'OnParam')) { [string]$rt.OnParam } else { 'Enable' } } else { if ((Test-GuiObjectField -Object $rt -FieldName 'OffParam')) { [string]$rt.OffParam } else { 'Disable' } }
 						IsChecked       = [bool]$defaultRun
 						DefaultValue    = [bool]$rt.Default
-						CurrentState    = 'Windows default'
+						CurrentState    = 'Recorded default'
 						CurrentStateTone = 'Primary'
-						StateDetail     = 'This run restores Windows default pause behavior where possible.'
+						StateDetail     = 'This run restores recorded default pause behavior where supported.'
 						MatchesDesired  = $false
 						ScenarioTags    = @($visual.ScenarioTags)
-						ReasonIncluded  = 'Included because this run restores the Windows default pause behavior where possible.'
+						ReasonIncluded  = 'Included because this run restores the recorded default pause behavior where supported.'
 						BlastRadius     = [string]$visual.BlastRadius
 						IsRemoval       = [bool]$visual.IsRemoval
 						ExtraArgs       = $null
@@ -954,17 +954,23 @@
 				$rebootCheck = $null
 				if (Get-Command -Name 'Test-PreflightManagedPolicyEnvironment' -CommandType Function -ErrorAction SilentlyContinue)
 				{
-					try { $managedCheck = Test-PreflightManagedPolicyEnvironment } catch { $managedCheck = $null }
+					try { $managedCheck = Test-PreflightManagedPolicyEnvironment } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PreviewBuilders.Get-PreviewRiskCategoryLines:catch957' -Severity Debug }
+					 $managedCheck = $null }
 				}
 				if (Get-Command -Name 'Test-PreflightPendingReboot' -CommandType Function -ErrorAction SilentlyContinue)
 				{
-					try { $rebootCheck = Test-PreflightPendingReboot } catch { $rebootCheck = $null }
+					try { $rebootCheck = Test-PreflightPendingReboot } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PreviewBuilders.Get-PreviewRiskCategoryLines:catch961' -Severity Debug }
+					 $rebootCheck = $null }
 				}
 				$categories = @(Get-BaselineRiskCategoryList -ManagedPolicyCheck $managedCheck -PendingRebootCheck $rebootCheck -IncludePartialSuccessHistory)
 			}
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PreviewBuilders.Get-PreviewRiskCategoryLines:catch966' -Severity Debug }
+
 			$categories = @()
 		}
 
@@ -1403,7 +1409,7 @@
 
 					if ((Test-GuiObjectField -Object $Tweak -FieldName 'WinDefaultDesc') -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.WinDefaultDesc))
 					{
-						[void]$detailParts.Add(("Windows default: {0}." -f ([string]$Tweak.WinDefaultDesc).TrimEnd('.')))
+						[void]$detailParts.Add(("Recorded default: {0}." -f ([string]$Tweak.WinDefaultDesc).TrimEnd('.')))
 					}
 				}
 					'Choice'
@@ -1629,6 +1635,8 @@
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PreviewBuilders.Write-ExecutionPreviewToLog:catch1630' -Severity Debug }
+
 			$serverValidationSuffix = $null
 		}
 

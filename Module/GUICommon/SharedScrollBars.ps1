@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Shared GUI scrollbar resources.
 #>
@@ -236,7 +236,7 @@ $styleXaml
 	}
 	catch
 	{
-		try { Write-SwallowedException -ErrorRecord $_ -Source 'GUICommon.AddGuiSharedScrollBarResources' } catch { }
+		try { Write-SwallowedException -ErrorRecord $_ -Source 'GUICommon.AddGuiSharedScrollBarResources' } catch { Write-Warning "Failed to log shared scrollbar resource failure: $($_.Exception.Message)" }
 		return $false
 	}
 }

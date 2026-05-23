@@ -419,6 +419,148 @@ function New-BaselineWindowsUpdateOperationResult
     }
 }
 
+function Get-WindowsUpdateRestartRequired
+{
+    [CmdletBinding()]
+    param (
+        [object]$SystemInfo
+    )
+
+    if (-not $SystemInfo)
+    {
+        $SystemInfo = New-Object -ComObject 'Microsoft.Update.SystemInfo'
+    }
+
+    return [bool](Get-BaselineObjectPropertyValue -InputObject $SystemInfo -Name 'RebootRequired')
+}
+
+function New-BaselineWindowsUpdateProgressRecord
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Operation,
+
+        [Parameter(Mandatory = $true)]
+        [object]$Progress
+    )
+
+    $percentComplete = Get-BaselineObjectPropertyValue -InputObject $Progress -Name 'PercentComplete'
+    if ($null -eq $percentComplete)
+    {
+        $percentComplete = Get-BaselineObjectPropertyValue -InputObject $Progress -Name 'CurrentUpdatePercentComplete'
+    }
+
+    return [pscustomobject]@{
+        Operation                    = $Operation
+        PercentComplete              = if ($null -eq $percentComplete) { $null } else { [int]$percentComplete }
+        CurrentUpdateIndex           = Get-BaselineObjectPropertyValue -InputObject $Progress -Name 'CurrentUpdateIndex'
+        CurrentUpdatePercentComplete = Get-BaselineObjectPropertyValue -InputObject $Progress -Name 'CurrentUpdatePercentComplete'
+        CurrentUpdateBytesDownloaded = Get-BaselineObjectPropertyValue -InputObject $Progress -Name 'CurrentUpdateBytesDownloaded'
+        CurrentUpdateBytesToDownload = Get-BaselineObjectPropertyValue -InputObject $Progress -Name 'CurrentUpdateBytesToDownload'
+        TotalBytesDownloaded         = Get-BaselineObjectPropertyValue -InputObject $Progress -Name 'TotalBytesDownloaded'
+        TotalBytesToDownload         = Get-BaselineObjectPropertyValue -InputObject $Progress -Name 'TotalBytesToDownload'
+    }
+}
+
+function Invoke-BaselineWindowsUpdateProgressCallback
+{
+    [CmdletBinding()]
+    param (
+        [scriptblock]$ProgressCallback,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Operation,
+
+        [object]$Progress
+    )
+
+    if (-not $ProgressCallback -or $null -eq $Progress)
+    {
+        return
+    }
+
+    $progressRecord = New-BaselineWindowsUpdateProgressRecord -Operation $Operation -Progress $Progress
+    & $ProgressCallback -Progress $progressRecord
+}
+
+function Wait-BaselineWindowsUpdateAsyncJob
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [object]$Job,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Operation,
+
+        [scriptblock]$ProgressCallback,
+
+        [int]$ProgressPollMilliseconds = 500
+    )
+
+    while (-not [bool](Get-BaselineObjectPropertyValue -InputObject $Job -Name 'IsCompleted'))
+    {
+        Invoke-BaselineWindowsUpdateProgressCallback -ProgressCallback $ProgressCallback -Operation $Operation -Progress ($Job.GetProgress())
+        if ($ProgressPollMilliseconds -gt 0)
+        {
+            Start-Sleep -Milliseconds $ProgressPollMilliseconds
+        }
+    }
+
+    Invoke-BaselineWindowsUpdateProgressCallback -ProgressCallback $ProgressCallback -Operation $Operation -Progress ($Job.GetProgress())
+}
+
+function New-BaselineWindowsUpdateAsyncCallback
+{
+    [CmdletBinding()]
+    param ()
+
+    $callbackTypeName = 'Baseline.WindowsUpdateAsyncCallback'
+    $callbackType = $callbackTypeName -as [type]
+    if (-not $callbackType)
+    {
+        $callbackSource = @'
+namespace Baseline
+{
+    using System;
+    using System.Runtime.InteropServices;
+
+    [ComVisible(true)]
+    [Guid("0649B03E-F40B-4F7B-B4F7-A42F4409CBA0")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIDispatch)]
+    public interface IWindowsUpdateAsyncCallback
+    {
+        [DispId(0)]
+        void Invoke(object job, object callbackArgs);
+    }
+
+    [ComVisible(true)]
+    [Guid("62705F98-C7D7-4862-8AB9-9D45085FE64D")]
+    [ClassInterface(ClassInterfaceType.None)]
+    public sealed class WindowsUpdateAsyncCallback : IWindowsUpdateAsyncCallback
+    {
+        public void Invoke(object job, object callbackArgs)
+        {
+        }
+    }
+}
+'@
+
+        try
+        {
+            Add-Type -TypeDefinition $callbackSource -Language CSharp -ErrorAction Stop
+            $callbackType = $callbackTypeName -as [type]
+        }
+        catch
+        {
+            throw "Could not create Windows Update async callback type: $($_.Exception.Message)"
+        }
+    }
+
+    return [System.Activator]::CreateInstance($callbackType)
+}
+
 function Get-BaselineWindowsUpdateScheduledResultPath
 {
     [CmdletBinding()]
@@ -520,7 +662,9 @@ function Install-WindowsSecurityUpdates
     param (
         [object]$Session,
 
-        [scriptblock]$CollectionFactory
+        [scriptblock]$CollectionFactory,
+
+        [object]$SystemInfo
     )
 
     if (-not $Session)
@@ -534,7 +678,7 @@ function Install-WindowsSecurityUpdates
     $installResult = $null
     if ([bool]$downloadResult.Succeeded)
     {
-        $installResult = Install-WindowsUpdates -Updates $securityUpdates -Session $Session -CollectionFactory $CollectionFactory
+        $installResult = Install-WindowsUpdates -Updates $securityUpdates -Session $Session -CollectionFactory $CollectionFactory -SystemInfo $SystemInfo
     }
 
     return [pscustomobject]@{
@@ -559,7 +703,12 @@ function Download-WindowsUpdates
 
         [object]$Session,
 
-        [scriptblock]$CollectionFactory
+        [scriptblock]$CollectionFactory,
+
+        [scriptblock]$ProgressCallback,
+
+        [ValidateRange(0, 60000)]
+        [int]$ProgressPollMilliseconds = 500
     )
 
     if (-not $Session)
@@ -579,7 +728,27 @@ function Download-WindowsUpdates
     {
         $downloader = $Session.CreateUpdateDownloader()
         $downloader.Updates = $collection
-        $downloadResult = $downloader.Download()
+        if ($ProgressCallback)
+        {
+            $downloadCallback = New-BaselineWindowsUpdateAsyncCallback
+            $downloadJob = $downloader.BeginDownload($downloadCallback, $downloadCallback, 'Baseline.WindowsUpdate.Download')
+            try
+            {
+                Wait-BaselineWindowsUpdateAsyncJob -Job $downloadJob -Operation 'Download' -ProgressCallback $ProgressCallback -ProgressPollMilliseconds $ProgressPollMilliseconds
+                $downloadResult = $downloader.EndDownload($downloadJob)
+            }
+            finally
+            {
+                if ($downloadJob)
+                {
+                    $downloadJob.CleanUp()
+                }
+            }
+        }
+        else
+        {
+            $downloadResult = $downloader.Download()
+        }
     }
     catch
     {
@@ -597,7 +766,14 @@ function Install-WindowsUpdates
 
         [object]$Session,
 
-        [scriptblock]$CollectionFactory
+        [scriptblock]$CollectionFactory,
+
+        [scriptblock]$ProgressCallback,
+
+        [ValidateRange(0, 60000)]
+        [int]$ProgressPollMilliseconds = 500,
+
+        [object]$SystemInfo
     )
 
     if (-not $Session)
@@ -617,14 +793,36 @@ function Install-WindowsUpdates
     {
         $installer = $Session.CreateUpdateInstaller()
         $installer.Updates = $collection
-        $installResult = $installer.Install()
+        if ($ProgressCallback)
+        {
+            $installCallback = New-BaselineWindowsUpdateAsyncCallback
+            $installJob = $installer.BeginInstall($installCallback, $installCallback, 'Baseline.WindowsUpdate.Install')
+            try
+            {
+                Wait-BaselineWindowsUpdateAsyncJob -Job $installJob -Operation 'Install' -ProgressCallback $ProgressCallback -ProgressPollMilliseconds $ProgressPollMilliseconds
+                $installResult = $installer.EndInstall($installJob)
+            }
+            finally
+            {
+                if ($installJob)
+                {
+                    $installJob.CleanUp()
+                }
+            }
+        }
+        else
+        {
+            $installResult = $installer.Install()
+        }
     }
     catch
     {
         throw "Windows Update install failed: $($_.Exception.Message)"
     }
 
-    $rebootRequired = [bool](Get-BaselineObjectPropertyValue -InputObject $installer -Name 'RebootRequired')
+    $installerRebootRequired = [bool](Get-BaselineObjectPropertyValue -InputObject $installer -Name 'RebootRequired')
+    $systemRebootRequired = Get-WindowsUpdateRestartRequired -SystemInfo $SystemInfo
+    $rebootRequired = ($installerRebootRequired -or $systemRebootRequired)
     return New-BaselineWindowsUpdateOperationResult -Operation 'Install' -Result $installResult -UpdateCount $updateCount -RebootRequired:$rebootRequired
 }
 
@@ -677,6 +875,8 @@ function Get-WindowsUpdateStatus
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'WindowsUpdate.Helpers.Get-WindowsUpdateStatus:catch876' -Severity Debug }
+
         return [pscustomobject]@{
             Schema      = 'Baseline.WindowsUpdateStatus'
             GeneratedAt = [System.DateTime]::UtcNow.ToString('o')
@@ -736,6 +936,8 @@ function Invoke-BaselineWindowsUpdateScheduledRun
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'WindowsUpdate.Helpers.Invoke-BaselineWindowsUpdateScheduledRun:catch935' -Severity Debug }
+
         $scheduledRunFailure = $_
         $result = [pscustomobject]@{
             Schema      = 'Baseline.WindowsUpdateSecurityInstall'

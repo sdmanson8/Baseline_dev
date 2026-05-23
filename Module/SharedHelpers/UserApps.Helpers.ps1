@@ -1,4 +1,4 @@
-﻿# User-added / custom External Software list helpers.
+# User-added / custom External Software list helpers.
 #
 # Spec: todo.md "#18 User-added / custom External Software list" --
 #   `%LOCALAPPDATA%\Baseline\UserApps\*.json` with the same schema as the
@@ -241,6 +241,8 @@ function Get-BaselineUserAppEntries
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UserApps.Helpers.Get-BaselineUserAppEntries:catch242' -Severity Debug }
+
 			$warnings.Add("Failed to read user app file '$($file.FullName)': $($_.Exception.Message)")
 			continue
 		}
@@ -252,6 +254,8 @@ function Get-BaselineUserAppEntries
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UserApps.Helpers.Get-BaselineUserAppEntries:catch253' -Severity Debug }
+
 			$warnings.Add("Failed to parse user app file '$($file.FullName)' as JSON: $($_.Exception.Message)")
 			continue
 		}
@@ -623,6 +627,8 @@ function Save-BaselineUserAppEntriesFromProfile
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UserApps.Helpers.Save-BaselineUserAppEntriesFromProfile:catch624' -Severity Debug }
+
 			$failed.Add([pscustomobject]@{ Name = $entryName; Reason = $_.Exception.Message })
 		}
 	}

@@ -5,8 +5,11 @@ BeforeAll {
 
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/UWPApps.psm1'
     $aiRemovalPath = Join-Path $PSScriptRoot '../../Module/Regions/UWPApps/AIRemoval.ps1'
+    $uwpAppsManifestPath = Join-Path $PSScriptRoot '../../Module/Data/UWPApps.json'
     $script:UWPAppsContent = Get-BaselineTestSourceText -Path $filePath
     $script:AIRemovalContent = Get-BaselineTestSourceText -Path $aiRemovalPath
+    $script:UWPAppsManifest = Get-BaselineTestSourceText -Path $uwpAppsManifestPath | ConvertFrom-Json
+    $script:CopilotManifestEntry = $script:UWPAppsManifest.Entries | Where-Object { $_.Function -eq 'Copilot' } | Select-Object -First 1
     foreach ($sourcePath in @(Get-BaselineTestSourcePathSet -Path $filePath)) {
         $ast = [System.Management.Automation.Language.Parser]::ParseFile($sourcePath, [ref]$null, [ref]$null)
         $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
@@ -78,8 +81,14 @@ Describe 'AIRemoval privileged operation safeguards' {
         $script:AIRemovalContent | Should -Match '\$trustedErrorPath'
         $script:AIRemovalContent | Should -Match 'TrustedInstaller AIRemoval command did not report completion'
         $script:AIRemovalContent | Should -Match 'TrustedInstaller AIRemoval command returned exit code'
+        $script:AIRemovalContent | Should -Match "-ArgumentList @\('start', 'TrustedInstaller'\).*?-AllowedExitCodes @\(0, 1053\)"
         $script:AIRemovalContent | Should -Match '\$restoreFailure = \$_'
         $script:AIRemovalContent | Should -Match 'Failed to restore the TrustedInstaller service command after AIRemoval privileged cleanup'
+    }
+
+    It 'logs skip-on-access-denied registry writes as informational' {
+        $script:AIRemovalContent | Should -Match 'LogInfo "Skipping registry value ''\$DeniedName'' at ''\$DeniedPath'' because access was denied\."'
+        $script:AIRemovalContent | Should -Not -Match 'LogWarning "Skipping registry value ''\$DeniedName'' at ''\$DeniedPath'' because access was denied\."'
     }
 
     It 'verifies Voice Access removal before reporting success' {
@@ -523,6 +532,19 @@ Describe 'Copilot' {
         $script:consoleStatuses[-1] | Should -Be 'warning'
         $script:warningMessages.Count | Should -Be 1
         $script:warningMessages[0] | Should -Match 'Windows Server'
+    }
+
+    It 'is available on Windows 10 and Windows 11 client manifests' {
+        $script:CopilotManifestEntry | Should -Not -BeNullOrEmpty
+        $script:CopilotManifestEntry.PlatformSupport.Windows10 | Should -BeTrue
+        $script:CopilotManifestEntry.PlatformSupport.Windows11 | Should -BeTrue
+        $script:CopilotManifestEntry.PlatformSupport.Server | Should -BeFalse
+        $script:CopilotManifestEntry.PlatformSupport.PSObject.Properties['MinBuild'] | Should -BeNullOrEmpty
+    }
+
+    It 'declares enough GUI execution time for privileged AI component cleanup' {
+        $script:CopilotManifestEntry | Should -Not -BeNullOrEmpty
+        [int]$script:CopilotManifestEntry.TimeoutSeconds | Should -BeGreaterOrEqual 900
     }
 }
 

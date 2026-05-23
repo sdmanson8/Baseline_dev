@@ -124,6 +124,21 @@ Describe 'Tweak row content pins' {
         $script:FunctionTextByName['New-ToggleTweakRow'] | Should -Match 'Add-TweakScenarioTagsToDetailsPanel -DetailsHost \$statusContext\.WhyBlock\.Tag -RowContext \$RowContext'
         $script:FunctionTextByName['New-ToggleTweakRow'] | Should -Match '\[void\]\(\$leftStack\.Children\.Add\(\$statusContext\.WhyBlock\.Tag\)\)'
     }
+
+    It 'reuses row metadata for toggle status state' {
+        $script:FunctionTextByName['Get-ToggleDisplayStateFromRowMetadata'] | Should -Match 'StateLabel'
+        $script:FunctionTextByName['Get-ToggleDisplayStateFromRowMetadata'] | Should -Match 'DetectedState'
+        $script:FunctionTextByName['New-ToggleStatusRow'] | Should -Match 'Get-ToggleDisplayStateFromRowMetadata -RowContext \$RowContext'
+        $script:FunctionTextByName['New-ToggleStatusRow'] | Should -Match 'if \(-not \$toggleDisplay\)'
+        $script:FunctionTextByName['New-ToggleStatusRow'] | Should -Match 'Get-GuiToggleDisplayState -Tweak \$Tweak -StateSource \$CheckBox'
+    }
+
+    It 'labels manifest default chips as Baseline defaults, not Windows defaults' {
+        $script:FileContent | Should -Match "GuiTweakChipBaselineDefaultFormat"
+        $script:FileContent | Should -Match "Baseline default: \{0\}"
+        $script:FileContent | Should -Match "not a Windows default"
+        $script:FileContent | Should -Not -Match "'Default: \{0\}'"
+    }
 }
 
 Describe 'Tweak row initial state recovery' {

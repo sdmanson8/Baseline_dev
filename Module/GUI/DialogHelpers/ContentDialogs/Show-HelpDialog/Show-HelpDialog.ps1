@@ -122,6 +122,8 @@ if ($btnDownloadBaseline)
 							}
 							catch
 							{
+								if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\ContentDialogs\Show-HelpDialog\Show-HelpDialog.ps1:123' -Severity Debug }
+
 								if ($downloadProgressBar)
 								{
 									$downloadProgressBar.Value = 0
@@ -152,6 +154,8 @@ if ($btnDownloadBaseline)
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\ContentDialogs\Show-HelpDialog\Show-HelpDialog.ps1:153' -Severity Debug }
+
 					$downloadErrorMessage = (& $getBaselineBilingualString -Key 'GuiDownloadBaselineFailedMessage' -Fallback 'Failed to download the latest Baseline.exe release asset.`n`n{0}' -FormatArgs @($_.Exception.Message))
 					Show-ThemedDialog -Title $downloadFailedTitle -Message $downloadErrorMessage -Buttons @($okLabel) -AccentButton $okLabel
 					$btnDownloadBaseline.IsEnabled = $true

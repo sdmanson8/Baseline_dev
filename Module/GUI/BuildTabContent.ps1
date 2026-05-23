@@ -14,14 +14,17 @@
 		param (
 			[object]$BuildContext,
 			[switch]$CooperativeYield,
-			[int]$YieldEveryNRows = 5
+			[int]$YieldEveryNRows = 3,
+			[System.Windows.Threading.DispatcherPriority]$YieldDispatcherPriority = [System.Windows.Threading.DispatcherPriority]::Background
 		)
 
 		$__perf = Start-GuiPerfScope -Name 'BuildTabContent.AddTabSectionsToPanel' -Note $BuildContext.PrimaryTab
 		$dispatcher = $null
 		if ($CooperativeYield)
 		{
-			try { $dispatcher = $BuildContext.MainPanel.Dispatcher } catch { $dispatcher = $null }
+			try { $dispatcher = $BuildContext.MainPanel.Dispatcher } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'BuildTabContent.Add-TabSectionsToPanel:catch25' -Severity Debug }
+			 $dispatcher = $null }
 		}
 		$rowCounter = 0
 
@@ -105,7 +108,7 @@
 						if ($rowCounter -ge $YieldEveryNRows)
 						{
 							$rowCounter = 0
-							try { $dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, [System.Action]{}) }
+							try { $dispatcher.Invoke($YieldDispatcherPriority, [System.Action]{}) }
 							catch { Write-SwallowedException -ErrorRecord $_ -Source 'BuildTabContent.AddRow.DispatcherYield' }
 						}
 					}
@@ -155,6 +158,17 @@
 		if (-not $CacheOnly)
 		{
 			$ContentScroll.Content = $BuildContext.MainPanel
+			try
+			{
+				if ($Script:UpdateGuiBackToTopButtonScript)
+				{
+					& $Script:UpdateGuiBackToTopButtonScript
+				}
+			}
+			catch
+			{
+				Write-SwallowedException -ErrorRecord $_ -Source 'BuildTabContent.SaveTabContentCacheEntry.UpdateBackToTopButton'
+			}
 		}
 		$controlRefs = @{}
 		foreach ($index in @($AllTabIndexes))
@@ -204,14 +218,15 @@
 				Stop-GuiStartupSplashAbortProcess -Message 'BuildTabContent aborted before GuiReady because startup splash was closed'
 			}
 			[System.Environment]::Exit(0)
-			try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch { }
+			try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'BuildTabContent.Invoke-GuiStartupReadySignal:catch219' -Severity Debug }
+			 }
 			return
 		}
 
-		# Signal GuiReady NOW - the foreground tab is built and the GUI is
-		# interactive. The background pre-builds below run silently after
-		# the splash closes; the user shouldn't wait ~55 s for every tab
-			# to finish building before they can use the app.
+		# Signal GuiReady NOW - the foreground tab is built. The
+		# ContentRendered splash handoff owns the first visible transition
+		# because WPF requires the window to stay hidden until ShowDialog().
 			if ($Splash -and $Splash -is [hashtable])
 			{
 				$completeStartupSplashStepCommand = Get-Command -Name 'Set-BootstrapLoadingSplashStep' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -220,16 +235,6 @@
 					& $completeStartupSplashStepCommand -Splash $Splash -StepId 'finalize' -Status 'completed' -SubAction '' | Out-Null
 				}
 				$Splash.GuiReady = $true
-			}
-			if ($MainForm)
-			{
-				$MainForm.Visibility = [System.Windows.Visibility]::Visible
-				$MainForm.ShowInTaskbar = $true
-				$MainForm.Opacity = 1
-				if ($MainForm.WindowState -eq [System.Windows.WindowState]::Minimized)
-				{
-					$MainForm.WindowState = [System.Windows.WindowState]::Normal
-				}
 			}
 		}
 		catch { Write-SwallowedException -ErrorRecord $_ -Source 'BuildTabContent.UpdateView.SignalGuiReady' }
@@ -442,7 +447,8 @@
 		}
 		catch { Write-SwallowedException -ErrorRecord $_ -Source 'BuildTabContent.MainPanel.BeginInit' }
 
-		Add-TabSectionsToPanel -BuildContext $buildContext -CooperativeYield:$BackgroundBuild
+		$yieldDispatcherPriority = if ($BackgroundBuild) { [System.Windows.Threading.DispatcherPriority]::Background } else { [System.Windows.Threading.DispatcherPriority]::Render }
+		Add-TabSectionsToPanel -BuildContext $buildContext -CooperativeYield -YieldDispatcherPriority $yieldDispatcherPriority
 
 		if ($panelSuspended)
 		{
@@ -480,10 +486,10 @@
 			Invoke-GuiStartupReadySignal
 
 			# Schedule pre-builds for uncached tabs at idle priority so first-visit
-			# switches are instant. Each pre-build runs with -BackgroundBuild,
-			# which makes Add-TabSectionsToPanel yield to the dispatcher every
-			# N rows. That keeps the GUI responsive (user input drains in the
-			# yield gaps) while tabs warm up in the background.
+			# switches are instant. Add-TabSectionsToPanel yields to the dispatcher
+			# every N rows for foreground and background builds. Foreground builds
+			# drain heartbeat/render work; background builds also let input preempt
+			# idle tab warming.
 			if (-not $SkipIdlePrebuild -and $PrimaryTabs -and $PrimaryTabs.Dispatcher)
 			{
 				$searchTag = $Script:SearchResultsTabTag

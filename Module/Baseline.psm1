@@ -1,7 +1,7 @@
 <#
     .SYNOPSIS
     Internal loader module for Baseline.
- 
+
     .VERSION
     4.0.0 (beta)
 
@@ -26,6 +26,7 @@
 $coreModuleImports = @(
     @{ Name = 'Logging.psm1';     Path = Join-Path $PSScriptRoot 'Logging.psm1';     CanLog = $false }
     @{ Name = 'SharedHelpers.psm1'; Path = Join-Path $PSScriptRoot 'SharedHelpers.psm1'; CanLog = $true  }
+    @{ Name = 'GUICommon.psm1';   Path = Join-Path $PSScriptRoot 'GUICommon.psm1';   CanLog = $true  }
     @{ Name = 'GUIExecution.psm1';  Path = Join-Path $PSScriptRoot 'GUIExecution.psm1';  CanLog = $true  }
 )
 
@@ -77,10 +78,12 @@ $hadPreviousLogPath = -not [string]::IsNullOrWhiteSpace([string]$previousLogPath
 $alreadyInitialized = $hadPreviousLogPath -and $previousLogPath -eq $resolvedLogPath
 $global:LogFilePath = $resolvedLogPath
 Set-LogFile -Path $global:LogFilePath
-if (-not $alreadyInitialized)
+$existingSessionStats = Get-SessionStatistics
+$statisticsInitialized = ($existingSessionStats -and $existingSessionStats.ContainsKey('SessionStartTime') -and $existingSessionStats.SessionStartTime)
+if ((-not $alreadyInitialized) -or (-not $statisticsInitialized))
 {
     Initialize-SessionStatistics
-    if ($hadPreviousLogPath)
+    if ($hadPreviousLogPath -and -not $alreadyInitialized)
     {
         LogWarning ("Baseline loader reset session statistics after module reload because the log path changed from '{0}' to '{1}'." -f $previousLogPath, $resolvedLogPath)
     }

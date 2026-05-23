@@ -24,7 +24,7 @@ function PostActions
 	    .SYNOPSIS
 	    Gets post action requirement.
 
-	    	#>
+		#>
 	function Get-PostActionRequirement
 	{
 		param
@@ -50,7 +50,7 @@ function PostActions
 	    .SYNOPSIS
 	    Runs post action step.
 
-	    	#>
+		#>
 
 	function Invoke-PostActionStep
 	{
@@ -92,7 +92,7 @@ function PostActions
 	    .SYNOPSIS
 	    Runs post action process.
 
-	    	#>
+		#>
 
 	function Invoke-PostActionProcess
 	{
@@ -146,6 +146,8 @@ function PostActions
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PostActions.Invoke-PostActionProcess:catch147' -Severity Debug }
+
 					# Ignore cleanup failures after a timeout.
 				}
 
@@ -153,7 +155,9 @@ function PostActions
 			}
 
 			$process.Refresh()
-			$exitCode = try { $process.ExitCode } catch { $null }
+			$exitCode = try { $process.ExitCode } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PostActions.Invoke-PostActionProcess:catch156' -Severity Debug }
+			 $null }
 			if ($null -ne $exitCode -and $exitCode -ne 0)
 			{
 				throw "$Description returned exit code $exitCode"
@@ -167,6 +171,8 @@ function PostActions
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PostActions.Invoke-PostActionProcess:catch168' -Severity Debug }
+
 				# Ignore process disposal failures.
 			}
 		}
@@ -176,7 +182,7 @@ function PostActions
 	    .SYNOPSIS
 	    Runs post action power shell process.
 
-	    	#>
+		#>
 
 	function Invoke-PostActionPowerShellProcess
 	{

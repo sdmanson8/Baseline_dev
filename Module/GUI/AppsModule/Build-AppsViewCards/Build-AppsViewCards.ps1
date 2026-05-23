@@ -250,6 +250,9 @@ foreach ($app in @($sortedCatalog))
 				'uwp' { (Get-UxLocalizedString -Key 'AppTypeBadgeUWP' -Fallback 'UWP app') }
 				'feature' { (Get-UxLocalizedString -Key 'AppTypeBadgeFeature' -Fallback 'Windows feature') }
 				'system' { (Get-UxLocalizedString -Key 'AppTypeBadgeSystem' -Fallback 'System component') }
+				'store' { (Get-UxLocalizedString -Key 'AppTypeBadgeStore' -Fallback 'Microsoft Store') }
+				'direct' { (Get-UxLocalizedString -Key 'AppTypeBadgeDirect' -Fallback 'Direct download') }
+				'command' { (Get-UxLocalizedString -Key 'AppTypeBadgeCommand' -Fallback 'Command') }
 				'placeholder' { (Get-UxLocalizedString -Key 'AppTypeBadgePlaceholder' -Fallback 'No install method') }
 				default { [string]$entityType }
 			}
@@ -389,7 +392,9 @@ foreach ($app in @($sortedCatalog))
 				}
 				catch
 				{
-					$null = & $Script:ShowGuiRuntimeFailureScript -Context 'AppPrimaryButton' -Exception $_.Exception -ShowDialog
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\AppsModule\Build-AppsViewCards\Build-AppsViewCards.ps1:393' -Severity Debug }
+
+					$null = & $showGuiRuntimeFailureCommand -Context 'AppPrimaryButton' -Exception $_.Exception -ShowDialog
 				}
 			}.GetNewClosure())
 			[void]$buttonRow.Children.Add($primaryButton)
@@ -424,7 +429,9 @@ foreach ($app in @($sortedCatalog))
 					}
 					catch
 					{
-						$null = & $Script:ShowGuiRuntimeFailureScript -Context 'AppUpdateButton' -Exception $_.Exception -ShowDialog
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\AppsModule\Build-AppsViewCards\Build-AppsViewCards.ps1:428' -Severity Debug }
+
+						$null = & $showGuiRuntimeFailureCommand -Context 'AppUpdateButton' -Exception $_.Exception -ShowDialog
 					}
 				}.GetNewClosure())
 				[void]$buttonRow.Children.Add($updateButton)
@@ -438,14 +445,13 @@ foreach ($app in @($sortedCatalog))
 			$queuedBadge.CornerRadius = [System.Windows.CornerRadius]::new(4)
 			$queuedBadge.Padding = [System.Windows.Thickness]::new(8, 3, 8, 3)
 			$queuedBadge.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
-			$queuedBadge.Background = $bc.ConvertFromString($theme.AccentBlue)
 			$queuedBadge.Visibility = [System.Windows.Visibility]::Collapsed
 			$queuedBadgeText = [System.Windows.Controls.TextBlock]::new()
 			$queuedBadgeText.FontSize = 11
 			$queuedBadgeText.FontWeight = [System.Windows.FontWeights]::SemiBold
-			$queuedBadgeText.Foreground = $bc.ConvertFromString($theme.ButtonPrimaryFg)
 			$queuedBadgeText.Text = ''
 			$queuedBadge.Child = $queuedBadgeText
+			Set-GuiAppsQueuedBadgeChrome -Badge $queuedBadge -BadgeText $queuedBadgeText
 			[void]$stack.Children.Add($queuedBadge)
 
 			# Register controls so Sync-AppsQueuedActionControls can refresh button chrome

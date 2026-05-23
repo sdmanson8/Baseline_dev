@@ -53,6 +53,7 @@
       "DisplayOptions": null,
       "Default": null,
       "WinDefault": "Install",
+      "TimeoutSeconds": 900,
       "Description": "Install or remove Copilot, Recall, and Windows AI components",
       "Detail": "Uninstall removes: Copilot app and Store package, Copilot in Windows Search, Copilot sidebar in Edge, Image Creator in Paint, Recall and its scheduled tasks, AI voice effects, App Actions, WSAIFabric and Agent Activation services, .copilot file extension, AI Appx packages, and related registry policies. Install attempts to restore the Copilot Store app via winget or Microsoft Store.",
       "Caution": true,
@@ -79,11 +80,10 @@
       "RecoveryLevel": "Manual",
       "CompatibilitySensitivity": "Medium",
       "PlatformSupport": {
-        "Windows10": false,
+        "Windows10": true,
         "Windows11": true,
         "Server": false,
-        "MinBuild": 22000,
-        "UnavailableReason": "Copilot, Recall, and Windows AI components ship only on Windows 11 client editions."
+        "UnavailableReason": "Copilot and related Windows AI components are client-only Windows 10/11 features."
       }
     },
     {

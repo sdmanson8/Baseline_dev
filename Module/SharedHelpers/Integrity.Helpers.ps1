@@ -63,10 +63,20 @@ function Get-BaselineFileSha256
     )
 
     $bytes  = [System.IO.File]::ReadAllBytes($Path)
+    $offset = 0
+    $count  = $bytes.Length
+
+    if ((Test-BaselineIntegrityPowerShellTextPath -Path $Path) -and $bytes.Length -ge 3 -and
+        $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
+    {
+        $offset = 3
+        $count = $bytes.Length - 3
+    }
+
     $sha256 = [System.Security.Cryptography.SHA256]::Create()
     try
     {
-        $hash = $sha256.ComputeHash($bytes)
+        $hash = $sha256.ComputeHash($bytes, $offset, $count)
     }
     finally
     {
@@ -74,6 +84,19 @@ function Get-BaselineFileSha256
     }
 
     return ([System.BitConverter]::ToString($hash) -replace '-', '').ToLowerInvariant()
+}
+
+function Test-BaselineIntegrityPowerShellTextPath
+{
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    $extension = [System.IO.Path]::GetExtension($Path)
+    return ($extension -in @('.ps1', '.psm1', '.psd1'))
 }
 
 function Get-BaselineIntegrityCoveredFiles

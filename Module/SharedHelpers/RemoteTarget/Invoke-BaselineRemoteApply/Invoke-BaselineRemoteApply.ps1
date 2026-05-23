@@ -59,7 +59,9 @@ foreach ($computer in @($ComputerName))
 			if ($policyGate.Allowed)
 			{
 				$sessionSummaryBefore = @()
-				try { $sessionSummaryBefore = @(Get-BaselineRemoteSessionSummary -ComputerName $computer) } catch { $sessionSummaryBefore = @() }
+				try { $sessionSummaryBefore = @(Get-BaselineRemoteSessionSummary -ComputerName $computer) } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\RemoteTarget\Invoke-BaselineRemoteApply\Invoke-BaselineRemoteApply.ps1:62' -Severity Debug }
+				 $sessionSummaryBefore = @() }
 				$sessionReused = $sessionSummaryBefore.Count -gt 0
 				# Open or reuse a cached remote session.
 				$session = Get-BaselineRemoteSession -ComputerName $computer -Credential $Credential -MaxRetryCount $MaxRetryCount -RetryDelayMilliseconds $RetryDelayMilliseconds
@@ -223,6 +225,8 @@ foreach ($computer in @($ComputerName))
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\RemoteTarget\Invoke-BaselineRemoteApply\Invoke-BaselineRemoteApply.ps1:224' -Severity Debug }
+
 					$errors.Add($_.Exception.Message)
 				}
 
@@ -294,6 +298,8 @@ foreach ($computer in @($ComputerName))
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\RemoteTarget\Invoke-BaselineRemoteApply\Invoke-BaselineRemoteApply.ps1:295' -Severity Debug }
+
 			$entry.Errors = @($entry.Errors + $_.Exception.Message)
 		}
 		finally

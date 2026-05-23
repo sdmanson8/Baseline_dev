@@ -135,7 +135,7 @@ Describe 'UxPolicy' {
             $lines = @(Get-UxUndoAndRestoreLines)
 
             ($lines -join ' ') | Should -Match 'Undo Selection Change'
-            ($lines -join ' ') | Should -Match 'Restore to Windows Defaults'
+            ($lines -join ' ') | Should -Match 'Restore Defaults'
             ($lines -join ' ') | Should -Match 'Export Undo Profile'
         }
 

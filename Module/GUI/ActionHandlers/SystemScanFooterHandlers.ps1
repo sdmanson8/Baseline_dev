@@ -25,7 +25,7 @@
 		foreach ($si in $Script:Controls.Keys)
 		{
 			$sctl = $Script:Controls[$si]
-			if ($sctl) { $sctl.IsEnabled = $true }
+			if ($sctl -and (& $hasField -Object $sctl -FieldName 'IsEnabled')) { $sctl.IsEnabled = $true }
 		}
 		& $setGuiStatusTextCommand -Text '' -Tone 'muted'
 		if ($Script:CurrentPrimaryTab) { & $buildTabContentCommand -PrimaryTab $Script:CurrentPrimaryTab }
@@ -44,13 +44,20 @@
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ()
 
-		if ($Script:AppsModeActive -or $Script:UpdatesModeActive -or $Script:DeploymentMediaModeActive)
+		if ($Script:AppsModeActive -or $Script:DeploymentMediaModeActive)
 		{
 			if ($Script:BtnRun) { $Script:BtnRun.Visibility = [System.Windows.Visibility]::Collapsed }
 			if ($Script:BtnPreviewRun) { $Script:BtnPreviewRun.Visibility = [System.Windows.Visibility]::Collapsed }
 			if ($Script:BtnDefaults) { $Script:BtnDefaults.Visibility = [System.Windows.Visibility]::Collapsed }
+			if ($Script:BtnDeploymentMediaPreviewPlan) { $Script:BtnDeploymentMediaPreviewPlan.Visibility = if ($Script:DeploymentMediaModeActive) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed } }
+			if ($Script:BtnDeploymentMediaStartBuild) { $Script:BtnDeploymentMediaStartBuild.Visibility = if ($Script:DeploymentMediaModeActive) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed } }
 			return
 		}
+
+		$updatesModeActive = [bool]$Script:UpdatesModeActive
+
+		if ($Script:BtnDeploymentMediaPreviewPlan) { $Script:BtnDeploymentMediaPreviewPlan.Visibility = [System.Windows.Visibility]::Collapsed }
+		if ($Script:BtnDeploymentMediaStartBuild) { $Script:BtnDeploymentMediaStartBuild.Visibility = [System.Windows.Visibility]::Collapsed }
 
 		if ($Script:BtnRun)
 		{
@@ -90,7 +97,7 @@
 
 		if ($Script:BtnDefaults)
 		{
-			$Script:BtnDefaults.Visibility = [System.Windows.Visibility]::Visible
+			$Script:BtnDefaults.Visibility = if ($updatesModeActive) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
 		}
 
 		Update-RunPathContextLabel
@@ -590,7 +597,9 @@
 
 			$resolvedPath = $null
 			try { $resolvedPath = [System.IO.Path]::GetFullPath([string]$Path) }
-			catch { return }
+			catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.Get-GuiSupportBundleSessionLogChoices:catch600' -Severity Debug }
+			 return }
 
 			$key = $resolvedPath.ToLowerInvariant()
 			if ($seen.ContainsKey($key)) { return }
@@ -631,7 +640,9 @@
 			param ([string]$Root)
 			if ([string]::IsNullOrWhiteSpace($Root)) { return }
 			try { $resolvedRoot = [System.IO.Path]::GetFullPath([string]$Root) }
-			catch { return }
+			catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.Get-GuiSupportBundleSessionLogChoices:catch641' -Severity Debug }
+			 return }
 			$key = $resolvedRoot.ToLowerInvariant()
 			if (-not $rootSeen.ContainsKey($key))
 			{
@@ -657,7 +668,9 @@
 		$defaultLogDirectory = $null
 		if (Get-Command -Name 'Get-BaselineLogDirectory' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			try { $defaultLogDirectory = [string](Get-BaselineLogDirectory) } catch { $defaultLogDirectory = $null }
+			try { $defaultLogDirectory = [string](Get-BaselineLogDirectory) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.Get-GuiSupportBundleSessionLogChoices:catch667' -Severity Debug }
+			 $defaultLogDirectory = $null }
 		}
 		& $addRoot $defaultLogDirectory
 
@@ -813,14 +826,587 @@
 		return $null
 	}
 
+	function Invoke-GuiSupportBundleProgressDialogRender
+	{
+		param (
+			[AllowNull()]
+			[object]$ProgressDialog
+		)
+
+		if (-not $ProgressDialog -or -not $ProgressDialog.Window) { return }
+
+		try
+		{
+			$dispatcher = $ProgressDialog.Window.Dispatcher
+			if ($dispatcher)
+			{
+				$dispatcher.Invoke([System.Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
+				$dispatcher.Invoke([System.Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
+			}
+		}
+		catch
+		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.ProgressDialogRender'
+			}
+		}
+	}
+
+	function Show-GuiSupportBundleProgressDialog
+	{
+		param (
+			[Parameter(Mandatory = $true)]
+			[string]$OutputPath
+		)
+
+		try
+		{
+			$theme = if ($Script:CurrentTheme) { $Script:CurrentTheme } else { @{} }
+			$bc = if ($Script:SharedBrushConverter) { $Script:SharedBrushConverter } else { [System.Windows.Media.BrushConverter]::new() }
+			$getThemeColor = {
+				param(
+					[string]$Name,
+					[string]$Default
+				)
+
+				if ($theme -and $theme -is [System.Collections.IDictionary] -and $theme.Contains($Name) -and -not [string]::IsNullOrWhiteSpace([string]$theme[$Name]))
+				{
+					return [string]$theme[$Name]
+				}
+				if ($theme -and $theme.PSObject.Properties[$Name] -and -not [string]::IsNullOrWhiteSpace([string]$theme.$Name))
+				{
+					return [string]$theme.$Name
+				}
+				return $Default
+			}.GetNewClosure()
+
+			$title = 'Export Support Bundle'
+			$outputName = [System.IO.Path]::GetFileName($OutputPath)
+			$window = New-Object System.Windows.Window
+			$window.Title = $title
+			$window.Width = 460
+			$window.SizeToContent = [System.Windows.SizeToContent]::Height
+			$window.ResizeMode = [System.Windows.ResizeMode]::NoResize
+			$window.WindowStartupLocation = [System.Windows.WindowStartupLocation]::CenterOwner
+			$window.ShowInTaskbar = $false
+			$window.WindowStyle = [System.Windows.WindowStyle]::None
+			$window.AllowsTransparency = $true
+			$window.Background = [System.Windows.Media.Brushes]::Transparent
+			if ($Form) { try { $window.Owner = $Form } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.ProgressDialogOwner' } }
+
+			$rootBorder = New-Object System.Windows.Controls.Border
+			$rootBorder.CornerRadius = [System.Windows.CornerRadius]::new(8)
+			$rootBorder.BorderThickness = [System.Windows.Thickness]::new(1)
+			$rootBorder.Background = $bc.ConvertFromString((& $getThemeColor -Name 'WindowBg' -Default '#FFFFFF'))
+			$rootBorder.BorderBrush = $bc.ConvertFromString((& $getThemeColor -Name 'BorderColor' -Default '#D8DEE8'))
+
+			$layout = New-Object System.Windows.Controls.DockPanel
+			$layout.LastChildFill = $true
+
+			$titleBar = New-Object System.Windows.Controls.Border
+			$titleBar.Background = $bc.ConvertFromString((& $getThemeColor -Name 'HeaderBg' -Default '#F7F8FA'))
+			$titleBar.BorderBrush = $bc.ConvertFromString((& $getThemeColor -Name 'BorderColor' -Default '#D8DEE8'))
+			$titleBar.BorderThickness = [System.Windows.Thickness]::new(0, 0, 0, 1)
+			$titleBar.CornerRadius = [System.Windows.CornerRadius]::new(8, 8, 0, 0)
+			$titleBar.Padding = [System.Windows.Thickness]::new(12, 8, 12, 8)
+			$titleBlock = New-Object System.Windows.Controls.TextBlock
+			$titleBlock.Text = $title
+			$titleBlock.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI')
+			$titleBlock.FontSize = 12
+			$titleBlock.FontWeight = [System.Windows.FontWeights]::SemiBold
+			$titleBlock.Foreground = $bc.ConvertFromString((& $getThemeColor -Name 'TextPrimary' -Default '#111827'))
+			$titleBar.Child = $titleBlock
+			$titleBar.Add_MouseLeftButtonDown({ $window.DragMove() }.GetNewClosure())
+			[System.Windows.Controls.DockPanel]::SetDock($titleBar, [System.Windows.Controls.Dock]::Top)
+			[void]$layout.Children.Add($titleBar)
+
+			$content = New-Object System.Windows.Controls.StackPanel
+			$content.Margin = [System.Windows.Thickness]::new(22, 18, 22, 20)
+			$message = New-Object System.Windows.Controls.TextBlock
+			$message.Text = 'Creating ZIP archive. Keep this window open until the export completes.'
+			$message.TextWrapping = [System.Windows.TextWrapping]::Wrap
+			$message.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI')
+			$message.FontSize = 13
+			$message.Foreground = $bc.ConvertFromString((& $getThemeColor -Name 'TextPrimary' -Default '#111827'))
+			[void]$content.Children.Add($message)
+
+			$statusText = New-Object System.Windows.Controls.TextBlock
+			$statusText.Text = if ([string]::IsNullOrWhiteSpace($outputName)) { 'Exporting support bundle...' } else { "Exporting $outputName..." }
+			$statusText.TextWrapping = [System.Windows.TextWrapping]::Wrap
+			$statusText.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI')
+			$statusText.FontSize = 12
+			$statusText.Foreground = $bc.ConvertFromString((& $getThemeColor -Name 'TextMuted' -Default '#6B7280'))
+			$statusText.Margin = [System.Windows.Thickness]::new(0, 8, 0, 8)
+			[void]$content.Children.Add($statusText)
+
+			$progressBar = New-Object System.Windows.Controls.ProgressBar
+			$progressBar.Height = 14
+			$progressBar.Minimum = 0
+			$progressBar.Maximum = 1
+			$progressBar.Value = 0
+			$progressBar.IsIndeterminate = $true
+			$progressBar.Foreground = $bc.ConvertFromString((& $getThemeColor -Name 'ProgressGreen' -Default '#10B981'))
+			$progressBar.Background = $bc.ConvertFromString((& $getThemeColor -Name 'ProgressGreenTrack' -Default '#D1FAE5'))
+			try
+			{
+				if (Get-Command -Name 'New-GuiExecutionProgressBarTemplate' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					$progressBar.Template = New-GuiExecutionProgressBarTemplate
+				}
+			}
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.ProgressBarTemplate' }
+			[void]$content.Children.Add($progressBar)
+			[void]$layout.Children.Add($content)
+			$rootBorder.Child = $layout
+			$window.Content = $rootBorder
+
+			try { [void](Set-GuiWindowChromeTheme -Window $window -UseDarkMode ($Script:CurrentThemeName -eq 'Dark')) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.ProgressWindowChrome' }
+			$window.Show()
+
+			$dialog = [pscustomobject]@{
+				Window      = $window
+				StatusText  = $statusText
+				ProgressBar = $progressBar
+			}
+			Invoke-GuiSupportBundleProgressDialogRender -ProgressDialog $dialog
+			return $dialog
+		}
+		catch
+		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.ShowProgressDialog'
+			}
+			return $null
+		}
+	}
+
+	function Close-GuiSupportBundleProgressDialog
+	{
+		param (
+			[AllowNull()]
+			[object]$ProgressDialog
+		)
+
+		if (-not $ProgressDialog -or -not $ProgressDialog.Window) { return }
+		try
+		{
+			$ProgressDialog.ProgressBar.IsIndeterminate = $false
+			$ProgressDialog.ProgressBar.Value = 1
+			$ProgressDialog.Window.Close()
+		}
+		catch
+		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.CloseProgressDialog'
+			}
+		}
+	}
+
+	$Script:CloseGuiSupportBundleProgressDialogScript = ${function:Close-GuiSupportBundleProgressDialog}
+
+	function Set-GuiSupportBundleProgressDialogStatus
+	{
+		param (
+			[AllowNull()]
+			[object]$ProgressDialog,
+
+			[string]$Status,
+
+			[switch]$Completed
+		)
+
+		if (-not $ProgressDialog -or -not $ProgressDialog.Window) { return }
+		try
+		{
+			if ($ProgressDialog.StatusText -and -not [string]::IsNullOrWhiteSpace([string]$Status))
+			{
+				$ProgressDialog.StatusText.Text = [string]$Status
+			}
+			if ($ProgressDialog.ProgressBar -and $Completed)
+			{
+				$ProgressDialog.ProgressBar.IsIndeterminate = $false
+				$ProgressDialog.ProgressBar.Value = 1
+			}
+		}
+		catch
+		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.ProgressDialogStatus'
+			}
+		}
+	}
+
+	function Stop-GuiSupportBundleExportWorker
+	{
+		[CmdletBinding()]
+		param (
+			[string]$Reason = 'Support bundle export stopped.',
+
+			[switch]$StopPowerShell,
+
+			[switch]$SkipEndInvoke
+		)
+
+		$workerVariable = Get-Variable -Scope Script -Name 'SupportBundleExportWorker' -ErrorAction SilentlyContinue
+		if (-not $workerVariable -or -not $workerVariable.Value)
+		{
+			$Script:SupportBundleExportInProgress = $false
+			return
+		}
+
+		$worker = $workerVariable.Value
+		$Script:SupportBundleExportWorker = $null
+		$Script:SupportBundleExportInProgress = $false
+
+		if ($worker.PSObject.Properties['Timer'] -and $worker.Timer)
+		{
+			try { $worker.Timer.Stop() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.StopTimer' }
+		}
+
+		if ($worker.PSObject.Properties['ProgressDialog'] -and $worker.ProgressDialog)
+		{
+			$closeProgressDialogScript = $Script:CloseGuiSupportBundleProgressDialogScript
+			if ($closeProgressDialogScript)
+			{
+				& $closeProgressDialogScript -ProgressDialog $worker.ProgressDialog
+			}
+		}
+
+		if ($StopPowerShell -and $worker.PSObject.Properties['PowerShell'] -and $worker.PowerShell)
+		{
+			try
+			{
+				$null = $worker.PowerShell.BeginStop($null, $null)
+			}
+			catch
+			{
+				try { $worker.PowerShell.Stop() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.StopPowerShell' }
+			}
+		}
+
+		if ($worker.PSObject.Properties['AsyncResult'] -and $worker.AsyncResult -and -not $worker.AsyncResult.IsCompleted)
+		{
+			try { [void]$worker.AsyncResult.AsyncWaitHandle.WaitOne(1000) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.WaitForStop' }
+		}
+		$workerStillRunning = ($worker.PSObject.Properties['AsyncResult'] -and $worker.AsyncResult -and -not $worker.AsyncResult.IsCompleted)
+
+		if (-not $SkipEndInvoke -and $worker.PSObject.Properties['AsyncResult'] -and $worker.AsyncResult -and $worker.AsyncResult.IsCompleted -and $worker.PSObject.Properties['PowerShell'] -and $worker.PowerShell)
+		{
+			try { $null = $worker.PowerShell.EndInvoke($worker.AsyncResult) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.EndInvokeDuringCleanup' }
+		}
+
+		if ($worker.PSObject.Properties['MenuItem'] -and $worker.MenuItem)
+		{
+			$menuWasEnabled = $true
+			if ($worker.PSObject.Properties['MenuWasEnabled']) { $menuWasEnabled = [bool]$worker.MenuWasEnabled }
+			try { $worker.MenuItem.IsEnabled = $menuWasEnabled } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.RestoreMenuItem' }
+		}
+
+		if ($worker.PSObject.Properties['SessionStatePath'] -and -not [string]::IsNullOrWhiteSpace([string]$worker.SessionStatePath) -and (Test-Path -LiteralPath ([string]$worker.SessionStatePath)))
+		{
+			try { Remove-Item -LiteralPath ([string]$worker.SessionStatePath) -Force -ErrorAction SilentlyContinue }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.ExportSupportBundle.RemoveSessionStatePath' }
+		}
+
+		if ($worker.PSObject.Properties['PowerShell'] -and $worker.PowerShell)
+		{
+			if (-not $workerStillRunning)
+			{
+				try { $worker.PowerShell.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.DisposePowerShell' }
+			}
+		}
+
+		if ($worker.PSObject.Properties['Runspace'] -and $worker.Runspace)
+		{
+			try
+			{
+				if ($worker.Runspace.RunspaceStateInfo -and $worker.Runspace.RunspaceStateInfo.State -eq [System.Management.Automation.Runspaces.RunspaceState]::Opened)
+				{
+					if ($StopPowerShell -and $workerStillRunning)
+					{
+						$worker.Runspace.CloseAsync()
+					}
+					else
+					{
+						$worker.Runspace.Close()
+					}
+				}
+			}
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.CloseRunspace' }
+			if (-not $workerStillRunning)
+			{
+				try { $worker.Runspace.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.DisposeRunspace' }
+			}
+		}
+
+		if ($StopPowerShell -and -not [string]::IsNullOrWhiteSpace($Reason) -and (Get-Command -Name 'LogWarning' -CommandType Function -ErrorAction SilentlyContinue))
+		{
+			LogWarning $Reason
+		}
+	}
+
+	$Script:StopGuiSupportBundleExportWorkerScript = ${function:Stop-GuiSupportBundleExportWorker}
+
+	function Start-GuiSupportBundleExportAsync
+	{
+		[CmdletBinding()]
+		param (
+			[Parameter(Mandatory = $true)]
+			[string]$OutputPath,
+
+			[Parameter(Mandatory = $true)]
+			[string]$SessionStatePath,
+
+			[Parameter(Mandatory = $true)]
+			[string]$SessionLogPath,
+
+			[AllowNull()]
+			[object]$PreSnapshot,
+
+			[AllowNull()]
+			[object]$PostSnapshot,
+
+			[Parameter()]
+			[AllowEmptyCollection()]
+			[object[]]$ConnectivityResults = @(),
+
+			[AllowNull()]
+			[object]$ProgressDialog,
+
+			[AllowNull()]
+			[object]$MenuItem,
+
+			[bool]$MenuWasEnabled = $true,
+
+			[AllowNull()]
+			[object]$SetStatusTextCommand,
+
+			[Parameter(Mandatory = $true)]
+			[scriptblock]$SetProgressDialogStatus,
+
+			[Parameter(Mandatory = $true)]
+			[scriptblock]$CloseProgressDialog,
+
+			[Parameter(Mandatory = $true)]
+			[scriptblock]$ShowDialog
+		)
+
+		$moduleRoot = [string]$Script:GuiModuleBasePath
+		if ([string]::IsNullOrWhiteSpace($moduleRoot))
+		{
+			throw 'GUI module path is unavailable.'
+		}
+
+		$sharedHelpersPath = Join-Path -Path $moduleRoot -ChildPath 'SharedHelpers.psm1'
+		if (-not (Test-Path -LiteralPath $sharedHelpersPath))
+		{
+			throw "Shared helpers module is missing: $sharedHelpersPath"
+		}
+
+		$Script:SupportBundleExportInProgress = $true
+		if ($MenuItem) { try { $MenuItem.IsEnabled = $false } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.DisableMenuItem' } }
+
+		$syncHash = [hashtable]::Synchronized(@{
+			Status = 'Preparing support bundle export...'
+			OutputPath = ''
+		})
+		$runspace = $null
+		$ps = $null
+		$asyncResult = $null
+		$timer = $null
+
+		try
+		{
+			$runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+			$runspace.ApartmentState = [System.Threading.ApartmentState]::MTA
+			$runspace.Open()
+			$ps = [System.Management.Automation.PowerShell]::Create()
+			$ps.Runspace = $runspace
+
+			$null = $ps.AddScript({
+				param (
+					[string]$SharedHelpersPath,
+					[string]$ModuleRoot,
+					[string]$OutputPath,
+					[string]$ProfilePath,
+					[string]$SessionLogPath,
+					[object]$PreSnapshot,
+					[object]$PostSnapshot,
+					[object[]]$ConnectivityResults,
+					[hashtable]$Sync
+				)
+
+				$ErrorActionPreference = 'Stop'
+				$Global:GUIMode = $true
+				$Sync.Status = 'Loading support bundle helpers...'
+				Import-Module -Name $SharedHelpersPath -Force -Global -ErrorAction Stop
+
+				$Sync.Status = 'Preparing support bundle diagnostics...'
+				$progressCallback = {
+					param(
+						[string]$Stage,
+						[string]$Message
+					)
+
+					if (-not [string]::IsNullOrWhiteSpace($Message))
+					{
+						$Sync.Status = $Message
+					}
+				}.GetNewClosure()
+				$exportArgs = @{
+					OutputPath = $OutputPath
+					ProfilePath = $ProfilePath
+					SessionLogPath = $SessionLogPath
+					PreSnapshot = $PreSnapshot
+					PostSnapshot = $PostSnapshot
+					IncludeAuditLog = $true
+					IncludeTestReport = $true
+					ConnectivityResults = @($ConnectivityResults)
+					ProgressCallback = $progressCallback
+				}
+				$result = Export-BaselineSupportBundle @exportArgs
+				$Sync.OutputPath = [string]$result.OutputPath
+				$Sync.Status = 'Support bundle export complete.'
+				return $result
+			}).AddArgument($sharedHelpersPath).AddArgument($moduleRoot).AddArgument($OutputPath).AddArgument($SessionStatePath).AddArgument($SessionLogPath).AddArgument($PreSnapshot).AddArgument($PostSnapshot).AddArgument(@($ConnectivityResults)).AddArgument($syncHash)
+
+			$asyncResult = $ps.BeginInvoke()
+			$timer = [System.Windows.Threading.DispatcherTimer]::new()
+			$timer.Interval = [TimeSpan]::FromMilliseconds(150)
+			$Script:SupportBundleExportWorker = [pscustomobject]@{
+				PowerShell       = $ps
+				Runspace         = $runspace
+				AsyncResult      = $asyncResult
+				Timer            = $timer
+				ProgressDialog   = $ProgressDialog
+				MenuItem         = $MenuItem
+				MenuWasEnabled   = $MenuWasEnabled
+				SessionStatePath = $SessionStatePath
+				OutputPath        = $OutputPath
+			}
+			$lastStatus = ''
+			$timer.Add_Tick({
+				$currentStatus = [string]$syncHash.Status
+				if (-not [string]::IsNullOrWhiteSpace($currentStatus) -and $currentStatus -ne $lastStatus)
+				{
+					$lastStatus = $currentStatus
+					& $SetProgressDialogStatus -ProgressDialog $ProgressDialog -Status $currentStatus
+					if ($SetStatusTextCommand)
+					{
+						try { & $SetStatusTextCommand -Text $currentStatus -Tone 'accent' } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.StatusTextUpdate' }
+					}
+				}
+
+				if (-not $asyncResult.IsCompleted)
+				{
+					return
+				}
+
+				$timer.Stop()
+				try
+				{
+					$resultItems = @($ps.EndInvoke($asyncResult))
+					$result = if ($resultItems.Count -gt 0) { $resultItems[0] } else { $null }
+					$outputPathValue = [string]$syncHash.OutputPath
+					if ([string]::IsNullOrWhiteSpace($outputPathValue) -and $result -and $result.PSObject.Properties['OutputPath'])
+					{
+						$outputPathValue = [string]$result.OutputPath
+					}
+					if ([string]::IsNullOrWhiteSpace($outputPathValue))
+					{
+						$outputPathValue = [string]$OutputPath
+					}
+
+					& $SetProgressDialogStatus -ProgressDialog $ProgressDialog -Status 'Support bundle export complete.' -Completed
+					& $CloseProgressDialog -ProgressDialog $ProgressDialog
+					if ($SetStatusTextCommand)
+					{
+						& $SetStatusTextCommand -Text ("Support bundle exported: {0}" -f $outputPathValue) -Tone 'success'
+					}
+					LogInfo ("Exported support bundle to {0} using session log {1}" -f $outputPathValue, [string]$SessionLogPath)
+					[void](Invoke-UserLaunch -FilePath 'explorer.exe' -ArgumentList @('/select,"{0}"' -f $outputPathValue) -Description 'support bundle output')
+				}
+				catch
+				{
+					& $CloseProgressDialog -ProgressDialog $ProgressDialog
+					if ($SetStatusTextCommand)
+					{
+						try { & $SetStatusTextCommand -Text ("Support bundle export failed: {0}" -f $_.Exception.Message) -Tone 'danger' } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScanFooterHandlers.SupportBundle.StatusTextFailure' }
+					}
+					LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to export support bundle')
+					[void](& $ShowDialog -Title 'Export Support Bundle' -Message ("Failed to export support bundle.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+				}
+				finally
+				{
+					$stopSupportBundleExportScript = $Script:StopGuiSupportBundleExportWorkerScript
+					if ($stopSupportBundleExportScript)
+					{
+						& $stopSupportBundleExportScript -Reason 'Support bundle export completed.' -SkipEndInvoke
+					}
+				}
+			}.GetNewClosure())
+			$timer.Start()
+		}
+		catch
+		{
+			if (-not $Script:SupportBundleExportWorker -and ($ps -or $runspace -or $timer))
+			{
+				$Script:SupportBundleExportWorker = [pscustomobject]@{
+					PowerShell       = $ps
+					Runspace         = $runspace
+					AsyncResult      = $asyncResult
+					Timer            = $timer
+					ProgressDialog   = $ProgressDialog
+					MenuItem         = $MenuItem
+					MenuWasEnabled   = $MenuWasEnabled
+					SessionStatePath = $SessionStatePath
+					OutputPath        = $OutputPath
+				}
+			}
+			$stopSupportBundleExportScript = $Script:StopGuiSupportBundleExportWorkerScript
+			if ($stopSupportBundleExportScript)
+			{
+				& $stopSupportBundleExportScript -Reason 'Support bundle export failed before it could start.' -StopPowerShell -SkipEndInvoke
+			}
+			throw
+		}
+	}
+
 	$getSupportBundleSessionLogChoicesCommand = Get-GuiRuntimeCommand -Name 'Get-GuiSupportBundleSessionLogChoices' -CommandType 'Function'
 	$showSupportBundleSessionLogDialogCommand = Get-GuiRuntimeCommand -Name 'Show-GuiSupportBundleSessionLogDialog' -CommandType 'Function'
+	$showSupportBundleProgressDialogCommand = Get-GuiFunctionCapture -Name 'Show-GuiSupportBundleProgressDialog'
+	$closeSupportBundleProgressDialogCommand = Get-GuiFunctionCapture -Name 'Close-GuiSupportBundleProgressDialog'
+	$setSupportBundleProgressDialogStatusCommand = Get-GuiFunctionCapture -Name 'Set-GuiSupportBundleProgressDialogStatus'
+	$startSupportBundleExportAsyncCommand = Get-GuiFunctionCapture -Name 'Start-GuiSupportBundleExportAsync'
+	$showThemedDialogCommand = Get-GuiFunctionCapture -Name 'Show-ThemedDialog'
+	if (-not $showSupportBundleProgressDialogCommand) { throw 'Show-GuiSupportBundleProgressDialog not found.' }
+	if (-not $closeSupportBundleProgressDialogCommand) { throw 'Close-GuiSupportBundleProgressDialog not found.' }
+	if (-not $setSupportBundleProgressDialogStatusCommand) { throw 'Set-GuiSupportBundleProgressDialogStatus not found.' }
+	if (-not $startSupportBundleExportAsyncCommand) { throw 'Start-GuiSupportBundleExportAsync not found.' }
+	if (-not $showThemedDialogCommand) { throw 'Show-ThemedDialog not found.' }
+	if (-not (Get-Variable -Scope Script -Name 'SupportBundleExportInProgress' -ErrorAction SilentlyContinue))
+	{
+		$Script:SupportBundleExportInProgress = $false
+	}
+	if (-not (Get-Variable -Scope Script -Name 'SupportBundleExportWorker' -ErrorAction SilentlyContinue))
+	{
+		$Script:SupportBundleExportWorker = $null
+	}
 
 	# Export Support Bundle action
 	if ($MenuToolsExportSupportBundle)
 	{
 		Register-GuiEventHandler -Source $MenuToolsExportSupportBundle -EventName 'Click' -Handler ({
 			if (& $testGuiRunInProgressCapture) { return }
+			if ($Script:SupportBundleExportInProgress)
+			{
+				& $setGuiStatusTextCommand -Text 'Support bundle export is already running.' -Tone 'accent'
+				return
+			}
 			try
 			{
 				$selectedSessionLog = & $showSupportBundleSessionLogDialogCommand -Choices @(& $getSupportBundleSessionLogChoicesCommand)
@@ -841,10 +1427,14 @@
 					return
 				}
 
-				$sessionSnapshot = & $getGuiSettingsSnapshotCommand
-				$sessionStatePath = Join-Path ([System.IO.Path]::GetTempPath()) ('BaselineSupportBundleSession_{0}.json' -f [guid]::NewGuid().ToString('N'))
+				$progressDialog = & $showSupportBundleProgressDialogCommand -OutputPath $savePath
+				& $setGuiStatusTextCommand -Text 'Preparing support bundle export...' -Tone 'accent'
+
+				$sessionStatePath = $null
 				try
 				{
+					$sessionSnapshot = & $getGuiSettingsSnapshotCommand
+					$sessionStatePath = Join-Path ([System.IO.Path]::GetTempPath()) ('BaselineSupportBundleSession_{0}.json' -f [guid]::NewGuid().ToString('N'))
 					$sessionPayload = [ordered]@{
 						Schema = 'Baseline.GuiSession'
 						SchemaVersion = 1
@@ -856,9 +1446,6 @@
 						}
 					}
 					($sessionPayload | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $sessionStatePath -Encoding UTF8 -Force
-
-					$systemSnapshot = $null
-					try { $systemSnapshot = New-SystemStateSnapshot -Manifest $Script:TweakManifest } catch { $systemSnapshot = $null }
 
 					$preRunSnapshot = $null
 					$postRunSnapshot = $null
@@ -878,6 +1465,8 @@
 					}
 					catch
 					{
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\ActionHandlers\SystemScanFooterHandlers.ps1:1460' -Severity Debug }
+
 						$preRunSnapshot = $null
 						$postRunSnapshot = $null
 					}
@@ -891,16 +1480,20 @@
 							$connectivityResults = @($ctx.LastConnectivityResults)
 						}
 					}
-					catch { $connectivityResults = @() }
+					catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\ActionHandlers\SystemScanFooterHandlers.ps1:1475' -Severity Debug }
+					 $connectivityResults = @() }
 
-					$result = & $exportSupportBundleCommand -OutputPath $savePath -ProfilePath $sessionStatePath -SessionLogPath ([string]$selectedSessionLog.Path) -SystemSnapshot $systemSnapshot -PreSnapshot $preRunSnapshot -PostSnapshot $postRunSnapshot -Manifest $Script:TweakManifest -IncludeAuditLog -IncludeTestReport -ConnectivityResults $connectivityResults
-					& $setGuiStatusTextCommand -Text ("Support bundle exported: {0}" -f $result.OutputPath) -Tone 'success'
-					LogInfo ("Exported support bundle to {0} using session log {1}" -f $result.OutputPath, [string]$selectedSessionLog.Path)
-					[void](Invoke-UserLaunch -FilePath 'explorer.exe' -ArgumentList @('/select,"{0}"' -f [string]$result.OutputPath) -Description 'support bundle output')
+					$menuWasEnabled = $true
+					try { $menuWasEnabled = [bool]$MenuToolsExportSupportBundle.IsEnabled } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\ActionHandlers\SystemScanFooterHandlers.ps1:1478' -Severity Debug }
+					 $menuWasEnabled = $true }
+					& $startSupportBundleExportAsyncCommand -OutputPath $savePath -SessionStatePath $sessionStatePath -SessionLogPath ([string]$selectedSessionLog.Path) -PreSnapshot $preRunSnapshot -PostSnapshot $postRunSnapshot -ConnectivityResults @($connectivityResults) -ProgressDialog $progressDialog -MenuItem $MenuToolsExportSupportBundle -MenuWasEnabled $menuWasEnabled -SetStatusTextCommand $setGuiStatusTextCommand -SetProgressDialogStatus $setSupportBundleProgressDialogStatusCommand -CloseProgressDialog $closeSupportBundleProgressDialogCommand -ShowDialog $showThemedDialogCommand
 				}
-				finally
+				catch
 				{
-					if (Test-Path -LiteralPath $sessionStatePath)
+					& $closeSupportBundleProgressDialogCommand -ProgressDialog $progressDialog
+					if (-not [string]::IsNullOrWhiteSpace($sessionStatePath) -and (Test-Path -LiteralPath $sessionStatePath))
 					{
 						try
 						{
@@ -914,12 +1507,13 @@
 							}
 						}
 					}
+					throw
 				}
 			}
 			catch
 			{
 				LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to export support bundle')
-				[void](Show-ThemedDialog -Title 'Export Support Bundle' -Message ("Failed to export support bundle.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+				[void](& $showThemedDialogCommand -Title 'Export Support Bundle' -Message ("Failed to export support bundle.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 			}
 		}.GetNewClosure()) | Out-Null
 	}
@@ -932,7 +1526,9 @@
 			try
 			{
 				$context = $null
-				try { $context = & $getRemoteTargetContextCommand } catch { $context = $null }
+				try { $context = & $getRemoteTargetContextCommand } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\ActionHandlers\SystemScanFooterHandlers.ps1:1517' -Severity Debug }
+				 $context = $null }
 				if (-not $context -or -not $context.Connected -or $context.TargetComputers.Count -eq 0)
 				{
 					[void](Show-ThemedDialog -Title 'Approve Target List' -Message 'Connect to at least one remote computer before approving a target list.' -Buttons @('OK') -AccentButton 'OK')
@@ -1073,11 +1669,15 @@
 			try
 			{
 				$context = $null
-				try { $context = & $getRemoteTargetContextCommand } catch { $context = $null }
+				try { $context = & $getRemoteTargetContextCommand } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\ActionHandlers\SystemScanFooterHandlers.ps1:1658' -Severity Debug }
+				 $context = $null }
 				$sessions = @()
 				if ($getRemoteSessionSummaryCommand)
 				{
-					try { $sessions = @(& $getRemoteSessionSummaryCommand) } catch { $sessions = @() }
+					try { $sessions = @(& $getRemoteSessionSummaryCommand) } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\ActionHandlers\SystemScanFooterHandlers.ps1:1662' -Severity Debug }
+					 $sessions = @() }
 				}
 
 				$lines = [System.Collections.Generic.List[string]]::new()
@@ -1159,7 +1759,9 @@
 
 		$timestampText = if ((& $hasField -Object $lastRunProfile -FieldName 'Timestamp') -and -not [string]::IsNullOrWhiteSpace([string]$lastRunProfile.Timestamp))
 		{
-			try { " from $(([datetime]$lastRunProfile.Timestamp).ToString('g'))" } catch { '' }
+			try { " from $(([datetime]$lastRunProfile.Timestamp).ToString('g'))" } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\ActionHandlers\SystemScanFooterHandlers.ps1:1744' -Severity Debug }
+			 '' }
 		}
 		else { '' }
 
@@ -1263,7 +1865,9 @@
 
 		$timestampText = if ((& $hasField -Object $interruptedRunProfile -FieldName 'Timestamp') -and -not [string]::IsNullOrWhiteSpace([string]$interruptedRunProfile.Timestamp))
 		{
-			try { " from $(([datetime]$interruptedRunProfile.Timestamp).ToString('g'))" } catch { '' }
+			try { " from $(([datetime]$interruptedRunProfile.Timestamp).ToString('g'))" } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\ActionHandlers\SystemScanFooterHandlers.ps1:1848' -Severity Debug }
+			 '' }
 		}
 		else { '' }
 

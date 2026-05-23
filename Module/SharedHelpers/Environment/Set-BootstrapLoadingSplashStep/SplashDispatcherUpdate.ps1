@@ -41,7 +41,9 @@ else
 							& $writer -ErrorRecord $ErrorRecord -Source $Source
 						}
 					}
-					catch { $null = $_ }
+					catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:44' -Severity Debug }
+					 $null = $_ }
 				}
 				$setProgressBarValue = {
 					param(
@@ -52,7 +54,9 @@ else
 					if (-not $ProgressBarControl) { return }
 
 					$setCurrentValueMethod = $null
-					try { $setCurrentValueMethod = $ProgressBarControl.PSObject.Methods['SetCurrentValue'] } catch { $setCurrentValueMethod = $null }
+					try { $setCurrentValueMethod = $ProgressBarControl.PSObject.Methods['SetCurrentValue'] } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:55' -Severity Debug }
+					 $setCurrentValueMethod = $null }
 					if ($setCurrentValueMethod)
 					{
 						try
@@ -60,7 +64,9 @@ else
 							$ProgressBarControl.SetCurrentValue([System.Windows.Controls.ProgressBar]::ValueProperty, $Value)
 							return
 						}
-						catch { & $writeStepException $_ 'Environment.Splash.ProgressBar.SetCurrentValue' }
+						catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:63' -Severity Debug }
+						 & $writeStepException $_ 'Environment.Splash.ProgressBar.SetCurrentValue' }
 					}
 
 					$ProgressBarControl.Value = $Value
@@ -77,6 +83,8 @@ else
 					}
 					catch
 					{
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:78' -Severity Debug }
+
 						$width = 0.0
 					}
 
@@ -88,6 +96,8 @@ else
 						}
 						catch
 						{
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:89' -Severity Debug }
+
 							$width = 0.0
 						}
 					}
@@ -119,10 +129,18 @@ else
 					$subColor = & $getThemeColor 'Sub'
 					$primaryColor = & $getThemeColor 'Primary'
 					$accentColor = & $getThemeColor 'Accent'
-					try { if (-not [string]::IsNullOrWhiteSpace($mutedColor))   { $mutedBrush   = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($mutedColor)) } } catch { & $writeStepException $_ 'Environment.Splash.BrushConvert.Muted' }
-					try { if (-not [string]::IsNullOrWhiteSpace($subColor))     { $subBrush     = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($subColor)) } } catch { & $writeStepException $_ 'Environment.Splash.BrushConvert.Sub' }
-					try { if (-not [string]::IsNullOrWhiteSpace($primaryColor)) { $primaryBrush = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($primaryColor)) } } catch { & $writeStepException $_ 'Environment.Splash.BrushConvert.Primary' }
-					try { if (-not [string]::IsNullOrWhiteSpace($accentColor))  { $accentBrush  = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($accentColor)) } } catch { & $writeStepException $_ 'Environment.Splash.BrushConvert.Accent' }
+					try { if (-not [string]::IsNullOrWhiteSpace($mutedColor))   { $mutedBrush   = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($mutedColor)) } } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:122' -Severity Debug }
+					 & $writeStepException $_ 'Environment.Splash.BrushConvert.Muted' }
+					try { if (-not [string]::IsNullOrWhiteSpace($subColor))     { $subBrush     = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($subColor)) } } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:123' -Severity Debug }
+					 & $writeStepException $_ 'Environment.Splash.BrushConvert.Sub' }
+					try { if (-not [string]::IsNullOrWhiteSpace($primaryColor)) { $primaryBrush = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($primaryColor)) } } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:124' -Severity Debug }
+					 & $writeStepException $_ 'Environment.Splash.BrushConvert.Primary' }
+					try { if (-not [string]::IsNullOrWhiteSpace($accentColor))  { $accentBrush  = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($accentColor)) } } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:125' -Severity Debug }
+					 & $writeStepException $_ 'Environment.Splash.BrushConvert.Accent' }
 				}
 
 				$opacityProp   = [System.Windows.UIElement]::OpacityProperty
@@ -143,7 +161,9 @@ else
 						$a.FillBehavior   = $holdEnd
 						$element.BeginAnimation($opacityProp, $a, $snapAndKeep)
 					}
-					catch { & $writeStepException $_ 'Environment.Splash.OpacityAnimation.Begin' }
+					catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:146' -Severity Debug }
+					 & $writeStepException $_ 'Environment.Splash.OpacityAnimation.Begin' }
 				}.GetNewClosure()
 
 				$scaleXProp = [System.Windows.Media.ScaleTransform]::ScaleXProperty
@@ -186,7 +206,9 @@ else
 						$oa.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
 						$pulseEllipse.BeginAnimation($opacityProp, $oa, $snapAndKeep)
 					}
-					catch { & $writeStepException $_ 'Environment.Splash.PulseDot.Start' }
+					catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:189' -Severity Debug }
+					 & $writeStepException $_ 'Environment.Splash.PulseDot.Start' }
 				}
 
 				$stopPulseDot = {
@@ -205,7 +227,9 @@ else
 						$pulseEllipse.BeginAnimation($opacityProp, $null)
 						$pulseEllipse.Opacity = 0.6
 					}
-					catch { & $writeStepException $_ 'Environment.Splash.PulseDot.Stop' }
+					catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:208' -Severity Debug }
+					 & $writeStepException $_ 'Environment.Splash.PulseDot.Stop' }
 				}.GetNewClosure()
 				$startPulseDot = $startPulseDot.GetNewClosure()
 
@@ -394,6 +418,8 @@ else
 					}
 					catch
 					{
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:395' -Severity Debug }
+
 						try
 						{
 							$barWidth = & $getProgressBarWidth $progressBar
@@ -417,7 +443,9 @@ else
 								& $setProgressBarValue $progressBar (([double]$completedCount / $stepCount) * $barWidth)
 							}
 						}
-						catch { & $writeStepException $_ 'Environment.Splash.ProgressBar.SetValueFallback' }
+						catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:420' -Severity Debug }
+						 & $writeStepException $_ 'Environment.Splash.ProgressBar.SetValueFallback' }
 					}
 				}
 
@@ -489,7 +517,9 @@ else
 		}.GetNewClosure()
 
 		$dispatcherHasCheckAccess = $false
-		try { $dispatcherHasCheckAccess = ($null -ne $dispatcher.PSObject.Methods['CheckAccess']) } catch { $dispatcherHasCheckAccess = $false }
+		try { $dispatcherHasCheckAccess = ($null -ne $dispatcher.PSObject.Methods['CheckAccess']) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:492' -Severity Debug }
+		 $dispatcherHasCheckAccess = $false }
 		if ($dispatcherHasCheckAccess -and $dispatcher.CheckAccess())
 		{
 			& $dispatcherUpdateAction
@@ -505,6 +535,8 @@ else
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:506' -Severity Debug }
+
 		$__baselineExtractedPartReturnValue = $false
 		$__baselineExtractedPartHasReturnValue = $true
 		$__baselineExtractedPartDidReturn = $true

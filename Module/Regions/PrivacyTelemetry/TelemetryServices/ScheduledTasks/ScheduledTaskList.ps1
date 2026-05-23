@@ -95,7 +95,7 @@
 	    .SYNOPSIS
 	    Checks scheduled task seed selected.
 
-	    	#>
+		#>
 
 	function Test-ScheduledTaskSeedSelected
 	{

@@ -51,6 +51,41 @@ Describe 'Resolve-GuiExecutionSupportsExecutionGate' {
         $r.Reason | Should -Match 'Web Experience Pack'
     }
 
+    It 'blocks non-default cursor themes when the cursor archive URL is not configured' {
+        $previous = $env:BASELINE_CURSOR_ARCHIVE_URL
+        try {
+            Remove-Item Env:\BASELINE_CURSOR_ARCHIVE_URL -ErrorAction SilentlyContinue
+            $entry = [pscustomobject]@{ Name = 'Cursors'; Function = 'Cursors'; Type = 'Choice'; Value = 'Dark'; SupportsExecution = $true }
+            $r = Resolve-GuiExecutionSupportsExecutionGate -Entry $entry
+
+            $r.Decision | Should -Be 'Block'
+            $r.Reason | Should -Match 'BASELINE_CURSOR_ARCHIVE_URL'
+        } finally {
+            if ($null -eq $previous) {
+                Remove-Item Env:\BASELINE_CURSOR_ARCHIVE_URL -ErrorAction SilentlyContinue
+            } else {
+                $env:BASELINE_CURSOR_ARCHIVE_URL = $previous
+            }
+        }
+    }
+
+    It 'allows the default cursor theme without the cursor archive URL' {
+        $previous = $env:BASELINE_CURSOR_ARCHIVE_URL
+        try {
+            Remove-Item Env:\BASELINE_CURSOR_ARCHIVE_URL -ErrorAction SilentlyContinue
+            $entry = [pscustomobject]@{ Name = 'Cursors'; Function = 'Cursors'; Type = 'Choice'; Value = 'Default'; SupportsExecution = $true }
+            $r = Resolve-GuiExecutionSupportsExecutionGate -Entry $entry
+
+            $r.Decision | Should -Be 'Allow'
+        } finally {
+            if ($null -eq $previous) {
+                Remove-Item Env:\BASELINE_CURSOR_ARCHIVE_URL -ErrorAction SilentlyContinue
+            } else {
+                $env:BASELINE_CURSOR_ARCHIVE_URL = $previous
+            }
+        }
+    }
+
     It 'returns Force when SupportsExecution is $false and ForceUnsupported is set' {
         $entry = [pscustomobject]@{ Name = 'No'; Function = 'No'; SupportsExecution = $false }
         $r = Resolve-GuiExecutionSupportsExecutionGate -Entry $entry -ForceUnsupported
@@ -139,6 +174,57 @@ Describe 'Test-BaselineEntrySupportsExecution (shared helper) parity with the ga
         $entry = [pscustomobject]@{ Name = 'Missing' }
         Test-BaselineEntrySupportsExecution -Entry $entry | Should -BeTrue
         (Resolve-GuiExecutionSupportsExecutionGate -Entry $entry).Decision | Should -Be 'Allow'
+    }
+}
+
+Describe 'Get-BaselineEntryExecutionSupport power setting probes' {
+    BeforeEach {
+        $global:BaselineTestPowercfgExitCode = 0
+        $global:BaselineTestPowercfgCalls = [System.Collections.Generic.List[string]]::new()
+
+        function global:powercfg {
+            [void]$global:BaselineTestPowercfgCalls.Add(($args -join ' '))
+            $global:LASTEXITCODE = $global:BaselineTestPowercfgExitCode
+        }
+    }
+
+    AfterEach {
+        Remove-Item Function:\global:powercfg -ErrorAction SilentlyContinue
+        Remove-Variable -Name BaselineTestPowercfgExitCode -Scope Global -ErrorAction SilentlyContinue
+        Remove-Variable -Name BaselineTestPowercfgCalls -Scope Global -ErrorAction SilentlyContinue
+    }
+
+    It 'allows IntelGraphicsPowerPlan when the power setting exists' {
+        $manifest = @([ordered]@{ Function = 'IntelGraphicsPowerPlan' })
+        $null = Update-BaselineManifestExecutionSupport -Manifest $manifest
+        $entry = $manifest[0]
+
+        $entry['SupportsExecution'] | Should -BeTrue
+        $entry.Contains('SupportsExecutionReason') | Should -BeFalse
+        $global:BaselineTestPowercfgCalls[0] | Should -Be '/QUERY SCHEME_CURRENT 44f3beca-a7c0-460e-9df2-bb8b99e0cba6 3619c3f2-afb2-4afc-b0e9-e7fef372de36'
+    }
+
+    It 'blocks IntelGraphicsPowerPlan when the power setting is absent' {
+        $global:BaselineTestPowercfgExitCode = 1
+
+        $manifest = @([ordered]@{ Function = 'IntelGraphicsPowerPlan' })
+        $null = Update-BaselineManifestExecutionSupport -Manifest $manifest
+        $entry = $manifest[0]
+
+        $entry['SupportsExecution'] | Should -BeFalse
+        $entry['SupportsExecutionReason'] | Should -Match 'Intel integrated graphics power setting'
+    }
+
+    It 'blocks USBHubSelectiveSuspendTimeout when the power setting is absent' {
+        $global:BaselineTestPowercfgExitCode = 1
+
+        $manifest = @([ordered]@{ Function = 'USBHubSelectiveSuspendTimeout' })
+        $null = Update-BaselineManifestExecutionSupport -Manifest $manifest
+        $entry = $manifest[0]
+
+        $entry['SupportsExecution'] | Should -BeFalse
+        $entry['SupportsExecutionReason'] | Should -Match 'USB hub selective suspend timeout power setting'
+        $global:BaselineTestPowercfgCalls[0] | Should -Be '/QUERY SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bebba308a3 0853a681-27c8-4100-a2fd-82013e970683'
     }
 }
 

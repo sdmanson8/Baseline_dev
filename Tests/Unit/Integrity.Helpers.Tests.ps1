@@ -51,6 +51,21 @@ Describe 'Integrity helper — manifest generation' {
         Test-BaselineModuleIntegrity -ModuleRoot $script:fixtureRoot -ManifestPath $manifestPath | Should -BeTrue
     }
 
+    It 'treats a UTF-8 BOM on PowerShell text files as runtime-equivalent content' {
+        $manifestPath = Join-Path $script:fixtureRoot 'integrity.manifest.json'
+        $utf8NoBom = New-Object System.Text.UTF8Encoding -ArgumentList $false
+        $utf8Bom = New-Object System.Text.UTF8Encoding -ArgumentList $true
+        $nonAsciiText = "function A { '$([char]0x017E)' }"
+
+        [System.IO.File]::WriteAllText($script:scriptA, $nonAsciiText, $utf8NoBom)
+        $manifest = New-BaselineIntegrityManifest -ModuleRoot $script:fixtureRoot
+        $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+
+        [System.IO.File]::WriteAllText($script:scriptA, $nonAsciiText, $utf8Bom)
+
+        Test-BaselineModuleIntegrity -ModuleRoot $script:fixtureRoot -ManifestPath $manifestPath | Should -BeTrue
+    }
+
     It 'throws when a tracked file is modified after manifest generation' {
         $manifestPath = Join-Path $script:fixtureRoot 'integrity.manifest.json'
         $manifest = New-BaselineIntegrityManifest -ModuleRoot $script:fixtureRoot

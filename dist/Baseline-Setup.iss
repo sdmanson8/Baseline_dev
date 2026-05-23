@@ -5,6 +5,7 @@
 #define MyAppPublisher "sdmanson8"
 #define MyAppExeName   "Baseline.exe"
 #define MyAppId        "{{D5A779F1-8936-4E66-A24D-9A4E43A2A4D9}}"
+#define MySetupMutex   "Baseline-Setup-D5A779F1-8936-4E66-A24D-9A4E43A2A4D9"
 #if MyAppChannelToken == "stable"
 #define MySetupBaseFilename "Baseline-" + MyAppVersion + "-setup"
 #else
@@ -20,6 +21,7 @@ AppId={#MyAppId}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+SetupMutex={#MySetupMutex}
 AppPublisherURL=https://github.com/sdmanson8/Baseline
 AppSupportURL=https://github.com/sdmanson8/Baseline/issues
 
@@ -65,10 +67,10 @@ Name: "en"; MessagesFile: "compiler:Default.isl"
 ; Install mode — placed into {app} by the standard installer
 Source: "{#MySourceRoot}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion; Check: IsInstallMode
 ; All other payload files (install mode)
-Source: "{#MySourceRoot}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "{#MyAppExeName}"; Check: IsInstallMode
+Source: "{#MySourceRoot}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "{#MyAppExeName},.git\*,.github\*"; Check: IsInstallMode
 ; Portable mode — extracted to the selected portable target
 Source: "{#MySourceRoot}\{#MyAppExeName}"; DestDir: "{code:GetPortableTargetDir}"; Flags: ignoreversion; Check: IsPortableMode
-Source: "{#MySourceRoot}\*"; DestDir: "{code:GetPortableTargetDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "{#MyAppExeName}"; Check: IsPortableMode
+Source: "{#MySourceRoot}\*"; DestDir: "{code:GetPortableTargetDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "{#MyAppExeName},.git\*,.github\*"; Check: IsPortableMode
 
 [Icons]
 Name: "{group}\{#MyAppName}";         Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Check: IsInstallMode and IsStartMenuChecked
@@ -657,8 +659,10 @@ begin
     else if Key = 'ModePage.Action'       then Result := SetupMessage(msgPrivilegesRequiredOverrideInstruction)
     else if Key = 'RbInstall.Caption'     then Result := SetupMessage(msgFullInstallation)
     else if Key = 'RbInstall.Desc'        then Result := ''
+    else if Key = 'RbInstall.DisabledHint' then Result := 'Choose "Install for all users" setup mode to enable Install.'
     else if Key = 'RbPortable.Caption'    then Result := SetupMessage(msgCustomInstallation)
     else if Key = 'RbPortable.Desc'       then Result := ''
+    else if Key = 'RbPortable.DisabledHint' then Result := 'Choose "Only me" setup mode to enable Portable.'
     else if Key = 'ScopePage.Title'       then Result := SetupMessage(msgPrivilegesRequiredOverrideTitle)
     else if Key = 'ScopePage.Desc'        then Result := Format(SetupMessage(msgPrivilegesRequiredOverrideText2), [ExpandConstant('{#MyAppName}')])
     else if Key = 'ScopePage.Heading'     then Result := SetupMessage(msgPrivilegesRequiredOverrideInstruction)
@@ -1137,6 +1141,71 @@ end;
 
 procedure ModeSelectionChanged(Sender: TObject);
 begin
+  if IsAdminInstallMode and Assigned(RbPortable) and RbPortable.Checked then
+  begin
+    RbPortable.Checked := False;
+    RbInstall.Checked := True;
+  end
+  else if (not IsAdminInstallMode) and Assigned(RbInstall) and RbInstall.Checked then
+  begin
+    RbInstall.Checked := False;
+    RbPortable.Checked := True;
+  end;
+
+  UpdateNextButtonCaption(PageMode.ID);
+end;
+
+procedure ApplyModeAvailability;
+var
+  InstallHint: String;
+  PortableHint: String;
+begin
+  if GUpdateFlow or GResumeInstallFlow then
+    Exit;
+
+  if (not Assigned(RbInstall)) or (not Assigned(RbPortable)) then
+    Exit;
+
+  InstallHint := '';
+  PortableHint := '';
+
+  if IsAdminInstallMode then
+  begin
+    RbInstall.Enabled := True;
+    RbPortable.Enabled := False;
+    RbInstall.Checked := True;
+    RbPortable.Checked := False;
+    GInstallMode := True;
+    PortableHint := GetSetupString('RbPortable.DisabledHint');
+  end
+  else
+  begin
+    RbInstall.Enabled := False;
+    RbPortable.Enabled := True;
+    RbInstall.Checked := False;
+    RbPortable.Checked := True;
+    GInstallMode := False;
+    InstallHint := GetSetupString('RbInstall.DisabledHint');
+  end;
+
+  RbInstall.Hint := InstallHint;
+  RbInstall.ShowHint := InstallHint <> '';
+  RbPortable.Hint := PortableHint;
+  RbPortable.ShowHint := PortableHint <> '';
+
+  if Assigned(LblModeInstallDesc) then
+  begin
+    LblModeInstallDesc.Enabled := RbInstall.Enabled;
+    LblModeInstallDesc.Hint := InstallHint;
+    LblModeInstallDesc.ShowHint := InstallHint <> '';
+  end;
+  if Assigned(LblModePortableDesc) then
+  begin
+    LblModePortableDesc.Enabled := RbPortable.Enabled;
+    LblModePortableDesc.Hint := PortableHint;
+    LblModePortableDesc.ShowHint := PortableHint <> '';
+  end;
+
   UpdateNextButtonCaption(PageMode.ID);
 end;
 
@@ -1308,6 +1377,8 @@ begin
   LblModePortableDesc := AddLabel(PageMode,
     'Run portable version (no installation needed).',
     18, 100, 390, 18);
+
+  ApplyModeAvailability;
 end;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1903,7 +1974,10 @@ begin
   // When leaving the language page (i.e. arriving at the first post-language
   // page), re-render all subsequent pages with the confirmed locale.
   if CurPageID = PageMode.ID then
+  begin
     ApplyPageTranslations;
+    ApplyModeAvailability;
+  end;
 
   // Keep the Location page DirEdit in sync with the install scope.
   // - All-users / admin:    C:\Program Files\Baseline  (default)

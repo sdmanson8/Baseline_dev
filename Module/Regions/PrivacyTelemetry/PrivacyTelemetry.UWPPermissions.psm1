@@ -6,9 +6,9 @@ using module ..\..\SharedHelpers.psm1
     Configures UWP app permission controls.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies Baseline's UWP app permission controls in GUI and headless runs.
     .PARAMETER Enable
     Enable access to account info from UWP apps
@@ -90,9 +90,9 @@ function UWPAccountInfo
     Access to calendar from UWP (Universal Windows Platform) apps settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for access to calendar from UWP (Universal Windows Platform) apps settings.
     .PARAMETER Enable
     Enable access to calendar from UWP apps
@@ -174,9 +174,9 @@ function UWPCalendar
     Access to call history from UWP (Universal Windows Platform) apps settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for access to call history from UWP (Universal Windows Platform) apps settings.
     .PARAMETER Enable
     Enable access to call history from UWP apps
@@ -258,9 +258,9 @@ function UWPCallHistory
     Access to contacts from UWP (Universal Windows Platform) apps settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for access to contacts from UWP (Universal Windows Platform) apps settings.
     .PARAMETER Enable
     Enable access to contacts from UWP apps
@@ -342,9 +342,9 @@ function UWPContacts
     Access to diagnostic information from UWP (Universal Windows Platform) apps settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for access to diagnostic information from UWP (Universal Windows Platform) apps settings.
     .PARAMETER Enable
     Enable access to diagnostic information from UWP apps
@@ -426,9 +426,9 @@ function UWPDiagInfo
     Access to email from UWP (Universal Windows Platform) apps settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for access to email from UWP (Universal Windows Platform) apps settings.
     .PARAMETER Enable
     Enable access to email from UWP apps
@@ -510,9 +510,9 @@ function UWPEmail
     Access to libraries and file system from UWP (Universal Windows Platform) apps settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for access to libraries and file system from UWP (Universal Windows Platform) apps settings.
     .PARAMETER Enable
     Enable access to libraries and file system from UWP apps
@@ -594,9 +594,9 @@ function UWPFileSystem
     Access to messaging (SMS, MMS) from UWP (Universal Windows Platform) apps settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for access to messaging (SMS, MMS) from UWP (Universal Windows Platform) apps settings.
     .PARAMETER Enable
     Enable access to messaging (SMS, MMS) from UWP apps
@@ -678,9 +678,9 @@ function UWPMessaging
     Access to notifications from UWP (Universal Windows Platform) apps
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for access to notifications from UWP (Universal Windows Platform) apps.
     .PARAMETER Enable
     Enable access to notifications from UWP apps
@@ -766,9 +766,9 @@ function UWPNotifications
     Access to other devices (unpaired, beacons, TVs etc.) from UWP (Universal Windows Platform) apps settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for access to other devices (unpaired, beacons, TVs etc.) from UWP (Universal Windows Platform) apps settings.
     .PARAMETER Enable
     Enable access to other devices (unpaired, beacons, TVs etc.) from UWP apps
@@ -850,9 +850,9 @@ function UWPOtherDevices
     Access to phone calls from UWP (Universal Windows Platform) apps settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for access to phone calls from UWP (Universal Windows Platform) apps settings.
     .PARAMETER Enable
     Enable access to phone calls from UWP apps
@@ -934,9 +934,9 @@ function UWPPhoneCalls
     Access to radios (e.g. Bluetooth) from UWP (Universal Windows Platform) apps settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for access to radios (e.g. Bluetooth) from UWP (Universal Windows Platform) apps settings.
     .PARAMETER Enable
     Enable access to radios (e.g. Bluetooth) from UWP apps
@@ -1018,9 +1018,9 @@ function UWPRadios
     Access to tasks from UWP (Universal Windows Platform) apps
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for access to tasks from UWP (Universal Windows Platform) apps.
     .PARAMETER Enable
     Enable access to tasks from UWP apps
@@ -1102,9 +1102,9 @@ function UWPTasks
     Access to voice activation from UWP (Universal Windows Platform) apps
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for access to voice activation from UWP (Universal Windows Platform) apps.
     .PARAMETER Enable
     Enable access to voice activation from UWP apps

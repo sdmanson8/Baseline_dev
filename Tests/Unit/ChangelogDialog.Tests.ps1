@@ -186,7 +186,11 @@ Describe 'Documentation viewer wiring' {
         $script:DialogHelpersContent | Should -Match 'Name="TxtLogSearch"'
         $script:DialogHelpersContent | Should -Match 'GuiLogFilterErrors'
         $script:DialogHelpersContent | Should -Match 'GuiLogFilterWarnings'
+        $script:DialogHelpersContent | Should -Match 'GuiLogFilterDebug'
         $script:DialogHelpersContent | Should -Match 'GuiLogFilterSuccess'
+        $script:DialogHelpersContent | Should -Match "Pattern = '\\bDEBUG:'"
+        $script:DialogHelpersContent | Should -Match 'LogDebug'
+        $script:DialogHelpersContent | Should -Match '\$selectedFilter -eq \$filterDebugLabel -and \$severity -ne ''Debug'''
         $script:DialogHelpersContent | Should -Match 'Register-GuiEventHandler -Source \$cmbLogLevelFilter -EventName ''SelectionChanged'''
         $script:DialogHelpersContent | Should -Match 'Register-GuiEventHandler -Source \$txtLogSearch -EventName ''TextChanged'''
         $script:DialogHelpersContent | Should -Match 'BtnRefresh'

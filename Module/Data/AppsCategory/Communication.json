@@ -467,8 +467,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Mail and Calendar",
@@ -511,8 +511,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Skype",
@@ -555,8 +555,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Microsoft Teams",
@@ -599,8 +599,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "People",
@@ -643,8 +643,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Phone Link",
@@ -687,8 +687,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Beeper",

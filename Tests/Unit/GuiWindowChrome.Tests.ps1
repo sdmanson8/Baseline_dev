@@ -169,6 +169,66 @@ Describe 'GUI window chrome theming' {
         $guiCommonContent | Should -Match '\$btnBorder\.CornerRadius = \[System\.Windows\.CornerRadius\]::new\(0, 0, 8, 8\)'
     }
 
+    It 'maximizes the main window to the monitor work area instead of native fullscreen bounds' {
+        $windowSetupContent | Should -Match 'function Get-GuiMainWindowWorkArea'
+        $windowSetupContent | Should -Match '\[System\.Windows\.Forms\.Screen\]::FromHandle\(\$windowHandle\)'
+        $windowSetupContent | Should -Match 'TransformFromDevice'
+        $windowSetupContent | Should -Match 'function Limit-GuiMainWindowBoundsToWorkArea'
+        $windowSetupContent | Should -Match '\$workArea = Get-GuiMainWindowWorkArea -Window \$Form'
+        $windowSetupContent | Should -Match 'Limit-GuiMainWindowBoundsToWorkArea -Window \$Form -Bounds \$placementBounds'
+        $windowSetupContent | Should -Match '\$Window\.MinWidth = \[Math\]::Min'
+        $windowSetupContent | Should -Match 'function Test-GuiMainWindowBoundsMatchWorkArea'
+        $windowSetupContent | Should -Match 'Test-GuiMainWindowBoundsMatchWorkArea -Window \$Window -Bounds \$restoreBounds'
+        $windowSetupContent | Should -Match 'Test-GuiMainWindowBoundsMatchWorkArea -Window \$Window -Bounds \$rect'
+        $windowSetupContent | Should -Match 'Test-GuiMainWindowBoundsMatchWorkArea -Window \$Form -Bounds \$placementBounds'
+        $windowSetupContent | Should -Match 'Test-GuiMainWindowBoundsMatchWorkArea -Window \$Form -Bounds \$restoredNormalBounds'
+        $windowSetupContent | Should -Match 'function Set-GuiMainWindowWorkAreaMaximized'
+        $windowSetupContent | Should -Match '\$Script:MainWindowDefaultRestoreBounds = \$null'
+        $windowSetupContent | Should -Match '\$Script:MainWindowDefaultRestoreBounds = New-GuiMainWindowBoundsSnapshot'
+        $windowSetupContent | Should -Match '\$Script:MainWindowPendingWorkAreaMaximize = \$true'
+        $windowSetupContent | Should -Match '\$Form\.Add_SourceInitialized\(\$applyPendingMainWindowWorkAreaMaximize\)'
+        $windowSetupContent | Should -Match '\(\(-not \$PreserveRestoreBounds\) -or \(-not \(Test-GuiMainWindowBoundsSnapshot -Bounds \$Script:MainWindowRestoreBounds\)\)\)'
+        $windowSetupContent | Should -Match '\$restoreBounds = if \(Test-GuiMainWindowBoundsSnapshot -Bounds \$Script:MainWindowRestoreBounds\)'
+        $windowSetupContent | Should -Match '\$Script:MainWindowDefaultRestoreBounds'
+        $windowSetupContent | Should -Match '\$Script:MainWindowRestoreBounds = Get-GuiMainWindowBoundsSnapshot -Window \$Window'
+        $windowSetupContent | Should -Match 'function Save-GuiMainWindowPlacementForRestore'
+        $windowSetupContent | Should -Match 'Save-BaselineWindowPlacement[\s\S]*-Maximized \$Maximized'
+        $windowSetupContent | Should -Match 'Save-GuiMainWindowPlacementForRestore -Window \$Window -Maximized \(\[bool\]\$Script:MainWindowWorkAreaMaximized\) -Source ''WindowSetup\.SaveWindowPlacement\.StateChange'''
+        $windowSetupContent | Should -Match 'Save-GuiMainWindowPlacementForRestore -Window \$Form -Maximized \(Test-GuiMainWindowWorkAreaMaximized -Window \$Form\) -Source ''WindowSetup\.SaveWindowPlacement'''
+        $windowSetupContent | Should -Match 'if \(-not \$rect\)[\s\S]*\$rect = Get-GuiMainWindowBoundsSnapshot -Window \$Window'
+        $windowSetupContent | Should -Match 'Set-GuiMainWindowChromeMaximizedState[\s\S]*Thickness\]::new\(0\)'
+        $windowSetupContent | Should -Not -Match '\$Form\.WindowState\s*=\s*\[System\.Windows\.WindowState\]::Maximized'
+        $windowSetupContent | Should -Not -Match 'Thickness\]::new\(7\)'
+    }
+
+    It 'keeps header minimum width constrained to the active monitor work area' {
+        $styleManagementContent | Should -Match 'Get-GuiMainWindowWorkArea -Window \$Form'
+        $styleManagementContent | Should -Match '\[double\]\$Form\.MinWidth -gt \$workAreaWidth'
+        $styleManagementContent | Should -Match '\$Form\.Width = \$workAreaWidth'
+        $styleManagementContent | Should -Match '\$Form\.Left = \$maxLeft'
+    }
+
+    It 'restores the startup splash from explicit normal bounds when unmaximized' {
+        $environmentHelpersContent | Should -Match '\$splashWindowChromeState = @\{'
+        $environmentHelpersContent | Should -Match '\$splashDefaultBounds = \[pscustomobject\]@\{'
+        $environmentHelpersContent | Should -Match '\$testSplashStartupBoundsMatchWorkArea = \{'
+        $environmentHelpersContent | Should -Match '\$placementBounds = \$splashDefaultBounds'
+        $environmentHelpersContent | Should -Match 'NormalBounds = \$null'
+        $environmentHelpersContent | Should -Match '\$captureSplashNormalBoundsAction = \{'
+        $environmentHelpersContent | Should -Match '\$restoreSplashNormalBoundsAction = \{'
+        $environmentHelpersContent | Should -Match '\$getSplashWindowWorkAreaBoundsAction = \{'
+        $environmentHelpersContent | Should -Match '\$setSplashWindowMaximizedStateAction = \{'
+        $environmentHelpersContent | Should -Match '& \$setSplashWindowMaximizedStateAction -Maximized \(-not \[bool\]\$syncHash\[''WindowMaximized''\]\)'
+        $environmentHelpersContent | Should -Match '& \$setSplashWindowMaximizedStateAction -Maximized \$false'
+        $environmentHelpersContent | Should -Match '& \$setSplashWindowMaximizedStateAction -Maximized \$true'
+        $environmentHelpersContent | Should -Match '\$workAreaBounds = & \$getSplashWindowWorkAreaBoundsAction'
+        $environmentHelpersContent | Should -Not -Match '\$splash\.WindowState = \[System\.Windows\.WindowState\]::Maximized'
+        $environmentHelpersContent | Should -Not -Match 'Thickness\]::new\(7\)'
+        $environmentHelpersContent | Should -Match '\$splash\.Add_LocationChanged\(\$rememberSplashNormalBoundsAction\)'
+        $environmentHelpersContent | Should -Match '\$splash\.Add_SizeChanged\(\$rememberSplashNormalBoundsAction\)'
+        $environmentHelpersContent | Should -Match '\$splashWindowChromeState\[''NormalBounds''\] = \[pscustomobject\]@\{'
+    }
+
     It 'rounds tooltip hover boxes in both GUI themes' {
         $darkThemeContent | Should -Match '<ControlTemplate TargetType="\{x:Type ToolTip\}">'
         $darkThemeContent | Should -Match 'CornerRadius="8"'
@@ -271,6 +331,15 @@ Describe 'GUI window chrome theming' {
         $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''WindowChrome\.Invoke-GuiWindowChromeThemeUpdate\.RepaintChrome'''
         $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''WindowChrome\.Set-GuiWindowChromeTheme\.SetUseDarkModeProperty'''
         $guiCommonContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''WindowChrome\.Set-GuiWindowChromeTheme\.SetSourceInitializedHandlerProperty'''
+    }
+
+    It 'tries supported immersive dark-mode attributes before logging a chrome warning' {
+        $guiCommonContent | Should -Match '\$immersiveDarkModeAttributes = \[System\.Collections\.Generic\.List\[int\]\]::new\(\)'
+        $guiCommonContent | Should -Match '\$immersiveDarkModeAttributes\.Add\(20\)'
+        $guiCommonContent | Should -Match '\$immersiveDarkModeAttributes\.Add\(19\)'
+        $guiCommonContent | Should -Match 'foreach \(\$immersiveDarkModeAttribute in \$immersiveDarkModeAttributes\)'
+        $guiCommonContent | Should -Match 'if \(\$result -eq 0\)'
+        $guiCommonContent | Should -Match 'if \(-not \$chromeThemeApplied\)'
     }
 
     It 'routes Dpi awareness bootstrap failures through Write-SwallowedException' {

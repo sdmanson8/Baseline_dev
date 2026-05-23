@@ -27,7 +27,7 @@ function Invoke-ScheduledTasksOperation
 	    .SYNOPSIS
 	    Runs check box select all click.
 
-	    	#>
+		#>
 
 	function Invoke-TelemetryServiceSelectAllClick
 	{
@@ -73,7 +73,7 @@ function Invoke-ScheduledTasksOperation
 	    .SYNOPSIS
 	    Confirms scheduled tasks selection.
 
-	    	#>
+		#>
 
 	function Confirm-ScheduledTasksSelection
 	{
@@ -124,7 +124,7 @@ function Invoke-ScheduledTasksOperation
 	    .SYNOPSIS
 	    Adds task control.
 
-	    	#>
+		#>
 
 	function Add-TaskControl
 	{

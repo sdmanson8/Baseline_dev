@@ -176,6 +176,7 @@
       "ExtraArgs": null,
       "SubCategory": null,
       "SourceRegion": "Defender",
+      "TimeoutSeconds": 600,
       "WinDefaultDesc": "Windows Defender Application Guard is disabled",
       "Risk": "Medium",
       "Tags": [
@@ -1083,6 +1084,7 @@
       "ExtraArgs": null,
       "SubCategory": null,
       "SourceRegion": "Defender",
+      "TimeoutSeconds": 600,
       "WinDefaultDesc": "Windows Sandbox is disabled",
       "Risk": "Low",
       "Tags": [

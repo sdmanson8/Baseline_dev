@@ -124,6 +124,68 @@ BeforeAll {
         return @($results)
     }
 
+    function Get-UnloggedRuntimeCatchSignature {
+        $loggingCommands = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+        @(
+            'LogInfo', 'LogWarning', 'LogError', 'LogDebug',
+            'Write-BaselineInfo', 'Write-BaselineWarning', 'Write-BaselineError', 'Write-BaselineDebug',
+            'Write-LogMessage', 'Write-ConsoleStatus', 'Write-SwallowedException', 'Write-DebugSwallowedException',
+            'Write-UILogWarning', 'Write-Warning', 'Write-Error', 'Write-Debug', 'Write-Verbose',
+            'Write-GuiRuntimeWarning', 'Write-GuiExecutionCleanupWarning', 'Write-SupportBundleSwallowedException',
+            'Write-BootstrapSwallowedException', 'Write-BootstrapLog', 'Write-ScanTrace', 'Append-Log',
+            'Write-ReleaseGateResult', 'Write-TestResult', 'Write-DriftResult',
+            'Add-BaselineActionTrail', 'Write-AuditRecord',
+            'Write-EnvironmentSwallowedException', 'Write-AIRemovalSwallowedException',
+            'Write-ConfigProfileDebugSwallowedException', 'Write-GroupPolicyDebugSwallowedException',
+            'Write-GuiCommonWarning', 'Write-EdgeRemovalLog', 'Write-StartupOrchestratorLog',
+            'Write-GuiDeploymentMediaBuilderErrorLog', 'Write-GameModeDataWarning', 'Write-PackageHelperWarning',
+            'Write-EnvironmentLaunchTrace', 'Write-BaselineRemoteCheckpointWarning', 'Write-BgTrace',
+            'Write-GuiThemeFallbackWarning', 'Write-GuiDeveloperDiagnosticsError',
+            'Invoke-GuiRuntimeFailureReport', 'Set-GuiDeploymentMediaBuilderStatus', 'Set-GuiSettingsStoreUnavailable'
+        ) | ForEach-Object { [void]$loggingCommands.Add($_) }
+
+        $moduleFiles = Get-RepoPowerShellFile -Roots @('Module') |
+            Where-Object { (Get-RelativeSourcePath -Path $_.FullName) -ne 'Module\Logging.psm1' }
+
+        foreach ($file in $moduleFiles) {
+            $tokens = $null
+            $errors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors)
+            if ($errors) {
+                throw "Could not parse $($file.FullName)"
+            }
+
+            foreach ($catchAst in $ast.FindAll({
+                param($node)
+                $node -is [System.Management.Automation.Language.CatchClauseAst]
+            }, $true)) {
+                $hasThrow = [bool]$catchAst.Body.Find({
+                    param($node)
+                    $node -is [System.Management.Automation.Language.ThrowStatementAst]
+                }, $true)
+                if ($hasThrow) {
+                    continue
+                }
+
+                $hasLogging = $false
+                foreach ($commandAst in @($catchAst.Body.FindAll({
+                    param($node)
+                    $node -is [System.Management.Automation.Language.CommandAst]
+                }, $true))) {
+                    $commandName = $commandAst.GetCommandName()
+                    if ($commandName -and $loggingCommands.Contains($commandName)) {
+                        $hasLogging = $true
+                        break
+                    }
+                }
+
+                if (-not $hasLogging) {
+                    '{0}:{1}: non-throwing catch has no runtime logging command' -f (Get-RelativeSourcePath -Path $file.FullName), $catchAst.Extent.StartLineNumber
+                }
+            }
+        }
+    }
+
     function Get-FunctionText {
         param(
             [Parameter(Mandatory = $true)]
@@ -349,6 +411,157 @@ BeforeAll {
 
         return @($matches | Sort-Object -Unique)
     }
+
+    function Get-StaticStringArgumentValue {
+        param(
+            [AllowNull()]
+            [System.Management.Automation.Language.Ast]$Ast
+        )
+
+        if (-not $Ast) {
+            return $null
+        }
+
+        try {
+            $value = $Ast.SafeGetValue()
+            if ($value -is [string]) {
+                return [string]$value
+            }
+        }
+        catch {
+            return $null
+        }
+
+        return $null
+    }
+
+    function Get-CommandArgumentAfterParameter {
+        param(
+            [Parameter(Mandatory = $true)]
+            [System.Management.Automation.Language.CommandAst]$CommandAst,
+
+            [Parameter(Mandatory = $true)]
+            [string]$ParameterName
+        )
+
+        for ($i = 1; $i -lt $CommandAst.CommandElements.Count; $i++) {
+            $element = $CommandAst.CommandElements[$i]
+            if ($element -isnot [System.Management.Automation.Language.CommandParameterAst]) {
+                continue
+            }
+            if (-not [string]::Equals($element.ParameterName, $ParameterName, [System.StringComparison]::OrdinalIgnoreCase)) {
+                continue
+            }
+
+            if ($element.Argument) {
+                return $element.Argument
+            }
+            if (($i + 1) -lt $CommandAst.CommandElements.Count -and $CommandAst.CommandElements[$i + 1] -isnot [System.Management.Automation.Language.CommandParameterAst]) {
+                return $CommandAst.CommandElements[$i + 1]
+            }
+            return $null
+        }
+
+        return $null
+    }
+
+    function Get-FirstPositionalCommandArgument {
+        param(
+            [Parameter(Mandatory = $true)]
+            [System.Management.Automation.Language.CommandAst]$CommandAst
+        )
+
+        for ($i = 1; $i -lt $CommandAst.CommandElements.Count; $i++) {
+            $element = $CommandAst.CommandElements[$i]
+            if ($element -is [System.Management.Automation.Language.CommandParameterAst]) {
+                if ($element.Argument) {
+                    $i++
+                }
+                continue
+            }
+
+            return $element
+        }
+
+        return $null
+    }
+
+    function Get-StaticLoggingCall {
+        param(
+            [System.IO.FileInfo[]]$Files
+        )
+
+        $records = @()
+        foreach ($file in $Files) {
+            $tokens = $null
+            $errors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors)
+            if ($errors) {
+                throw "Could not parse $($file.FullName)"
+            }
+
+            foreach ($commandAst in $ast.FindAll({
+                param($node)
+                $node -is [System.Management.Automation.Language.CommandAst]
+            }, $true)) {
+                $commandName = $commandAst.GetCommandName()
+                if ([string]::IsNullOrWhiteSpace($commandName)) {
+                    continue
+                }
+
+                $level = $null
+                switch -Regex ($commandName) {
+                    '^(LogDebug|Write-BaselineDebug)$' { $level = 'DEBUG'; break }
+                    '^(LogInfo|Write-BaselineInfo)$' { $level = 'INFO'; break }
+                    '^(LogWarning|Write-BaselineWarning)$' { $level = 'WARNING'; break }
+                    '^(LogError|Write-BaselineError)$' { $level = 'ERROR'; break }
+                    '^Write-LogMessage$' {
+                        $levelAst = Get-CommandArgumentAfterParameter -CommandAst $commandAst -ParameterName 'Level'
+                        $levelValue = Get-StaticStringArgumentValue -Ast $levelAst
+                        if ($levelValue -in @('DEBUG', 'INFO', 'WARNING', 'ERROR')) {
+                            $level = [string]$levelValue
+                        }
+                        break
+                    }
+                }
+
+                if (-not $level) {
+                    continue
+                }
+
+                $messageAst = Get-CommandArgumentAfterParameter -CommandAst $commandAst -ParameterName 'Message'
+                if (-not $messageAst) {
+                    $messageAst = Get-FirstPositionalCommandArgument -CommandAst $commandAst
+                }
+
+                $message = Get-StaticStringArgumentValue -Ast $messageAst
+                if ([string]::IsNullOrWhiteSpace($message)) {
+                    continue
+                }
+
+                $records += [pscustomobject]@{
+                    Path    = Get-RelativeSourcePath -Path $commandAst.Extent.File
+                    Line    = $commandAst.Extent.StartLineNumber
+                    Level   = $level
+                    Message = $message.Trim()
+                }
+            }
+        }
+
+        return $records
+    }
+
+    function ConvertTo-NormalizedLogMessage {
+        param(
+            [string]$Message
+        )
+
+        if ([string]::IsNullOrWhiteSpace($Message)) {
+            return ''
+        }
+
+        return (($Message -replace '\s+', ' ').Trim()).ToLowerInvariant()
+    }
 }
 
 Describe 'Source quality guardrails' {
@@ -401,6 +614,14 @@ Describe 'Source quality guardrails' {
         $sourceMatches.Count | Should -Be 0
     }
 
+    It 'keeps every non-throwing runtime catch on an explicit logging path' {
+        $unloggedCatches = @(Get-UnloggedRuntimeCatchSignature)
+
+        if ($unloggedCatches.Count -gt 0) {
+            throw ("Unlogged runtime catch blocks:{0}{1}" -f [Environment]::NewLine, ($unloggedCatches -join [Environment]::NewLine))
+        }
+    }
+
     It 'keeps known native repair commands out of untracked Start-Process paths' {
         $files = @(
             Join-Path $script:RepoRoot 'Module/Regions/System/System.Updates.psm1'
@@ -411,6 +632,39 @@ Describe 'Source quality guardrails' {
         $sourceMatches = @(Find-SourcePattern -Files $files -Pattern 'Start-Process')
 
         $sourceMatches.Count | Should -Be 0
+    }
+
+    It 'keeps static DEBUG logging diagnostic instead of mirrored operational text' {
+        $files = Get-RepoPowerShellFile -Roots @('Module', 'Bootstrap') |
+            Where-Object { (Get-RelativeSourcePath -Path $_.FullName) -notin @('Module\Logging.psm1') }
+
+        $calls = @(Get-StaticLoggingCall -Files $files)
+        $operationalMessages = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::Ordinal)
+        foreach ($call in @($calls | Where-Object { $_.Level -in @('INFO', 'WARNING', 'ERROR') })) {
+            $normalized = ConvertTo-NormalizedLogMessage -Message $call.Message
+            if (-not [string]::IsNullOrWhiteSpace($normalized)) {
+                [void]$operationalMessages.Add($normalized)
+            }
+        }
+
+        $violations = New-Object System.Collections.Generic.List[string]
+        foreach ($call in @($calls | Where-Object { $_.Level -eq 'DEBUG' })) {
+            $normalized = ConvertTo-NormalizedLogMessage -Message $call.Message
+            if ([string]::IsNullOrWhiteSpace($normalized)) {
+                continue
+            }
+
+            if ($operationalMessages.Contains($normalized)) {
+                [void]$violations.Add(('{0}:{1}: DEBUG duplicates an INFO/WARNING/ERROR message: {2}' -f $call.Path, $call.Line, $call.Message))
+            }
+            elseif ($call.Message -match '^(Entering|Exiting)\b') {
+                [void]$violations.Add(('{0}:{1}: DEBUG uses trace-only entry/exit wording instead of diagnostic detail: {2}' -f $call.Path, $call.Line, $call.Message))
+            }
+        }
+
+        if ($violations.Count -gt 0) {
+            throw ("Non-diagnostic DEBUG log messages:{0}{1}" -f [Environment]::NewLine, ($violations -join [Environment]::NewLine))
+        }
     }
 
     It 'waits for SMB repair SFC through Invoke-BaselineProcess' {
@@ -691,7 +945,7 @@ Describe 'Source quality guardrails' {
             'Module\Regions\GUI.psm1:101',
             'Module\Regions\GUI.psm1:125',
             'Module\Regions\GUI.psm1:1606',
-            'Module\GUI\BuildTabContent.ps1:207',
+            'Module\GUI\BuildTabContent.ps1:218',
             'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:70',
             'Module\SharedHelpers\Environment\Set-BootstrapLoadingSplashStep\SplashDispatcherUpdate.ps1:353',
             'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:499',

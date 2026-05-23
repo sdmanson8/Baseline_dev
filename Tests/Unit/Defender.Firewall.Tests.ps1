@@ -262,7 +262,7 @@ Describe 'NetworkProtection' {
         $script:warningMessages = [System.Collections.Generic.List[string]]::new()
         $script:errorMessages = [System.Collections.Generic.List[string]]::new()
         $script:mpCalls = [System.Collections.Generic.List[object]]::new()
-        $Script:DefenderEnabled = $true
+        $script:defenderExecutionAvailable = $true
 
         function Write-ConsoleStatus {
             param([string]$Action, [string]$Status)
@@ -277,6 +277,8 @@ Describe 'NetworkProtection' {
             [void]$script:mpCalls.Add($EnableNetworkProtection)
         }
         function Get-TweakSkipLabel { param($Invocation) return 'NetworkProtection' }
+        function Test-BaselineDefenderExecutionAvailable { return [bool]$script:defenderExecutionAvailable }
+        function Get-BaselineDefenderExecutionUnavailableReason { return 'Set-MpPreference is not available.' }
         $Script:Localization = [pscustomobject]@{ Skipped = 'Skipped: {0}' }
     }
 
@@ -287,6 +289,8 @@ Describe 'NetworkProtection' {
         Remove-Item Function:\LogError -ErrorAction SilentlyContinue
         Remove-Item Function:\Set-MpPreference -ErrorAction SilentlyContinue
         Remove-Item Function:\Get-TweakSkipLabel -ErrorAction SilentlyContinue
+        Remove-Item Function:\Test-BaselineDefenderExecutionAvailable -ErrorAction SilentlyContinue
+        Remove-Item Function:\Get-BaselineDefenderExecutionUnavailableReason -ErrorAction SilentlyContinue
     }
 
     It 'enables network protection via Set-MpPreference' {
@@ -306,13 +310,13 @@ Describe 'NetworkProtection' {
         $script:consoleStatuses[-1] | Should -Be 'success'
     }
 
-    It 'skips entirely when Defender is disabled globally' {
-        $Script:DefenderEnabled = $false
+    It 'skips entirely when Defender command surface is unavailable' {
+        $script:defenderExecutionAvailable = $false
 
         NetworkProtection -Enable
 
         $script:mpCalls.Count | Should -Be 0
         $script:warningMessages.Count | Should -Be 1
-        $script:warningMessages[0] | Should -Match 'Skipped'
+        $script:warningMessages[0] | Should -Match 'Set-MpPreference is not available'
     }
 }

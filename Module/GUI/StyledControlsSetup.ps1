@@ -125,7 +125,6 @@
 			if ($timerToStop)
 			{
 				try { $timerToStop.Stop() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.TimerStop' }
-				try { $timerToStop.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.TimerDispose' }
 			}
 
 			$Script:SuppressRunClosePrompt = $true
@@ -142,6 +141,13 @@
 			$Script:BgPS = $null
 			$Script:BgAsync = $null
 			$Script:RunInProgress = $false
+
+			if ($Script:GuiResponsivenessWatchdog)
+			{
+				$watchdogToStop = $Script:GuiResponsivenessWatchdog
+				$Script:GuiResponsivenessWatchdog = $null
+				try { Stop-GuiResponsivenessWatchdog -Watchdog $watchdogToStop } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyledControlsSetup.ForceCloseExecutionFn.StopResponsivenessWatchdog' }
+			}
 
 			if ($Script:MainForm)
 			{
@@ -196,14 +202,27 @@
 				$BtnRun.IsEnabled = $false
 			}
 			Set-GuiStatusText -Text $(if ($ExitNow) { (Get-UxLocalizedString -Key 'GuiStatusExitRequested' -Fallback '') } else { (Get-UxLocalizedString -Key 'GuiStatusAbortRequested' -Fallback '') }) -Tone 'caution'
-			LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogAbortRequestedByUser' -Fallback 'Abort requested by user - waiting for the current step to stop.')
+			LogWarning (Get-UxBilingualLocalizedString -Key 'GuiLogAbortRequestedByUser' -Fallback 'Abort requested by user - stopping the current operation now.')
 
 		if ($Script:RunState)
 		{
 			$Script:RunState['AbortRequested'] = $true
 			$Script:RunState['AbortRequestedAt'] = Get-Date
 			$Script:RunState['AbortedRun'] = $true
+			$Script:RunState['Paused'] = $true
 		}
+
+			if ($Script:ExecutionPumpTickFn)
+			{
+				try
+				{
+					& $Script:ExecutionPumpTickFn
+				}
+				catch
+				{
+					Write-SwallowedException -ErrorRecord $_ -Source 'StyledControls.RequestRunAbort.PumpTick'
+				}
+			}
 
 			if ($ExitNow)
 			{
@@ -215,6 +234,15 @@
 
 	$Script:PromptRunAbortFn = {
 		if (-not $Script:RunInProgress -or $Script:AbortRequested) { return }
+
+		$abortPromptPausedRun = $false
+		$abortPromptPreviousPaused = $false
+		if ($Script:RunState)
+		{
+			$abortPromptPreviousPaused = [bool]$Script:RunState['Paused']
+			$Script:RunState['Paused'] = $true
+			$abortPromptPausedRun = $true
+		}
 
 		$Script:AbortDialogShowing = $true
 		try
@@ -257,6 +285,10 @@
 				}
 				default
 				{
+					if ($abortPromptPausedRun -and $Script:RunState -and -not $Script:AbortRequested)
+					{
+						$Script:RunState['Paused'] = $abortPromptPreviousPaused
+					}
 					Set-RunAbortDisposition -Disposition $null
 				}
 			}

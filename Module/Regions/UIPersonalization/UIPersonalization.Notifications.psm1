@@ -8,9 +8,9 @@ using module ..\..\SharedHelpers.psm1
 	Configures notification and sound settings.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies Baseline's notification and sound settings in GUI and headless runs.
 	.PARAMETER Enable
 	Enable notification sounds globally
@@ -92,9 +92,9 @@ function Set-NotificationSounds
 	Show notifications on lock screen
 
 
-	
+
 .DESCRIPTION
-	
+
 Shows notifications on lock screen from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show notifications while on lock screen
@@ -176,9 +176,9 @@ function Set-LockScreenNotifications
 	Show reminders and VoIP calls on lock screen
 
 
-	
+
 .DESCRIPTION
-	
+
 Shows reminders and VoIP calls on lock screen from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show reminders and VoIP calls on lock screen
@@ -260,9 +260,9 @@ function Set-CriticalNotificationsOnLockScreen
 	DST and clock change notifications
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for dST and clock change notifications.
 	.PARAMETER Enable
 	Show daylight saving time and clock change notifications
@@ -344,9 +344,9 @@ function Set-DSTNotifications
 	App capability access notifications
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for app capability access notifications.
 	.PARAMETER Enable
 	Show app capability access notifications in system tray
@@ -431,9 +431,9 @@ function Set-CapabilityAccessNotifications
 	Startup app notifications
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for startup app notifications.
 	.PARAMETER Enable
 	Show notifications for apps starting up
@@ -518,9 +518,9 @@ function Set-StartupAppNotifications
 	Security and Maintenance notifications
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for security and Maintenance notifications.
 	.PARAMETER Enable
 	Show Security and Maintenance notifications

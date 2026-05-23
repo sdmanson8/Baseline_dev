@@ -1,4 +1,4 @@
-﻿# Windows Subsystem for Linux (WSL) install helpers.
+# Windows Subsystem for Linux (WSL) install helpers.
 #
 # Spec: todo.md "WSL install flow (`Install-WSL`)" -- picks a distro from
 # the DistributionInfo.json catalog, runs `wsl.exe --install --distribution
@@ -63,6 +63,8 @@ function ConvertFrom-BaselineWslDistributionCatalogJson
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Wsl.Helpers.ConvertFrom-BaselineWslDistributionCatalogJson:catch64' -Severity Debug }
+
 		return @()
 	}
 
@@ -158,6 +160,8 @@ function Get-BaselineWslDistributionCatalog
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Wsl.Helpers.Get-BaselineWslDistributionCatalog:catch159' -Severity Debug }
+
 		return @()
 	}
 
@@ -322,6 +326,8 @@ function Get-BaselineWslInstallationState
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Wsl.Helpers.Get-BaselineWslInstallationState:catch323' -Severity Debug }
+
 		$rawList = $null
 	}
 
@@ -456,6 +462,8 @@ function Install-BaselineWslDistribution
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Wsl.Helpers.Install-BaselineWslDistribution:catch457' -Severity Debug }
+
 		return [pscustomobject]@{
 			Started   = $false
 			ExitCode  = $null
@@ -512,6 +520,8 @@ function Enable-BaselineMicrosoftUpdateDelivery
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Wsl.Helpers.Enable-BaselineMicrosoftUpdateDelivery:catch513' -Severity Debug }
+
 		$previous = $null
 	}
 
@@ -617,6 +627,8 @@ function Invoke-BaselineWindowsUpdateScan
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Wsl.Helpers.Invoke-BaselineWindowsUpdateScan:catch618' -Severity Debug }
+
 		return [pscustomobject]@{
 			Started  = $false
 			Path     = $UsoClientPath

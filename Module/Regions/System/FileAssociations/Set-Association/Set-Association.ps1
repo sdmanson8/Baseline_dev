@@ -290,7 +290,7 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 		    .SYNOPSIS
 		    Writes extension keys.
 
-		    		#>
+				#>
 
 		function Write-ExtensionKeys
 		{
@@ -444,7 +444,7 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 		    .SYNOPSIS
 		    Writes additional keys.
 
-		    		#>
+				#>
 
 		function Write-AdditionalKeys
 		{
@@ -587,7 +587,7 @@ public static int UnloadHive(RegistryHives hive, string subKey)
 		    .SYNOPSIS
 		    Gets hash.
 
-		    		#>
+				#>
 
 		function Get-Hash
 		{
@@ -748,7 +748,7 @@ public static long MakeLong(uint left, uint right)
 			    .SYNOPSIS
 			    Gets key last write time.
 
-			    			#>
+						#>
 
 			function Get-KeyLastWriteTime ($SubKey)
 			{
@@ -762,7 +762,7 @@ public static long MakeLong(uint left, uint right)
 			    .SYNOPSIS
 			    Gets data array.
 
-			    			#>
+						#>
 			function Get-DataArray
 			{
 				[OutputType([array])]
@@ -783,7 +783,7 @@ public static long MakeLong(uint left, uint right)
 			    .SYNOPSIS
 			    Gets patent hash.
 
-			    			#>
+						#>
 
 			function Get-PatentHash
 			{

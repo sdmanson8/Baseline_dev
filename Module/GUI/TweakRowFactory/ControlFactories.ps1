@@ -3,6 +3,32 @@
 	    .SYNOPSIS
 	#>
 
+	function Get-TweakRowFactoryFunctionCapture
+	{
+		param (
+			[Parameter(Mandatory = $true)]
+			[string]$Name
+		)
+
+		if (Get-Command -Name 'Get-GuiFunctionCapture' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			$capturedFunction = Get-GuiFunctionCapture -Name $Name
+			if ($capturedFunction)
+			{
+				return $capturedFunction
+			}
+		}
+
+		$commandInfo = Get-Command -Name $Name -CommandType Function -ErrorAction Stop
+		return {
+			& $commandInfo @args
+		}.GetNewClosure()
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
 	function New-TweakRowCard
 	{
 		param (
@@ -162,7 +188,7 @@
 
 		$defaultBadgeLabel = if ((Test-GuiObjectField -Object $Metadata -FieldName 'DefaultValueText') -and -not [string]::IsNullOrWhiteSpace([string]$Metadata.DefaultValueText))
 		{
-			'Default: {0}' -f [string]$Metadata.DefaultValueText
+			(Get-UxString -Key 'GuiTweakChipBaselineDefaultFormat' -Fallback 'Baseline default: {0}') -f [string]$Metadata.DefaultValueText
 		}
 		else
 		{
@@ -170,7 +196,7 @@
 		}
 		if (-not [string]::IsNullOrWhiteSpace($defaultBadgeLabel))
 		{
-			$defaultBadge = GUICommon\New-DialogMetadataPill -Theme $Script:CurrentTheme -Label $defaultBadgeLabel -Tone 'Primary' -ToolTip (Get-UxString -Key 'GuiTweakChipTooltipDefault' -Fallback 'Default value for this tweak')
+			$defaultBadge = GUICommon\New-DialogMetadataPill -Theme $Script:CurrentTheme -Label $defaultBadgeLabel -Tone 'Primary' -ToolTip (Get-UxString -Key 'GuiTweakChipTooltipBaselineDefault' -Fallback "Baseline's default selection for this tweak, not a Windows default.")
 			if ($defaultBadge)
 			{
 				$defaultBadge.Margin = $BadgeSpacing
@@ -290,7 +316,9 @@
 					}
 					if ($StateControl -and (Test-GuiObjectField -Object $StateControl -FieldName 'SummaryText') -and $StateControl.SummaryText)
 					{
-						$StateControl.SummaryText.Text = (Get-UxLocalizedString -Key 'GuiNumericRangeSelectedValue' -Fallback 'Selected values: {0}' -FormatArgs @((Format-GuiPowerSchemeValueText -Value ([pscustomobject]@{ ACValue = $StateControl.ACSlider.Value; DCValue = $StateControl.DCSlider.Value }) -NumericRange $numericRange -Units $StateControl.Units)))
+						$formatPowerSchemeValueText = Get-TweakRowFactoryFunctionCapture -Name 'Format-GuiPowerSchemeValueText'
+						$getUxLocalizedString = Get-TweakRowFactoryFunctionCapture -Name 'Get-UxLocalizedString'
+						$StateControl.SummaryText.Text = (& $getUxLocalizedString -Key 'GuiNumericRangeSelectedValue' -Fallback 'Selected values: {0}' -FormatArgs @((& $formatPowerSchemeValueText -Value ([pscustomobject]@{ ACValue = $StateControl.ACSlider.Value; DCValue = $StateControl.DCSlider.Value }) -NumericRange $numericRange -Units $StateControl.Units)))
 					}
 					if ($StateControl)
 					{
@@ -315,7 +343,9 @@
 					{
 						if ($defaultDateSelection.Value)
 						{
-							try { $StateControl.DatePicker.SelectedDate = [datetime]$defaultDateSelection.Value } catch { $StateControl.DatePicker.SelectedDate = $null }
+							try { $StateControl.DatePicker.SelectedDate = [datetime]$defaultDateSelection.Value } catch {
+								if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ControlFactories.Invoke-TweakRowResetToDefaults:catch346' -Severity Debug }
+							 $StateControl.DatePicker.SelectedDate = $null }
 						}
 						else
 						{
@@ -335,6 +365,8 @@
 							}
 							catch
 							{
+								if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ControlFactories.Invoke-TweakRowResetToDefaults:catch364' -Severity Debug }
+
 								$resolvedDefaultDate = $null
 							}
 						}
@@ -362,7 +394,8 @@
 						}
 						if ((Test-GuiObjectField -Object $StateControl -FieldName 'PickerSelectionText') -and $StateControl.PickerSelectionText -and (Test-GuiObjectField -Object $StateControl -FieldName 'ActionPicker') -and $StateControl.ActionPicker)
 						{
-							Update-GuiActionPickerSelectionText -TextBlock $StateControl.PickerSelectionText -ActionPicker $StateControl.ActionPicker -SelectedPath $null
+							$updateActionPickerSelectionText = Get-TweakRowFactoryFunctionCapture -Name 'Update-GuiActionPickerSelectionText'
+							& $updateActionPickerSelectionText -TextBlock $StateControl.PickerSelectionText -ActionPicker $StateControl.ActionPicker -SelectedPath $null
 						}
 					}
 					& $RowContext.RemoveExplicitSelectionDefinition -FunctionName ([string]$Tweak.Function)
@@ -403,8 +436,9 @@
 		$button.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
 		$button.VerticalAlignment = 'Center'
 		$button.ToolTip = (Get-UxString -Key 'GuiTweakResetTooltip' -Fallback 'Restore this option to its default state.')
+		$resetToDefaults = Get-TweakRowFactoryFunctionCapture -Name 'Invoke-TweakRowResetToDefaults'
 		$null = Register-GuiEventHandler -Source $button -EventName 'Click' -Handler ({
-			Invoke-TweakRowResetToDefaults -Tweak $Tweak -RowContext $RowContext -StateControl $StateControl
+			& $resetToDefaults -Tweak $Tweak -RowContext $RowContext -StateControl $StateControl
 		}.GetNewClosure())
 		return $button
 	}
@@ -839,6 +873,51 @@
 	    .SYNOPSIS
 	#>
 
+	function Get-ToggleDisplayStateFromRowMetadata
+	{
+		param (
+			[object]$RowContext
+		)
+
+		if (-not $RowContext -or -not (Test-GuiObjectField -Object $RowContext -FieldName 'Metadata'))
+		{
+			return $null
+		}
+
+		$metadata = Get-GuiObjectField -Object $RowContext -FieldName 'Metadata'
+		if (-not $metadata)
+		{
+			return $null
+		}
+
+		if (-not (Test-GuiObjectField -Object $metadata -FieldName 'TypeKind') -or [string](Get-GuiObjectField -Object $metadata -FieldName 'TypeKind') -ne 'Toggle')
+		{
+			return $null
+		}
+
+		foreach ($requiredField in @('StateLabel', 'StateTone', 'StateDetail', 'MatchesDesired', 'DetectedState', 'GoalState', 'IsSelected'))
+		{
+			if (-not (Test-GuiObjectField -Object $metadata -FieldName $requiredField))
+			{
+				return $null
+			}
+		}
+
+		return [pscustomobject]@{
+			StateLabel = [string](Get-GuiObjectField -Object $metadata -FieldName 'StateLabel')
+			StateTone = [string](Get-GuiObjectField -Object $metadata -FieldName 'StateTone')
+			StateDetail = [string](Get-GuiObjectField -Object $metadata -FieldName 'StateDetail')
+			MatchesDesired = [bool](Get-GuiObjectField -Object $metadata -FieldName 'MatchesDesired')
+			DetectedState = Get-GuiObjectField -Object $metadata -FieldName 'DetectedState'
+			GoalState = [bool](Get-GuiObjectField -Object $metadata -FieldName 'GoalState')
+			IsSelected = [bool](Get-GuiObjectField -Object $metadata -FieldName 'IsSelected')
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
 	function New-ToggleStatusRow
 	{
 		param (
@@ -864,16 +943,19 @@
 		$offColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.StateDisabled) { $Script:CurrentTheme.StateDisabled } else { '#98A0B7' }
 		$primaryColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.AccentBlue) { $Script:CurrentTheme.AccentBlue } else { $onColor }
 		$mutedColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.TextMuted) { $Script:CurrentTheme.TextMuted } else { $offColor }
-		$toggleDisplay = $null
-		try
+		$toggleDisplay = Get-ToggleDisplayStateFromRowMetadata -RowContext $RowContext
+		if (-not $toggleDisplay)
 		{
-			$toggleDisplay = Get-GuiToggleDisplayState -Tweak $Tweak -StateSource $CheckBox
-		}
-		catch
-		{
-			$statusLabel.Text = Get-UxString -Key 'GuiDetectionFailed' -Fallback 'Detection failed'
-			$statusLabel.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.CautionText)
-			Write-GuiRuntimeWarning -Context 'Build-TweakRow/Detect' -Message ("Detect failed for tweak '{0}' ({1}): {2}" -f [string]$Tweak.Name, [string]$Tweak.Function, $_.Exception.Message)
+			try
+			{
+				$toggleDisplay = Get-GuiToggleDisplayState -Tweak $Tweak -StateSource $CheckBox
+			}
+			catch
+			{
+				$statusLabel.Text = Get-UxString -Key 'GuiDetectionFailed' -Fallback 'Detection failed'
+				$statusLabel.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.CautionText)
+				Write-GuiRuntimeWarning -Context 'Build-TweakRow/Detect' -Message ("Detect failed for tweak '{0}' ({1}): {2}" -f [string]$Tweak.Name, [string]$Tweak.Function, $_.Exception.Message)
+			}
 		}
 
 		if ($toggleDisplay)
@@ -1463,6 +1545,25 @@
 			return ($null -ne $Object.PSObject.Properties[$FieldName])
 		}.GetNewClosure()
 
+		$getActionPickerSelectedPath = $null
+		$showActionOpenFileDialog = $null
+		$clearActionPickerSelection = $null
+		$setActionPickerSelection = $null
+		if ($ActionPicker)
+		{
+			$getActionPickerSelectedPath = Get-TweakRowFactoryFunctionCapture -Name 'Get-GuiActionPickerSelectedPath'
+			$showActionOpenFileDialog = Get-TweakRowFactoryFunctionCapture -Name 'Show-GuiActionOpenFileDialog'
+			$clearActionPickerSelection = Get-TweakRowFactoryFunctionCapture -Name 'Clear-GuiActionPickerSelection'
+			$setActionPickerSelection = Get-TweakRowFactoryFunctionCapture -Name 'Set-GuiActionPickerSelection'
+		}
+		$testSelectionBulkUpdateInProgress = {
+			if ($RowContext -and (& $hasField -Object $RowContext -FieldName 'TestSelectionBulkUpdateInProgress') -and $RowContext.TestSelectionBulkUpdateInProgress)
+			{
+				return [bool](& $RowContext.TestSelectionBulkUpdateInProgress)
+			}
+			return $false
+		}.GetNewClosure()
+
 		$null = Register-GuiEventHandler -Source $CheckBox -EventName 'Checked' -Handler ({
 			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
 			{
@@ -1471,21 +1572,26 @@
 			$currentExplicitDefinition = & $RowContext.GetExplicitSelectionDefinition -FunctionName $FunctionName
 			if ($ActionPicker)
 			{
-				$selectedPath = if ($StateControl) { Get-GuiActionPickerSelectedPath -Selection $StateControl -ActionPicker $ActionPicker } else { $null }
+				$selectedPath = if ($StateControl) { & $getActionPickerSelectedPath -Selection $StateControl -ActionPicker $ActionPicker } else { $null }
 				if ([string]::IsNullOrWhiteSpace([string]$selectedPath) -and $currentExplicitDefinition)
 				{
-					$selectedPath = Get-GuiActionPickerSelectedPath -Selection $currentExplicitDefinition -ActionPicker $ActionPicker
+					$selectedPath = & $getActionPickerSelectedPath -Selection $currentExplicitDefinition -ActionPicker $ActionPicker
 				}
 				if ([string]::IsNullOrWhiteSpace([string]$selectedPath))
 				{
-					$selectedPath = Show-GuiActionOpenFileDialog -ActionPicker $ActionPicker
+					if (& $testSelectionBulkUpdateInProgress)
+					{
+						& $clearActionPickerSelection -CheckBox $CheckBox -FunctionName $FunctionName -RowContext $RowContext -StateControl $StateControl -ActionPicker $ActionPicker
+						return
+					}
+					$selectedPath = & $showActionOpenFileDialog -ActionPicker $ActionPicker
 				}
 				if ([string]::IsNullOrWhiteSpace([string]$selectedPath))
 				{
-					Clear-GuiActionPickerSelection -CheckBox $CheckBox -FunctionName $FunctionName -RowContext $RowContext -StateControl $StateControl -ActionPicker $ActionPicker
+					& $clearActionPickerSelection -CheckBox $CheckBox -FunctionName $FunctionName -RowContext $RowContext -StateControl $StateControl -ActionPicker $ActionPicker
 					return
 				}
-				[void](Set-GuiActionPickerSelection -CheckBox $CheckBox -FunctionName $FunctionName -RowContext $RowContext -StateControl $StateControl -ActionPicker $ActionPicker -SelectedPath $selectedPath -CurrentExplicitDefinition $currentExplicitDefinition)
+				[void](& $setActionPickerSelection -CheckBox $CheckBox -FunctionName $FunctionName -RowContext $RowContext -StateControl $StateControl -ActionPicker $ActionPicker -SelectedPath $selectedPath -CurrentExplicitDefinition $currentExplicitDefinition)
 				return
 			}
 			if ($currentExplicitDefinition -and [string]$currentExplicitDefinition.Type -eq 'Action')
@@ -1517,7 +1623,7 @@
 			}
 			if ($ActionPicker)
 			{
-				Clear-GuiActionPickerSelection -CheckBox $CheckBox -FunctionName $FunctionName -RowContext $RowContext -StateControl $StateControl -ActionPicker $ActionPicker
+				& $clearActionPickerSelection -CheckBox $CheckBox -FunctionName $FunctionName -RowContext $RowContext -StateControl $StateControl -ActionPicker $ActionPicker
 				return
 			}
 			& $RowContext.RemoveExplicitSelectionDefinition -FunctionName $FunctionName
@@ -1535,12 +1641,12 @@
 					return
 				}
 				$currentExplicitDefinition = & $RowContext.GetExplicitSelectionDefinition -FunctionName $FunctionName
-				$selectedPath = Show-GuiActionOpenFileDialog -ActionPicker $ActionPicker
+				$selectedPath = & $showActionOpenFileDialog -ActionPicker $ActionPicker
 				if ([string]::IsNullOrWhiteSpace([string]$selectedPath))
 				{
 					return
 				}
-				[void](Set-GuiActionPickerSelection -CheckBox $CheckBox -FunctionName $FunctionName -RowContext $RowContext -StateControl $StateControl -ActionPicker $ActionPicker -SelectedPath $selectedPath -CurrentExplicitDefinition $currentExplicitDefinition)
+				[void](& $setActionPickerSelection -CheckBox $CheckBox -FunctionName $FunctionName -RowContext $RowContext -StateControl $StateControl -ActionPicker $ActionPicker -SelectedPath $selectedPath -CurrentExplicitDefinition $currentExplicitDefinition)
 			}.GetNewClosure())
 		}
 	}
@@ -1633,10 +1739,14 @@
 			return
 		}
 
+		$getNumericRangeChannelValue = Get-TweakRowFactoryFunctionCapture -Name 'Get-GuiNumericRangeChannelValue'
+		$formatPowerSchemeValueText = Get-TweakRowFactoryFunctionCapture -Name 'Format-GuiPowerSchemeValueText'
+		$getUxLocalizedString = Get-TweakRowFactoryFunctionCapture -Name 'Get-UxLocalizedString'
+
 		$resolveValueText = {
 			param([object]$Value)
 
-			$resolvedText = Format-GuiPowerSchemeValueText -Value $Value -NumericRange $NumericRange -Units $Units
+			$resolvedText = & $formatPowerSchemeValueText -Value $Value -NumericRange $NumericRange -Units $Units
 			if ([string]::IsNullOrWhiteSpace([string]$resolvedText))
 			{
 				return 'Unknown'
@@ -1672,8 +1782,8 @@
 				return
 			}
 
-			$acValue = Get-GuiNumericRangeChannelValue -Value $AcSlider.Value -Channel 'AC' -NumericRange $NumericRange
-			$dcValue = Get-GuiNumericRangeChannelValue -Value $DcSlider.Value -Channel 'DC' -NumericRange $NumericRange
+			$acValue = & $getNumericRangeChannelValue -Value $AcSlider.Value -Channel 'AC' -NumericRange $NumericRange
+			$dcValue = & $getNumericRangeChannelValue -Value $DcSlider.Value -Channel 'DC' -NumericRange $NumericRange
 			$valueObject = [ordered]@{
 				ACValue = $acValue
 				DCValue = $dcValue
@@ -1697,7 +1807,7 @@
 			}
 			if ($SummaryText)
 			{
-				$SummaryText.Text = (Get-UxLocalizedString -Key 'GuiNumericRangeSelectedValue' -Fallback 'Selected values: {0}' -FormatArgs @((Format-GuiPowerSchemeValueText -Value ([pscustomobject]$valueObject) -NumericRange $NumericRange -Units $Units)))
+				$SummaryText.Text = (& $getUxLocalizedString -Key 'GuiNumericRangeSelectedValue' -Fallback 'Selected values: {0}' -FormatArgs @((& $formatPowerSchemeValueText -Value ([pscustomobject]$valueObject) -NumericRange $NumericRange -Units $Units)))
 			}
 
 			if (-not [bool]$IsChecked)
@@ -1934,6 +2044,7 @@
 			ComboBox = $combo
 			SelectedIndex = [int]$combo.SelectedIndex
 			Value = if ($combo.SelectedIndex -ge 0 -and $combo.SelectedIndex -lt $choiceOptions.Count) { [string]$choiceOptions[$combo.SelectedIndex] } else { $null }
+			IsEnabled = [bool]$combo.IsEnabled
 			IsRestoring = $false
 		}
 		[void]($leftStack.Children.Add((New-ChoiceHeaderGrid -Tweak $Tweak -RowContext $RowContext)))

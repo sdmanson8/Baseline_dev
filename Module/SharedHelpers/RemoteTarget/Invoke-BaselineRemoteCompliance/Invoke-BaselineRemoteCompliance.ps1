@@ -78,7 +78,9 @@ foreach ($computer in @($ComputerName))
 					try
 					{
 						$sessionSummaryBefore = @()
-						try { $sessionSummaryBefore = @(Get-BaselineRemoteSessionSummary -ComputerName $computer) } catch { $sessionSummaryBefore = @() }
+						try { $sessionSummaryBefore = @(Get-BaselineRemoteSessionSummary -ComputerName $computer) } catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\RemoteTarget\Invoke-BaselineRemoteCompliance\Invoke-BaselineRemoteCompliance.ps1:81' -Severity Debug }
+						 $sessionSummaryBefore = @() }
 						$sessionReused = $sessionSummaryBefore.Count -gt 0
 						# Open or reuse a cached remote session.
 						$session = Get-BaselineRemoteSession -ComputerName $computer -Credential $Credential -MaxRetryCount $MaxRetryCount -RetryDelayMilliseconds $RetryDelayMilliseconds
@@ -139,6 +141,8 @@ foreach ($computer in @($ComputerName))
 							}
 							catch
 							{
+								if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\RemoteTarget\Invoke-BaselineRemoteCompliance\Invoke-BaselineRemoteCompliance.ps1:140' -Severity Debug }
+
 								$errors.Add($_.Exception.Message)
 							}
 
@@ -164,6 +168,8 @@ foreach ($computer in @($ComputerName))
 					}
 					catch
 					{
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\RemoteTarget\Invoke-BaselineRemoteCompliance\Invoke-BaselineRemoteCompliance.ps1:165' -Severity Debug }
+
 						$entry.Errors = @($entry.Errors + $_.Exception.Message)
 					}
 					finally
@@ -209,6 +215,8 @@ foreach ($computer in @($ComputerName))
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\RemoteTarget\Invoke-BaselineRemoteCompliance\Invoke-BaselineRemoteCompliance.ps1:210' -Severity Debug }
+
 			$entry.Errors = @($entry.Errors + $_.Exception.Message)
 		}
 		finally

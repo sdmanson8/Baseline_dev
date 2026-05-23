@@ -1325,15 +1325,30 @@ function PowerShellTranscription
 #>
 function PowerShellV2
 {
+    [CmdletBinding()]
+    param (
+        [int]$TimeoutSeconds = 300
+    )
+
     Write-ConsoleStatus -Action "Disable Windows PowerShell 2.0"
     LogInfo "Disabling Windows PowerShell 2.0"
     $failed = $false
+    $dismPath = Join-Path $env:SystemRoot 'System32\dism.exe'
+    if (-not (Test-Path -LiteralPath $dismPath -PathType Leaf))
+    {
+        $dismPath = 'dism.exe'
+    }
 
     foreach ($feature in @('MicrosoftWindowsPowerShellV2', 'MicrosoftWindowsPowerShellV2Root'))
     {
         try
         {
-            Disable-WindowsOptionalFeature -Online -FeatureName $feature -NoRestart -ErrorAction Stop | Out-Null
+            $null = Invoke-BaselineProcess `
+                -FilePath $dismPath `
+                -ArgumentList @('/Online', '/Disable-Feature', "/FeatureName:$feature", '/NoRestart') `
+                -TimeoutSeconds $TimeoutSeconds `
+                -AllowedExitCodes @(0, 3010) `
+                -CaptureOutput
         }
         catch
         {

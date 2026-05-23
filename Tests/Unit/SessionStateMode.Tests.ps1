@@ -13,6 +13,9 @@ BeforeAll {
         foreach ($fn in $functions) {
             if ($fn.Name -in @(
             'Resolve-GuiModePreference',
+            'Enter-GuiSelectionBulkUpdate',
+            'Test-GuiSelectionBulkUpdateInProgress',
+            'Exit-GuiSelectionBulkUpdate',
             'Get-GuiFirstRunWelcomeMarkerPath',
             'Test-GuiFirstRunWelcomePending',
             'Complete-GuiFirstRunWelcome',
@@ -174,7 +177,6 @@ Describe 'GUI session snapshots' {
         $script:LoggingEnabled = $false
         $script:DebugLoggingEnabled = $true
         $script:LogLevel = 'Debug'
-        $script:ExperimentalFeatures = $true
         $script:RiskFilter = 'All'
         $script:CategoryFilter = 'All'
         $script:PlatformFilter = 'ThisDevice'
@@ -187,6 +189,8 @@ Describe 'GUI session snapshots' {
         $script:GamingOnlyFilter = $false
         $script:LastStandardPrimaryTab = $null
         $script:GameModePreviousPrimaryTab = $null
+        $script:ActivePresetName = $null
+        $script:ActiveScenarioNames = @{}
         $script:Ctx = @{
             Mode = @{
                 Safe = $script:SafeMode
@@ -222,9 +226,31 @@ Describe 'GUI session snapshots' {
         $snapshot.LoggingEnabled | Should -Be $false
         $snapshot.DebugLoggingEnabled | Should -Be $true
         $snapshot.LogLevel | Should -Be 'Debug'
-        $snapshot.ExperimentalFeatures | Should -Be $true
         $snapshot.DesignMode | Should -Be $true
         $snapshot.HideUnavailableItems | Should -Be $true
+    }
+
+    It 'captures active preset and scenario identity in the GUI snapshot' {
+        $script:ActivePresetName = 'Balanced'
+        $script:ActiveScenarioNames = @{ Gaming = $true }
+
+        $presetSnapshot = Get-GuiSettingsSnapshot
+
+        $presetSnapshot.ActivePresetName | Should -Be 'Balanced'
+        @($presetSnapshot.ActiveScenarioNames) | Should -HaveCount 1
+        $presetSnapshot.ActiveScenarioNames[0] | Should -Be 'Gaming'
+
+        $script:ActivePresetName = $null
+        $script:ActiveScenarioNames = @{
+            Gaming = $true
+            Streaming = $false
+            Laptop = $true
+        }
+
+        $scenarioSnapshot = Get-GuiSettingsSnapshot
+
+        $scenarioSnapshot.ActivePresetName | Should -BeNullOrEmpty
+        @($scenarioSnapshot.ActiveScenarioNames) | Should -Be @('Gaming', 'Laptop')
     }
 
     It 'captures the active top-level navigation mode in the GUI snapshot' {
@@ -352,6 +378,14 @@ Describe 'GUI session restore mode wiring' {
         $script:SessionStateContent | Should -Match 'Get-BaselineUserPreference -Key ''DefaultStartupMode'' -Default ''Safe'''
     }
 
+    It 'round-trips active preset and scenario identity through session restore' {
+        $script:SessionStateContent | Should -Match 'ActivePresetName = \$currentActivePresetName'
+        $script:SessionStateContent | Should -Match 'ActiveScenarioNames = @\(\$currentActiveScenarioNames\)'
+        $script:SessionStateContent | Should -Match '\$Script:ActivePresetName = \$desiredActivePresetName'
+        $script:SessionStateContent | Should -Match '\$Script:ActiveScenarioNames = @\{\}'
+        $script:SessionStateContent | Should -Match 'Sync-ActivePresetButtonChrome'
+    }
+
     It 'persists restored theme and explicit startup mode preferences' {
         $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''Theme'' -Value \$desiredTheme'
         $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''DefaultStartupMode'' -Value \$Script:DefaultStartupMode'
@@ -376,6 +410,34 @@ Describe 'GUI session restore mode wiring' {
         $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''IncludePrereleaseUpdates'' -Value \$desiredIncludePrereleaseUpdates'
     }
 
+    It 'uses persistent startup splash preferences with session snapshot defaults' {
+        $script:SessionStateContent | Should -Match 'StartupRunInitialActions = if \(Get-Variable -Name ''StartupRunInitialActions'' -Scope Script -ErrorAction SilentlyContinue\)'
+        $script:SessionStateContent | Should -Match 'StartupCheckWinGet = if \(Get-Variable -Name ''StartupCheckWinGet'' -Scope Script -ErrorAction SilentlyContinue\)'
+        $script:SessionStateContent | Should -Match 'StartupWinGetCheckFrequency = if \(Get-Variable -Name ''StartupWinGetCheckFrequency'' -Scope Script -ErrorAction SilentlyContinue\)'
+        $script:SessionStateContent | Should -Match 'StartupCheckChocolatey = if \(Get-Variable -Name ''StartupCheckChocolatey'' -Scope Script -ErrorAction SilentlyContinue\)'
+        $script:SessionStateContent | Should -Match 'StartupChocolateyCheckFrequency = if \(Get-Variable -Name ''StartupChocolateyCheckFrequency'' -Scope Script -ErrorAction SilentlyContinue\)'
+        $script:SessionStateContent | Should -Match '\$snapshotStartupRunInitialActions = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''StartupRunInitialActions''\)\)'
+        $script:SessionStateContent | Should -Match '\$snapshotStartupCheckWinGet = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''StartupCheckWinGet''\)\)'
+        $script:SessionStateContent | Should -Match '\$snapshotStartupWinGetCheckFrequency = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''StartupWinGetCheckFrequency''\)'
+        $script:SessionStateContent | Should -Match '\$snapshotStartupCheckChocolatey = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''StartupCheckChocolatey''\)\)'
+        $script:SessionStateContent | Should -Match '\$snapshotStartupChocolateyCheckFrequency = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''StartupChocolateyCheckFrequency''\)'
+        $script:SessionStateContent | Should -Match 'Get-BaselineUserPreference -Key ''StartupRunInitialActions'' -Default \$snapshotStartupRunInitialActions'
+        $script:SessionStateContent | Should -Match 'Get-BaselineUserPreference -Key ''StartupCheckWinGet'' -Default \$snapshotStartupCheckWinGet'
+        $script:SessionStateContent | Should -Match 'Get-BaselineUserPreference -Key ''StartupWinGetCheckFrequency'' -Default \$snapshotStartupWinGetCheckFrequency'
+        $script:SessionStateContent | Should -Match 'Get-BaselineUserPreference -Key ''StartupCheckChocolatey'' -Default \$snapshotStartupCheckChocolatey'
+        $script:SessionStateContent | Should -Match 'Get-BaselineUserPreference -Key ''StartupChocolateyCheckFrequency'' -Default \$snapshotStartupChocolateyCheckFrequency'
+        $script:SessionStateContent | Should -Match '\$Script:StartupRunInitialActions = \$desiredStartupRunInitialActions'
+        $script:SessionStateContent | Should -Match '\$Script:StartupCheckWinGet = \$desiredStartupCheckWinGet'
+        $script:SessionStateContent | Should -Match '\$Script:StartupWinGetCheckFrequency = \$desiredStartupWinGetCheckFrequency'
+        $script:SessionStateContent | Should -Match '\$Script:StartupCheckChocolatey = \$desiredStartupCheckChocolatey'
+        $script:SessionStateContent | Should -Match '\$Script:StartupChocolateyCheckFrequency = \$desiredStartupChocolateyCheckFrequency'
+        $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''StartupRunInitialActions'' -Value \$desiredStartupRunInitialActions'
+        $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''StartupCheckWinGet'' -Value \$desiredStartupCheckWinGet'
+        $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''StartupWinGetCheckFrequency'' -Value \$desiredStartupWinGetCheckFrequency'
+        $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''StartupCheckChocolatey'' -Value \$desiredStartupCheckChocolatey'
+        $script:SessionStateContent | Should -Match 'Set-BaselineUserPreference -Key ''StartupChocolateyCheckFrequency'' -Value \$desiredStartupChocolateyCheckFrequency'
+    }
+
     It 'restores Expert Mode banner visibility from the restored mode' {
         $script:SessionStateContent | Should -Match '\$ExpertModeBanner\.Visibility = if \(\$desiredAdvanced\)'
     }
@@ -395,6 +457,51 @@ Describe 'GUI session restore mode wiring' {
         $preferenceRestoreIndex | Should -BeGreaterThan -1
         $selectionRestoreIndex | Should -BeGreaterThan -1
         $selectionRestoreIndex | Should -BeGreaterThan $preferenceRestoreIndex
+    }
+
+    It 'replays explicit selection state inside a bulk selection update' {
+        $script:SessionStateContent | Should -Match '\$selectionBulkPreviousState = Enter-GuiSelectionBulkUpdate'
+        $script:SessionStateContent | Should -Match "RestoreExplicitSelectionState.ps1"
+        $script:SessionStateContent | Should -Match 'Exit-GuiSelectionBulkUpdate -PreviousState \$selectionBulkPreviousState'
+    }
+
+    It 'flushes deferred game mode sync when the outer bulk selection update exits' {
+        $script:GuiSelectionBulkUpdateInProgress = $false
+        $script:GameModePlanSyncPending = $true
+        $script:GameModeSyncCount = 0
+
+        function Sync-GameModePlanFromGamingControls {
+            $script:GameModeSyncCount++
+        }
+
+        $outerState = Enter-GuiSelectionBulkUpdate
+        $innerState = Enter-GuiSelectionBulkUpdate
+
+        Exit-GuiSelectionBulkUpdate -PreviousState $innerState
+
+        $script:GuiSelectionBulkUpdateInProgress | Should -BeTrue
+        $script:GameModeSyncCount | Should -Be 0
+
+        Exit-GuiSelectionBulkUpdate -PreviousState $outerState
+
+        $script:GuiSelectionBulkUpdateInProgress | Should -BeFalse
+        $script:GameModePlanSyncPending | Should -BeFalse
+        $script:GameModeSyncCount | Should -Be 1
+    }
+
+    It 'reports whether a selection bulk update is active' {
+        $script:GuiSelectionBulkUpdateInProgress = $false
+        Test-GuiSelectionBulkUpdateInProgress | Should -BeFalse
+
+        $previousState = Enter-GuiSelectionBulkUpdate
+        try
+        {
+            Test-GuiSelectionBulkUpdateInProgress | Should -BeTrue
+        }
+        finally
+        {
+            Exit-GuiSelectionBulkUpdate -PreviousState $previousState
+        }
     }
 
     It 'restores UI density without forcing a system scan' {

@@ -39,6 +39,8 @@ function Test-LegacyEdgeInstalled
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'EdgeDetectionHelpers.Test-ChromiumEdgeInstalled:catch40' -Severity Debug }
+
 			return $false
 		}
 	}
@@ -72,6 +74,8 @@ function Test-LegacyEdgeInstalled
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'EdgeDetectionHelpers.Backup-UserChoiceAssociations:catch73' -Severity Debug }
+
 					# Best-effort backup
 				}
 			}

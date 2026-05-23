@@ -178,12 +178,34 @@ function Get-InstallerPayloadEntries
         'Localizations'
         'Assets'
         'Completion'
+        'Tools'
         'Tests'
         'docs'
         'README.md'
         'LICENSE'
         'CHANGELOG.md'
     )
+}
+
+<#
+    .SYNOPSIS
+#>
+function Assert-InstallerPayloadExcludesRepositoryMetadata
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$SourceRoot
+    )
+
+    foreach ($relativePath in @('.git', '.github'))
+    {
+        $candidate = Join-Path $SourceRoot $relativePath
+        if (Test-Path -LiteralPath $candidate)
+        {
+            throw "Installer payload includes repository metadata: $relativePath"
+        }
+    }
 }
 
 <#
@@ -1284,6 +1306,7 @@ try
     {
         throw "Payload root missing after extraction: $sourceRoot"
     }
+    Assert-InstallerPayloadExcludesRepositoryMetadata -SourceRoot $sourceRoot
 
     # ── Stamp defines into a working copy of the .iss ────────────────────────
 

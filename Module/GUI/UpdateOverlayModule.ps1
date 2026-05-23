@@ -1,4 +1,4 @@
-﻿# Baseline update overlay helpers for progress, update checks, and import flows.
+# Baseline update overlay helpers for progress, update checks, and import flows.
 
 
 <#
@@ -168,12 +168,14 @@ function Write-BaselineUpdateOverlayDebug
 	$debugEnabled = $envEnabled
 	if (-not $debugEnabled -and (Get-Command -Name 'Get-BaselineDebugLogging' -CommandType Function -ErrorAction SilentlyContinue))
 	{
-		try { $debugEnabled = [bool](Get-BaselineDebugLogging) } catch { $debugEnabled = $false }
+		try { $debugEnabled = [bool](Get-BaselineDebugLogging) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.Write-BaselineUpdateOverlayDebug:catch171' -Severity Debug }
+		 $debugEnabled = $false }
 	}
 	if (-not $debugEnabled) { return }
 
 	$line = '[UpdateOverlay] {0}' -f $Message
-	try { LogDebug $line } catch { $null = $_ }
+	try { LogDebug $line } catch { Write-Warning "Failed to write update overlay debug entry: $($_.Exception.Message)" }
 	try
 	{
 		$base = if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) { [System.IO.Path]::GetTempPath() } else { $env:LOCALAPPDATA }
@@ -184,6 +186,8 @@ function Write-BaselineUpdateOverlayDebug
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.Write-BaselineUpdateOverlayDebug:catch185' -Severity Debug }
+
 		$null = $_
 	}
 }
@@ -475,6 +479,8 @@ function Show-BaselineUpdateCheckDialog
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.Show-BaselineUpdateCheckDialog:catch476' -Severity Debug }
+
 		& $writeOverlayDebug ("Update check failed: {0}" -f $_.Exception.Message)
 		Show-BaselineUpdateOverlay -Title $title -Description $errorDescription -StatusText $_.Exception.Message -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false -PrimaryButtonCloses:$true
 		& $showSingleCloseButton
@@ -582,6 +588,8 @@ function Start-BaselineDownload
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.Start-BaselineDownload:catch583' -Severity Debug }
+
 			$Sync.Error = $_.Exception.Message
 			$Sync.IsComplete = $true
 		}

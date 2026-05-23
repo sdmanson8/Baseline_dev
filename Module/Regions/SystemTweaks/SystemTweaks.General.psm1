@@ -115,9 +115,9 @@ function PerformanceTuning
 	Enable or disable Adobe Network Block
 
 
-	
+
 .DESCRIPTION
-	
+
 Enables or disables Adobe Network Block in GUI and headless runs.
 	.PARAMETER Enable
 	Enable Adobe Network Block

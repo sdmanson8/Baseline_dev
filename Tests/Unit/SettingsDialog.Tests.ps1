@@ -37,6 +37,20 @@ Describe 'Settings dialog wiring' {
     It 'restores the tabbed settings dialog and searchable language picker' {
         $script:DialogHelpersContent | Should -Match 'function Show-GuiSettingsDialog'
         $script:DialogHelpersContent | Should -Match 'TabControl Name="SettingsTabs"'
+        $script:DialogHelpersContent | Should -Match 'Name="TabSettingsGeneral"'
+        $script:DialogHelpersContent | Should -Match 'Name="TabSettingsAppearance"'
+        $script:DialogHelpersContent | Should -Match 'Name="TabSettingsSafety"'
+        $script:DialogHelpersContent | Should -Match 'Name="TabSettingsApps"'
+        $script:DialogHelpersContent | Should -Match 'Name="TabSettingsLogging"'
+        $script:DialogHelpersContent | Should -Match 'Name="TabSettingsAdvanced"'
+        $script:DialogHelpersContent | Should -Match 'Set-GuiTabHeaderWithIcon -Tab \$tab -IconName'
+        $script:DialogHelpersContent | Should -Match "Icon = 'WindowSettings'"
+        $script:DialogHelpersContent | Should -Match "Icon = 'Theme'"
+        $script:DialogHelpersContent | Should -Match "Icon = 'Shield'"
+        $script:DialogHelpersContent | Should -Match "Icon = 'AppsTab'"
+        $script:DialogHelpersContent | Should -Match "Icon = 'OpenLog'"
+        $script:DialogHelpersContent | Should -Match "Icon = 'Advanced'"
+        $script:DialogHelpersContent | Should -Match 'TextElement\.Foreground="\{TemplateBinding Foreground\}"'
         $script:DialogHelpersContent | Should -Match 'Name="BtnSettingsLanguage"'
         $script:DialogHelpersContent | Should -Match 'Name="SettingsLanguagePopup"'
         $script:DialogHelpersContent | Should -Match '<Popup Name="SettingsLanguagePopup"[^>]*StaysOpen="True"'
@@ -149,10 +163,13 @@ Describe 'Settings dialog wiring' {
 
     It 'applies hide-unavailable changes to live filter state before session snapshots are saved' {
         $script:SettingsDialogContent | Should -Match 'Name="ChkHideUnavailableItems"'
+        $script:MenuHandlersContent | Should -Match 'HideUnavailableItems = if \(\$null -ne \$Script:HideUnavailableItems\) \{ \[bool\]\$Script:HideUnavailableItems \}'
         $script:MenuHandlersContent | Should -Match '\$hideUnavailWanted = \[bool\]\$result\.HideUnavailableItems'
         $script:MenuHandlersContent | Should -Match 'Set-HideUnavailableItemsState -HideUnavailableItems \$hideUnavailWanted'
         $script:MenuHandlersContent | Should -Match '\$Script:HideUnavailableItems = \$hideUnavailWanted'
         $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''HideUnavailableItems'' -Value \$hideUnavailWanted'
+        $script:MenuHandlersContent | Should -Match '\$Script:ChkHideUnavailableItems\.IsChecked = \$hideUnavailWanted'
+        $script:MenuHandlersContent | Should -Match 'Update-CurrentTabContent -SkipIdlePrebuild'
     }
 
     It 'persists launch system scan as an opt-in user preference' {
@@ -163,6 +180,37 @@ Describe 'Settings dialog wiring' {
         $script:WindowSetupContent | Should -Match '\$Script:AutoScanOnLaunch = \$false'
         $script:WindowSetupContent | Should -Match '\$Script:ScanEnabled = \$false'
         $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''AutoScanOnLaunch'' -Default \$false'
+    }
+
+    It 'persists startup splash work preferences and reloads them on startup' {
+        $script:SettingsDialogContent | Should -Match 'Name="ChkStartupRunInitialActions"'
+        $script:SettingsDialogContent | Should -Match 'Name="ChkStartupCheckWinGet"'
+        $script:SettingsDialogContent | Should -Match 'Name="CmbStartupWinGetCheckFrequency"'
+        $script:SettingsDialogContent | Should -Match 'Name="ChkStartupCheckChocolatey"'
+        $script:SettingsDialogContent | Should -Match 'Name="CmbStartupChocolateyCheckFrequency"'
+        $script:SettingsDialogContent | Should -Match 'StartupRunInitialActions = if \(\$chkStartupRunInitialActions\)'
+        $script:SettingsDialogContent | Should -Match 'StartupWinGetCheckFrequency = \[string\]\(& \$getTag \$cmbStartupWinGetCheckFrequency ''Startup''\)'
+        $script:SettingsDialogContent | Should -Match 'StartupChocolateyCheckFrequency = \[string\]\(& \$getTag \$cmbStartupChocolateyCheckFrequency ''Startup''\)'
+        $script:SettingsDialogContent | Should -Match '\$syncStartupSplashPackageManagerControls = \{'
+        $script:SettingsDialogContent | Should -Not -Match '\$startupChecksEnabled = \(-not \$chkStartupRunInitialActions\)'
+        $script:MenuHandlersContent | Should -Match 'Get-BaselineUserPreference -Key ''StartupRunInitialActions'' -Default \$true'
+        $script:MenuHandlersContent | Should -Match 'Get-BaselineUserPreference -Key ''StartupCheckWinGet'' -Default \$true'
+        $script:MenuHandlersContent | Should -Match 'Get-BaselineUserPreference -Key ''StartupWinGetCheckFrequency'' -Default ''Startup'''
+        $script:MenuHandlersContent | Should -Match 'Get-BaselineUserPreference -Key ''StartupCheckChocolatey'' -Default \$true'
+        $script:MenuHandlersContent | Should -Match 'Get-BaselineUserPreference -Key ''StartupChocolateyCheckFrequency'' -Default ''Startup'''
+        $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''StartupRunInitialActions'' -Value \$startupRunInitialActionsWanted'
+        $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''StartupCheckWinGet'' -Value \$startupCheckWinGetWanted'
+        $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''StartupWinGetCheckFrequency'' -Value \$startupWinGetCheckFrequencyWanted'
+        $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''StartupCheckChocolatey'' -Value \$startupCheckChocolateyWanted'
+        $script:MenuHandlersContent | Should -Match 'Set-BaselineUserPreference -Key ''StartupChocolateyCheckFrequency'' -Value \$startupChocolateyCheckFrequencyWanted'
+        $script:WindowSetupContent | Should -Match '\$Script:StartupRunInitialActions = \$true'
+        $script:WindowSetupContent | Should -Match '\$Script:StartupWinGetCheckFrequency = ''Startup'''
+        $script:WindowSetupContent | Should -Match '\$Script:StartupChocolateyCheckFrequency = ''Startup'''
+        $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''StartupRunInitialActions'' -Default \$true'
+        $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''StartupCheckWinGet'' -Default \$true'
+        $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''StartupWinGetCheckFrequency'' -Default ''Startup'''
+        $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''StartupCheckChocolatey'' -Default \$true'
+        $script:WindowSetupContent | Should -Match 'Get-BaselineUserPreference -Key ''StartupChocolateyCheckFrequency'' -Default ''Startup'''
     }
 
     It 'persists run confirmation preference and reloads it on startup' {
@@ -248,6 +296,14 @@ Describe 'Settings dialog wiring' {
             'GuiSettingsGeneralSection',
             'GuiSettingsLanguageLabel',
             'GuiSettingsAutoScanOnLaunchLabel',
+            'GuiSettingsStartupSplashSection',
+            'GuiSettingsStartupSplashSubtitle',
+            'GuiSettingsStartupRunInitialActionsLabel',
+            'GuiSettingsStartupCheckWinGetLabel',
+            'GuiSettingsStartupWinGetCheckFrequencyLabel',
+            'GuiSettingsStartupCheckChocolateyLabel',
+            'GuiSettingsStartupChocolateyCheckFrequencyLabel',
+            'GuiSettingsStartupSplashHelper',
             'GuiSettingsHideUnavailableLabel',
             'GuiSettingsUpdatesSection',
             'GuiSettingsAutoCheckUpdatesLabel',

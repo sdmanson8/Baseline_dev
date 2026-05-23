@@ -1,6 +1,6 @@
-﻿# Windows Update runtime panel: manifest-independent scan, download, install, and history UI.
+# Windows Update runtime panel: manifest-independent scan, download, install, and history UI.
 
-function Initialize-GuiWindowsUpdateRuntimeState
+function script:Initialize-GuiWindowsUpdateRuntimeState
 {
 	if (-not ($Script:WindowsUpdateAvailableUpdates -is [System.Collections.IList]))
 	{
@@ -10,13 +10,17 @@ function Initialize-GuiWindowsUpdateRuntimeState
 	{
 		$Script:WindowsUpdateSelectionControls = New-Object 'System.Collections.Generic.List[object]'
 	}
+	if (-not ($Script:WindowsUpdateSelectionState -is [System.Collections.Generic.Dictionary[string, bool]]))
+	{
+		$Script:WindowsUpdateSelectionState = [System.Collections.Generic.Dictionary[string, bool]]::new([System.StringComparer]::OrdinalIgnoreCase)
+	}
 	if (-not ($Script:WindowsUpdateHistoryEntries -is [System.Collections.IList]))
 	{
 		$Script:WindowsUpdateHistoryEntries = New-Object 'System.Collections.Generic.List[object]'
 	}
 }
 
-function Get-GuiWindowsUpdateBrushConverter
+function script:Get-GuiWindowsUpdateBrushConverter
 {
 	if ($Script:SharedBrushConverter)
 	{
@@ -27,7 +31,7 @@ function Get-GuiWindowsUpdateBrushConverter
 	return $Script:SharedBrushConverter
 }
 
-function New-GuiWindowsUpdateTextBlock
+function script:New-GuiWindowsUpdateTextBlock
 {
 	param (
 		[string]$Text,
@@ -46,7 +50,7 @@ function New-GuiWindowsUpdateTextBlock
 	return $textBlock
 }
 
-function Set-GuiWindowsUpdateStatus
+function script:Set-GuiWindowsUpdateStatus
 {
 	param (
 		[string]$Message,
@@ -75,39 +79,230 @@ function Set-GuiWindowsUpdateStatus
 	}
 }
 
-function Update-GuiWindowsUpdateActionState
+function script:Write-GuiWindowsUpdateDiagnostic
 {
-	$busy = [bool]$Script:WindowsUpdateOperationInProgress
-	$selectedCount = @(Get-GuiWindowsUpdateSelectedItems).Count
+	param (
+		[string]$Message
+	)
 
-	if ($Script:BtnWindowsUpdateScan) { $Script:BtnWindowsUpdateScan.IsEnabled = -not $busy }
-	if ($Script:BtnWindowsUpdateHistory) { $Script:BtnWindowsUpdateHistory.IsEnabled = -not $busy }
-	if ($Script:BtnWindowsUpdateDownload) { $Script:BtnWindowsUpdateDownload.IsEnabled = (-not $busy) -and ($selectedCount -gt 0) }
-	if ($Script:BtnWindowsUpdateInstall) { $Script:BtnWindowsUpdateInstall.IsEnabled = (-not $busy) -and ($selectedCount -gt 0) }
+	if ([string]::IsNullOrWhiteSpace($Message)) { return }
+
+	try
+	{
+		LogDebug -Message $Message -Scope 'GUI'
+	}
+	catch
+	{
+		try { Write-SwallowedException -ErrorRecord $_ -Source 'UpdatesPanel.Write-GuiWindowsUpdateDiagnostic' } catch { Write-Warning "Failed to log Windows Update diagnostic failure: $($_.Exception.Message)" }
+	}
 }
 
-function Get-GuiWindowsUpdateSelectedItems
+function script:Test-GuiWindowsUpdateCheckBoxChecked
+{
+	param (
+		[System.Windows.Controls.CheckBox]$CheckBox
+	)
+
+	if ($null -eq $CheckBox) { return $false }
+
+	$value = $CheckBox.GetValue([System.Windows.Controls.Primitives.ToggleButton]::IsCheckedProperty)
+	return ($value -eq $true)
+}
+
+function script:Set-GuiWindowsUpdateOperationInProgress
+{
+	param (
+		[bool]$InProgress
+	)
+
+	$Script:WindowsUpdateOperationInProgress = [bool]$InProgress
+}
+
+function script:Get-GuiWindowsUpdateSelectionSnapshot
 {
 	Initialize-GuiWindowsUpdateRuntimeState
-	$selected = New-Object 'System.Collections.Generic.List[object]'
-	foreach ($entry in [object[]]$Script:WindowsUpdateSelectionControls.ToArray())
+
+	$selectionControls = $Script:WindowsUpdateSelectionControls
+	$controlCount = 0
+	$selectedCount = 0
+	if ($null -ne $selectionControls)
 	{
-		if (-not $entry -or -not $entry.Update) { continue }
-		$isSelected = [bool]$entry.Selected
-		if (-not $isSelected -and $entry.CheckBox)
+		$controlCount = [int]$selectionControls.Count
+	}
+
+	for ($index = 0; $index -lt $controlCount; $index++)
+	{
+		$entry = $selectionControls[$index]
+		if ($null -eq $entry) { continue }
+		$checkBox = $entry.CheckBox
+		if ($null -eq $checkBox) { continue }
+		if (-not (Test-GuiWindowsUpdateCheckBoxChecked -CheckBox $checkBox)) { continue }
+		if ($null -eq $entry.Update) { continue }
+		$selectedCount++
+	}
+
+	return [pscustomobject]@{
+		ControlCount  = $controlCount
+		SelectedCount = $selectedCount
+	}
+}
+
+function script:Update-GuiWindowsUpdateActionState
+{
+	try
+	{
+		Initialize-GuiWindowsUpdateRuntimeState
+
+		$busy = [bool]$Script:WindowsUpdateOperationInProgress
+		$selectionSnapshot = Get-GuiWindowsUpdateSelectionSnapshot
+		$selectedCount = [int]$selectionSnapshot.SelectedCount
+		$controlCount = [int]$selectionSnapshot.ControlCount
+		$canRunSelectedUpdateAction = (-not $busy) -and ($selectedCount -gt 0)
+
+		Write-GuiWindowsUpdateDiagnostic -Message ("Windows Update action state: controls={0}; selected={1}; busy={2}; canRunSelected={3}." -f $controlCount, $selectedCount, $busy, $canRunSelectedUpdateAction)
+
+		Set-GuiWindowsUpdateActionButtonState -Button $Script:BtnWindowsUpdateScan -Enabled (-not $busy) -EnabledVariant 'Primary' -DisabledVariant 'Primary'
+		Set-GuiWindowsUpdateActionButtonState -Button $Script:BtnWindowsUpdateHistory -Enabled (-not $busy) -EnabledVariant 'Subtle' -DisabledVariant 'Subtle'
+		Set-GuiWindowsUpdateActionButtonState -Button $Script:BtnWindowsUpdateDownload -Enabled $canRunSelectedUpdateAction -EnabledVariant 'Primary' -DisabledVariant 'Secondary'
+		Set-GuiWindowsUpdateActionButtonState -Button $Script:BtnWindowsUpdateInstall -Enabled $canRunSelectedUpdateAction -EnabledVariant 'Primary' -DisabledVariant 'Secondary'
+	}
+	catch
+	{
+		$message = "Windows Update action-state refresh failed: $($_.Exception.Message)"
+		try { Set-GuiWindowsUpdateStatus -Message $message -State 'Error' } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdatesPanel.Update-GuiWindowsUpdateActionState.SetStatus' }
+		try { LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix $message) } catch { Write-Warning $message }
+	}
+}
+
+function script:Set-GuiWindowsUpdateActionButtonState
+{
+	param (
+		[System.Windows.Controls.Primitives.ButtonBase]$Button,
+		[bool]$Enabled,
+		[ValidateSet('Primary', 'Preview', 'Danger', 'DangerSubtle', 'Secondary', 'Subtle', 'Selection', 'SegmentNeutral')]
+		[string]$EnabledVariant,
+		[ValidateSet('Primary', 'Preview', 'Danger', 'DangerSubtle', 'Secondary', 'Subtle', 'Selection', 'SegmentNeutral')]
+		[string]$DisabledVariant
+	)
+
+	if (-not $Button) { return }
+
+	$Button.IsEnabled = [bool]$Enabled
+	$Button.Cursor = if ($Enabled) { [System.Windows.Input.Cursors]::Hand } else { [System.Windows.Input.Cursors]::Arrow }
+	$variant = if ($Enabled) { $EnabledVariant } else { $DisabledVariant }
+	Set-ButtonChrome -Button $Button -Variant $variant -Compact
+	Write-GuiWindowsUpdateDiagnostic -Message ("Windows Update button state: label='{0}'; enabled={1}; variant={2}; actualIsEnabled={3}." -f [string]$Button.Content, [bool]$Enabled, $variant, [bool]$Button.IsEnabled)
+}
+
+function script:Get-GuiWindowsUpdateIdentityKey
+{
+	param (
+		[object]$Update
+	)
+
+	if (-not $Update) { return '' }
+
+	$id = [string]$Update.Id
+	$revision = [string]$Update.RevisionNumber
+
+	if ([string]::IsNullOrWhiteSpace($id) -and $Update.Identity)
+	{
+		$id = [string]$Update.Identity.UpdateID
+	}
+
+	if ([string]::IsNullOrWhiteSpace($revision) -and $Update.Identity)
+	{
+		$revision = [string]$Update.Identity.RevisionNumber
+	}
+
+	if ([string]::IsNullOrWhiteSpace($id))
+	{
+		$id = [string]$Update.Title
+	}
+
+	if ([string]::IsNullOrWhiteSpace($revision))
+	{
+		$revision = '0'
+	}
+
+	return ('{0}|{1}' -f $id, $revision)
+}
+
+function script:Sync-GuiWindowsUpdateSelectionStateWithAvailableUpdates
+{
+	Initialize-GuiWindowsUpdateRuntimeState
+
+	$currentState = $Script:WindowsUpdateSelectionState
+	$nextState = [System.Collections.Generic.Dictionary[string, bool]]::new([System.StringComparer]::OrdinalIgnoreCase)
+	foreach ($update in [object[]]$Script:WindowsUpdateAvailableUpdates.ToArray())
+	{
+		$key = Get-GuiWindowsUpdateIdentityKey -Update $update
+		if ([string]::IsNullOrWhiteSpace($key)) { continue }
+
+		$selected = $true
+		if ($currentState.ContainsKey($key))
 		{
-			$isSelected = [bool]$entry.CheckBox.IsChecked
+			$selected = [bool]$currentState[$key]
 		}
-		if ($isSelected)
-		{
-			[void]$selected.Add($entry.Update)
-		}
+		$nextState[$key] = $selected
+	}
+
+	$Script:WindowsUpdateSelectionState = $nextState
+}
+
+function script:Get-GuiWindowsUpdateSelectionState
+{
+	param (
+		[object]$Update
+	)
+
+	Initialize-GuiWindowsUpdateRuntimeState
+
+	$key = Get-GuiWindowsUpdateIdentityKey -Update $Update
+	if ([string]::IsNullOrWhiteSpace($key)) { return $false }
+	if (-not $Script:WindowsUpdateSelectionState.ContainsKey($key))
+	{
+		$Script:WindowsUpdateSelectionState[$key] = $true
+	}
+
+	return [bool]$Script:WindowsUpdateSelectionState[$key]
+}
+
+function script:Set-GuiWindowsUpdateSelectionState
+{
+	param (
+		[object]$Update,
+		[bool]$Selected
+	)
+
+	Initialize-GuiWindowsUpdateRuntimeState
+
+	$key = Get-GuiWindowsUpdateIdentityKey -Update $Update
+	if ([string]::IsNullOrWhiteSpace($key)) { return }
+	$Script:WindowsUpdateSelectionState[$key] = [bool]$Selected
+}
+
+function script:Get-GuiWindowsUpdateSelectedItems
+{
+	Initialize-GuiWindowsUpdateRuntimeState
+
+	$selected = New-Object 'System.Collections.Generic.List[object]'
+	$selectionControls = $Script:WindowsUpdateSelectionControls
+	for ($index = 0; ($null -ne $selectionControls) -and ($index -lt $selectionControls.Count); $index++)
+	{
+		$entry = $selectionControls[$index]
+		if ($null -eq $entry) { continue }
+		$checkBox = $entry.CheckBox
+		if ($null -eq $checkBox) { continue }
+		if (-not (Test-GuiWindowsUpdateCheckBoxChecked -CheckBox $checkBox)) { continue }
+		if ($null -eq $entry.Update) { continue }
+		[void]$selected.Add($entry.Update)
 	}
 
 	return [object[]]$selected.ToArray()
 }
 
-function Sync-GuiWindowsUpdateSelectionEntry
+function script:Sync-GuiWindowsUpdateSelectionEntry
 {
 	param (
 		[object]$SelectionEntry
@@ -120,7 +315,7 @@ function Sync-GuiWindowsUpdateSelectionEntry
 	Update-GuiWindowsUpdateActionState
 }
 
-function ConvertTo-GuiWindowsUpdateIdentitySelection
+function script:ConvertTo-GuiWindowsUpdateIdentitySelection
 {
 	param (
 		[object[]]$Updates
@@ -130,9 +325,27 @@ function ConvertTo-GuiWindowsUpdateIdentitySelection
 	foreach ($update in @($Updates))
 	{
 		if (-not $update) { continue }
+		$id = [string]$update.Id
+		$revision = [string]$update.RevisionNumber
+		if ([string]::IsNullOrWhiteSpace($id) -and $update.Identity)
+		{
+			$id = [string]$update.Identity.UpdateID
+		}
+		if ([string]::IsNullOrWhiteSpace($revision) -and $update.Identity)
+		{
+			$revision = [string]$update.Identity.RevisionNumber
+		}
+		if ([string]::IsNullOrWhiteSpace($id))
+		{
+			$id = [string]$update.Title
+		}
+		if ([string]::IsNullOrWhiteSpace($revision))
+		{
+			$revision = '0'
+		}
 		[void]$selected.Add([pscustomobject]@{
-			Id             = [string]$update.Id
-			RevisionNumber = [int]$update.RevisionNumber
+			Id             = $id
+			RevisionNumber = [int]$revision
 			Title          = [string]$update.Title
 		})
 	}
@@ -140,7 +353,7 @@ function ConvertTo-GuiWindowsUpdateIdentitySelection
 	return [object[]]$selected.ToArray()
 }
 
-function New-GuiWindowsUpdateActionButton
+function script:New-GuiWindowsUpdateActionButton
 {
 	param (
 		[string]$Label,
@@ -158,7 +371,7 @@ function New-GuiWindowsUpdateActionButton
 	return $button
 }
 
-function Show-GuiWindowsUpdateRuntimeView
+function script:Show-GuiWindowsUpdateRuntimeView
 {
 	$theme = Get-GuiCurrentTheme
 	$brushConverter = Get-GuiWindowsUpdateBrushConverter
@@ -194,9 +407,11 @@ function Show-GuiWindowsUpdateRuntimeView
 	$window.Content = $scrollViewer
 
 	[void]$window.Show()
+	$startGuiWindowsUpdateOperationScript = ${function:Start-GuiWindowsUpdateOperation}
+	& $startGuiWindowsUpdateOperationScript -Action 'History'
 }
 
-function Set-GuiWindowsUpdatePresetSelection
+function script:Set-GuiWindowsUpdatePresetSelection
 {
 	param (
 		[Parameter(Mandatory = $true)]
@@ -247,7 +462,7 @@ function Set-GuiWindowsUpdatePresetSelection
 
 	$summary = switch ($PresetName)
 	{
-		'Default' { 'Loads a selection that clears Baseline Windows Update policy controls back to Windows defaults.' }
+		'Default' { 'Loads a selection that clears Baseline Windows Update policy controls back to recorded default values.' }
 		'Security' { 'Loads a selection that delays feature updates, applies a short quality update delay, and blocks update drivers/restarts.' }
 		'DisableAll' { 'Loads a high-risk selection that disables Windows Update policy, services, and scheduled update tasks.' }
 	}
@@ -274,7 +489,7 @@ function Set-GuiWindowsUpdatePresetSelection
 	& $setTabPresetCommand -PrimaryTab 'Updates' -PresetTier $displayName -SelectionDefinition $selectionDefinition
 }
 
-function New-GuiWindowsUpdateLeadCard
+function script:New-GuiWindowsUpdateLeadCard
 {
 	param (
 		[Parameter(Mandatory = $true)]
@@ -338,7 +553,7 @@ function New-GuiWindowsUpdateLeadCard
 	return $card
 }
 
-function New-GuiWindowsUpdatePresetCard
+function script:New-GuiWindowsUpdatePresetCard
 {
 	$theme = Get-GuiCurrentTheme
 	$brushConverter = Get-GuiWindowsUpdateBrushConverter
@@ -379,7 +594,7 @@ function New-GuiWindowsUpdatePresetCard
 	return $card
 }
 
-function New-GuiWindowsUpdateLeadCardsPanel
+function script:New-GuiWindowsUpdateLeadCardsPanel
 {
 	$theme = Get-GuiCurrentTheme
 	$brushConverter = Get-GuiWindowsUpdateBrushConverter
@@ -440,7 +655,7 @@ function New-GuiWindowsUpdateLeadCardsPanel
 	return $outer
 }
 
-function New-GuiWindowsUpdateEmptyMessage
+function script:New-GuiWindowsUpdateEmptyMessage
 {
 	param (
 		[string]$Text
@@ -453,7 +668,7 @@ function New-GuiWindowsUpdateEmptyMessage
 	return $message
 }
 
-function New-GuiWindowsUpdateUpdateRow
+function script:New-GuiWindowsUpdateUpdateRow
 {
 	param (
 		[object]$Update
@@ -471,9 +686,12 @@ function New-GuiWindowsUpdateUpdateRow
 	$row.Padding = [System.Windows.Thickness]::new(10, 8, 10, 8)
 
 	$checkBox = New-Object System.Windows.Controls.CheckBox
+	$checkBox.IsThreeState = $false
 	$checkBox.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
 	$checkBox.Margin = [System.Windows.Thickness]::new(0)
 	$checkBox.Tag = $Update
+	$selected = Get-GuiWindowsUpdateSelectionState -Update $Update
+	$checkBox.IsChecked = $selected
 	if (Get-Command -Name 'Set-HeaderToggleStyle' -CommandType Function -ErrorAction SilentlyContinue)
 	{
 		Set-HeaderToggleStyle -CheckBox $checkBox -Palette Mode
@@ -511,19 +729,27 @@ function New-GuiWindowsUpdateUpdateRow
 	$selectionEntry = [pscustomobject]@{
 		CheckBox = $checkBox
 		Update   = $Update
-		Selected = $false
+		Selected = $selected
 	}
 	[void]$Script:WindowsUpdateSelectionControls.Add($selectionEntry)
 
-	$syncGuiWindowsUpdateSelectionEntryScript = ${function:Sync-GuiWindowsUpdateSelectionEntry}
-	Register-GuiEventHandler -Source $checkBox -EventName 'Checked' -Handler ({ & $syncGuiWindowsUpdateSelectionEntryScript -SelectionEntry $selectionEntry }.GetNewClosure()) | Out-Null
-	Register-GuiEventHandler -Source $checkBox -EventName 'Unchecked' -Handler ({ & $syncGuiWindowsUpdateSelectionEntryScript -SelectionEntry $selectionEntry }.GetNewClosure()) | Out-Null
-	Register-GuiEventHandler -Source $checkBox -EventName 'Click' -Handler ({ & $syncGuiWindowsUpdateSelectionEntryScript -SelectionEntry $selectionEntry }.GetNewClosure()) | Out-Null
+	$updateGuiWindowsUpdateActionStateScript = ${function:Update-GuiWindowsUpdateActionState}
+	$setGuiWindowsUpdateSelectionStateScript = ${function:Set-GuiWindowsUpdateSelectionState}
+	$testGuiWindowsUpdateCheckBoxCheckedScript = ${function:Test-GuiWindowsUpdateCheckBoxChecked}
+	$writeGuiWindowsUpdateDiagnosticScript = ${function:Write-GuiWindowsUpdateDiagnostic}
+	$checkBox.Add_Click({
+		$selectionEntry.Selected = & $testGuiWindowsUpdateCheckBoxCheckedScript -CheckBox $checkBox
+		& $setGuiWindowsUpdateSelectionStateScript -Update $selectionEntry.Update -Selected ([bool]$selectionEntry.Selected)
+		& $writeGuiWindowsUpdateDiagnosticScript -Message ("Windows Update row toggle changed: selected={0}; title='{1}'." -f [bool]$selectionEntry.Selected, [string]$selectionEntry.Update.Title)
+		& $updateGuiWindowsUpdateActionStateScript
+	}.GetNewClosure())
+
+	Write-GuiWindowsUpdateDiagnostic -Message ("Windows Update row added: selected={0}; key='{1}'; title='{2}'." -f [bool]$selected, (Get-GuiWindowsUpdateIdentityKey -Update $Update), [string]$Update.Title)
 
 	return $row
 }
 
-function Update-GuiWindowsUpdateAvailableList
+function script:Update-GuiWindowsUpdateAvailableList
 {
 	Initialize-GuiWindowsUpdateRuntimeState
 	if (-not $Script:WindowsUpdateAvailableListPanel)
@@ -535,6 +761,7 @@ function Update-GuiWindowsUpdateAvailableList
 	$Script:WindowsUpdateSelectionControls.Clear()
 
 	$updates = [object[]]$Script:WindowsUpdateAvailableUpdates.ToArray()
+	Sync-GuiWindowsUpdateSelectionStateWithAvailableUpdates
 	if ($updates.Count -eq 0)
 	{
 		[void]$Script:WindowsUpdateAvailableListPanel.Children.Add((New-GuiWindowsUpdateEmptyMessage -Text 'No available updates have been scanned yet.'))
@@ -562,7 +789,7 @@ function Update-GuiWindowsUpdateAvailableList
 	Update-GuiWindowsUpdateActionState
 }
 
-function Update-GuiWindowsUpdateHistoryList
+function script:Update-GuiWindowsUpdateHistoryList
 {
 	Initialize-GuiWindowsUpdateRuntimeState
 	if (-not $Script:WindowsUpdateHistoryList)
@@ -577,7 +804,7 @@ function Update-GuiWindowsUpdateHistoryList
 	}
 }
 
-function Complete-GuiWindowsUpdateOperation
+function script:Complete-GuiWindowsUpdateOperation
 {
 	param (
 		[object]$Payload
@@ -598,7 +825,9 @@ function Complete-GuiWindowsUpdateOperation
 				[void]$Script:WindowsUpdateAvailableUpdates.Add($update)
 			}
 			Update-GuiWindowsUpdateAvailableList
-			Set-GuiWindowsUpdateStatus -Message ('Scan complete. {0} available update(s).' -f @($Payload.Updates).Count) -State 'Success'
+			$selectionSnapshot = Get-GuiWindowsUpdateSelectionSnapshot
+			Write-GuiWindowsUpdateDiagnostic -Message ("Windows Update scan complete: available={0}; controls={1}; selected={2}." -f @($Payload.Updates).Count, [int]$selectionSnapshot.ControlCount, [int]$selectionSnapshot.SelectedCount)
+			Set-GuiWindowsUpdateStatus -Message ('Scan complete. {0} available update(s). {1} selected.' -f @($Payload.Updates).Count, [int]$selectionSnapshot.SelectedCount) -State 'Success'
 		}
 		'History'
 		{
@@ -626,11 +855,42 @@ function Complete-GuiWindowsUpdateOperation
 				Set-GuiWindowsUpdateStatus -Message ('Install stopped after download result {0} for {1} update(s).' -f $downloadResult.Result, $downloadResult.UpdateCount) -State 'Warning'
 				return
 			}
+
+			if ($installResult -and [bool]$installResult.Succeeded -and $Payload.PSObject.Properties['Updates'])
+			{
+				$Script:WindowsUpdateAvailableUpdates.Clear()
+				foreach ($update in @($Payload.Updates))
+				{
+					[void]$Script:WindowsUpdateAvailableUpdates.Add($update)
+				}
+				Update-GuiWindowsUpdateAvailableList
+			}
+
+			if ($installResult -and [bool]$installResult.Succeeded -and $Payload.PSObject.Properties['History'])
+			{
+				$Script:WindowsUpdateHistoryEntries.Clear()
+				foreach ($entry in @($Payload.History))
+				{
+					[void]$Script:WindowsUpdateHistoryEntries.Add($entry)
+				}
+				Update-GuiWindowsUpdateHistoryList
+			}
+
 			$state = if ($installResult -and [bool]$installResult.Succeeded) { 'Success' } else { 'Warning' }
 			$message = if ($installResult) { 'Install finished: {0} for {1} update(s).' -f $installResult.Result, $installResult.UpdateCount } else { 'Install finished without a result payload.' }
+			$restartRequired = $false
 			if ($installResult -and [bool]$installResult.RebootRequired)
 			{
-				$message = "$message Restart required."
+				$restartRequired = $true
+			}
+			if ($Payload.PSObject.Properties['RebootRequired'] -and [bool]$Payload.RebootRequired)
+			{
+				$restartRequired = $true
+			}
+
+			if ($restartRequired)
+			{
+				$message = "$message Restart Windows to finish applying updates."
 				$state = 'Warning'
 			}
 			Set-GuiWindowsUpdateStatus -Message $message -State $state
@@ -642,7 +902,7 @@ function Complete-GuiWindowsUpdateOperation
 	}
 }
 
-function Start-GuiWindowsUpdateOperation
+function script:Start-GuiWindowsUpdateOperation
 {
 	[CmdletBinding()]
 	param (
@@ -688,7 +948,7 @@ function Start-GuiWindowsUpdateOperation
 		throw "Windows Update helper is missing: $helperPath"
 	}
 
-	$Script:WindowsUpdateOperationInProgress = $true
+	Set-GuiWindowsUpdateOperationInProgress -InProgress $true
 	Update-GuiWindowsUpdateActionState
 
 	$selectedIdentities = @(ConvertTo-GuiWindowsUpdateIdentitySelection -Updates $selectedItems)
@@ -716,9 +976,28 @@ function Start-GuiWindowsUpdateOperation
 		{
 			param ([object]$Update)
 
+			$id = [string]$Update.Id
+			$revision = [string]$Update.RevisionNumber
+			if ([string]::IsNullOrWhiteSpace($id) -and $Update.Identity)
+			{
+				$id = [string]$Update.Identity.UpdateID
+			}
+			if ([string]::IsNullOrWhiteSpace($revision) -and $Update.Identity)
+			{
+				$revision = [string]$Update.Identity.RevisionNumber
+			}
+			if ([string]::IsNullOrWhiteSpace($id))
+			{
+				$id = [string]$Update.Title
+			}
+			if ([string]::IsNullOrWhiteSpace($revision))
+			{
+				$revision = '0'
+			}
+
 			[pscustomobject]@{
-				Id             = [string]$Update.Id
-				RevisionNumber = [int]$Update.RevisionNumber
+				Id             = $id
+				RevisionNumber = [int]$revision
 				Title          = [string]$Update.Title
 				Description    = [string]$Update.Description
 				KBArticleIDs   = [string[]]$Update.KBArticleIDs
@@ -733,6 +1012,34 @@ function Start-GuiWindowsUpdateOperation
 			}
 		}
 
+		function Get-PortableWindowsUpdateIdentityKey
+		{
+			param ([object]$Update)
+
+			if (-not $Update) { return '' }
+
+			$id = [string]$Update.Id
+			$revision = [string]$Update.RevisionNumber
+			if ([string]::IsNullOrWhiteSpace($id) -and $Update.Identity)
+			{
+				$id = [string]$Update.Identity.UpdateID
+			}
+			if ([string]::IsNullOrWhiteSpace($revision) -and $Update.Identity)
+			{
+				$revision = [string]$Update.Identity.RevisionNumber
+			}
+			if ([string]::IsNullOrWhiteSpace($id))
+			{
+				$id = [string]$Update.Title
+			}
+			if ([string]::IsNullOrWhiteSpace($revision))
+			{
+				$revision = '0'
+			}
+
+			return ('{0}|{1}' -f $id, $revision)
+		}
+
 		function Resolve-SelectedWindowsUpdateRecords
 		{
 			param (
@@ -741,15 +1048,15 @@ function Start-GuiWindowsUpdateOperation
 			)
 
 			$selectedUpdates = New-Object 'System.Collections.Generic.List[object]'
-			$missingTitles = New-Object 'System.Collections.Generic.List[string]'
-			foreach ($selection in @($Selections))
-			{
-				$match = @(
-					$AvailableUpdates | Where-Object {
-						([string]$_.Id -eq [string]$selection.Id) -and
-						([int]$_.RevisionNumber -eq [int]$selection.RevisionNumber)
-					} | Select-Object -First 1
-				)
+				$missingTitles = New-Object 'System.Collections.Generic.List[string]'
+				foreach ($selection in @($Selections))
+				{
+					$selectionKey = Get-PortableWindowsUpdateIdentityKey -Update $selection
+					$match = @(
+						$AvailableUpdates | Where-Object {
+							(Get-PortableWindowsUpdateIdentityKey -Update $_) -eq $selectionKey
+						} | Select-Object -First 1
+					)
 				if ($match.Count -gt 0)
 				{
 					[void]$selectedUpdates.Add($match[0])
@@ -768,6 +1075,61 @@ function Start-GuiWindowsUpdateOperation
 			return [object[]]$selectedUpdates.ToArray()
 		}
 
+		function Select-PortableWindowsUpdatePostInstallUpdates
+		{
+			param (
+				[object[]]$AvailableUpdates,
+				[object[]]$Selections
+			)
+
+			$selectionKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+			foreach ($selection in @($Selections))
+			{
+				$selectionKey = Get-PortableWindowsUpdateIdentityKey -Update $selection
+				if (-not [string]::IsNullOrWhiteSpace($selectionKey))
+				{
+					[void]$selectionKeys.Add($selectionKey)
+				}
+			}
+
+			$remainingUpdates = New-Object 'System.Collections.Generic.List[object]'
+			foreach ($update in @($AvailableUpdates))
+			{
+				$updateKey = Get-PortableWindowsUpdateIdentityKey -Update $update
+				if (-not [string]::IsNullOrWhiteSpace($updateKey) -and $selectionKeys.Contains($updateKey))
+				{
+					continue
+				}
+
+				[void]$remainingUpdates.Add($update)
+			}
+
+			return [object[]]$remainingUpdates.ToArray()
+		}
+
+		function Set-PortableWindowsUpdateProgressStatus
+		{
+			param (
+				[hashtable]$Sync,
+				[string]$ActionText,
+				[object]$Progress
+			)
+
+			$percentComplete = $null
+			if ($Progress -and $Progress.PSObject.Properties['PercentComplete'] -and $null -ne $Progress.PercentComplete)
+			{
+				$percentComplete = [int]$Progress.PercentComplete
+			}
+
+			if ($null -ne $percentComplete)
+			{
+				$Sync.Status = ('{0}... {1}%' -f $ActionText, $percentComplete)
+				return
+			}
+
+			$Sync.Status = ('{0}...' -f $ActionText)
+		}
+
 		function Test-BaselineWindowsUpdateDisabledForManualRun
 		{
 			$policyPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
@@ -778,6 +1140,8 @@ function Start-GuiWindowsUpdateOperation
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UpdatesPanel.Test-BaselineWindowsUpdateDisabledForManualRun:catch1141' -Severity Debug }
+
 				return $false
 			}
 		}
@@ -818,6 +1182,15 @@ function Start-GuiWindowsUpdateOperation
 			Set-BaselineWindowsUpdateManualRunServiceState -Enabled $true
 		}
 
+		$downloadProgressCallback = {
+			param ([object]$Progress)
+			Set-PortableWindowsUpdateProgressStatus -Sync $Sync -ActionText 'Downloading selected Windows updates' -Progress $Progress
+		}.GetNewClosure()
+		$installProgressCallback = {
+			param ([object]$Progress)
+			Set-PortableWindowsUpdateProgressStatus -Sync $Sync -ActionText 'Installing selected Windows updates' -Progress $Progress
+		}.GetNewClosure()
+
 		try
 		{
 			switch ($Action)
@@ -841,7 +1214,7 @@ function Start-GuiWindowsUpdateOperation
 					$availableUpdates = @(Get-WindowsUpdateList)
 					$selectedUpdates = @(Resolve-SelectedWindowsUpdateRecords -AvailableUpdates $availableUpdates -Selections $SelectedIdentities)
 					$Sync.Status = 'Downloading selected Windows updates...'
-					$downloadResult = Download-WindowsUpdates -Updates $selectedUpdates
+					$downloadResult = Download-WindowsUpdates -Updates $selectedUpdates -ProgressCallback $downloadProgressCallback
 					return [pscustomobject]@{ Action = 'Download'; DownloadResult = $downloadResult }
 				}
 				'Install'
@@ -850,14 +1223,27 @@ function Start-GuiWindowsUpdateOperation
 					$availableUpdates = @(Get-WindowsUpdateList)
 					$selectedUpdates = @(Resolve-SelectedWindowsUpdateRecords -AvailableUpdates $availableUpdates -Selections $SelectedIdentities)
 					$Sync.Status = 'Downloading selected Windows updates...'
-					$downloadResult = Download-WindowsUpdates -Updates $selectedUpdates
+					$downloadResult = Download-WindowsUpdates -Updates $selectedUpdates -ProgressCallback $downloadProgressCallback
 					$installResult = $null
 					if ([bool]$downloadResult.Succeeded)
 					{
 						$Sync.Status = 'Installing selected Windows updates...'
-						$installResult = Install-WindowsUpdates -Updates $selectedUpdates
+						$installResult = Install-WindowsUpdates -Updates $selectedUpdates -ProgressCallback $installProgressCallback
 					}
-					return [pscustomobject]@{ Action = 'Install'; DownloadResult = $downloadResult; InstallResult = $installResult }
+
+					$postInstallUpdates = @()
+					$postInstallHistory = @()
+					$restartRequired = if ($installResult) { [bool]$installResult.RebootRequired } else { $false }
+					if ($installResult -and [bool]$installResult.Succeeded)
+					{
+						$Sync.Status = 'Refreshing Windows Update state...'
+						$availableAfterInstall = @(Get-WindowsUpdateList)
+						$remainingAfterInstall = @(Select-PortableWindowsUpdatePostInstallUpdates -AvailableUpdates $availableAfterInstall -Selections $SelectedIdentities)
+						$postInstallUpdates = @($remainingAfterInstall | ForEach-Object { ConvertTo-PortableWindowsUpdateRecord -Update $_ })
+						$postInstallHistory = @(Get-WindowsUpdateHistory -Count 50)
+					}
+
+					return [pscustomobject]@{ Action = 'Install'; DownloadResult = $downloadResult; InstallResult = $installResult; Updates = $postInstallUpdates; History = $postInstallHistory; RebootRequired = $restartRequired }
 				}
 			}
 		}
@@ -886,6 +1272,7 @@ function Start-GuiWindowsUpdateOperation
 	$showFailureScript = $Script:ShowGuiRuntimeFailureScript
 	$setGuiWindowsUpdateStatusScript = ${function:Set-GuiWindowsUpdateStatus}
 	$completeGuiWindowsUpdateOperationScript = ${function:Complete-GuiWindowsUpdateOperation}
+	$setGuiWindowsUpdateOperationInProgressScript = ${function:Set-GuiWindowsUpdateOperationInProgress}
 	$updateGuiWindowsUpdateActionStateScript = ${function:Update-GuiWindowsUpdateActionState}
 	$timer.Add_Tick({
 		if (-not [string]::IsNullOrWhiteSpace([string]$syncHash.Status))
@@ -903,6 +1290,7 @@ function Start-GuiWindowsUpdateOperation
 		{
 			$result = @($ps.EndInvoke($asyncResult))
 			$payload = if ($result.Count -gt 0) { $result[0] } else { $null }
+			& $setGuiWindowsUpdateOperationInProgressScript -InProgress $false
 			& $completeGuiWindowsUpdateOperationScript -Payload $payload
 		}
 		catch
@@ -919,7 +1307,7 @@ function Start-GuiWindowsUpdateOperation
 		}
 		finally
 		{
-			$Script:WindowsUpdateOperationInProgress = $false
+			& $setGuiWindowsUpdateOperationInProgressScript -InProgress $false
 			& $updateGuiWindowsUpdateActionStateScript
 			try { $ps.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdatesPanel.Start-GuiWindowsUpdateOperation.DisposePowerShell' }
 			try { $runspace.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdatesPanel.Start-GuiWindowsUpdateOperation.DisposeRunspace' }
@@ -928,7 +1316,7 @@ function Start-GuiWindowsUpdateOperation
 	$timer.Start()
 }
 
-function New-GuiUpdatesRuntimePanel
+function script:New-GuiUpdatesRuntimePanel
 {
 	Initialize-GuiWindowsUpdateRuntimeState
 
@@ -957,14 +1345,15 @@ function New-GuiUpdatesRuntimePanel
 	$buttonPanel.Orientation = 'Horizontal'
 	$buttonPanel.Margin = [System.Windows.Thickness]::new(0, 0, 0, 4)
 
+	$startGuiWindowsUpdateOperationScript = ${function:Start-GuiWindowsUpdateOperation}
 	$Script:GuiWindowsUpdateOperationInvoker = {
 		param (
 			[ValidateSet('Scan', 'Download', 'Install', 'History')]
 			[string]$Action
 		)
 
-		Start-GuiWindowsUpdateOperation -Action $Action
-	}
+		& $startGuiWindowsUpdateOperationScript -Action $Action
+	}.GetNewClosure()
 	$Script:BtnWindowsUpdateScan = New-GuiWindowsUpdateActionButton -Label 'Scan for Updates' -Variant 'Primary' -Action { & $Script:GuiWindowsUpdateOperationInvoker -Action 'Scan' }
 	$Script:BtnWindowsUpdateDownload = New-GuiWindowsUpdateActionButton -Label 'Download Only' -Variant 'Secondary' -Action { & $Script:GuiWindowsUpdateOperationInvoker -Action 'Download' }
 	$Script:BtnWindowsUpdateInstall = New-GuiWindowsUpdateActionButton -Label 'Install Selected' -Variant 'Secondary' -Action { & $Script:GuiWindowsUpdateOperationInvoker -Action 'Install' }

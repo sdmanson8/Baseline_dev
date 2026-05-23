@@ -41,7 +41,7 @@ function Test-CapabilityPatternMatch
 	    .SYNOPSIS
 	    Gets checkbox clicked.
 
-	    	#>
+		#>
 
 	function Update-CapabilitySelectionFromCheckbox
 	{
@@ -87,7 +87,7 @@ function Test-CapabilityPatternMatch
 	    .SYNOPSIS
 	    Checks capability seed selected.
 
-	    	#>
+		#>
 
 	function Test-CapabilitySeedSelected
 	{

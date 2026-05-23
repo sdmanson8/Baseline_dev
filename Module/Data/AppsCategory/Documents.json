@@ -509,8 +509,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Outlook for Windows",
@@ -553,8 +553,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "OneNote",
@@ -597,8 +597,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Adobe Acrobat Reader",

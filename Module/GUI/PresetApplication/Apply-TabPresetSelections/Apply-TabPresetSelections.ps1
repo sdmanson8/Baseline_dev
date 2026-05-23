@@ -41,6 +41,8 @@ for ($index = 0; $index -lt $totalCount; $index++)
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\PresetApplication\Apply-TabPresetSelections\Apply-TabPresetSelections.ps1:42' -Severity Debug }
+
 					$isVisible = $false
 				}
 			}

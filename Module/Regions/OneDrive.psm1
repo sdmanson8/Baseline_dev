@@ -8,9 +8,9 @@ using module ..\SharedHelpers.psm1
 	OneDrive
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for oneDrive.
 	.PARAMETER Uninstall
 	Uninstall OneDrive
@@ -75,12 +75,12 @@ function OneDrive
 
 				# Ensure UninstallString exists
 				[string]$UninstallString = Get-Package -Name "Microsoft OneDrive" -ProviderName Programs -ErrorAction Ignore -WarningAction SilentlyContinue |
-   				ForEach-Object { $_.Meta.Attributes["UninstallString"] }
+				ForEach-Object { $_.Meta.Attributes["UninstallString"] }
 
 				if (-not $UninstallString)
 				{
-					LogWarning "Skipping OneDrive uninstall because the app is not currently installed."
-					Write-ConsoleStatus -Status warning
+					LogInfo "Skipping OneDrive uninstall because the app is not currently installed."
+					Write-ConsoleStatus -Status success
 					return
 				}
 
@@ -104,13 +104,13 @@ function OneDrive
 		        }
 				else
 				{
-		        	[string[]]$OneDriveSetup = ($UninstallString -replace("\s*/", ",/")).Split(",") | ForEach-Object { $_.Trim(' ', '"') }
-		        	$Arguments = if ($OneDriveSetup.Count -gt 1) { $OneDriveSetup[1..($OneDriveSetup.Count-1)] } else { @('/uninstall') }
+			[string[]]$OneDriveSetup = ($UninstallString -replace("\s*/", ",/")).Split(",") | ForEach-Object { $_.Trim(' ', '"') }
+			$Arguments = if ($OneDriveSetup.Count -gt 1) { $OneDriveSetup[1..($OneDriveSetup.Count-1)] } else { @('/uninstall') }
 
-		        	if ($OneDriveSetup -and $OneDriveSetup[0]) {
+			if ($OneDriveSetup -and $OneDriveSetup[0]) {
 						$OneDriveUninstallProcess = Invoke-BaselineProcess -FilePath $OneDriveSetup[0] -ArgumentList $Arguments -TimeoutSeconds 900
 						if ($OneDriveUninstallProcess.ExitCode -ne 0) { throw "OneDrive uninstaller returned exit code $($OneDriveUninstallProcess.ExitCode)" }
-		        	}
+			}
 					else
 					{
 						throw "Unable to locate the OneDrive uninstall executable."
@@ -119,18 +119,18 @@ function OneDrive
 
 				# Safely remove OneDrive user folder if exists
 				if ($env:OneDrive -and (Test-Path -Path $env:OneDrive)) {
-	  	    		if ((Get-ChildItem -Path $env:OneDrive -ErrorAction Ignore | Measure-Object).Count -eq 0) {
-	        			Remove-Item -Path $env:OneDrive -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-	    			} else {
-	           			Invoke-UserLaunch -FilePath 'explorer.exe' -ArgumentList @($env:OneDrive) -Description 'OneDrive folder' | Out-Null
-	    			}
+				if ((Get-ChildItem -Path $env:OneDrive -ErrorAction Ignore | Measure-Object).Count -eq 0) {
+				Remove-Item -Path $env:OneDrive -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+				} else {
+				Invoke-UserLaunch -FilePath 'explorer.exe' -ArgumentList @($env:OneDrive) -Description 'OneDrive folder' | Out-Null
+				}
 				}
 
 				# Clean registry and leftover paths safely
 				$PathsToRemove = @(
-	    			"HKCU:\Software\Microsoft\OneDrive",
-	    			"$env:ProgramData\Microsoft OneDrive",
-	    			"$env:SystemDrive\OneDriveTemp"
+				"HKCU:\Software\Microsoft\OneDrive",
+				"$env:ProgramData\Microsoft OneDrive",
+				"$env:SystemDrive\OneDriveTemp"
 				)
 				Remove-Item -Path $PathsToRemove -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
 				Remove-RegistryValueSafe -Path HKCU:\Environment -Name OneDrive, OneDriveConsumer | Out-Null
@@ -154,8 +154,8 @@ function OneDrive
 				$OneDrive = Get-Package -Name "Microsoft OneDrive" -ProviderName Programs -Force -ErrorAction Ignore -WarningAction SilentlyContinue
 				if ($OneDrive)
 				{
-					LogWarning "Skipping OneDrive install because the app is already installed."
-					Write-ConsoleStatus -Status warning
+					LogInfo "Skipping OneDrive install because the app is already installed."
+					Write-ConsoleStatus -Status success
 					return
 				}
 
@@ -179,20 +179,20 @@ function OneDrive
 				{
 					try
 					{
-		       			# Direct download URL for OneDrive
-        				$OneDriveURL = "https://go.microsoft.com/fwlink/?linkid=844652"
+					# Direct download URL for OneDrive
+				$OneDriveURL = "https://go.microsoft.com/fwlink/?linkid=844652"
 
-        				$DownloadsFolder = Get-ItemPropertyValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "{374DE290-123F-4565-9164-39C4925E467B}" -ErrorAction SilentlyContinue
-        				if (-not $DownloadsFolder) {
-           	 				$DownloadsFolder = "$env:USERPROFILE\Downloads"
-        				}
+				$DownloadsFolder = Get-ItemPropertyValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "{374DE290-123F-4565-9164-39C4925E467B}" -ErrorAction SilentlyContinue
+				if (-not $DownloadsFolder) {
+					$DownloadsFolder = "$env:USERPROFILE\Downloads"
+				}
 
-        				$Parameters = @{
-            				Uri             = $OneDriveURL
-            				OutFile         = "$DownloadsFolder\OneDriveSetup.exe"
+				$Parameters = @{
+				Uri             = $OneDriveURL
+				OutFile         = "$DownloadsFolder\OneDriveSetup.exe"
 							TimeoutSec      = 30
-       	 				}
-        				Invoke-WebRequest @Parameters -ErrorAction Stop
+					}
+				Invoke-WebRequest @Parameters -ErrorAction Stop
 
 						if ($AllUsers)
 						{

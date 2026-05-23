@@ -1,4 +1,4 @@
-﻿# Shared helpers for Baseline -- error handling, classification, and user-facing error info.
+# Shared helpers for Baseline -- error handling, classification, and user-facing error info.
 
 <#
     .SYNOPSIS
@@ -338,7 +338,9 @@ function Get-BaselineExceptionMessageChain
 	while ($currentException -and $depth -lt 10)
 	{
 		$currentMessage = $null
-		try { $currentMessage = [string]$currentException.Message } catch { $currentMessage = $null }
+		try { $currentMessage = [string]$currentException.Message } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ErrorHandling.Helpers.Get-BaselineExceptionMessageChain:catch341' -Severity Debug }
+		 $currentMessage = $null }
 
 		if (-not [string]::IsNullOrWhiteSpace($currentMessage))
 		{
@@ -358,7 +360,9 @@ function Get-BaselineExceptionMessageChain
 			}
 		}
 
-		try { $currentException = $currentException.InnerException } catch { $currentException = $null }
+		try { $currentException = $currentException.InnerException } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ErrorHandling.Helpers.Get-BaselineExceptionMessageChain:catch361' -Severity Debug }
+		 $currentException = $null }
 		$depth++
 	}
 

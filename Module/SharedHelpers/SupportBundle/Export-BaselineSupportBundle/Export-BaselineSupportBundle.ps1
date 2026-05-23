@@ -1,51 +1,87 @@
 try
 	{
+		$notifySupportBundleProgress = {
+			param(
+				[string]$Stage,
+				[string]$Message
+			)
+
+			if (-not $ProgressCallback) { return }
+			try
+			{
+				& $ProgressCallback -Stage $Stage -Message $Message
+			}
+			catch
+			{
+				Write-SupportBundleSwallowedException -ErrorRecord $_ -Source 'SupportBundle.ProgressCallback' -Severity Debug
+			}
+		}.GetNewClosure()
+
+		& $notifySupportBundleProgress -Stage 'Prepare' -Message 'Preparing support bundle staging area...'
 		$null = New-Item -Path $stagingDir -ItemType Directory -Force
 
+		& $notifySupportBundleProgress -Stage 'Version' -Message 'Collecting Baseline version metadata...'
 		$baselineVersion = $null
 		if (Get-Command -Name 'Get-BaselineDisplayVersion' -ErrorAction SilentlyContinue)
 		{
-			try { $baselineVersion = Get-BaselineDisplayVersion } catch { $baselineVersion = $null }
+			try { $baselineVersion = Get-BaselineDisplayVersion } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:27' -Severity Debug }
+			 $baselineVersion = $null }
 		}
 
+		& $notifySupportBundleProgress -Stage 'FeatureMaturity' -Message 'Collecting feature maturity metadata...'
 		$maturityManifest = @($Manifest)
 		if ($maturityManifest.Count -eq 0 -and (Get-Command -Name 'Import-TweakManifestFromData' -ErrorAction SilentlyContinue))
 		{
-			try { $maturityManifest = @(Import-TweakManifestFromData) } catch { $maturityManifest = @() }
+			try { $maturityManifest = @(Import-TweakManifestFromData) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:34' -Severity Debug }
+			 $maturityManifest = @() }
 		}
 
 		$featureMaturityReport = $null
 		if (Get-Command -Name 'Get-BaselineFeatureMaturityReport' -ErrorAction SilentlyContinue)
 		{
-			try { $featureMaturityReport = Get-BaselineFeatureMaturityReport -Manifest $maturityManifest } catch { $featureMaturityReport = $null }
+			try { $featureMaturityReport = Get-BaselineFeatureMaturityReport -Manifest $maturityManifest } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:40' -Severity Debug }
+			 $featureMaturityReport = $null }
 		}
 
 		$validationEvidenceReport = $null
 		if (Get-Command -Name 'Get-BaselineValidationEvidenceReport' -ErrorAction SilentlyContinue)
 		{
-			try { $validationEvidenceReport = Get-BaselineValidationEvidenceReport } catch { $validationEvidenceReport = $null }
+			& $notifySupportBundleProgress -Stage 'ValidationEvidence' -Message 'Collecting validation evidence...'
+			$validationEvidenceRoot = $null
+			if (Get-Command -Name 'Get-BaselineSupportBundleValidationEvidenceRoot' -ErrorAction SilentlyContinue)
+			{
+				try { $validationEvidenceRoot = Get-BaselineSupportBundleValidationEvidenceRoot } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:50' -Severity Debug }
+				 $validationEvidenceRoot = $null }
+			}
+			try
+			{
+				if (-not [string]::IsNullOrWhiteSpace([string]$validationEvidenceRoot))
+				{
+					$validationEvidenceReport = Get-BaselineValidationEvidenceReport -RepoRoot $validationEvidenceRoot
+				}
+				else
+				{
+					$validationEvidenceReport = Get-BaselineValidationEvidenceReport
+				}
+			}
+			catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:63' -Severity Debug }
+			 $validationEvidenceReport = $null }
 		}
 
 		$windowsUpdateStatusForBundle = $WindowsUpdateStatus
 		if ($null -eq $windowsUpdateStatusForBundle)
 		{
-			$getWindowsUpdateStatusCommand = Get-Command -Name 'Get-WindowsUpdateStatus' -CommandType Function -ErrorAction SilentlyContinue
-			if ($getWindowsUpdateStatusCommand)
-			{
-				try
-				{
-					$windowsUpdateStatusForBundle = & $getWindowsUpdateStatusCommand
-				}
-				catch
-				{
-					$windowsUpdateStatusForBundle = [pscustomobject]@{
-						Schema      = 'Baseline.WindowsUpdateStatus'
-						GeneratedAt = [System.DateTime]::UtcNow.ToString('o')
-						Succeeded   = $false
-						Error       = $_.Exception.Message
-					}
-				}
-			}
+			& $notifySupportBundleProgress -Stage 'WindowsUpdate' -Message 'Recording Windows Update status snapshot...'
+			$windowsUpdateStatusForBundle = New-BaselineSupportBundleWindowsUpdateStatusNotCollected
+		}
+		else
+		{
+			& $notifySupportBundleProgress -Stage 'WindowsUpdate' -Message 'Recording supplied Windows Update status snapshot...'
 		}
 
 		$windowsUpdateStatusSucceeded = $null
@@ -65,7 +101,9 @@ try
 		$activeRunId = $null
 		if (Get-Command -Name 'Get-BaselineRunId' -ErrorAction SilentlyContinue)
 		{
-			try { $activeRunId = [string](Get-BaselineRunId) } catch { $activeRunId = $null }
+			try { $activeRunId = [string](Get-BaselineRunId) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:94' -Severity Debug }
+			 $activeRunId = $null }
 		}
 		$globalRunIdVariable = Get-Variable -Name 'BaselineRunId' -Scope Global -ErrorAction SilentlyContinue
 		if ([string]::IsNullOrWhiteSpace($activeRunId) -and $globalRunIdVariable -and $globalRunIdVariable.Value)
@@ -73,6 +111,7 @@ try
 			$activeRunId = [string]$globalRunIdVariable.Value
 		}
 
+		& $notifySupportBundleProgress -Stage 'Metadata' -Message 'Writing support bundle metadata...'
 		$selectedSessionLogPath = $null
 		if (-not [string]::IsNullOrWhiteSpace($SessionLogPath))
 		{
@@ -86,6 +125,8 @@ try
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:114' -Severity Debug }
+
 				$selectedSessionLogPath = $null
 			}
 		}
@@ -151,7 +192,9 @@ try
 			$autoTrail = @()
 			if (Get-Command -Name 'Get-BaselineActionTrail' -ErrorAction SilentlyContinue)
 			{
-				try { $autoTrail = @(Get-BaselineActionTrail) } catch { $autoTrail = @() }
+				try { $autoTrail = @(Get-BaselineActionTrail) } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:181' -Severity Debug }
+				 $autoTrail = @() }
 			}
 			$autoCli = @()
 			$globalCliVariable = Get-Variable -Name 'BaselineCommandLineArgs' -Scope Global -ErrorAction SilentlyContinue
@@ -205,6 +248,7 @@ try
 
 		try
 		{
+			& $notifySupportBundleProgress -Stage 'Environment' -Message 'Collecting environment details...'
 			$environmentInfo = New-BaselineSupportBundleEnvironmentInfo
 			$environmentInfoPath = Join-Path $stagingDir 'environment.json'
 			[System.IO.File]::WriteAllText($environmentInfoPath, ($environmentInfo | ConvertTo-Json -Depth 8), $utf8NoBom)
@@ -215,7 +259,8 @@ try
 
 		try
 		{
-			$windowsFeatures = New-BaselineSupportBundleWindowsFeatures
+			& $notifySupportBundleProgress -Stage 'WindowsFeatures' -Message 'Collecting Windows feature and service state...'
+			$windowsFeatures = New-BaselineSupportBundleWindowsFeatures -ProgressCallback $notifySupportBundleProgress
 			$windowsFeaturesPath = Join-Path $stagingDir 'windows-features.json'
 			[System.IO.File]::WriteAllText($windowsFeaturesPath, ($windowsFeatures | ConvertTo-Json -Depth 8), $utf8NoBom)
 			$bundleEntries.Add([pscustomobject]@{ Name = 'windows-features.json'; Source = $windowsFeaturesPath })
@@ -225,6 +270,7 @@ try
 
 		try
 		{
+			& $notifySupportBundleProgress -Stage 'StorageSummary' -Message 'Collecting Baseline storage summary...'
 			$storageSummary = New-BaselineSupportBundleStorageSummary
 			$storageSummaryPath = Join-Path $stagingDir 'storage-summary.json'
 			[System.IO.File]::WriteAllText($storageSummaryPath, ($storageSummary | ConvertTo-Json -Depth 8), $utf8NoBom)
@@ -235,6 +281,7 @@ try
 
 		try
 		{
+			& $notifySupportBundleProgress -Stage 'UserActionContext' -Message 'Collecting GUI session context...'
 			$userActionContext = New-BaselineSupportBundleUserActionContext -ProfilePath $ProfilePath -ReproductionContext $reproContext -ConfigStatePre $ConfigStatePre -ConfigStatePost $ConfigStatePost
 			$userActionContextPath = Join-Path $stagingDir 'user-action-context.json'
 			[System.IO.File]::WriteAllText($userActionContextPath, ($userActionContext | ConvertTo-Json -Depth 10), $utf8NoBom)
@@ -281,12 +328,15 @@ try
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:313' -Severity Debug }
+
 				$deepLinkItems = [System.Collections.Generic.List[pscustomobject]]::new()
 			}
 		}
 
 		if ($IncludeAuditLog)
 		{
+			& $notifySupportBundleProgress -Stage 'AuditLog' -Message 'Collecting audit log records...'
 			$auditLogPath = Get-AuditLogPath
 			if (Test-Path -LiteralPath $auditLogPath)
 			{
@@ -298,6 +348,8 @@ try
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:331' -Severity Debug }
+
 					$auditRecords = @()
 				}
 
@@ -319,7 +371,9 @@ try
 		$getRemoteHistoryPathCommand = Get-Command -Name 'Get-BaselineRemoteOrchestrationHistoryPath' -ErrorAction SilentlyContinue
 		if ($getRemoteHistoryPathCommand)
 		{
-			try { $remoteHistoryPath = & $getRemoteHistoryPathCommand } catch { $remoteHistoryPath = $null }
+			try { $remoteHistoryPath = & $getRemoteHistoryPathCommand } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:354' -Severity Debug }
+			 $remoteHistoryPath = $null }
 		}
 		if ([string]::IsNullOrWhiteSpace($remoteHistoryPath))
 		{
@@ -328,6 +382,7 @@ try
 
 		if (-not [string]::IsNullOrWhiteSpace($remoteHistoryPath) -and (Test-Path -LiteralPath $remoteHistoryPath))
 		{
+			& $notifySupportBundleProgress -Stage 'RemoteHistory' -Message 'Collecting remote orchestration history...'
 			$destRemoteHistoryPath = Join-Path $stagingDir 'remote-orchestration.jsonl'
 			Copy-Item -LiteralPath $remoteHistoryPath -Destination $destRemoteHistoryPath -Force
 			$bundleEntries.Add([pscustomobject]@{ Name = 'remote-orchestration.jsonl'; Source = $destRemoteHistoryPath })
@@ -343,6 +398,8 @@ try
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:377' -Severity Debug }
+
 					$remoteHistorySummary = @()
 				}
 			}
@@ -361,11 +418,15 @@ try
 						}
 						catch
 						{
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:395' -Severity Debug }
+
 							continue
 						}
 
 						$stamp = $null
-						try { $stamp = ([datetime]::Parse([string]$record.Timestamp)).ToString('yyyy-MM-dd HH:mm:ss') } catch { $stamp = [string]$record.Timestamp }
+						try { $stamp = ([datetime]::Parse([string]$record.Timestamp)).ToString('yyyy-MM-dd HH:mm:ss') } catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:401' -Severity Debug }
+						 $stamp = [string]$record.Timestamp }
 						$status = if ($record.Status) { [string]$record.Status } else { 'Unknown' }
 						$target = if ($record.ComputerName) { [string]$record.ComputerName } else { 'unknown target' }
 						$operation = if ($record.Operation) { [string]$record.Operation } else { 'Remote' }
@@ -375,6 +436,8 @@ try
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:409' -Severity Debug }
+
 					$remoteHistorySummary = @()
 				}
 			}
@@ -397,6 +460,8 @@ try
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:431' -Severity Debug }
+
 					$remoteRunSummaries = @()
 				}
 			}
@@ -426,6 +491,8 @@ try
 						}
 						catch
 						{
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:460' -Severity Debug }
+
 							continue
 						}
 					}
@@ -438,6 +505,8 @@ try
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:472' -Severity Debug }
+
 				$remoteReconciliation = $null
 			}
 
@@ -459,6 +528,8 @@ try
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:493' -Severity Debug }
+
 					$remoteDetails = @()
 				}
 			}
@@ -476,6 +547,8 @@ try
 						}
 						catch
 						{
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:510' -Severity Debug }
+
 							continue
 						}
 
@@ -505,6 +578,8 @@ try
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:539' -Severity Debug }
+
 					$remoteDetails = @()
 				}
 			}
@@ -554,6 +629,7 @@ try
 		$null = New-Item -Path $logsDir -ItemType Directory -Force -ErrorAction SilentlyContinue
 		try
 		{
+			& $notifySupportBundleProgress -Stage 'Logs' -Message 'Collecting Baseline log files...'
 			$globalLogFileVariable = Get-Variable -Name 'LogFilePath' -Scope Global -ErrorAction SilentlyContinue
 			$dailyLogPath = if ($selectedSessionLogPath) { $selectedSessionLogPath } elseif ($globalLogFileVariable -and $globalLogFileVariable.Value) { [string]$globalLogFileVariable.Value } else { $null }
 			if (-not [string]::IsNullOrWhiteSpace($dailyLogPath) -and (Test-Path -LiteralPath $dailyLogPath))
@@ -565,6 +641,8 @@ try
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:600' -Severity Debug }
+
 					# File-locked fallback: stream-copy with FileShare.ReadWrite
 					$fs = [System.IO.File]::Open($dailyLogPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
 					try
@@ -616,6 +694,7 @@ try
 		# --- system-info.json: richer environment context than metadata.json ---
 		try
 		{
+			& $notifySupportBundleProgress -Stage 'SystemInfo' -Message 'Collecting detailed system information...'
 			$systemInfo = New-BaselineSupportBundleSystemInfo
 			$systemInfoPath = Join-Path $stagingDir 'system-info.json'
 			[System.IO.File]::WriteAllText($systemInfoPath, ($systemInfo | ConvertTo-Json -Depth 8), $utf8NoBom)
@@ -726,10 +805,13 @@ try
 		{
 			try
 			{
+				& $notifySupportBundleProgress -Stage 'SystemSnapshot' -Message 'Capturing system state snapshot...'
 				$SystemSnapshot = New-SystemStateSnapshot -Manifest $Manifest
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:767' -Severity Debug }
+
 				$SystemSnapshot = $null
 			}
 		}
@@ -750,10 +832,13 @@ try
 		{
 			try
 			{
+				& $notifySupportBundleProgress -Stage 'SnapshotDiff' -Message 'Writing run snapshot diff...'
 				$diff = $null
 				if ($null -ne $PreSnapshot -and $null -ne $PostSnapshot -and (Get-Command -Name 'Compare-SystemStateSnapshots' -ErrorAction SilentlyContinue))
 				{
-					try { $diff = Compare-SystemStateSnapshots -Before $PreSnapshot -After $PostSnapshot } catch { $diff = $null }
+					try { $diff = Compare-SystemStateSnapshots -Before $PreSnapshot -After $PostSnapshot } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:793' -Severity Debug }
+					 $diff = $null }
 				}
 
 				$snapshotDiffPayload = [ordered]@{
@@ -800,6 +885,7 @@ try
 		{
 			try
 			{
+				& $notifySupportBundleProgress -Stage 'Preflight' -Message 'Collecting preflight check report...'
 				$preflightReport = & $preflightCommand
 				if ($null -ne $preflightReport)
 				{
@@ -810,18 +896,142 @@ try
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:849' -Severity Debug }
+
 				# Preflight capture is best-effort and should not block bundle creation.
 			}
 		}
 
 		if ($IncludeTestReport)
 		{
-			$testReportPath = Join-Path $Script:SharedHelpersRepoRoot 'Tests\TestReport.json'
-			if (Test-Path -LiteralPath $testReportPath)
+			& $notifySupportBundleProgress -Stage 'TestReports' -Message 'Collecting test report artifacts...'
+			$testReportsBundleDir = Join-Path $stagingDir 'TestReports'
+			$testReportSources = New-Object 'System.Collections.Generic.List[object]'
+			$testReportRoots = New-Object 'System.Collections.Generic.List[string]'
+			$usedTestReportNames = @{}
+			$usedTestReportPaths = @{}
+
+			$addTestReportRoot = {
+				param([string]$Root)
+
+				if ([string]::IsNullOrWhiteSpace([string]$Root))
+				{
+					return
+				}
+
+				try
+				{
+					$resolvedRoot = [System.IO.Path]::GetFullPath([string]$Root)
+				}
+				catch
+				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:876' -Severity Debug }
+
+					return
+				}
+
+				if (-not (Test-Path -LiteralPath $resolvedRoot -PathType Container))
+				{
+					return
+				}
+
+				foreach ($existingRoot in $testReportRoots)
+				{
+					if ([string]::Equals([string]$existingRoot, $resolvedRoot, [System.StringComparison]::OrdinalIgnoreCase))
+					{
+						return
+					}
+				}
+
+				[void]$testReportRoots.Add($resolvedRoot)
+			}.GetNewClosure()
+
+			$addTestReportSource = {
+				param(
+					[string]$Name,
+					[string]$Path
+				)
+
+				if ([string]::IsNullOrWhiteSpace([string]$Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf))
+				{
+					return
+				}
+
+				try
+				{
+					$resolvedPath = [System.IO.Path]::GetFullPath([string]$Path)
+				}
+				catch
+				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:912' -Severity Debug }
+
+					return
+				}
+
+				$pathKey = $resolvedPath.ToLowerInvariant()
+				if ($usedTestReportPaths.ContainsKey($pathKey))
+				{
+					return
+				}
+
+				$candidateName = if ([string]::IsNullOrWhiteSpace([string]$Name)) { [System.IO.Path]::GetFileName($resolvedPath) } else { [string]$Name }
+				$nameExtension = [System.IO.Path]::GetExtension($candidateName)
+				$nameWithoutExtension = [System.IO.Path]::GetFileNameWithoutExtension($candidateName)
+				$nameIndex = 2
+				while ($usedTestReportNames.ContainsKey($candidateName))
+				{
+					if ([string]::IsNullOrWhiteSpace($nameExtension))
+					{
+						$candidateName = '{0}-{1}' -f $nameWithoutExtension, $nameIndex
+					}
+					else
+					{
+						$candidateName = '{0}-{1}{2}' -f $nameWithoutExtension, $nameIndex, $nameExtension
+					}
+					$nameIndex++
+				}
+
+				$usedTestReportNames[$candidateName] = $true
+				$usedTestReportPaths[$pathKey] = $true
+				[void]$testReportSources.Add([pscustomobject]@{ Name = $candidateName; Path = $resolvedPath })
+			}.GetNewClosure()
+
+			& $addTestReportRoot $Script:SharedHelpersRepoRoot
+			$launcherPath = [string]$env:BASELINE_LAUNCHER_PATH
+			if (-not [string]::IsNullOrWhiteSpace($launcherPath) -and [System.IO.Path]::IsPathRooted($launcherPath))
 			{
-				$destTestReportPath = Join-Path $stagingDir 'test-report.json'
-				Copy-Item -LiteralPath $testReportPath -Destination $destTestReportPath -Force
-				$bundleEntries.Add([pscustomobject]@{ Name = 'test-report.json'; Source = $destTestReportPath })
+				& $addTestReportRoot (Split-Path -Path $launcherPath -Parent)
+			}
+			try { & $addTestReportRoot ([System.AppDomain]::CurrentDomain.BaseDirectory) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:951' -Severity Debug }
+			 $null = $_ }
+			try { & $addTestReportRoot ((Get-Location).ProviderPath) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:952' -Severity Debug }
+			 $null = $_ }
+
+			foreach ($testReportRoot in $testReportRoots)
+			{
+				& $addTestReportSource 'test-report.json' (Join-Path $testReportRoot 'Tests\TestReport.json')
+
+				$guiTestReportsDir = Join-Path $testReportRoot '.artifacts\gui-tests'
+				if (Test-Path -LiteralPath $guiTestReportsDir -PathType Container)
+				{
+					foreach ($guiTestReport in (Get-ChildItem -LiteralPath $guiTestReportsDir -Filter 'TestReport_*.json' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTimeUtc))
+					{
+						& $addTestReportSource $guiTestReport.Name $guiTestReport.FullName
+					}
+				}
+			}
+
+			if ($testReportSources.Count -gt 0)
+			{
+				New-Item -Path $testReportsBundleDir -ItemType Directory -Force | Out-Null
+				foreach ($testReport in $testReportSources)
+				{
+					$destTestReportPath = Join-Path $testReportsBundleDir ([string]$testReport.Name)
+					Copy-Item -LiteralPath ([string]$testReport.Path) -Destination $destTestReportPath -Force
+					$bundleEntries.Add([pscustomobject]@{ Name = ('TestReports/{0}' -f [string]$testReport.Name); Source = $destTestReportPath })
+				}
 			}
 		}
 
@@ -851,6 +1061,8 @@ try
 					}
 					catch
 					{
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:1004' -Severity Debug }
+
 						$fileChecksums.Add([pscustomobject]@{
 							FileName  = $entry.Name
 							SHA256    = 'CHECKSUM_ERROR'
@@ -873,6 +1085,8 @@ try
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\SupportBundle\Export-BaselineSupportBundle\Export-BaselineSupportBundle.ps1:1026' -Severity Debug }
+
 				$fileChecksums.Add([pscustomobject]@{
 					FileName  = 'contents.json'
 					SHA256    = 'CHECKSUM_ERROR'
@@ -918,12 +1132,17 @@ try
 			Remove-Item -LiteralPath $OutputPath -Force -ErrorAction SilentlyContinue
 		}
 
+		& $notifySupportBundleProgress -Stage 'Compress' -Message 'Creating ZIP archive...'
 		Compress-Archive -Path (Join-Path $stagingDir '*') -DestinationPath $OutputPath -Force
+		$zipItem = Get-Item -LiteralPath $OutputPath -ErrorAction Stop
+		if ($zipItem.Length -le 0)
+		{
+			throw "Support bundle archive was not created correctly: $OutputPath"
+		}
 
 		# Set read-only on the ZIP file itself for immutable bundles
-		if ($Immutable -and (Test-Path -LiteralPath $OutputPath))
+		if ($Immutable)
 		{
-			$zipItem = Get-Item -LiteralPath $OutputPath
 			$zipItem.Attributes = $zipItem.Attributes -bor [System.IO.FileAttributes]::ReadOnly
 		}
 

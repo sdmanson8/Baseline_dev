@@ -1,4 +1,4 @@
-﻿	if (-not [System.Windows.Application]::Current)
+	if (-not [System.Windows.Application]::Current)
 	{
 		$Script:GuiApplication = [System.Windows.Application]::new()
 	}
@@ -24,6 +24,352 @@
 	[System.Windows.Window]$Form = $loadedForm
 	$Script:MainForm = $Form
 	[void](Set-GuiThemeResources -Target $Form -ThemeName $Script:InitialResolvedThemeName)
+	$Script:MainWindowWorkAreaMaximized = $false
+	$Script:MainWindowPendingWorkAreaMaximize = $false
+	$Script:MainWindowApplyingWorkAreaMaximize = $false
+	$Script:MainWindowRestoreBounds = $null
+	$Script:MainWindowDefaultRestoreBounds = $null
+
+	function New-GuiMainWindowBoundsSnapshot
+	{
+		param(
+			[double]$Left,
+			[double]$Top,
+			[double]$Width,
+			[double]$Height
+		)
+
+		if ([double]::IsNaN($Left) -or [double]::IsNaN($Top) -or [double]::IsNaN($Width) -or [double]::IsNaN($Height)) { return $null }
+		if ($Width -le 0 -or $Height -le 0) { return $null }
+
+		return [pscustomobject]@{
+			Left   = $Left
+			Top    = $Top
+			Width  = $Width
+			Height = $Height
+		}
+	}
+
+	function Convert-GuiWindowRectToBoundsSnapshot
+	{
+		param(
+			[System.Windows.Rect]$Rect
+		)
+
+		if ([System.Windows.Rect]::Empty.Equals($Rect)) { return $null }
+		return New-GuiMainWindowBoundsSnapshot -Left ([double]$Rect.Left) -Top ([double]$Rect.Top) -Width ([double]$Rect.Width) -Height ([double]$Rect.Height)
+	}
+
+	function Get-GuiMainWindowBoundsSnapshot
+	{
+		param(
+			[System.Windows.Window]$Window
+		)
+
+		if (-not $Window) { return $null }
+
+		$width = [double]$Window.Width
+		$height = [double]$Window.Height
+		if ([double]::IsNaN($width) -or $width -le 0) { $width = [double]$Window.ActualWidth }
+		if ([double]::IsNaN($height) -or $height -le 0) { $height = [double]$Window.ActualHeight }
+
+		return New-GuiMainWindowBoundsSnapshot -Left ([double]$Window.Left) -Top ([double]$Window.Top) -Width $width -Height $height
+	}
+
+	function Test-GuiMainWindowBoundsSnapshot
+	{
+		param(
+			[object]$Bounds
+		)
+
+		if (-not $Bounds) { return $false }
+		return ($null -ne $Bounds.Left -and $null -ne $Bounds.Top -and $null -ne $Bounds.Width -and $null -ne $Bounds.Height -and [double]$Bounds.Width -gt 0 -and [double]$Bounds.Height -gt 0)
+	}
+
+	function Convert-GuiDeviceRectToDipBounds
+	{
+		param(
+			[System.Windows.Window]$Window,
+			[object]$Rect
+		)
+
+		$left = [double]$Rect.Left
+		$top = [double]$Rect.Top
+		$right = [double]$Rect.Right
+		$bottom = [double]$Rect.Bottom
+		$source = [System.Windows.PresentationSource]::FromVisual($Window)
+		if ($source -and $source.CompositionTarget)
+		{
+			$transform = $source.CompositionTarget.TransformFromDevice
+			$topLeft = $transform.Transform([System.Windows.Point]::new($left, $top))
+			$bottomRight = $transform.Transform([System.Windows.Point]::new($right, $bottom))
+			return New-GuiMainWindowBoundsSnapshot -Left ([double]$topLeft.X) -Top ([double]$topLeft.Y) -Width ([double]($bottomRight.X - $topLeft.X)) -Height ([double]($bottomRight.Y - $topLeft.Y))
+		}
+
+		return New-GuiMainWindowBoundsSnapshot -Left $left -Top $top -Width ([double]($right - $left)) -Height ([double]($bottom - $top))
+	}
+
+	function Get-GuiMainWindowWorkArea
+	{
+		param(
+			[System.Windows.Window]$Window
+		)
+
+		try
+		{
+			Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+			$windowInterop = New-Object System.Windows.Interop.WindowInteropHelper($Window)
+			$windowHandle = $windowInterop.Handle
+			if ($windowHandle -eq [IntPtr]::Zero -and $windowInterop.PSObject.Methods['EnsureHandle'])
+			{
+				$windowHandle = $windowInterop.EnsureHandle()
+			}
+			if ($windowHandle -ne [IntPtr]::Zero)
+			{
+				$screen = [System.Windows.Forms.Screen]::FromHandle($windowHandle)
+				if ($screen)
+				{
+					$bounds = Convert-GuiDeviceRectToDipBounds -Window $Window -Rect $screen.WorkingArea
+					if (Test-GuiMainWindowBoundsSnapshot -Bounds $bounds) { return $bounds }
+				}
+			}
+		}
+		catch
+		{
+			Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.ResolveWorkArea' 2>$null
+		}
+
+		$workArea = [System.Windows.SystemParameters]::WorkArea
+		return New-GuiMainWindowBoundsSnapshot -Left ([double]$workArea.Left) -Top ([double]$workArea.Top) -Width ([double]$workArea.Width) -Height ([double]$workArea.Height)
+	}
+
+	function Limit-GuiMainWindowBoundsToWorkArea
+	{
+		param(
+			[System.Windows.Window]$Window,
+			[object]$Bounds,
+			[double]$MinWidth = 0.0,
+			[double]$MinHeight = 0.0
+		)
+
+		if (-not (Test-GuiMainWindowBoundsSnapshot -Bounds $Bounds)) { return $Bounds }
+
+		$workAreaBounds = Get-GuiMainWindowWorkArea -Window $Window
+		if (-not (Test-GuiMainWindowBoundsSnapshot -Bounds $workAreaBounds)) { return $Bounds }
+
+		$effectiveMinWidth = [Math]::Min([Math]::Max($MinWidth, 0.0), [double]$workAreaBounds.Width)
+		$effectiveMinHeight = [Math]::Min([Math]::Max($MinHeight, 0.0), [double]$workAreaBounds.Height)
+		$boundedWidth = [Math]::Min([Math]::Max([double]$Bounds.Width, $effectiveMinWidth), [double]$workAreaBounds.Width)
+		$boundedHeight = [Math]::Min([Math]::Max([double]$Bounds.Height, $effectiveMinHeight), [double]$workAreaBounds.Height)
+		$workLeft = [double]$workAreaBounds.Left
+		$workTop = [double]$workAreaBounds.Top
+		$maxLeft = $workLeft + [double]$workAreaBounds.Width - $boundedWidth
+		$maxTop = $workTop + [double]$workAreaBounds.Height - $boundedHeight
+		$boundedLeft = [Math]::Min([Math]::Max([double]$Bounds.Left, $workLeft), $maxLeft)
+		$boundedTop = [Math]::Min([Math]::Max([double]$Bounds.Top, $workTop), $maxTop)
+
+		return New-GuiMainWindowBoundsSnapshot -Left $boundedLeft -Top $boundedTop -Width $boundedWidth -Height $boundedHeight
+	}
+
+	function Test-GuiMainWindowBoundsEquivalent
+	{
+		param(
+			[object]$LeftBounds,
+			[object]$RightBounds
+		)
+
+		if (-not (Test-GuiMainWindowBoundsSnapshot -Bounds $LeftBounds)) { return $false }
+		if (-not (Test-GuiMainWindowBoundsSnapshot -Bounds $RightBounds)) { return $false }
+
+		return (
+			[Math]::Abs([double]$LeftBounds.Left - [double]$RightBounds.Left) -le 1.0 -and
+			[Math]::Abs([double]$LeftBounds.Top - [double]$RightBounds.Top) -le 1.0 -and
+			[Math]::Abs([double]$LeftBounds.Width - [double]$RightBounds.Width) -le 1.0 -and
+			[Math]::Abs([double]$LeftBounds.Height - [double]$RightBounds.Height) -le 1.0
+		)
+	}
+
+	function Test-GuiMainWindowBoundsMatchWorkArea
+	{
+		param(
+			[System.Windows.Window]$Window,
+			[object]$Bounds
+		)
+
+		if (-not (Test-GuiMainWindowBoundsSnapshot -Bounds $Bounds)) { return $false }
+		$workAreaBounds = Get-GuiMainWindowWorkArea -Window $Window
+		return (Test-GuiMainWindowBoundsEquivalent -LeftBounds $Bounds -RightBounds $workAreaBounds)
+	}
+
+	function Test-GuiMainWindowWorkAreaMaximized
+	{
+		param(
+			[System.Windows.Window]$Window
+		)
+
+		if ([bool]$Script:MainWindowWorkAreaMaximized) { return $true }
+		return ($Window -and $Window.WindowState -eq [System.Windows.WindowState]::Maximized)
+	}
+
+	function Set-GuiMainWindowChromeMaximizedState
+	{
+		param(
+			[System.Windows.Window]$Window,
+			[object]$RootBorder,
+			[object]$TitleBarControl,
+			[object]$BottomBorderControl,
+			[bool]$Maximized
+		)
+
+		if (-not $RootBorder) { return }
+
+		if ($Maximized)
+		{
+			$RootBorder.CornerRadius = [System.Windows.CornerRadius]::new(0)
+			$RootBorder.Margin = [System.Windows.Thickness]::new(0)
+			if ($TitleBarControl) { $TitleBarControl.CornerRadius = [System.Windows.CornerRadius]::new(0) }
+			if ($BottomBorderControl) { $BottomBorderControl.CornerRadius = [System.Windows.CornerRadius]::new(0) }
+		}
+		else
+		{
+			$RootBorder.CornerRadius = [System.Windows.CornerRadius]::new(8)
+			$RootBorder.Margin = [System.Windows.Thickness]::new(0)
+			if ($TitleBarControl) { $TitleBarControl.CornerRadius = [System.Windows.CornerRadius]::new(8, 8, 0, 0) }
+			if ($BottomBorderControl) { $BottomBorderControl.CornerRadius = [System.Windows.CornerRadius]::new(0, 0, 8, 8) }
+		}
+	}
+
+	function Save-GuiMainWindowPlacementForRestore
+	{
+		param(
+			[System.Windows.Window]$Window,
+			[bool]$Maximized,
+			[string]$Source = 'WindowSetup.SaveWindowPlacement'
+		)
+
+		try
+		{
+			if (-not $Window) { return }
+			if (-not (Get-Command -Name 'Save-BaselineWindowPlacement' -ErrorAction SilentlyContinue)) { return }
+
+			$rect = $null
+			if ($Maximized)
+			{
+				if (Test-GuiMainWindowBoundsSnapshot -Bounds $Script:MainWindowRestoreBounds)
+				{
+					$rect = $Script:MainWindowRestoreBounds
+				}
+				elseif ($Window.WindowState -eq [System.Windows.WindowState]::Maximized)
+				{
+					$rect = Convert-GuiWindowRectToBoundsSnapshot -Rect $Window.RestoreBounds
+				}
+				if (-not $rect)
+				{
+					$rect = Get-GuiMainWindowBoundsSnapshot -Window $Window
+				}
+			}
+			else
+			{
+				$rect = Get-GuiMainWindowBoundsSnapshot -Window $Window
+			}
+
+			if ($rect)
+			{
+				if ($Maximized -and (Test-GuiMainWindowBoundsMatchWorkArea -Window $Window -Bounds $rect) -and (Test-GuiMainWindowBoundsSnapshot -Bounds $Script:MainWindowDefaultRestoreBounds))
+				{
+					$rect = $Script:MainWindowDefaultRestoreBounds
+				}
+				Save-BaselineWindowPlacement -Left ([double]$rect.Left) -Top ([double]$rect.Top) `
+					-Width ([double]$rect.Width) -Height ([double]$rect.Height) -Maximized $Maximized | Out-Null
+			}
+		}
+		catch
+		{
+			Write-SwallowedException -ErrorRecord $_ -Source $Source 2>$null
+		}
+	}
+
+	function Set-GuiMainWindowWorkAreaMaximized
+	{
+		param(
+			[System.Windows.Window]$Window,
+			[bool]$Maximized,
+			[switch]$PreserveRestoreBounds
+		)
+
+		if (-not $Window) { return }
+		if ($Script:MainWindowApplyingWorkAreaMaximize) { return }
+
+		$Script:MainWindowApplyingWorkAreaMaximize = $true
+		try
+		{
+			if ($Maximized)
+			{
+				if (-not [bool]$Script:MainWindowWorkAreaMaximized -and ((-not $PreserveRestoreBounds) -or (-not (Test-GuiMainWindowBoundsSnapshot -Bounds $Script:MainWindowRestoreBounds))))
+				{
+					if ($Window.WindowState -eq [System.Windows.WindowState]::Maximized)
+					{
+						$Script:MainWindowRestoreBounds = Convert-GuiWindowRectToBoundsSnapshot -Rect $Window.RestoreBounds
+					}
+					else
+					{
+						$Script:MainWindowRestoreBounds = Get-GuiMainWindowBoundsSnapshot -Window $Window
+					}
+				}
+				if ($Window.WindowState -ne [System.Windows.WindowState]::Normal)
+				{
+					$Window.WindowState = [System.Windows.WindowState]::Normal
+				}
+				$workAreaBounds = Get-GuiMainWindowWorkArea -Window $Window
+				if (Test-GuiMainWindowBoundsSnapshot -Bounds $workAreaBounds)
+				{
+					$Window.MinWidth = [Math]::Min([double]$Window.MinWidth, [double]$workAreaBounds.Width)
+					$Window.MinHeight = [Math]::Min([double]$Window.MinHeight, [double]$workAreaBounds.Height)
+					$Window.Left = [double]$workAreaBounds.Left
+					$Window.Top = [double]$workAreaBounds.Top
+					$Window.Width = [double]$workAreaBounds.Width
+					$Window.Height = [double]$workAreaBounds.Height
+					$Script:MainWindowWorkAreaMaximized = $true
+				}
+			}
+			else
+			{
+				if ($Window.WindowState -ne [System.Windows.WindowState]::Normal)
+				{
+					$Window.WindowState = [System.Windows.WindowState]::Normal
+				}
+				$restoreBounds = if (Test-GuiMainWindowBoundsSnapshot -Bounds $Script:MainWindowRestoreBounds)
+				{
+					$Script:MainWindowRestoreBounds
+				}
+				else
+				{
+					$Script:MainWindowDefaultRestoreBounds
+				}
+				if ((Test-GuiMainWindowBoundsMatchWorkArea -Window $Window -Bounds $restoreBounds) -and (Test-GuiMainWindowBoundsSnapshot -Bounds $Script:MainWindowDefaultRestoreBounds))
+				{
+					$restoreBounds = $Script:MainWindowDefaultRestoreBounds
+				}
+				$restoreBounds = Limit-GuiMainWindowBoundsToWorkArea -Window $Window -Bounds $restoreBounds -MinWidth ([double]$Window.MinWidth) -MinHeight ([double]$Window.MinHeight)
+				if (Test-GuiMainWindowBoundsSnapshot -Bounds $restoreBounds)
+				{
+					$Window.Left = [double]$restoreBounds.Left
+					$Window.Top = [double]$restoreBounds.Top
+					$Window.Width = [double]$restoreBounds.Width
+					$Window.Height = [double]$restoreBounds.Height
+				}
+				$Script:MainWindowRestoreBounds = Get-GuiMainWindowBoundsSnapshot -Window $Window
+				$Script:MainWindowWorkAreaMaximized = $false
+			}
+		}
+		finally
+		{
+			$Script:MainWindowApplyingWorkAreaMaximize = $false
+		}
+
+		Set-GuiMainWindowChromeMaximizedState -Window $Window -RootBorder $WindowBorder -TitleBarControl $TitleBar -BottomBorderControl $BottomBorder -Maximized ([bool]$Script:MainWindowWorkAreaMaximized)
+		Save-GuiMainWindowPlacementForRestore -Window $Window -Maximized ([bool]$Script:MainWindowWorkAreaMaximized) -Source 'WindowSetup.SaveWindowPlacement.StateChange'
+	}
 
 	try
 	{
@@ -90,7 +436,7 @@
 	# on a connected display we restore that instead.
 	try
 	{
-		$workArea = [System.Windows.SystemParameters]::WorkArea
+		$workArea = Get-GuiMainWindowWorkArea -Window $Form
 		$widthRatio = if ($workArea.Width -ge 2560) { 0.55 } elseif ($workArea.Width -ge 1920) { 0.65 } else { 0.85 }
 		$targetW  = [Math]::Round($workArea.Width  * $widthRatio)
 		$targetH  = [Math]::Round($workArea.Height * 0.85)
@@ -104,6 +450,7 @@
 		$defaultH = [Math]::Min([Math]::Max($targetH, $effectiveMinH), $workArea.Height)
 		$defaultLeft = $workArea.Left + (([double]$workArea.Width  - $defaultW) / 2.0)
 		$defaultTop  = $workArea.Top  + (([double]$workArea.Height - $defaultH) / 2.0)
+		$Script:MainWindowDefaultRestoreBounds = New-GuiMainWindowBoundsSnapshot -Left ([double]$defaultLeft) -Top ([double]$defaultTop) -Width ([double]$defaultW) -Height ([double]$defaultH)
 
 		$Form.MinWidth  = $effectiveMinW
 		$Form.MinHeight = $effectiveMinH
@@ -126,14 +473,29 @@
 
 		if ($placement)
 		{
-			$Form.Width  = [Math]::Max([double]$placement.Width,  [double]$effectiveMinW)
-			$Form.Height = [Math]::Max([double]$placement.Height, [double]$effectiveMinH)
+			$placementBounds = New-GuiMainWindowBoundsSnapshot -Left ([double]$placement.Left) -Top ([double]$placement.Top) -Width ([double]$placement.Width) -Height ([double]$placement.Height)
+			if ((Test-GuiMainWindowBoundsMatchWorkArea -Window $Form -Bounds $placementBounds) -and (Test-GuiMainWindowBoundsSnapshot -Bounds $Script:MainWindowDefaultRestoreBounds))
+			{
+				$placementBounds = $Script:MainWindowDefaultRestoreBounds
+			}
 			$Form.WindowStartupLocation = [System.Windows.WindowStartupLocation]::Manual
-			$Form.Left = [double]$placement.Left
-			$Form.Top  = [double]$placement.Top
+			$Form.Left = [double]$placementBounds.Left
+			$Form.Top  = [double]$placementBounds.Top
+			$placementBounds = Limit-GuiMainWindowBoundsToWorkArea -Window $Form -Bounds $placementBounds -MinWidth $effectiveMinW -MinHeight $effectiveMinH
+			$Form.Width  = [Math]::Max([double]$placementBounds.Width,  [double]$effectiveMinW)
+			$Form.Height = [Math]::Max([double]$placementBounds.Height, [double]$effectiveMinH)
+			$Form.Left = [double]$placementBounds.Left
+			$Form.Top  = [double]$placementBounds.Top
 			if ($placement.Maximized)
 			{
-				$Form.WindowState = [System.Windows.WindowState]::Maximized
+				$restoredNormalBounds = New-GuiMainWindowBoundsSnapshot -Left ([double]$placementBounds.Left) -Top ([double]$placementBounds.Top) -Width ([double]$Form.Width) -Height ([double]$Form.Height)
+				if ((Test-GuiMainWindowBoundsMatchWorkArea -Window $Form -Bounds $restoredNormalBounds) -and (Test-GuiMainWindowBoundsSnapshot -Bounds $Script:MainWindowDefaultRestoreBounds))
+				{
+					$restoredNormalBounds = $Script:MainWindowDefaultRestoreBounds
+				}
+				$restoredNormalBounds = Limit-GuiMainWindowBoundsToWorkArea -Window $Form -Bounds $restoredNormalBounds -MinWidth $effectiveMinW -MinHeight $effectiveMinH
+				$Script:MainWindowRestoreBounds = $restoredNormalBounds
+				$Script:MainWindowPendingWorkAreaMaximize = $true
 			}
 		}
 		else
@@ -145,10 +507,11 @@
 	catch
 	{
 		Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.ApplyDefaultWindowBounds'
-		$Form.MinWidth = $guiWindowMinWidth
-		$Form.MinHeight = $guiWindowMinHeight
-		$Form.Width  = [Math]::Max(940, $guiWindowMinWidth)
-		$Form.Height = [Math]::Max(720, $guiWindowMinHeight)
+		$fallbackWorkArea = [System.Windows.SystemParameters]::WorkArea
+		$Form.MinWidth = [Math]::Min($guiWindowMinWidth, [double]$fallbackWorkArea.Width)
+		$Form.MinHeight = [Math]::Min($guiWindowMinHeight, [double]$fallbackWorkArea.Height)
+		$Form.Width  = [Math]::Min([Math]::Max(940, [double]$Form.MinWidth), [double]$fallbackWorkArea.Width)
+		$Form.Height = [Math]::Min([Math]::Max(720, [double]$Form.MinHeight), [double]$fallbackWorkArea.Height)
 	}
 	$HeaderBorder    = $Form.FindName("HeaderBorder")
 	$HeaderSeparator = $Form.FindName("HeaderSeparator")
@@ -159,6 +522,16 @@
 	$BtnMinimize   = $Form.FindName("BtnMinimize")
 	$BtnMaximize   = $Form.FindName("BtnMaximize")
 	$BtnClose      = $Form.FindName("BtnClose")
+	$BottomBorder  = $Form.FindName("BottomBorder")
+	if ($BottomBorder) { $BottomBorder.CornerRadius = [System.Windows.CornerRadius]::new(0, 0, 8, 8) }
+
+	$applyPendingMainWindowWorkAreaMaximize = {
+		if (-not [bool]$Script:MainWindowPendingWorkAreaMaximize) { return }
+		$Script:MainWindowPendingWorkAreaMaximize = $false
+		Set-GuiMainWindowWorkAreaMaximized -Window $Form -Maximized $true -PreserveRestoreBounds
+	}.GetNewClosure()
+	$Form.Add_SourceInitialized($applyPendingMainWindowWorkAreaMaximize)
+	$Form.Add_Loaded($applyPendingMainWindowWorkAreaMaximize)
 
 	# Wire custom title bar: drag, minimize, maximize, close
 	if ($TitleBar)
@@ -166,17 +539,21 @@
 		$TitleBar.Add_MouseLeftButtonDown({
 			if ($_.ClickCount -eq 2)
 			{
-				if ($Form.WindowState -eq [System.Windows.WindowState]::Maximized)
+				if (Test-GuiMainWindowWorkAreaMaximized -Window $Form)
 				{
-					$Form.WindowState = [System.Windows.WindowState]::Normal
+					Set-GuiMainWindowWorkAreaMaximized -Window $Form -Maximized $false
 				}
 				else
 				{
-					$Form.WindowState = [System.Windows.WindowState]::Maximized
+					Set-GuiMainWindowWorkAreaMaximized -Window $Form -Maximized $true
 				}
 			}
 			else
 			{
+				if (Test-GuiMainWindowWorkAreaMaximized -Window $Form)
+				{
+					Set-GuiMainWindowWorkAreaMaximized -Window $Form -Maximized $false
+				}
 				$Form.DragMove()
 			}
 		})
@@ -187,7 +564,7 @@
 		$sysMenu = New-Object System.Windows.Controls.ContextMenu
 		$miRestore = New-Object System.Windows.Controls.MenuItem
 		$miRestore.Header = 'Restore'
-		$miRestore.Add_Click({ $Form.WindowState = [System.Windows.WindowState]::Normal })
+		$miRestore.Add_Click({ Set-GuiMainWindowWorkAreaMaximized -Window $Form -Maximized $false })
 		$miMove = New-Object System.Windows.Controls.MenuItem
 		$miMove.Header = 'Move'
 		$miMove.IsEnabled = $false
@@ -199,7 +576,7 @@
 		$miMinimize.Add_Click({ $Form.WindowState = [System.Windows.WindowState]::Minimized })
 		$miMaximize = New-Object System.Windows.Controls.MenuItem
 		$miMaximize.Header = 'Maximize'
-		$miMaximize.Add_Click({ $Form.WindowState = [System.Windows.WindowState]::Maximized })
+		$miMaximize.Add_Click({ Set-GuiMainWindowWorkAreaMaximized -Window $Form -Maximized $true })
 		$sep = New-Object System.Windows.Controls.Separator
 		$miRememberPos = New-Object System.Windows.Controls.MenuItem
 		$miRememberPos.Header = 'Remember Window Position'
@@ -242,7 +619,7 @@
 		$Script:TitleBarSystemMenu = $sysMenu
 		$Script:TitleBarSystemMenuItems = @{ Restore = $miRestore; Minimize = $miMinimize; Maximize = $miMaximize; Move = $miMove; Size = $miSize }
 		$sysMenu.Add_Opened({
-			$isMax = $Form.WindowState -eq [System.Windows.WindowState]::Maximized
+			$isMax = Test-GuiMainWindowWorkAreaMaximized -Window $Form
 			$Script:TitleBarSystemMenuItems.Restore.IsEnabled = $isMax
 			$Script:TitleBarSystemMenuItems.Maximize.IsEnabled = -not $isMax
 			$Script:TitleBarSystemMenuItems.Move.IsEnabled = -not $isMax
@@ -254,76 +631,42 @@
 	if ($BtnMaximize)
 	{
 		$BtnMaximize.Add_Click({
-			if ($Form.WindowState -eq [System.Windows.WindowState]::Maximized)
+			if (Test-GuiMainWindowWorkAreaMaximized -Window $Form)
 			{
-				$Form.WindowState = [System.Windows.WindowState]::Normal
+				Set-GuiMainWindowWorkAreaMaximized -Window $Form -Maximized $false
 			}
 			else
 			{
-				$Form.WindowState = [System.Windows.WindowState]::Maximized
+				Set-GuiMainWindowWorkAreaMaximized -Window $Form -Maximized $true
 			}
 		})
 	}
 	if ($BtnClose) { $BtnClose.Add_Click({ $Form.Close() }) }
 
 	# Persist window placement on close so the next launch
-	# can restore it. Maximized windows save their RestoreBounds, not the
-	# screen-filling rect, so the user gets a usable window on relaunch.
+	# can restore the user's normal bounds before applying work-area maximize.
 	$Form.Add_Closing({
-		try
-		{
-			if (-not (Get-Command -Name 'Save-BaselineWindowPlacement' -ErrorAction SilentlyContinue)) { return }
-			$rect = $null
-			$isMax = $Form.WindowState -eq [System.Windows.WindowState]::Maximized
-			if ($isMax)
-			{
-				$restore = $Form.RestoreBounds
-				if (-not [System.Windows.Rect]::Empty.Equals($restore) -and $restore.Width -gt 0 -and $restore.Height -gt 0)
-				{
-					$rect = [pscustomobject]@{ Left = $restore.Left; Top = $restore.Top; Width = $restore.Width; Height = $restore.Height }
-				}
-			}
-			else
-			{
-				$rect = [pscustomobject]@{ Left = $Form.Left; Top = $Form.Top; Width = $Form.Width; Height = $Form.Height }
-			}
-			if ($rect)
-			{
-				Save-BaselineWindowPlacement -Left ([double]$rect.Left) -Top ([double]$rect.Top) `
-					-Width ([double]$rect.Width) -Height ([double]$rect.Height) -Maximized $isMax | Out-Null
-			}
-		}
-		catch
-		{
-			Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.SaveWindowPlacement' 2>$null
-		}
+		Save-GuiMainWindowPlacementForRestore -Window $Form -Maximized (Test-GuiMainWindowWorkAreaMaximized -Window $Form) -Source 'WindowSetup.SaveWindowPlacement'
 	})
 
-	# Adjust border radius when maximized (no rounding needed when filling screen)
+	# Adjust border radius when maximized.
 	$Form.Add_StateChanged({
+		if ($Script:MainWindowApplyingWorkAreaMaximize) { return }
 		if ($Form.WindowState -eq [System.Windows.WindowState]::Maximized)
 		{
-			$WindowBorder.CornerRadius = [System.Windows.CornerRadius]::new(0)
-			$WindowBorder.Margin = [System.Windows.Thickness]::new(7)
-			if ($TitleBar) { $TitleBar.CornerRadius = [System.Windows.CornerRadius]::new(0) }
-			if ($BottomBorder) { $BottomBorder.CornerRadius = [System.Windows.CornerRadius]::new(0) }
+			Set-GuiMainWindowWorkAreaMaximized -Window $Form -Maximized $true
+			return
 		}
-		else
-		{
-			$WindowBorder.CornerRadius = [System.Windows.CornerRadius]::new(8)
-			$WindowBorder.Margin = [System.Windows.Thickness]::new(0)
-			if ($TitleBar) { $TitleBar.CornerRadius = [System.Windows.CornerRadius]::new(8, 8, 0, 0) }
-			if ($BottomBorder) { $BottomBorder.CornerRadius = [System.Windows.CornerRadius]::new(0, 0, 8, 8) }
-		}
+		Set-GuiMainWindowChromeMaximizedState -Window $Form -RootBorder $WindowBorder -TitleBarControl $TitleBar -BottomBorderControl $BottomBorder -Maximized (Test-GuiMainWindowWorkAreaMaximized -Window $Form)
 	})
 	$PrimaryTabs   = $Form.FindName("PrimaryTabs")
 	$PrimaryTabDropdown = $Form.FindName("PrimaryTabDropdown")
 	$PrimaryTabHost = $Form.FindName("PrimaryTabHost")
 	$ContentBorder = $Form.FindName("ContentBorder")
+	$ContentScrollHost = $Form.FindName("ContentScrollHost")
 	$ContentScroll = $Form.FindName("ContentScroll")
+	$BtnBackToTop = $Form.FindName("BtnBackToTop")
 	$ExpertModeBanner = $Form.FindName("ExpertModeBanner")
-	$BottomBorder  = $Form.FindName("BottomBorder")
-	if ($BottomBorder) { $BottomBorder.CornerRadius = [System.Windows.CornerRadius]::new(0, 0, 8, 8) }
 	$StatusText    = $Form.FindName("StatusText")
 	$Script:StatusTextControl = $StatusText
 	$ActionButtonBar = $Form.FindName("ActionButtonBar")
@@ -387,6 +730,8 @@
 	$DeploymentMediaStatusBanner = $Form.FindName("DeploymentMediaStatusBanner")
 	$TxtDeploymentMediaSelectionStatus = $Form.FindName("TxtDeploymentMediaSelectionStatus")
 	$TxtDeploymentMediaBuildStatus = $Form.FindName("TxtDeploymentMediaBuildStatus")
+	$CmbDeploymentMediaMicrosoftIso = $Form.FindName("CmbDeploymentMediaMicrosoftIso")
+	$BtnDeploymentMediaDownloadMicrosoftIso = $Form.FindName("BtnDeploymentMediaDownloadMicrosoftIso")
 	$TxtDeploymentMediaSourceIso = $Form.FindName("TxtDeploymentMediaSourceIso")
 	$BtnDeploymentMediaBrowseIso = $Form.FindName("BtnDeploymentMediaBrowseIso")
 	$TxtDeploymentMediaEditionIndex = $Form.FindName("TxtDeploymentMediaEditionIndex")
@@ -398,6 +743,7 @@
 	$TxtDeploymentMediaUsbTargetRoot = $Form.FindName("TxtDeploymentMediaUsbTargetRoot")
 	$BtnDeploymentMediaBrowseUsbTarget = $Form.FindName("BtnDeploymentMediaBrowseUsbTarget")
 	$TxtDeploymentMediaAutounattend = $Form.FindName("TxtDeploymentMediaAutounattend")
+	$BtnDeploymentMediaCreateAutounattend = $Form.FindName("BtnDeploymentMediaCreateAutounattend")
 	$BtnDeploymentMediaBrowseAutounattend = $Form.FindName("BtnDeploymentMediaBrowseAutounattend")
 	$TxtDeploymentMediaDriverSource = $Form.FindName("TxtDeploymentMediaDriverSource")
 	$BtnDeploymentMediaBrowseDrivers = $Form.FindName("BtnDeploymentMediaBrowseDrivers")
@@ -476,6 +822,16 @@
 	$MenuTools                  = $Form.FindName("MenuTools")
 	$MenuToolsAppsManager       = $Form.FindName("MenuToolsAppsManager")
 	$MenuToolsUpdateAllApps     = $Form.FindName("MenuToolsUpdateAllApps")
+	$MenuToolsSepDeveloperDiagnostics = $Form.FindName("MenuToolsSepDeveloperDiagnostics")
+	$MenuToolsDeveloperDiagnostics = $Form.FindName("MenuToolsDeveloperDiagnostics")
+	$MenuToolsDeveloperDiagnosticsGenerateReport = $Form.FindName("MenuToolsDeveloperDiagnosticsGenerateReport")
+	$MenuToolsDeveloperDiagnosticsSourceQuality = $Form.FindName("MenuToolsDeveloperDiagnosticsSourceQuality")
+	$MenuToolsDeveloperDiagnosticsUnitTests = $Form.FindName("MenuToolsDeveloperDiagnosticsUnitTests")
+	$MenuToolsDeveloperDiagnosticsGuiComposition = $Form.FindName("MenuToolsDeveloperDiagnosticsGuiComposition")
+	$MenuToolsDeveloperDiagnosticsOpenLatestReport = $Form.FindName("MenuToolsDeveloperDiagnosticsOpenLatestReport")
+	$MenuToolsDeveloperDiagnosticsCopyCommands = $Form.FindName("MenuToolsDeveloperDiagnosticsCopyCommands")
+	$MenuToolsDeveloperDiagnosticsIntegrationSeparator = $Form.FindName("MenuToolsDeveloperDiagnosticsIntegrationSeparator")
+	$MenuToolsDeveloperDiagnosticsIntegrationTests = $Form.FindName("MenuToolsDeveloperDiagnosticsIntegrationTests")
 	$MenuToolsExportSupportBundle = $Form.FindName("MenuToolsExportSupportBundle")
 	$MenuToolsApproveRemoteTargets = $Form.FindName("MenuToolsApproveRemoteTargets")
 	$MenuToolsSaveRemoteApprovalPolicy = $Form.FindName("MenuToolsSaveRemoteApprovalPolicy")
@@ -529,6 +885,16 @@
 	$Script:MenuFileExportSystemState    = $MenuFileExportSystemState
 	$Script:MenuToolsAppsManager         = $MenuToolsAppsManager
 	$Script:MenuToolsUpdateAllApps       = $MenuToolsUpdateAllApps
+	$Script:MenuToolsSepDeveloperDiagnostics = $MenuToolsSepDeveloperDiagnostics
+	$Script:MenuToolsDeveloperDiagnostics = $MenuToolsDeveloperDiagnostics
+	$Script:MenuToolsDeveloperDiagnosticsGenerateReport = $MenuToolsDeveloperDiagnosticsGenerateReport
+	$Script:MenuToolsDeveloperDiagnosticsSourceQuality = $MenuToolsDeveloperDiagnosticsSourceQuality
+	$Script:MenuToolsDeveloperDiagnosticsUnitTests = $MenuToolsDeveloperDiagnosticsUnitTests
+	$Script:MenuToolsDeveloperDiagnosticsGuiComposition = $MenuToolsDeveloperDiagnosticsGuiComposition
+	$Script:MenuToolsDeveloperDiagnosticsOpenLatestReport = $MenuToolsDeveloperDiagnosticsOpenLatestReport
+	$Script:MenuToolsDeveloperDiagnosticsCopyCommands = $MenuToolsDeveloperDiagnosticsCopyCommands
+	$Script:MenuToolsDeveloperDiagnosticsIntegrationSeparator = $MenuToolsDeveloperDiagnosticsIntegrationSeparator
+	$Script:MenuToolsDeveloperDiagnosticsIntegrationTests = $MenuToolsDeveloperDiagnosticsIntegrationTests
 	$Script:MenuToolsExportSupportBundle = $MenuToolsExportSupportBundle
 	$Script:MenuToolsApproveRemoteTargets = $MenuToolsApproveRemoteTargets
 	$Script:MenuToolsSaveRemoteApprovalPolicy = $MenuToolsSaveRemoteApprovalPolicy
@@ -550,6 +916,8 @@
 	$Script:MenuHelpAbout                = $MenuHelpAbout
 
 	$Script:PrimaryTabHost = $PrimaryTabHost
+	$Script:ContentScrollHost = $ContentScrollHost
+	$Script:BtnBackToTop = $BtnBackToTop
 	$Script:ExpertModeBanner = $ExpertModeBanner
 	$Script:SafeModeGroup = $SafeModeGroup
 	$Script:ThemeToggleGroup = $ThemeToggleGroup
@@ -589,6 +957,8 @@
 	$Script:DeploymentMediaStatusBanner = $DeploymentMediaStatusBanner
 	$Script:TxtDeploymentMediaSelectionStatus = $TxtDeploymentMediaSelectionStatus
 	$Script:TxtDeploymentMediaBuildStatus = $TxtDeploymentMediaBuildStatus
+	$Script:CmbDeploymentMediaMicrosoftIso = $CmbDeploymentMediaMicrosoftIso
+	$Script:BtnDeploymentMediaDownloadMicrosoftIso = $BtnDeploymentMediaDownloadMicrosoftIso
 	$Script:TxtDeploymentMediaSourceIso = $TxtDeploymentMediaSourceIso
 	$Script:BtnDeploymentMediaBrowseIso = $BtnDeploymentMediaBrowseIso
 	$Script:TxtDeploymentMediaEditionIndex = $TxtDeploymentMediaEditionIndex
@@ -600,6 +970,7 @@
 	$Script:TxtDeploymentMediaUsbTargetRoot = $TxtDeploymentMediaUsbTargetRoot
 	$Script:BtnDeploymentMediaBrowseUsbTarget = $BtnDeploymentMediaBrowseUsbTarget
 	$Script:TxtDeploymentMediaAutounattend = $TxtDeploymentMediaAutounattend
+	$Script:BtnDeploymentMediaCreateAutounattend = $BtnDeploymentMediaCreateAutounattend
 	$Script:BtnDeploymentMediaBrowseAutounattend = $BtnDeploymentMediaBrowseAutounattend
 	$Script:TxtDeploymentMediaDriverSource = $TxtDeploymentMediaDriverSource
 	$Script:BtnDeploymentMediaBrowseDrivers = $BtnDeploymentMediaBrowseDrivers
@@ -816,7 +1187,7 @@
 				}
 				else
 				{
-					Write-Warning (Format-BaselineErrorForLog -ErrorObject $e -Prefix 'GUI event failed [WPF Dispatcher]')
+					Write-Warning (Format-BaselineErrorForLog -ErrorObject $e -Prefix 'GUI event failed: WPF Dispatcher')
 				}
 
 				# Treat critical .NET exceptions as fatal - do not suppress them
@@ -828,6 +1199,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\WindowSetup.ps1:1196' -Severity Debug }
+
 				# If our own handler fails, the original exception must not be swallowed
 				$isFatal = $true
 			}
@@ -862,6 +1235,11 @@
 	$Script:DesignMode = $false
 	$Script:RestoreLastSession = $true
 	$Script:AutoScanOnLaunch = $false
+	$Script:StartupRunInitialActions = $true
+	$Script:StartupCheckWinGet = $true
+	$Script:StartupWinGetCheckFrequency = 'Startup'
+	$Script:StartupCheckChocolatey = $true
+	$Script:StartupChocolateyCheckFrequency = 'Startup'
 	$Script:RequireRunConfirmation = $true
 	$Script:AutoCheckUpdates = $true
 	$Script:UpdateCheckFrequency = 'Startup'
@@ -881,6 +1259,16 @@
 			$Script:DesignMode = [bool](Get-BaselineUserPreference -Key 'DesignMode' -Default $false)
 			$Script:RestoreLastSession = [bool](Get-BaselineUserPreference -Key 'RestoreLastSession' -Default $true)
 			$Script:AutoScanOnLaunch = [bool](Get-BaselineUserPreference -Key 'AutoScanOnLaunch' -Default $false)
+			$Script:StartupRunInitialActions = [bool](Get-BaselineUserPreference -Key 'StartupRunInitialActions' -Default $true)
+			$Script:StartupCheckWinGet = [bool](Get-BaselineUserPreference -Key 'StartupCheckWinGet' -Default $true)
+			$Script:StartupWinGetCheckFrequency = [string](Get-BaselineUserPreference -Key 'StartupWinGetCheckFrequency' -Default 'Startup')
+			$Script:StartupCheckChocolatey = [bool](Get-BaselineUserPreference -Key 'StartupCheckChocolatey' -Default $true)
+			$Script:StartupChocolateyCheckFrequency = [string](Get-BaselineUserPreference -Key 'StartupChocolateyCheckFrequency' -Default 'Startup')
+			if (Get-Command -Name 'ConvertTo-BaselineUpdateCheckFrequency' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				$Script:StartupWinGetCheckFrequency = ConvertTo-BaselineUpdateCheckFrequency -Frequency $Script:StartupWinGetCheckFrequency
+				$Script:StartupChocolateyCheckFrequency = ConvertTo-BaselineUpdateCheckFrequency -Frequency $Script:StartupChocolateyCheckFrequency
+			}
 			$Script:RequireRunConfirmation = [bool](Get-BaselineUserPreference -Key 'RequireRunConfirmation' -Default $true)
 			$Script:AutoCheckUpdates = [bool](Get-BaselineUserPreference -Key 'AutoCheckUpdates' -Default $true)
 			$Script:UpdateCheckFrequency = [string](Get-BaselineUserPreference -Key 'UpdateCheckFrequency' -Default 'Startup')
@@ -905,6 +1293,11 @@
 		$Script:HideUnavailableItems = $true
 		$Script:DesignMode = $false
 		$Script:RestoreLastSession = $true
+		$Script:StartupRunInitialActions = $true
+		$Script:StartupCheckWinGet = $true
+		$Script:StartupWinGetCheckFrequency = 'Startup'
+		$Script:StartupCheckChocolatey = $true
+		$Script:StartupChocolateyCheckFrequency = 'Startup'
 		$Script:RequireRunConfirmation = $true
 		$Script:AutoCheckUpdates = $true
 		$Script:UpdateCheckFrequency = 'Startup'
@@ -924,6 +1317,14 @@
 	{
 		try { Set-GuiPerfTraceState -Enabled ([bool]$Script:DebugLoggingEnabled) }
 		catch { Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.ApplyPerfTraceState' }
+	}
+	try
+	{
+		LogDebug ('GUI preferences loaded. RunInitialActions={0}; CheckWinGet={1}; WinGetFrequency="{2}"; CheckChocolatey={3}; ChocolateyFrequency="{4}"; DebugLogging={5}; LogLevel="{6}"; AppsSource="{7}"; RestoreLastSession={8}; AutoScanOnLaunch={9}' -f [bool]$Script:StartupRunInitialActions, [bool]$Script:StartupCheckWinGet, [string]$Script:StartupWinGetCheckFrequency, [bool]$Script:StartupCheckChocolatey, [string]$Script:StartupChocolateyCheckFrequency, [bool]$Script:DebugLoggingEnabled, [string]$Script:LogLevel, [string]$Script:AppsPackageSourcePreference, [bool]$Script:RestoreLastSession, [bool]$Script:AutoScanOnLaunch)
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'WindowSetup.LoadGuiPreferences.LogDebug'
 	}
 	$Script:AdvancedMode = [string]::Equals([string]$Script:DefaultStartupMode, 'Expert', [System.StringComparison]::OrdinalIgnoreCase)
 	$Script:SafeMode = -not [bool]$Script:AdvancedMode

@@ -118,6 +118,8 @@ function Test-InteractiveHost
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Test-InteractiveHost:catch119' -Severity Debug }
+
 		return $false
 	}
 }
@@ -152,6 +154,8 @@ function Write-EnvironmentLaunchTrace
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Write-EnvironmentLaunchTrace:catch153' -Severity Debug }
+
 		$null = $_
 	}
 }
@@ -190,6 +194,8 @@ function Write-EnvironmentSwallowedException
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Write-EnvironmentSwallowedException:catch191' -Severity Debug }
+
 		$null = $_
 	}
 }
@@ -347,6 +353,8 @@ function Initialize-WpfWindowForeground
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Initialize-WpfWindowForeground:catch348' -Severity Debug }
+
 		# Ignore if the supplied object is not a WPF Window.
 	}
 }
@@ -521,6 +529,8 @@ function Get-BaselineValidationMatrixSummary
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Get-BaselineValidationMatrixSummary:catch522' -Severity Debug }
+
 			$summary.Summary = 'Unavailable'
 			$summary.ServerValidationSummary = 'Unavailable'
 			$summary.ServerCoverageStatus = 'Unavailable'
@@ -583,7 +593,9 @@ function Get-BaselineValidationEvidenceReport
 	$baselineVersion = $null
 	if (Get-Command -Name 'Get-BaselineDisplayVersion' -ErrorAction SilentlyContinue)
 	{
-		try { $baselineVersion = Get-BaselineDisplayVersion } catch { $baselineVersion = $null }
+		try { $baselineVersion = Get-BaselineDisplayVersion } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Get-BaselineValidationEvidenceReport:catch586' -Severity Debug }
+		 $baselineVersion = $null }
 	}
 	if (-not [string]::IsNullOrWhiteSpace([string]$baselineVersion))
 	{
@@ -688,6 +700,8 @@ function Get-BaselineValidationEvidenceReport
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Get-BaselineValidationEvidenceReport:catch689' -Severity Debug }
+
 			# Keep the report deterministic when the test report cannot be parsed.
 		}
 	}
@@ -695,7 +709,9 @@ function Get-BaselineValidationEvidenceReport
 	$matrix = $null
 	if (Get-Command -Name 'Get-BaselineValidationMatrixSummary' -ErrorAction SilentlyContinue)
 	{
-		try { $matrix = Get-BaselineValidationMatrixSummary -RepoRoot $resolvedRepoRoot } catch { $matrix = $null }
+		try { $matrix = Get-BaselineValidationMatrixSummary -RepoRoot $resolvedRepoRoot } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Get-BaselineValidationEvidenceReport:catch698' -Severity Debug }
+		 $matrix = $null }
 	}
 	if ($matrix)
 	{
@@ -971,7 +987,9 @@ function Show-BootstrapLoadingSplash
 	[CmdletBinding()]
 	[OutputType([System.Object])]
 	param (
-		[switch]$StartUpdatesPulse
+		[switch]$StartUpdatesPulse,
+
+		[string[]]$StepOrder = @()
 	)
 
 		$__baselineExtractedPartDidReturn = $false
@@ -1001,6 +1019,8 @@ function Get-BaselineSplashProgressWidth
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Get-BaselineSplashProgressWidth:catch1002' -Severity Debug }
+
 		$width = 0.0
 	}
 
@@ -1012,6 +1032,8 @@ function Get-BaselineSplashProgressWidth
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Get-BaselineSplashProgressWidth:catch1013' -Severity Debug }
+
 			$width = 0.0
 		}
 	}
@@ -1065,6 +1087,8 @@ namespace WinAPI
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Initialize-BaselineProcessIdentity:catch1066' -Severity Debug }
+
 		return $false
 	}
 }
@@ -1319,6 +1343,8 @@ function Get-BaselineUpdateInstallMode
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Get-BaselineUpdateInstallMode:catch1320' -Severity Debug }
+
 				continue
 			}
 
@@ -1507,7 +1533,9 @@ function Set-BootstrapLoadingSplashState
 		}.GetNewClosure()
 
 		$dispatcherHasCheckAccess = $false
-		try { $dispatcherHasCheckAccess = ($null -ne $dispatcher.PSObject.Methods['CheckAccess']) } catch { $dispatcherHasCheckAccess = $false }
+		try { $dispatcherHasCheckAccess = ($null -ne $dispatcher.PSObject.Methods['CheckAccess']) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Set-BootstrapLoadingSplashState:catch1510' -Severity Debug }
+		 $dispatcherHasCheckAccess = $false }
 		if ($dispatcherHasCheckAccess -and $dispatcher.CheckAccess())
 		{
 			& $updateAction
@@ -1521,6 +1549,8 @@ function Set-BootstrapLoadingSplashState
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Set-BootstrapLoadingSplashState:catch1522' -Severity Debug }
+
 		return $false
 	}
 }
@@ -1750,6 +1780,8 @@ function Compare-BaselineReleaseVersions
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Compare-BaselineReleaseVersions:catch1751' -Severity Debug }
+
 			return [pscustomobject]@{
 				OriginalText      = $trimmedText
 				ComparableText    = $coreText
@@ -1923,6 +1955,8 @@ function Get-BaselineLatestReleaseEntry
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Get-BaselineLatestReleaseEntry:catch1924' -Severity Debug }
+
 			$isDraft = $false
 		}
 		if ($isDraft)
@@ -1937,6 +1971,8 @@ function Get-BaselineLatestReleaseEntry
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Get-BaselineLatestReleaseEntry:catch1938' -Severity Debug }
+
 			$isPrerelease = $false
 		}
 		if ($isPrerelease -and -not $IncludePrerelease)
@@ -1963,6 +1999,8 @@ function Get-BaselineLatestReleaseEntry
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Get-BaselineLatestReleaseEntry:catch1964' -Severity Debug }
+
 				$rawPublishedAt = $null
 			}
 
@@ -2001,6 +2039,28 @@ function Get-BaselineLatestReleaseEntry
     .SYNOPSIS
 #>
 
+function Resolve-BaselineLocalApplicationDataPath
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[AllowNull()]
+		[string]$LocalAppData = $null
+	)
+
+	if ([string]::IsNullOrWhiteSpace($LocalAppData))
+	{
+		$LocalAppData = $env:LOCALAPPDATA
+	}
+
+	if ([string]::IsNullOrWhiteSpace($LocalAppData))
+	{
+		$LocalAppData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
+	}
+
+	return $LocalAppData
+}
+
 function Get-BaselineAutoUpdateThrottlePath
 {
 	<#
@@ -2011,15 +2071,37 @@ function Get-BaselineAutoUpdateThrottlePath
 	[CmdletBinding()]
 	[OutputType([string])]
 	param (
-		[string]$LocalAppData = ([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData))
+		[string]$LocalAppData = $null
 	)
 
+	$LocalAppData = Resolve-BaselineLocalApplicationDataPath -LocalAppData $LocalAppData
 	if ([string]::IsNullOrWhiteSpace($LocalAppData))
 	{
 		throw 'LocalApplicationData is not available; cannot persist the Baseline auto-update throttle state.'
 	}
 
 	return (Join-Path (Join-Path (Join-Path $LocalAppData 'Baseline') 'UserState') 'auto-update-check.json')
+}
+
+function Get-BaselineStartupPackageManagerCheckStatePath
+{
+	<#
+	.SYNOPSIS
+	Returns the per-user state file used to schedule startup package-manager checks.
+	#>
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[string]$LocalAppData = $null
+	)
+
+	$LocalAppData = Resolve-BaselineLocalApplicationDataPath -LocalAppData $LocalAppData
+	if ([string]::IsNullOrWhiteSpace($LocalAppData))
+	{
+		throw 'LocalApplicationData is not available; cannot persist the Baseline startup package-manager check state.'
+	}
+
+	return (Join-Path (Join-Path (Join-Path $LocalAppData 'Baseline') 'UserState') 'startup-package-manager-checks.json')
 }
 
 function Get-BaselineUpdatePreferencePath
@@ -2031,15 +2113,261 @@ function Get-BaselineUpdatePreferencePath
 	[CmdletBinding()]
 	[OutputType([string])]
 	param (
-		[string]$LocalAppData = ([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData))
+		[string]$LocalAppData = $null
 	)
 
+	$LocalAppData = Resolve-BaselineLocalApplicationDataPath -LocalAppData $LocalAppData
 	if ([string]::IsNullOrWhiteSpace($LocalAppData))
 	{
 		throw 'LocalApplicationData is not available; cannot read Baseline update preferences.'
 	}
 
 	return (Join-Path (Join-Path (Join-Path (Join-Path $LocalAppData 'Baseline') 'UserState') 'Profiles') 'Baseline-user-prefs.json')
+}
+
+function Get-BaselineStartupPackageManagerCheckState
+{
+	<#
+	.SYNOPSIS
+	Reads the persisted timestamps used to schedule startup package-manager checks.
+	#>
+	[CmdletBinding()]
+	[OutputType([pscustomobject])]
+	param (
+		[string]$Path = (Get-BaselineStartupPackageManagerCheckStatePath)
+	)
+
+	$defaultState = [pscustomobject]@{
+		WinGetLastCheckedUtc = $null
+		ChocolateyLastCheckedUtc = $null
+	}
+
+	if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path))
+	{
+		return $defaultState
+	}
+
+	try
+	{
+		$raw = [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8)
+		if ([string]::IsNullOrWhiteSpace($raw)) { return $defaultState }
+		$state = $raw | ConvertFrom-BaselineJson -Depth 8 -ErrorAction Stop
+		$parseTimestamp = {
+			param ([AllowNull()] [object]$Value)
+
+			if ($null -eq $Value) { return $null }
+			$text = ([string]$Value).Trim()
+			if ([string]::IsNullOrWhiteSpace($text)) { return $null }
+			$parsed = [datetime]::MinValue
+			if ([datetime]::TryParse($text, [ref]$parsed))
+			{
+				return $parsed.ToUniversalTime()
+			}
+			return $null
+		}
+
+		return [pscustomobject]@{
+			WinGetLastCheckedUtc = if ($state -and $state.PSObject.Properties['WinGetLastCheckedUtc']) { & $parseTimestamp $state.WinGetLastCheckedUtc } else { $null }
+			ChocolateyLastCheckedUtc = if ($state -and $state.PSObject.Properties['ChocolateyLastCheckedUtc']) { & $parseTimestamp $state.ChocolateyLastCheckedUtc } else { $null }
+		}
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineStartupPackageManagerCheckState'
+		return $defaultState
+	}
+}
+
+function Set-BaselineStartupPackageManagerCheckState
+{
+	<#
+	.SYNOPSIS
+	Updates persisted startup package-manager check timestamps.
+	#>
+	[CmdletBinding()]
+	param (
+		[switch]$WinGet,
+
+		[switch]$Chocolatey,
+
+		[string]$Path = (Get-BaselineStartupPackageManagerCheckStatePath),
+
+		[datetime]$NowUtc = [DateTime]::UtcNow
+	)
+
+	if (-not ([bool]$WinGet -or [bool]$Chocolatey))
+	{
+		return
+	}
+
+	$directory = Split-Path -Path $Path -Parent
+	if (-not (Test-Path -LiteralPath $directory))
+	{
+		$null = New-Item -Path $directory -ItemType Directory -Force
+	}
+
+	$existing = Get-BaselineStartupPackageManagerCheckState -Path $Path
+	$payload = [ordered]@{
+		Schema = 'Baseline.StartupPackageManagerChecks'
+		SchemaVersion = 1
+		WinGetLastCheckedUtc = if ($existing -and $existing.WinGetLastCheckedUtc) { ([datetime]$existing.WinGetLastCheckedUtc).ToUniversalTime().ToString('o') } else { $null }
+		ChocolateyLastCheckedUtc = if ($existing -and $existing.ChocolateyLastCheckedUtc) { ([datetime]$existing.ChocolateyLastCheckedUtc).ToUniversalTime().ToString('o') } else { $null }
+	}
+
+	$timestamp = $NowUtc.ToUniversalTime().ToString('o')
+	if ($WinGet) { $payload.WinGetLastCheckedUtc = $timestamp }
+	if ($Chocolatey) { $payload.ChocolateyLastCheckedUtc = $timestamp }
+
+	[System.IO.File]::WriteAllText($Path, ([pscustomobject]$payload | ConvertTo-Json -Depth 6), [System.Text.Encoding]::UTF8)
+	try
+	{
+		if (Get-Command -Name 'LogDebug' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			LogDebug ('Startup package-manager check state persisted. Path="{0}"; WinGetUpdated={1}; ChocolateyUpdated={2}; TimestampUtc="{3}"' -f $Path, [bool]$WinGet, [bool]$Chocolatey, $timestamp)
+		}
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'Environment.SetBaselineStartupPackageManagerCheckState.LogDebug' -Severity Warning
+	}
+}
+
+function Get-BaselineStartupPackageManagerCheckDecision
+{
+	<#
+	.SYNOPSIS
+	Determines whether a startup package-manager check is due.
+	#>
+	[CmdletBinding()]
+	[OutputType([pscustomobject])]
+	param (
+		[Parameter(Mandatory = $true)]
+		[ValidateSet('WinGet', 'Chocolatey')]
+		[string]$PackageManager,
+
+		[bool]$Enabled = $true,
+
+		[string]$Frequency = 'Startup',
+
+		[string]$Path = (Get-BaselineStartupPackageManagerCheckStatePath),
+
+		[datetime]$NowUtc = [DateTime]::UtcNow
+	)
+
+	$normalizedFrequency = ConvertTo-BaselineUpdateCheckFrequency -Frequency $Frequency
+	if (-not $Enabled)
+	{
+		try
+		{
+			if (Get-Command -Name 'LogDebug' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				LogDebug ('Startup package-manager check decision resolved. PackageManager="{0}"; Enabled=False; Frequency="{1}"; StatePath="{2}"; LastCheckedUtc=""; NextEligibleUtc=""; ShouldCheck=False; Reason="{3} startup check is disabled by user preference."' -f $PackageManager, $normalizedFrequency, $Path, $PackageManager)
+			}
+		}
+		catch
+		{
+			Write-SwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineStartupPackageManagerCheckDecision.DisabledLogDebug' -Severity Warning
+		}
+		return [pscustomobject]@{
+			PackageManager = $PackageManager
+			ShouldCheck = $false
+			Frequency = $normalizedFrequency
+			LastCheckedUtc = $null
+			NextEligibleUtc = $null
+			Reason = ('{0} startup check is disabled by user preference.' -f $PackageManager)
+		}
+	}
+
+	$state = Get-BaselineStartupPackageManagerCheckState -Path $Path
+	$lastCheckedUtc = if ($PackageManager -eq 'Chocolatey') { $state.ChocolateyLastCheckedUtc } else { $state.WinGetLastCheckedUtc }
+	$decision = Get-BaselineUpdateFrequencyDecision -Frequency $normalizedFrequency -State ([pscustomobject]@{ LastCheckedUtc = $lastCheckedUtc }) -NowUtc $NowUtc
+	try
+	{
+		if (Get-Command -Name 'LogDebug' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			LogDebug ('Startup package-manager check decision resolved. PackageManager="{0}"; Enabled={1}; Frequency="{2}"; StatePath="{3}"; LastCheckedUtc="{4}"; NextEligibleUtc="{5}"; ShouldCheck={6}; Reason="{7}"' -f $PackageManager, [bool]$Enabled, $normalizedFrequency, $Path, $(if ($lastCheckedUtc) { ([datetime]$lastCheckedUtc).ToUniversalTime().ToString('o') } else { '' }), $(if ($decision.NextEligibleUtc) { ([datetime]$decision.NextEligibleUtc).ToUniversalTime().ToString('o') } else { '' }), [bool]$decision.ShouldCheck, [string]$decision.Reason)
+		}
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineStartupPackageManagerCheckDecision.LogDebug' -Severity Warning
+	}
+
+	return [pscustomobject]@{
+		PackageManager = $PackageManager
+		ShouldCheck = [bool]$decision.ShouldCheck
+		Frequency = $normalizedFrequency
+		LastCheckedUtc = $lastCheckedUtc
+		NextEligibleUtc = $decision.NextEligibleUtc
+		Reason = [string]$decision.Reason
+	}
+}
+
+function Get-BaselineStartupSplashSettings
+{
+	<#
+	.SYNOPSIS
+	Reads the GUI preferences that control startup splash work.
+	#>
+	[CmdletBinding()]
+	[OutputType([pscustomobject])]
+	param (
+		[string]$PreferencePath = $null
+	)
+
+	$settings = [ordered]@{
+		RunInitialActions = $true
+		CheckWinGet = $true
+		CheckChocolatey = $true
+		WinGetCheckFrequency = 'Startup'
+		ChocolateyCheckFrequency = 'Startup'
+	}
+
+	try
+	{
+		if ([string]::IsNullOrWhiteSpace($PreferencePath))
+		{
+			$PreferencePath = Get-BaselineUpdatePreferencePath
+		}
+
+		if (-not (Test-Path -LiteralPath $PreferencePath -PathType Leaf))
+		{
+			return [pscustomobject]$settings
+		}
+
+		$preferencesJson = Get-Content -LiteralPath $PreferencePath -Raw -ErrorAction Stop | ConvertFrom-BaselineJson -Depth 16
+		if (-not $preferencesJson -or -not $preferencesJson.Values)
+		{
+			return [pscustomobject]$settings
+		}
+
+		if ($preferencesJson.Values.PSObject.Properties['StartupRunInitialActions'])
+		{
+			$settings.RunInitialActions = ConvertTo-BaselineUpdateBoolean -Value $preferencesJson.Values.StartupRunInitialActions -Default $true
+		}
+		if ($preferencesJson.Values.PSObject.Properties['StartupCheckWinGet'])
+		{
+			$settings.CheckWinGet = ConvertTo-BaselineUpdateBoolean -Value $preferencesJson.Values.StartupCheckWinGet -Default $true
+		}
+		if ($preferencesJson.Values.PSObject.Properties['StartupCheckChocolatey'])
+		{
+			$settings.CheckChocolatey = ConvertTo-BaselineUpdateBoolean -Value $preferencesJson.Values.StartupCheckChocolatey -Default $true
+		}
+		if ($preferencesJson.Values.PSObject.Properties['StartupWinGetCheckFrequency'])
+		{
+			$settings.WinGetCheckFrequency = ConvertTo-BaselineUpdateCheckFrequency -Frequency $preferencesJson.Values.StartupWinGetCheckFrequency
+		}
+		if ($preferencesJson.Values.PSObject.Properties['StartupChocolateyCheckFrequency'])
+		{
+			$settings.ChocolateyCheckFrequency = ConvertTo-BaselineUpdateCheckFrequency -Frequency $preferencesJson.Values.StartupChocolateyCheckFrequency
+		}
+	}
+	catch
+	{
+		Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineStartupSplashSettings.LoadPreferences'
+	}
+
+	return [pscustomobject]$settings
 }
 
 function ConvertTo-BaselineUpdateBoolean
@@ -2619,6 +2947,8 @@ function Invoke-BaselineUpdateCheck
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Invoke-BaselineUpdateCheck:catch2620' -Severity Debug }
+
 		$status = if (Test-BaselineOfflineUpdateException -ErrorRecord $_) { 'Skipped (offline)' } else { 'Failed' }
 		$message = [string]$_.Exception.Message
 		Set-BaselineUpdateCheckState -Path $statePath -Status $status -LatestVersion '' -Message $message
@@ -2686,6 +3016,8 @@ function Get-BaselineAutoUpdateThrottleDecision
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Get-BaselineAutoUpdateThrottleDecision:catch2687' -Severity Debug }
+
 		return [pscustomobject]@{
 			ShouldCheck = $true
 			LastCheckedUtc = $null
@@ -3159,6 +3491,8 @@ function Get-LocalizedShellString
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Get-LocalizedShellString:catch3160' -Severity Debug }
+
 		$value = $null
 	}
 
@@ -3558,7 +3892,9 @@ function Initialize-BaselineWinRtRuntimeDependencies
 		foreach ($assembly in [System.AppDomain]::CurrentDomain.GetAssemblies())
 		{
 			$name = $null
-			try { $name = $assembly.GetName().Name } catch { $name = $null }
+			try { $name = $assembly.GetName().Name } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Initialize-BaselineWinRtRuntimeDependencies:catch3561' -Severity Debug }
+			 $name = $null }
 			if ([string]::Equals([string]$name, $AssemblyName, [System.StringComparison]::OrdinalIgnoreCase))
 			{
 				return $true
@@ -3597,7 +3933,9 @@ function Test-BaselineMarkdownRuntimeReady
 	foreach ($assembly in [System.AppDomain]::CurrentDomain.GetAssemblies())
 	{
 		$assemblyName = $null
-		try { $assemblyName = $assembly.GetName().Name } catch { $assemblyName = $null }
+		try { $assemblyName = $assembly.GetName().Name } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Test-BaselineMarkdownRuntimeReady:catch3600' -Severity Debug }
+		 $assemblyName = $null }
 		if ([string]::IsNullOrWhiteSpace([string]$assemblyName)) { continue }
 
 		if ($assemblyName -eq 'Markdig')
@@ -3764,7 +4102,9 @@ function ConvertFrom-BaselineMarkdownToAnchoredFlowDocument
 	{
 		if (-not ($block -is [System.Windows.Documents.Paragraph])) { continue }
 		$paragraph = [System.Windows.Documents.Paragraph]$block
-		try { $paragraphFontSize = [double]$paragraph.FontSize } catch { $paragraphFontSize = 0.0 }
+		try { $paragraphFontSize = [double]$paragraph.FontSize } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.ConvertFrom-BaselineMarkdownToAnchoredFlowDocument:catch3767' -Severity Debug }
+		 $paragraphFontSize = 0.0 }
 		if ($paragraphFontSize -gt ($defaultFontSize + 0.5))
 		{
 			[void]$docHeadings.Add($paragraph)
@@ -4059,6 +4399,8 @@ function Test-IsVirtualMachine
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.Helpers.Test-IsVirtualMachine:catch4060' -Severity Debug }
+
 		return $false
 	}
 

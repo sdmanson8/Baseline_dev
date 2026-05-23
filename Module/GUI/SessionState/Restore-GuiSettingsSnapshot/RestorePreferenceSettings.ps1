@@ -2,6 +2,11 @@ try
 		{
 			$Script:AutoScanOnLaunch = $desiredAutoScanOnLaunch
 			$Script:RestoreLastSession = $desiredRestoreLastSession
+			$Script:StartupRunInitialActions = $desiredStartupRunInitialActions
+			$Script:StartupCheckWinGet = $desiredStartupCheckWinGet
+			$Script:StartupWinGetCheckFrequency = $desiredStartupWinGetCheckFrequency
+			$Script:StartupCheckChocolatey = $desiredStartupCheckChocolatey
+			$Script:StartupChocolateyCheckFrequency = $desiredStartupChocolateyCheckFrequency
 			$Script:AutoCheckUpdates = $desiredAutoCheckUpdates
 			$Script:UpdateCheckFrequency = $desiredUpdateCheckFrequency
 			$Script:UpdateBranch = $desiredUpdateBranch
@@ -46,6 +51,11 @@ try
 				try { Set-BaselineUserPreference -Key 'UIDensity' -Value $desiredUiDensity } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveUIDensityPreference' }
 				try { Set-BaselineUserPreference -Key 'DebugLoggingEnabled' -Value $desiredDebugLoggingEnabled } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveDebugLoggingPreference' }
 				try { Set-BaselineUserPreference -Key 'LogLevel' -Value $desiredLogLevel } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveLogLevelPreference' }
+				try { Set-BaselineUserPreference -Key 'StartupRunInitialActions' -Value $desiredStartupRunInitialActions } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveStartupRunInitialActionsPreference' }
+				try { Set-BaselineUserPreference -Key 'StartupCheckWinGet' -Value $desiredStartupCheckWinGet } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveStartupCheckWinGetPreference' }
+				try { Set-BaselineUserPreference -Key 'StartupWinGetCheckFrequency' -Value $desiredStartupWinGetCheckFrequency } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveStartupWinGetCheckFrequencyPreference' }
+				try { Set-BaselineUserPreference -Key 'StartupCheckChocolatey' -Value $desiredStartupCheckChocolatey } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveStartupCheckChocolateyPreference' }
+				try { Set-BaselineUserPreference -Key 'StartupChocolateyCheckFrequency' -Value $desiredStartupChocolateyCheckFrequency } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveStartupChocolateyCheckFrequencyPreference' }
 				if ($hasSnapshotUpdateSettings)
 				{
 					try { Set-BaselineUserPreference -Key 'AutoCheckUpdates' -Value $desiredAutoCheckUpdates } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SaveAutoCheckUpdatesPreference' }

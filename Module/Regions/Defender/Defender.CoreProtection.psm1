@@ -3,9 +3,9 @@
 	Configures account protection warning configuration.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies Baseline's account protection warning configuration in GUI and headless runs.
 	.PARAMETER Enable
 	Enable account protection warning for Microsoft accounts
@@ -84,9 +84,9 @@ function AccountProtectionWarn
 	Microsoft Defender SmartScreen
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for microsoft Defender SmartScreen.
 	.PARAMETER Disable
 	Disable apps and files checking within Microsoft Defender SmartScreen
@@ -121,13 +121,6 @@ function AppsSmartScreen
 		[switch]
 		$Enable
 	)
-
-	if (-not $Script:DefenderEnabled)
-	{
-		LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
-
-		return
-	}
 
 	switch ($PSCmdlet.ParameterSetName)
 	{
@@ -170,9 +163,9 @@ function AppsSmartScreen
 	Windows Defender Cloud-delivered protection configuration
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for windows Defender Cloud-delivered protection configuration.
 	.PARAMETER Enable
 	Enable Windows Defender cloud protection (MAPS reporting and automatic sample submission default behavior) (default value)
@@ -254,9 +247,9 @@ function DefenderCloud
 	Sandboxing for Microsoft Defender
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for sandboxing for Microsoft Defender.
 	.PARAMETER Enable
 	Enable sandboxing for Microsoft Defender
@@ -292,10 +285,9 @@ function DefenderSandbox
 		$Disable
 	)
 
-	if (-not $Script:DefenderEnabled)
+	if (-not (Test-BaselineDefenderComponentAvailable))
 	{
-		LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
-
+		LogWarning ("Skipping {0}: {1}" -f (Get-TweakSkipLabel $MyInvocation), (Get-BaselineDefenderComponentUnavailableReason))
 		return
 	}
 
@@ -341,9 +333,9 @@ function DefenderSandbox
 	Cap Microsoft Defender's CPU usage during scheduled scans.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for cap Microsoft Defender's CPU usage during scheduled scans..
 	.PARAMETER Enable
 	Cap Defender scan CPU usage at 25% via Set-MpPreference -ScanAvgCPULoadFactor 25.
@@ -373,9 +365,9 @@ function DefenderScanCPULimit
 		$Disable
 	)
 
-	if (-not $Script:DefenderEnabled)
+	if (-not (Test-BaselineDefenderExecutionAvailable))
 	{
-		LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
+		LogWarning ("Skipping {0}: {1}" -f (Get-TweakSkipLabel $MyInvocation), (Get-BaselineDefenderExecutionUnavailableReason))
 		return
 	}
 
@@ -419,9 +411,9 @@ function DefenderScanCPULimit
 	Microsoft Defender signature-definition update interval.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for microsoft Defender signature-definition update interval..
 	.PARAMETER Enable
 	Check for Defender signature updates every hour
@@ -453,9 +445,9 @@ function DefenderSignatureUpdateInterval
 		$Disable
 	)
 
-	if (-not $Script:DefenderEnabled)
+	if (-not (Test-BaselineDefenderExecutionAvailable))
 	{
-		LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
+		LogWarning ("Skipping {0}: {1}" -f (Get-TweakSkipLabel $MyInvocation), (Get-BaselineDefenderExecutionUnavailableReason))
 		return
 	}
 
@@ -499,9 +491,9 @@ function DefenderSignatureUpdateInterval
 	Windows Defender notification area (system tray) icon configuration
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for windows Defender notification area (system tray) icon configuration.
 	.PARAMETER Enable
 	Show Windows Defender (Windows Security) system tray icon (default value)
@@ -588,13 +580,6 @@ function DefenderTrayIcon
 #>
 function DismissMSAccount
 {
-	if (-not $Script:DefenderEnabled)
-	{
-		LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
-
-		return
-	}
-
 	Write-ConsoleStatus -Action "Dismissing Microsoft Defender offer in the Windows Security about signing in Microsoft account"
 	LogInfo "Dismissing Microsoft Defender offer in the Windows Security about signing in Microsoft account"
 	try
@@ -625,13 +610,6 @@ function DismissMSAccount
 #>
 function DismissSmartScreenFilter
 {
-	if (-not $Script:DefenderEnabled)
-	{
-		LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
-
-		return
-	}
-
 	Write-ConsoleStatus -Action "Disabling the SmartScreen filter for Microsoft Edge"
 	LogInfo "Disabling the SmartScreen filter for Microsoft Edge"
 	try
@@ -651,9 +629,9 @@ function DismissSmartScreenFilter
 	DNS-over-HTTPS provider presets and custom DNS-over-HTTPS configuration
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for dNS-over-HTTPS provider presets and custom DNS-over-HTTPS configuration.
 	.PARAMETER Enable
 	Enable DNS-over-HTTPS with a custom known server pair
@@ -838,7 +816,7 @@ function DNSoverHTTPS
 	    .SYNOPSIS
 	    Gets DNS over HTTPS adapter targets.
 
-	    	#>
+		#>
 
 	function Get-DnsOverHttpsAdapterTargets
 	{
@@ -860,7 +838,7 @@ function DNSoverHTTPS
 	    .SYNOPSIS
 	    Gets DNS over HTTPS server configuration.
 
-	    	#>
+		#>
 
 	function Get-DnsOverHttpsServerConfiguration
 	{
@@ -886,7 +864,7 @@ function DNSoverHTTPS
 	    .SYNOPSIS
 	    Sets DNS over HTTPS interface registry values.
 
-	    	#>
+		#>
 
 	function Set-DnsOverHttpsInterfaceRegistryValues
 	{
@@ -1017,9 +995,9 @@ function DNSoverHTTPS
 	Blocks or allows file downloads from the internet
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for blocks or allows file downloads from the internet.
 	.PARAMETER Enable
 	Enable blocking of file downloads (default value)

@@ -107,9 +107,11 @@ Describe 'GUI theme resource dictionaries' {
         $content | Should -Match '<Color x:Key="Color\.LogBg">#F7F8FA</Color>'
         $content | Should -Match '<Color x:Key="Color\.LogDefault">#1F2937</Color>'
         $content | Should -Match '<Color x:Key="Color\.LogInfo">#1D4ED8</Color>'
+        $content | Should -Match '<Color x:Key="Color\.LogDebug">#6D28D9</Color>'
         $content | Should -Match '<Color x:Key="Color\.LogSuccess">#1F7A4C</Color>'
         $content | Should -Match '<Color x:Key="Color\.LogWarning">#9A6700</Color>'
         $content | Should -Match '<Color x:Key="Color\.LogError">#B42318</Color>'
+        $content | Should -Match '<SolidColorBrush x:Key="Brush\.LogDebug" Color="\{StaticResource Color\.LogDebug\}"/>'
         $content | Should -Match '<Color x:Key="Color\.SplashCardTop">#FFFFFF</Color>'
         $content | Should -Match '<Color x:Key="Color\.SplashCardBottom">#F4F6FA</Color>'
         $content | Should -Match '<LinearGradientBrush x:Key="Brush\.SplashCard" StartPoint="0\.5,0" EndPoint="0\.5,1">'
@@ -122,6 +124,7 @@ Describe 'GUI theme resource dictionaries' {
         $themeContent | Should -Match 'StateAccent\s+= "#1F7A4C"'
         $themeContent | Should -Match 'StateAccentStrong\s+= "#1F7A4C"'
         $themeContent | Should -Match 'ProgressGreen\s+= "#1F7A4C"'
+        $themeContent | Should -Match 'LogDebug\s+= "#6D28D9"'
         $themeContent | Should -Match 'LogWarning\s+= "#9A6700"'
     }
 }
@@ -178,7 +181,17 @@ Describe 'Get-GuiFallbackColor' {
     }
 }
 
-Describe 'Repair-GuiThemePalette' {
+Describe 'Get-GuiReadableForegroundColor' {
+    It 'selects a dark foreground for the dark theme light accent fill' {
+        Get-GuiReadableForegroundColor -BackgroundColor '#7CB7FF' -CandidateColors @('#FFFFFF', '#111827', '#0E111A') | Should -Be '#0E111A'
+    }
+
+    It 'selects a light foreground for the light theme dark accent fill' {
+        Get-GuiReadableForegroundColor -BackgroundColor '#2563EB' -CandidateColors @('#FFFFFF', '#111827', '#F3F5F8') | Should -Be '#FFFFFF'
+    }
+}
+
+Describe 'Repair-GuiThemePaletteWithReferences' {
     BeforeEach {
         $Script:GuiThemeFallbackWarnings = [System.Collections.Generic.HashSet[string]]::new()
         $Script:DarkTheme = @{
@@ -217,18 +230,18 @@ Describe 'Repair-GuiThemePalette' {
             AccentHover = '#9ACAFF'
             AccentPress = '#4D9CFF'
         }
-        $result = Repair-GuiThemePalette -Theme $theme -ThemeName 'Dark' 3>$null
+        $result = Repair-GuiThemePaletteWithReferences -Theme $theme -ThemeName 'Dark' 3>$null
         $result.AccentBlue | Should -Be '#7CB7FF'
     }
 
     It 'fills missing keys from the opposite theme' {
         $theme = @{ AccentBlue = '#3B82F6' }
-        $result = Repair-GuiThemePalette -Theme $theme -ThemeName 'Dark' 3>$null
+        $result = Repair-GuiThemePaletteWithReferences -Theme $theme -ThemeName 'Dark' 3>$null
         $result | Should -BeOfType [hashtable]
     }
 
     It 'does not crash on empty theme' {
-        $result = Repair-GuiThemePalette -Theme @{} -ThemeName 'Dark' 3>$null
+        $result = Repair-GuiThemePaletteWithReferences -Theme @{} -ThemeName 'Dark' 3>$null
         $result | Should -BeOfType [hashtable]
     }
 }

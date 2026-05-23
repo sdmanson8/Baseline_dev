@@ -29,6 +29,8 @@ Describe 'Session statistics synchronization' {
             SucceededCount      = 0
             FailedCount         = 0
             SkippedCount        = 0
+            NotApplicableCount  = 0
+            NotRunCount         = 0
             IsGUI               = $false
             GameModeActive      = $false
             GameModeProfile     = $null
@@ -45,10 +47,14 @@ Describe 'Session statistics synchronization' {
     It 'increments only known counters' {
         Add-SessionStatistic -Name 'SucceededCount'
         Add-SessionStatistic -Name 'SucceededCount' -Increment 2
+        Add-SessionStatistic -Name 'NotApplicableCount' -Increment 4
+        Add-SessionStatistic -Name 'NotRunCount' -Increment 5
         Add-SessionStatistic -Name 'MissingCount' -Increment 99
 
         $stats = Get-SessionStatistics
         $stats.SucceededCount | Should -Be 3
+        $stats.NotApplicableCount | Should -Be 4
+        $stats.NotRunCount | Should -Be 5
         $stats.ContainsKey('MissingCount') | Should -BeFalse
     }
 

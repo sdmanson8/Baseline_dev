@@ -7,21 +7,31 @@ BeforeAll {
 
 
     $script:LoaderPath = Join-Path $PSScriptRoot '../../Module/Baseline.psm1'
+    $script:GuiRegionPath = Join-Path $PSScriptRoot '../../Module/Regions/GUI.psm1'
     $script:StateDocPath = Join-Path $PSScriptRoot '../../dev_docs/STATE.md'
     $script:LoaderContent = Get-BaselineTestSourceText -Path $script:LoaderPath
+    $script:GuiRegionContent = Get-BaselineTestSourceText -Path $script:GuiRegionPath
     $script:StateDocContent = Get-BaselineTestSourceText -Path $script:StateDocPath
 }
 
 Describe 'Module reload state visibility' {
     It 'logs when module reload resets session statistics because the log path changed' {
         $script:LoaderContent | Should -Match 'Initialize-SessionStatistics'
+        $script:LoaderContent | Should -Match '\$statisticsInitialized = \(\$existingSessionStats -and \$existingSessionStats\.ContainsKey\(''SessionStartTime''\)'
+        $script:LoaderContent | Should -Match 'if \(\(-not \$alreadyInitialized\) -or \(-not \$statisticsInitialized\)\)'
         $script:LoaderContent | Should -Match 'LogWarning\s+\("Baseline loader reset session statistics after module reload because the log path changed from'
+    }
+
+    It 'marks GUI sessions in session statistics before the WPF window is shown' {
+        $script:GuiRegionContent | Should -Match 'function Show-TweakGUI'
+        $script:GuiRegionContent | Should -Match 'Update-SessionStatistics -Values @\{ IsGUI = \$true \}'
     }
 
     It 'imports core modules with immediate terminating failures and clear module names' {
         $script:LoaderContent | Should -Match '\$coreModuleImports = @\('
         $script:LoaderContent | Should -Match 'Logging\.psm1'
         $script:LoaderContent | Should -Match 'SharedHelpers\.psm1'
+        $script:LoaderContent | Should -Match 'GUICommon\.psm1'
         $script:LoaderContent | Should -Match 'GUIExecution\.psm1'
         $script:LoaderContent | Should -Match 'Import-Module -Name \$coreImport\.Path.*-ErrorAction Stop'
         $script:LoaderContent | Should -Match 'Failed to import core module'

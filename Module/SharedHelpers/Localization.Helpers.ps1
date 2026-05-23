@@ -166,6 +166,8 @@ function Import-BaselineLocalization
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Localization.Helpers.Import-BaselineLocalization:catch167' -Severity Debug }
+
         $null = $_
     }
     Add-LocalizationCandidate -Candidate $normalizedCulture
@@ -181,6 +183,8 @@ function Import-BaselineLocalization
         }
         catch
         {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Localization.Helpers.Import-BaselineLocalization:catch182' -Severity Debug }
+
             $null = $_
         }
         if ($langOnly -ne $normalizedCulture)
@@ -203,6 +207,8 @@ function Import-BaselineLocalization
         }
         catch
         {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Localization.Helpers.Import-BaselineLocalization:catch204' -Severity Debug }
+
             $null = $_
         }
     }
@@ -282,6 +288,8 @@ function Resolve-BaselineCultureName
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Localization.Helpers.Resolve-BaselineCultureName:catch283' -Severity Debug }
+
         $null = $_
     }
 
@@ -295,6 +303,8 @@ function Resolve-BaselineCultureName
         }
         catch
         {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Localization.Helpers.Resolve-BaselineCultureName:catch296' -Severity Debug }
+
             $null = $_
         }
     }

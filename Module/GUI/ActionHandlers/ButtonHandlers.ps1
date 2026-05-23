@@ -238,14 +238,7 @@
 
 		if ($previewResult -and $previewResult -eq (& $getUxRunActionLabelCommand))
 		{
-			try
-			{
-				& $startGuiExecutionRunCommand -TweakList $tweakList -Mode 'Run' -ExecutionTitle $(if (& $testIsGameModeRunCommand -TweakList $tweakList) { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunningGameMode' -Fallback 'Running Game Mode Workflow' } else { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunning' -Fallback 'Running Selected Tweaks' })
-			}
-			catch
-			{
-				$null = & $Script:ShowGuiRuntimeFailureScript -Context 'BtnPreviewRun' -Exception $_.Exception -ShowDialog
-			}
+			& $startGuiExecutionRunCommand -TweakList $tweakList -Mode 'Run' -ExecutionTitle $(if (& $testIsGameModeRunCommand -TweakList $tweakList) { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunningGameMode' -Fallback 'Running Game Mode Workflow' } else { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunning' -Fallback 'Running Selected Tweaks' })
 			return
 		}
 	}) | Out-Null
@@ -258,7 +251,7 @@
 				{
 					$Script:RunState['Paused'] = $false
 					$BtnRun.Content = (& $getUxLocalizedStringCapture -Key 'GuiPauseButton' -Fallback 'Pause')
-					& $setGuiStatusTextCommand -Text $(if ($Script:ExecutionMode -eq 'Defaults') { & $getUxLocalizedStringCapture -Key 'GuiStatusRestoringDefaults' -Fallback 'Restoring Windows defaults...' } else { & $getUxLocalizedStringCapture -Key 'GuiStatusRunningTweaks' -Fallback 'Running selected tweaks...' }) -Tone 'accent'
+					& $setGuiStatusTextCommand -Text $(if ($Script:ExecutionMode -eq 'Defaults') { & $getUxLocalizedStringCapture -Key 'GuiStatusRestoringDefaultValues' -Fallback 'Restoring default values...' } else { & $getUxLocalizedStringCapture -Key 'GuiStatusRunningTweaks' -Fallback 'Running selected tweaks...' }) -Tone 'accent'
 				}
 				else
 				{
@@ -311,7 +304,9 @@
 			{
 				# Plan Summary: show pre-run overview with pre-flight checks.
 				$planPreflightResults = $null
-				try { if ($invokePreflightChecksCommand) { $planPreflightResults = & $invokePreflightChecksCommand } } catch { $planPreflightResults = $null }
+				try { if ($invokePreflightChecksCommand) { $planPreflightResults = & $invokePreflightChecksCommand } } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\ActionHandlers\ButtonHandlers.ps1:307' -Severity Debug }
+				 $planPreflightResults = $null }
 				$planChoice = & $showPlanSummaryDialogCommand -SelectedTweaks $tweakList -PreflightResults $planPreflightResults
 				if ($planChoice -ne (& $getUxRunActionLabelCommand))
 				{
@@ -323,14 +318,22 @@
 				}
 			}
 
-			try
+			$executionTitle = if ($isGameModeRun) { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunningGameMode' -Fallback 'Running Game Mode Workflow' } else { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunning' -Fallback 'Running Selected Tweaks' }
+			$startConfirmedRunCommand = $startGuiExecutionRunCommand
+			$startConfirmedTweakList = @($tweakList)
+			$startConfirmedExecutionTitle = $executionTitle
+			$startConfirmedRun = {
+				& $startConfirmedRunCommand -TweakList $startConfirmedTweakList -Mode 'Run' -ExecutionTitle $startConfirmedExecutionTitle
+			}.GetNewClosure()
+
+			$runDispatcher = if ($Form -and $Form.Dispatcher) { $Form.Dispatcher } elseif ($Script:MainForm -and $Script:MainForm.Dispatcher) { $Script:MainForm.Dispatcher } else { $null }
+			if ($requireRunConfirmation -and $runDispatcher)
 			{
-				& $startGuiExecutionRunCommand -TweakList $tweakList -Mode 'Run' -ExecutionTitle $(if (& $testIsGameModeRunCommand -TweakList $tweakList) { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunningGameMode' -Fallback 'Running Game Mode Workflow' } else { & $getUxLocalizedStringCapture -Key 'GuiExecTitleRunning' -Fallback 'Running Selected Tweaks' })
+				$null = $runDispatcher.BeginInvoke([System.Action]$startConfirmedRun, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)
+				return
 			}
-			catch
-			{
-				$null = & $Script:ShowGuiRuntimeFailureScript -Context 'BtnRun' -Exception $_.Exception -ShowDialog
-			}
+
+			& $startConfirmedRun
 		}) | Out-Null
 
 		if ($BtnUpdateAllApps)
@@ -349,7 +352,7 @@
 					}
 					catch
 					{
-						$null = & $Script:ShowGuiRuntimeFailureScript -Context 'BtnUpdateAllApps' -Exception $_.Exception -ShowDialog
+						throw
 					}
 				}
 			}) | Out-Null
@@ -485,7 +488,9 @@
 				foreach ($id in @($Script:SelectedAppIds))
 				{
 					if ([string]::IsNullOrWhiteSpace([string]$id)) { continue }
-					try { Set-AppQueuedAction -AppId $id -Action 'Install' } catch { $null = $_ }
+					try { Set-AppQueuedAction -AppId $id -Action 'Install' } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\ActionHandlers\ButtonHandlers.ps1:489' -Severity Debug }
+					 $null = $_ }
 				}
 			}) | Out-Null
 		}
@@ -498,7 +503,9 @@
 				foreach ($id in @($Script:SelectedAppIds))
 				{
 					if ([string]::IsNullOrWhiteSpace([string]$id)) { continue }
-					try { Set-AppQueuedAction -AppId $id -Action 'Uninstall' } catch { $null = $_ }
+					try { Set-AppQueuedAction -AppId $id -Action 'Uninstall' } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\ActionHandlers\ButtonHandlers.ps1:502' -Severity Debug }
+					 $null = $_ }
 				}
 			}) | Out-Null
 		}
@@ -511,7 +518,9 @@
 				foreach ($id in @($Script:SelectedAppIds))
 				{
 					if ([string]::IsNullOrWhiteSpace([string]$id)) { continue }
-					try { Set-AppQueuedAction -AppId $id -Action 'Update' } catch { $null = $_ }
+					try { Set-AppQueuedAction -AppId $id -Action 'Update' } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\ActionHandlers\ButtonHandlers.ps1:515' -Severity Debug }
+					 $null = $_ }
 				}
 			}) | Out-Null
 		}
@@ -526,7 +535,7 @@
 				}
 				catch
 				{
-					$null = & $Script:ShowGuiRuntimeFailureScript -Context 'BtnScanInstalledApps' -Exception $_.Exception -ShowDialog
+					throw
 				}
 			}) | Out-Null
 		}
@@ -566,8 +575,8 @@
 			$defaultsTweakList = & $getWindowsDefaultRunListCommand
 			if ($defaultsTweakList.Count -eq 0)
 			{
-				Show-ThemedDialog -Title (& $getUxLocalizedStringCapture -Key 'GuiBtnDefaults' -Fallback 'Restore to Windows Defaults') `
-					-Message (& $getUxLocalizedStringCapture -Key 'GuiActionRestoreDefaultsNoTweaks' -Fallback 'No restorable tweaks with Windows default actions are currently available.') `
+				Show-ThemedDialog -Title (& $getUxLocalizedStringCapture -Key 'GuiBtnDefaultsRecorded' -Fallback 'Restore Defaults') `
+					-Message (& $getUxLocalizedStringCapture -Key 'GuiActionRestoreDefaultsNoTweaksRecorded' -Fallback 'No restorable tweaks with default restore actions are currently available.') `
 					-Buttons @('OK') `
 					-AccentButton 'OK'
 				return
@@ -575,11 +584,11 @@
 
 			try
 			{
-				& $startGuiExecutionRunCommand -TweakList $defaultsTweakList -Mode 'Defaults' -ExecutionTitle (& $getUxLocalizedStringCapture -Key 'GuiExecTitleRestoringDefaults' -Fallback 'Restoring Windows Defaults')
+				& $startGuiExecutionRunCommand -TweakList $defaultsTweakList -Mode 'Defaults' -ExecutionTitle (& $getUxLocalizedStringCapture -Key 'GuiExecTitleRestoringDefaultValues' -Fallback 'Restoring default values')
 			}
 			catch
 			{
-				$null = & $Script:ShowGuiRuntimeFailureScript -Context 'BtnDefaults' -Exception $_.Exception -ShowDialog
+				throw
 			}
 		}) | Out-Null
 
@@ -603,10 +612,10 @@
 				$categoryTweakList = & $capturedGetCategoryDefaultRunListCommand -Category $capturedCategory
 				if (-not $categoryTweakList -or $categoryTweakList.Count -eq 0)
 				{
-					Show-ThemedDialog -Title 'Reset to Defaults' -Message 'No restorable tweaks with Windows default values found for this page.' -Buttons @('OK') -AccentButton 'OK'
+					Show-ThemedDialog -Title 'Reset to Defaults' -Message 'No restorable tweaks with recorded default values found for this page.' -Buttons @('OK') -AccentButton 'OK'
 					return
 				}
-				$result = Show-ThemedDialog -Title 'Reset page to defaults' -Message ('Reset ' + $capturedCategory + ' (' + $categoryTweakList.Count + ' tweaks) to Windows defaults?') -Buttons @('Cancel','Reset to Defaults') -DestructiveButton 'Reset to Defaults'
+				$result = Show-ThemedDialog -Title 'Reset page to defaults' -Message ('Reset ' + $capturedCategory + ' (' + $categoryTweakList.Count + ' tweaks) to recorded default values?') -Buttons @('Cancel','Reset to Defaults') -DestructiveButton 'Reset to Defaults'
 				if ($result -ne 'Reset to Defaults') { return }
 				& $capturedStartGuiExecutionRunCommand -TweakList $categoryTweakList -Mode 'Defaults' -ExecutionTitle ('Resetting ' + $capturedCategory + ' to defaults')
 			}.GetNewClosure()
@@ -638,11 +647,11 @@
 		$tweakList = & $categoryDefaultRunListCommand -Category $Category
 		if (-not $tweakList -or $tweakList.Count -eq 0)
 		{
-			& $dialogCommand -Title 'Reset to Defaults' -Message "No restorable tweaks with Windows default values found for '$Category'." -Buttons @('OK') -AccentButton 'OK'
+			& $dialogCommand -Title 'Reset to Defaults' -Message "No restorable tweaks with recorded default values found for '$Category'." -Buttons @('OK') -AccentButton 'OK'
 			return
 		}
 		$result = & $dialogCommand -Title 'Reset page to defaults' `
-			-Message "Reset $Category ($($tweakList.Count) tweaks) to Windows defaults?" `
+			-Message "Reset $Category ($($tweakList.Count) tweaks) to recorded default values?" `
 			-Buttons @('Cancel', 'Reset to Defaults') `
 			-DestructiveButton 'Reset to Defaults'
 		if ($result -ne 'Reset to Defaults') { return }

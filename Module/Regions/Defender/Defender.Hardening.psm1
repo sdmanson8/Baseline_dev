@@ -6,9 +6,9 @@ using module ..\..\SharedHelpers.psm1
 	Configures Windows Defender Application Guard configuration.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies Baseline's Windows Defender Application Guard configuration in GUI and headless runs.
 	.PARAMETER Enable
 	Enable Windows Defender Application Guard optional feature
@@ -65,10 +65,10 @@ function DefenderAppGuard
 			elseif ($feature.State -eq "Disabled") {
 				try {
 					$null = Enable-WindowsOptionalFeature -Online `
-	        			-FeatureName "Windows-Defender-ApplicationGuard" `
-	        			-NoRestart `
-	        			-ErrorAction Stop `
-	        			-WarningAction SilentlyContinue
+				-FeatureName "Windows-Defender-ApplicationGuard" `
+				-NoRestart `
+				-ErrorAction Stop `
+				-WarningAction SilentlyContinue
 					Write-ConsoleStatus -Status success
 				}
 				catch {
@@ -96,10 +96,10 @@ function DefenderAppGuard
 			elseif ($feature.State -ne "Disabled") {
 				try {
 					$null = Disable-WindowsOptionalFeature -Online `
-	        			-FeatureName "Windows-Defender-ApplicationGuard" `
-	        			-NoRestart `
-	        			-ErrorAction Stop `
-	        			-WarningAction SilentlyContinue
+				-FeatureName "Windows-Defender-ApplicationGuard" `
+				-NoRestart `
+				-ErrorAction Stop `
+				-WarningAction SilentlyContinue
 					Write-ConsoleStatus -Status success
 				}
 				catch {
@@ -189,9 +189,9 @@ function DefenderExploitGuardPolicy
 	Core Isolation Memory Integrity (Hypervisor-Enforced Code Integrity)
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for core Isolation Memory Integrity (Hypervisor-Enforced Code Integrity).
 	.PARAMETER Enable
 	Enable Memory Integrity (HVCI)
@@ -309,9 +309,9 @@ function ExploitProtectionPolicy
 	Local Security Authority protection
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for local Security Authority protection.
 	.PARAMETER Enable
 	Enable Local Security Authority protection to prevent code injection without UEFI lock
@@ -419,9 +419,9 @@ function LocalSecurityAuthority
 	Enables or disables Data Execution Prevention (DEP) policy
 
 
-	
+
 .DESCRIPTION
-	
+
 Enables or disables Data Execution Prevention (DEP) policy in GUI and headless runs.
 	.PARAMETER Enable
 	Sets DEP to OptIn (default for most apps) (default value)
@@ -501,9 +501,9 @@ function DEPOptOut
 	Enables or disables automatic recovery mode during boot
 
 
-	
+
 .DESCRIPTION
-	
+
 Enables or disables automatic recovery mode during boot in GUI and headless runs.
 	.PARAMETER Enable
 	Enable automatic recovery mode on startup errors (default value)
@@ -589,9 +589,9 @@ function BootRecovery
 	Enables or disables the F8 boot menu on startup
 
 
-	
+
 .DESCRIPTION
-	
+
 Enables or disables the F8 boot menu on startup in GUI and headless runs.
 	.PARAMETER Enable
 	Enable the legacy F8 boot menu

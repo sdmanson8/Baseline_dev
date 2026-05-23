@@ -12,6 +12,8 @@ $traceGuiStartup = {
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\StartupTrace.ps1:13' -Severity Debug }
+
 			$null = $_
 		}
 	}.GetNewClosure()

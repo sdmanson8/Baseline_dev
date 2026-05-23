@@ -81,10 +81,10 @@ function Write-DiskCleanupFileSafely {
         [string]$Value,
         [switch]$Append
     )
-    
+
     $mutexName = "Global\diskcleanupLogLock"
     $mutex = New-Object System.Threading.Mutex($false, $mutexName)
-    
+
     $acquired = $mutex.WaitOne(5000)
     try {
         if ($acquired) {
@@ -176,7 +176,7 @@ function Close-DiskSpaceNotificationWindow {
             if ($windowHandle -ne [IntPtr]::Zero) {
                 [WinAPI.DiskCleanupWindow]::PostMessage($windowHandle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
                 $closed = $true
-            }            
+            }
         }
     }
 
@@ -197,6 +197,8 @@ function Close-CleanupProcessWindow {
     try {
         $Process.Refresh()
     } catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'diskcleanup.Close-CleanupProcessWindow:catch199' -Severity Debug }
+
         return $false
     }
 
@@ -243,6 +245,8 @@ function Wait-CleanupProcessAndDismissNotification {
         try {
             $Process.Refresh()
         } catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'diskcleanup.Wait-CleanupProcessAndDismissNotification:catch245' -Severity Debug }
+
             break
         }
 
@@ -312,6 +316,8 @@ function Invoke-BuiltInSilentCleanup {
     try {
         $silentCleanupTask = Get-ScheduledTask -TaskPath "\Microsoft\Windows\DiskCleanup\" -TaskName "SilentCleanup" -ErrorAction Stop
     } catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'diskcleanup.Invoke-BuiltInSilentCleanup:catch314' -Severity Debug }
+
         return $false
     }
 
@@ -338,6 +344,8 @@ function Invoke-BuiltInSilentCleanup {
         try {
             $taskState = (Get-ScheduledTask -TaskPath "\Microsoft\Windows\DiskCleanup\" -TaskName "SilentCleanup" -ErrorAction Stop).State
         } catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'diskcleanup.Invoke-BuiltInSilentCleanup:catch340' -Severity Debug }
+
             break
         }
 

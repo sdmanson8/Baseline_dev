@@ -209,7 +209,7 @@ Describe 'Get-ExecutionSummaryClassification' {
     It 'classifies restore-mode already-at-default skips correctly' {
         $result = Get-ExecutionSummaryClassification -Status 'Skipped' -Detail 'already at windows default' -Mode 'Defaults'
 
-        $result.OutcomeState | Should -Be 'Already at Windows default'
+        $result.OutcomeState | Should -Be 'Already at recorded default'
         $result.FailureCode | Should -Be 'already_at_default'
     }
 
@@ -259,7 +259,7 @@ Describe 'Get-RestoreDefaultsOutcomeText' {
     It 'returns restore-specific success text' {
         $result = Get-RestoreDefaultsOutcomeText -OutcomeState 'Success'
 
-        $result | Should -Be 'Restored to Windows default.'
+        $result | Should -Be 'Restored to recorded default.'
     }
 
     It 'returns package follow-up wording for package restore failures' {

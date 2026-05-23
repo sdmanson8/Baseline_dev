@@ -51,7 +51,7 @@ $worker = [powershell]::Create().AddScript({
 				[string]$Error = $null
 			)
 
-			if (-not $Collection -or -not $Route)
+			if ($null -eq $Collection -or $null -eq $Route)
 			{
 				return
 			}
@@ -73,9 +73,51 @@ $worker = [powershell]::Create().AddScript({
 			}
 			$Global:BaselineOperationMode = [string]$bgOperationMode
 			[System.Environment]::SetEnvironmentVariable('BASELINE_OPERATION_MODE', [string]$bgOperationMode, [System.EnvironmentVariableTarget]::Process)
+			if ($bgCurrentTheme -is [System.Collections.IDictionary])
+			{
+				$Global:BaselineCurrentTheme = $bgCurrentTheme
+			}
+			if (-not [string]::IsNullOrWhiteSpace([string]$bgCurrentThemeName))
+			{
+				$Global:BaselineCurrentThemeName = [string]$bgCurrentThemeName
+			}
+			if ($null -ne $bgUseDarkMode)
+			{
+				$Global:BaselineUseDarkMode = [bool]$bgUseDarkMode
+			}
 			$Script:RunState = $runState
+			function Write-GuiExecutionWorkerStartupNotice
+			{
+				param(
+					[Parameter(Mandatory = $true)]
+					[string]$Message,
+					[ValidateSet('INFO', 'WARNING', 'ERROR', 'DEBUG')]
+					[string]$Level = 'DEBUG',
+					[switch]$Progress
+				)
+
+				try
+				{
+					if ($Script:RunState -and $Script:RunState['LogQueue'])
+					{
+						$Script:RunState['LogQueue'].Enqueue([PSCustomObject]@{
+							Kind = '_RunNotice'
+							Level = $Level
+							Message = $Message
+							Progress = [bool]$Progress
+							Diagnostic = $true
+						})
+					}
+				}
+				catch
+				{
+					Write-BgTrace ("Failed to enqueue app worker startup notice: {0}" -f $_.Exception.Message)
+				}
+			}
+			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker entered background runspace.' -Progress
 			Write-BgTrace "GUIMode set, RunState assigned"
 
+			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker loading JSON and localization helpers.' -Progress
 			$bgModuleRoot = Split-Path -Parent (Split-Path -Parent $bgLoaderPath)
 			$bgHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Localization.Helpers.ps1'
 			$bgJsonHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Json.Helpers.ps1'
@@ -96,10 +138,26 @@ $worker = [powershell]::Create().AddScript({
 			[void](Set-BaselineThreadCulture -UICulture $bgUICulture)
 			Write-BgTrace "Set-BaselineThreadCulture done"
 
+			if ([string]::IsNullOrWhiteSpace([string]$bgGuiExecutionModulePath))
+			{
+				throw 'GUI execution helper module path was not supplied to the app worker runspace.'
+			}
+			if ([string]::IsNullOrWhiteSpace([string]$bgActionHostLoaderPath))
+			{
+				throw 'Action host loader path was not supplied to the app worker runspace.'
+			}
+
+			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker importing GUI execution helpers.' -Progress
+			Write-BgTrace ("Import-Module GUIExecution.psm1 START path={0}" -f $bgGuiExecutionModulePath)
+			Import-Module $bgGuiExecutionModulePath -Force -Global -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop
+			Write-BgTrace ("Import-Module GUIExecution.psm1 DONE actionHostLoader={0}" -f $bgActionHostLoaderPath)
+			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker imported GUI execution helpers.' -Progress
+
 			# Module import must be side-effect-free (no Write-Host, no state mutation)
 			# because this runs in a fresh background runspace.
 			try
 			{
+				Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker importing application modules.' -Progress
 				Write-BgTrace "Import-Module Applications.psm1 START"
 				$Global:LogFilePath = $bgLogFilePath
 				Import-Module $bgLoaderPath -Force -Global -ErrorAction Stop
@@ -108,6 +166,7 @@ $worker = [powershell]::Create().AddScript({
 					Set-BaselineOperationMode -Mode ([string]$bgOperationMode)
 				}
 				Write-BgTrace "Import-Module Applications.psm1 DONE"
+				Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker imported application modules.' -Progress
 			}
 			catch
 			{
@@ -134,16 +193,18 @@ $worker = [powershell]::Create().AddScript({
 			{
 				Clear-UILogHandler
 			}
+			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker connected logging pipeline.' -Progress
 			Write-BgTrace ("Log plumbing configured. runAction={0} winget={1} choco={2} displayName={3} appPresent={4} selCount={5}" -f $runAction, $packageId, $chocolateyId, $displayName, ($null -ne $application), @($selectedApps).Count)
 
+			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker creating action host.' -Progress
 			$actionHost = New-GuiExecutionActionHost `
-				-LoaderPath $bgLoaderPath `
+				-LoaderPath $bgActionHostLoaderPath `
 				-LocalizationDirectory $bgLocDir `
 				-UICulture $bgUICulture `
 				-LogFilePath $bgLogFilePath `
 				-LogMode $bgLogMode `
 				-OperationMode $bgOperationMode `
-				-LogQueue $(if ($Script:RunState) { $Script:RunState['LogQueue'] } else { $null })
+				-LogQueue $null
 
 			try
 			{
@@ -180,14 +241,15 @@ $worker = [powershell]::Create().AddScript({
 						})
 					}
 
+					$stepTotal = [Math]::Max($queuedApps.Count, 1)
 					if ($Script:RunState)
 					{
-						$Script:RunState['AppProgressTotal'] = [Math]::Max($queuedApps.Count, 1)
-						$Script:RunState['AppProgressIndeterminate'] = ($queuedApps.Count -le 1)
+						$Script:RunState['AppProgressTotal'] = $stepTotal
+						$Script:RunState['AppProgressIndeterminate'] = $false
 					}
+					Write-GuiExecutionWorkerStartupNotice -Message ("Execution worker starting selected apps: {0} item(s)." -f $queuedApps.Count) -Progress
 
 					$stepIndex = 0
-					$stepTotal = $queuedApps.Count
 					foreach ($queuedApp in @($queuedApps))
 					{
 						while ($Script:RunState['Paused'] -and -not $Script:RunState['AbortRequested'])
@@ -233,13 +295,13 @@ $worker = [powershell]::Create().AddScript({
 						{
 							Close-GuiExecutionActionHost -ActionHost $actionHost
 							$actionHost = New-GuiExecutionActionHost `
-								-LoaderPath $bgLoaderPath `
+								-LoaderPath $bgActionHostLoaderPath `
 								-LocalizationDirectory $bgLocDir `
 								-UICulture $bgUICulture `
 								-LogFilePath $bgLogFilePath `
 								-LogMode $bgLogMode `
 								-OperationMode $bgOperationMode `
-								-LogQueue $(if ($Script:RunState) { $Script:RunState['LogQueue'] } else { $null })
+								-LogQueue $null
 						}
 
 						if ($timedInvocation.Aborted)
@@ -271,13 +333,13 @@ $worker = [powershell]::Create().AddScript({
 							{
 								Close-GuiExecutionActionHost -ActionHost $actionHost
 								$actionHost = New-GuiExecutionActionHost `
-									-LoaderPath $bgLoaderPath `
+									-LoaderPath $bgActionHostLoaderPath `
 									-LocalizationDirectory $bgLocDir `
 									-UICulture $bgUICulture `
 									-LogFilePath $bgLogFilePath `
 									-LogMode $bgLogMode `
 									-OperationMode $bgOperationMode `
-									-LogQueue $(if ($Script:RunState) { $Script:RunState['LogQueue'] } else { $null })
+									-LogQueue $null
 							}
 
 							$verificationAttempted = $false
@@ -287,13 +349,13 @@ $worker = [powershell]::Create().AddScript({
 							if ($verificationInvocation.Succeeded -and @($verificationInvocation.Output).Count -gt 0)
 							{
 								$verificationResult = @($verificationInvocation.Output)[0]
-								$verificationAttempted = if ((Test-GuiObjectField -Object $verificationResult -FieldName 'VerificationAttempted')) { [bool]$verificationResult.VerificationAttempted } else { $false }
-								$verificationResultLabel = if ((Test-GuiObjectField -Object $verificationResult -FieldName 'VerificationResult')) { [string]$verificationResult.VerificationResult } else { 'Unavailable' }
-								if ((Test-GuiObjectField -Object $verificationResult -FieldName 'ResolvedStatus') -and -not [string]::IsNullOrWhiteSpace([string]$verificationResult.ResolvedStatus))
+								$verificationAttempted = if ((Test-GuiExecutionObjectField -Object $verificationResult -FieldName 'VerificationAttempted')) { [bool]$verificationResult.VerificationAttempted } else { $false }
+								$verificationResultLabel = if ((Test-GuiExecutionObjectField -Object $verificationResult -FieldName 'VerificationResult')) { [string]$verificationResult.VerificationResult } else { 'Unavailable' }
+								if ((Test-GuiExecutionObjectField -Object $verificationResult -FieldName 'ResolvedStatus') -and -not [string]::IsNullOrWhiteSpace([string]$verificationResult.ResolvedStatus))
 								{
 									$resolvedStatus = [string]$verificationResult.ResolvedStatus
 								}
-								if ((Test-GuiObjectField -Object $verificationResult -FieldName 'Message') -and -not [string]::IsNullOrWhiteSpace([string]$verificationResult.Message))
+								if ((Test-GuiExecutionObjectField -Object $verificationResult -FieldName 'Message') -and -not [string]::IsNullOrWhiteSpace([string]$verificationResult.Message))
 								{
 									$resolvedMessage = [string]$verificationResult.Message
 								}
@@ -307,7 +369,7 @@ $worker = [powershell]::Create().AddScript({
 							elseif (-not [string]::IsNullOrWhiteSpace([string]$verificationInvocation.ErrorMessage))
 							{
 								$verificationAttempted = $true
-								$verificationResultLabel = if ((Test-GuiObjectField -Object $verificationInvocation -FieldName 'ErrorTypeName') -and -not [string]::IsNullOrWhiteSpace([string]$verificationInvocation.ErrorTypeName)) { [string]$verificationInvocation.ErrorTypeName } else { 'Failed' }
+								$verificationResultLabel = if ((Test-GuiExecutionObjectField -Object $verificationInvocation -FieldName 'ErrorTypeName') -and -not [string]::IsNullOrWhiteSpace([string]$verificationInvocation.ErrorTypeName)) { [string]$verificationInvocation.ErrorTypeName } else { 'Failed' }
 								$resolvedMessage = ("{0} {1} - timed out; verification failed ({2})." -f $actionVerb, $appName, [string]$verificationInvocation.ErrorMessage)
 							}
 
@@ -371,6 +433,7 @@ $worker = [powershell]::Create().AddScript({
 				}
 				else
 				{
+					Write-GuiExecutionWorkerStartupNotice -Message ("Execution worker starting app action: {0}." -f $runAction) -Progress
 					$legacyTimeoutSeconds = Get-GuiExecutionActionTimeoutSeconds -Entry $application -ExecutionClass 'App'
 					$legacyName = if (-not [string]::IsNullOrWhiteSpace([string]$displayName)) { [string]$displayName } else { [string]$runAction }
 					Enqueue-AppExecutionEvent -Kind '_AppStarted' -Name $legacyName -Action $runAction -StepIndex 1 -StepTotal 1

@@ -8,9 +8,9 @@ using module ..\..\SharedHelpers.psm1
 	Configures the Connected User Experiences and Telemetry (DiagTrack) service.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Connected User Experiences and Telemetry (DiagTrack) service in GUI and headless runs.
 	.PARAMETER Disable
 	Disable the Connected User Experiences and Telemetry (DiagTrack) service, and block connection for the Unified Telemetry Client Outbound Traffic
@@ -91,9 +91,9 @@ function DiagTrackService
 	Diagnostic data
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for diagnostic data.
 	.PARAMETER Minimal
 	Set the diagnostic data collection to minimum
@@ -202,9 +202,9 @@ function DiagnosticDataLevel
 	The diagnostics tracking scheduled tasks
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the diagnostics tracking scheduled tasks.
 	.PARAMETER Disable
 	Turn off the diagnostics tracking scheduled tasks
@@ -334,7 +334,7 @@ function ScheduledTasks
 	    .SYNOPSIS
 	    Gets selected scheduled task list.
 
-	    	#>
+		#>
 
 	function Get-SelectedScheduledTaskList
 	{
@@ -345,7 +345,7 @@ function ScheduledTasks
 	    .SYNOPSIS
 	    Gets selected scheduled task names.
 
-	    	#>
+		#>
 	function Get-SelectedScheduledTaskNames
 	{
 		return @(
@@ -359,7 +359,7 @@ function ScheduledTasks
 	    .SYNOPSIS
 	    Runs scheduled tasks operation.
 
-	    	#>
+		#>
 
 		. (Join-Path $PSScriptRoot 'TelemetryServices\ScheduledTasks\ScheduledTaskOperation.ps1')
 
@@ -654,9 +654,9 @@ function Powershell7Telemetry
 	Windows Error Reporting
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for windows Error Reporting.
 	.PARAMETER Disable
 	Turn off Windows Error Reporting

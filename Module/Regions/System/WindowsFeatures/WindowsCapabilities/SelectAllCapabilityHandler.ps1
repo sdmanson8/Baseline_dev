@@ -42,7 +42,7 @@ function Invoke-CapabilitySelectAllClick
 	    .SYNOPSIS
 	    Runs uninstall button.
 
-	    	#>
+		#>
 
 	function UninstallButton
 	{
@@ -105,7 +105,7 @@ function Invoke-CapabilitySelectAllClick
 	    .SYNOPSIS
 	    Runs install button.
 
-	    	#>
+		#>
 
 	function InstallButton
 	{
@@ -177,7 +177,7 @@ function Invoke-CapabilitySelectAllClick
 	    .SYNOPSIS
 	    Confirms windows capabilities selection.
 
-	    	#>
+		#>
 
 	function Confirm-WindowsCapabilitiesSelection
 	{

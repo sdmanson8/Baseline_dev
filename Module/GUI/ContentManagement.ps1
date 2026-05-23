@@ -20,6 +20,17 @@
 		$offset = if ($Script:TabScrollOffsets.ContainsKey($TabKey)) { [double]$Script:TabScrollOffsets[$TabKey] } else { 0 }
 		$null = Invoke-GuiDispatcherAction -Dispatcher $ContentScroll.Dispatcher -PriorityUsage 'RenderRefresh' -Action {
 			try { $ContentScroll.ScrollToVerticalOffset($offset) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ContentManagement.ScrollToVerticalOffset' }
+			try
+			{
+				if ($Script:UpdateGuiBackToTopButtonScript)
+				{
+					& $Script:UpdateGuiBackToTopButtonScript
+				}
+			}
+			catch
+			{
+				Write-SwallowedException -ErrorRecord $_ -Source 'ContentManagement.UpdateBackToTopButton'
+			}
 		}
 	}
 

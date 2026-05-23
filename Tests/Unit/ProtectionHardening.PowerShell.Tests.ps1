@@ -92,7 +92,7 @@ Describe 'PowerShellV2' {
     BeforeEach {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:errorMessages = [System.Collections.Generic.List[string]]::new()
-        $script:disabledFeatures = [System.Collections.Generic.List[string]]::new()
+        $script:processCalls = [System.Collections.Generic.List[object]]::new()
         $script:throwOnFeature = $null
 
         function Write-ConsoleStatus {
@@ -101,27 +101,51 @@ Describe 'PowerShellV2' {
         }
         function LogInfo { param([string]$Message) }
         function LogError { param([string]$Message) [void]$script:errorMessages.Add($Message) }
-        function Disable-WindowsOptionalFeature {
-            param([switch]$Online, [string]$FeatureName, [switch]$NoRestart, [object]$ErrorAction)
+        function Test-Path { param([string]$LiteralPath, [object]$PathType) return $true }
+        function Invoke-BaselineProcess {
+            param(
+                [string]$FilePath,
+                [object[]]$ArgumentList,
+                [int]$TimeoutSeconds,
+                [int[]]$AllowedExitCodes,
+                [switch]$CaptureOutput
+            )
+
+            $featureName = ([string[]]$ArgumentList | Where-Object { $_ -like '/FeatureName:*' } | Select-Object -First 1) -replace '^/FeatureName:', ''
             if ($script:throwOnFeature -and $FeatureName -eq $script:throwOnFeature) {
                 throw "feature $FeatureName denied"
             }
-            [void]$script:disabledFeatures.Add($FeatureName)
+            [void]$script:processCalls.Add([pscustomobject]@{
+                FilePath = $FilePath
+                ArgumentList = @($ArgumentList)
+                TimeoutSeconds = $TimeoutSeconds
+                AllowedExitCodes = @($AllowedExitCodes)
+                CaptureOutput = [bool]$CaptureOutput
+                FeatureName = $featureName
+            })
         }
     }
 
     AfterEach {
-        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','Disable-WindowsOptionalFeature')) {
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','Test-Path','Invoke-BaselineProcess')) {
             Microsoft.PowerShell.Management\Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }
 
-    It 'disables both V2 features when both calls succeed' {
+    It 'disables both V2 features through bounded DISM processes when both calls succeed' {
         PowerShellV2
 
-        $script:disabledFeatures.Count | Should -Be 2
-        $script:disabledFeatures | Should -Contain 'MicrosoftWindowsPowerShellV2'
-        $script:disabledFeatures | Should -Contain 'MicrosoftWindowsPowerShellV2Root'
+        $script:processCalls.Count | Should -Be 2
+        $script:processCalls.FeatureName | Should -Contain 'MicrosoftWindowsPowerShellV2'
+        $script:processCalls.FeatureName | Should -Contain 'MicrosoftWindowsPowerShellV2Root'
+        $script:processCalls[0].FilePath | Should -Match 'dism\.exe$'
+        $script:processCalls[0].ArgumentList | Should -Contain '/Online'
+        $script:processCalls[0].ArgumentList | Should -Contain '/Disable-Feature'
+        $script:processCalls[0].ArgumentList | Should -Contain '/NoRestart'
+        $script:processCalls[0].TimeoutSeconds | Should -Be 300
+        $script:processCalls[0].AllowedExitCodes | Should -Contain 0
+        $script:processCalls[0].AllowedExitCodes | Should -Contain 3010
+        $script:processCalls[0].CaptureOutput | Should -BeTrue
         $script:consoleStatuses[-1] | Should -Be 'success'
         $script:errorMessages.Count | Should -Be 0
     }
@@ -131,8 +155,8 @@ Describe 'PowerShellV2' {
 
         PowerShellV2
 
-        $script:disabledFeatures.Count | Should -Be 1
-        $script:disabledFeatures[0] | Should -Be 'MicrosoftWindowsPowerShellV2Root'
+        $script:processCalls.Count | Should -Be 1
+        $script:processCalls[0].FeatureName | Should -Be 'MicrosoftWindowsPowerShellV2Root'
         $script:errorMessages.Count | Should -Be 1
         $script:errorMessages[0] | Should -Match 'MicrosoftWindowsPowerShellV2'
         $script:consoleStatuses[-1] | Should -Be 'failed'
@@ -143,8 +167,8 @@ Describe 'PowerShellV2' {
 
         PowerShellV2
 
-        $script:disabledFeatures.Count | Should -Be 1
-        $script:disabledFeatures[0] | Should -Be 'MicrosoftWindowsPowerShellV2'
+        $script:processCalls.Count | Should -Be 1
+        $script:processCalls[0].FeatureName | Should -Be 'MicrosoftWindowsPowerShellV2'
         $script:errorMessages.Count | Should -Be 1
         $script:errorMessages[0] | Should -Match 'MicrosoftWindowsPowerShellV2Root'
         $script:consoleStatuses[-1] | Should -Be 'failed'

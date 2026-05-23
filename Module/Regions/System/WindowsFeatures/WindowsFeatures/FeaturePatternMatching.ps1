@@ -25,7 +25,7 @@ function Test-FeaturePatternMatch
 	    .SYNOPSIS
 	    Gets checkbox clicked.
 
-	    	#>
+		#>
 
 	function Update-FeatureSelectionFromCheckbox
 	{
@@ -70,7 +70,7 @@ function Test-FeaturePatternMatch
 	    .SYNOPSIS
 	    Checks feature seed selected.
 
-	    	#>
+		#>
 
 	function Test-FeatureSeedSelected
 	{

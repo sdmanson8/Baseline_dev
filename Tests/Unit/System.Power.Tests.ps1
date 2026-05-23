@@ -14,6 +14,7 @@ Describe 'Hibernation' {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:powercfgCalls = [System.Collections.Generic.List[string]]::new()
         $script:errorMessages = [System.Collections.Generic.List[string]]::new()
+        $script:warningMessages = [System.Collections.Generic.List[string]]::new()
         $script:exitCode = 0
 
         function Write-ConsoleStatus {
@@ -22,6 +23,7 @@ Describe 'Hibernation' {
         }
         function LogInfo { param([string]$Message) }
         function LogError { param([string]$Message) [void]$script:errorMessages.Add($Message) }
+        function LogWarning { param([string]$Message) [void]$script:warningMessages.Add($Message) }
         function POWERCFG {
             [void]$script:powercfgCalls.Add($args -join ' ')
             $global:LASTEXITCODE = $script:exitCode
@@ -29,7 +31,7 @@ Describe 'Hibernation' {
     }
 
     AfterEach {
-        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','POWERCFG')) {
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','LogWarning','POWERCFG')) {
             Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }
@@ -53,14 +55,15 @@ Describe 'Hibernation' {
         $script:powercfgCalls[0] | Should -Match 'HIBERNATE ON'
     }
 
-    It 'reports failure when powercfg returns a non-zero exit code' {
+    It 'reports warning when powercfg returns a non-zero exit code' {
         $script:exitCode = 1
 
         Hibernation -Disable
 
-        $script:consoleStatuses[-1] | Should -Be 'failed'
-        $script:errorMessages.Count | Should -Be 1
-        $script:errorMessages[0] | Should -Match 'exit code 1'
+        $script:consoleStatuses[-1] | Should -Be 'warning'
+        $script:errorMessages.Count | Should -Be 0
+        $script:warningMessages.Count | Should -Be 1
+        $script:warningMessages[0] | Should -Match 'exit code 1'
     }
 }
 
@@ -345,8 +348,10 @@ Describe 'Set-PowerSchemeNumericRangeSetting' {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:infoMessages = [System.Collections.Generic.List[string]]::new()
         $script:errorMessages = [System.Collections.Generic.List[string]]::new()
+        $script:warningMessages = [System.Collections.Generic.List[string]]::new()
         $script:visibilityCalls = [System.Collections.Generic.List[object]]::new()
         $script:valueCalls = [System.Collections.Generic.List[object]]::new()
+        $script:valueSetterThrows = $false
 
         function Write-ConsoleStatus {
             param([string]$Action, [string]$Status)
@@ -354,18 +359,20 @@ Describe 'Set-PowerSchemeNumericRangeSetting' {
         }
         function LogInfo { param([string]$Message) [void]$script:infoMessages.Add($Message) }
         function LogError { param([string]$Message) [void]$script:errorMessages.Add($Message) }
+        function LogWarning { param([string]$Message) [void]$script:warningMessages.Add($Message) }
         function Set-PowerSchemeSettingVisibility {
             param([string]$SubgroupGuid, [string]$SettingGuid)
             [void]$script:visibilityCalls.Add([pscustomobject]@{ SubgroupGuid = $SubgroupGuid; SettingGuid = $SettingGuid })
         }
         function Set-PowerSchemeSettingValue {
             param([string]$SubgroupGuid, [string]$SettingGuid, [object]$Value, [string]$Units)
+            if ($script:valueSetterThrows) { throw 'powercfg rejected setting' }
             [void]$script:valueCalls.Add([pscustomobject]@{ Value = $Value; Units = $Units })
         }
     }
 
     AfterEach {
-        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','Set-PowerSchemeSettingVisibility','Set-PowerSchemeSettingValue')) {
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','LogWarning','Set-PowerSchemeSettingVisibility','Set-PowerSchemeSettingValue')) {
             Remove-Item Function:\$n -ErrorAction SilentlyContinue
         }
     }
@@ -394,5 +401,49 @@ Describe 'Set-PowerSchemeNumericRangeSetting' {
         $script:errorMessages.Count | Should -Be 1
         $script:errorMessages[0] | Should -Match 'outside the supported range'
         $script:valueCalls.Count | Should -Be 0
+    }
+
+    It 'logs a warning and reports warning status when Windows rejects the power setting' {
+        $script:valueSetterThrows = $true
+
+        Set-PowerSchemeNumericRangeSetting -DisplayName 'x' -SubgroupGuid 'g1' -SettingGuid 's1' -Value 50
+
+        $script:consoleStatuses[-1] | Should -Be 'warning'
+        $script:errorMessages.Count | Should -Be 0
+        $script:warningMessages.Count | Should -Be 1
+        $script:warningMessages[0] | Should -Match 'powercfg rejected setting'
+    }
+}
+
+Describe 'Set-PowerSchemeChoiceSetting' {
+    BeforeEach {
+        $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
+        $script:errorMessages = [System.Collections.Generic.List[string]]::new()
+        $script:warningMessages = [System.Collections.Generic.List[string]]::new()
+
+        function Write-ConsoleStatus {
+            param([string]$Action, [string]$Status)
+            if (-not [string]::IsNullOrWhiteSpace($Status)) { [void]$script:consoleStatuses.Add($Status) }
+        }
+        function LogInfo { param([string]$Message) }
+        function LogError { param([string]$Message) [void]$script:errorMessages.Add($Message) }
+        function LogWarning { param([string]$Message) [void]$script:warningMessages.Add($Message) }
+        function Set-PowerSchemeSettingVisibility { param([string]$SubgroupGuid, [string]$SettingGuid) }
+        function Set-PowerSchemeSettingValue { param([string]$SubgroupGuid, [string]$SettingGuid, [object]$Value) throw 'powercfg rejected choice' }
+    }
+
+    AfterEach {
+        foreach ($n in @('Write-ConsoleStatus','LogInfo','LogError','LogWarning','Set-PowerSchemeSettingVisibility','Set-PowerSchemeSettingValue')) {
+            Remove-Item Function:\$n -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'logs a warning and reports warning status when Windows rejects the choice setting' {
+        Set-PowerSchemeChoiceSetting -DisplayName 'x' -SubgroupGuid 'g1' -SettingGuid 's1' -Value 2
+
+        $script:consoleStatuses[-1] | Should -Be 'warning'
+        $script:errorMessages.Count | Should -Be 0
+        $script:warningMessages.Count | Should -Be 1
+        $script:warningMessages[0] | Should -Match 'powercfg rejected choice'
     }
 }

@@ -189,6 +189,8 @@ function Get-BaselineFtypeAssociation
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RansomwareFtype.Helpers.Get-BaselineFtypeAssociation:catch190' -Severity Debug }
+
 			$progId = $null
 		}
 	}
@@ -222,6 +224,8 @@ function Get-BaselineFtypeAssociation
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RansomwareFtype.Helpers.Get-BaselineFtypeAssociation:catch223' -Severity Debug }
+
 				$openCommand = $null
 			}
 		}

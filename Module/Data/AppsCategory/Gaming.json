@@ -173,8 +173,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Xbox",
@@ -217,8 +217,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Xbox Identity Provider",
@@ -393,8 +393,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Cemu",

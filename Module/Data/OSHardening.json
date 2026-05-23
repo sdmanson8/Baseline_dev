@@ -1034,6 +1034,7 @@
       "SubCategory": null,
       "SourceRegion": "OSHardening",
       "Risk": "High",
+      "TimeoutSeconds": 300,
       "Tags": [
         "security",
         "hardening",

@@ -1,4 +1,4 @@
-﻿# Reactive state container - tracks a handful of GUI properties and notifies
+# Reactive state container - tracks a handful of GUI properties and notifies
 # registered callbacks on change. Dispatches to the UI thread when off-thread.
 #
 #   $state = New-ObservableState -Dispatcher $Form.Dispatcher -InitialValues @{ StatusText = '' }
@@ -98,7 +98,9 @@
 			$notifyAction = {
 				foreach ($cb in $subs)
 				{
-					try { & $cb $Value $oldValue } catch { & $reportSubscriberError $Property $_.Exception }
+					try { & $cb $Value $oldValue } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ObservableState.New-ObservableState:catch101' -Severity Debug }
+					 & $reportSubscriberError $Property $_.Exception }
 				}
 			}.GetNewClosure()
 
@@ -161,7 +163,9 @@
 					{
 						foreach ($cb in $change.Subscribers)
 						{
-							try { & $cb $change.NewValue $change.OldValue } catch { & $reportSubscriberError ([string]$change.Property) $_.Exception }
+							try { & $cb $change.NewValue $change.OldValue } catch {
+								if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ObservableState.New-ObservableState:catch164' -Severity Debug }
+							 & $reportSubscriberError ([string]$change.Property) $_.Exception }
 						}
 					}
 				}

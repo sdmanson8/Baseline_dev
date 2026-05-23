@@ -1204,6 +1204,7 @@
       "ExtraArgs": null,
       "SubCategory": null,
       "SourceRegion": "PrivacyTelemetry",
+      "TimeoutSeconds": 300,
       "WinDefaultDesc": "Updates for other Microsoft products are disabled",
       "Risk": "Low",
       "Tags": [

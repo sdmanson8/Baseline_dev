@@ -11,6 +11,8 @@ if ($revert) {
                     Move-Item -Path "$airRemovalRoot\AIRemoval\Backup\AIFiles\$fileName" -Destination $dest -Force -ErrorAction SilentlyContinue | Out-Null
                 }
                 catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\Regions\UWPApps\AIRemoval\Remove-AI-Files\Remove-AI-Files.ps1:13' -Severity Debug }
+
                     $command = "Move-Item -Path `"$airRemovalRoot\AIRemoval\Backup\AIFiles\$fileName`" -Destination `"$dest`" -Force"
                     RunTrusted -command $command -psversion $psversion -logFile $logFile
                     Start-Sleep 1
@@ -35,7 +37,7 @@ Write-Status -msg 'Restoring AI URIs - '
             foreach ($reg in $regs) {
                 Reg.exe import $reg.FullName *>$null
             }
-           
+
             #Write-Status -msg 'Files Restored -  You May Need to Repair the Apps Using the Microsoft Store'
             LogInfo 'Files Restored -  You May Need to Repair the Apps Using the Microsoft Store'
         }
@@ -47,7 +49,7 @@ Write-Status -msg 'Restoring AI URIs - '
         if (Test-Path "$airRemovalRoot\AIRemoval\Backup\CompStorage"){
             Get-ChildItem "$airRemovalRoot\AIRemoval\Backup\CompStorage" -Filter "*.reg"
         }else{
-            LogError -msg 'Unable to Find Component Storage Backup!' 
+            LogError -msg 'Unable to Find Component Storage Backup!'
         }
         #>
     }
@@ -83,14 +85,14 @@ Write-Status -msg 'Restoring AI URIs - '
             $appsPath = "$env:windir\SystemApps"
         }
         $appsPath2 = "$env:ProgramFiles\WindowsApps"
-    
+
         $appsPath3 = "$env:ProgramData\Microsoft\Windows\AppRepository"
-    
+
         $appsPath4 = "$env:SystemRoot\servicing\Packages"
         if (!(Test-Path $appsPath4)) {
             $appsPath4 = "$env:windir\servicing\Packages"
         }
-    
+
         $appsPath5 = "$env:SystemRoot\System32\CatRoot"
         if (!(Test-Path $appsPath5)) {
             $appsPath5 = "$env:windir\System32\CatRoot"
@@ -100,29 +102,29 @@ Write-Status -msg 'Restoring AI URIs - '
         if (!(Test-Path $appsPath6)) {
             $appsPath6 = "$env:windir\SystemApps\SxS"
         }
-        $pathsSystemApps = (Get-ChildItem -Path $appsPath -Directory -Force -ErrorAction SilentlyContinue).FullName 
-        $pathsWindowsApps = (Get-ChildItem -Path $appsPath2 -Directory -Force -ErrorAction SilentlyContinue).FullName 
-        $pathsAppRepo = (Get-ChildItem -Path $appsPath3 -Directory -Force -Recurse -ErrorAction SilentlyContinue).FullName 
+        $pathsSystemApps = (Get-ChildItem -Path $appsPath -Directory -Force -ErrorAction SilentlyContinue).FullName
+        $pathsWindowsApps = (Get-ChildItem -Path $appsPath2 -Directory -Force -ErrorAction SilentlyContinue).FullName
+        $pathsAppRepo = (Get-ChildItem -Path $appsPath3 -Directory -Force -Recurse -ErrorAction SilentlyContinue).FullName
         $pathsServicing = (Get-ChildItem -Path $appsPath4 -Directory -Force -Recurse -ErrorAction SilentlyContinue).FullName
-        $pathsCatRoot = (Get-ChildItem -Path $appsPath5 -Directory -Force -Recurse -ErrorAction SilentlyContinue).FullName 
-        $pathsSXS = (Get-ChildItem -Path $appsPath6 -Directory -Force -ErrorAction SilentlyContinue).FullName 
+        $pathsCatRoot = (Get-ChildItem -Path $appsPath5 -Directory -Force -Recurse -ErrorAction SilentlyContinue).FullName
+        $pathsSXS = (Get-ChildItem -Path $appsPath6 -Directory -Force -ErrorAction SilentlyContinue).FullName
 
         $packagesPath = @()
         #get full path
         foreach ($package in $aipackages) {
-    
+
             foreach ($path in $pathsSystemApps) {
                 if ($path -like "*$package*") {
                     $packagesPath += $path
                 }
             }
-    
+
             foreach ($path in $pathsWindowsApps) {
                 if ($path -like "*$package*") {
                     $packagesPath += $path
                 }
             }
-    
+
             foreach ($path in $pathsAppRepo) {
                 if ($path -like "*$package*") {
                     $packagesPath += $path
@@ -134,16 +136,16 @@ Write-Status -msg 'Restoring AI URIs - '
                     $packagesPath += $path
                 }
             }
-    
+
         }
-    
+
         #get additional files
         foreach ($path in $pathsServicing) {
             if ($path -like '*UserExperience-AIX*' -or $path -like '*Copilot*' -or $path -like '*UserExperience-Recall*' -or $path -like '*CoreAI*') {
                 $packagesPath += $path
             }
         }
-    
+
         foreach ($path in $pathsCatRoot) {
             if ($path -like '*UserExperience-AIX*' -or $path -like '*Copilot*' -or $path -like '*UserExperience-Recall*' -or $path -like '*CoreAI*') {
                 $packagesPath += $path
@@ -165,11 +167,11 @@ Write-Status -msg 'Restoring AI URIs - '
         }
 
         foreach ($packageName in $aipackages) {
-            $path = Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "*$packageName*" 
+            $path = Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "*$packageName*"
             if ($path) {
                 $packagesPath += $path.FullName
             }
-            
+
         }
 
         Write-ConsoleStatus -Status success
@@ -202,15 +204,17 @@ if ($backup) {
                     Add-Content -Path $backupFiles -Value $Path
                 }
                 catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\Regions\UWPApps\AIRemoval\Remove-AI-Files\Remove-AI-Files.ps1:204' -Severity Debug }
+
                     #ignore any errors
                 }
             }
             $command = "Remove-item ""$Path"" -force -ErrorAction SilentlyContinue -Recurse | Out-Null"
             RunTrusted -command $command -psversion $psversion -logFile $logFile
             Start-Sleep 1
-        
+
         }
-    
+
         #remove machine learning dlls
         $paths = @(
             "$env:SystemRoot\System32\Windows.AI.MachineLearning.dll"
@@ -228,6 +232,8 @@ if ($backup) {
                     Remove-Item -Path $path -Force -ErrorAction SilentlyContinue | Out-Null
                 }
                 catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\Regions\UWPApps\AIRemoval\Remove-AI-Files\Remove-AI-Files.ps1:230' -Severity Debug }
+
                     # Retry the protected delete with system privileges.
                     $command = "Remove-Item -Path $path -Force -ErrorAction SilentlyContinue -Recurse | Out-Null"
                     RunTrusted -command $command -psversion $psversion -logFile $logFile
@@ -235,7 +241,7 @@ if ($backup) {
             }
         }
 
-       
+
         Write-Status -msg 'Removing Hidden Copilot Installers - '
         LogInfo 'Removing Hidden Copilot Installers'
         #remove package installers in edge dir
@@ -250,19 +256,19 @@ if ($backup) {
             if ($folder -eq 'EdgeCore') {
                 #edge core doesnt have application folder
                 $fullPath = (Get-ChildItem -Path "$dir\$folder\*.*.*.*\copilot_provider_msix" -ErrorAction SilentlyContinue).FullName
-            
+
             }
             else {
                 $fullPath = (Get-ChildItem -Path "$dir\$folder\Application\*.*.*.*\copilot_provider_msix" -ErrorAction SilentlyContinue).FullName
             }
             if ($null -ne $fullPath) { Remove-Item -Path $fullPath -Recurse -Force -ErrorAction SilentlyContinue }
         }
-    
+
 
         #remove copilot update in edge update dir
         $dir = "${env:ProgramFiles(x86)}\Microsoft\EdgeUpdate"
         if (Test-Path $dir) {
-            $paths = Get-ChildItem $dir -Recurse -Filter '*CopilotUpdate.exe*' 
+            $paths = Get-ChildItem $dir -Recurse -Filter '*CopilotUpdate.exe*'
             foreach ($path in $paths) {
                 if (Test-Path $path.FullName) {
                     Remove-Item $path.FullName -Force -ErrorAction SilentlyContinue -Recurse | Out-Null
@@ -272,7 +278,7 @@ if ($backup) {
 
         $dir = "${env:ProgramFiles(x86)}\Microsoft"
         if (Test-Path $dir) {
-            $paths = Get-ChildItem $dir -Recurse -Filter '*Copilot_setup*' 
+            $paths = Get-ChildItem $dir -Recurse -Filter '*Copilot_setup*'
             foreach ($path in $paths) {
                 if (Test-Path $path.FullName) {
                     Remove-Item $path.FullName -Force -ErrorAction SilentlyContinue -Recurse | Out-Null
@@ -282,7 +288,7 @@ if ($backup) {
 
         Reg.exe delete 'HKLM\SOFTWARE\Microsoft\EdgeUpdate' /v 'CopilotUpdatePath' /f *>$null
         Reg.exe delete 'HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate' /v 'CopilotUpdatePath' /f *>$null
-    
+
         #remove additional installers
         $inboxapps = 'C:\Windows\InboxApps'
         $installers = Get-ChildItem -Path $inboxapps -Filter '*Copilot*' -ErrorAction SilentlyContinue
@@ -293,13 +299,15 @@ if ($backup) {
                 Remove-Item -Path $installer.FullName -Force -ErrorAction SilentlyContinue | Out-Null
             }
             catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\Regions\UWPApps\AIRemoval\Remove-AI-Files\Remove-AI-Files.ps1:295' -Severity Debug }
+
                 # Retry the protected delete with system privileges.
                 $command = "Remove-Item -Path $($installer.FullName) -Force -ErrorAction SilentlyContinue -Recurse | Out-Null"
                 RunTrusted -command $command -psversion $psversion -logFile $logFile
             }
-        
+
         }
-    
+
         #remove ai from outlook/office
         $aiPaths = @(
             "$env:ProgramFiles\Microsoft Office\root\vfs\ProgramFilesCommonX64\Microsoft Shared\Office16\AI",
@@ -310,7 +318,7 @@ if ($backup) {
             "$env:ProgramFiles\Microsoft Office\root\Integration\Addons\WritingAssistant.msix",
             "$env:ProgramFiles\Microsoft Office\root\Integration\Addons\ActionsServer.msix"
         )
-    
+
         foreach ($path in $aiPaths) {
             if (Test-Path $path -ErrorAction SilentlyContinue) {
                 if ($backup) {
@@ -346,14 +354,16 @@ if ($backup) {
                     Remove-Item $path -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
                 }
                 catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\Regions\UWPApps\AIRemoval\Remove-AI-Files\Remove-AI-Files.ps1:348' -Severity Debug }
+
                     $command = "Remove-Item $path -Recurse -Force -ErrorAction SilentlyContinue | Out-Null"
                     RunTrusted -command $command -psversion $psversion -logFile $logFile
                     Start-Sleep 1
                 }
-                
+
             }
         }
-        
+
         Write-ConsoleStatus -Status success
 #remove any screenshots from recall
         Write-Status -msg 'Removing Any Screenshots By Recall - '
@@ -384,7 +394,7 @@ if ($backup) {
         }
 
         Write-ConsoleStatus -Status success
-#prefire copilot nudges package by deleting the registry keys 
+#prefire copilot nudges package by deleting the registry keys
         Write-Status -msg 'Removing Copilot Nudges Registry Keys - '
         LogInfo 'Removing Copilot Nudges Registry Keys'
         $keys = @(
@@ -419,9 +429,11 @@ if ($backup) {
                     #remove any regular admin that have trusted installer bug
                     Remove-Item -Path "registry::$fullKey" -Force -Recurse -ErrorAction SilentlyContinue | Out-Null
                 }
-         
+
             }
             catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\Regions\UWPApps\AIRemoval\Remove-AI-Files\Remove-AI-Files.ps1:424' -Severity Debug }
+
                 continue
             }
         }
@@ -436,7 +448,7 @@ if ($backup) {
         reg.exe delete 'HKCU\Software\Microsoft\Windows\CurrentVersion\App Paths\ActionsMcpHost.exe' /f *>$null
         reg.exe delete 'HKLM\Software\Microsoft\Windows\CurrentVersion\App Paths\ActionsMcpHost.exe' /f *>$null
 
-        #remove app actions files 
+        #remove app actions files
         #these will get remade when updating
         $null = Invoke-BaselineProcess -FilePath 'taskkill.exe' -ArgumentList @('/im', 'AppActions.exe', '/f') -TimeoutSeconds 60 -AllowedExitCodes @(0, 128)
         $null = Invoke-BaselineProcess -FilePath 'taskkill.exe' -ArgumentList @('/im', 'VisualAssist.exe', '/f') -TimeoutSeconds 60 -AllowedExitCodes @(0, 128)
@@ -465,7 +477,7 @@ Write-Status -msg 'Removing App Actions Files - '
                     Remove-Item "$path" -Force -ErrorAction SilentlyContinue | Out-Null
                 }
             }
-       
+
         }
         Write-ConsoleStatus -Status success
 Write-Status -msg 'Removing AI From Component Store (WinSxS) - '
@@ -495,7 +507,7 @@ Write-Status -msg 'Removing AI From Component Store (WinSxS) - '
             'C:\Windows\WinSxS',
             'C:\Windows\System32\CatRoot'
         )
-        
+
         New-Item "$($tempDir)PathsToDelete.txt" -ItemType File -Force | Out-Null
         foreach ($keyword in $aiKeyWords) {
             foreach ($location in $regLocations) {
@@ -505,9 +517,11 @@ Write-Status -msg 'Removing AI From Component Store (WinSxS) - '
                             Remove-Item $_.PSPath -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
                         }
                         catch {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\Regions\UWPApps\AIRemoval\Remove-AI-Files\Remove-AI-Files.ps1:507' -Severity Debug }
+
                             #ignore when path is null
                         }
-                        
+
                     }
                 }
             }
@@ -515,20 +529,20 @@ Write-Status -msg 'Removing AI From Component Store (WinSxS) - '
         }
 
         foreach ($dir in $dirs) {
-            Get-ChildItem $dir -Recurse -ErrorAction SilentlyContinue | Where-Object { 
-                $_.FullName -like "*$($aiKeyWords[0])*" -or 
-                $_.FullName -like "*$($aiKeyWords[1])*" -or 
+            Get-ChildItem $dir -Recurse -ErrorAction SilentlyContinue | Where-Object {
+                $_.FullName -like "*$($aiKeyWords[0])*" -or
+                $_.FullName -like "*$($aiKeyWords[1])*" -or
                 $_.FullName -like "*$($aiKeyWords[2])*" -or
                 $_.FullName -like "*$($aiKeyWords[3])*" -or
                 $_.FullName -like "*$($aiKeyWords[4])*" -and
-                $(Test-Path $_.FullName -PathType Container) -eq $true 
+                $(Test-Path $_.FullName -PathType Container) -eq $true
             } | ForEach-Object {
                 #add paths to txt to delete with trusted installer
                 Add-Content "$($tempDir)PathsToDelete.txt" -Value $_.FullName | Out-Null
-            } 
+            }
         }
-        
-        
+
+
         $command = "Get-Content `"$($tempDir)PathsToDelete.txt`" | ForEach-Object {Remove-Item `$_ -Force -Recurse -EA 0}"
         RunTrusted -command $command -psversion $psversion -logFile $logFile
         Start-Sleep 1

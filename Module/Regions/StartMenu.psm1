@@ -8,9 +8,9 @@ using module ..\SharedHelpers.psm1
 	Bing search in Start Menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for bing search in Start Menu.
 	.PARAMETER Disable
 	Disable Bing search in Start Menu
@@ -97,9 +97,9 @@ function BingSearch
 	Microsoft account-related notifications on Start Menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for microsoft account-related notifications on Start Menu.
 	.PARAMETER Hide
 	Do not show Microsoft account-related notifications on Start Menu in Start menu
@@ -178,9 +178,9 @@ function StartAccountNotifications
 	Recommendations for tips, shortcuts, new apps, and more in Start menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for recommendations for tips, shortcuts, new apps, and more in Start menu.
 	.PARAMETER Hide
 	Do not show recommendations for tips, shortcuts, new apps, and more in Start menu
@@ -259,9 +259,9 @@ function StartRecommendationsTips
 	Web Search functionality in the Start Menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for web Search functionality in the Start Menu.
 	.PARAMETER Disable
 	Disable Web Search in the Start Menu
@@ -356,9 +356,9 @@ function WebSearch
 	Configure Start layout
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for configure Start layout.
 	.PARAMETER Default
 	Show default Start layout (default value)
@@ -463,9 +463,9 @@ function StartLayout
 	Recommended section in Start Menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for recommended section in Start Menu.
 	.PARAMETER Hide
 	Remove Recommended section in Start Menu
@@ -576,9 +576,9 @@ function StartRecommendedSection
 	Show recently added apps in Start Menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Shows recently added apps in Start Menu from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show recently added apps section in Start Menu
@@ -658,9 +658,9 @@ function Set-StartMenuRecentlyAdded
 	Show most used apps in Start Menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Shows most used apps in Start Menu from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show most frequently used apps section in Start Menu

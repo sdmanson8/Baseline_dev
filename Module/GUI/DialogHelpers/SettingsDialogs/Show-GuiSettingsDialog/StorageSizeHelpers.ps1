@@ -23,7 +23,9 @@ $formatGuiStorageSize = {
 			$total = [Int64]0
 			foreach ($file in @(Get-ChildItem -LiteralPath $Path -Recurse -File -Force -ErrorAction SilentlyContinue))
 			{
-				try { $total += [Int64]$file.Length } catch { $null = $_ }
+				try { $total += [Int64]$file.Length } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\SettingsDialogs\Show-GuiSettingsDialog\StorageSizeHelpers.ps1:26' -Severity Debug }
+				 $null = $_ }
 			}
 			return $total
 		}.GetNewClosure()
@@ -120,7 +122,9 @@ $formatGuiStorageSize = {
 			$activeExtractedRoot = ''
 			if (-not [string]::IsNullOrWhiteSpace([string]$Script:GuiExtractedRoot))
 			{
-				try { $activeExtractedRoot = [System.IO.Path]::GetFullPath([string]$Script:GuiExtractedRoot) } catch { $activeExtractedRoot = '' }
+				try { $activeExtractedRoot = [System.IO.Path]::GetFullPath([string]$Script:GuiExtractedRoot) } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\SettingsDialogs\Show-GuiSettingsDialog\StorageSizeHelpers.ps1:123' -Severity Debug }
+				 $activeExtractedRoot = '' }
 			}
 
 			$removed = 0

@@ -91,6 +91,8 @@ function Get-BaselineRemoteCredentialScopeKey
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteCredentialScopeKey:catch92' -Severity Debug }
+
 		$networkCredential = $null
 	}
 
@@ -283,14 +285,18 @@ function Test-BaselineRemoteSessionCacheEntry
 	}
 
 	$session = $null
-	try { $session = $Entry.Session } catch { $session = $null }
+	try { $session = $Entry.Session } catch {
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Test-BaselineRemoteSessionCacheEntry:catch286' -Severity Debug }
+	 $session = $null }
 	if (-not $session)
 	{
 		return $false
 	}
 
 	$state = $null
-	try { $state = [string]$session.State } catch { $state = $null }
+	try { $state = [string]$session.State } catch {
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Test-BaselineRemoteSessionCacheEntry:catch293' -Severity Debug }
+	 $state = $null }
 	if ($state -notin @('Opened', 'Open'))
 	{
 		return $false
@@ -299,7 +305,9 @@ function Test-BaselineRemoteSessionCacheEntry
 	if (-not [string]::IsNullOrWhiteSpace($TransportKey))
 	{
 		$currentTransportKey = $null
-		try { $currentTransportKey = [string]$Entry.TransportKey } catch { $currentTransportKey = $null }
+		try { $currentTransportKey = [string]$Entry.TransportKey } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Test-BaselineRemoteSessionCacheEntry:catch302' -Severity Debug }
+		 $currentTransportKey = $null }
 		if ([string]::IsNullOrWhiteSpace($currentTransportKey) -or $currentTransportKey -ne $TransportKey)
 		{
 			return $false
@@ -309,10 +317,14 @@ function Test-BaselineRemoteSessionCacheEntry
 	if ($IdleTimeoutMinutes -gt 0)
 	{
 		$lastUsedUtc = $null
-		try { $lastUsedUtc = [datetime]$Entry.LastUsedUtc } catch { $lastUsedUtc = $null }
+		try { $lastUsedUtc = [datetime]$Entry.LastUsedUtc } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Test-BaselineRemoteSessionCacheEntry:catch312' -Severity Debug }
+		 $lastUsedUtc = $null }
 		if (-not $lastUsedUtc)
 		{
-			try { $lastUsedUtc = [datetime]$Entry.CreatedUtc } catch { $lastUsedUtc = $null }
+			try { $lastUsedUtc = [datetime]$Entry.CreatedUtc } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Test-BaselineRemoteSessionCacheEntry:catch315' -Severity Debug }
+			 $lastUsedUtc = $null }
 		}
 		if (-not $lastUsedUtc)
 		{
@@ -347,7 +359,9 @@ function Remove-BaselineRemoteSessionCacheEntry
 
 	$entry = $Script:CachedRemoteSessionCache[$Key]
 	$session = $null
-	try { $session = $entry.Session } catch { $session = $entry }
+	try { $session = $entry.Session } catch {
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Remove-BaselineRemoteSessionCacheEntry:catch350' -Severity Debug }
+	 $session = $entry }
 	if ($session)
 	{
 		try { Remove-PSSession -Session $session -ErrorAction SilentlyContinue } catch { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Remove-BaselineRemoteSessionCacheEntry.RemovePSSession' }
@@ -395,7 +409,9 @@ function Invoke-BaselineRemoteSessionCacheMaintenance
 
 		$entry = $Script:CachedRemoteSessionCache[$key]
 		$transportKey = $null
-		try { $transportKey = [string]$entry.TransportKey } catch { $transportKey = $null }
+		try { $transportKey = [string]$entry.TransportKey } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Invoke-BaselineRemoteSessionCacheMaintenance:catch398' -Severity Debug }
+		 $transportKey = $null }
 		if (-not (Test-BaselineRemoteSessionCacheEntry -Entry $entry -TransportKey $transportKey -IdleTimeoutMinutes $IdleTimeoutMinutes))
 		{
 			[void]$removedKeys.Add([string]$key)
@@ -785,11 +801,15 @@ function Get-BaselineRemoteSessionSummary
 	{
 		$entry = $Script:CachedRemoteSessionCache[$key]
 		$session = $null
-		try { $session = $entry.Session } catch { $session = $entry }
+		try { $session = $entry.Session } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteSessionSummary:catch788' -Severity Debug }
+		 $session = $entry }
 		if (-not $session) { continue }
 
 		$computer = $null
-		try { $computer = [string]$session.ComputerName } catch { $computer = $null }
+		try { $computer = [string]$session.ComputerName } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteSessionSummary:catch792' -Severity Debug }
+		 $computer = $null }
 		if ([string]::IsNullOrWhiteSpace($computer))
 		{
 			$computer = ($key -split '\|', 3)[0]
@@ -803,11 +823,17 @@ function Get-BaselineRemoteSessionSummary
 		$keyParts = @($key -split '\|', 3)
 		$userName = if ($keyParts.Count -gt 1) { $keyParts[1] } else { '<default>' }
 		$state = $null
-		try { $state = [string]$session.State } catch { $state = 'Unknown' }
+		try { $state = [string]$session.State } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteSessionSummary:catch806' -Severity Debug }
+		 $state = 'Unknown' }
 		$transportKey = $null
-		try { $transportKey = [string]$entry.TransportKey } catch { $transportKey = $null }
+		try { $transportKey = [string]$entry.TransportKey } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteSessionSummary:catch808' -Severity Debug }
+		 $transportKey = $null }
 		$lastUsedUtc = $null
-		try { $lastUsedUtc = [datetime]$entry.LastUsedUtc } catch { $lastUsedUtc = $null }
+		try { $lastUsedUtc = [datetime]$entry.LastUsedUtc } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteSessionSummary:catch810' -Severity Debug }
+		 $lastUsedUtc = $null }
 
 		$entries.Add([pscustomobject]@{
 			ComputerName = $computer
@@ -1224,7 +1250,9 @@ function Get-BaselineRemoteOrchestrationSummary
 		}
 
 		$stamp = $null
-		try { $stamp = ([datetime]::Parse([string]$record.Timestamp)).ToString('yyyy-MM-dd HH:mm:ss') } catch { $stamp = [string]$record.Timestamp }
+		try { $stamp = ([datetime]::Parse([string]$record.Timestamp)).ToString('yyyy-MM-dd HH:mm:ss') } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteOrchestrationSummary:catch1227' -Severity Debug }
+		 $stamp = [string]$record.Timestamp }
 		$status = if ($record.Status) { [string]$record.Status } else { 'Unknown' }
 		$target = if ($record.ComputerName) { [string]$record.ComputerName } else { 'unknown target' }
 		$operation = if ($record.Operation) { [string]$record.Operation } else { 'Remote' }
@@ -1289,7 +1317,9 @@ function Get-BaselineRemoteOrchestrationDetails
 		if ($recordKindFilter.Count -gt 0 -and $recordKindFilter -notcontains $recordRecordKind.Trim().ToLowerInvariant()) { continue }
 
 		$stamp = $null
-		try { $stamp = [datetime]::Parse([string]$record.Timestamp) } catch { $stamp = [datetime]::UtcNow }
+		try { $stamp = [datetime]::Parse([string]$record.Timestamp) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteOrchestrationDetails:catch1292' -Severity Debug }
+		 $stamp = [datetime]::UtcNow }
 
 		$errors = @()
 		if ($record.PSObject.Properties['Errors'] -and $record.Errors)
@@ -1369,7 +1399,9 @@ function Get-BaselineRemoteRunSummaries
 		if ($terminalFilter.Count -gt 0 -and $terminalFilter -notcontains $recordTerminal.Trim().ToLowerInvariant()) { continue }
 
 		$stamp = $null
-		try { $stamp = [datetime]::Parse([string]$record.Timestamp) } catch { $stamp = [datetime]::UtcNow }
+		try { $stamp = [datetime]::Parse([string]$record.Timestamp) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteRunSummaries:catch1372' -Severity Debug }
+		 $stamp = [datetime]::UtcNow }
 
 		$entries.Add([pscustomobject]@{
 			Timestamp        = $stamp
@@ -1448,6 +1480,8 @@ function Get-BaselineRemoteTargetHealth
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteTargetHealth:catch1449' -Severity Debug }
+
 		return @()
 	}
 
@@ -1462,7 +1496,9 @@ function Get-BaselineRemoteTargetHealth
 
 		$entries.Add([pscustomobject]@{
 			ComputerName           = [string]$name
-			LastSeenUtc            = if ($entry.PSObject.Properties['LastSeenUtc']) { try { [datetime]::Parse([string]$entry.LastSeenUtc) } catch { $null } } else { $null }
+			LastSeenUtc            = if ($entry.PSObject.Properties['LastSeenUtc']) { try { [datetime]::Parse([string]$entry.LastSeenUtc) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteTargetHealth:catch1465' -Severity Debug }
+			 $null } } else { $null }
 			LastStatus             = if ($entry.PSObject.Properties['LastStatus']) { [string]$entry.LastStatus } else { 'Unknown' }
 			LastOperation          = if ($entry.PSObject.Properties['LastOperation']) { [string]$entry.LastOperation } else { $null }
 			LastTerminalState      = if ($entry.PSObject.Properties['LastTerminalState']) { [string]$entry.LastTerminalState } else { 'Unknown' }
@@ -1517,6 +1553,8 @@ function Update-BaselineRemoteTargetHealth
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Update-BaselineRemoteTargetHealth:catch1518' -Severity Debug }
+
 			$data = $null
 		}
 	}
@@ -1715,7 +1753,9 @@ function Get-BaselineRemoteTargetFailureHistory
 		$categories[$cat]++
 
 		$ts = $null
-		try { $ts = [datetime]::Parse([string]$record.Timestamp) } catch { $ts = [datetime]::UtcNow }
+		try { $ts = [datetime]::Parse([string]$record.Timestamp) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteTargetFailureHistory:catch1718' -Severity Debug }
+		 $ts = [datetime]::UtcNow }
 		$recentFailures.Add([pscustomobject]@{
 			Timestamp       = $ts
 			Operation       = if ($record.Operation) { [string]$record.Operation } else { 'Unknown' }
@@ -1876,7 +1916,9 @@ function Get-BaselineRemoteApprovalDecisions
 		}
 
 		$records.Add([pscustomobject]@{
-			RecordedUtc   = if ($obj.RecordedUtc) { try { [datetime]::Parse([string]$obj.RecordedUtc) } catch { [datetime]::UtcNow } } else { [datetime]::UtcNow }
+			RecordedUtc   = if ($obj.RecordedUtc) { try { [datetime]::Parse([string]$obj.RecordedUtc) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteApprovalDecisions:catch1879' -Severity Debug }
+			 [datetime]::UtcNow } } else { [datetime]::UtcNow }
 			RunId         = if ($obj.RunId) { [string]$obj.RunId } else { $null }
 			Operation     = if ($obj.Operation) { [string]$obj.Operation } else { 'Unknown' }
 			Decision      = if ($obj.Decision) { [string]$obj.Decision } else { 'Unknown' }
@@ -2015,12 +2057,16 @@ function Get-BaselineRemoteRolloutOutcomes
 		if ($PSBoundParameters.ContainsKey('Since') -and $record.RecordedUtc)
 		{
 			$ts = $null
-			try { $ts = [datetime]::Parse([string]$record.RecordedUtc) } catch { $ts = $null }
+			try { $ts = [datetime]::Parse([string]$record.RecordedUtc) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteRolloutOutcomes:catch2018' -Severity Debug }
+			 $ts = $null }
 			if ($ts -and $ts -lt $Since) { continue }
 		}
 
 		$filtered.Add([pscustomobject]@{
-			RecordedUtc     = if ($record.RecordedUtc) { try { [datetime]::Parse([string]$record.RecordedUtc) } catch { [datetime]::UtcNow } } else { [datetime]::UtcNow }
+			RecordedUtc     = if ($record.RecordedUtc) { try { [datetime]::Parse([string]$record.RecordedUtc) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteRolloutOutcomes:catch2023' -Severity Debug }
+			 [datetime]::UtcNow } } else { [datetime]::UtcNow }
 			RunId           = if ($record.RunId) { [string]$record.RunId } else { $null }
 			Operation       = if ($record.Operation) { [string]$record.Operation } else { 'Unknown' }
 			Outcome         = if ($record.Outcome) { [string]$record.Outcome } else { 'Unknown' }
@@ -2156,7 +2202,9 @@ function Get-BaselineRemoteOrchestrationDashboard
 		elseif ($term -eq 'Failed') { $targetStats[$comp].Failed++ }
 
 		$ts = $null
-		try { $ts = [datetime]::Parse([string]$rec.Timestamp) } catch { $ts = $null }
+		try { $ts = [datetime]::Parse([string]$rec.Timestamp) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteOrchestrationDashboard:catch2159' -Severity Debug }
+		 $ts = $null }
 		if ($ts -and (-not $targetStats[$comp].LastSeen -or $ts -gt $targetStats[$comp].LastSeen))
 		{
 			$targetStats[$comp].LastSeen = $ts
@@ -2174,12 +2222,16 @@ function Get-BaselineRemoteOrchestrationDashboard
 	$midpoint = $since.AddDays($DaysBack / 2)
 	$recentRecords = @($targetRecords | Where-Object {
 		$ts = $null
-		try { $ts = [datetime]::Parse([string]$_.Timestamp) } catch { $ts = $null }
+		try { $ts = [datetime]::Parse([string]$_.Timestamp) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteOrchestrationDashboard:catch2177' -Severity Debug }
+		 $ts = $null }
 		$ts -and $ts -ge $midpoint
 	})
 	$olderRecords = @($targetRecords | Where-Object {
 		$ts = $null
-		try { $ts = [datetime]::Parse([string]$_.Timestamp) } catch { $ts = $null }
+		try { $ts = [datetime]::Parse([string]$_.Timestamp) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteOrchestrationDashboard:catch2182' -Severity Debug }
+		 $ts = $null }
 		$ts -and $ts -lt $midpoint
 	})
 
@@ -2271,7 +2323,9 @@ function Search-BaselineRemoteOrchestrationHistory
 	foreach ($rec in $records)
 	{
 		$ts = $null
-		try { $ts = [datetime]::Parse([string]$rec.Timestamp) } catch { $ts = [datetime]::UtcNow }
+		try { $ts = [datetime]::Parse([string]$rec.Timestamp) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Search-BaselineRemoteOrchestrationHistory:catch2274' -Severity Debug }
+		 $ts = [datetime]::UtcNow }
 
 		if ($PSBoundParameters.ContainsKey('Since') -and $ts -lt $Since) { continue }
 		if ($PSBoundParameters.ContainsKey('Until') -and $ts -gt $Until) { continue }
@@ -2636,6 +2690,8 @@ function Invoke-BaselineRemoteEntryWithRetry
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Invoke-BaselineRemoteEntryWithRetry:catch2637' -Severity Debug }
+
 			$message = [string]$_.Exception.Message
 			if (-not [string]::IsNullOrWhiteSpace($message))
 			{
@@ -2689,7 +2745,9 @@ function Test-BaselineRemoteOrchestrationAllowed
 {
 	[CmdletBinding()]
 	param(
-		[string]$KillSwitchPath = $(try { (New-BaselineOperatorPolicy).KillSwitchPath } catch { [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), 'BASELINE_KILL_SWITCH') }),
+		[string]$KillSwitchPath = $(try { (New-BaselineOperatorPolicy).KillSwitchPath } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Test-BaselineRemoteOrchestrationAllowed:catch2692' -Severity Debug }
+		 [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), 'BASELINE_KILL_SWITCH') }),
 		[ValidateSet('ConnectivityTest', 'RemoteCompliance', 'RemoteApply', 'Unknown')]
 		[string]$Operation = 'Unknown'
 	)
@@ -2697,11 +2755,15 @@ function Test-BaselineRemoteOrchestrationAllowed
 	$engaged = $false
 	if (Get-Command -Name 'Test-BaselineKillSwitch' -ErrorAction SilentlyContinue)
 	{
-		try { $engaged = Test-BaselineKillSwitch -Path $KillSwitchPath } catch { $engaged = $false }
+		try { $engaged = Test-BaselineKillSwitch -Path $KillSwitchPath } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Test-BaselineRemoteOrchestrationAllowed:catch2700' -Severity Debug }
+		 $engaged = $false }
 	}
 	else
 	{
-		try { $engaged = [bool](Test-Path -LiteralPath $KillSwitchPath -PathType Leaf -ErrorAction SilentlyContinue) } catch { $engaged = $false }
+		try { $engaged = [bool](Test-Path -LiteralPath $KillSwitchPath -PathType Leaf -ErrorAction SilentlyContinue) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Test-BaselineRemoteOrchestrationAllowed:catch2704' -Severity Debug }
+		 $engaged = $false }
 	}
 
 	if ($engaged)
@@ -2718,7 +2780,9 @@ function Test-BaselineRemoteOrchestrationAllowed
 	$maturityGate = $null
 	if (Get-Command -Name 'Test-BaselineEnterpriseActionMaturityGate' -ErrorAction SilentlyContinue)
 	{
-		try { $maturityGate = Test-BaselineEnterpriseActionMaturityGate -FeatureName $Operation } catch { $maturityGate = $null }
+		try { $maturityGate = Test-BaselineEnterpriseActionMaturityGate -FeatureName $Operation } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Test-BaselineRemoteOrchestrationAllowed:catch2721' -Severity Debug }
+		 $maturityGate = $null }
 	}
 
 	if ($maturityGate -and -not [bool]$maturityGate.Allowed)
@@ -3004,6 +3068,8 @@ function Save-BaselineRemoteResumeCheckpoint
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Save-BaselineRemoteResumeCheckpoint:catch3005' -Severity Debug }
+
 			$existing = $null
 		}
 	}
@@ -3118,6 +3184,8 @@ function Get-BaselineRemoteResumeCheckpoint
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Get-BaselineRemoteResumeCheckpoint:catch3119' -Severity Debug }
+
 			return @()
 		}
 	}
@@ -3813,6 +3881,8 @@ function Test-BaselineRemoteConnectivity
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteTarget.Helpers.Test-BaselineRemoteConnectivity:catch3814' -Severity Debug }
+
 					$entry.Error = $_.Exception.Message
 				}
 			}

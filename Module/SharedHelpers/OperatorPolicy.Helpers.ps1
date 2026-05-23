@@ -83,7 +83,9 @@ function Test-BaselineOperatorChangeWindow
 				$timeOk = ($cur -ge $start -or $cur -le $end)
 			}
 		}
-		catch { $timeOk = $true }
+		catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'OperatorPolicy.Helpers.Test-BaselineOperatorChangeWindow:catch86' -Severity Debug }
+		 $timeOk = $true }
 	}
 
 	return ($dayOk -and $timeOk)
@@ -197,6 +199,8 @@ function Test-BaselineOperatorRunPolicy
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'OperatorPolicy.Helpers.Test-BaselineOperatorRunPolicy:catch198' -Severity Debug }
+
 			[void]$reasons.Add(('Maturity gate evaluation failed for {0}: {1}' -f $featureName, $_.Exception.Message))
 			if ($decision -ne 'Block') { $decision = 'Confirm' }
 		}

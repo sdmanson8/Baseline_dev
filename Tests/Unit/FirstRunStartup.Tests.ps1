@@ -8,6 +8,7 @@ BeforeAll {
     $actionHandlersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers'
     $errorHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/ErrorHandling.Helpers.ps1'
     $environmentHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Environment.Helpers.ps1'
+    $bootstrapPath = Join-Path $PSScriptRoot '../../Bootstrap/Baseline.ps1'
     $initialActionsPath = Join-Path $PSScriptRoot '../../Module/Regions/InitialActions.psm1'
     $initialSetupPath = Join-Path $PSScriptRoot '../../Module/Regions/InitialSetup.psm1'
     $initialSetupManifestPath = Join-Path $PSScriptRoot '../../Module/Data/InitialSetup.json'
@@ -25,6 +26,7 @@ BeforeAll {
     )
     $errorHelpersContent = Get-BaselineTestSourceText -Path $errorHelpersPath
     $environmentHelpersContent = Get-BaselineTestSourceText -Path $environmentHelpersPath
+    $bootstrapContent = Get-BaselineTestSourceText -Path $bootstrapPath
     $initialActionsContent = Get-BaselineTestSourceText -Path $initialActionsPath
     $initialSetupContent = Get-BaselineTestSourceText -Path $initialSetupPath
     $buildPrimaryTabsContent = Get-BaselineTestSourceText -Path $buildPrimaryTabsPath
@@ -76,9 +78,34 @@ Describe 'First-run startup command wiring' {
         $errorHelpersContent | Should -Match "'\*Show-HelpDialog not found\*' \{ return 'GUI-STARTUP-004' \}"
     }
 
-    It 'boots the package managers from InitialActions during GUI startup' {
-        $initialActionsContent | Should -Match 'Initialize-PackageManagersBootstrap\s+-LoadingSplash\s+\$Global:LoadingSplash'
+    It 'boots the package managers from the bootstrap scheduler after GUI startup decisions' {
+        $bootstrapContent | Should -Match 'Invoke-BaselinePackageManagerStartupChecks -SkipWinGetCheck:\$skipStartupWinGetCheck -SkipChocolateyCheck:\$skipStartupChocolateyCheck'
+        $initialActionsContent | Should -Not -Match 'Initialize-PackageManagersBootstrap\s+-LoadingSplash\s+\$Global:LoadingSplash'
         $initialActionsContent | Should -Not -Match 'CheckWinGet\s+-LoadingSplash\s+\$Global:LoadingSplash'
+        $initialSetupContent | Should -Match '\[bool\]\s+\$IncludeChocolatey = \$true'
+        $initialSetupContent | Should -Match 'if \(\$IncludeChocolatey\)'
+    }
+
+    It 'honors startup splash preferences before opening the GUI' {
+        $bootstrapContent | Should -Match 'Get-BaselineStartupSplashSettings'
+        $bootstrapContent | Should -Match 'RunInitialActions = \$true'
+        $bootstrapContent | Should -Match 'WinGetCheckFrequency = ''Startup'''
+        $bootstrapContent | Should -Match 'ChocolateyCheckFrequency = ''Startup'''
+        $bootstrapContent | Should -Match 'function Get-BaselineBootstrapSplashStepOrder'
+        $bootstrapContent | Should -Match 'Get-BaselineBootstrapSplashStepOrder -StartupSettings \$Script:StartupSplashSettings -IncludeUpdates:\$shouldPrimeUpdatesPulse'
+        $bootstrapContent | Should -Match 'Show-BootstrapLoadingSplash[\s\S]*-StepOrder \$bootstrapSplashStepOrder'
+        $bootstrapContent | Should -Match 'Get-BaselineStartupPackageManagerCheckDecision'' -CommandType Function -ErrorAction Stop'
+        $bootstrapContent | Should -Match 'PackageManager ''WinGet'' -Enabled:\$startupWinGetEnabled -Frequency \$startupWinGetFrequency'
+        $bootstrapContent | Should -Match 'PackageManager ''Chocolatey'' -Enabled:\$startupChocolateyEnabled -Frequency \$startupChocolateyFrequency'
+        $bootstrapContent | Should -Match 'Test-BaselineStartupPackageManagerCheckDue -PackageManager ''WinGet'''
+        $bootstrapContent | Should -Match 'Test-BaselineStartupPackageManagerCheckDue -PackageManager ''Chocolatey'''
+        $bootstrapContent | Should -Match 'if \(\$Script:StartupSplashSettings -and \[bool\]\$Script:StartupSplashSettings.RunInitialActions\)'
+        $bootstrapContent | Should -Match 'InitialActions skipped by startup splash settings\.'
+        $bootstrapContent | Should -Match 'Invoke-BaselinePackageManagerStartupChecks -SkipWinGetCheck:\$skipStartupWinGetCheck -SkipChocolateyCheck:\$skipStartupChocolateyCheck'
+        $bootstrapContent | Should -Match 'Invoke-BaselineInitialActions -SkipWinGetCheck:\$skipStartupWinGetCheck -SkipChocolateyCheck:\$skipStartupChocolateyCheck'
+        $bootstrapContent | Should -Match 'Set-BaselineStartupPackageManagerChecksCompleted -WinGet:\$runStartupWinGetCheck -Chocolatey:\$runStartupChocolateyCheck'
+        $initialActionsContent | Should -Match '\[switch\]\s+\$SkipWinGetCheck'
+        $initialActionsContent | Should -Match '\[switch\]\s+\$SkipChocolateyCheck'
     }
 
     It 'starts the system splash step as initial checks begin' {
@@ -154,6 +181,16 @@ Describe 'First-run startup command wiring' {
         $initialSetupContent | Should -Match 'Invoke-ChocolateyBootstrap -TimeoutSeconds \$TimeoutSeconds'
         $initialSetupContent | Should -Match 'Package manager bootstrap job ''\{0\}'' timed out after \{1\} seconds'
         $initialSetupContent | Should -Match 'Stop-Job -Job \$runningJob -Force -ErrorAction SilentlyContinue'
+    }
+
+    It 'logs startup package-manager checks under component scopes instead of transient status text' {
+        $initialSetupContent | Should -Match '\$packageManagerLogScope = ''PackageManager'''
+        $initialSetupContent | Should -Match '\$wingetLogScope = ''Winget'''
+        $initialSetupContent | Should -Match '\$chocolateyLogScope = ''Chocolatey'''
+        $initialSetupContent | Should -Match 'Write-ConsoleStatus -Action \$checkingStatusText -Scope \$packageManagerLogScope'
+        $initialSetupContent | Should -Match 'Bootstrap_PackageManagerAlreadyInstalled[\s\S]*-Scope \$wingetLogScope'
+        $initialSetupContent | Should -Match 'Bootstrap_PackageManagerAlreadyInstalled[\s\S]*-Scope \$chocolateyLogScope'
+        $initialSetupContent | Should -Not -Match "-Scope 'Checking installation status"
     }
 
         It 'uses the shared reviewed WinGet bootstrap metadata instead of duplicating the release pin' {

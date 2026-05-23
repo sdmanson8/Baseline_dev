@@ -23,7 +23,8 @@ Describe 'Windows Features GUI execution' {
 
     It 'runs optional feature install and removal through bounded DISM process execution' {
         $script:SystemWindowsFeaturesContent | Should -Match 'function Invoke-WindowsCapabilityDismOperation'
-        $script:SystemWindowsFeaturesContent | Should -Match '\$CapabilityOperationTimeoutSeconds = 3600'
+        $script:SystemWindowsFeaturesContent | Should -Match '\$CapabilityOperationTimeoutSeconds = 180'
+        $script:SystemWindowsFeaturesContent | Should -Match '\$TimeoutSeconds = 180'
         $script:SystemWindowsFeaturesContent | Should -Match 'Invoke-BaselineProcess[\s\S]+-TimeoutSeconds \$TimeoutSeconds'
         $script:SystemWindowsFeaturesContent | Should -Match 'Invoke-WindowsCapabilityDismOperation -Operation Install -Name \$Capability\.Name -TimeoutSeconds \$CapabilityOperationTimeoutSeconds'
         $script:SystemWindowsFeaturesContent | Should -Match 'Invoke-WindowsCapabilityDismOperation -Operation Uninstall -Name \$Capability\.Name -TimeoutSeconds \$CapabilityOperationTimeoutSeconds'

@@ -142,6 +142,33 @@ Describe 'Import-TweakManifestFromData PlatformSupport pass-through' {
         }
     }
 
+    It 'carries TimeoutSeconds through the loader verbatim' {
+        $json = @'
+{
+    "Tab": "Synthetic",
+    "Entries": [
+        {
+            "Name": "Slow Tweak",
+            "Function": "Test-SlowTweak",
+            "Type": "Action",
+            "Default": null,
+            "WinDefault": null,
+            "TimeoutSeconds": 900
+        }
+    ]
+}
+'@
+        $root = NewSyntheticManifestRoot -Json $json
+        try {
+            $manifest = Import-TweakManifestFromData -ModuleRoot $root
+            $entry = $manifest[0]
+            $entry.Contains('TimeoutSeconds') | Should -BeTrue
+            [int]$entry['TimeoutSeconds'] | Should -Be 900
+        } finally {
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+        }
+    }
+
     It 'omits SupportsExecution (defaults to executable) when JSON does not declare it' {
         $json = @'
 {

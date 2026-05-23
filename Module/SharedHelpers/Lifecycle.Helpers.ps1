@@ -28,6 +28,8 @@ function Get-BaselineLifecycleComparableVersion
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Lifecycle.Helpers.Get-BaselineLifecycleComparableVersion:catch29' -Severity Debug }
+
 			# Fall through to the local parser below.
 		}
 	}
@@ -101,6 +103,8 @@ function Get-BaselineReleaseArtifactVerification
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Lifecycle.Helpers.Get-BaselineReleaseArtifactVerification:catch102' -Severity Debug }
+
 		$verification.VerificationState = 'Invalid'
 		$verification.VerificationMessage = "Failed to compute SHA-256 hash: $($_.Exception.Message)"
 		return [pscustomobject]$verification
@@ -119,6 +123,8 @@ function Get-BaselineReleaseArtifactVerification
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Lifecycle.Helpers.Get-BaselineReleaseArtifactVerification:catch120' -Severity Debug }
+
 		$verification.VerificationState = 'Invalid'
 		$verification.VerificationMessage = "Authenticode signature verification failed for '$Path': $($_.Exception.Message)"
 		return [pscustomobject]$verification
@@ -282,7 +288,9 @@ function New-BaselineLifecyclePlaybook
 
 	if ([string]::IsNullOrWhiteSpace($CurrentVersion))
 	{
-		try { $CurrentVersion = Get-BaselineDisplayVersion } catch { $CurrentVersion = $null }
+		try { $CurrentVersion = Get-BaselineDisplayVersion } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Lifecycle.Helpers.New-BaselineLifecyclePlaybook:catch285' -Severity Debug }
+		 $CurrentVersion = $null }
 	}
 
 	$targetVersionText = $TargetVersion
@@ -593,7 +601,9 @@ function New-BaselineIncidentReproductionPack
 			foreach ($line in $auditLines)
 			{
 				if ([string]::IsNullOrWhiteSpace([string]$line)) { continue }
-				try { $line | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop } catch { continue }
+				try { $line | ConvertFrom-BaselineJson -Depth 16 -ErrorAction Stop } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Lifecycle.Helpers.New-BaselineIncidentReproductionPack:catch596' -Severity Debug }
+				 continue }
 			}
 		)
 

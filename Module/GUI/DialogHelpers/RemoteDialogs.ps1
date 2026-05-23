@@ -226,7 +226,7 @@ $scrollBarStyleXaml
 		$ctxRetryFailed.Header = 'Retry Failed Targets'
 		$ctxExportFailed = New-Object System.Windows.Controls.MenuItem
 		$ctxExportFailed.Header = 'Export Failed Target List...'
-		
+
 		[void]$remoteRunsCtx.Items.Add($ctxOpenLog)
 		[void]$remoteRunsCtx.Items.Add($ctxExportBundle)
 		[void]$remoteRunsCtx.Items.Add($ctxIncidentPack)
@@ -274,7 +274,9 @@ $scrollBarStyleXaml
 			$selected = $lstRecentRemoteRuns.SelectedItem
 			if ($selected -and (Test-GuiObjectField -Object $selected -FieldName 'BundlePath') -and -not [string]::IsNullOrWhiteSpace($selected.BundlePath))
 			{
-				try { [System.Diagnostics.Process]::Start('explorer.exe', "/select,`"$($selected.BundlePath)`"") } catch { & $showRemoteConsoleError -Title 'Remote Console' -Message "Failed to show bundle: $($_.Exception.Message)" }
+				try { [System.Diagnostics.Process]::Start('explorer.exe', "/select,`"$($selected.BundlePath)`"") } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RemoteDialogs.Show-GuiRemoteConsoleDialog:catch277' -Severity Debug }
+				 & $showRemoteConsoleError -Title 'Remote Console' -Message "Failed to show bundle: $($_.Exception.Message)" }
 			}
 		}.GetNewClosure())
 

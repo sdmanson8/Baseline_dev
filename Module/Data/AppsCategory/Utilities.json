@@ -883,8 +883,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Mixed Reality Portal",
@@ -927,8 +927,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Bing Search",
@@ -1015,8 +1015,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "MSN Weather",
@@ -1059,8 +1059,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Alarms & Clock",
@@ -1103,8 +1103,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Cortana",
@@ -1191,8 +1191,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Calculator",
@@ -1235,8 +1235,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Feedback Hub",
@@ -1279,8 +1279,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Maps",
@@ -1323,8 +1323,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Terminal",
@@ -1367,8 +1367,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Power Automate",
@@ -1499,8 +1499,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Sticky Notes",
@@ -1543,8 +1543,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Tips",
@@ -1587,8 +1587,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "To Do: Lists, Tasks & Reminders",
@@ -1631,8 +1631,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Notepad",
@@ -1719,8 +1719,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "OneDrive",

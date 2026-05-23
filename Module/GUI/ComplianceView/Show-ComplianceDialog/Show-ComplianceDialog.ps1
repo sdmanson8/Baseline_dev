@@ -40,6 +40,8 @@ $btnBrowse.Add_Click({
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\ComplianceView\Show-ComplianceDialog\Show-ComplianceDialog.ps1:41' -Severity Debug }
+
 			$summaryLabel.Text = (& $getLocalizedString -Key 'GuiComplianceLoadFailed' -Fallback 'Failed to load profile.')
 			Show-ThemedDialog -Title (& $getLocalizedString -Key 'GuiComplianceTitle' -Fallback 'Check Compliance') -Message ((& $getLocalizedString -Key 'GuiComplianceLoadFailedDetail' -Fallback "Failed to read profile file.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK'
 			return
@@ -140,6 +142,8 @@ $btnBrowse.Add_Click({
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\ComplianceView\Show-ComplianceDialog\Show-ComplianceDialog.ps1:141' -Severity Debug }
+
 				$summaryLabel.Text = (& $getLocalizedString -Key 'GuiComplianceCheckFailed' -Fallback 'Compliance check failed.')
 				Show-ThemedDialog -Title (& $getLocalizedString -Key 'GuiComplianceTitle' -Fallback 'Check Compliance') -Message ((& $getLocalizedString -Key 'GuiComplianceCheckFailedDetail' -Fallback "Compliance check failed.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK'
 				return
@@ -153,6 +157,8 @@ $btnBrowse.Add_Click({
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\ComplianceView\Show-ComplianceDialog\Show-ComplianceDialog.ps1:154' -Severity Debug }
+
 			$summaryLabel.Text = (& $getLocalizedString -Key 'GuiComplianceCheckFailed' -Fallback 'Compliance check failed.')
 			Show-ThemedDialog -Title (& $getLocalizedString -Key 'GuiComplianceTitle' -Fallback 'Check Compliance') -Message ((& $getLocalizedString -Key 'GuiComplianceCheckFailedDetail' -Fallback "Compliance check failed.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK'
 			return

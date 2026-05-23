@@ -414,15 +414,30 @@ Describe 'Get-BaselineEntryExecutionSupport' {
         $result.Reason | Should -Match 'Web Experience Pack'
     }
 
-    It 'marks Defender-backed entries unsupported when Defender is unavailable' {
-        Set-BaselineDefenderExecutionAvailability -Available $false
+    It 'marks Defender cmdlet-backed entries unsupported when the Defender command surface is unavailable' {
+        Set-BaselineDefenderExecutionAvailability -Available $false -UnavailableReason 'Set-MpPreference is not available.'
+        try {
+            $result = Get-BaselineEntryExecutionSupport -Entry ([pscustomobject]@{
+                Function = 'DefenderScanCPULimit'
+            })
+
+            $result.SupportsExecution | Should -BeFalse
+            $result.Reason | Should -Match 'Set-MpPreference is not available'
+        }
+        finally {
+            Reset-BaselineDefenderExecutionAvailability
+        }
+    }
+
+    It 'does not block registry-only Windows Security entries on Defender command availability' {
+        Set-BaselineDefenderExecutionAvailability -Available $false -UnavailableReason 'Set-MpPreference is not available.'
         try {
             $result = Get-BaselineEntryExecutionSupport -Entry ([pscustomobject]@{
                 Function = 'AppsSmartScreen'
             })
 
-            $result.SupportsExecution | Should -BeFalse
-            $result.Reason | Should -Match 'Defender'
+            $result.SupportsExecution | Should -BeTrue
+            $result.Reason | Should -BeNullOrEmpty
         }
         finally {
             Reset-BaselineDefenderExecutionAvailability

@@ -2,6 +2,7 @@ Set-StrictMode -Version Latest
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/PackageManagement.Helpers.ps1'
+    $script:PackageManagementContent = Get-Content -LiteralPath $filePath -Raw
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
@@ -92,6 +93,9 @@ Describe 'Chocolatey bootstrap download and integrity' {
     BeforeEach {
         $script:previousChocolateyHash = $env:BASELINE_CHOCOLATEY_INSTALLER_SHA256
         $script:previousTemp = $env:TEMP
+        $script:chocolateyBootstrapInfoScopes = [System.Collections.Generic.List[string]]::new()
+        $script:chocolateyBootstrapWarningScopes = [System.Collections.Generic.List[string]]::new()
+        $script:chocolateyBootstrapErrorScopes = [System.Collections.Generic.List[string]]::new()
         Remove-Item Env:\BASELINE_CHOCOLATEY_INSTALLER_SHA256 -ErrorAction SilentlyContinue
         $env:TEMP = $TestDrive
 
@@ -106,9 +110,18 @@ Describe 'Chocolatey bootstrap download and integrity' {
             return $Fallback
         }
 
-        function LogInfo { param([string]$Message) }
-        function LogWarning { param([string]$Message) }
-        function LogError { param([string]$Message) }
+        function LogInfo {
+            param([string]$Message, [string]$Scope)
+            [void]$script:chocolateyBootstrapInfoScopes.Add($Scope)
+        }
+        function LogWarning {
+            param([string]$Message, [string]$Scope)
+            [void]$script:chocolateyBootstrapWarningScopes.Add($Scope)
+        }
+        function LogError {
+            param([string]$Message, [string]$Scope)
+            [void]$script:chocolateyBootstrapErrorScopes.Add($Scope)
+        }
 
         Mock Test-ChocolateyBootstrapInteractiveHost { $false }
         Mock Get-ChocolateyVersion { $null }
@@ -142,6 +155,19 @@ Describe 'Chocolatey bootstrap download and integrity' {
         Should -Invoke Invoke-DownloadFile -Times 1
         Should -Invoke Assert-FileHash -Times 0
         Should -Invoke Start-Process -Times 1
+        @($script:chocolateyBootstrapInfoScopes.ToArray() | Where-Object { $_ -ne 'Chocolatey' }) | Should -BeNullOrEmpty
+        @($script:chocolateyBootstrapWarningScopes.ToArray() | Where-Object { $_ -and $_ -ne 'Chocolatey' }) | Should -BeNullOrEmpty
+        @($script:chocolateyBootstrapErrorScopes.ToArray() | Where-Object { $_ -and $_ -ne 'Chocolatey' }) | Should -BeNullOrEmpty
+    }
+
+    It 'uses the Chocolatey scope for already-installed startup status logs' {
+        Mock Get-ChocolateyVersion { '2.7.2' }
+
+        $result = Invoke-ChocolateyBootstrap
+
+        $result.Success | Should -BeTrue
+        $script:chocolateyBootstrapInfoScopes[0] | Should -Be 'Chocolatey'
+        @($script:chocolateyBootstrapInfoScopes.ToArray() | Where-Object { $_ -eq 'Checking installation status...' }) | Should -BeNullOrEmpty
     }
 
     It 'does not require a pinned hash before executing the Chocolatey installer' {
@@ -221,6 +247,9 @@ Describe 'Invoke-WinGetBootstrap' {
         $script:wingetBootstrapInfoMessages = [System.Collections.Generic.List[string]]::new()
         $script:wingetBootstrapWarningMessages = [System.Collections.Generic.List[string]]::new()
         $script:wingetBootstrapErrorMessages = [System.Collections.Generic.List[string]]::new()
+        $script:wingetBootstrapInfoScopes = [System.Collections.Generic.List[string]]::new()
+        $script:wingetBootstrapWarningScopes = [System.Collections.Generic.List[string]]::new()
+        $script:wingetBootstrapErrorScopes = [System.Collections.Generic.List[string]]::new()
         $script:wingetVersionCallCount = 0
         $script:capturedWinGetInstallerArgumentList = $null
         $script:previousTemp = $env:TEMP
@@ -241,18 +270,21 @@ Describe 'Invoke-WinGetBootstrap' {
         }
 
         function LogInfo {
-            param([string]$Message)
+            param([string]$Message, [string]$Scope)
             [void]$script:wingetBootstrapInfoMessages.Add($Message)
+            [void]$script:wingetBootstrapInfoScopes.Add($Scope)
         }
 
         function LogWarning {
-            param([string]$Message)
+            param([string]$Message, [string]$Scope)
             [void]$script:wingetBootstrapWarningMessages.Add($Message)
+            [void]$script:wingetBootstrapWarningScopes.Add($Scope)
         }
 
         function LogError {
-            param([string]$Message)
+            param([string]$Message, [string]$Scope)
             [void]$script:wingetBootstrapErrorMessages.Add($Message)
+            [void]$script:wingetBootstrapErrorScopes.Add($Scope)
         }
 
         function Repair-WinGetPackageManager { }
@@ -265,6 +297,17 @@ Describe 'Invoke-WinGetBootstrap' {
         Remove-Item Function:\LogWarning -ErrorAction SilentlyContinue
         Remove-Item Function:\LogError -ErrorAction SilentlyContinue
         Remove-Item Function:\Repair-WinGetPackageManager -ErrorAction SilentlyContinue
+    }
+
+    It 'uses the Winget scope for already-installed startup status logs' {
+        Mock Get-WinGetVersion { 'v1.28.240' }
+
+        $result = Invoke-WinGetBootstrap
+
+        $result.Success | Should -BeTrue
+        $script:wingetBootstrapInfoMessages[0] | Should -Be 'WinGet is already installed and working. Version: v1.28.240'
+        $script:wingetBootstrapInfoScopes[0] | Should -Be 'Winget'
+        @($script:wingetBootstrapInfoScopes.ToArray() | Where-Object { $_ -eq 'Checking installation status...' }) | Should -BeNullOrEmpty
     }
 
     It 'does not accept a zero exit code as success when stderr reported errors and winget is still unavailable' {

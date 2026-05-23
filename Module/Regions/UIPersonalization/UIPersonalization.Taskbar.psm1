@@ -27,9 +27,9 @@ function Ensure-UIPersonalizationTaskbarRegistryPath
 	Configures taskbar and shell placement settings.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies Baseline's taskbar and shell placement settings in GUI and headless runs.
 	.PARAMETER Left
 	Set the taskbar alignment to the left
@@ -115,9 +115,9 @@ function Set-UIPersonalizationTaskbarAlignment
 	The widgets icon on the taskbar
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the widgets icon on the taskbar.
 	.PARAMETER Hide
 	Hide the widgets icon on the taskbar
@@ -207,9 +207,9 @@ function Set-UIPersonalizationTaskbarWidgets
 	Search on the taskbar
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for search on the taskbar.
 	.PARAMETER Hide
 	Hide the search on the taskbar
@@ -366,9 +366,9 @@ function Set-UIPersonalizationTaskbarSearch
 	Search highlights
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for search highlights.
 	.PARAMETER Hide
 	Hide search highlights
@@ -457,9 +457,9 @@ function Set-UIPersonalizationSearchHighlights
 	Task view button on the taskbar
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for task view button on the taskbar.
 	.PARAMETER Hide
 	Hide the Task view button on the taskbar
@@ -550,9 +550,9 @@ function Set-UIPersonalizationTaskViewButton
 	Combine taskbar buttons and hide labels
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for combine taskbar buttons and hide labels.
 	.PARAMETER Always
 	Combine taskbar buttons and always hide labels (default value)
@@ -676,9 +676,9 @@ function Set-UIPersonalizationTaskbarCombine
 	Unpin shortcuts from the taskbar
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for unpin shortcuts from the taskbar.
 	.PARAMETER Edge
 	Unpin Microsoft Edge shortcut from the taskbar
@@ -796,9 +796,9 @@ function Invoke-UIPersonalizationTaskbarShortcutUnpin
 	End task in taskbar by right click
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for end task in taskbar by right click.
 	.PARAMETER Enable
 	Enable end task in taskbar by right click
@@ -885,9 +885,9 @@ function Set-UIPersonalizationTaskbarEndTask
 	Taskbar transparency/acrylic opacity slider
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for taskbar transparency/acrylic opacity slider.
 	.PARAMETER Opacity
 	Set taskbar acrylic opacity slider value (0-100)
@@ -936,9 +936,9 @@ function Set-TaskbarAcrylicOpacity
 	Small taskbar icons (Windows 10 only)
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for small taskbar icons (Windows 10 only).
 	.PARAMETER Enable
 	Use small taskbar icons
@@ -1018,9 +1018,9 @@ function Set-SmallTaskbarIcons
 	Alt+Tab filter to exclude Edge tabs
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for alt+Tab filter to exclude Edge tabs.
 	.PARAMETER Enable
 	Exclude Edge tabs from Alt+Tab switcher
@@ -1100,9 +1100,9 @@ function Set-AltTabEdgeTabFilter
 	Battery percentage in the system tray (laptops only)
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for battery percentage in the system tray (laptops only).
 	.PARAMETER Enable
 	Show battery percentage on the tray battery icon

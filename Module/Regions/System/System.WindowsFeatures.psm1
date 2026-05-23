@@ -295,7 +295,7 @@ function Invoke-WindowsCapabilityDismOperation
 
 		[ValidateRange(1, 86400)]
 		[int]
-		$TimeoutSeconds = 3600
+		$TimeoutSeconds = 180
 	)
 
 	$dismPath = Join-Path $env:SystemRoot 'System32\dism.exe'
@@ -415,7 +415,7 @@ function WindowsCapabilities
 	[string[]]$CheckedCapabilities = @(Get-WindowsCapabilityCheckedDefaults)
 	[string[]]$UncheckedCapabilities = @(Get-WindowsCapabilityUncheckedDefaults)
 	[string[]]$ExcludedCapabilities = @(Get-WindowsCapabilityExcludedDefaults)
-	$CapabilityOperationTimeoutSeconds = 3600
+	$CapabilityOperationTimeoutSeconds = 180
 	#endregion Variables
 
 	#region XAML Markup
@@ -457,7 +457,7 @@ function WindowsCapabilities
 	    .SYNOPSIS
 	    Gets selected capability list.
 
-	    	#>
+		#>
 
 	function Get-SelectedCapabilityList
 	{
@@ -468,7 +468,7 @@ function WindowsCapabilities
 	    .SYNOPSIS
 	    Gets selected capability names.
 
-	    	#>
+		#>
 	function Get-SelectedCapabilityNames
 	{
 		return @(
@@ -493,7 +493,7 @@ function WindowsCapabilities
 	    .SYNOPSIS
 	    Gets capability friendly name.
 
-	    	#>
+		#>
 
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsCapabilities\CapabilityFriendlyName.ps1')
 
@@ -501,7 +501,7 @@ function WindowsCapabilities
 	    .SYNOPSIS
 	    Creates capability info icon.
 
-	    	#>
+		#>
 
 	function New-CapabilityInfoIcon
 	{
@@ -514,7 +514,7 @@ function WindowsCapabilities
 	    .SYNOPSIS
 	    Adds capability control.
 
-	    	#>
+		#>
 
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsCapabilities\CapabilityControlFactory.ps1')
 	#endregion Functions
@@ -690,9 +690,9 @@ function WindowsCapabilities
 	Windows features
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for windows features.
 	.PARAMETER Disable
 	Disable Windows features
@@ -806,7 +806,7 @@ function WindowsFeatures
 	    .SYNOPSIS
 	    Checks feature pattern match.
 
-	    	#>
+		#>
 
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsFeatures\FeaturePatternMatching.ps1')
 
@@ -814,7 +814,7 @@ function WindowsFeatures
 	    .SYNOPSIS
 	    Gets selected feature list.
 
-	    	#>
+		#>
 
 	function Get-SelectedFeatureList
 	{
@@ -825,7 +825,7 @@ function WindowsFeatures
 	    .SYNOPSIS
 	    Gets selected feature names.
 
-	    	#>
+		#>
 	function Get-SelectedFeatureNames
 	{
 		return @(
@@ -847,7 +847,7 @@ function WindowsFeatures
 	    .SYNOPSIS
 	    Creates feature info icon.
 
-	    	#>
+		#>
 
 	function New-FeatureInfoIcon
 	{
@@ -860,7 +860,7 @@ function WindowsFeatures
 	    .SYNOPSIS
 	    Adds feature control.
 
-	    	#>
+		#>
 
 		. (Join-Path $PSScriptRoot 'WindowsFeatures\WindowsFeatures\FeatureControlFactory.ps1')
 

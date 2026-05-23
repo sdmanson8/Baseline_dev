@@ -293,7 +293,9 @@ function Get-GuiDirectorySize
 	$total = [Int64]0
 	foreach ($file in @(Get-ChildItem -LiteralPath $Path -Recurse -File -Force -ErrorAction SilentlyContinue))
 	{
-		try { $total += [Int64]$file.Length } catch { $null = $_ }
+		try { $total += [Int64]$file.Length } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SettingsDialogs.Get-GuiDirectorySize:catch296' -Severity Debug }
+		 $null = $_ }
 	}
 	return $total
 }
@@ -395,7 +397,9 @@ function Remove-GuiWorkingCache
 	$activeExtractedRoot = ''
 	if (-not [string]::IsNullOrWhiteSpace([string]$Script:GuiExtractedRoot))
 	{
-		try { $activeExtractedRoot = [System.IO.Path]::GetFullPath([string]$Script:GuiExtractedRoot) } catch { $activeExtractedRoot = '' }
+		try { $activeExtractedRoot = [System.IO.Path]::GetFullPath([string]$Script:GuiExtractedRoot) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SettingsDialogs.Remove-GuiWorkingCache:catch398' -Severity Debug }
+		 $activeExtractedRoot = '' }
 	}
 
 	$removed = 0
@@ -721,6 +725,11 @@ function Show-GuiSettingsDialog
 		$chkRestoreLastSession = $dlg.FindName('ChkRestoreLastSession')
 		$chkAutoScanOnLaunch = $dlg.FindName('ChkAutoScanOnLaunch')
 		$chkHideUnavailableItems = $dlg.FindName('ChkHideUnavailableItems')
+		$chkStartupRunInitialActions = $dlg.FindName('ChkStartupRunInitialActions')
+		$chkStartupCheckWinGet = $dlg.FindName('ChkStartupCheckWinGet')
+		$cmbStartupWinGetCheckFrequency = $dlg.FindName('CmbStartupWinGetCheckFrequency')
+		$chkStartupCheckChocolatey = $dlg.FindName('ChkStartupCheckChocolatey')
+		$cmbStartupChocolateyCheckFrequency = $dlg.FindName('CmbStartupChocolateyCheckFrequency')
 		$chkAutoCheckUpdates = $dlg.FindName('ChkAutoCheckUpdates')
 		$cmbUpdateFrequency = $dlg.FindName('CmbUpdateFrequency')
 		$cmbUpdateBranch = $dlg.FindName('CmbUpdateBranch')
@@ -751,7 +760,6 @@ function Show-GuiSettingsDialog
 		$btnClearOldLogs = $dlg.FindName('BtnClearOldLogs')
 		$btnSettingsExportSupportBundle = $dlg.FindName('BtnSettingsExportSupportBundle')
 		$chkAdvancedMode = $dlg.FindName('ChkAdvancedMode')
-		$chkExperimentalFeatures = $dlg.FindName('ChkExperimentalFeatures')
 		$chkDesignMode = $dlg.FindName('ChkDesignMode')
 		$txtStorageUsage = $dlg.FindName('TxtStorageUsage')
 		$txtStorageLocation = $dlg.FindName('TxtStorageLocation')
@@ -759,6 +767,25 @@ function Show-GuiSettingsDialog
 		$btnClearCache = $dlg.FindName('BtnClearCache')
 		if ($chkDesignMode) { $chkDesignMode.IsEnabled = $true }
 		$resultRef = @{ Value = $null }
+
+		if (Get-Command -Name 'Set-GuiTabHeaderWithIcon' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			foreach ($tabDefinition in @(
+				@{ Name = 'TabSettingsGeneral'; Icon = 'WindowSettings'; Text = $generalHeading }
+				@{ Name = 'TabSettingsAppearance'; Icon = 'Theme'; Text = $appearanceHeading }
+				@{ Name = 'TabSettingsSafety'; Icon = 'Shield'; Text = $safetyHeading }
+				@{ Name = 'TabSettingsApps'; Icon = 'AppsTab'; Text = $appsHeading }
+				@{ Name = 'TabSettingsLogging'; Icon = 'OpenLog'; Text = $loggingHeading }
+				@{ Name = 'TabSettingsAdvanced'; Icon = 'Advanced'; Text = $advancedHeading }
+			))
+			{
+				$tab = $dlg.FindName([string]$tabDefinition.Name)
+				if ($tab)
+				{
+					Set-GuiTabHeaderWithIcon -Tab $tab -IconName ([string]$tabDefinition.Icon) -Text ([string]$tabDefinition.Text) -IconSize 14 -Gap 6
+				}
+			}
+		}
 
 		$settingsInputBgBrush = ConvertTo-GuiBrush -Color $surfaceControl -Context 'DialogHelpers.ShowGuiSettingsDialog.InputBg' -FallbackColor '#262D40'
 		$settingsInputBorderBrush = ConvertTo-GuiBrush -Color $controlBorder -Context 'DialogHelpers.ShowGuiSettingsDialog.InputBorder' -FallbackColor '#293044'
@@ -897,7 +924,7 @@ function Show-GuiSettingsDialog
 
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\LogLevelSelection.ps1')
 
-		foreach ($settingsCombo in @($cmbDefaultStartupMode, $cmbUpdateFrequency, $cmbUpdateBranch, $cmbTheme, $cmbUIDensity, $cmbAuditRetention, $cmbPackageSource, $cmbLogLevel))
+		foreach ($settingsCombo in @($cmbDefaultStartupMode, $cmbStartupWinGetCheckFrequency, $cmbStartupChocolateyCheckFrequency, $cmbUpdateFrequency, $cmbUpdateBranch, $cmbTheme, $cmbUIDensity, $cmbAuditRetention, $cmbPackageSource, $cmbLogLevel))
 		{
 			& $applySettingsInputTheme $settingsCombo
 		}
@@ -905,6 +932,27 @@ function Show-GuiSettingsDialog
 		if ($chkRestoreLastSession) { $chkRestoreLastSession.IsChecked = if ($Current.ContainsKey('RestoreLastSession')) { [bool]$Current.RestoreLastSession } else { $true } }
 		if ($chkAutoScanOnLaunch) { $chkAutoScanOnLaunch.IsChecked = if ($Current.ContainsKey('AutoScanOnLaunch')) { [bool]$Current.AutoScanOnLaunch } else { $false } }
 		if ($chkHideUnavailableItems) { $chkHideUnavailableItems.IsChecked = if ($Current.ContainsKey('HideUnavailableItems')) { [bool]$Current.HideUnavailableItems } else { $true } }
+		if ($chkStartupRunInitialActions) { $chkStartupRunInitialActions.IsChecked = if ($Current.ContainsKey('StartupRunInitialActions')) { [bool]$Current.StartupRunInitialActions } else { $true } }
+		if ($chkStartupCheckWinGet) { $chkStartupCheckWinGet.IsChecked = if ($Current.ContainsKey('StartupCheckWinGet')) { [bool]$Current.StartupCheckWinGet } else { $true } }
+		if ($chkStartupCheckChocolatey) { $chkStartupCheckChocolatey.IsChecked = if ($Current.ContainsKey('StartupCheckChocolatey')) { [bool]$Current.StartupCheckChocolatey } else { $true } }
+		foreach ($startupFrequencyCombo in @($cmbStartupWinGetCheckFrequency, $cmbStartupChocolateyCheckFrequency))
+		{
+			if ($startupFrequencyCombo)
+			{
+				& $addComboItem $startupFrequencyCombo $settingsOptionUpdateStartup 'Startup'
+				& $addComboItem $startupFrequencyCombo $settingsOptionUpdateDaily 'Daily'
+				& $addComboItem $startupFrequencyCombo $settingsOptionUpdateWeekly 'Weekly'
+			}
+		}
+		$selectedStartupWinGetFrequency = if ($Current.ContainsKey('StartupWinGetCheckFrequency') -and -not [string]::IsNullOrWhiteSpace([string]$Current.StartupWinGetCheckFrequency)) { [string]$Current.StartupWinGetCheckFrequency } else { 'Startup' }
+		$selectedStartupChocolateyFrequency = if ($Current.ContainsKey('StartupChocolateyCheckFrequency') -and -not [string]::IsNullOrWhiteSpace([string]$Current.StartupChocolateyCheckFrequency)) { [string]$Current.StartupChocolateyCheckFrequency } else { 'Startup' }
+		if (Get-Command -Name 'ConvertTo-BaselineUpdateCheckFrequency' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			$selectedStartupWinGetFrequency = ConvertTo-BaselineUpdateCheckFrequency -Frequency $selectedStartupWinGetFrequency
+			$selectedStartupChocolateyFrequency = ConvertTo-BaselineUpdateCheckFrequency -Frequency $selectedStartupChocolateyFrequency
+		}
+		& $selectComboByTag $cmbStartupWinGetCheckFrequency $selectedStartupWinGetFrequency
+		& $selectComboByTag $cmbStartupChocolateyCheckFrequency $selectedStartupChocolateyFrequency
 		if ($chkAutoCheckUpdates) { $chkAutoCheckUpdates.IsChecked = if ($Current.ContainsKey('AutoCheckUpdates')) { [bool]$Current.AutoCheckUpdates } else { $true } }
 		if ($chkIncludePrereleaseUpdates) { $chkIncludePrereleaseUpdates.IsChecked = if ($Current.ContainsKey('IncludePrereleaseUpdates')) { [bool]$Current.IncludePrereleaseUpdates } else { $false } }
 		if ($chkSafeModeDefault) { $chkSafeModeDefault.IsChecked = if ($Current.ContainsKey('SafeMode')) { [bool]$Current.SafeMode } else { $false } }
@@ -915,7 +963,6 @@ function Show-GuiSettingsDialog
 		if ($chkLoggingEnabled) { $chkLoggingEnabled.IsChecked = if ($Current.ContainsKey('LoggingEnabled')) { [bool]$Current.LoggingEnabled } else { $true } }
 		if ($chkDebugLogging) { $chkDebugLogging.IsChecked = if ($Current.ContainsKey('DebugLoggingEnabled')) { [bool]$Current.DebugLoggingEnabled } else { $false } }
 		if ($chkAdvancedMode) { $chkAdvancedMode.IsChecked = if ($Current.ContainsKey('AdvancedMode')) { [bool]$Current.AdvancedMode } else { $false } }
-		if ($chkExperimentalFeatures) { $chkExperimentalFeatures.IsChecked = if ($Current.ContainsKey('ExperimentalFeatures')) { [bool]$Current.ExperimentalFeatures } else { $false } }
 		if ($chkDesignMode) { $chkDesignMode.IsChecked = if ($Current.ContainsKey('DesignMode')) { [bool]$Current.DesignMode } else { [bool]$Script:DesignMode } }
 
 		$settingsUpdateState = @{
@@ -926,6 +973,21 @@ function Show-GuiSettingsDialog
 		}
 		$currentVersionText = if ($Current.ContainsKey('CurrentVersion') -and -not [string]::IsNullOrWhiteSpace([string]$Current.CurrentVersion)) { [string]$Current.CurrentVersion } else { '0.0.0' }
 		. (Join-Path $PSScriptRoot 'SettingsDialogs\Show-GuiSettingsDialog\UpdateStatusDisplay.ps1')
+		$syncStartupSplashPackageManagerControls = {
+			if ($cmbStartupWinGetCheckFrequency) { $cmbStartupWinGetCheckFrequency.IsEnabled = (-not $chkStartupCheckWinGet) -or [bool]$chkStartupCheckWinGet.IsChecked }
+			if ($cmbStartupChocolateyCheckFrequency) { $cmbStartupChocolateyCheckFrequency.IsEnabled = (-not $chkStartupCheckChocolatey) -or [bool]$chkStartupCheckChocolatey.IsChecked }
+		}.GetNewClosure()
+		if ($chkStartupCheckWinGet)
+		{
+			$chkStartupCheckWinGet.Add_Checked({ & $syncStartupSplashPackageManagerControls }.GetNewClosure())
+			$chkStartupCheckWinGet.Add_Unchecked({ & $syncStartupSplashPackageManagerControls }.GetNewClosure())
+		}
+		if ($chkStartupCheckChocolatey)
+		{
+			$chkStartupCheckChocolatey.Add_Checked({ & $syncStartupSplashPackageManagerControls }.GetNewClosure())
+			$chkStartupCheckChocolatey.Add_Unchecked({ & $syncStartupSplashPackageManagerControls }.GetNewClosure())
+		}
+		& $syncStartupSplashPackageManagerControls
 		$getUpdateBranchSelection = {
 			$defaultUpdateBranch = if (Get-Command -Name 'Get-BaselineDefaultUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineDefaultUpdateBranch } else { 'Stable' }
 			$branch = if ($cmbUpdateBranch -and $cmbUpdateBranch.SelectedItem -and $null -ne $cmbUpdateBranch.SelectedItem.Tag) { [string]$cmbUpdateBranch.SelectedItem.Tag } else { $defaultUpdateBranch }

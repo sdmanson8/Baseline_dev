@@ -358,8 +358,9 @@
 			Application      = $Application
 			SelectedApps     = @($selectedApps)
 			AppCompletedCount = 0
+			AppCurrentProgressCount = 0
 			AppProgressTotal = $(if ($selectedCount -gt 0) { $selectedCount } else { 1 })
-			AppProgressIndeterminate = ($selectedCount -le 1)
+			AppProgressIndeterminate = $false
 			AppUseStructuredProgress = $false
 			WasAppsModeActive = $wasAppsModeActive
 		})
@@ -425,17 +426,75 @@
 		    .SYNOPSIS
 		#>
 
-		function New-ResolvedExecutionTweak
+		function Get-ResolvedExecutionTweakFieldValue
 		{
 			param (
 				[Parameter(Mandatory = $true)]
+				[AllowNull()]
 				$SourceTweak,
 
 				[Parameter(Mandatory = $true)]
-				[hashtable]$ResolvedExtraArgs,
+				[string]$FieldName
+			)
+
+			if ($null -eq $SourceTweak -or [string]::IsNullOrWhiteSpace($FieldName))
+			{
+				return $null
+			}
+
+			if ($SourceTweak -is [System.Collections.IDictionary])
+			{
+				if ($SourceTweak.Contains($FieldName))
+				{
+					return $SourceTweak[$FieldName]
+				}
+
+				return $null
+			}
+
+			if ($SourceTweak.PSObject -and $SourceTweak.PSObject.Properties[$FieldName])
+			{
+				return $SourceTweak.$FieldName
+			}
+
+			return $null
+		}
+
+		<#
+		    .SYNOPSIS
+		#>
+
+		function Set-ResolvedExecutionTweakFieldValue
+		{
+			param (
+				[Parameter(Mandatory = $true)]
+				$TargetTweak,
 
 				[Parameter(Mandatory = $true)]
-				[string]$SelectionLabel
+				[string]$FieldName,
+
+				[AllowNull()]
+				$Value
+			)
+
+			if ($TargetTweak -is [System.Collections.IDictionary])
+			{
+				$TargetTweak[$FieldName] = $Value
+				return
+			}
+
+			Add-Member -InputObject $TargetTweak -NotePropertyName $FieldName -NotePropertyValue $Value -Force
+		}
+
+		<#
+		    .SYNOPSIS
+		#>
+
+		function Copy-ResolvedExecutionTweakWithGateMetadata
+		{
+			param (
+				[Parameter(Mandatory = $true)]
+				$SourceTweak
 			)
 
 			if ($SourceTweak -is [System.Collections.IDictionary])
@@ -445,24 +504,58 @@
 				{
 					$resolvedTweak[[string]$entry.Key] = $entry.Value
 				}
-				$resolvedTweak['ExtraArgs'] = $ResolvedExtraArgs
-				$resolvedTweak['Selection'] = $SelectionLabel
+			}
+			else
+			{
+				$resolvedTweakMap = [ordered]@{}
+				foreach ($property in $SourceTweak.PSObject.Properties)
+				{
+					$resolvedTweakMap[[string]$property.Name] = $property.Value
+				}
+				$resolvedTweak = [pscustomobject]$resolvedTweakMap
+			}
+
+			$functionName = [string](Get-ResolvedExecutionTweakFieldValue -SourceTweak $SourceTweak -FieldName 'Function')
+			if ([string]::IsNullOrWhiteSpace($functionName) -or -not $Script:TweakManifest)
+			{
 				return $resolvedTweak
 			}
 
-			$resolvedTweak = [ordered]@{}
-			foreach ($property in $SourceTweak.PSObject.Properties)
+			$manifestEntry = $null
+			try
 			{
-				$resolvedTweak[[string]$property.Name] = $property.Value
+				if (Get-Command -Name 'Get-ManifestEntryByFunction' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					$manifestEntry = Get-ManifestEntryByFunction -Manifest $Script:TweakManifest -Function $functionName
+				}
 			}
-			$resolvedTweak['ExtraArgs'] = $ResolvedExtraArgs
-			$resolvedTweak['Selection'] = $SelectionLabel
-			return [pscustomobject]$resolvedTweak
+			catch
+			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Copy-ResolvedExecutionTweakWithGateMetadata:catch532' -Severity Debug }
+
+				$manifestEntry = $null
+			}
+
+			if (-not $manifestEntry)
+			{
+				return $resolvedTweak
+			}
+
+			foreach ($gateFieldName in @('Availability', 'SupportsExecution', 'SupportsExecutionReason', 'TimeoutSeconds'))
+			{
+				$gateFieldValue = Get-ResolvedExecutionTweakFieldValue -SourceTweak $manifestEntry -FieldName $gateFieldName
+				if ($null -ne $gateFieldValue)
+				{
+					Set-ResolvedExecutionTweakFieldValue -TargetTweak $resolvedTweak -FieldName $gateFieldName -Value $gateFieldValue
+				}
+			}
+
+			return $resolvedTweak
 		}
 
 		foreach ($tweak in $tweaks)
 		{
-			[void]$resolvedTweaks.Add($tweak)
+			[void]$resolvedTweaks.Add((Copy-ResolvedExecutionTweakWithGateMetadata -SourceTweak $tweak))
 		}
 
 		return @($resolvedTweaks)
@@ -774,7 +867,9 @@
 		)
 
 		$remoteContext = $null
-		try { $remoteContext = Get-GuiRemoteTargetContext } catch { $remoteContext = $null }
+		try { $remoteContext = Get-GuiRemoteTargetContext } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Invoke-GuiExecutionRemoteRun:catch868' -Severity Debug }
+		 $remoteContext = $null }
 		if (-not ($remoteContext -and $remoteContext.Connected -and $remoteContext.TargetComputers.Count -gt 0))
 		{
 			return $false
@@ -981,14 +1076,14 @@
 		$Script:ExecutionMode = $Mode
 
 		Set-GuiStatusText -Text $PreparingRunLabel -Tone 'accent'
-		Stop-Foreground
 		if ($Mode -eq 'Defaults')
 		{
 			Save-GuiUndoSnapshot
 		}
 
-		if ($Script:GuiState) { & $Script:GuiState.Set 'RunInProgress' $true } else { $Script:RunInProgress = $true }
-		if ((Test-GuiObjectField -Object $PrimaryTabs -FieldName 'IsEnabled')) { $PrimaryTabs.IsEnabled = $false }
+		$Script:RunInProgress = $true
+		if ($Script:Ctx -and $Script:Ctx.ContainsKey('Run')) { $Script:Ctx.Run.InProgress = $true }
+		if ($Script:GuiState) { & $Script:GuiState.Set 'RunInProgress' $true }
 		if ((Test-GuiObjectField -Object $BtnRun -FieldName 'Content')) { $BtnRun.Content = Get-UxLocalizedString -Key 'GuiPauseButton' -Fallback 'Pause' }
 		if ((Test-GuiObjectField -Object $BtnRun -FieldName 'IsEnabled')) { $BtnRun.IsEnabled = $true }
 		if ((Test-GuiObjectField -Object $BtnPreviewRun -FieldName 'IsEnabled')) { $BtnPreviewRun.IsEnabled = $false }
@@ -1031,42 +1126,61 @@
 		$null = Invoke-GuiDispatcherAction -Dispatcher $Form.Dispatcher -PriorityUsage 'RenderRefresh' -Synchronous -Action {}
 	}
 
-	function Save-GuiExecutionPreRunSnapshot
+	function Sync-GuiExecutionPreRunSnapshotFromRunState
 	{
 		[CmdletBinding()]
 		param ()
 
-		try
+		if (-not $Script:RunState)
 		{
-			$Script:PreRunSnapshot = $null
-			$Script:PostRunSnapshot = $null
-			if ($Script:RunState)
-			{
-				$Script:RunState['PreRunSnapshot'] = $null
-				$Script:RunState['PostRunSnapshot'] = $null
-			}
-			$preRunSnapshot = New-SystemStateSnapshot -Manifest $Script:TweakManifest
-			$Script:PreRunSnapshot = $preRunSnapshot
-			if ($Script:RunState)
-			{
-				$Script:RunState['PreRunSnapshot'] = $preRunSnapshot
-			}
-			$snapshotDir = Join-Path (Get-BaselineDataDirectory) 'Snapshots'
-			if (-not (Test-Path $snapshotDir)) { New-Item -Path $snapshotDir -ItemType Directory -Force | Out-Null }
-			Limit-SnapshotDirectory -Directory $snapshotDir -Keep 10
-			$snapshotPath = Join-Path $snapshotDir ('PreRun-{0}.json' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
-			Export-SystemStateSnapshot -Snapshot $preRunSnapshot -Path $snapshotPath
-			LogInfo (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionPreRunSnapshotSaved' -Fallback 'Pre-run snapshot saved: {0} entries captured to {1}' -FormatArgs @($preRunSnapshot.Entries.Count, $snapshotPath))
+			return
 		}
-		catch
+
+		if ($Script:RunState.ContainsKey('PreRunSnapshot'))
 		{
-			LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionPreRunSnapshotFailed' -Fallback 'Failed to capture pre-run snapshot'))
+			$Script:PreRunSnapshot = $Script:RunState['PreRunSnapshot']
 		}
+	}
+
+	function Get-GuiExecutionRunLogColor
+	{
+			param($Level = 'INFO')
+			switch ($Level.ToUpperInvariant())
+			{
+				'SUCCESS' { return $Script:CurrentTheme.ToggleOn }
+				'SKIP'    { return $Script:CurrentTheme.TextMuted }
+				'ERROR'   { return $Script:CurrentTheme.CautionText }
+				'WARNING' { return $Script:CurrentTheme.RiskMediumBadge }
+				default   { return $Script:CurrentTheme.TextPrimary }
+			}
+	}
+
+	function Set-GuiExecutionRunLogLine
+	{
+			param($Block, $Text, $Level = 'INFO')
+			if (-not $Block -or -not $Script:ExecutionLogBox -or -not $Script:ExecutionLogBox.Document) { return }
+			$cleanText = ($Text -replace '[\x00-\x08\x0B\x0C\x0E-\x1F]', '').Trim()
+			if ([string]::IsNullOrWhiteSpace($cleanText)) { return }
+
+			$paragraph = $Block -as [System.Windows.Documents.Paragraph]
+			if (-not $paragraph) { return }
+
+			$bc = [System.Windows.Media.BrushConverter]::new()
+			$paragraph.Inlines.Clear()
+			$contentRun = New-Object System.Windows.Documents.Run
+			$contentRun.Text = $cleanText
+			$contentRun.Foreground = $bc.ConvertFromString((Get-GuiExecutionRunLogColor -Level $Level))
+			[void]($paragraph.Inlines.Add($contentRun))
+
+			$vO = $Script:ExecutionLogBox.VerticalOffset
+			$vH = $Script:ExecutionLogBox.ViewportHeight
+			$eH = $Script:ExecutionLogBox.ExtentHeight
+			if (($vO + $vH) -ge ($eH - 30)) { $Script:ExecutionLogBox.ScrollToEnd() }
 	}
 
 	function Add-GuiExecutionRunLogLine
 	{
-			param($Text, $Level = 'INFO')
+			param($Text, $Level = 'INFO', [switch]$PassThru)
 			if (-not $Script:ExecutionLogBox -or -not $Script:ExecutionLogBox.Document) { return }
 			$cleanText = ($Text -replace '[\x00-\x08\x0B\x0C\x0E-\x1F]', '').Trim()
 			if ([string]::IsNullOrWhiteSpace($cleanText)) { return }
@@ -1080,22 +1194,15 @@
 
 			$contentRun = New-Object System.Windows.Documents.Run
 			$contentRun.Text = $cleanText
-			$contentColor = switch ($Level.ToUpperInvariant())
-			{
-				'SUCCESS' { $Script:CurrentTheme.ToggleOn }
-				'SKIP'    { $Script:CurrentTheme.TextMuted }
-				'ERROR'   { $Script:CurrentTheme.CautionText }
-				'WARNING' { $Script:CurrentTheme.RiskMediumBadge }
-				default   { $Script:CurrentTheme.TextPrimary }
-			}
-			$contentRun.Foreground = $bc.ConvertFromString($contentColor)
+			$contentRun.Foreground = $bc.ConvertFromString((Get-GuiExecutionRunLogColor -Level $Level))
 			[void]($para.Inlines.Add($contentRun))
 			[void]($Script:ExecutionLogBox.Document.Blocks.Add($para))
 			$vO = $Script:ExecutionLogBox.VerticalOffset
 			$vH = $Script:ExecutionLogBox.ViewportHeight
 			$eH = $Script:ExecutionLogBox.ExtentHeight
 			if (($vO + $vH) -ge ($eH - 30)) { $Script:ExecutionLogBox.ScrollToEnd() }
-		
+			if ($PassThru) { return $para }
+
 	}
 
 	function Invoke-GuiExecutionRunQueueEntry
@@ -1160,7 +1267,8 @@
 						if ($wasSkipped)
 						{
 							$completedRecord = if (-not [string]::IsNullOrWhiteSpace($completedKey)) { $Script:ExecutionSummaryLookup[$completedKey] } else { $null }
-							$resolvedOutcome = GUIExecution\Get-GuiExecutionOutcome -Status 'Skipped' -Detail $skipDetail -RequiresRestart $(if ($completedRecord -and (Test-GuiObjectField -Object $completedRecord -FieldName 'RequiresRestart')) { [bool]$completedRecord.RequiresRestart } else { $false })
+							$skipStatus = if ($completedStatus -eq 'not applicable') { 'Not applicable' } else { 'Skipped' }
+							$resolvedOutcome = GUIExecution\Get-GuiExecutionOutcome -Status $skipStatus -Detail $skipDetail -RequiresRestart $(if ($completedRecord -and (Test-GuiObjectField -Object $completedRecord -FieldName 'RequiresRestart')) { [bool]$completedRecord.RequiresRestart } else { $false })
 							Set-ExecutionSummaryStatus -Key $completedKey -Status $resolvedOutcome -Detail $skipDetail
 						}
 						else
@@ -1266,6 +1374,34 @@
 				}
 				'_RunNotice'
 				{
+					$noticeMessage = if ((Test-GuiObjectField -Object $entry -FieldName 'Message')) { [string]$entry.Message } else { '' }
+					if (-not [string]::IsNullOrWhiteSpace($noticeMessage))
+					{
+						$noticeLevel = if ((Test-GuiObjectField -Object $entry -FieldName 'Level') -and [string]$entry.Level -in @('INFO', 'WARNING', 'ERROR', 'DEBUG')) { [string]$entry.Level } else { 'INFO' }
+						$noticeDiagnostic = ((Test-GuiObjectField -Object $entry -FieldName 'Diagnostic') -and [bool]$entry.Diagnostic) -or $noticeLevel -eq 'DEBUG'
+						$noticeProgressOnly = ((Test-GuiObjectField -Object $entry -FieldName 'ProgressOnly') -and [bool]$entry.ProgressOnly)
+						if ($noticeDiagnostic)
+						{
+							if (-not $noticeProgressOnly)
+							{
+								LogDebug -Message $noticeMessage -Always
+							}
+						}
+						else
+						{
+							& $Script:AppendLogFn $noticeMessage $noticeLevel
+							switch ($noticeLevel)
+							{
+								'ERROR' { LogError $noticeMessage }
+								'WARNING' { LogWarning $noticeMessage }
+								default { LogInfo $noticeMessage }
+							}
+						}
+						if ((Test-GuiObjectField -Object $entry -FieldName 'Progress') -and [bool]$entry.Progress)
+						{
+							& $Script:UpdateProgressFn -Completed $Script:RunState['CompletedCount'] -Total $Script:TotalRunnableTweaks -CurrentAction $noticeMessage
+						}
+					}
 				}
 				'ConsoleAction'
 				{
@@ -1445,18 +1581,25 @@
 					}
 					}
 				}
-			
+
 	}
 
 	function Invoke-GuiExecutionRunQueueDrain
 	{
+				param (
+					[int]$MaxEntries = 64,
+					[int]$MaxMilliseconds = 40
+				)
+
 				$qEntry = $null
+				$processedEntries = 0
+				$drainStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 				while ($Script:RunState['LogQueue'].TryDequeue([ref]$qEntry))
 				{
 					try
 					{
 						Update-ExecutionActivityHeartbeat -RunState $Script:RunState
-						& $Script:DrainEntry $qEntry
+						$null = & $Script:DrainEntry $qEntry
 					}
 					catch
 					{
@@ -1510,14 +1653,27 @@
 							}
 						}
 
-						LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionQueueEntryFailed' -Fallback '[Timer] Queue entry failed [{0}]' -FormatArgs @($entryLabel)))
+						$entryError = if ($_.Exception) { [string]$_.Exception.Message } else { [string]$_ }
+						LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionQueueEntryFailed' -Fallback '[Timer] Queue entry failed [{0}]: {1}' -FormatArgs @($entryLabel, $entryError)))
 					}
 					finally
 					{
 						$qEntry = $null
 					}
+
+					$processedEntries++
+					if ($MaxEntries -gt 0 -and $processedEntries -ge $MaxEntries)
+					{
+						break
+					}
+					if ($MaxMilliseconds -gt 0 -and $drainStopwatch.ElapsedMilliseconds -ge $MaxMilliseconds)
+					{
+						break
+					}
 				}
-			
+
+				return (-not $Script:RunState['LogQueue'].IsEmpty)
+
 	}
 
 	<#
@@ -1586,22 +1742,21 @@
 
 		Initialize-ExecutionSummary -SelectedTweaks $tweakList
 
-		$tweakList = @(Resolve-GuiExecutionRunnableTweaks -TweakList $tweakList -ForceUnsupported:$ForceUnsupported)
+		Set-GuiExecutionGameModeRunContext -TweakList $tweakList
 
 		# Pre-flight checks (including restore point creation) already ran
-		# and were confirmed via the Plan Summary dialog. Do not re-run.
-
-		Set-GuiExecutionGameModeRunContext -TweakList $tweakList
+		# and were confirmed via the Plan Summary dialog. Availability and
+		# execution-support gates are enforced by the worker for each entry so
+		# large confirmed selections do not block the WPF dispatcher here.
 
 		$preparingRunLabel = Get-UxLocalizedString -Key 'GuiProgressPreparingRun' -Fallback 'Busy - preparing run...'
 		Initialize-GuiExecutionRunState -Mode $Mode -TotalRunnableTweaks $tweakList.Count -PreparingRunLabel $preparingRunLabel -ExecutionTitle $ExecutionTitle
-		Save-GuiExecutionPreRunSnapshot
 
 		# Track this apply run in session statistics
 		Add-SessionStatistic -Name 'ApplyRunCount'
 		Update-SessionStatistics -Values @{ TweaksSelected = $tweakList.Count }
 
-		Set-GuiStatusText -Text $(if ($Mode -eq 'Defaults') { (Get-UxLocalizedString -Key 'GuiStatusRestoringDefaults' -Fallback '') } else { (Get-UxLocalizedString -Key 'GuiStatusRunningTweaks' -Fallback '') }) -Tone 'accent'
+		Set-GuiStatusText -Text $(if ($Mode -eq 'Defaults') { (Get-UxLocalizedString -Key 'GuiStatusRestoringDefaultValues' -Fallback 'Restoring default values...') } else { (Get-UxLocalizedString -Key 'GuiStatusRunningTweaks' -Fallback '') }) -Tone 'accent'
 		& $Script:UpdateProgressFn -Completed 0 -Total 0 -CurrentAction (Get-UxLocalizedString -Key 'GuiProgressStarting' -Fallback 'Starting...')
 		$null = Invoke-GuiDispatcherAction -Dispatcher $Form.Dispatcher -PriorityUsage 'RenderRefresh' -Synchronous -Action {}
 
@@ -1623,25 +1778,39 @@
 		$bgUICulture   = $PSUICulture
 		$bgLogFilePath = $Global:LogFilePath
 
-		$Script:ExecutionWorker = GUIExecution\Start-GuiExecutionWorker `
-			-RunState $Script:RunState `
-			-TweakList $tweakList `
-			-Mode $Mode `
-			-LoaderPath $bgLoaderPath `
-			-LocalizationDirectory $bgLocDir `
-			-UICulture $bgUICulture `
-			-LogFilePath $bgLogFilePath `
-			-LogMode $(if (Get-ExecutionGameModeContext) { 'Game' } else { $null }) `
-			-ForceUnsupported:$ForceUnsupported
+		LogDebug -Message ("Execution startup: dispatching background worker. mode={0}; selected={1}; loader={2}; log={3}" -f $Mode, $tweakList.Count, $bgLoaderPath, $bgLogFilePath) -Always
+		$workerStartPerf = Start-GuiPerfScope -Name 'Execution.WorkerStart' -Note ("mode={0}; selected={1}" -f $Mode, $tweakList.Count)
+		try
+		{
+			$Script:ExecutionWorker = GUIExecution\Start-GuiExecutionWorker `
+				-RunState $Script:RunState `
+				-TweakList $tweakList `
+				-Mode $Mode `
+				-LoaderPath $bgLoaderPath `
+				-LocalizationDirectory $bgLocDir `
+				-UICulture $bgUICulture `
+				-LogFilePath $bgLogFilePath `
+				-LogMode $(if (Get-ExecutionGameModeContext) { 'Game' } else { $null }) `
+				-ForceUnsupported:$ForceUnsupported
+		}
+		finally
+		{
+			Stop-GuiPerfScope -Scope $workerStartPerf
+		}
+		if (-not $Script:ExecutionWorker -or -not $Script:ExecutionWorker.AsyncResult)
+		{
+			throw 'Execution startup failed: background worker did not return an async handle.'
+		}
 		$Script:BgPS = $Script:ExecutionWorker.PowerShell
 		$Script:BgAsync = $Script:ExecutionWorker.AsyncResult
 		$Script:ExecutionRunspace = $Script:ExecutionWorker.Runspace
 		$Script:ExecutionRunPowerShell = $Script:ExecutionWorker.PowerShell
+		LogDebug -Message ("Execution startup: background worker started. asyncCompleted={0}; runspaceState={1}" -f [bool]$Script:BgAsync.IsCompleted, $(if ($Script:ExecutionRunspace) { [string]$Script:ExecutionRunspace.RunspaceStateInfo.State } else { '<null>' })) -Always
 
 		$Script:ExecutionPumpTickFn = {
 			try
 			{
-				if (-not $Script:RunInProgress -or -not $Script:RunState) { return }
+				if (-not (& $Script:TestGuiRunInProgressScript) -or -not $Script:RunState) { return }
 
 				if ($Script:AbortRequested -and -not $Script:RunState['AbortRequested'])
 				{
@@ -1652,9 +1821,7 @@
 				if (
 					$Script:RunState['AbortRequested'] -and
 					-not $Script:RunState['Done'] -and
-					-not $Script:RunState['ForceStopIssued'] -and
-					$Script:RunState['AbortRequestedAt'] -ne [datetime]::MinValue -and
-					((Get-Date) - $Script:RunState['AbortRequestedAt']).TotalSeconds -ge 2
+					-not $Script:RunState['ForceStopIssued']
 				)
 				{
 					$Script:RunState['ForceStopIssued'] = $true
@@ -1671,23 +1838,27 @@
 					}
 				}
 
-				& $Script:DrainExecutionQueueSafely
+				$queueHasMore = [bool](& $Script:DrainExecutionQueueSafely)
 				Invoke-ExecutionIdleWatchdogPrompt -RunState $Script:RunState
+				if ($queueHasMore) { return }
 
 				if ($Script:BgAsync -and -not $Script:BgAsync.IsCompleted -and -not $Script:RunState['Done']) { return }
 
 				# Do not complete the run while the abort dialog is showing to prevent stacked dialogs
 				if ($Script:AbortDialogShowing) { return }
 
+					$queueHasMore = [bool](& $Script:DrainExecutionQueueSafely)
+					if ($queueHasMore) { return }
+
 				if ($Script:ExecutionRunTimer)
 				{
-					try { $Script:ExecutionRunTimer.Stop() } catch { $null = $_ }
-					try { $Script:ExecutionRunTimer.Dispose() } catch { $null = $_ }
+					try { $Script:ExecutionRunTimer.Stop() } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch1851' -Severity Debug }
+					 $null = $_ }
 				}
 
-					& $Script:DrainExecutionQueueSafely
-
 					GUIExecution\Complete-GuiExecutionWorker -Worker $Script:ExecutionWorker
+				Sync-GuiExecutionPreRunSnapshotFromRunState
 				$Script:ExecutionWorker = $null
 				$Script:ExecutionRunspace = $null
 				$Script:ExecutionRunPowerShell = $null
@@ -1735,7 +1906,9 @@
 					Add-SessionStatistic -Name 'SucceededCount' -Increment $guiSummaryPayload.SuccessCount
 					Add-SessionStatistic -Name 'SucceededCount' -Increment $guiSummaryPayload.RestartPendingCount
 					Add-SessionStatistic -Name 'FailedCount' -Increment $guiSummaryPayload.FailedCount
-					Add-SessionStatistic -Name 'SkippedCount' -Increment ($guiSummaryPayload.SkippedCount + $guiSummaryPayload.NotApplicableCount + $guiSummaryPayload.NotRunCount)
+					Add-SessionStatistic -Name 'SkippedCount' -Increment $guiSummaryPayload.SkippedCount
+					Add-SessionStatistic -Name 'NotApplicableCount' -Increment $guiSummaryPayload.NotApplicableCount
+					Add-SessionStatistic -Name 'NotRunCount' -Increment $guiSummaryPayload.NotRunCount
 
 					# Write audit trail record for this execution run
 					try
@@ -1801,7 +1974,9 @@
 					LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionCompleteFailed' -Fallback '[Timer] Complete-GuiExecutionRun FAILED'))
 					LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionCompleteFailedDetail' -Fallback 'Complete-GuiExecutionRun failed'))
 					# Ensure the GUI is restored even if the completion handler fails
-					try { Exit-ExecutionView } catch { $null = $_ }
+					try { Exit-ExecutionView } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch1971' -Severity Debug }
+					 $null = $_ }
 				}
 				finally
 				{
@@ -1814,29 +1989,51 @@
 				{
 					$Script:ExecutionTimerErrorShown = $true
 					LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionOuterCatch' -Fallback '[Timer] OUTER CATCH'))
-					LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionUpdateFailedDetail' -Fallback 'Execution UI update failed'))
+					$executionUpdateError = if ($_.Exception) { [string]$_.Exception.Message } else { [string]$_ }
+					LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionUpdateFailedDetail' -Fallback 'Execution UI update failed: {0}' -FormatArgs @($executionUpdateError)))
 				}
 				if ($Script:ExecutionRunTimer)
 				{
-					try { $Script:ExecutionRunTimer.Stop() } catch { $null = $_ }
-					try { $Script:ExecutionRunTimer.Dispose() } catch { $null = $_ }
+					try { $Script:ExecutionRunTimer.Stop() } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch1989' -Severity Debug }
+					 $null = $_ }
 					$Script:ExecutionRunTimer = $null
 				}
-				try { Exit-ExecutionView } catch { $null = $_ }
+				try { Exit-ExecutionView } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch1992' -Severity Debug }
+				 $null = $_ }
 				# Every early exit out of the apply pipeline must clear the busy
 				# flag and re-enable the controls
 				# so a thrown pump-tick body doesn't leave the GUI permanently
 				# spinning ("Applying tweaks" with hourglass cursor). The
 				# success path above already does this; this catch did not.
-				try { if ($Script:GuiState) { & $Script:GuiState.Set 'RunInProgress' $false } else { $Script:RunInProgress = $false } } catch { $null = $_ }
-				try { if ((Test-GuiObjectField -Object $PrimaryTabs -FieldName 'IsEnabled')) { $PrimaryTabs.IsEnabled = $true } } catch { $null = $_ }
-				try { if ((Test-GuiObjectField -Object $BtnRun -FieldName 'IsEnabled')) { $BtnRun.IsEnabled = $true } } catch { $null = $_ }
-				try { if ($BtnPreviewRun) { $BtnPreviewRun.IsEnabled = $true } } catch { $null = $_ }
-				try { if ((Test-GuiObjectField -Object $BtnDefaults -FieldName 'IsEnabled')) { $BtnDefaults.IsEnabled = $true } } catch { $null = $_ }
-				try { Set-GuiActionButtonsEnabled -Enabled $true } catch { $null = $_ }
-				try { if ((Test-GuiObjectField -Object $ChkScan -FieldName 'IsEnabled')) { $ChkScan.IsEnabled = $true } } catch { $null = $_ }
-				try { if ((Test-GuiObjectField -Object $ChkTheme -FieldName 'IsEnabled')) { $ChkTheme.IsEnabled = $true } } catch { $null = $_ }
-				try { Set-SearchControlsEnabled -Enabled $true } catch { $null = $_ }
+				try { if ($Script:GuiState) { & $Script:GuiState.Set 'RunInProgress' $false } else { $Script:RunInProgress = $false } } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch1998' -Severity Debug }
+				 $null = $_ }
+				try { if ((Test-GuiObjectField -Object $PrimaryTabs -FieldName 'IsEnabled')) { $PrimaryTabs.IsEnabled = $true } } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch1999' -Severity Debug }
+				 $null = $_ }
+				try { if ((Test-GuiObjectField -Object $BtnRun -FieldName 'IsEnabled')) { $BtnRun.IsEnabled = $true } } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2000' -Severity Debug }
+				 $null = $_ }
+				try { if ($BtnPreviewRun) { $BtnPreviewRun.IsEnabled = $true } } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2001' -Severity Debug }
+				 $null = $_ }
+				try { if ((Test-GuiObjectField -Object $BtnDefaults -FieldName 'IsEnabled')) { $BtnDefaults.IsEnabled = $true } } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2002' -Severity Debug }
+				 $null = $_ }
+				try { Set-GuiActionButtonsEnabled -Enabled $true } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2003' -Severity Debug }
+				 $null = $_ }
+				try { if ((Test-GuiObjectField -Object $ChkScan -FieldName 'IsEnabled')) { $ChkScan.IsEnabled = $true } } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2004' -Severity Debug }
+				 $null = $_ }
+				try { if ((Test-GuiObjectField -Object $ChkTheme -FieldName 'IsEnabled')) { $ChkTheme.IsEnabled = $true } } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2005' -Severity Debug }
+				 $null = $_ }
+				try { Set-SearchControlsEnabled -Enabled $true } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2006' -Severity Debug }
+				 $null = $_ }
 				$null = & $Script:ShowGuiRuntimeFailureScript -Context 'ExecutionTimer' -Exception $_.Exception -ShowDialog
 			}
 		}
@@ -1847,8 +2044,11 @@
 		# timer setup + initial tick so the cleanup contract above runs even if
 		# DispatcherTimer construction or the first invocation fails before the
 		# pump-tick body's own catch can fire.
+		$timerStartPerf = $null
 		try
 		{
+			LogDebug -Message 'Execution startup: starting dispatcher pump.' -Always
+			$timerStartPerf = Start-GuiPerfScope -Name 'Execution.TimerStart' -Note ("mode={0}; selected={1}" -f $Mode, $tweakList.Count)
 			$runTimer = New-Object System.Windows.Threading.DispatcherTimer
 			$runTimer.Interval = [TimeSpan]::FromMilliseconds(100)
 			$runTimer.Add_Tick({
@@ -1856,27 +2056,51 @@
 			}.GetNewClosure())
 			$Script:ExecutionRunTimer = $runTimer
 			$runTimer.Start()
+			Stop-GuiPerfScope -Scope $timerStartPerf -ExtraNote 'started'
+			LogDebug -Message 'Execution startup: dispatcher pump started; invoking first tick.' -Always
 			& $executionPumpTickFn
 		}
 		catch
 		{
+			if ($timerStartPerf) { Stop-GuiPerfScope -Scope $timerStartPerf -ExtraNote 'failed' }
 			LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionTimerStartFailed' -Fallback '[Timer] Failed to start execution pump'))
 			if ($Script:ExecutionRunTimer)
 			{
-				try { $Script:ExecutionRunTimer.Stop() } catch { $null = $_ }
-				try { $Script:ExecutionRunTimer.Dispose() } catch { $null = $_ }
+				try { $Script:ExecutionRunTimer.Stop() } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2039' -Severity Debug }
+				 $null = $_ }
 				$Script:ExecutionRunTimer = $null
 			}
-			try { Exit-ExecutionView } catch { $null = $_ }
-			try { if ($Script:GuiState) { & $Script:GuiState.Set 'RunInProgress' $false } else { $Script:RunInProgress = $false } } catch { $null = $_ }
-			try { if ((Test-GuiObjectField -Object $PrimaryTabs -FieldName 'IsEnabled')) { $PrimaryTabs.IsEnabled = $true } } catch { $null = $_ }
-			try { if ((Test-GuiObjectField -Object $BtnRun -FieldName 'IsEnabled')) { $BtnRun.IsEnabled = $true } } catch { $null = $_ }
-			try { if ($BtnPreviewRun) { $BtnPreviewRun.IsEnabled = $true } } catch { $null = $_ }
-			try { if ((Test-GuiObjectField -Object $BtnDefaults -FieldName 'IsEnabled')) { $BtnDefaults.IsEnabled = $true } } catch { $null = $_ }
-			try { Set-GuiActionButtonsEnabled -Enabled $true } catch { $null = $_ }
-			try { if ((Test-GuiObjectField -Object $ChkScan -FieldName 'IsEnabled')) { $ChkScan.IsEnabled = $true } } catch { $null = $_ }
-			try { if ((Test-GuiObjectField -Object $ChkTheme -FieldName 'IsEnabled')) { $ChkTheme.IsEnabled = $true } } catch { $null = $_ }
-			try { Set-SearchControlsEnabled -Enabled $true } catch { $null = $_ }
+			try { Exit-ExecutionView } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2042' -Severity Debug }
+			 $null = $_ }
+			try { if ($Script:GuiState) { & $Script:GuiState.Set 'RunInProgress' $false } else { $Script:RunInProgress = $false } } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2043' -Severity Debug }
+			 $null = $_ }
+			try { if ((Test-GuiObjectField -Object $PrimaryTabs -FieldName 'IsEnabled')) { $PrimaryTabs.IsEnabled = $true } } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2044' -Severity Debug }
+			 $null = $_ }
+			try { if ((Test-GuiObjectField -Object $BtnRun -FieldName 'IsEnabled')) { $BtnRun.IsEnabled = $true } } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2045' -Severity Debug }
+			 $null = $_ }
+			try { if ($BtnPreviewRun) { $BtnPreviewRun.IsEnabled = $true } } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2046' -Severity Debug }
+			 $null = $_ }
+			try { if ((Test-GuiObjectField -Object $BtnDefaults -FieldName 'IsEnabled')) { $BtnDefaults.IsEnabled = $true } } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2047' -Severity Debug }
+			 $null = $_ }
+			try { Set-GuiActionButtonsEnabled -Enabled $true } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2048' -Severity Debug }
+			 $null = $_ }
+			try { if ((Test-GuiObjectField -Object $ChkScan -FieldName 'IsEnabled')) { $ChkScan.IsEnabled = $true } } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2049' -Severity Debug }
+			 $null = $_ }
+			try { if ((Test-GuiObjectField -Object $ChkTheme -FieldName 'IsEnabled')) { $ChkTheme.IsEnabled = $true } } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2050' -Severity Debug }
+			 $null = $_ }
+			try { Set-SearchControlsEnabled -Enabled $true } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2051' -Severity Debug }
+			 $null = $_ }
 			throw
 		}
 	}

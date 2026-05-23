@@ -1,4 +1,4 @@
-﻿# Group Policy conflict-detection helpers for Baseline.
+# Group Policy conflict-detection helpers for Baseline.
 #
 # Compares each tweak's intended registry write against the policy hives
 # (HKLM/HKCU \SOFTWARE\Policies\...) so we can warn the user that an enforced

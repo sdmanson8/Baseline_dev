@@ -1278,7 +1278,7 @@ if (Test-Path -LiteralPath $presetDir)
 
 if ($issues.Count -gt 0)
 {
-	# Write-Host: intentional — test/tooling console output
+	# Write-Host: intentional - test/tooling console output
 	Write-Host ''
 	Write-Host 'Manifest validation failed:' -ForegroundColor Red
 	foreach ($issue in @($issues))

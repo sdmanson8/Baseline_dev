@@ -45,6 +45,10 @@
 			try
 			{
 				$currentState = [bool](Invoke-GuiDetectScriptblock -Detect $entry.Detect -DefaultValue ([bool]$entry.Default))
+				if (Get-Command -Name 'Set-CachedDetection' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Set-CachedDetection -Function $FunctionName -Value $currentState
+				}
 			}
 			catch
 			{
@@ -73,6 +77,28 @@
 			}
 
 			return $false
+		}
+
+		<#
+		    .SYNOPSIS
+		#>
+
+		function Set-GuiSystemScanControlEnabled
+		{
+			param (
+				[object]$Control,
+				[bool]$Enabled
+			)
+
+			if (-not $Control)
+			{
+				return
+			}
+
+			if ((Test-GuiObjectField -Object $Control -FieldName 'IsEnabled'))
+			{
+				$Control.IsEnabled = $Enabled
+			}
 		}
 
 		<#
@@ -145,7 +171,7 @@
 		foreach ($si in $Script:Controls.Keys)
 		{
 			$sctl = $Script:Controls[$si]
-			if ($sctl) { $sctl.IsEnabled = $true }
+			Set-GuiSystemScanControlEnabled -Control $sctl -Enabled $true
 		}
 
 		for ($si = 0; $si -lt $Script:TweakManifest.Count; $si++)
@@ -153,15 +179,20 @@
 			$st   = $Script:TweakManifest[$si]
 			$sctl = $Script:Controls[$si]
 
-			if (-not $sctl) { continue }
-
 			if ($Script:AppliedTweaks.Contains($st.Function))
 			{
-				$sctl.IsEnabled = $false
-				if ((Test-GuiObjectField -Object $sctl -FieldName 'IsChecked')) { $sctl.IsChecked = $true }
-				if (Get-Command -Name 'Remove-GuiExplicitSelectionDefinition' -CommandType Function -ErrorAction SilentlyContinue)
+				if ($sctl)
 				{
-					Remove-GuiExplicitSelectionDefinition -FunctionName ([string]$st.Function)
+					Set-GuiSystemScanControlEnabled -Control $sctl -Enabled $false
+					if ((Test-GuiObjectField -Object $sctl -FieldName 'IsChecked')) { $sctl.IsChecked = $true }
+					if (Get-Command -Name 'Remove-GuiExplicitSelectionDefinition' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						Remove-GuiExplicitSelectionDefinition -FunctionName ([string]$st.Function)
+					}
+				}
+				if (Get-Command -Name 'Set-CachedDetection' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Set-CachedDetection -Function ([string]$st.Function) -Value ([bool]$st.Default)
 				}
 				$matchCount++
 				$sessionApplied++
@@ -172,18 +203,32 @@
 			$scannable++
 
 			$currentlyOn = $false
-			try { $currentlyOn = [bool](Invoke-GuiDetectScriptblock -Detect $st.Detect -DefaultValue ([bool]$st.Default)) } catch { $currentlyOn = $false }
+			try { $currentlyOn = [bool](Invoke-GuiDetectScriptblock -Detect $st.Detect -DefaultValue ([bool]$st.Default)) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SystemScan.Invoke-GuiSystemScan:catch206' -Severity Debug }
+			 $currentlyOn = $false }
+			if (Get-Command -Name 'Set-CachedDetection' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Set-CachedDetection -Function ([string]$st.Function) -Value $currentlyOn
+			}
 
 			if ($currentlyOn -eq [bool]$st.Default)
 			{
-				$sctl.IsEnabled = $false
-				if ((Test-GuiObjectField -Object $sctl -FieldName 'IsChecked')) { $sctl.IsChecked = $true }
-				if (Get-Command -Name 'Remove-GuiExplicitSelectionDefinition' -CommandType Function -ErrorAction SilentlyContinue)
+				if ($sctl)
 				{
-					Remove-GuiExplicitSelectionDefinition -FunctionName ([string]$st.Function)
+					Set-GuiSystemScanControlEnabled -Control $sctl -Enabled $false
+					if ((Test-GuiObjectField -Object $sctl -FieldName 'IsChecked')) { $sctl.IsChecked = $true }
+					if (Get-Command -Name 'Remove-GuiExplicitSelectionDefinition' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						Remove-GuiExplicitSelectionDefinition -FunctionName ([string]$st.Function)
+					}
 				}
 				$matchCount++
 			}
+		}
+
+		if (Get-Command -Name 'Save-GuiDetectCache' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Save-GuiDetectCache
 		}
 
 		$scanMsg = if ($sessionApplied -gt 0) {

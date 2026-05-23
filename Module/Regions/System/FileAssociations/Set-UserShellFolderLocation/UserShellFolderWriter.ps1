@@ -18,9 +18,9 @@ function Set-UserShellFolder
 			Redirect user folders to a new location
 
 
-			
+
 .DESCRIPTION
-			
+
 Applies the Baseline behavior for redirect user folders to a new location.
 			.EXAMPLE
 			Set-KnownFolderPath -KnownFolder Desktop -Path "$env:SystemDrive:\Desktop"

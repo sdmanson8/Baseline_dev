@@ -13,16 +13,18 @@ BeforeAll {
     . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Json.Helpers.ps1')
 
     $auditHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/AuditTrail.Helpers.ps1'
+    $processHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Process.Helpers.ps1'
     $stateCaptureHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/StateCapture.Helpers.ps1'
     $bundleHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/SupportBundle.Helpers.ps1'
     $remoteHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/RemoteTarget.Helpers.ps1'
     $script:BundleHelpersPath = $bundleHelpersPath
+    $script:ExportBundleSplitPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/SupportBundle/Export-BaselineSupportBundle/Export-BaselineSupportBundle.ps1'
     $environmentHelpersPath = Join-Path $PSScriptRoot '../../Module/SharedHelpers/Environment.Helpers.ps1'
     $script:SharedHelpersRepoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
     $script:SharedHelpersModuleRoot = Join-Path $script:SharedHelpersRepoRoot 'Module'
     foreach ($filePath in @($remoteHelpersPath, $environmentHelpersPath, $bundleHelpersPath)) {
     }
-    foreach ($filePath in @($auditHelpersPath, $stateCaptureHelpersPath, $remoteHelpersPath, $environmentHelpersPath, $bundleHelpersPath)) {
+    foreach ($filePath in @($auditHelpersPath, $processHelpersPath, $stateCaptureHelpersPath, $remoteHelpersPath, $environmentHelpersPath, $bundleHelpersPath)) {
         $sourceText = Get-BaselineTestSourceText -Path $filePath
         $ast = [System.Management.Automation.Language.Parser]::ParseInput($sourceText, [ref]$null, [ref]$null)
         $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
@@ -30,6 +32,44 @@ BeforeAll {
             Invoke-Expression $fn.Extent.Text
         }
     }
+
+    foreach ($functionName in @(
+        'Stop-BaselineProcessTree',
+        'ConvertTo-BaselineWindowsProcessArgument',
+        'ConvertTo-BaselineProcessArgumentString',
+        'Invoke-BaselineProcess',
+        'ConvertTo-BaselineSupportBundleWindowsProcessArgument',
+        'ConvertTo-BaselineSupportBundleProcessArgumentString',
+        'Invoke-BaselineSupportBundleProcessCapture'
+    )) {
+        $functionCommand = Get-Command -Name $functionName -CommandType Function -ErrorAction SilentlyContinue
+        if ($functionCommand) {
+            Set-Item -Path ("Function:\Global:{0}" -f $functionName) -Value $functionCommand.ScriptBlock
+        }
+    }
+    $script:SupportBundleUnitProcessCaptureStub = {
+        param(
+            [string]$FilePath,
+            [object[]]$ArgumentList,
+            [int]$TimeoutSeconds
+        )
+
+        $scriptText = [string]$ArgumentList[-1]
+        if ($scriptText -match 'Get-WindowsOptionalFeature -Online') {
+            return [pscustomobject]@{
+                ExitCode       = 0
+                StandardOutput = '[]'
+                StandardError  = ''
+            }
+        }
+
+        return [pscustomobject]@{
+            ExitCode       = 0
+            StandardOutput = ''
+            StandardError  = ''
+        }
+    }
+    Set-Item -Path Function:\Global:Invoke-BaselineSupportBundleProcessCapture -Value $script:SupportBundleUnitProcessCaptureStub
 
     $script:TempRoot = Join-Path $env:TEMP ('BaselineSupportBundleTests_' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $script:TempRoot -Force | Out-Null
@@ -139,6 +179,10 @@ Describe 'Export-BaselineSupportBundle' {
         $storage = Get-Content -LiteralPath $storagePath -Raw | ConvertFrom-Json
         $storage.Schema | Should -Be 'Baseline.StorageSummary'
         @($storage.Locations | Where-Object Name -eq 'TempBaseline').Count | Should -Be 1
+        $runtimeCache = $storage.Locations | Where-Object Name -eq 'RuntimeCache' | Select-Object -First 1
+        $runtimeCache.Path | Should -Match '\\Baseline\\RuntimeCache\\RC$'
+        $runtimeCache.Path | Should -Not -Match '\\AppData\\Local\\Temp\\Baseline\\RC$'
+        @($storage.Locations | Where-Object Name -eq 'LegacyLocalRuntimeCache').Count | Should -Be 1
 
         $actionContext = Get-Content -LiteralPath $actionContextPath -Raw | ConvertFrom-Json
         $actionContext.Schema | Should -Be 'Baseline.UserActionContext'
@@ -294,6 +338,54 @@ Describe 'Export-BaselineSupportBundle' {
         }
     }
 
+    It 'resolves validation evidence from the launcher root when the hydrated runtime has no test artifacts' {
+        $runtimeRoot = Join-Path $script:TempRoot 'HydratedRuntimeWithoutTests'
+        $launcherRoot = Join-Path $script:TempRoot 'LauncherRootWithTests'
+        $testsRoot = Join-Path $launcherRoot 'Tests'
+        New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
+        New-Item -ItemType Directory -Path $testsRoot -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $launcherRoot 'Baseline.exe') -Value '' -Encoding ASCII
+        Set-Content -LiteralPath (Join-Path $testsRoot 'TestReport.json') -Encoding UTF8 -Value @'
+{
+  "generated": "2026-04-14T14:38:31.7842438+02:00",
+  "platform": {
+    "os": "Microsoft Windows NT 10.0.26100.0",
+    "psVersion": "5.1.26100.1"
+  },
+  "layers": {
+    "unit": {
+      "result": "Passed",
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    }
+  }
+}
+'@
+
+        $previousRepoRoot = $script:SharedHelpersRepoRoot
+        $previousLauncherPath = $env:BASELINE_LAUNCHER_PATH
+        $script:SharedHelpersRepoRoot = $runtimeRoot
+        $env:BASELINE_LAUNCHER_PATH = Join-Path $launcherRoot 'Baseline.exe'
+        try {
+            $resolvedRoot = Get-BaselineSupportBundleValidationEvidenceRoot
+            $resolvedRoot | Should -Be $launcherRoot
+
+            $report = Get-BaselineValidationEvidenceReport -RepoRoot $resolvedRoot
+            $report.Summary | Should -Be 'unit-tested'
+            ($report.ValidationChannels | Where-Object Channel -eq 'unit-tested').Status | Should -Be 'Passed'
+        }
+        finally {
+            $script:SharedHelpersRepoRoot = $previousRepoRoot
+            if ($null -eq $previousLauncherPath) {
+                Remove-Item Env:\BASELINE_LAUNCHER_PATH -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:BASELINE_LAUNCHER_PATH = $previousLauncherPath
+            }
+        }
+    }
+
     It 'emits SnapshotDiff.json when pre and post snapshots are supplied' {
         $previousLocalAppData = $env:LOCALAPPDATA
         $env:LOCALAPPDATA = $script:TempRoot
@@ -373,6 +465,16 @@ Describe 'Export-BaselineSupportBundle' {
         $bundleContent | Should -Match 'bundle-index\.json'
     }
 
+    It 'includes generated GUI diagnostics test reports when requested' {
+        $bundleContent = Get-BaselineTestSourceText -Path $script:ExportBundleSplitPath
+        $bundleContent | Should -Match "\.artifacts\\gui-tests"
+        $bundleContent | Should -Match "TestReport_\*\.json"
+        $bundleContent | Should -Match "BASELINE_LAUNCHER_PATH"
+        $bundleContent | Should -Match "CurrentDomain\.BaseDirectory"
+        $bundleContent | Should -Match "TestReports/\{0\}"
+        $bundleContent | Should -Match "Tests\\TestReport\.json"
+    }
+
     It 'persists Connect-dialog connectivity results into remote-connectivity.json' {
         $connectivityRoot = Join-Path $script:TempRoot 'LocalAppDataConnectivity'
         New-Item -ItemType Directory -Path (Join-Path $connectivityRoot 'Baseline') -Force | Out-Null
@@ -430,23 +532,21 @@ Describe 'Export-BaselineSupportBundle' {
         $hasConnectivityField | Should -BeFalse
     }
 
-    It 'includes Windows Update status in support bundle metadata and artifacts' {
-        function Get-WindowsUpdateStatus {
-            return [pscustomobject]@{
-                Schema      = 'Baseline.WindowsUpdateStatus'
-                GeneratedAt = [System.DateTime]::UtcNow.ToString('o')
-                Succeeded   = $true
-                Summary     = [pscustomobject]@{
-                    Total    = 3
-                    Critical = 1
-                    Security = 1
-                    Drivers  = 0
-                    Optional = 1
-                }
-                AvailableUpdates = @()
-                RecentHistory    = @()
-                LastScheduledRun = $null
+    It 'includes supplied Windows Update status in support bundle metadata and artifacts' {
+        $windowsUpdateStatus = [pscustomobject]@{
+            Schema      = 'Baseline.WindowsUpdateStatus'
+            GeneratedAt = [System.DateTime]::UtcNow.ToString('o')
+            Succeeded   = $true
+            Summary     = [pscustomobject]@{
+                Total    = 3
+                Critical = 1
+                Security = 1
+                Drivers  = 0
+                Optional = 1
             }
+            AvailableUpdates = @()
+            RecentHistory    = @()
+            LastScheduledRun = $null
         }
 
         $statusRoot = Join-Path $script:TempRoot 'LocalAppDataWindowsUpdateStatus'
@@ -455,11 +555,10 @@ Describe 'Export-BaselineSupportBundle' {
         $env:LOCALAPPDATA = $statusRoot
         try {
             $bundlePath = Join-Path $script:TempRoot 'windows-update-status-bundle.zip'
-            $result = Export-BaselineSupportBundle -OutputPath $bundlePath -IncludeTestReport:$false
+            $result = Export-BaselineSupportBundle -OutputPath $bundlePath -IncludeTestReport:$false -WindowsUpdateStatus $windowsUpdateStatus
         }
         finally {
             $env:LOCALAPPDATA = $previousLocalAppData
-            Remove-Item -Path Function:\Get-WindowsUpdateStatus -ErrorAction SilentlyContinue
         }
 
         $extractDir = Join-Path $script:TempRoot 'windows-update-status-extract'
@@ -480,5 +579,152 @@ Describe 'Export-BaselineSupportBundle' {
 
         $index = Get-Content -LiteralPath (Join-Path $extractDir 'bundle-index.json') -Raw | ConvertFrom-Json
         $index.Files.WindowsUpdateStatus | Should -Be 'windows-update-status.json'
+    }
+
+    It 'does not run live Windows Update status collection during export' {
+        $script:WindowsUpdateStatusWasCalled = $false
+        function Get-WindowsUpdateStatus {
+            $script:WindowsUpdateStatusWasCalled = $true
+            throw 'Export should not call live Windows Update status collection.'
+        }
+
+        $script:SupportBundleWindowsUpdateProgressEvents = New-Object 'System.Collections.Generic.List[object]'
+        $bundlePath = Join-Path $script:TempRoot 'windows-update-not-collected-bundle.zip'
+        try {
+            $result = Export-BaselineSupportBundle -OutputPath $bundlePath -IncludeTestReport:$false -ProgressCallback {
+                param(
+                    [string]$Stage,
+                    [string]$Message
+                )
+
+                $script:SupportBundleWindowsUpdateProgressEvents.Add([pscustomobject]@{
+                    Stage   = $Stage
+                    Message = $Message
+                })
+            }
+        }
+        finally {
+            Remove-Item -Path Function:\Get-WindowsUpdateStatus -ErrorAction SilentlyContinue
+        }
+
+        $script:WindowsUpdateStatusWasCalled | Should -BeFalse
+
+        $extractDir = Join-Path $script:TempRoot 'windows-update-not-collected-extract'
+        Expand-Archive -LiteralPath $result.OutputPath -DestinationPath $extractDir -Force
+
+        $status = Get-Content -LiteralPath (Join-Path $extractDir 'windows-update-status.json') -Raw | ConvertFrom-Json
+        $status.Schema | Should -Be 'Baseline.WindowsUpdateStatus'
+        $status.Collected | Should -BeFalse
+        $status.CollectionState | Should -Be 'NotCollected'
+        $status.Reason | Should -Match 'does not run live Windows Update status checks'
+
+        $metadata = Get-Content -LiteralPath (Join-Path $extractDir 'metadata.json') -Raw | ConvertFrom-Json
+        $metadata.WindowsUpdateStatusSucceeded | Should -BeNullOrEmpty
+
+        $messages = @($script:SupportBundleWindowsUpdateProgressEvents | ForEach-Object { $_.Message })
+        $messages | Should -Contain 'Recording Windows Update status snapshot...'
+    }
+
+    It 'collects Windows feature state through bounded child collectors' {
+        $script:SupportBundleWindowsFeatureCollectorCalls = New-Object 'System.Collections.Generic.List[object]'
+        $script:SupportBundleWindowsFeatureProgressEvents = New-Object 'System.Collections.Generic.List[object]'
+
+        function Get-Service {
+            param([string]$Name)
+
+            return [pscustomobject]@{
+                Status    = 'Running'
+                StartType = 'Automatic'
+            }
+        }
+
+        $processCaptureScript = {
+            param(
+                [string]$FilePath,
+                [object[]]$ArgumentList,
+                [int]$TimeoutSeconds
+            )
+
+            $scriptText = [string]$ArgumentList[-1]
+            $script:SupportBundleWindowsFeatureCollectorCalls.Add([pscustomobject]@{
+                TimeoutSeconds = $TimeoutSeconds
+                ScriptText     = $scriptText
+            })
+
+            if ($scriptText -match 'Get-MpComputerStatus') {
+                return [pscustomobject]@{
+                    ExitCode       = 0
+                    StandardOutput = '{"AMServiceEnabled":true,"AntivirusEnabled":true,"RealTimeProtectionEnabled":false,"IoavProtectionEnabled":true,"NISEnabled":true,"AntispywareEnabled":true}'
+                    StandardError  = ''
+                }
+            }
+
+            if ($scriptText -match 'Get-WindowsOptionalFeature -Online') {
+                return [pscustomobject]@{
+                    ExitCode       = 0
+                    StandardOutput = '[{"Name":"NetFx3","State":"Enabled"},{"Name":"SMB1Protocol","State":"Disabled"}]'
+                    StandardError  = ''
+                }
+            }
+
+            throw "Unexpected collector script: $scriptText"
+        }
+
+        try {
+            $features = New-BaselineSupportBundleWindowsFeatures -ProcessCaptureScript $processCaptureScript -ProgressCallback {
+                param(
+                    [string]$Stage,
+                    [string]$Message
+                )
+
+                $script:SupportBundleWindowsFeatureProgressEvents.Add([pscustomobject]@{
+                    Stage   = $Stage
+                    Message = $Message
+                })
+            }
+        }
+        finally {
+            Remove-Item -Path Function:\Get-Service -ErrorAction SilentlyContinue
+            Set-Item -Path Function:\Global:Invoke-BaselineSupportBundleProcessCapture -Value $script:SupportBundleUnitProcessCaptureStub
+        }
+
+        $features.CollectionStatus.Defender | Should -Be 'Collected'
+        $features.CollectionStatus.OptionalFeatures | Should -Be 'Collected'
+        $features.Defender.AMServiceEnabled | Should -BeTrue
+        ($features.OptionalFeatures | Where-Object Name -eq 'NetFx3').State | Should -Be 'Enabled'
+        ($features.OptionalFeatures | Where-Object Name -eq 'SMB1Protocol').State | Should -Be 'Disabled'
+
+        $script:SupportBundleWindowsFeatureCollectorCalls.Count | Should -Be 2
+        @($script:SupportBundleWindowsFeatureCollectorCalls | Where-Object TimeoutSeconds -eq 10).Count | Should -Be 1
+        @($script:SupportBundleWindowsFeatureCollectorCalls | Where-Object TimeoutSeconds -eq 20).Count | Should -Be 1
+        ($script:SupportBundleWindowsFeatureCollectorCalls | Select-Object -ExpandProperty ScriptText) -join "`n" | Should -Not -Match '-FeatureName'
+
+        $stages = @($script:SupportBundleWindowsFeatureProgressEvents | ForEach-Object { $_.Stage })
+        $stages | Should -Contain 'WindowsFeatures.Services'
+        $stages | Should -Contain 'WindowsFeatures.Defender'
+        $stages | Should -Contain 'WindowsFeatures.OptionalFeatures'
+    }
+
+    It 'reports support bundle progress stages to callers' {
+        $script:SupportBundleProgressEvents = New-Object 'System.Collections.Generic.List[object]'
+        $bundlePath = Join-Path $script:TempRoot 'progress-callback-bundle.zip'
+        $null = Export-BaselineSupportBundle -OutputPath $bundlePath -IncludeTestReport:$false -ProgressCallback {
+            param(
+                [string]$Stage,
+                [string]$Message
+            )
+
+            $script:SupportBundleProgressEvents.Add([pscustomobject]@{
+                Stage   = $Stage
+                Message = $Message
+            })
+        }
+
+        $stages = @($script:SupportBundleProgressEvents | ForEach-Object { $_.Stage })
+        $messages = @($script:SupportBundleProgressEvents | ForEach-Object { $_.Message })
+        $stages | Should -Contain 'Prepare'
+        $stages | Should -Contain 'WindowsUpdate'
+        $stages | Should -Contain 'Compress'
+        $messages | Should -Contain 'Creating ZIP archive...'
     }
 }

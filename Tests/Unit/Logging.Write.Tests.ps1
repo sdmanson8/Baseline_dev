@@ -12,7 +12,7 @@ BeforeAll {
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
 
     foreach ($fn in $functions) {
-        if ($fn.Name -in @('Add-PendingLogMessage', 'Restore-PendingLogMessages', 'Write-PendingLogMessagesToFile', 'Write-LogMessage', 'Get-BaselineRunId', 'Get-BaselineRunIdShort', 'Set-BaselineRunId', 'New-BaselineSessionLogPath', 'Reset-LogStatistics', 'Set-LogFile', 'Get-BaselineCurrentOperationScope', 'Start-BaselineOperationScope', 'Set-BaselineOperationFailed', 'Stop-BaselineOperationScope', 'Format-BaselineErrorForLog', 'Write-BaselineError', 'Write-ConsoleStatus')) {
+        if ($fn.Name -in @('Add-PendingLogMessage', 'Restore-PendingLogMessages', 'Write-PendingLogMessagesToFile', 'Write-LogMessage', 'Get-BaselineRunId', 'Get-BaselineRunIdShort', 'Set-BaselineRunId', 'New-BaselineSessionLogPath', 'Reset-LogStatistics', 'Set-LogFile', 'Get-BaselineCurrentOperationScope', 'Start-BaselineOperationScope', 'Set-BaselineOperationFailed', 'Stop-BaselineOperationScope', 'ConvertTo-BaselineLogScopeText', 'Get-BaselineLogScope', 'Set-BaselineLogScope', 'Clear-BaselineLogScope', 'Resolve-BaselineLogScope', 'Format-BaselineErrorForLog', 'Write-BaselineError', 'Write-ConsoleStatus')) {
             Invoke-Expression $fn.Extent.Text
         }
     }
@@ -139,6 +139,8 @@ Describe 'Set-LogFile' {
 
         $content = [System.IO.File]::ReadAllText($path)
         $content | Should -Match '^=== Log Started at '
+        $content | Should -Match 'SessionId='
+        $content | Should -Not -Match 'RunId='
     }
 }
 
@@ -146,6 +148,7 @@ Describe 'Write-LogMessage backlog handling' {
     BeforeEach {
         $script:LogFilePath = Join-Path $TestDrive 'baseline.log'
         $script:LogMode = $null
+        $script:LogScope = 'Baseline'
         $script:DefaultLogMutexTimeoutMs = 5000
         $script:LogMutexRetryBackoffMs = @(100, 250, 500)
         $script:LogStatistics = @{
@@ -200,7 +203,7 @@ Describe 'Write-LogMessage backlog handling' {
         $lines = @($content -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
         $lines.Count | Should -Be 2
         $lines[0] | Should -Be 'queued log line'
-        $lines[1] | Should -Match '^\d{2}-\d{2}-\d{4} \d{2}:\d{2} INFO: \[RunId=aaaaaaaa\] current write$'
+        $lines[1] | Should -Match '^\d{2}-\d{2}-\d{4} \d{2}:\d{2} INFO: \[RunId=aaaaaaaa\] \[Baseline\] current write$'
         $script:PendingLogMessages.Count | Should -Be 0
         $script:LogLock.State.ReleaseCount | Should -Be 1
     }
@@ -211,7 +214,7 @@ Describe 'Write-LogMessage backlog handling' {
         Write-LogMessage -Message 'first write'
 
         $script:PendingLogMessages.Count | Should -Be 1
-        $script:PendingLogMessages[0] | Should -Match 'INFO: \[RunId=aaaaaaaa\] first write'
+        $script:PendingLogMessages[0] | Should -Match 'INFO: \[RunId=aaaaaaaa\] \[Baseline\] first write'
         $script:CapturedSleeps.ToArray() | Should -Be @(100, 250, 500)
         $script:CapturedHostMessages[0] | Should -Match 'queued for retry'
 
@@ -222,9 +225,46 @@ Describe 'Write-LogMessage backlog handling' {
         $content = [System.IO.File]::ReadAllText($script:LogFilePath)
         $lines = @($content -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
         $lines.Count | Should -Be 2
-        $lines[0] | Should -Match '^\d{2}-\d{2}-\d{4} \d{2}:\d{2} INFO: \[RunId=aaaaaaaa\] first write$'
-        $lines[1] | Should -Match '^\d{2}-\d{2}-\d{4} \d{2}:\d{2} INFO: \[RunId=aaaaaaaa\] second write$'
+        $lines[0] | Should -Match '^\d{2}-\d{2}-\d{4} \d{2}:\d{2} INFO: \[RunId=aaaaaaaa\] \[Baseline\] first write$'
+        $lines[1] | Should -Match '^\d{2}-\d{2}-\d{4} \d{2}:\d{2} INFO: \[RunId=aaaaaaaa\] \[Baseline\] second write$'
         $script:PendingLogMessages.Count | Should -Be 0
+    }
+
+    It 'always emits a scope segment and keeps transient operation names out of the scope field' {
+        $script:LogLock = New-TestLogMutex -WaitResults @($true, $true, $true)
+
+        Write-LogMessage -Message 'default scoped write'
+        Set-BaselineLogScope -Scope 'Bootstrap'
+        Write-LogMessage -Message 'phase scoped write'
+        $scope = Start-BaselineOperationScope -Name 'Checking installation status...'
+        try {
+            Write-LogMessage -Message 'operation scoped write'
+        }
+        finally {
+            $null = Stop-BaselineOperationScope -Scope $scope
+        }
+
+        $content = [System.IO.File]::ReadAllText($script:LogFilePath)
+        $content | Should -Match '(?m)^\d{2}-\d{2}-\d{4} \d{2}:\d{2} INFO: \[RunId=aaaaaaaa\] \[Baseline\] default scoped write\r?$'
+        $content | Should -Match '(?m)^\d{2}-\d{2}-\d{4} \d{2}:\d{2} INFO: \[RunId=aaaaaaaa\] \[Bootstrap\] phase scoped write\r?$'
+        $content | Should -Match '(?m)^\d{2}-\d{2}-\d{4} \d{2}:\d{2} INFO: \[RunId=aaaaaaaa\] \[Bootstrap\] operation scoped write\r?$'
+        $content | Should -Not -Match '\[Checking installation status\.\.\.\]'
+    }
+
+    It 'uses an explicit operation log scope without using the human action text' {
+        $script:LogLock = New-TestLogMutex -WaitResults @($true)
+
+        $scope = Start-BaselineOperationScope -Name 'Checking installation status...' -LogScope 'PackageManager'
+        try {
+            Write-LogMessage -Message 'package manager scoped write'
+        }
+        finally {
+            $null = Stop-BaselineOperationScope -Scope $scope
+        }
+
+        $content = [System.IO.File]::ReadAllText($script:LogFilePath)
+        $content | Should -Match '(?m)^\d{2}-\d{2}-\d{4} \d{2}:\d{2} INFO: \[RunId=aaaaaaaa\] \[PackageManager\] package manager scoped write\r?$'
+        $content | Should -Not -Match '\[Checking installation status\.\.\.\]'
     }
 
     It 'retries timed-out writes with the configured backoff sequence' {

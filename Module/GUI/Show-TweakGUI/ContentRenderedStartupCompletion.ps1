@@ -28,11 +28,20 @@ Register-GuiEventHandler -Source $Form -EventName 'ContentRendered' -Handler ({
 			if (& $testGuiStartupSplashLiveBlock -Splash $splashHandle)
 			{
 				if (-not $splashHandle.ContainsKey('GuiReady')) { $splashHandle['GuiReady'] = $false }
+				$applyStartupSplashMainWindowStateAction = [System.Action[bool]]({
+					param([bool]$WindowMaximized)
+
+					if ($WindowMaximized)
+					{
+						Set-GuiMainWindowWorkAreaMaximized -Window $Form -Maximized $true -PreserveRestoreBounds
+					}
+				}.GetNewClosure())
 				$closeRunspace = [runspacefactory]::CreateRunspace()
 				$closeRunspace.ApartmentState = 'MTA'
 				$closeRunspace.Open()
 				$closeRunspace.SessionStateProxy.SetVariable('splash', $splashHandle)
 				$closeRunspace.SessionStateProxy.SetVariable('mainWindow', $Form)
+				$closeRunspace.SessionStateProxy.SetVariable('applyStartupSplashMainWindowStateAction', $applyStartupSplashMainWindowStateAction)
 				$closePs = [powershell]::Create()
 				$closePs.Runspace = $closeRunspace
 				[void]$closePs.AddScript({
@@ -49,7 +58,9 @@ Register-GuiEventHandler -Source $Form -EventName 'ContentRendered' -Handler ({
 							try { $stream.Write($bytes, 0, $bytes.Length) }
 							finally { $stream.Dispose() }
 						}
-						catch { $null = $_ }
+						catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:61' -Severity Debug }
+						 $null = $_ }
 					}
 					& $trace 'SplashClose runspace: started polling GuiReady'
 					try
@@ -77,23 +88,69 @@ Register-GuiEventHandler -Source $Form -EventName 'ContentRendered' -Handler ({
 						{
 							& $trace 'SplashClose runspace: startup splash closed before GuiReady; aborting process'
 							[System.Environment]::Exit(0)
-							try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch { $null = $_ }
+							try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch {
+								if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:89' -Severity Debug }
+							 $null = $_ }
 							return
 						}
 
 						& $trace 'SplashClose runspace: GuiReady signaled, revealing GUI before splash close'
 
 						$setMainWindowPresentation = {
-							param([bool]$Activate)
-
 							if (-not $mainWindow -or -not $mainWindow.Dispatcher -or $mainWindow.Dispatcher.HasShutdownStarted)
 							{
 								return
 							}
 
+							$splashWindowMaximizedAtReveal = $false
+							try
+							{
+								if ($splash -is [hashtable] -and $splash.ContainsKey('WindowMaximized'))
+								{
+									$splashWindowMaximizedAtReveal = [bool]$splash['WindowMaximized']
+								}
+							}
+							catch {
+								if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:109' -Severity Debug }
+							 $splashWindowMaximizedAtReveal = $false }
+							try { & $trace ("SplashClose runspace: WindowMaximized at reveal = {0}" -f [bool]$splashWindowMaximizedAtReveal) } catch {
+								if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:110' -Severity Debug }
+							 $null = $_ }
+
+							$splashWindowActiveAtReveal = $false
+							try
+							{
+								if ($splash -is [hashtable] -and $splash.ContainsKey('WindowActive'))
+								{
+									$splashWindowActiveAtReveal = [bool]$splash['WindowActive']
+								}
+							}
+							catch {
+								if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:120' -Severity Debug }
+							 $splashWindowActiveAtReveal = $false }
+							try { & $trace ("SplashClose runspace: WindowActive at reveal = {0}" -f [bool]$splashWindowActiveAtReveal) } catch {
+								if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:121' -Severity Debug }
+							 $null = $_ }
+
 							$mainWindow.Dispatcher.Invoke([System.Action]{
-								try { $mainWindow.ShowInTaskbar = $true } catch { $null = $_ }
-								try { $mainWindow.Opacity = 1 } catch { $null = $_ }
+								try
+								{
+									if ([bool]$splashWindowMaximizedAtReveal)
+									{
+										if ($applyStartupSplashMainWindowStateAction)
+										{
+											$applyStartupSplashMainWindowStateAction.Invoke($true)
+										}
+									}
+								}
+								catch {
+									if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:134' -Severity Debug }
+								 try { & $trace ("SplashClose runspace: mainWindow maximize handoff failed: {0}" -f $_.Exception.Message) } catch {
+									if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:134' -Severity Debug }
+								 $null = $_ }; $null = $_ }
+								try { $mainWindow.ShowInTaskbar = $true } catch {
+									if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:135' -Severity Debug }
+								 $null = $_ }
 								try
 								{
 									if ($mainWindow.WindowState -eq [System.Windows.WindowState]::Minimized)
@@ -101,7 +158,12 @@ Register-GuiEventHandler -Source $Form -EventName 'ContentRendered' -Handler ({
 										$mainWindow.WindowState = [System.Windows.WindowState]::Normal
 									}
 								}
-								catch { $null = $_ }
+								catch {
+									if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:143' -Severity Debug }
+								 $null = $_ }
+								try { $mainWindow.Opacity = 1 } catch {
+									if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:144' -Severity Debug }
+								 $null = $_ }
 								try
 								{
 									if ($mainWindow.Visibility -ne [System.Windows.Visibility]::Visible)
@@ -109,68 +171,12 @@ Register-GuiEventHandler -Source $Form -EventName 'ContentRendered' -Handler ({
 										$mainWindow.Visibility = [System.Windows.Visibility]::Visible
 									}
 								}
-								catch { $null = $_ }
-								try { $mainWindow.ShowActivated = $true } catch { $null = $_ }
-								if ($Activate)
-								{
-									$mainWindowHandle = [IntPtr]::Zero
-									try
-									{
-										if (-not ("WinAPI.ForegroundWindow" -as [type]))
-										{
-											Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-
-namespace WinAPI
-{
-	public static class ForegroundWindow
-	{
-		[DllImport("user32.dll")]
-		public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
-
-		[DllImport("user32.dll")]
-		[return: MarshalAs(UnmanagedType.Bool)]
-		public static extern bool SetForegroundWindow(IntPtr hWnd);
-
-		[DllImport("user32.dll")]
-		[return: MarshalAs(UnmanagedType.Bool)]
-		public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
-	}
-}
-"@ -ErrorAction Stop | Out-Null
-										}
-										$mainWindowInterop = New-Object System.Windows.Interop.WindowInteropHelper($mainWindow)
-										$mainWindowHandle = $mainWindowInterop.Handle
-										if ($mainWindowHandle -eq [IntPtr]::Zero -and $mainWindowInterop.PSObject.Methods['EnsureHandle'])
-										{
-											$mainWindowHandle = $mainWindowInterop.EnsureHandle()
-										}
-										if ($mainWindowHandle -ne [IntPtr]::Zero)
-										{
-											$hwndTopMost = [IntPtr]::new(-1)
-											[WinAPI.ForegroundWindow]::ShowWindowAsync($mainWindowHandle, 5) | Out-Null
-											[WinAPI.ForegroundWindow]::ShowWindowAsync($mainWindowHandle, 9) | Out-Null
-											[WinAPI.ForegroundWindow]::SetWindowPos($mainWindowHandle, $hwndTopMost, 0, 0, 0, 0, 0x43) | Out-Null
-											[WinAPI.ForegroundWindow]::SetForegroundWindow($mainWindowHandle) | Out-Null
-										}
-									}
-									catch { $null = $_ }
-									try { $mainWindow.Topmost = $true } catch { $null = $_ }
-									try { $null = $mainWindow.Activate() } catch { $null = $_ }
-									try { $null = $mainWindow.Focus() } catch { $null = $_ }
-									try { Start-Sleep -Milliseconds 900 } catch { $null = $_ }
-									try { $mainWindow.Topmost = $false } catch { $null = $_ }
-									try
-									{
-										if ($mainWindowHandle -ne [IntPtr]::Zero -and ("WinAPI.ForegroundWindow" -as [type]))
-										{
-											$hwndNoTopMost = [IntPtr]::new(-2)
-											[WinAPI.ForegroundWindow]::SetWindowPos($mainWindowHandle, $hwndNoTopMost, 0, 0, 0, 0, 0x43) | Out-Null
-										}
-									}
-									catch { $null = $_ }
-								}
+								catch {
+									if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:152' -Severity Debug }
+								 $null = $_ }
+								try { $mainWindow.ShowActivated = [bool]$splashWindowActiveAtReveal } catch {
+									if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:153' -Severity Debug }
+								 $null = $_ }
 							})
 						}.GetNewClosure()
 
@@ -184,7 +190,9 @@ namespace WinAPI
 								}
 							}
 						}
-						catch { & $trace ("SplashClose runspace: completion animation wait failed: {0}" -f $_.Exception.Message); $null = $_ }
+						catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:167' -Severity Debug }
+						 & $trace ("SplashClose runspace: completion animation wait failed: {0}" -f $_.Exception.Message); $null = $_ }
 
 						# Reveal the GUI BEFORE closing the splash so the
 						# transition is instant: the GUI is already painted
@@ -194,9 +202,11 @@ namespace WinAPI
 						# is visible (desktop flashes).
 						try
 						{
-							& $setMainWindowPresentation $false
+							& $setMainWindowPresentation
 						}
-						catch { & $trace ("SplashClose runspace: mainWindow presentation transition failed: {0}" -f $_.Exception.Message); $null = $_ }
+						catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:179' -Severity Debug }
+						 & $trace ("SplashClose runspace: mainWindow presentation transition failed: {0}" -f $_.Exception.Message); $null = $_ }
 
 						$splashDispatcher = if ($splash -is [hashtable] -and $splash.ContainsKey('Dispatcher')) { $splash['Dispatcher'] } else { $null }
 						if ($splashDispatcher -and -not $splashDispatcher.HasShutdownStarted)
@@ -206,21 +216,19 @@ namespace WinAPI
 								$splashWindow = if ($splash -is [hashtable] -and $splash.ContainsKey('Window')) { $splash['Window'] } else { $null }
 								if ($splashWindow)
 								{
-									try { $splashWindow.Hide() } catch { $null = $_ }
-									try { $splashWindow.Close() } catch { $null = $_ }
+									try { $splashWindow.Hide() } catch {
+										if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:189' -Severity Debug }
+									 $null = $_ }
+									try { $splashWindow.Close() } catch {
+										if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:190' -Severity Debug }
+									 $null = $_ }
 								}
 								if ($splash -is [hashtable] -and $splash.ContainsKey('IsAlive')) { $splash['IsAlive'] = $false }
 							})
 						}
 
 						& $trace 'SplashClose runspace: splash window closed'
-
-						try
-						{
-							& $setMainWindowPresentation $true
-							& $trace 'SplashClose runspace: mainWindow activated after splash close'
-						}
-						catch { & $trace ("SplashClose runspace: mainWindow activation transition failed: {0}" -f $_.Exception.Message); $null = $_ }
+						& $trace 'SplashClose runspace: mainWindow left at inherited activation state'
 
 						# Brief wait for window close to propagate, then shut
 						# down the splash's runspace so it doesn't leak.
@@ -233,7 +241,9 @@ namespace WinAPI
 								$splashDispatcher.InvokeShutdown()
 							}
 						}
-						catch { & $trace ("SplashClose runspace: dispatcher InvokeShutdown failed: {0}" -f $_.Exception.Message); $null = $_ }
+						catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:210' -Severity Debug }
+						 & $trace ("SplashClose runspace: dispatcher InvokeShutdown failed: {0}" -f $_.Exception.Message); $null = $_ }
 						try
 						{
 							$splashPowerShell = if ($splash -is [hashtable] -and $splash.ContainsKey('_PowerShell')) { $splash['_PowerShell'] } else { $null }
@@ -243,22 +253,30 @@ namespace WinAPI
 								$splashPowerShell.EndInvoke($splashAsyncResult)
 							}
 						}
-						catch { & $trace ("SplashClose runspace: PowerShell.EndInvoke failed: {0}" -f $_.Exception.Message); $null = $_ }
+						catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:220' -Severity Debug }
+						 & $trace ("SplashClose runspace: PowerShell.EndInvoke failed: {0}" -f $_.Exception.Message); $null = $_ }
 						try
 						{
 							$splashPowerShell = if ($splash -is [hashtable] -and $splash.ContainsKey('_PowerShell')) { $splash['_PowerShell'] } else { $null }
 							if ($splashPowerShell) { $splashPowerShell.Dispose() }
 						}
-						catch { & $trace ("SplashClose runspace: PowerShell.Dispose failed: {0}" -f $_.Exception.Message); $null = $_ }
+						catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:226' -Severity Debug }
+						 & $trace ("SplashClose runspace: PowerShell.Dispose failed: {0}" -f $_.Exception.Message); $null = $_ }
 						try
 						{
 							$splashRunspace = if ($splash -is [hashtable] -and $splash.ContainsKey('_Runspace')) { $splash['_Runspace'] } else { $null }
 							if ($splashRunspace) { $splashRunspace.Close(); $splashRunspace.Dispose() }
 						}
-						catch { & $trace ("SplashClose runspace: Runspace.Dispose failed: {0}" -f $_.Exception.Message); $null = $_ }
+						catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:232' -Severity Debug }
+						 & $trace ("SplashClose runspace: Runspace.Dispose failed: {0}" -f $_.Exception.Message); $null = $_ }
 					}
 					catch
 					{
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:234' -Severity Debug }
+
 						& $trace ("SplashClose runspace failed: {0}" -f $_.Exception.Message)
 						$null = $_
 					}
@@ -278,6 +296,8 @@ namespace WinAPI
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1:253' -Severity Debug }
+
 			$null = $_
 		}
 

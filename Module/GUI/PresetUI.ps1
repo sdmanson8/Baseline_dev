@@ -32,7 +32,7 @@
 				}
 				else
 				{
-					Write-Warning "GUI event failed [$DebugContext]: $($_.Exception.Message)"
+					Write-Warning "GUI event failed: $DebugContext - $($_.Exception.Message)"
 				}
 			}
 		}.GetNewClosure()) | Out-Null
@@ -677,7 +677,7 @@
 				Write-GuiRuntimeWarning -Context 'Build-TabContent/GameModeToggle' -Message ("Game Mode toggle bar failed for Gaming tab: {0}" -f $_.Exception.Message)
 			}
 
-			# "Reset Gaming Tweaks" button - restores Gaming-tab entries to Windows defaults
+			# "Reset Gaming Tweaks" button - restores Gaming-tab entries to recorded defaults
 			# Placed before the Game Mode landing panel so it stays visible regardless
 			# of whether Game Mode is on or off.
 			try
@@ -686,18 +686,18 @@
 				$resetGamingButton.Margin = [System.Windows.Thickness]::new(8, 4, 8, 4)
 				$resetGamingButton.FontSize = $Script:GuiLayout.FontSizeSmall
 				$resetGamingButton.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
-				$resetGamingButton.ToolTip = (Get-UxLocalizedString -Key 'GuiResetGamingTooltip' -Fallback 'Restore all Gaming tab tweaks to Windows defaults')
+				$resetGamingButton.ToolTip = (Get-UxLocalizedString -Key 'GuiResetGamingTooltipRecorded' -Fallback 'Restore all Gaming tab tweaks to recorded default values')
 
 				$getWindowsDefaultRunListCapture = if ($Script:GetWindowsDefaultRunListScript) { $Script:GetWindowsDefaultRunListScript } else { ${function:Get-WindowsDefaultRunList} }
 				$startGuiExecutionRunCapture = if ($Script:StartGuiExecutionRunScript) { $Script:StartGuiExecutionRunScript } else { ${function:Start-GuiExecutionRun} }
 				$showThemedDialogCapture = if ($Script:ShowThemedDialogScript) { $Script:ShowThemedDialogScript } else { ${function:Show-ThemedDialog} }
 				$resetGamingTitleLocalized = Get-UxLocalizedString -Key 'GuiResetGamingTitle' -Fallback 'Reset Gaming Tweaks'
-				$resetGamingMsgLocalized = Get-UxLocalizedString -Key 'GuiResetGamingMessage' -Fallback 'This will restore all Gaming tab tweaks to their Windows default state. Your other settings are not affected.'
+				$resetGamingMsgLocalized = Get-UxLocalizedString -Key 'GuiResetGamingMessageRecorded' -Fallback 'This will restore all Gaming tab tweaks to recorded default values. Your other settings are not affected.'
 				$resetGamingBtnLocalized = Get-UxLocalizedString -Key 'GuiResetGamingBtn' -Fallback 'Reset Gaming'
 				$resetGamingCancelLocalized = Get-UxLocalizedString -Key 'GuiBtnCancel' -Fallback 'Cancel'
 				$resetGamingNoTweaksLocalized = Get-UxLocalizedString -Key 'GuiResetGamingNoTweaks' -Fallback 'No restorable Gaming tweaks found.'
 				$resetGamingOkLocalized = Get-UxLocalizedString -Key 'GuiBtnOk' -Fallback 'OK'
-				$resetGamingExecTitleLocalized = Get-UxLocalizedString -Key 'GuiResetGamingExecTitle' -Fallback 'Resetting Gaming Tweaks to Windows Defaults'
+				$resetGamingExecTitleLocalized = Get-UxLocalizedString -Key 'GuiResetGamingExecTitleRecorded' -Fallback 'Resetting Gaming Tweaks to Defaults'
 				$null = Register-GuiEventHandler -Source $resetGamingButton -EventName 'Click' -Handler ({
 					$confirmResult = & $showThemedDialogCapture -Title $resetGamingTitleLocalized `
 						-Message $resetGamingMsgLocalized `
@@ -746,7 +746,7 @@
 				$resetPageButton.Margin = [System.Windows.Thickness]::new(8, 4, 8, 4)
 				$resetPageButton.FontSize = $Script:GuiLayout.FontSizeSmall
 				$resetPageButton.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
-				$resetPageButton.ToolTip = (Get-UxLocalizedString -Key 'GuiResetPageTooltip' -Fallback ('Restore all tweaks on the {0} page to Windows defaults.' -f $pageCategory))
+				$resetPageButton.ToolTip = (Get-UxLocalizedString -Key 'GuiResetPageTooltipRecorded' -Fallback ('Restore all tweaks on the {0} page to recorded default values.' -f $pageCategory))
 				$invokePageResetToDefaultsCapture = if ($Script:InvokePageResetToDefaultsScript) { $Script:InvokePageResetToDefaultsScript } else { ${function:Invoke-PageResetToDefaults} }
 				if (-not $invokePageResetToDefaultsCapture) { throw 'Invoke-PageResetToDefaults not found.' }
 				$null = Register-GuiEventHandler -Source $resetPageButton -EventName 'Click' -Handler ({
@@ -873,6 +873,251 @@
 		return [int[]]$allTabIndexesList.ToArray()
 	}
 
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Clear-GuiTweakSelectionControl
+	{
+		param ([object]$Control)
+
+		if (-not $Control) { return }
+
+		$hasField = {
+			param (
+				[object]$Object,
+				[string]$FieldName
+			)
+
+			if ($null -eq $Object)
+			{
+				return $false
+			}
+
+			if ($Object -is [System.Collections.IDictionary])
+			{
+				return $Object.Contains($FieldName)
+			}
+
+			return ($null -ne $Object.PSObject.Properties[$FieldName])
+		}.GetNewClosure()
+
+		$clearTarget = {
+			param ([object]$Target)
+
+			if (-not $Target) { return }
+			if (& $hasField -Object $Target -FieldName 'IsChecked')
+			{
+				$Target.IsChecked = $false
+			}
+			if (& $hasField -Object $Target -FieldName 'SelectedIndex')
+			{
+				$Target.SelectedIndex = [int]-1
+			}
+			if (& $hasField -Object $Target -FieldName 'SelectedDate')
+			{
+				$Target.SelectedDate = $null
+			}
+			if (& $hasField -Object $Target -FieldName 'SelectedValue')
+			{
+				$Target.SelectedValue = $null
+			}
+			if (& $hasField -Object $Target -FieldName 'Value')
+			{
+				$Target.Value = $null
+			}
+		}.GetNewClosure()
+
+		& $clearTarget -Target $Control
+		foreach ($childField in @('CheckBox', 'ComboBox', 'RadioButton', 'DatePicker'))
+		{
+			if ((& $hasField -Object $Control -FieldName $childField) -and $Control.$childField)
+			{
+				& $clearTarget -Target $Control.$childField
+			}
+		}
+	}
+
+	function Get-GuiBulkSelectionObjectField
+	{
+		param (
+			[object]$Object,
+			[string]$FieldName
+		)
+
+		if ($null -eq $Object -or [string]::IsNullOrWhiteSpace([string]$FieldName))
+		{
+			return $null
+		}
+
+		if ($Object -is [System.Collections.IDictionary])
+		{
+			if ($Object.Contains($FieldName))
+			{
+				return $Object[$FieldName]
+			}
+			return $null
+		}
+
+		$property = $Object.PSObject.Properties[$FieldName]
+		if ($property)
+		{
+			return $property.Value
+		}
+
+		return $null
+	}
+
+	function Get-GuiBulkSelectableActionPath
+	{
+		param (
+			[object]$Selection,
+			[object]$ActionPicker
+		)
+
+		if (-not $Selection -or -not $ActionPicker)
+		{
+			return $null
+		}
+
+		$parameterName = [string](Get-GuiBulkSelectionObjectField -Object $ActionPicker -FieldName 'ParameterName')
+		if (-not [string]::IsNullOrWhiteSpace($parameterName))
+		{
+			$extraArgs = Get-GuiBulkSelectionObjectField -Object $Selection -FieldName 'ExtraArgs'
+			if ($extraArgs)
+			{
+				$extraValue = Get-GuiBulkSelectionObjectField -Object $extraArgs -FieldName $parameterName
+				if (-not [string]::IsNullOrWhiteSpace([string]$extraValue))
+				{
+					return [string]$extraValue
+				}
+			}
+		}
+
+		foreach ($fieldName in @('Value', 'Selection', 'SelectedValue'))
+		{
+			$value = Get-GuiBulkSelectionObjectField -Object $Selection -FieldName $fieldName
+			if (-not [string]::IsNullOrWhiteSpace([string]$value))
+			{
+				return [string]$value
+			}
+		}
+
+		return $null
+	}
+
+	function New-GuiBulkSelectableControlTestScript
+	{
+		$getField = {
+			param (
+				[object]$Object,
+				[string]$FieldName
+			)
+
+			if ($null -eq $Object -or [string]::IsNullOrWhiteSpace([string]$FieldName))
+			{
+				return $null
+			}
+
+			if ($Object -is [System.Collections.IDictionary])
+			{
+				if ($Object.Contains($FieldName))
+				{
+					return $Object[$FieldName]
+				}
+				return $null
+			}
+
+			$property = $Object.PSObject.Properties[$FieldName]
+			if ($property)
+			{
+				return $property.Value
+			}
+
+			return $null
+		}.GetNewClosure()
+
+		$getActionPath = {
+			param (
+				[object]$Selection,
+				[object]$ActionPicker
+			)
+
+			if (-not $Selection -or -not $ActionPicker)
+			{
+				return $null
+			}
+
+			$parameterName = [string](& $getField -Object $ActionPicker -FieldName 'ParameterName')
+			if (-not [string]::IsNullOrWhiteSpace($parameterName))
+			{
+				$extraArgs = & $getField -Object $Selection -FieldName 'ExtraArgs'
+				if ($extraArgs)
+				{
+					$extraValue = & $getField -Object $extraArgs -FieldName $parameterName
+					if (-not [string]::IsNullOrWhiteSpace([string]$extraValue))
+					{
+						return [string]$extraValue
+					}
+				}
+			}
+
+			foreach ($fieldName in @('Value', 'Selection', 'SelectedValue'))
+			{
+				$value = & $getField -Object $Selection -FieldName $fieldName
+				if (-not [string]::IsNullOrWhiteSpace([string]$value))
+				{
+					return [string]$value
+				}
+			}
+
+			return $null
+		}.GetNewClosure()
+
+		return {
+			param (
+				[object]$Control,
+				[object]$ManifestEntry = $null,
+				[object]$ExplicitSelectionDefinition = $null
+			)
+
+			if (-not $Control)
+			{
+				return $false
+			}
+
+			$actionPicker = & $getField -Object $Control -FieldName 'ActionPicker'
+			if (-not $actionPicker -and $ManifestEntry)
+			{
+				$actionPicker = & $getField -Object $ManifestEntry -FieldName 'ActionPicker'
+			}
+			if (-not $actionPicker)
+			{
+				return $true
+			}
+
+			$selectedPath = & $getActionPath -Selection $Control -ActionPicker $actionPicker
+			if ([string]::IsNullOrWhiteSpace([string]$selectedPath) -and $ExplicitSelectionDefinition)
+			{
+				$selectedPath = & $getActionPath -Selection $ExplicitSelectionDefinition -ActionPicker $actionPicker
+			}
+
+			return (-not [string]::IsNullOrWhiteSpace([string]$selectedPath))
+		}.GetNewClosure()
+	}
+
+	function Test-GuiBulkSelectableControl
+	{
+		param (
+			[object]$Control,
+			[object]$ManifestEntry = $null,
+			[object]$ExplicitSelectionDefinition = $null
+		)
+
+		$testBulkSelectableControl = New-GuiBulkSelectableControlTestScript
+		return [bool](& $testBulkSelectableControl -Control $Control -ManifestEntry $ManifestEntry -ExplicitSelectionDefinition $ExplicitSelectionDefinition)
+	}
+
 	function New-TabSelectionBar
 	{
 		param ([int[]]$AllTabIndexes)
@@ -883,7 +1128,12 @@
 
 		$selectAllButton = New-PresetButton -Label (Get-UxLocalizedString -Key 'GuiSelectAll' -Fallback 'Select All') -Variant 'Subtle' -Compact
 		$controlsRefForSelect = $Script:Controls
+		$tweakManifestRefForSelect = $Script:TweakManifest
 		$capturedSelectIndexes = [int[]]$AllTabIndexes
+		$getExplicitSelectionDefinition = ${function:Get-GuiExplicitSelectionDefinition}
+		$testBulkSelectableControl = New-GuiBulkSelectableControlTestScript
+		$enterSelectionBulkUpdate = Get-GuiFunctionCapture -Name 'Enter-GuiSelectionBulkUpdate'
+		$exitSelectionBulkUpdate = Get-GuiFunctionCapture -Name 'Exit-GuiSelectionBulkUpdate'
 		$hasField = {
 			param (
 				[object]$Object,
@@ -903,12 +1153,37 @@
 			return ($null -ne $Object.PSObject.Properties[$FieldName])
 		}.GetNewClosure()
 		Register-GuiEventHandler -Source $selectAllButton -EventName 'Click' -Handler ({
-			foreach ($index in $capturedSelectIndexes)
+			$selectionBulkPreviousState = $false
+			if ($enterSelectionBulkUpdate)
 			{
-				$control = $controlsRefForSelect[$index]
-				if ($control -and $control.IsEnabled -and (& $hasField -Object $control -FieldName 'IsChecked'))
+				$selectionBulkPreviousState = [bool](& $enterSelectionBulkUpdate)
+			}
+			try
+			{
+				foreach ($index in $capturedSelectIndexes)
 				{
-					$control.IsChecked = $true
+					$control = $controlsRefForSelect[$index]
+					$manifestEntry = $null
+					$explicitSelectionDefinition = $null
+					if ($getExplicitSelectionDefinition -and $tweakManifestRefForSelect -and $index -ge 0 -and $index -lt $tweakManifestRefForSelect.Count)
+					{
+						$manifestEntry = $tweakManifestRefForSelect[$index]
+						if ($manifestEntry -and -not [string]::IsNullOrWhiteSpace([string]$manifestEntry.Function))
+						{
+							$explicitSelectionDefinition = & $getExplicitSelectionDefinition -FunctionName ([string]$manifestEntry.Function)
+						}
+					}
+					if ($control -and $control.IsEnabled -and (& $hasField -Object $control -FieldName 'IsChecked') -and (& $testBulkSelectableControl -Control $control -ManifestEntry $manifestEntry -ExplicitSelectionDefinition $explicitSelectionDefinition))
+					{
+						$control.IsChecked = $true
+					}
+				}
+			}
+			finally
+			{
+				if ($exitSelectionBulkUpdate)
+				{
+					& $exitSelectionBulkUpdate -PreviousState $selectionBulkPreviousState
 				}
 			}
 		}.GetNewClosure()) | Out-Null
@@ -919,27 +1194,35 @@
 		$tweakManifestRefForUnselect = $Script:TweakManifest
 		$capturedUnselectIndexes = [int[]]$AllTabIndexes
 		$removeExplicitSelectionDefinition = ${function:Remove-GuiExplicitSelectionDefinition}
+		$clearTweakSelectionControl = ${function:Clear-GuiTweakSelectionControl}
 		Register-GuiEventHandler -Source $unselectAllButton -EventName 'Click' -Handler ({
-			foreach ($index in $capturedUnselectIndexes)
+			$selectionBulkPreviousState = $false
+			if ($enterSelectionBulkUpdate)
 			{
-				$manifestEntry = $null
-				if ($tweakManifestRefForUnselect -and $index -ge 0 -and $index -lt $tweakManifestRefForUnselect.Count)
+				$selectionBulkPreviousState = [bool](& $enterSelectionBulkUpdate)
+			}
+			try
+			{
+				foreach ($index in $capturedUnselectIndexes)
 				{
-					$manifestEntry = $tweakManifestRefForUnselect[$index]
+					$manifestEntry = $null
+					if ($tweakManifestRefForUnselect -and $index -ge 0 -and $index -lt $tweakManifestRefForUnselect.Count)
+					{
+						$manifestEntry = $tweakManifestRefForUnselect[$index]
+					}
+					if ($manifestEntry -and -not [string]::IsNullOrWhiteSpace([string]$manifestEntry.Function))
+					{
+						& $removeExplicitSelectionDefinition -FunctionName ([string]$manifestEntry.Function)
+					}
+					$control = $controlsRefForUnselect[$index]
+					& $clearTweakSelectionControl -Control $control
 				}
-				if ($manifestEntry -and -not [string]::IsNullOrWhiteSpace([string]$manifestEntry.Function))
+			}
+			finally
+			{
+				if ($exitSelectionBulkUpdate)
 				{
-					& $removeExplicitSelectionDefinition -FunctionName ([string]$manifestEntry.Function)
-				}
-				$control = $controlsRefForUnselect[$index]
-				if ($control -and $control.IsEnabled -and (& $hasField -Object $control -FieldName 'IsChecked'))
-				{
-					$control.IsChecked = $false
-				}
-				elseif ($control -and $control.IsEnabled -and (& $hasField -Object $control -FieldName 'SelectedIndex'))
-				{
-					[int]$clearIndex = -1
-					$control.SelectedIndex = $clearIndex
+					& $exitSelectionBulkUpdate -PreviousState $selectionBulkPreviousState
 				}
 			}
 		}.GetNewClosure()) | Out-Null

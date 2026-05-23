@@ -27,7 +27,9 @@ function Get-BaselineAuditRetentionDays
 	$days = 90
 	if (-not [string]::IsNullOrWhiteSpace([string]$retentionValue))
 	{
-		try { $days = [int]$retentionValue } catch { $days = 90 }
+		try { $days = [int]$retentionValue } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditTrail.Helpers.Get-BaselineAuditRetentionDays:catch30' -Severity Debug }
+		 $days = 90 }
 	}
 
 	if ($days -lt 30)
@@ -159,6 +161,8 @@ function Get-AuditLog
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditTrail.Helpers.Get-AuditLog:catch160' -Severity Debug }
+
 			continue
 		}
 
@@ -177,6 +181,8 @@ function Get-AuditLog
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditTrail.Helpers.Get-AuditLog:catch178' -Severity Debug }
+
 					$ts = $null
 				}
 			}
@@ -243,7 +249,9 @@ function Export-AuditReport
 		[void]$sb.AppendLine('')
 		foreach ($rec in $records)
 		{
-			$ts = if ($rec.Timestamp) { try { ([datetime]::Parse($rec.Timestamp)).ToString('yyyy-MM-dd HH:mm:ss') } catch { $rec.Timestamp } } else { '(unknown)' }
+			$ts = if ($rec.Timestamp) { try { ([datetime]::Parse($rec.Timestamp)).ToString('yyyy-MM-dd HH:mm:ss') } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditTrail.Helpers.Export-AuditReport:catch246' -Severity Debug }
+			 $rec.Timestamp } } else { '(unknown)' }
 			$dur = if ($rec.DurationSeconds) { " (${$rec.DurationSeconds}s)" } else { '' }
 			$resultInfo = ''
 			if ($rec.Results)
@@ -261,7 +269,9 @@ function Export-AuditReport
 		foreach ($rec in $records)
 		{
 			$index++
-			$ts = if ($rec.Timestamp) { try { ([datetime]::Parse($rec.Timestamp)).ToString('yyyy-MM-dd HH:mm:ss') } catch { $rec.Timestamp } } else { '(unknown)' }
+			$ts = if ($rec.Timestamp) { try { ([datetime]::Parse($rec.Timestamp)).ToString('yyyy-MM-dd HH:mm:ss') } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditTrail.Helpers.Export-AuditReport:catch264' -Severity Debug }
+			 $rec.Timestamp } } else { '(unknown)' }
 			[void]$sb.AppendLine("### Run $index - $($rec.Action)")
 			[void]$sb.AppendLine("- **Time:** $ts")
 			[void]$sb.AppendLine("- **Mode:** $($rec.Mode)")
@@ -307,7 +317,9 @@ function Export-AuditReport
 		[void]$sb.AppendLine('<h2>Timeline</h2><ul>')
 		foreach ($rec in $records)
 		{
-			$ts = if ($rec.Timestamp) { try { ([datetime]::Parse($rec.Timestamp)).ToString('yyyy-MM-dd HH:mm:ss') } catch { $rec.Timestamp } } else { '(unknown)' }
+			$ts = if ($rec.Timestamp) { try { ([datetime]::Parse($rec.Timestamp)).ToString('yyyy-MM-dd HH:mm:ss') } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditTrail.Helpers.Export-AuditReport:catch310' -Severity Debug }
+			 $rec.Timestamp } } else { '(unknown)' }
 			$resultInfo = ''
 			if ($rec.Results) { $resultInfo = " - Applied: $($rec.Results.AppliedCount), Failed: $($rec.Results.FailedCount)" }
 			[void]$sb.AppendLine("<li><strong>$ts</strong> | $($rec.Action) ($($rec.Mode))$resultInfo</li>")
@@ -320,7 +332,9 @@ function Export-AuditReport
 		foreach ($rec in $records)
 		{
 			$index++
-			$ts = if ($rec.Timestamp) { try { ([datetime]::Parse($rec.Timestamp)).ToString('yyyy-MM-dd HH:mm:ss') } catch { $rec.Timestamp } } else { '(unknown)' }
+			$ts = if ($rec.Timestamp) { try { ([datetime]::Parse($rec.Timestamp)).ToString('yyyy-MM-dd HH:mm:ss') } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditTrail.Helpers.Export-AuditReport:catch323' -Severity Debug }
+			 $rec.Timestamp } } else { '(unknown)' }
 			[void]$sb.AppendLine("<div class='run'><h3>Run $index - $($rec.Action)</h3>")
 			[void]$sb.AppendLine("<p>Time: $ts | Mode: $($rec.Mode) | Version: $($rec.BaselineVersion)</p>")
 			if ($rec.Results) { [void]$sb.AppendLine("<p>Applied: $($rec.Results.AppliedCount) | Failed: $($rec.Results.FailedCount) | Skipped: $($rec.Results.SkippedCount) | RestartPending: $($rec.Results.RestartPendingCount)</p>") }
@@ -369,6 +383,8 @@ function Clear-AuditLog
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditTrail.Helpers.Clear-AuditLog:catch370' -Severity Debug }
+
 			# Keep unparseable lines to avoid silent data loss
 			$kept.Add($line)
 		}
@@ -397,7 +413,9 @@ function Get-BaselineAuditRetentionPolicyThreshold
 	$configuredThreshold = $env:BASELINE_AUDIT_RETENTION_POLICY_THRESHOLD
 	if (-not [string]::IsNullOrWhiteSpace([string]$configuredThreshold))
 	{
-		try { return [int]$configuredThreshold } catch { return 90 }
+		try { return [int]$configuredThreshold } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditTrail.Helpers.Get-BaselineAuditRetentionPolicyThreshold:catch400' -Severity Debug }
+		 return 90 }
 	}
 
 	return 90
@@ -494,6 +512,8 @@ function Test-BaselineAuditRetentionTaskExecution
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditTrail.Helpers.Test-BaselineAuditRetentionTaskExecution:catch495' -Severity Debug }
+
 		$result.Issues += "Failed to enumerate Baseline scheduled tasks: $($_.Exception.Message)"
 		$result.OverallStatus = 'Error'
 		return [pscustomobject]$result

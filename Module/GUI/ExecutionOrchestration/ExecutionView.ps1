@@ -208,6 +208,10 @@
 		# Swap content and assign execution state
 		$ContentScroll.VerticalScrollBarVisibility = 'Disabled'
 		$ContentScroll.Content = $outerGrid
+		if ($Script:UpdateGuiBackToTopButtonScript)
+		{
+			try { & $Script:UpdateGuiBackToTopButtonScript } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionView.Enter.UpdateBackToTopButton' }
+		}
 		$Script:ExecutionLogBox = $logBox
 		$Script:ExecutionLastConsoleAction = $null
 		$Script:ExecutionProgressHost = $progressSection.ProgressHost
@@ -224,6 +228,13 @@
 		$Script:SuppressRunClosePrompt = $false
 		$Script:BgPS = $null
 		$Script:BgAsync = $null
+		$Script:ExecutionPreviousFooterVisibility = @{
+			ActionButtonBar = if ($ActionButtonBar) { $ActionButtonBar.Visibility } else { $null }
+			BtnRun = if ($BtnRun) { $BtnRun.Visibility } else { $null }
+			BtnDefaults = if ($BtnDefaults) { $BtnDefaults.Visibility } else { $null }
+			BtnPreviewRun = if ($BtnPreviewRun) { $BtnPreviewRun.Visibility } else { $null }
+			StatusText = if ($StatusText) { $StatusText.Visibility } else { $null }
+		}
 
 		# Hide filter bar, tab bar, and expert-mode banner during execution
 		$PrimaryTabs.Visibility = [System.Windows.Visibility]::Collapsed
@@ -231,6 +242,8 @@
 		if ($ExpertModeBanner) { $ExpertModeBanner.Visibility = [System.Windows.Visibility]::Collapsed }
 		# Hide bottom action buttons during execution
 		if ($ActionButtonBar) { $ActionButtonBar.Visibility = [System.Windows.Visibility]::Collapsed }
+		if ($BtnRun) { $BtnRun.Visibility = [System.Windows.Visibility]::Collapsed }
+		if ($BtnDefaults) { $BtnDefaults.Visibility = [System.Windows.Visibility]::Collapsed }
 		if ($BtnPreviewRun) { $BtnPreviewRun.Visibility = [System.Windows.Visibility]::Collapsed }
 		if ($StatusText) { $StatusText.Visibility = [System.Windows.Visibility]::Collapsed }
 		if ($progressSection.AbortButton)
@@ -267,6 +280,8 @@
 	        $Script:BgPS = $null
 	        $Script:BgAsync = $null
 	        $Script:ExecutionPreviousContent = $null
+	        $previousFooterVisibility = $Script:ExecutionPreviousFooterVisibility
+	        $Script:ExecutionPreviousFooterVisibility = $null
 	        $Script:ExecutionCurrentSummaryKey = $null
 	        $Script:ExecutionMode = $null
 
@@ -291,9 +306,11 @@
             $ExpertModeBanner.Visibility = [System.Windows.Visibility]::Visible
         }
         # Restore bottom action buttons
-        if ($ActionButtonBar) { $ActionButtonBar.Visibility = [System.Windows.Visibility]::Visible }
-        if ($BtnPreviewRun) { $BtnPreviewRun.Visibility = [System.Windows.Visibility]::Visible; $BtnPreviewRun.IsEnabled = $true }
-        if ($StatusText) { $StatusText.Visibility = [System.Windows.Visibility]::Visible }
+        if ($ActionButtonBar) { $ActionButtonBar.Visibility = if ($previousFooterVisibility -and $previousFooterVisibility.ActionButtonBar) { $previousFooterVisibility.ActionButtonBar } else { [System.Windows.Visibility]::Visible } }
+        if ($BtnRun) { $BtnRun.Visibility = if ($previousFooterVisibility -and $previousFooterVisibility.BtnRun) { $previousFooterVisibility.BtnRun } else { [System.Windows.Visibility]::Visible } }
+        if ($BtnDefaults) { $BtnDefaults.Visibility = if ($previousFooterVisibility -and $previousFooterVisibility.BtnDefaults) { $previousFooterVisibility.BtnDefaults } else { [System.Windows.Visibility]::Visible } }
+        if ($BtnPreviewRun) { $BtnPreviewRun.Visibility = if ($previousFooterVisibility -and $previousFooterVisibility.BtnPreviewRun) { $previousFooterVisibility.BtnPreviewRun } else { [System.Windows.Visibility]::Visible }; $BtnPreviewRun.IsEnabled = $true }
+        if ($StatusText) { $StatusText.Visibility = if ($previousFooterVisibility -and $previousFooterVisibility.StatusText) { $previousFooterVisibility.StatusText } else { [System.Windows.Visibility]::Visible } }
         # Re-enable controls
         if ($BtnRun) { $BtnRun.IsEnabled = $true }
         if ($BtnDefaults) { $BtnDefaults.IsEnabled = $true }
@@ -329,17 +346,25 @@
         {
             $ContentScroll.Content = $savedPreviousContent
         }
+		if ($Script:UpdateGuiBackToTopButtonScript)
+		{
+			try { & $Script:UpdateGuiBackToTopButtonScript } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionView.Exit.UpdateBackToTopButton' }
+		}
 
 			if ($deferAbortReset -and $Script:MainForm -and $Script:MainForm.Dispatcher)
 			{
 				try
 				{
 					$null = Invoke-GuiDispatcherAction -Dispatcher $Script:MainForm.Dispatcher -PriorityUsage 'Pump' -Action {
-						try { Reset-RunAbortState } catch { $null = $_ }
+						try { Reset-RunAbortState } catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionView.Exit-ExecutionView:catch359' -Severity Debug }
+						 $null = $_ }
 					}
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionView.Exit-ExecutionView:catch362' -Severity Debug }
+
 					Reset-RunAbortState
 				}
 			}

@@ -50,4 +50,12 @@ Describe 'Invoke-GuiDetectScriptblock' {
         $script:DetectScriptblocksContent | Should -Not -Match 'DetectScriptblocks\.DefenderSignatureUpdateInterval\.LoadMpPreference'
         $script:DetectScriptblocksContent | Should -Match 'DetectScriptblocks\.BlockStoreSearchResults\.LoadIdentitySid'
     }
+
+    It 'keeps Windows Sandbox detection bounded outside the GUI runspace' {
+        $script:DetectScriptblocksContent | Should -Match 'function Get-GuiDetectWindowsOptionalFeatureState'
+        $script:DetectScriptblocksContent | Should -Match '\.WaitForExit\(\[Math\]::Max\(1, \$TimeoutSeconds\) \* 1000\)'
+        $script:DetectScriptblocksContent | Should -Match '\$process\.Kill\(\)'
+        $script:DetectScriptblocksContent | Should -Match "'WindowsSandbox' = \{ \(Get-GuiDetectWindowsOptionalFeatureState -FeatureName 'Containers-DisposableClientVM'\) -eq 'Enabled' \}"
+        $script:DetectScriptblocksContent | Should -Not -Match "'WindowsSandbox' = \{ \(Get-WindowsOptionalFeature -Online -FeatureName Containers-DisposableClientVM"
+    }
 }

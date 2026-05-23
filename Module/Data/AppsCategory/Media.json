@@ -1179,8 +1179,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Clipchamp",
@@ -1223,8 +1223,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Media Player",
@@ -1267,8 +1267,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Movies & TV",
@@ -1311,8 +1311,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Sound Recorder",
@@ -1355,8 +1355,8 @@
       "PresetTier": null,
       "RecoveryLevel": "Direct",
       "CompatibilitySensitivity": "Low",
-      "EntityType": "placeholder",
-      "SupportsExecution": false
+      "EntityType": "store",
+      "SupportsExecution": true
     },
     {
       "Name": "Clementine",

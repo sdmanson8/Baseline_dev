@@ -1,4 +1,4 @@
-﻿using module ..\Logging.psm1
+using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 #region Initial Setup
@@ -62,7 +62,9 @@ function CreateRestorePoint
 				$srpStatus = Get-CimInstance -ClassName SystemRestoreConfig -Namespace 'root\default' -ErrorAction Stop
 				if ($srpStatus -and $srpStatus.RPSessionInterval -eq 1) { $srpEnabled = $true }
 			}
-			catch { $srpEnabled = $false }
+			catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialSetup.CreateRestorePoint:catch65' -Severity Debug }
+			 $srpEnabled = $false }
 
 			if (-not $srpEnabled)
 			{
@@ -203,6 +205,8 @@ function CheckWinGet
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialSetup.CheckWinGet:catch204' -Severity Debug }
+
 			$null = $_
 		}
 	}.GetNewClosure()
@@ -216,6 +220,7 @@ function CheckWinGet
 	$stderrLog = $null
 	$stdoutLines = @()
 	$stderrLines = @()
+	$wingetLogScope = 'Winget'
 
 	try
 	{
@@ -227,34 +232,34 @@ function CheckWinGet
 		LogInfo "Detected OS: $osName (Build $currentBuild, Release $osVersion)"
 
 		$checkingStatusText = Get-BaselineLocalizedString -Key 'Progress_CheckingInstallStatus' -Fallback 'Checking installation status...'
-		Write-ConsoleStatus -Action $checkingStatusText
+		Write-ConsoleStatus -Action $checkingStatusText -Scope 'PackageManager'
 		& $updateStartupSplashState -Indeterminate
 
 		$wingetVersion = Get-WinGetVersion
 		if ($wingetVersion)
 		{
 			$resolvedWingetPath = Resolve-WinGetExecutable
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingPackageManager' -Fallback 'Checking {0}' -FormatArgs @('WinGet'))
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_CheckingPackageManager' -Fallback 'Checking {0}' -FormatArgs @('WinGet')) -Scope $wingetLogScope
 			if (-not [string]::IsNullOrWhiteSpace([string]$resolvedWingetPath))
 			{
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_ResolvedPackageManagerExecutable' -Fallback 'Resolved {0} executable: {1}' -FormatArgs @('WinGet', $resolvedWingetPath))
+				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_ResolvedPackageManagerExecutable' -Fallback 'Resolved {0} executable: {1}' -FormatArgs @('WinGet', $resolvedWingetPath)) -Scope $wingetLogScope
 			}
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerAlreadyInstalled' -Fallback '{0} is already installed and working. Version: {1}' -FormatArgs @('WinGet', $wingetVersion))
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerAlreadyInstalled' -Fallback '{0} is already installed and working. Version: {1}' -FormatArgs @('WinGet', $wingetVersion)) -Scope $wingetLogScope
 			Write-ConsoleStatus -Status success
 			& $updateStartupSplashState -Indeterminate
 			return
 		}
 
-		LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerNotFunctional' -Fallback '{0} not found or not functional' -FormatArgs @('WinGet'))
+		LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerNotFunctional' -Fallback '{0} not found or not functional' -FormatArgs @('WinGet')) -Scope $wingetLogScope
 		$installStatusText = Get-BaselineLocalizedString -Key 'Progress_Installing' -Fallback 'Installing {0}...' -FormatArgs @('WinGet')
-		Write-ConsoleStatus -Action $installStatusText
+		Write-ConsoleStatus -Action $installStatusText -Scope $wingetLogScope
 		& $updateStartupSplashState -Indeterminate
 
 		try
 		{
 			$installerUrl = [string]$installerMetadata.Uri
 			$installerPath = Join-Path $env:TEMP ("Baseline-WinGetBootstrap-{0}.ps1" -f $installerVersion)
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_DownloadingPackageManagerInstaller' -Fallback 'Downloading {0} installer from {1}' -FormatArgs @('WinGet', $installerUrl))
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_DownloadingPackageManagerInstaller' -Fallback 'Downloading {0} installer from {1}' -FormatArgs @('WinGet', $installerUrl)) -Scope $wingetLogScope
 			Invoke-DownloadFile -Uri $installerUrl -OutFile $installerPath
 
 			if (-not (Test-Path $installerPath) -or (Get-Item $installerPath).Length -eq 0)
@@ -267,9 +272,9 @@ function CheckWinGet
 				-Path $installerPath `
 				-ExpectedSha256 $installerSha256 `
 				-Label ([string]$installerMetadata.Label)
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerDownloadVerified' -Fallback 'Download and SHA-256 verification completed for {0} v{1}' -FormatArgs @('WinGet', $installerVersion))
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerDownloadVerified' -Fallback 'Download and SHA-256 verification completed for {0} v{1}' -FormatArgs @('WinGet', $installerVersion)) -Scope $wingetLogScope
 
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_ExecutingInstallerScript' -Fallback 'Executing installer script...')
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_ExecutingInstallerScript' -Fallback 'Executing installer script...') -Scope $wingetLogScope
 			& $updateStartupSplashState -Indeterminate
 
 			$process = Invoke-BaselineProcess -FilePath 'powershell.exe' -ArgumentList (@(
@@ -284,7 +289,7 @@ function CheckWinGet
 				$stdoutLines = @(([string]$process.StandardOutput -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
 				foreach ($stdoutLine in $stdoutLines)
 				{
-					LogInfo "Baseline WinGet bootstrap: $stdoutLine"
+					LogInfo "Baseline WinGet bootstrap: $stdoutLine" -Scope $wingetLogScope
 				}
 			}
 
@@ -294,7 +299,7 @@ function CheckWinGet
 				$stderrLines = @(([string]$process.StandardError -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
 				foreach ($stderrLine in $stderrLines)
 				{
-					LogError "Baseline WinGet bootstrap: $stderrLine"
+					LogError "Baseline WinGet bootstrap: $stderrLine" -Scope $wingetLogScope
 				}
 			}
 
@@ -302,22 +307,22 @@ function CheckWinGet
 			$installerReportedErrors = ($stderrLines.Count -gt 0)
 			if ($installerCompletedSuccessfully -and -not $installerReportedErrors)
 			{
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptCompletedSuccessfully' -Fallback '{0} installer script completed successfully' -FormatArgs @('WinGet'))
+				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptCompletedSuccessfully' -Fallback '{0} installer script completed successfully' -FormatArgs @('WinGet')) -Scope $wingetLogScope
 			}
 			elseif ($installerCompletedSuccessfully -and $installerReportedErrors)
 			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptReportedErrors' -Fallback '{0} installer script reported errors despite a zero exit code. Running validation before accepting the install.' -FormatArgs @('WinGet'))
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptReportedErrors' -Fallback '{0} installer script reported errors despite a zero exit code. Running validation before accepting the install.' -FormatArgs @('WinGet')) -Scope $wingetLogScope
 			}
 			else
 			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptReportedExitCode' -Fallback '{0} installer script reported exit code: {1}' -FormatArgs @('WinGet', $process.ExitCode))
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptReportedExitCode' -Fallback '{0} installer script reported exit code: {1}' -FormatArgs @('WinGet', $process.ExitCode)) -Scope $wingetLogScope
 			}
 
 			Start-Sleep -Seconds 5
 			$wingetVersion = Get-WinGetVersion
 			if ($wingetVersion)
 			{
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerValidationSucceeded' -Fallback '{0} validation succeeded. Version: {1}' -FormatArgs @('WinGet', $wingetVersion))
+				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerValidationSucceeded' -Fallback '{0} validation succeeded. Version: {1}' -FormatArgs @('WinGet', $wingetVersion)) -Scope $wingetLogScope
 				Write-ConsoleStatus -Status success
 				& $updateStartupSplashState -Indeterminate
 				return
@@ -325,7 +330,7 @@ function CheckWinGet
 
 			if ($installerCompletedSuccessfully -and -not $installerReportedErrors)
 			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationCompletedButUnavailable' -Fallback '{0} installation completed, but {1} is not available in the current session yet. A new session may be required.' -FormatArgs @('WinGet', 'winget.exe'))
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationCompletedButUnavailable' -Fallback '{0} installation completed, but {1} is not available in the current session yet. A new session may be required.' -FormatArgs @('WinGet', 'winget.exe')) -Scope $wingetLogScope
 				Write-ConsoleStatus -Status success
 				& $updateStartupSplashState -Indeterminate
 				return
@@ -343,10 +348,10 @@ function CheckWinGet
 		}
 		catch
 		{
-			LogError (Get-BaselineBilingualString -Key 'Bootstrap_ErrorDuringPackageManagerInstallation' -Fallback 'Error during {0} installation: {1}' -FormatArgs @('WinGet', $_))
+			LogError (Get-BaselineBilingualString -Key 'Bootstrap_ErrorDuringPackageManagerInstallation' -Fallback 'Error during {0} installation: {1}' -FormatArgs @('WinGet', $_)) -Scope $wingetLogScope
 			$repairStatusText = Get-BaselineLocalizedString -Key 'Progress_WinGet_Updating' -Fallback 'Updating WinGet...'
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_AttemptingPackageManagerRepair' -Fallback 'Attempting {0} repair via {1}...' -FormatArgs @('WinGet', 'Microsoft.WinGet.Client'))
-			Write-ConsoleStatus -Action $repairStatusText
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_AttemptingPackageManagerRepair' -Fallback 'Attempting {0} repair via {1}...' -FormatArgs @('WinGet', 'Microsoft.WinGet.Client')) -Scope $wingetLogScope
+			Write-ConsoleStatus -Action $repairStatusText -Scope $wingetLogScope
 			& $updateStartupSplashState -Indeterminate
 
 			try
@@ -360,19 +365,19 @@ function CheckWinGet
 				$wingetVersion = Get-WinGetVersion
 				if ($wingetVersion)
 				{
-					LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairSucceeded' -Fallback '{0} repair succeeded. Version: {1}' -FormatArgs @('WinGet', $wingetVersion))
+					LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairSucceeded' -Fallback '{0} repair succeeded. Version: {1}' -FormatArgs @('WinGet', $wingetVersion)) -Scope $wingetLogScope
 					Write-ConsoleStatus -Status success
 					& $updateStartupSplashState -Indeterminate
 					return
 				}
 
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairCompletedButUnavailable' -Fallback '{0} repair completed but {1} still not resolvable in this session.' -FormatArgs @('WinGet', 'winget.exe'))
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairCompletedButUnavailable' -Fallback '{0} repair completed but {1} still not resolvable in this session.' -FormatArgs @('WinGet', 'winget.exe')) -Scope $wingetLogScope
 				Write-ConsoleStatus -Status success
 				& $updateStartupSplashState -Indeterminate
 			}
 			catch
 			{
-				LogError (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairFailed' -Fallback '{0} repair also failed: {1}' -FormatArgs @('WinGet', $_))
+				LogError (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairFailed' -Fallback '{0} repair also failed: {1}' -FormatArgs @('WinGet', $_)) -Scope $wingetLogScope
 				Write-ConsoleStatus -Status failed
 				& $updateStartupSplashState -Indeterminate
 			}
@@ -402,6 +407,8 @@ function CheckWinGet
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialSetup.CheckWinGet:catch404' -Severity Debug }
+
 				$null = $_
 			}
 		}
@@ -413,9 +420,9 @@ function CheckWinGet
 	Check WinGet and Chocolatey together during startup and bootstrap whichever package managers are missing.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for check WinGet and Chocolatey together during startup and bootstrap whichever package managers are missing..
 	.NOTES
 	Startup-only helper used by InitialActions.
@@ -430,7 +437,11 @@ function Initialize-PackageManagersBootstrap
 
 		[Parameter(Mandatory = $false)]
 		[bool]
-		$IncludeWinGet = $true
+		$IncludeWinGet = $true,
+
+		[Parameter(Mandatory = $false)]
+		[bool]
+		$IncludeChocolatey = $true
 	)
 
 	$startupSplashUpdateCommand = Get-Command -Name 'Set-BootstrapLoadingSplashState' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -453,6 +464,8 @@ function Initialize-PackageManagersBootstrap
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialSetup.Initialize-PackageManagersBootstrap:catch455' -Severity Debug }
+
 			$null = $_
 		}
 	}.GetNewClosure()
@@ -475,6 +488,8 @@ function Initialize-PackageManagersBootstrap
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialSetup.Initialize-PackageManagersBootstrap:catch477' -Severity Debug }
+
 			$null = $_
 		}
 	}.GetNewClosure()
@@ -487,6 +502,9 @@ function Initialize-PackageManagersBootstrap
 	$jobs = @()
 	$bootstrapTimeoutSeconds = 900
 	$jobStartedAt = @{}
+	$packageManagerLogScope = 'PackageManager'
+	$wingetLogScope = 'Winget'
+	$chocolateyLogScope = 'Chocolatey'
 
 	$jobScriptBlock = {
 		param(
@@ -515,8 +533,15 @@ function Initialize-PackageManagersBootstrap
 	try
 	{
 		$checkingStatusText = Get-BaselineLocalizedString -Key 'Progress_CheckingInstallStatus' -Fallback 'Checking installation status...'
-		Write-ConsoleStatus -Action $checkingStatusText
+		Write-ConsoleStatus -Action $checkingStatusText -Scope $packageManagerLogScope
 		& $updateStartupSplashState -Indeterminate
+
+		if (-not $IncludeWinGet -and -not $IncludeChocolatey)
+		{
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerStartupChecksSkippedByPreference' -Fallback 'Package manager startup checks skipped by user preference.') -Scope $packageManagerLogScope
+			Write-ConsoleStatus -Status success
+			return @($results)
+		}
 
 		if ($IncludeWinGet)
 		{
@@ -524,7 +549,7 @@ function Initialize-PackageManagersBootstrap
 			$wingetVersion = Get-WinGetVersion
 			if ($wingetVersion)
 			{
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerAlreadyInstalled' -Fallback '{0} is already installed and working. Version: {1}' -FormatArgs @('WinGet', $wingetVersion))
+				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerAlreadyInstalled' -Fallback '{0} is already installed and working. Version: {1}' -FormatArgs @('WinGet', $wingetVersion)) -Scope $wingetLogScope
 				[void]$results.Add([pscustomobject]@{
 					PackageManager = 'WinGet'
 					Available      = $true
@@ -545,7 +570,7 @@ function Initialize-PackageManagersBootstrap
 				}
 				catch
 				{
-					LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_FailedToStartPackageManagerBootstrapJob' -Fallback 'Failed to start {0} bootstrap job: {1}' -FormatArgs @('WinGet', $_.Exception.Message))
+					LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_FailedToStartPackageManagerBootstrapJob' -Fallback 'Failed to start {0} bootstrap job: {1}' -FormatArgs @('WinGet', $_.Exception.Message)) -Scope $wingetLogScope
 					[void]$results.Add([pscustomobject]@{
 						PackageManager = 'WinGet'
 						Available      = $false
@@ -559,41 +584,44 @@ function Initialize-PackageManagersBootstrap
 			}
 		}
 
-		$chocolateyVersion = Get-ChocolateyVersion
-		& $updateStartupSplashStep -StepId 'chocolatey' -Status 'in_progress' -SubAction ''
-		if ($chocolateyVersion)
+		if ($IncludeChocolatey)
 		{
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerAlreadyInstalled' -Fallback '{0} is already installed and working. Version: {1}' -FormatArgs @('Chocolatey', $chocolateyVersion))
-			[void]$results.Add([pscustomobject]@{
-				PackageManager = 'Chocolatey'
-				Available      = $true
-				Installed      = $false
-				Repaired       = $false
-				Version        = [string]$chocolateyVersion
-				Success        = $true
-				Error          = $null
-			})
-		}
-		else
-		{
-			try
+			$chocolateyVersion = Get-ChocolateyVersion
+			& $updateStartupSplashStep -StepId 'chocolatey' -Status 'in_progress' -SubAction ''
+			if ($chocolateyVersion)
 			{
-				$newJob = Start-Job -Name 'ChocolateyBootstrap' -ScriptBlock $jobScriptBlock -ArgumentList @('Chocolatey', $loggingModulePath, $sharedHelpersModulePath, $logFilePath, $bootstrapTimeoutSeconds)
-				$jobs += $newJob
-				$jobStartedAt[$newJob.Id] = Get-Date
-			}
-			catch
-			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_FailedToStartPackageManagerBootstrapJob' -Fallback 'Failed to start {0} bootstrap job: {1}' -FormatArgs @('Chocolatey', $_.Exception.Message))
+				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerAlreadyInstalled' -Fallback '{0} is already installed and working. Version: {1}' -FormatArgs @('Chocolatey', $chocolateyVersion)) -Scope $chocolateyLogScope
 				[void]$results.Add([pscustomobject]@{
 					PackageManager = 'Chocolatey'
-					Available      = $false
+					Available      = $true
 					Installed      = $false
 					Repaired       = $false
-					Version        = $null
-					Success        = $false
-					Error          = $_.Exception.Message
+					Version        = [string]$chocolateyVersion
+					Success        = $true
+					Error          = $null
 				})
+			}
+			else
+			{
+				try
+				{
+					$newJob = Start-Job -Name 'ChocolateyBootstrap' -ScriptBlock $jobScriptBlock -ArgumentList @('Chocolatey', $loggingModulePath, $sharedHelpersModulePath, $logFilePath, $bootstrapTimeoutSeconds)
+					$jobs += $newJob
+					$jobStartedAt[$newJob.Id] = Get-Date
+				}
+				catch
+				{
+					LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_FailedToStartPackageManagerBootstrapJob' -Fallback 'Failed to start {0} bootstrap job: {1}' -FormatArgs @('Chocolatey', $_.Exception.Message)) -Scope $chocolateyLogScope
+					[void]$results.Add([pscustomobject]@{
+						PackageManager = 'Chocolatey'
+						Available      = $false
+						Installed      = $false
+						Repaired       = $false
+						Version        = $null
+						Success        = $false
+						Error          = $_.Exception.Message
+					})
+				}
 			}
 		}
 
@@ -608,7 +636,7 @@ function Initialize-PackageManagersBootstrap
 				Get-BaselineLocalizedString -Key 'Progress_Installing' -Fallback 'Installing {0}...' -FormatArgs @([string]$jobs[0].Name.Replace('Bootstrap', ''))
 			}
 
-			Write-ConsoleStatus -Action $installStatusText
+			Write-ConsoleStatus -Action $installStatusText -Scope $packageManagerLogScope
 			& $updateStartupSplashState -Indeterminate
 
 			while ($jobs.Count -gt 0)
@@ -619,8 +647,10 @@ function Initialize-PackageManagersBootstrap
 					$jobStartTime = if ($jobStartedAt.ContainsKey($runningJob.Id)) { [datetime]$jobStartedAt[$runningJob.Id] } else { Get-Date }
 					if (((Get-Date) - $jobStartTime).TotalSeconds -ge ($bootstrapTimeoutSeconds + 30))
 					{
-						LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerBootstrapJobTimedOut' -Fallback "Package manager bootstrap job '{0}' timed out after {1} seconds. Baseline will stop waiting and continue startup." -FormatArgs @($runningJob.Name, ($bootstrapTimeoutSeconds + 30)))
-						try { Stop-Job -Job $runningJob -Force -ErrorAction SilentlyContinue } catch { $null = $_ }
+						LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerBootstrapJobTimedOut' -Fallback "Package manager bootstrap job '{0}' timed out after {1} seconds. Baseline will stop waiting and continue startup." -FormatArgs @($runningJob.Name, ($bootstrapTimeoutSeconds + 30))) -Scope $packageManagerLogScope
+						try { Stop-Job -Job $runningJob -Force -ErrorAction SilentlyContinue } catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialSetup.Initialize-PackageManagersBootstrap:catch627' -Severity Debug }
+						 $null = $_ }
 						[void]$results.Add([pscustomobject]@{
 							PackageManager = [string]$runningJob.Name.Replace('Bootstrap', '')
 							Available      = $false
@@ -645,7 +675,7 @@ function Initialize-PackageManagersBootstrap
 					}
 					catch
 					{
-						LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerBootstrapJobDidNotReturnResult' -Fallback "Package manager bootstrap job '{0}' did not return a result: {1}" -FormatArgs @($completedJob.Name, $_.Exception.Message))
+						LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerBootstrapJobDidNotReturnResult' -Fallback "Package manager bootstrap job '{0}' did not return a result: {1}" -FormatArgs @($completedJob.Name, $_.Exception.Message)) -Scope $packageManagerLogScope
 						[void]$results.Add([pscustomobject]@{
 							PackageManager = [string]$completedJob.Name.Replace('Bootstrap', '')
 							Available      = $false
@@ -689,7 +719,7 @@ function Initialize-PackageManagersBootstrap
 					{
 						(Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerBootstrapDidNotCompleteSuccessfully' -Fallback '{0} bootstrap did not complete successfully.' -FormatArgs @($packageManagerName))
 					}
-				LogWarning $failureText
+				LogWarning $failureText -Scope $packageManagerLogScope
 			}
 		}
 		else
@@ -701,7 +731,7 @@ function Initialize-PackageManagersBootstrap
 	}
 	catch
 	{
-		LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerStartupBootstrapFailedUnexpectedly' -Fallback 'Package manager startup bootstrap failed unexpectedly: {0}' -FormatArgs @($_.Exception.Message))
+		LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerStartupBootstrapFailedUnexpectedly' -Fallback 'Package manager startup bootstrap failed unexpectedly: {0}' -FormatArgs @($_.Exception.Message)) -Scope $packageManagerLogScope
 		Write-ConsoleStatus -Status failed
 		return @($results)
 	}
@@ -715,11 +745,13 @@ function Initialize-PackageManagersBootstrap
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialSetup.Initialize-PackageManagersBootstrap:catch720' -Severity Debug }
+
 				$null = $_
 			}
 		}
 
-		if ($resetChocolateyAvailabilityCommand)
+		if ($IncludeChocolatey -and $resetChocolateyAvailabilityCommand)
 		{
 			try
 			{
@@ -727,13 +759,19 @@ function Initialize-PackageManagersBootstrap
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialSetup.Initialize-PackageManagersBootstrap:catch732' -Severity Debug }
+
 				$null = $_
 			}
 		}
 
-		if ($startupSplashStepCommand)
+		if ($startupSplashStepCommand -and $IncludeChocolatey)
 		{
 			& $updateStartupSplashStep -StepId 'chocolatey' -Status 'completed' -SubAction ''
+		}
+		elseif ($startupSplashStepCommand -and $IncludeWinGet)
+		{
+			& $updateStartupSplashStep -StepId 'winget' -Status 'completed' -SubAction ''
 		}
 		else
 		{
@@ -828,9 +866,9 @@ function UpdatePowershell
 	.SYNOPSIS
 	Refresh the current process PATH from the machine and user environment blocks.
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for refresh the current process PATH from the machine and user environment blocks..
 #>
 #endregion Initial Setup

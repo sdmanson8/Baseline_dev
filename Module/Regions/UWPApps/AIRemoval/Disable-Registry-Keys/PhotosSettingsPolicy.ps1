@@ -12,7 +12,7 @@ if (Test-Path $uwpPhotosSettings) {
                 $regContent = @'
 Windows Registry Editor Version 5.00
 
-[HKEY_USERS\TEMP\LocalState] 
+[HKEY_USERS\TEMP\LocalState]
 "ImageCategorizationConsentDismissed"=hex(5f5e10c):74,00,72,00,75,00,65,00,00,\
   00,4c,a0,89,0c,f7,2e,dc,01
 "ImageCategorizationConsent"=hex(5f5e10c):66,00,61,00,6c,00,73,00,65,00,00,00,\

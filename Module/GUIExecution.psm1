@@ -26,6 +26,8 @@ function Get-GuiExecutionOperationMode
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.Get-GuiExecutionOperationMode:catch27' -Severity Debug }
+
 		$mode = $null
 	}
 
@@ -40,6 +42,595 @@ function Get-GuiExecutionOperationMode
 	}
 
 	return 'ReadWrite'
+}
+
+function Get-GuiExecutionThemeSnapshot
+{
+	[CmdletBinding()]
+	param ()
+
+	$theme = Get-Variable -Name 'BaselineCurrentTheme' -Scope Global -ValueOnly -ErrorAction SilentlyContinue
+	$themeName = Get-Variable -Name 'BaselineCurrentThemeName' -Scope Global -ValueOnly -ErrorAction SilentlyContinue
+	$useDarkMode = Get-Variable -Name 'BaselineUseDarkMode' -Scope Global -ValueOnly -ErrorAction SilentlyContinue
+
+	if ([string]::IsNullOrWhiteSpace([string]$themeName))
+	{
+		$themeName = [System.Environment]::GetEnvironmentVariable('BASELINE_THEME_NAME')
+	}
+
+	$themeModeFlag = [System.Environment]::GetEnvironmentVariable('BASELINE_USE_DARK_MODE')
+	if ($null -eq $useDarkMode -and -not [string]::IsNullOrWhiteSpace([string]$themeModeFlag))
+	{
+		$useDarkMode = ([string]$themeModeFlag -eq '1')
+	}
+
+	return [pscustomobject]@{
+		Theme       = $theme
+		ThemeName   = $themeName
+		UseDarkMode = $useDarkMode
+	}
+}
+
+function Set-GuiExecutionRunspaceThemeSnapshot
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		$Runspace
+	)
+
+	$themeSnapshot = Get-GuiExecutionThemeSnapshot
+	$Runspace.SessionStateProxy.SetVariable('bgCurrentTheme', $themeSnapshot.Theme)
+	$Runspace.SessionStateProxy.SetVariable('bgCurrentThemeName', $themeSnapshot.ThemeName)
+	$Runspace.SessionStateProxy.SetVariable('bgUseDarkMode', $themeSnapshot.UseDarkMode)
+}
+
+function Get-GuiPreRunSnapshotTimeoutSeconds
+{
+	[CmdletBinding()]
+	param ()
+
+	$rawTimeout = [System.Environment]::GetEnvironmentVariable('BASELINE_PRE_RUN_SNAPSHOT_TIMEOUT_SECONDS')
+	$parsedTimeout = 0
+	if (-not [string]::IsNullOrWhiteSpace([string]$rawTimeout) -and [int]::TryParse([string]$rawTimeout, [ref]$parsedTimeout) -and $parsedTimeout -gt 0)
+	{
+		return $parsedTimeout
+	}
+
+	return 120
+}
+
+function Write-GuiExecutionQueueRunNotice
+{
+	[CmdletBinding()]
+	param (
+		[AllowNull()]
+		[hashtable]$RunState,
+
+		[Parameter(Mandatory = $true)]
+		[string]$Message,
+
+		[ValidateSet('INFO', 'WARNING', 'ERROR', 'DEBUG')]
+		[string]$Level = 'DEBUG',
+
+		[switch]$Progress,
+
+		[switch]$ProgressOnly
+	)
+
+	if (-not $RunState -or -not $RunState.ContainsKey('LogQueue') -or -not $RunState['LogQueue'])
+	{
+		return
+	}
+
+	try
+	{
+		$RunState['LogQueue'].Enqueue([PSCustomObject]@{
+			Kind = '_RunNotice'
+			Level = $Level
+			Message = $Message
+			Progress = [bool]$Progress
+			ProgressOnly = [bool]$ProgressOnly
+			Diagnostic = $true
+		})
+	}
+	catch
+	{
+		Write-GuiExecutionCleanupWarning "Failed to enqueue GUI execution notice: $($_.Exception.Message)"
+	}
+}
+
+function Stop-GuiPreRunSnapshotCaptureAsync
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		$Worker
+	)
+
+	if (-not $Worker)
+	{
+		return
+	}
+
+	$completed = $false
+
+	try
+	{
+		if ($Worker.PowerShell)
+		{
+			$stopResult = $Worker.PowerShell.BeginStop($null, $null)
+			if ($stopResult -and $stopResult.AsyncWaitHandle)
+			{
+				if ($stopResult.AsyncWaitHandle.WaitOne(1000))
+				{
+					try { $Worker.PowerShell.EndStop($stopResult) } catch { Write-GuiExecutionCleanupWarning "Failed to finalize pre-run snapshot stop: $($_.Exception.Message)" }
+				}
+			}
+		}
+	}
+	catch
+	{
+		Write-GuiExecutionCleanupWarning "Failed to request pre-run snapshot worker stop: $($_.Exception.Message)"
+	}
+
+	try
+	{
+		if ($Worker.AsyncResult)
+		{
+			if (-not $Worker.AsyncResult.IsCompleted)
+			{
+				$Worker.AsyncResult.AsyncWaitHandle.WaitOne(1000) | Out-Null
+			}
+			$completed = [bool]$Worker.AsyncResult.IsCompleted
+		}
+	}
+	catch
+	{
+		Write-GuiExecutionCleanupWarning "Failed while waiting for pre-run snapshot worker stop: $($_.Exception.Message)"
+	}
+
+	try
+	{
+		if ($completed -and $Worker.PowerShell -and $Worker.AsyncResult)
+		{
+			$Worker.PowerShell.EndInvoke($Worker.AsyncResult)
+		}
+	}
+	catch
+	{
+		Write-GuiExecutionCleanupWarning "Failed to finalize pre-run snapshot worker: $($_.Exception.Message)"
+	}
+
+	try
+	{
+		if ($Worker.PowerShell)
+		{
+			$Worker.PowerShell.Dispose()
+		}
+	}
+	catch
+	{
+		Write-GuiExecutionCleanupWarning "Failed to dispose pre-run snapshot PowerShell worker: $($_.Exception.Message)"
+	}
+
+	try
+	{
+		if ($completed -and $Worker.Runspace)
+		{
+			$Worker.Runspace.Close()
+			$Worker.Runspace.Dispose()
+		}
+	}
+	catch
+	{
+		Write-GuiExecutionCleanupWarning "Failed to dispose pre-run snapshot runspace: $($_.Exception.Message)"
+	}
+}
+
+function Request-GuiExecutionPowerShellStopAsync
+{
+	[CmdletBinding()]
+	param (
+		[AllowNull()]
+		$PowerShell,
+
+		[string]$Source = 'GUIExecution.PowerShellStop',
+
+		[int]$StopWaitMilliseconds = 1000
+	)
+
+	if (-not $PowerShell)
+	{
+		return $true
+	}
+
+	try
+	{
+		$stopResult = $PowerShell.BeginStop($null, $null)
+		if ($stopResult -and $stopResult.AsyncWaitHandle)
+		{
+			if ($stopResult.AsyncWaitHandle.WaitOne([Math]::Max(0, $StopWaitMilliseconds)))
+			{
+				try { $PowerShell.EndStop($stopResult) }
+				catch { Write-SwallowedException -ErrorRecord $_ -Source ($Source + '.EndStop') -Severity Debug }
+				return $true
+			}
+
+			return $false
+		}
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source $Source -Severity Warning
+		return $false
+	}
+
+	return $true
+}
+
+function Invoke-GuiPreRunSnapshotCapture
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$LoaderPath,
+
+		[Parameter(Mandatory = $true)]
+		[string]$LocalizationDirectory,
+
+		[Parameter(Mandatory = $true)]
+		[string]$UICulture,
+
+		[Parameter(Mandatory = $true)]
+		[string]$LogFilePath,
+
+		[Parameter(Mandatory = $true)]
+		[AllowNull()]
+		[AllowEmptyString()]
+		[string]$LogMode,
+
+		[Parameter(Mandatory = $true)]
+		[string]$OperationMode,
+
+		[Parameter(Mandatory = $true)]
+		[int]$TimeoutSeconds,
+
+		[AllowNull()]
+		[hashtable]$RunState = $null
+	)
+
+	if ($TimeoutSeconds -le 0)
+	{
+		$TimeoutSeconds = Get-GuiPreRunSnapshotTimeoutSeconds
+	}
+
+	$snapshotState = [hashtable]::Synchronized(@{
+		Done = $false
+		ErrorMessage = $null
+		Snapshot = $null
+		SnapshotPath = $null
+		EntryCount = 0
+		LastProgress = $null
+	})
+	$progressQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[object]'
+	$logQueue = if ($RunState -and $RunState.ContainsKey('LogQueue')) { $RunState['LogQueue'] } else { $null }
+
+	$snapshotRunspace = [runspacefactory]::CreateRunspace()
+	$snapshotRunspace.ApartmentState = 'STA'
+	$snapshotRunspace.ThreadOptions = 'ReuseThread'
+	$snapshotRunspace.Open()
+	$snapshotRunspace.SessionStateProxy.SetVariable('snapshotLoaderPath', $LoaderPath)
+	$snapshotRunspace.SessionStateProxy.SetVariable('snapshotLocDir', $LocalizationDirectory)
+	$snapshotRunspace.SessionStateProxy.SetVariable('snapshotUICulture', $UICulture)
+	$snapshotRunspace.SessionStateProxy.SetVariable('snapshotLogFilePath', $LogFilePath)
+	$snapshotRunspace.SessionStateProxy.SetVariable('snapshotLogMode', $LogMode)
+	$snapshotRunspace.SessionStateProxy.SetVariable('snapshotOperationMode', $OperationMode)
+	$snapshotRunspace.SessionStateProxy.SetVariable('snapshotState', $snapshotState)
+	$snapshotRunspace.SessionStateProxy.SetVariable('snapshotProgressQueue', $progressQueue)
+	$snapshotRunspace.SessionStateProxy.SetVariable('snapshotLogQueue', $logQueue)
+	Set-GuiExecutionRunspaceThemeSnapshot -Runspace $snapshotRunspace
+
+	$snapshotWorker = [powershell]::Create().AddScript({
+		try
+		{
+			$Global:GUIMode = $true
+			if ([string]::IsNullOrWhiteSpace([string]$snapshotOperationMode))
+			{
+				$snapshotOperationMode = 'ReadWrite'
+			}
+			$Global:BaselineOperationMode = [string]$snapshotOperationMode
+			[System.Environment]::SetEnvironmentVariable('BASELINE_OPERATION_MODE', [string]$snapshotOperationMode, [System.EnvironmentVariableTarget]::Process)
+			if ($bgCurrentTheme -is [System.Collections.IDictionary])
+			{
+				$Global:BaselineCurrentTheme = $bgCurrentTheme
+			}
+			if (-not [string]::IsNullOrWhiteSpace([string]$bgCurrentThemeName))
+			{
+				$Global:BaselineCurrentThemeName = [string]$bgCurrentThemeName
+			}
+			if ($null -ne $bgUseDarkMode)
+			{
+				$Global:BaselineUseDarkMode = [bool]$bgUseDarkMode
+			}
+
+			$snapshotModuleRoot = Split-Path $snapshotLoaderPath -Parent
+			$snapshotImportProgress = [pscustomobject]@{
+				Stage    = 'ModuleImport'
+				Index    = 0
+				Total    = 0
+				Name     = 'Baseline module import'
+				Function = 'Import-Module'
+				Key      = 'Baseline module import|Import-Module'
+				Category = 'Execution'
+			}
+			$snapshotState['LastProgress'] = $snapshotImportProgress
+			$snapshotProgressQueue.Enqueue([PSCustomObject]@{
+				Message = 'Execution worker snapshot importing Baseline modules.'
+				Progress = $snapshotImportProgress
+			})
+
+			. (Join-Path $snapshotModuleRoot 'SharedHelpers\Json.Helpers.ps1')
+			. (Join-Path $snapshotModuleRoot 'SharedHelpers\Localization.Helpers.ps1')
+			$Global:Localization = Import-BaselineLocalization -BaseDirectory $snapshotLocDir -UICulture $snapshotUICulture
+			[void](Set-BaselineThreadCulture -UICulture $snapshotUICulture)
+
+			$Global:LogFilePath = $snapshotLogFilePath
+			Import-Module $snapshotLoaderPath -Force -Global -ErrorAction Stop
+			if (Get-Command -Name Set-BaselineOperationMode -ErrorAction SilentlyContinue)
+			{
+				Set-BaselineOperationMode -Mode ([string]$snapshotOperationMode)
+			}
+
+			$global:LogFilePath = $snapshotLogFilePath
+			Set-LogFile -Path $snapshotLogFilePath
+			Set-LogMode -Mode $snapshotLogMode
+			if ($snapshotLogQueue)
+			{
+				Set-UILogHandler { param($entry) $snapshotLogQueue.Enqueue($entry) }
+			}
+
+			$snapshotDetectScriptblocks = @{}
+			$snapshotVisibleIfScriptblocks = @{}
+			$detectScriptblocksPath = Join-Path $snapshotModuleRoot 'GUI\DetectScriptblocks.ps1'
+			if (Test-Path -LiteralPath $detectScriptblocksPath)
+			{
+				. $detectScriptblocksPath
+				$detectScriptblocksVariable = Get-Variable -Scope Script -Name 'DetectScriptblocks' -ErrorAction SilentlyContinue
+				$visibleIfScriptblocksVariable = Get-Variable -Scope Script -Name 'VisibleIfScriptblocks' -ErrorAction SilentlyContinue
+				if ($detectScriptblocksVariable -and $detectScriptblocksVariable.Value -is [hashtable])
+				{
+					$snapshotDetectScriptblocks = $detectScriptblocksVariable.Value
+				}
+				if ($visibleIfScriptblocksVariable -and $visibleIfScriptblocksVariable.Value -is [hashtable])
+				{
+					$snapshotVisibleIfScriptblocks = $visibleIfScriptblocksVariable.Value
+				}
+			}
+
+			$snapshotManifestProgress = [pscustomobject]@{
+				Stage    = 'Manifest'
+				Index    = 0
+				Total    = 0
+				Name     = 'Snapshot manifest metadata'
+				Function = 'Import-TweakManifestFromData'
+				Key      = 'Snapshot manifest metadata|Import-TweakManifestFromData'
+				Category = 'Execution'
+			}
+			$snapshotState['LastProgress'] = $snapshotManifestProgress
+			$snapshotProgressQueue.Enqueue([PSCustomObject]@{
+				Message = 'Execution worker snapshot loading manifest metadata.'
+				Progress = $snapshotManifestProgress
+			})
+
+			$snapshotManifest = Import-TweakManifestFromData -DetectScriptblocks $snapshotDetectScriptblocks -VisibleIfScriptblocks $snapshotVisibleIfScriptblocks
+			try
+			{
+				$snapshotSystemInfo = Get-BaselineSystemPlatformInfo
+				$null = Update-BaselineManifestAvailability -Manifest $snapshotManifest -SystemInfo $snapshotSystemInfo
+				$null = Update-BaselineManifestExecutionSupport -Manifest $snapshotManifest
+			}
+			catch
+			{
+				Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.PreRunSnapshotWorker.ManifestAvailabilityStamp'
+			}
+
+			$progressCallback = {
+				param([object]$SnapshotProgress)
+
+				if ($null -eq $SnapshotProgress)
+				{
+					return
+				}
+
+				$snapshotState['LastProgress'] = $SnapshotProgress
+				$stage = if ($SnapshotProgress.PSObject.Properties['Stage']) { [string]$SnapshotProgress.Stage } else { '' }
+				$functionName = if ($SnapshotProgress.PSObject.Properties['Function']) { [string]$SnapshotProgress.Function } else { '' }
+				$entryName = if ($SnapshotProgress.PSObject.Properties['Name']) { [string]$SnapshotProgress.Name } else { '' }
+				$index = if ($SnapshotProgress.PSObject.Properties['Index']) { [int]$SnapshotProgress.Index } else { 0 }
+				$total = if ($SnapshotProgress.PSObject.Properties['Total']) { [int]$SnapshotProgress.Total } else { 0 }
+
+				if ($stage -eq 'SystemInfo')
+				{
+					$message = 'Execution worker snapshot checking system information.'
+				}
+				elseif ($total -gt 0)
+				{
+					$label = if (-not [string]::IsNullOrWhiteSpace($functionName)) { $functionName } else { $entryName }
+					if (-not [string]::IsNullOrWhiteSpace($entryName) -and $entryName -ne $label)
+					{
+						$label = '{0} ({1})' -f $label, $entryName
+					}
+					$message = 'Execution worker snapshot checking {0}/{1}: {2}.' -f $index, $total, $label
+				}
+				else
+				{
+					$message = 'Execution worker snapshot checking manifest entry.'
+				}
+
+				$snapshotProgressQueue.Enqueue([PSCustomObject]@{
+					Message = $message
+					Progress = $SnapshotProgress
+					ProgressOnly = $true
+				})
+			}
+
+			$snapshot = New-SystemStateSnapshot -Manifest $snapshotManifest -ProgressCallback $progressCallback
+			$snapshotDir = Join-Path (Get-BaselineDataDirectory) 'Snapshots'
+			if (-not (Test-Path -LiteralPath $snapshotDir)) { New-Item -Path $snapshotDir -ItemType Directory -Force | Out-Null }
+			Limit-SnapshotDirectory -Directory $snapshotDir -Keep 10
+			$snapshotPath = Join-Path $snapshotDir ('PreRun-{0}.json' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+			Export-SystemStateSnapshot -Snapshot $snapshot -Path $snapshotPath
+
+			$snapshotState['Snapshot'] = $snapshot
+			$snapshotState['SnapshotPath'] = $snapshotPath
+			$snapshotState['EntryCount'] = [int]@($snapshot.Entries).Count
+		}
+		catch
+		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.Invoke-GuiPreRunSnapshotCapture:catch487' -Severity Debug }
+
+			$snapshotState['ErrorMessage'] = if ([string]::IsNullOrWhiteSpace([string]$_.Exception.Message)) { 'Pre-run snapshot capture failed.' } else { [string]$_.Exception.Message }
+		}
+		finally
+		{
+			try { if (Get-Command -Name Clear-LogMode -ErrorAction SilentlyContinue) { Clear-LogMode } } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.Invoke-GuiPreRunSnapshotCapture:catch493' -Severity Debug }
+			 }
+			$snapshotState['Done'] = $true
+		}
+	})
+	$snapshotWorker.Runspace = $snapshotRunspace
+
+	$startedAt = Get-Date
+	$asyncResult = $snapshotWorker.BeginInvoke()
+	$timedOut = $false
+	$aborted = $false
+	$completed = $false
+	$cleanupScheduled = $false
+
+	try
+	{
+		while (-not $asyncResult.AsyncWaitHandle.WaitOne(250))
+		{
+			$progressItem = $null
+			while ($progressQueue.TryDequeue([ref]$progressItem))
+			{
+				if ($progressItem -and $progressItem.PSObject.Properties['Message'])
+				{
+					$progressOnly = ($progressItem.PSObject.Properties['ProgressOnly'] -and [bool]$progressItem.ProgressOnly)
+					Write-GuiExecutionQueueRunNotice -RunState $RunState -Message ([string]$progressItem.Message) -Progress -ProgressOnly:$progressOnly
+				}
+				$progressItem = $null
+			}
+
+			if ($RunState -and [bool]$RunState['AbortRequested'])
+			{
+				$aborted = $true
+				break
+			}
+
+			if (((Get-Date) - $startedAt).TotalSeconds -ge [double]$TimeoutSeconds)
+			{
+				$timedOut = $true
+				break
+			}
+		}
+
+		$progressItem = $null
+		while ($progressQueue.TryDequeue([ref]$progressItem))
+		{
+			if ($progressItem -and $progressItem.PSObject.Properties['Message'])
+			{
+				$progressOnly = ($progressItem.PSObject.Properties['ProgressOnly'] -and [bool]$progressItem.ProgressOnly)
+				Write-GuiExecutionQueueRunNotice -RunState $RunState -Message ([string]$progressItem.Message) -Progress -ProgressOnly:$progressOnly
+			}
+			$progressItem = $null
+		}
+
+		if ($timedOut -or $aborted)
+		{
+			Stop-GuiPreRunSnapshotCaptureAsync -Worker ([pscustomobject]@{
+				PowerShell = $snapshotWorker
+				AsyncResult = $asyncResult
+				Runspace = $snapshotRunspace
+			})
+			$cleanupScheduled = $true
+
+			return [pscustomobject]@{
+				Succeeded = $false
+				TimedOut = $timedOut
+				Aborted = $aborted
+				ErrorMessage = $null
+				Snapshot = $null
+				SnapshotPath = $null
+				EntryCount = 0
+				LastProgress = $snapshotState['LastProgress']
+				DurationSeconds = [math]::Round(((Get-Date) - $startedAt).TotalSeconds, 3)
+			}
+		}
+
+		$completed = $true
+		$null = $snapshotWorker.EndInvoke($asyncResult)
+		if (-not [string]::IsNullOrWhiteSpace([string]$snapshotState['ErrorMessage']))
+		{
+			return [pscustomobject]@{
+				Succeeded = $false
+				TimedOut = $false
+				Aborted = $false
+				ErrorMessage = [string]$snapshotState['ErrorMessage']
+				Snapshot = $null
+				SnapshotPath = $null
+				EntryCount = 0
+				LastProgress = $snapshotState['LastProgress']
+				DurationSeconds = [math]::Round(((Get-Date) - $startedAt).TotalSeconds, 3)
+			}
+		}
+
+		return [pscustomobject]@{
+			Succeeded = $true
+			TimedOut = $false
+			Aborted = $false
+			ErrorMessage = $null
+			Snapshot = $snapshotState['Snapshot']
+			SnapshotPath = [string]$snapshotState['SnapshotPath']
+			EntryCount = [int]$snapshotState['EntryCount']
+			LastProgress = $snapshotState['LastProgress']
+			DurationSeconds = [math]::Round(((Get-Date) - $startedAt).TotalSeconds, 3)
+		}
+	}
+	catch
+	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.Invoke-GuiPreRunSnapshotCapture:catch596' -Severity Debug }
+
+		return [pscustomobject]@{
+			Succeeded = $false
+			TimedOut = $false
+			Aborted = $aborted
+			ErrorMessage = if ([string]::IsNullOrWhiteSpace([string]$_.Exception.Message)) { 'Pre-run snapshot capture failed.' } else { [string]$_.Exception.Message }
+			Snapshot = $null
+			SnapshotPath = $null
+			EntryCount = 0
+			LastProgress = $snapshotState['LastProgress']
+			DurationSeconds = [math]::Round(((Get-Date) - $startedAt).TotalSeconds, 3)
+		}
+	}
+	finally
+	{
+		if (-not $cleanupScheduled)
+		{
+			try { $snapshotWorker.Dispose() } catch { Write-GuiExecutionCleanupWarning "Failed to dispose pre-run snapshot worker: $($_.Exception.Message)" }
+			try
+			{
+				$snapshotRunspace.Close()
+				$snapshotRunspace.Dispose()
+			}
+			catch
+			{
+				Write-GuiExecutionCleanupWarning "Failed to dispose pre-run snapshot runspace: $($_.Exception.Message)"
+			}
+		}
+	}
 }
 
 function Test-GuiExecutionObjectField
@@ -372,6 +963,53 @@ function Resolve-GuiExecutionAvailabilityGate
 
 <#
     .SYNOPSIS
+    Resolves execution support that depends on the selected option.
+
+    .DESCRIPTION
+    Manifest-level SupportsExecution is entry-wide, but some choice entries have
+    options with different prerequisites. This gate checks the selected run
+    entry so supported options such as Cursors -Default can still execute while
+    options requiring external configuration are skipped with a clear reason.
+#>
+function Resolve-GuiExecutionDynamicSelectionSupport
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[AllowNull()]
+		[object]$Entry
+	)
+
+	$result = [ordered]@{
+		SupportsExecution = $true
+		Reason            = ''
+	}
+
+	$functionName = [string](Get-GuiExecutionEntryFieldValue -Entry $Entry -FieldName 'Function')
+	if ([string]::IsNullOrWhiteSpace($functionName))
+	{
+		return [pscustomobject]$result
+	}
+
+	if ($functionName -eq 'Cursors')
+	{
+		$selectedValue = [string](Get-GuiExecutionEntryFieldValue -Entry $Entry -FieldName 'Value')
+		if ($selectedValue -in @('Dark', 'Light'))
+		{
+			$cursorArchiveUrl = [string][System.Environment]::GetEnvironmentVariable('BASELINE_CURSOR_ARCHIVE_URL')
+			if ([string]::IsNullOrWhiteSpace($cursorArchiveUrl))
+			{
+				$result.SupportsExecution = $false
+				$result.Reason = 'Dark and light cursor themes require BASELINE_CURSOR_ARCHIVE_URL to point to the verified Windows cursor archive.'
+			}
+		}
+	}
+
+	return [pscustomobject]$result
+}
+
+<#
+    .SYNOPSIS
     Resolves GUI execution supports execution gate.
 
     .DESCRIPTION
@@ -387,6 +1025,15 @@ function Resolve-GuiExecutionSupportsExecutionGate
 		[object]$Entry,
 		[switch]$ForceUnsupported
 	)
+
+	$dynamicSupport = Resolve-GuiExecutionDynamicSelectionSupport -Entry $Entry
+	if (-not $dynamicSupport.SupportsExecution)
+	{
+		return [pscustomobject]@{
+			Decision = if ($ForceUnsupported) { 'Force' } else { 'Block' }
+			Reason   = if ([string]::IsNullOrWhiteSpace([string]$dynamicSupport.Reason)) { 'Execution not supported on this system.' } else { [string]$dynamicSupport.Reason }
+		}
+	}
 
 	if (Test-BaselineEntrySupportsExecution -Entry $Entry)
 	{
@@ -514,7 +1161,12 @@ function Get-GuiExecutionActionTimeoutSeconds
 		return 600
 	}
 
-	if ($functionName -in @('WindowsFeatures', 'WindowsCapabilities', 'UWPApps'))
+	if ($functionName -eq 'WindowsCapabilities')
+	{
+		return 3600
+	}
+
+	if ($functionName -in @('WindowsFeatures', 'UWPApps'))
 	{
 		return 300
 	}
@@ -603,6 +1255,7 @@ function New-GuiExecutionActionHost
 	$runspace.SessionStateProxy.SetVariable('bgLogMode', $LogMode)
 	$runspace.SessionStateProxy.SetVariable('bgOperationMode', $resolvedOperationMode)
 	$runspace.SessionStateProxy.SetVariable('bgGuiLogQueue', $LogQueue)
+	Set-GuiExecutionRunspaceThemeSnapshot -Runspace $runspace
 
 	$initializer = [powershell]::Create().AddScript({
 		$Global:GUIMode = $true
@@ -612,6 +1265,18 @@ function New-GuiExecutionActionHost
 		}
 		$Global:BaselineOperationMode = [string]$bgOperationMode
 		[System.Environment]::SetEnvironmentVariable('BASELINE_OPERATION_MODE', [string]$bgOperationMode, [System.EnvironmentVariableTarget]::Process)
+		if ($bgCurrentTheme -is [System.Collections.IDictionary])
+		{
+			$Global:BaselineCurrentTheme = $bgCurrentTheme
+		}
+		if (-not [string]::IsNullOrWhiteSpace([string]$bgCurrentThemeName))
+		{
+			$Global:BaselineCurrentThemeName = [string]$bgCurrentThemeName
+		}
+		if ($null -ne $bgUseDarkMode)
+		{
+			$Global:BaselineUseDarkMode = [bool]$bgUseDarkMode
+		}
 		$bgModuleRoot = Split-Path $bgLoaderPath -Parent
 		$bgJsonHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Json.Helpers.ps1'
 		$bgHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Localization.Helpers.ps1'
@@ -682,7 +1347,9 @@ function Close-GuiExecutionActionHost
 	[CmdletBinding()]
 	param (
 		[AllowNull()]
-		$ActionHost
+		$ActionHost,
+
+		[switch]$NonBlocking
 	)
 
 	if (-not $ActionHost)
@@ -693,6 +1360,12 @@ function Close-GuiExecutionActionHost
 	$runspace = if ($ActionHost.PSObject.Properties['Runspace']) { $ActionHost.Runspace } else { $null }
 	if (-not $runspace)
 	{
+		return
+	}
+
+	if ($NonBlocking)
+	{
+		try { $runspace.CloseAsync(); return } catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.CloseActionHost.CloseRunspaceAsync' -Severity Warning }
 		return
 	}
 
@@ -753,7 +1426,6 @@ function Invoke-GuiExecutionActionHostCommand
 			Set-BaselineOperationMode -Mode ([string]$InvocationOperationMode)
 		}
 
-		$errorBaseline = if ($Global:Error) { $Global:Error.Count } else { 0 }
 		$resolvedCommand = Get-Command -Name $InvocationCommandName -ErrorAction Stop | Select-Object -First 1
 		if ($InvocationCommandArguments -and $InvocationCommandArguments.Count -gt 0)
 		{
@@ -763,12 +1435,6 @@ function Invoke-GuiExecutionActionHostCommand
 		{
 			& $resolvedCommand
 		}
-
-		$newErrors = @(Get-NewUnhandledErrorRecords -BaselineCount $errorBaseline)
-		if ($newErrors.Count -gt 0)
-		{
-			throw $newErrors[0]
-		}
 	}).AddArgument($CommandName).AddArgument($CommandArguments).AddArgument($invocationOperationMode)
 	$powerShell.Runspace = $ActionHost.Runspace
 
@@ -777,6 +1443,7 @@ function Invoke-GuiExecutionActionHostCommand
 	$timedOut = $false
 	$aborted = $false
 	$stopIssued = $false
+	$stopCompleted = $true
 
 	try
 	{
@@ -786,7 +1453,7 @@ function Invoke-GuiExecutionActionHostCommand
 			if ($RunState -and [bool]$RunState['AbortRequested'])
 			{
 				$aborted = $true
-				try { $powerShell.Stop() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.ActionHostCommand.AbortStop' }
+				$stopCompleted = Request-GuiExecutionPowerShellStopAsync -PowerShell $powerShell -Source 'GUIExecution.ActionHostCommand.AbortStop'
 				$stopIssued = $true
 				break
 			}
@@ -794,7 +1461,7 @@ function Invoke-GuiExecutionActionHostCommand
 			if (((Get-Date) - $startedAt).TotalSeconds -ge [double]$TimeoutSeconds)
 			{
 				$timedOut = $true
-				try { $powerShell.Stop() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.ActionHostCommand.TimeoutStop' }
+				$stopCompleted = Request-GuiExecutionPowerShellStopAsync -PowerShell $powerShell -Source 'GUIExecution.ActionHostCommand.TimeoutStop'
 				$stopIssued = $true
 				break
 			}
@@ -818,6 +1485,7 @@ function Invoke-GuiExecutionActionHostCommand
 				EndedAt           = Get-Date
 				DurationSeconds   = [math]::Round(((Get-Date) - $startedAt).TotalSeconds, 3)
 				CommandName       = $CommandName
+				StopCompleted     = $stopCompleted
 				HostRequiresReset = $stopIssued
 			}
 		}
@@ -834,11 +1502,14 @@ function Invoke-GuiExecutionActionHostCommand
 			EndedAt           = Get-Date
 			DurationSeconds   = [math]::Round(((Get-Date) - $startedAt).TotalSeconds, 3)
 			CommandName       = $CommandName
+			StopCompleted     = $true
 			HostRequiresReset = $false
 		}
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.Invoke-GuiExecutionActionHostCommand:catch1501' -Severity Debug }
+
 		return [pscustomobject]@{
 			Succeeded         = $false
 			TimedOut          = $false
@@ -850,12 +1521,20 @@ function Invoke-GuiExecutionActionHostCommand
 			EndedAt           = Get-Date
 			DurationSeconds   = [math]::Round(((Get-Date) - $startedAt).TotalSeconds, 3)
 			CommandName       = $CommandName
+			StopCompleted     = $stopCompleted
 			HostRequiresReset = $stopIssued
 		}
 	}
 	finally
 	{
-		try { $powerShell.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.ActionHostCommand.DisposePowerShell' }
+		if (($timedOut -or $aborted) -and $asyncResult -and -not [bool]$asyncResult.IsCompleted)
+		{
+			Write-GuiExecutionCleanupWarning "Action host command '$CommandName' did not stop within the bounded timeout cleanup window; abandoning its runspace so GUI execution can continue."
+		}
+		else
+		{
+			try { $powerShell.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.ActionHostCommand.DisposePowerShell' }
+		}
 	}
 }
 
@@ -1225,6 +1904,8 @@ function Resolve-GuiAppTimeoutVerification
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.Resolve-GuiAppTimeoutVerification:catch1895' -Severity Debug }
+
 		return [pscustomobject]@{
 			VerificationAttempted = $true
 			VerificationResult = if ([string]::IsNullOrWhiteSpace([string]$_.Exception.Message)) { 'Failed' } else { [string]$_.Exception.Message }
@@ -1271,10 +1952,30 @@ function Start-GuiExecutionWorker
 		[switch]$ForceUnsupported
 	)
 
+	$writeStartupNotice = {
+		param([string]$Message)
+		try
+		{
+			if ($RunState -and $RunState.ContainsKey('LogQueue') -and $RunState['LogQueue'])
+			{
+				$RunState['LogQueue'].Enqueue([pscustomobject]@{
+					Kind = '_RunNotice'
+					Level = 'DEBUG'
+					Message = $Message
+					Progress = $true
+					Diagnostic = $true
+				})
+			}
+		}
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.StartWorker.EnqueueStartupNotice' }
+	}
+
+	& $writeStartupNotice 'Execution startup: creating background runspace.'
 	$bgRunspace = [runspacefactory]::CreateRunspace()
 	$bgRunspace.ApartmentState = 'STA'
 	$bgRunspace.ThreadOptions = 'ReuseThread'
 	$bgRunspace.Open()
+	& $writeStartupNotice 'Execution startup: background runspace opened.'
 	$operationMode = Get-GuiExecutionOperationMode
 	$bgRunspace.SessionStateProxy.SetVariable('runState', $RunState)
 	$bgRunspace.SessionStateProxy.SetVariable('tweakList', @($TweakList))
@@ -1287,11 +1988,14 @@ function Start-GuiExecutionWorker
 	$bgRunspace.SessionStateProxy.SetVariable('bgOperationMode', $operationMode)
 	$bgRunspace.SessionStateProxy.SetVariable('bgForceUnsupported', [bool]$ForceUnsupported)
 	$bgRunspace.SessionStateProxy.SetVariable('GUIRunState', $RunState['LogQueue'])
+	Set-GuiExecutionRunspaceThemeSnapshot -Runspace $bgRunspace
 
 		. (Join-Path $PSScriptRoot 'GUIExecution\Start-GuiExecutionWorker\Start-GuiExecutionWorker.ps1')
 
 	$worker.Runspace = $bgRunspace
+	& $writeStartupNotice 'Execution startup: invoking worker scriptblock.'
 	$asyncResult = $worker.BeginInvoke()
+	& $writeStartupNotice 'Execution startup: worker BeginInvoke returned.'
 
 	return [pscustomobject]@{
 		PowerShell = $worker
@@ -1366,6 +2070,17 @@ function Start-GuiAppExecutionWorker
 		}
 	}
 
+	$guiExecutionModulePath = Join-Path $PSScriptRoot 'GUIExecution.psm1'
+	$actionHostLoaderPath = Join-Path $PSScriptRoot 'Baseline.psm1'
+	if (-not (Test-Path -LiteralPath $guiExecutionModulePath -PathType Leaf))
+	{
+		throw "Unable to start app execution worker because GUIExecution.psm1 was not found at '$guiExecutionModulePath'."
+	}
+	if (-not (Test-Path -LiteralPath $actionHostLoaderPath -PathType Leaf))
+	{
+		throw "Unable to start app execution worker because Baseline.psm1 was not found at '$actionHostLoaderPath'."
+	}
+
 	$bgRunspace = [runspacefactory]::CreateRunspace()
 	$bgRunspace.ApartmentState = 'STA'
 	$bgRunspace.ThreadOptions = 'ReuseThread'
@@ -1380,6 +2095,8 @@ function Start-GuiAppExecutionWorker
 		}
 	}
 	$bgRunspace.SessionStateProxy.SetVariable('bgLoaderPath', $LoaderPath)
+	$bgRunspace.SessionStateProxy.SetVariable('bgGuiExecutionModulePath', $guiExecutionModulePath)
+	$bgRunspace.SessionStateProxy.SetVariable('bgActionHostLoaderPath', $actionHostLoaderPath)
 	$bgRunspace.SessionStateProxy.SetVariable('bgLocDir', $LocalizationDirectory)
 	$bgRunspace.SessionStateProxy.SetVariable('bgUICulture', $UICulture)
 	$bgRunspace.SessionStateProxy.SetVariable('bgLogFilePath', $LogFilePath)
@@ -1393,6 +2110,7 @@ function Start-GuiAppExecutionWorker
 	$bgRunspace.SessionStateProxy.SetVariable('selectedApps', @($SelectedApps))
 	$bgRunspace.SessionStateProxy.SetVariable('preferredSource', $PreferredSource)
 	$bgRunspace.SessionStateProxy.SetVariable('packageManagerAvailabilityState', $PackageManagerAvailabilityState)
+	Set-GuiExecutionRunspaceThemeSnapshot -Runspace $bgRunspace
 
 		. (Join-Path $PSScriptRoot 'GUIExecution\Start-GuiAppExecutionWorker\Start-GuiAppExecutionWorker.ps1')
 
@@ -1662,8 +2380,10 @@ function Complete-GuiExecutionWorker
 
 Export-ModuleMember -Function @(
 	'Update-GuiRunStateCounter'
+	'Test-GuiExecutionObjectField'
 	'Get-GuiExecutionOutcome'
 	'Get-GuiExecutionActionTimeoutSeconds'
+	'Get-GuiPreRunSnapshotTimeoutSeconds'
 	'Test-GuiExecutionAppliedOutcome'
 	'Test-GuiExecutionCriticalAction'
 	'Test-GuiExecutionInvocationTimedOut'
@@ -1676,6 +2396,10 @@ Export-ModuleMember -Function @(
 	'New-GuiExecutionActionHost'
 	'Close-GuiExecutionActionHost'
 	'Invoke-GuiExecutionActionHostCommand'
+	'Get-GuiExecutionAppActionVerb'
+	'Resolve-GuiAppTimeoutVerification'
+	'Write-GuiExecutionTimeoutRecord'
+	'Invoke-GuiPreRunSnapshotCapture'
 	'Start-GuiExecutionWorker'
 	'Start-GuiAppExecutionWorker'
 	'Request-GuiExecutionWorkerStop'

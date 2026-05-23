@@ -88,6 +88,8 @@ Describe 'Game Mode plan merge' {
         $script:Controls = @{ 0 = [pscustomobject]@{ IsEnabled = $true } }
         $script:SelectedTweaks = @()
         $script:GameModeControlSyncInProgress = $false
+        $script:GuiSelectionBulkUpdateInProgress = $false
+        $script:GameModePlanSyncPending = $false
         $script:GameModeAllowlist = @('GPUScheduling', 'PowerPlan', 'MouseAcceleration')
         $script:GamingCrossTabFunctions = [System.Collections.Generic.HashSet[string]]::new([string[]]@('PowerPlan'))
         $script:CategoryToPrimary = @{
@@ -214,6 +216,36 @@ Describe 'Game Mode plan merge' {
         (@($script:GameModePlan | Where-Object Function -eq 'PowerPlan'))[0].Selection | Should -Be 'Ultimate'
         @($script:GameModePlan | Where-Object Function -eq 'MouseAcceleration') | Should -HaveCount 1
         $script:PresetStatusMessage | Should -Match '3 action\(s\) selected'
+    }
+
+    It 'defers plan recompute while a bulk selection update is active' {
+        $script:GuiSelectionBulkUpdateInProgress = $true
+        $script:TweakManifest = @(
+            [pscustomobject]@{
+                Function = 'MouseAcceleration'
+                Category = 'Gaming'
+            }
+        )
+        $script:SelectedTweaks = @(
+            [pscustomobject]@{
+                Name = 'Mouse Acceleration'
+                Function = 'MouseAcceleration'
+                Category = 'Gaming'
+                Type = 'Toggle'
+                Selection = 'Enable'
+                ToggleParam = 'Enable'
+                OnParam = 'Enable'
+                OffParam = 'Disable'
+                IsChecked = $true
+                RequiresRestart = $false
+            }
+        )
+
+        Sync-GameModePlanFromGamingControls
+
+        $script:GameModePlanSyncPending | Should -BeTrue
+        @($script:GameModePlan).Count | Should -Be 0
+        $script:PresetStatusMessage | Should -BeNullOrEmpty
     }
 }
 

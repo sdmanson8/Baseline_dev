@@ -1,4 +1,4 @@
-﻿# Audit Log Viewer: displays a scrollable timeline of audit log entries
+# Audit Log Viewer: displays a scrollable timeline of audit log entries
 # with filtering and export/clear capabilities.
 
 <#
@@ -148,7 +148,9 @@ function Show-AuditLogDialog
 		$match = [regex]::Match($selectedText, '\d+')
 		if ($match.Success)
 		{
-			try { return [int]$match.Value } catch { return 90 }
+			try { return [int]$match.Value } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditView.Show-AuditLogDialog:catch151' -Severity Debug }
+			 return 90 }
 		}
 
 		return 90
@@ -192,7 +194,9 @@ function Show-AuditLogDialog
 		}
 
 		# Show records in reverse chronological order (newest first)
-		$sortedRecords = @($records | Sort-Object { try { [datetime]::Parse($_.Timestamp) } catch { [datetime]::MinValue } } -Descending)
+		$sortedRecords = @($records | Sort-Object { try { [datetime]::Parse($_.Timestamp) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditView.Show-AuditLogDialog:catch195' -Severity Debug }
+		 [datetime]::MinValue } } -Descending)
 
 		foreach ($rec in $sortedRecords)
 		{
@@ -214,7 +218,9 @@ function Show-AuditLogDialog
 			$tsText = (& $getLocalizedString -Key 'GuiAuditTimestampUnknown' -Fallback '(unknown)')
 			if ($rec.Timestamp)
 			{
-				try { $tsText = ([datetime]::Parse($rec.Timestamp)).ToString('yyyy-MM-dd HH:mm:ss') } catch { $tsText = [string]$rec.Timestamp }
+				try { $tsText = ([datetime]::Parse($rec.Timestamp)).ToString('yyyy-MM-dd HH:mm:ss') } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditView.Show-AuditLogDialog:catch217' -Severity Debug }
+				 $tsText = [string]$rec.Timestamp }
 			}
 
 			$tsBlock = New-Object System.Windows.Controls.TextBlock
@@ -317,6 +323,8 @@ function Show-AuditLogDialog
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditView.Show-AuditLogDialog:catch318' -Severity Debug }
+
 			Show-ThemedDialog -Title (& $getLocalizedString -Key 'GuiAuditExportReport' -Fallback 'Export Report') -Message ((& $getLocalizedString -Key 'GuiAuditExportFailed' -Fallback "Failed to export audit report.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK'
 		}
 	}.GetNewClosure())
@@ -340,6 +348,8 @@ function Show-AuditLogDialog
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditView.Show-AuditLogDialog:catch341' -Severity Debug }
+
 			Show-ThemedDialog -Title $clearLabel -Message ((& $getLocalizedString -Key 'GuiAuditClearFailed' -Fallback "Failed to clear old entries.`n`n{0}") -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK'
 		}
 	}.GetNewClosure())

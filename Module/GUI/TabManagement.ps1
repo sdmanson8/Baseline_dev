@@ -31,6 +31,64 @@
 	    .SYNOPSIS
 	#>
 
+	function Get-GuiCustomizationsActionCardDefinitions
+	{
+		[CmdletBinding()]
+		param ()
+
+		return @(
+			[pscustomobject]@{
+				Key                 = 'StartupManager'
+				TitleKey            = 'GuiStartupManagerTitle'
+				TitleFallback       = 'Startup Manager'
+				DescriptionKey      = 'GuiStartupManagerSubtitle'
+				DescriptionFallback = 'Enable or disable Run / RunOnce / Startup folder entries. Toggling here flips the same StartupApproved bit Task Manager uses; the underlying entry is never deleted.'
+				ButtonKey           = 'GuiOpenButton'
+				ButtonFallback      = 'Open'
+				Action              = { Invoke-GuiCustomizationsStartupManagerAction }
+				AppendEntryCount    = $true
+			}
+			[pscustomobject]@{
+				Key                 = 'UserFolders'
+				TitleKey            = 'GuiUserFoldersTitle'
+				TitleFallback       = 'User Folders'
+				DescriptionKey      = 'GuiUserFoldersSubtitle'
+				DescriptionFallback = 'Move Desktop, Documents, Downloads, Music, Pictures, and Videos from the System Tweaks category.'
+				ButtonKey           = 'GuiOpenButton'
+				ButtonFallback      = 'Open'
+				Action              = { Invoke-GuiCustomizationsUserFoldersAction }
+				AppendEntryCount    = $false
+			}
+			[pscustomobject]@{
+				Key                 = 'WslInstall'
+				TitleKey            = 'GuiWslInstallTitle'
+				TitleFallback       = 'Install WSL'
+				DescriptionKey      = 'GuiWslInstallSubtitle'
+				DescriptionFallback = 'Install a Windows Subsystem for Linux distribution and enable WSL update delivery from the System Tweaks category.'
+				ButtonKey           = 'GuiInstallButton'
+				ButtonFallback      = 'Install'
+				Action              = { Invoke-GuiCustomizationsWslInstallAction }
+				AppendEntryCount    = $false
+			}
+		)
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Get-GuiCustomizationsActionCardCount
+	{
+		[CmdletBinding()]
+		param ()
+
+		return @((Get-GuiCustomizationsActionCardDefinitions)).Count
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
 	function Get-PrimaryTabVisibleTweakCount
 	{
 		param (
@@ -90,10 +148,7 @@
 			$tweakCount = 0
 			if ($pKey -eq 'Customizations')
 			{
-				if (Get-Command -Name 'Get-BaselineStartupEntries' -CommandType Function -ErrorAction SilentlyContinue)
-				{
-					try { $tweakCount = @(Get-BaselineStartupEntries).Count } catch { Write-SwallowedException -ErrorRecord $_ -Source 'TabManagement.Get-PrimaryTabItemHeaderText.CustomizationsStartupEntries'; $tweakCount = 0 }
-				}
+				$tweakCount = Get-GuiCustomizationsActionCardCount
 			}
 			else
 			{

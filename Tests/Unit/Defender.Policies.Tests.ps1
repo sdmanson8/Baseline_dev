@@ -150,7 +150,7 @@ Describe 'PUAppsDetection' {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:warningMessages = [System.Collections.Generic.List[string]]::new()
         $script:mpCalls = [System.Collections.Generic.List[object]]::new()
-        $Script:DefenderEnabled = $true
+        $script:defenderExecutionAvailable = $true
         $Script:Localization = [pscustomobject]@{ Skipped = 'Skipped: {0}' }
 
         function Write-ConsoleStatus {
@@ -161,6 +161,8 @@ Describe 'PUAppsDetection' {
         function LogWarning { param([string]$Message) [void]$script:warningMessages.Add($Message) }
         function LogError { param([string]$Message) }
         function Get-TweakSkipLabel { param($Invocation) return 'PUAppsDetection' }
+        function Test-BaselineDefenderExecutionAvailable { return [bool]$script:defenderExecutionAvailable }
+        function Get-BaselineDefenderExecutionUnavailableReason { return 'Set-MpPreference is not available.' }
         function Set-MpPreference {
             param([string]$PUAProtection, [object]$ErrorAction)
             [void]$script:mpCalls.Add($PUAProtection)
@@ -173,6 +175,8 @@ Describe 'PUAppsDetection' {
         Remove-Item Function:\LogWarning -ErrorAction SilentlyContinue
         Remove-Item Function:\LogError -ErrorAction SilentlyContinue
         Remove-Item Function:\Get-TweakSkipLabel -ErrorAction SilentlyContinue
+        Remove-Item Function:\Test-BaselineDefenderExecutionAvailable -ErrorAction SilentlyContinue
+        Remove-Item Function:\Get-BaselineDefenderExecutionUnavailableReason -ErrorAction SilentlyContinue
         Remove-Item Function:\Set-MpPreference -ErrorAction SilentlyContinue
     }
 
@@ -190,12 +194,13 @@ Describe 'PUAppsDetection' {
         $script:consoleStatuses[-1] | Should -Be 'success'
     }
 
-    It 'skips when Defender is not enabled globally' {
-        $Script:DefenderEnabled = $false
+    It 'skips when Defender command surface is unavailable' {
+        $script:defenderExecutionAvailable = $false
         PUAppsDetection -Enable
 
         $script:mpCalls.Count | Should -Be 0
         $script:warningMessages.Count | Should -Be 1
+        $script:warningMessages[0] | Should -Match 'Set-MpPreference is not available'
     }
 }
 

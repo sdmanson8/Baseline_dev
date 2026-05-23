@@ -1,5 +1,15 @@
+$guiResponsivenessWatchdog = $null
 try
 	{
+		try
+		{
+			$guiResponsivenessWatchdog = Start-GuiResponsivenessWatchdog -Window $Form
+			$Script:GuiResponsivenessWatchdog = $guiResponsivenessWatchdog
+		}
+		catch
+		{
+			Write-SwallowedException -ErrorRecord $_ -Source 'Regions.GUI.GuiResponsivenessWatchdog.Start' -Severity Warning
+		}
 		& $traceGuiStartup 'ShowDialog entering'
 		[void]([System.Windows.Window]$Form).ShowDialog()
 		& $traceGuiStartup 'ShowDialog returned'
@@ -22,6 +32,18 @@ try
 		}
 
 		throw ($errorLines -join [Environment]::NewLine)
+	}
+	finally
+	{
+		if ($guiResponsivenessWatchdog)
+		{
+			try { Stop-GuiResponsivenessWatchdog -Watchdog $guiResponsivenessWatchdog }
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'Regions.GUI.GuiResponsivenessWatchdog.Stop' -Severity Warning }
+		}
+		if ($Script:GuiResponsivenessWatchdog -eq $guiResponsivenessWatchdog)
+		{
+			$Script:GuiResponsivenessWatchdog = $null
+		}
 	}
 
 	if ($startupSplashAbortWatchdog)

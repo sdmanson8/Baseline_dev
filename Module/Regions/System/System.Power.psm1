@@ -1,4 +1,4 @@
-﻿using module ..\..\Logging.psm1
+using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
 <#
@@ -6,9 +6,9 @@ using module ..\..\SharedHelpers.psm1
     Configures hibernation state management.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies Baseline's hibernation state management in GUI and headless runs.
 	.PARAMETER Disable
 	Disable hibernation
@@ -62,8 +62,8 @@ function Hibernation
 			}
 			catch
 			{
-				Write-ConsoleStatus -Status failed
-				LogError "Failed to disable hibernation: $($_.Exception.Message)"
+				Write-ConsoleStatus -Status warning
+				LogWarning "Hibernation was not disabled because Windows rejected the request: $($_.Exception.Message)"
 			}
 		}
 		"Enable"
@@ -78,8 +78,8 @@ function Hibernation
 			}
 			catch
 			{
-				Write-ConsoleStatus -Status failed
-				LogError "Failed to enable hibernation: $($_.Exception.Message)"
+				Write-ConsoleStatus -Status warning
+				LogWarning "Hibernation was not enabled because Windows rejected the request: $($_.Exception.Message)"
 			}
 		}
 	}
@@ -90,9 +90,9 @@ function Hibernation
 	Power plan
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for power plan.
 	.PARAMETER High
 	Set power plan on "High performance"
@@ -247,9 +247,9 @@ function PowerPlan
 	Toggle Hybrid Sleep (combines sleep + hibernate).
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for toggle Hybrid Sleep (combines sleep + hibernate)..
 	.PARAMETER Enable
 	Enable Hybrid Sleep on AC and DC.
@@ -301,9 +301,9 @@ function HybridSleep
 	Processor minimum state
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for processor minimum state.
 	.PARAMETER Value
 	Set the same processor minimum state on AC and DC.
@@ -373,9 +373,9 @@ function ProcessorMinimumState
 	Processor maximum state
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for processor maximum state.
 	.PARAMETER Value
 	Set the same processor maximum state on AC and DC.
@@ -445,9 +445,9 @@ function ProcessorMaximumState
 	Power throttling
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for power throttling.
 	.PARAMETER Enable
 	Enable power throttling (default value)
@@ -524,9 +524,9 @@ function PowerThrottling
 	Processor performance increase threshold
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for processor performance increase threshold.
 	.PARAMETER Value
 	Set the same increase threshold on AC and DC.
@@ -592,9 +592,9 @@ function ProcessorPerformanceIncreaseThreshold
 	Processor performance decrease threshold
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for processor performance decrease threshold.
 	.PARAMETER Value
 	Set the same decrease threshold on AC and DC.
@@ -660,9 +660,9 @@ function ProcessorPerformanceDecreaseThreshold
 	Processor performance boost mode
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for processor performance boost mode.
 	.PARAMETER Disabled
 	Disable processor boost mode.
@@ -817,9 +817,9 @@ function ProcessorPerformanceBoostMode
 	Processor energy performance preference
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for processor energy performance preference.
 	.PARAMETER Value
 	Set the same energy performance preference on AC and DC.
@@ -885,9 +885,9 @@ function ProcessorEnergyPerformancePreference
 	CPU core parking minimum cores
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for cPU core parking minimum cores.
 	.PARAMETER Value
 	Set the same minimum core parking percentage on AC and DC power.
@@ -953,9 +953,9 @@ function ProcessorCoreParkingMinimumCores
 	CPU core parking maximum cores
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for cPU core parking maximum cores.
 	.PARAMETER Value
 	Set the same maximum core parking percentage on AC and DC power.
@@ -1021,9 +1021,9 @@ function ProcessorCoreParkingMaximumCores
 	USB Hub Selective Suspend Timeout
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for uSB Hub Selective Suspend Timeout.
 	.PARAMETER Value
 	Set the same USB hub suspend timeout on AC and DC power.
@@ -1089,9 +1089,9 @@ function USBHubSelectiveSuspendTimeout
 	USB selective suspend setting
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for uSB selective suspend setting.
 	.PARAMETER Disabled
 	Disable USB selective suspend.
@@ -1143,9 +1143,9 @@ function USBSelectiveSuspend
 	Intel(R) Graphics Power Plan
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for intel(R) Graphics Power Plan.
 	.PARAMETER MaximumBatteryLife
 	Use the maximum battery life power plan.
@@ -1211,9 +1211,9 @@ function IntelGraphicsPowerPlan
 	Video Playback Quality Bias
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for video Playback Quality Bias.
 	.PARAMETER PowerSavingBias
 	Prefer battery life over video playback smoothness.
@@ -1352,24 +1352,26 @@ function Set-PowerSchemeNumericRangeSetting
 
 	Write-ConsoleStatus -Action "Setting $DisplayName"
 	LogInfo "Setting $DisplayName"
+	foreach ($candidateValue in @($Value, $ACValue, $DCValue))
+	{
+		if ($null -ne $candidateValue -and (($candidateValue -lt $MinValue) -or ($candidateValue -gt $MaxValue)))
+		{
+			Write-ConsoleStatus -Status failed
+			LogError "Failed to set ${DisplayName}: Value $candidateValue is outside the supported range of $MinValue to $MaxValue."
+			return
+		}
+	}
+
 	try
 	{
-		foreach ($candidateValue in @($Value, $ACValue, $DCValue))
-		{
-			if ($null -ne $candidateValue -and (($candidateValue -lt $MinValue) -or ($candidateValue -gt $MaxValue)))
-			{
-				throw "Value $candidateValue is outside the supported range of $MinValue to $MaxValue."
-			}
-		}
-
 		Set-PowerSchemeSettingVisibility -SubgroupGuid $SubgroupGuid -SettingGuid $SettingGuid
 		Set-PowerSchemeSettingValue -SubgroupGuid $SubgroupGuid -SettingGuid $SettingGuid -Value $desiredValue -Units $Units
 		Write-ConsoleStatus -Status success
 	}
 	catch
 	{
-		Write-ConsoleStatus -Status failed
-		LogError "Failed to set ${DisplayName}: $($_.Exception.Message)"
+		Write-ConsoleStatus -Status warning
+		LogWarning "Skipped setting ${DisplayName} because Windows rejected the power setting request: $($_.Exception.Message)"
 	}
 }
 
@@ -1411,8 +1413,8 @@ function Set-PowerSchemeChoiceSetting
 	}
 	catch
 	{
-		Write-ConsoleStatus -Status failed
-		LogError "Failed to set ${DisplayName}: $($_.Exception.Message)"
+		Write-ConsoleStatus -Status warning
+		LogWarning "Skipped setting ${DisplayName} because Windows rejected the power setting request: $($_.Exception.Message)"
 	}
 }
 

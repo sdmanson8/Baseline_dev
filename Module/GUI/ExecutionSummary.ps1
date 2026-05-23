@@ -1,4 +1,4 @@
-﻿# Execution summary classification, insights, retry policy, and dialog cards
+# Execution summary classification, insights, retry policy, and dialog cards
 
 	<#
 	    .SYNOPSIS
@@ -128,7 +128,7 @@
 			'^(Success)$'
 			{
 				$classification.OutcomeReason = if ($Mode -eq 'Defaults') {
-					'Restored to Windows default.'
+					'Restored to recorded default value.'
 				} else {
 					'Baseline applied the requested change successfully.'
 				}
@@ -143,7 +143,7 @@
 			{
 				$classification.OutcomeState = 'Restart pending'
 				$classification.OutcomeReason = if ($Mode -eq 'Defaults') {
-					'Restored to Windows default, but a restart is required before the change is fully finished.'
+					'Restored to recorded default value, but a restart is required before the change is fully finished.'
 				} else {
 					'Baseline applied this change, but a restart is required before it is fully finished.'
 				}
@@ -204,9 +204,9 @@
 				{
 					if ($Mode -eq 'Defaults')
 					{
-						$classification.OutcomeState = 'Already at Windows default'
-						$classification.OutcomeReason = 'This PC already matches the Windows default for this setting.'
-						$classification.FailureCategory = 'Already at Windows default'
+						$classification.OutcomeState = 'Already at recorded default'
+						$classification.OutcomeReason = 'This PC already matches the recorded default for this setting.'
+						$classification.FailureCategory = 'Already at recorded default'
 						$classification.FailureCode = 'already_at_default'
 						$classification.RecoveryHint = 'No action is needed.'
 					}
@@ -344,7 +344,7 @@
 			Maps internal execution outcome codes to restore-specific, beginner-clear user-facing text.
 		.DESCRIPTION
 			Centralised helper for defaults-restore messaging. Translates FailureCode or OutcomeState
-			into wording appropriate for the "Restore to Windows Defaults" workflow.
+			into wording appropriate for the "Restore Defaults" workflow.
 		#>
 		param (
 			[string]$FailureCode,
@@ -358,13 +358,13 @@
 
 		switch ($normalizedFailureCode)
 		{
-			'already_at_default'         { return 'Already at Windows default.' }
-			'already_in_desired_state'   { return 'Already at Windows default.' }
+			'already_at_default'         { return 'Already at recorded default.' }
+			'already_in_desired_state'   { return 'Already at recorded default.' }
 			'not_applicable'             { return 'Not applicable on this PC or this version of Windows.' }
 			'unsupported_environment'    { return 'Not applicable on this PC or this version of Windows.' }
 			'not_supported_restore'      { return 'This item is not supported by in-app restore.' }
 			'skipped_by_policy'          { return 'This item is not supported by in-app restore.' }
-			'restart_required'           { return 'Restored to Windows default. Restart required to finish.' }
+			'restart_required'           { return 'Restored to recorded default. Restart required to finish.' }
 			'timed_out'                 { return 'Restore timed out. Review the log and confirm the current end state before retrying.' }
 			'timed_out_unknown_final_state' { return 'Restore timed out and Baseline could not verify the final state.' }
 			'cancelled_by_operator'      { return 'Did not run because the restore was cancelled by the operator.' }
@@ -387,12 +387,12 @@
 
 		switch -Regex ($normalizedOutcomeState)
 		{
-			'^(Success)$'                              { return 'Restored to Windows default.' }
-			'^(Restart pending)$'                      { return 'Restored to Windows default. Restart required to finish.' }
+			'^(Success)$'                              { return 'Restored to recorded default.' }
+			'^(Restart pending)$'                      { return 'Restored to recorded default. Restart required to finish.' }
 			'^(Timed Out)$'                            { return 'Restore timed out. Review the log and confirm the current end state before retrying.' }
 			'^(Timed Out / Unknown Final State)$'      { return 'Restore timed out and Baseline could not verify the final state.' }
 			'^(Cancelled)$'                            { return 'Did not run because the restore was cancelled by the operator.' }
-			'^(Already at Windows default|Already in desired state)$' { return 'Already at Windows default.' }
+			'^(Already at Windows default|Already at recorded default|Already in desired state)$' { return 'Already at recorded default.' }
 			'^(Not applicable on this system)$'        { return 'Not applicable on this PC or this version of Windows.' }
 			'^(Not supported by in-app restore|Skipped by preset or selection)$' { return 'This item is not supported by in-app restore.' }
 			'^(Not run)$'                              { return 'Did not run because the restore stopped early.' }
@@ -577,7 +577,7 @@
 		)
 
 		$results = @($Results | Where-Object { $_ })
-		$alreadyDesiredResults = @($results | Where-Object { [string]$_.OutcomeState -in @('Already in desired state', 'Already at Windows default') })
+		$alreadyDesiredResults = @($results | Where-Object { [string]$_.OutcomeState -in @('Already in desired state', 'Already at Windows default', 'Already at recorded default') })
 		$notApplicableResults = @($results | Where-Object {
 			$outcomeState = if ((Test-GuiObjectField -Object $_ -FieldName 'OutcomeState')) { [string]$_.OutcomeState } else { '' }
 			$outcomeState -in @('Not applicable', 'Not applicable on this system')
@@ -776,7 +776,7 @@
 		if ($Insights.AlreadyDesiredCount -gt 0)
 		{
 			$alreadyText = if ($isRestore) {
-				"$($Insights.AlreadyDesiredCount) item$(if ($Insights.AlreadyDesiredCount -eq 1) { '' } else { 's' }) already matched the Windows default and did not need changes."
+				"$($Insights.AlreadyDesiredCount) item$(if ($Insights.AlreadyDesiredCount -eq 1) { '' } else { 's' }) already matched the recorded default and did not need changes."
 			} else {
 				"$($Insights.AlreadyDesiredCount) item$(if ($Insights.AlreadyDesiredCount -eq 1) { '' } else { 's' }) already matched the requested state and did not need changes."
 			}
@@ -805,7 +805,7 @@
 
 		$isRestore = ($Mode -eq 'Defaults')
 		$appliedLabel = if ($isRestore) { 'Restored' } else { 'Applied' }
-		$appliedDetail = if ($isRestore) { 'Returned to Windows defaults' } else { 'Completed successfully' }
+		$appliedDetail = if ($isRestore) { 'Returned to recorded defaults' } else { 'Completed successfully' }
 		$restartDetail = if ($isRestore) { 'Restart required to finish restoring' } else { 'Restart required to finish applying changes' }
 		$currentOS = $null
 		$validationMatrix = $null
@@ -822,6 +822,8 @@
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionSummary.Get-ExecutionSummaryDialogCards:catch823' -Severity Debug }
+
 			$currentOS = $null
 			$validationMatrix = $null
 		}
@@ -865,7 +867,7 @@
 		if ($Insights.AlreadyDesiredCount -gt 0)
 		{
 			$alreadyLabel = if ($isRestore) { Get-UxString -Key 'GuiSummaryAlreadyDefault' -Fallback 'Already at default' } else { Get-UxString -Key 'GuiSummaryAlreadySet' -Fallback 'Already set' }
-			$alreadyDetail = if ($isRestore) { Get-UxString -Key 'GuiSummaryAlreadyDefaultDetail' -Fallback 'Already at Windows default' } else { Get-UxString -Key 'GuiSummaryAlreadySetDetail' -Fallback 'No change needed' }
+			$alreadyDetail = if ($isRestore) { Get-UxString -Key 'GuiSummaryAlreadyDefaultDetailRecorded' -Fallback 'Already at recorded default' } else { Get-UxString -Key 'GuiSummaryAlreadySetDetail' -Fallback 'No change needed' }
 			$cards += [pscustomobject]@{
 				Label = $alreadyLabel
 				Value = $Insights.AlreadyDesiredCount
@@ -1113,7 +1115,7 @@
 						$includeReason = $true
 						break
 					}
-					'^(Not run|Not applicable on this system|Already in desired state|Already at Windows default|Skipped by preset or selection|Not supported by in-app restore)$'
+					'^(Not run|Not applicable on this system|Already in desired state|Already at Windows default|Already at recorded default|Skipped by preset or selection|Not supported by in-app restore)$'
 					{
 						$resultLabel = $skippedLabel
 						$logLevel = 'SKIP'

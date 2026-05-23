@@ -278,7 +278,9 @@
 		# Per-dialog policy state. We seed from the helper defaults so the
 		# operator sees the same caps the CLI honours.
 		$policy = $null
-		try { $policy = & $newPolicyCmd } catch { $policy = [pscustomobject]@{ MaxTargetsPerRun = 25; MaxConcurrentTargets = 5; DeniedFunctions = @(); DeniedTargets = @(); AllowedTargets = @(); ChangeWindow = @{}; KillSwitchPath = (Join-Path ([System.IO.Path]::GetTempPath()) 'BASELINE_KILL_SWITCH'); CreatedAt = [DateTimeOffset]::UtcNow } }
+		try { $policy = & $newPolicyCmd } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiOperatorConsoleDialog:catch281' -Severity Debug }
+		 $policy = [pscustomobject]@{ MaxTargetsPerRun = 25; MaxConcurrentTargets = 5; DeniedFunctions = @(); DeniedTargets = @(); AllowedTargets = @(); ChangeWindow = @{}; KillSwitchPath = (Join-Path ([System.IO.Path]::GetTempPath()) 'BASELINE_KILL_SWITCH'); CreatedAt = [DateTimeOffset]::UtcNow } }
 
 		$splitLines = {
 			param([string]$Text)
@@ -340,7 +342,9 @@
 		$refreshKillState = {
 			if (-not $policy) { return }
 			$engaged = $false
-			try { $engaged = [bool](& $testKillCmd -Path $policy.KillSwitchPath) } catch { $engaged = $false }
+			try { $engaged = [bool](& $testKillCmd -Path $policy.KillSwitchPath) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiOperatorConsoleDialog:catch343' -Severity Debug }
+			 $engaged = $false }
 			if ($txtKillState) { $txtKillState.Text = if ($engaged) { 'Status: ENGAGED - new runs will be blocked.' } else { 'Status: clear - runs allowed.' } }
 			if ($btnKillEngage) { $btnKillEngage.IsEnabled = -not $engaged }
 			if ($btnKillClear) { $btnKillClear.IsEnabled = $engaged }
@@ -354,7 +358,9 @@
 				$ctx = & $getRemoteCtxCmd
 				if ($ctx -and $ctx.Connected -and $ctx.TargetComputers) { $targets = @($ctx.TargetComputers) }
 			}
-			catch { $targets = @() }
+			catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiOperatorConsoleDialog:catch357' -Severity Debug }
+			 $targets = @() }
 
 			if ($txtDecisionTgts)
 			{
@@ -374,6 +380,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiOperatorConsoleDialog:catch375' -Severity Debug }
+
 				if ($txtDecisionSummary) { $txtDecisionSummary.Text = ('Failed to evaluate policy: {0}' -f $_.Exception.Message) }
 			}
 		}.GetNewClosure()
@@ -412,7 +420,9 @@
 			$btnKillEngage.Content = $killEngageLabel
 			Set-ButtonChrome -Button $btnKillEngage -Variant 'Secondary' -Compact
 			$btnKillEngage.Add_Click({
-				try { $script:policy = & $readPolicyFromUi; & $engageKillCmd -Path $script:policy.KillSwitchPath -Reason 'Operator console' } catch { [void](Show-ThemedDialog -Title 'Operator Console' -Message ("Failed to engage kill switch.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK') }
+				try { $script:policy = & $readPolicyFromUi; & $engageKillCmd -Path $script:policy.KillSwitchPath -Reason 'Operator console' } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiOperatorConsoleDialog:catch415' -Severity Debug }
+				 [void](Show-ThemedDialog -Title 'Operator Console' -Message ("Failed to engage kill switch.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK') }
 				& $refreshKillState
 				& $evaluateDecision
 			}.GetNewClosure())
@@ -422,7 +432,9 @@
 			$btnKillClear.Content = $killClearLabel
 			Set-ButtonChrome -Button $btnKillClear -Variant 'Secondary' -Compact
 			$btnKillClear.Add_Click({
-				try { $script:policy = & $readPolicyFromUi; & $clearKillCmd -Path $script:policy.KillSwitchPath } catch { [void](Show-ThemedDialog -Title 'Operator Console' -Message ("Failed to clear kill switch.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK') }
+				try { $script:policy = & $readPolicyFromUi; & $clearKillCmd -Path $script:policy.KillSwitchPath } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiOperatorConsoleDialog:catch425' -Severity Debug }
+				 [void](Show-ThemedDialog -Title 'Operator Console' -Message ("Failed to clear kill switch.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK') }
 				& $refreshKillState
 				& $evaluateDecision
 			}.GetNewClosure())
@@ -455,6 +467,8 @@
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiOperatorConsoleDialog:catch456' -Severity Debug }
+
 					[void](Show-ThemedDialog -Title 'Operator Console' -Message ("Failed to save operator policy.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 				}
 			}.GetNewClosure())
@@ -491,6 +505,8 @@
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiOperatorConsoleDialog:catch492' -Severity Debug }
+
 					[void](Show-ThemedDialog -Title 'Operator Console' -Message ("Failed to load operator policy.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 				}
 			}.GetNewClosure())
@@ -665,6 +681,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiHistoryViewerDialog:catch666' -Severity Debug }
+
 				$script:allHistoryItems = @()
 				$txtStatus.Text = "Failed to load history: $($_.Exception.Message)"
 			}
@@ -738,7 +756,9 @@
 				$selected = $historyList.SelectedItem
 				if ($null -ne $selected -and (Test-GuiObjectField -Object $selected -FieldName 'BundlePath') -and -not [string]::IsNullOrWhiteSpace($selected.BundlePath))
 				{
-					try { [System.Diagnostics.Process]::Start($selected.BundlePath) } catch { [void](Show-ThemedDialog -Title $windowTitle -Message "Failed to open bundle: $($_.Exception.Message)") }
+					try { [System.Diagnostics.Process]::Start($selected.BundlePath) } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiHistoryViewerDialog:catch741' -Severity Debug }
+					 [void](Show-ThemedDialog -Title $windowTitle -Message "Failed to open bundle: $($_.Exception.Message)") }
 				}
 			}.GetNewClosure())
 		}
@@ -831,6 +851,8 @@
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiReleaseStatusDialog:catch832' -Severity Debug }
+
 			$iconStatus = 'Unknown'
 		}
 		$matrixSummary = 'Unavailable'
@@ -855,6 +877,8 @@
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiReleaseStatusDialog:catch856' -Severity Debug }
+
 			$matrixSummary = 'Unavailable'
 			$serverValidationSummary = 'Unavailable'
 		}
@@ -898,6 +922,8 @@
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiReleaseStatusDialog:catch899' -Severity Debug }
+
 			$validationEvidenceSummary = 'Unavailable'
 			$validationEvidenceChannels = 'Unavailable'
 			$validationEvidenceProvenance = 'Unavailable'
@@ -933,6 +959,8 @@
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiReleaseStatusDialog:catch934' -Severity Debug }
+
 			$featureMaturitySummary = 'Unavailable'
 			$enterpriseGateSummary = 'Unavailable'
 		}
@@ -950,6 +978,8 @@
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiReleaseStatusDialog:catch951' -Severity Debug }
+
 			$pinnedVersion = $null
 		}
 		$exePaths = @(
@@ -996,7 +1026,9 @@
 				try
 				{
 					$currentVersion = $null
-					try { $currentVersion = Get-BaselineDisplayVersion } catch { $currentVersion = $null }
+					try { $currentVersion = Get-BaselineDisplayVersion } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiReleaseStatusDialog:catch999' -Severity Debug }
+					 $currentVersion = $null }
 					if ([string]::IsNullOrWhiteSpace($currentVersion))
 					{
 						return
@@ -1011,6 +1043,8 @@
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiReleaseStatusDialog:catch1012' -Severity Debug }
+
 					[void](Show-ThemedDialog -Title $windowTitle -Message ("Failed to pin the current version.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 				}
 			}.GetNewClosure())
@@ -1033,6 +1067,8 @@
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiReleaseStatusDialog:catch1034' -Severity Debug }
+
 					[void](Show-ThemedDialog -Title $windowTitle -Message ("Failed to clear the pinned version.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 				}
 			}.GetNewClosure())
@@ -1067,6 +1103,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AuditOperatorDialogs.Show-GuiReleaseStatusDialog:catch1068' -Severity Debug }
+
 				$verification = $null
 			}
 

@@ -16,6 +16,8 @@ if ($btnConnect)
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\RemoteDialogs\Show-GuiRemoteConsoleDialog\RemoteConnectionButton.ps1:17' -Severity Debug }
+
 					& $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to connect to remote target.`n`n{0}" -f $_.Exception.Message)
 				}
 			}.GetNewClosure())
@@ -32,6 +34,8 @@ if ($btnConnect)
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\RemoteDialogs\Show-GuiRemoteConsoleDialog\RemoteConnectionButton.ps1:33' -Severity Debug }
+
 					& $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to disconnect remote target.`n`n{0}" -f $_.Exception.Message)
 				}
 			}.GetNewClosure())
@@ -54,6 +58,8 @@ if ($btnConnect)
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\RemoteDialogs\Show-GuiRemoteConsoleDialog\RemoteConnectionButton.ps1:55' -Severity Debug }
+
 					& $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to approve target list.`n`n{0}" -f $_.Exception.Message)
 				}
 			}.GetNewClosure())
@@ -69,7 +75,9 @@ if ($btnConnect)
 					& $showRemoteConsoleError -Title 'Remote Console' -Message 'Remote approval policy export is unavailable in this runtime.'
 					return
 				}
-				try { $null = Invoke-CapturedFunction -Name 'Export-GuiRemoteTargetApprovalPolicy' } catch { & $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to save remote approval policy.`n`n{0}" -f $_.Exception.Message) }
+				try { $null = Invoke-CapturedFunction -Name 'Export-GuiRemoteTargetApprovalPolicy' } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\RemoteDialogs\Show-GuiRemoteConsoleDialog\RemoteConnectionButton.ps1:72' -Severity Debug }
+				 & $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to save remote approval policy.`n`n{0}" -f $_.Exception.Message) }
 			}.GetNewClosure())
 		}
 		if ($btnLoadPolicy)
@@ -83,7 +91,9 @@ if ($btnConnect)
 					& $showRemoteConsoleError -Title 'Remote Console' -Message 'Remote approval policy import is unavailable in this runtime.'
 					return
 				}
-				try { $null = Invoke-CapturedFunction -Name 'Import-GuiRemoteTargetApprovalPolicy'; & $refreshConsole } catch { & $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to load remote approval policy.`n`n{0}" -f $_.Exception.Message) }
+				try { $null = Invoke-CapturedFunction -Name 'Import-GuiRemoteTargetApprovalPolicy'; & $refreshConsole } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\RemoteDialogs\Show-GuiRemoteConsoleDialog\RemoteConnectionButton.ps1:86' -Severity Debug }
+				 & $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to load remote approval policy.`n`n{0}" -f $_.Exception.Message) }
 			}.GetNewClosure())
 		}
 		if ($btnPreflight)
@@ -203,6 +213,8 @@ if ($btnConnect)
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\RemoteDialogs\Show-GuiRemoteConsoleDialog\RemoteConnectionButton.ps1:204' -Severity Debug }
+
 					& $showRemoteConsoleError -Title 'Remote Console Preflight' -Message ("Failed to run remote preflight.`n`n{0}" -f $_.Exception.Message)
 				}
 			}.GetNewClosure())

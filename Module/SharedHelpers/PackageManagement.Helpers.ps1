@@ -169,18 +169,30 @@ function Invoke-PackageManagerProcessCapture
 	if ($timedOut)
 	{
 		Stop-BaselineProcessTree -Process $process -Source 'PackageManagement.ProcessTimeout'
-		try { $null = $stdoutTask.GetAwaiter().GetResult() } catch { $null = $_ }
-		try { $null = $stderrTask.GetAwaiter().GetResult() } catch { $null = $_ }
-		try { $process.Dispose() } catch { $null = $_ }
+		try { $null = $stdoutTask.GetAwaiter().GetResult() } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PackageManagement.Helpers.Invoke-PackageManagerProcessCapture:catch172' -Severity Debug }
+		 $null = $_ }
+		try { $null = $stderrTask.GetAwaiter().GetResult() } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PackageManagement.Helpers.Invoke-PackageManagerProcessCapture:catch173' -Severity Debug }
+		 $null = $_ }
+		try { $process.Dispose() } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PackageManagement.Helpers.Invoke-PackageManagerProcessCapture:catch174' -Severity Debug }
+		 $null = $_ }
 		throw ([System.TimeoutException]::new(("Process '{0}' timed out after {1} second(s)." -f $FilePath, $TimeoutSeconds)))
 	}
 
 	$stdout = ''
 	$stderr = ''
-	try { $stdout = [string]$stdoutTask.GetAwaiter().GetResult() } catch { $null = $_ }
-	try { $stderr = [string]$stderrTask.GetAwaiter().GetResult() } catch { $null = $_ }
+	try { $stdout = [string]$stdoutTask.GetAwaiter().GetResult() } catch {
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PackageManagement.Helpers.Invoke-PackageManagerProcessCapture:catch180' -Severity Debug }
+	 $null = $_ }
+	try { $stderr = [string]$stderrTask.GetAwaiter().GetResult() } catch {
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PackageManagement.Helpers.Invoke-PackageManagerProcessCapture:catch181' -Severity Debug }
+	 $null = $_ }
 	$exitCode = [int]$process.ExitCode
-	try { $process.Dispose() } catch { $null = $_ }
+	try { $process.Dispose() } catch {
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PackageManagement.Helpers.Invoke-PackageManagerProcessCapture:catch183' -Severity Debug }
+	 $null = $_ }
 
 	return [pscustomobject]@{
 		ExitCode = $exitCode
@@ -250,6 +262,8 @@ function Get-WinGetVersion
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PackageManagement.Helpers.Get-WinGetVersion:catch251' -Severity Debug }
+
 		return $null
 	}
 
@@ -291,6 +305,8 @@ function Test-WinGetAvailable
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PackageManagement.Helpers.Test-WinGetAvailable:catch292' -Severity Debug }
+
 		$available = $false
 		$version = $null
 	}
@@ -363,6 +379,8 @@ function Get-ChocolateyVersion
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PackageManagement.Helpers.Get-ChocolateyVersion:catch364' -Severity Debug }
+
 		return $null
 	}
 
@@ -404,6 +422,8 @@ function Test-ChocolateyAvailable
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PackageManagement.Helpers.Test-ChocolateyAvailable:catch405' -Severity Debug }
+
 		$available = $false
 		$version = $null
 	}
@@ -488,6 +508,8 @@ function Test-ChocolateyBootstrapInteractiveHost
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PackageManagement.Helpers.Test-ChocolateyBootstrapInteractiveHost:catch489' -Severity Debug }
+
 		return $false
 	}
 }
@@ -631,6 +653,7 @@ function Invoke-WinGetBootstrap
 	$stderrLog = $null
 	$stdoutLines = @()
 	$stderrLines = @()
+	$wingetLogScope = 'Winget'
 
 	try
 	{
@@ -640,11 +663,11 @@ function Invoke-WinGetBootstrap
 			$result.Available = $true
 			$result.Version = [string]$wingetVersion
 			$result.Success = $true
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerAlreadyInstalled' -Fallback '{0} is already installed and working. Version: {1}' -FormatArgs @('WinGet', $wingetVersion))
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerAlreadyInstalled' -Fallback '{0} is already installed and working. Version: {1}' -FormatArgs @('WinGet', $wingetVersion)) -Scope $wingetLogScope
 			return $result
 		}
 
-		LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerNotFunctional' -Fallback '{0} not found or not functional' -FormatArgs @('WinGet'))
+		LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerNotFunctional' -Fallback '{0} not found or not functional' -FormatArgs @('WinGet')) -Scope $wingetLogScope
 		try
 		{
 			$installerUrl = [string]$installerMetadata.Uri
@@ -652,7 +675,7 @@ function Invoke-WinGetBootstrap
 			$stdoutLog = Join-Path $env:TEMP "Baseline-WinGetBootstrap-stdout.log"
 			$stderrLog = Join-Path $env:TEMP "Baseline-WinGetBootstrap-stderr.log"
 
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_DownloadingPackageManagerInstaller' -Fallback 'Downloading {0} installer from {1}' -FormatArgs @('WinGet', $installerUrl))
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_DownloadingPackageManagerInstaller' -Fallback 'Downloading {0} installer from {1}' -FormatArgs @('WinGet', $installerUrl)) -Scope $wingetLogScope
 			Invoke-DownloadFile -Uri $installerUrl -OutFile $installerPath
 
 			if (-not (Test-Path -LiteralPath $installerPath) -or (Get-Item -LiteralPath $installerPath).Length -eq 0)
@@ -664,9 +687,9 @@ function Invoke-WinGetBootstrap
 				-Path $installerPath `
 				-ExpectedSha256 $installerSha256 `
 				-Label ([string]$installerMetadata.Label)
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerDownloadVerified' -Fallback 'Download and SHA-256 verification completed for {0} v{1}' -FormatArgs @('WinGet', $installerVersion))
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerDownloadVerified' -Fallback 'Download and SHA-256 verification completed for {0} v{1}' -FormatArgs @('WinGet', $installerVersion)) -Scope $wingetLogScope
 
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_ExecutingInstallerScript' -Fallback 'Executing installer script...')
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_ExecutingInstallerScript' -Fallback 'Executing installer script...') -Scope $wingetLogScope
 			$process = $null
 			try
 			{
@@ -680,7 +703,7 @@ function Invoke-WinGetBootstrap
 			}
 			catch
 			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_StartProcessFailedInstaller' -Fallback 'Start-Process failed for {0} installer: {1}. Trying direct execution.' -FormatArgs @('WinGet', $_.Exception.Message))
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_StartProcessFailedInstaller' -Fallback 'Start-Process failed for {0} installer: {1}. Trying direct execution.' -FormatArgs @('WinGet', $_.Exception.Message)) -Scope $wingetLogScope
 				$fallbackResult = Invoke-PackageManagerProcessCapture -FilePath 'powershell.exe' -ArgumentList (@(
 					'-NoProfile',
 					'-ExecutionPolicy', 'Bypass',
@@ -698,7 +721,7 @@ function Invoke-WinGetBootstrap
 			}
 			foreach ($stdoutLine in $stdoutLines)
 			{
-				LogInfo "Baseline WinGet bootstrap: $stdoutLine"
+				LogInfo "Baseline WinGet bootstrap: $stdoutLine" -Scope $wingetLogScope
 			}
 
 			if ($stderrLines.Count -eq 0)
@@ -707,7 +730,7 @@ function Invoke-WinGetBootstrap
 			}
 			foreach ($stderrLine in $stderrLines)
 			{
-				LogError "Baseline WinGet bootstrap: $stderrLine"
+				LogError "Baseline WinGet bootstrap: $stderrLine" -Scope $wingetLogScope
 			}
 
 			$installerExitedCleanly = ($process.ExitCode -eq 0 -or $null -eq $process.ExitCode)
@@ -715,15 +738,15 @@ function Invoke-WinGetBootstrap
 			$result.Installed = $installerExitedCleanly
 			if ($installerExitedCleanly -and -not $installerReportedErrors)
 			{
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptCompletedSuccessfully' -Fallback '{0} installer script completed successfully' -FormatArgs @('WinGet'))
+				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptCompletedSuccessfully' -Fallback '{0} installer script completed successfully' -FormatArgs @('WinGet')) -Scope $wingetLogScope
 			}
 			elseif ($installerExitedCleanly -and $installerReportedErrors)
 			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptReportedErrors' -Fallback '{0} installer script reported errors despite a zero exit code. Running validation before accepting the install.' -FormatArgs @('WinGet'))
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptReportedErrors' -Fallback '{0} installer script reported errors despite a zero exit code. Running validation before accepting the install.' -FormatArgs @('WinGet')) -Scope $wingetLogScope
 			}
 			else
 			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptReportedExitCode' -Fallback '{0} installer script reported exit code: {1}' -FormatArgs @('WinGet', $process.ExitCode))
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptReportedExitCode' -Fallback '{0} installer script reported exit code: {1}' -FormatArgs @('WinGet', $process.ExitCode)) -Scope $wingetLogScope
 			}
 
 			Start-Sleep -Seconds 5
@@ -734,13 +757,13 @@ function Invoke-WinGetBootstrap
 				$result.Version = [string]$wingetVersion
 				$result.Installed = $true
 				$result.Success = $true
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerValidationSucceeded' -Fallback '{0} validation succeeded. Version: {1}' -FormatArgs @('WinGet', $wingetVersion))
+				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerValidationSucceeded' -Fallback '{0} validation succeeded. Version: {1}' -FormatArgs @('WinGet', $wingetVersion)) -Scope $wingetLogScope
 				return $result
 			}
 
 			if ($installerExitedCleanly -and -not $installerReportedErrors)
 			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationCompletedButUnavailable' -Fallback '{0} installation completed, but {1} is not available in the current session yet. A new session may be required.' -FormatArgs @('WinGet', 'winget.exe'))
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationCompletedButUnavailable' -Fallback '{0} installation completed, but {1} is not available in the current session yet. A new session may be required.' -FormatArgs @('WinGet', 'winget.exe')) -Scope $wingetLogScope
 				$result.Success = $true
 				return $result
 			}
@@ -757,8 +780,8 @@ function Invoke-WinGetBootstrap
 		}
 		catch
 		{
-			LogError (Get-BaselineBilingualString -Key 'Bootstrap_ErrorDuringPackageManagerInstallation' -Fallback 'Error during {0} installation: {1}' -FormatArgs @('WinGet', $_.Exception.Message))
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_AttemptingPackageManagerRepair' -Fallback 'Attempting {0} repair via {1}...' -FormatArgs @('WinGet', 'Microsoft.WinGet.Client'))
+			LogError (Get-BaselineBilingualString -Key 'Bootstrap_ErrorDuringPackageManagerInstallation' -Fallback 'Error during {0} installation: {1}' -FormatArgs @('WinGet', $_.Exception.Message)) -Scope $wingetLogScope
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_AttemptingPackageManagerRepair' -Fallback 'Attempting {0} repair via {1}...' -FormatArgs @('WinGet', 'Microsoft.WinGet.Client')) -Scope $wingetLogScope
 
 			try
 			{
@@ -775,18 +798,18 @@ function Invoke-WinGetBootstrap
 					$result.Repaired = $true
 					$result.Version = [string]$wingetVersion
 					$result.Success = $true
-					LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairSucceeded' -Fallback '{0} repair succeeded. Version: {1}' -FormatArgs @('WinGet', $wingetVersion))
+					LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairSucceeded' -Fallback '{0} repair succeeded. Version: {1}' -FormatArgs @('WinGet', $wingetVersion)) -Scope $wingetLogScope
 					return $result
 				}
 
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairCompletedButUnavailable' -Fallback '{0} repair completed but {1} still not resolvable in this session.' -FormatArgs @('WinGet', 'winget.exe'))
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairCompletedButUnavailable' -Fallback '{0} repair completed but {1} still not resolvable in this session.' -FormatArgs @('WinGet', 'winget.exe')) -Scope $wingetLogScope
 				$result.Repaired = $true
 				$result.Success = $true
 				return $result
 			}
 			catch
 			{
-				LogError (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairFailed' -Fallback '{0} repair also failed: {1}' -FormatArgs @('WinGet', $_))
+				LogError (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerRepairFailed' -Fallback '{0} repair also failed: {1}' -FormatArgs @('WinGet', $_)) -Scope $wingetLogScope
 				$result.Error = $_.Exception.Message
 			}
 		}
@@ -794,7 +817,7 @@ function Invoke-WinGetBootstrap
 	catch
 	{
 		$result.Error = $_.Exception.Message
-		LogError (Get-BaselineBilingualString -Key 'Bootstrap_ErrorDuringPackageManagerBootstrap' -Fallback 'Error during {0} bootstrap: {1}' -FormatArgs @('WinGet', $_.Exception.Message))
+		LogError (Get-BaselineBilingualString -Key 'Bootstrap_ErrorDuringPackageManagerBootstrap' -Fallback 'Error during {0} bootstrap: {1}' -FormatArgs @('WinGet', $_.Exception.Message)) -Scope $wingetLogScope
 	}
 	finally
 	{
@@ -845,6 +868,7 @@ function Invoke-ChocolateyBootstrap
 	$stderrLog = $null
 	$stdoutLines = @()
 	$stderrLines = @()
+	$chocolateyLogScope = 'Chocolatey'
 
 	try
 	{
@@ -854,18 +878,18 @@ function Invoke-ChocolateyBootstrap
 			$result.Available = $true
 			$result.Version = [string]$chocolateyVersion
 			$result.Success = $true
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerAlreadyInstalled' -Fallback '{0} is already installed and working. Version: {1}' -FormatArgs @('Chocolatey', $chocolateyVersion))
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerAlreadyInstalled' -Fallback '{0} is already installed and working. Version: {1}' -FormatArgs @('Chocolatey', $chocolateyVersion)) -Scope $chocolateyLogScope
 			return $result
 		}
 
-		LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerNotFunctional' -Fallback '{0} not found or not functional' -FormatArgs @('Chocolatey'))
+		LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerNotFunctional' -Fallback '{0} not found or not functional' -FormatArgs @('Chocolatey')) -Scope $chocolateyLogScope
 		try
 		{
 			$installerPath = Join-Path $env:TEMP ("chocolatey-install-{0}.ps1" -f ([guid]::NewGuid().ToString('N')))
 			$stdoutLog = [System.IO.Path]::ChangeExtension($installerPath, '.stdout.log')
 			$stderrLog = [System.IO.Path]::ChangeExtension($installerPath, '.stderr.log')
 
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_DownloadingPackageManagerInstaller' -Fallback 'Downloading {0} installer from {1}' -FormatArgs @('Chocolatey', $installerUrl))
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_DownloadingPackageManagerInstaller' -Fallback 'Downloading {0} installer from {1}' -FormatArgs @('Chocolatey', $installerUrl)) -Scope $chocolateyLogScope
 			Invoke-DownloadFile -Uri $installerUrl -OutFile $installerPath
 
 			if (-not (Test-Path -LiteralPath $installerPath) -or (Get-Item -LiteralPath $installerPath).Length -eq 0)
@@ -879,7 +903,7 @@ function Invoke-ChocolateyBootstrap
 				$null = Assert-FileHash -Path $installerPath -ExpectedSha256 $expectedChocolateyInstallerHash -Label 'Chocolatey install.ps1'
 			}
 
-			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_ExecutingInstallerScript' -Fallback 'Executing installer script...')
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_ExecutingInstallerScript' -Fallback 'Executing installer script...') -Scope $chocolateyLogScope
 			$process = $null
 			try
 			{
@@ -893,7 +917,7 @@ function Invoke-ChocolateyBootstrap
 			}
 			catch
 			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_StartProcessFailedInstaller' -Fallback 'Start-Process failed for {0} installer: {1}. Trying direct execution.' -FormatArgs @('Chocolatey', $_.Exception.Message))
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_StartProcessFailedInstaller' -Fallback 'Start-Process failed for {0} installer: {1}. Trying direct execution.' -FormatArgs @('Chocolatey', $_.Exception.Message)) -Scope $chocolateyLogScope
 				$fallbackResult = Invoke-PackageManagerProcessCapture -FilePath 'powershell.exe' -ArgumentList @(
 					'-NoProfile',
 					'-ExecutionPolicy', 'Bypass',
@@ -911,7 +935,7 @@ function Invoke-ChocolateyBootstrap
 			}
 			foreach ($stdoutLine in $stdoutLines)
 			{
-				LogInfo "chocolatey-installer: $stdoutLine"
+				LogInfo "chocolatey-installer: $stdoutLine" -Scope $chocolateyLogScope
 			}
 
 			if ($stderrLines.Count -eq 0)
@@ -920,7 +944,7 @@ function Invoke-ChocolateyBootstrap
 			}
 			foreach ($stderrLine in $stderrLines)
 			{
-				LogError "chocolatey-installer: $stderrLine"
+				LogError "chocolatey-installer: $stderrLine" -Scope $chocolateyLogScope
 			}
 
 			$installerExitedCleanly = ($process.ExitCode -eq 0 -or $null -eq $process.ExitCode)
@@ -928,15 +952,15 @@ function Invoke-ChocolateyBootstrap
 			$result.Installed = $installerExitedCleanly
 			if ($installerExitedCleanly -and -not $installerReportedErrors)
 			{
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptCompletedSuccessfully' -Fallback '{0} installer script completed successfully' -FormatArgs @('Chocolatey'))
+				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptCompletedSuccessfully' -Fallback '{0} installer script completed successfully' -FormatArgs @('Chocolatey')) -Scope $chocolateyLogScope
 			}
 			elseif ($installerExitedCleanly -and $installerReportedErrors)
 			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptReportedErrors' -Fallback '{0} installer script reported errors despite a zero exit code. Running validation before accepting the install.' -FormatArgs @('Chocolatey'))
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptReportedErrors' -Fallback '{0} installer script reported errors despite a zero exit code. Running validation before accepting the install.' -FormatArgs @('Chocolatey')) -Scope $chocolateyLogScope
 			}
 			else
 			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptReportedExitCode' -Fallback '{0} installer script reported exit code: {1}' -FormatArgs @('Chocolatey', $process.ExitCode))
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallerScriptReportedExitCode' -Fallback '{0} installer script reported exit code: {1}' -FormatArgs @('Chocolatey', $process.ExitCode)) -Scope $chocolateyLogScope
 			}
 
 			Start-Sleep -Seconds 2
@@ -947,13 +971,13 @@ function Invoke-ChocolateyBootstrap
 				$result.Version = [string]$chocolateyVersion
 				$result.Installed = $true
 				$result.Success = $true
-				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerValidationSucceeded' -Fallback '{0} validation succeeded. Version: {1}' -FormatArgs @('Chocolatey', $chocolateyVersion))
+				LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerValidationSucceeded' -Fallback '{0} validation succeeded. Version: {1}' -FormatArgs @('Chocolatey', $chocolateyVersion)) -Scope $chocolateyLogScope
 				return $result
 			}
 
 			if ($installerExitedCleanly -and -not $installerReportedErrors)
 			{
-				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationCompletedButUnavailable' -Fallback '{0} installation completed, but {1} is not available in the current session yet. A new session may be required.' -FormatArgs @('Chocolatey', 'choco.exe'))
+				LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_PackageManagerInstallationCompletedButUnavailable' -Fallback '{0} installation completed, but {1} is not available in the current session yet. A new session may be required.' -FormatArgs @('Chocolatey', 'choco.exe')) -Scope $chocolateyLogScope
 				$result.Success = $true
 				return $result
 			}
@@ -971,13 +995,13 @@ function Invoke-ChocolateyBootstrap
 		catch
 		{
 			$result.Error = $_.Exception.Message
-			LogError (Get-BaselineBilingualString -Key 'Bootstrap_ErrorDuringPackageManagerInstallation' -Fallback 'Error during {0} installation: {1}' -FormatArgs @('Chocolatey', $_.Exception.Message))
+			LogError (Get-BaselineBilingualString -Key 'Bootstrap_ErrorDuringPackageManagerInstallation' -Fallback 'Error during {0} installation: {1}' -FormatArgs @('Chocolatey', $_.Exception.Message)) -Scope $chocolateyLogScope
 		}
 	}
 	catch
 	{
 		$result.Error = $_.Exception.Message
-		LogError (Get-BaselineBilingualString -Key 'Bootstrap_ErrorDuringPackageManagerBootstrap' -Fallback 'Error during {0} bootstrap: {1}' -FormatArgs @('Chocolatey', $_.Exception.Message))
+		LogError (Get-BaselineBilingualString -Key 'Bootstrap_ErrorDuringPackageManagerBootstrap' -Fallback 'Error during {0} bootstrap: {1}' -FormatArgs @('Chocolatey', $_.Exception.Message)) -Scope $chocolateyLogScope
 	}
 	finally
 	{
@@ -1036,6 +1060,8 @@ function Invoke-DownloadFile
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PackageManagement.Helpers.Invoke-DownloadFile:catch1039' -Severity Debug }
+
 			$attemptErrors.Add("attempt ${attempt}: $($_.Exception.Message)")
 			Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue
 			Start-Sleep -Seconds ([Math]::Min($attempt * 2, 5))
@@ -1056,6 +1082,8 @@ function Invoke-DownloadFile
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PackageManagement.Helpers.Invoke-DownloadFile:catch1059' -Severity Debug }
+
 		$attemptErrors.Add("webclient fallback: $($_.Exception.Message)")
 		Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue
 	}
@@ -1409,6 +1437,8 @@ function ConvertTo-NormalizedVersion
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PackageManagement.Helpers.ConvertTo-NormalizedVersion:catch1412' -Severity Debug }
+
 		return $null
 	}
 }
@@ -1440,6 +1470,8 @@ function Get-InstalledVCRedistVersion
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PackageManagement.Helpers.Get-InstalledVCRedistVersion:catch1443' -Severity Debug }
+
 			continue
 		}
 

@@ -7,7 +7,7 @@ function Get-ApplicationEntityType
 		[object]$Entry
 	)
 
-	$validEntityTypes = @('winget', 'choco', 'uwp', 'feature', 'system', 'placeholder')
+	$validEntityTypes = @('winget', 'choco', 'store', 'direct', 'command', 'uwp', 'feature', 'system', 'placeholder')
 
 	if ($Entry -and $Entry.PSObject.Properties['EntityType'])
 	{
@@ -50,6 +50,8 @@ function Get-ApplicationEntityType
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CatalogHelpers.Get-ApplicationEntityType:catch51' -Severity Debug }
+
 		$null = $_
 	}
 
@@ -81,6 +83,8 @@ function Get-ApplicationEntityType
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CatalogHelpers.Get-ApplicationEntityType:catch82' -Severity Debug }
+
 		$null = $_
 	}
 
@@ -105,10 +109,55 @@ function Get-AppsCatalogItemsBySearchStatusAndSourceFilters
 {
 	[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 	param (
-		[string]$SearchQuery = $null
+		[string]$SearchQuery = $null,
+		[string]$Category = $null,
+		[switch]$SkipPackageManagerAvailabilityRefresh
 	)
 
-	$catalog = @(Get-BaselineApplicationsCatalog)
+	$hasExplicitCategory = -not [string]::IsNullOrWhiteSpace([string]$Category)
+	$previousCatalogVariable = $null
+	$previousCategoryVariable = $null
+	if ($hasExplicitCategory)
+	{
+		$previousCatalogVariable = Get-Variable -Name 'BaselineApplicationsCatalog' -Scope Script -ErrorAction SilentlyContinue
+		$previousCategoryVariable = Get-Variable -Name 'BaselineApplicationsCatalogCategory' -Scope Script -ErrorAction SilentlyContinue
+	}
+
+	try
+	{
+		$catalog = if ($hasExplicitCategory)
+		{
+			@(Get-BaselineApplicationsCatalog -Category $Category -SkipPackageManagerAvailabilityRefresh:$SkipPackageManagerAvailabilityRefresh)
+		}
+		else
+		{
+			@(Get-BaselineApplicationsCatalog -SkipPackageManagerAvailabilityRefresh:$SkipPackageManagerAvailabilityRefresh)
+		}
+	}
+	finally
+	{
+		if ($hasExplicitCategory)
+		{
+			if ($previousCatalogVariable)
+			{
+				$Script:BaselineApplicationsCatalog = $previousCatalogVariable.Value
+			}
+			else
+			{
+				Remove-Variable -Name 'BaselineApplicationsCatalog' -Scope Script -ErrorAction SilentlyContinue
+			}
+
+			if ($previousCategoryVariable)
+			{
+				$Script:BaselineApplicationsCatalogCategory = $previousCategoryVariable.Value
+			}
+			else
+			{
+				Remove-Variable -Name 'BaselineApplicationsCatalogCategory' -Scope Script -ErrorAction SilentlyContinue
+			}
+		}
+	}
+
 	if ($catalog.Count -eq 0)
 	{
 		return @()
@@ -269,11 +318,16 @@ function Test-ApplicationExecutionSupport
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CatalogHelpers.Test-ApplicationExecutionSupport:catch315' -Severity Debug }
+
 		$null = $_
 	}
 
 	switch ($entityType)
 	{
+		'store' { return (-not [string]::IsNullOrWhiteSpace($storeUri)) }
+		'direct' { return (-not [string]::IsNullOrWhiteSpace($directUrl)) }
+		'command' { return (-not [string]::IsNullOrWhiteSpace($command)) }
 		'uwp' { return $false }
 		'feature' { return $false }
 		'system' { return $false }
@@ -300,6 +354,8 @@ function Test-ApplicationExecutionSupport
 					}
 					catch
 					{
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CatalogHelpers.Test-ApplicationExecutionSupport:catch349' -Severity Debug }
+
 						return $false
 					}
 				}
@@ -340,6 +396,8 @@ function Get-ApplicationCatalogIdentityKey
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CatalogHelpers.Get-ApplicationCatalogIdentityKey:catch389' -Severity Debug }
+
 		$null = $_
 	}
 
@@ -368,6 +426,8 @@ function Get-ApplicationCatalogIdentityKey
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CatalogHelpers.Get-ApplicationCatalogIdentityKey:catch417' -Severity Debug }
+
 			$null = $_
 		}
 	}
@@ -470,6 +530,8 @@ function Get-ApplicationExecutionState
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CatalogHelpers.Get-ApplicationExecutionState:catch519' -Severity Debug }
+
 			$wingetAvailable = $false
 		}
 	}
@@ -482,6 +544,8 @@ function Get-ApplicationExecutionState
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CatalogHelpers.Get-ApplicationExecutionState:catch531' -Severity Debug }
+
 			$chocolateyAvailable = $false
 		}
 	}
@@ -501,6 +565,18 @@ function Get-ApplicationExecutionState
 	elseif ($entityType -eq 'choco' -and -not [string]::IsNullOrWhiteSpace($chocoId))
 	{
 		$sourceForState = 'choco'
+	}
+	elseif ($entityType -eq 'store' -and -not [string]::IsNullOrWhiteSpace($storeUri))
+	{
+		$sourceForState = 'store'
+	}
+	elseif ($entityType -eq 'direct' -and -not [string]::IsNullOrWhiteSpace($directUrl))
+	{
+		$sourceForState = 'direct'
+	}
+	elseif ($entityType -eq 'command' -and -not [string]::IsNullOrWhiteSpace($command))
+	{
+		$sourceForState = 'command'
 	}
 	elseif (-not [string]::IsNullOrWhiteSpace($winGetId))
 	{
@@ -673,6 +749,8 @@ function Get-ApplicationExecutionState
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CatalogHelpers.Get-ApplicationExecutionState:catch734' -Severity Debug }
+
 			$route = $null
 		}
 	}
@@ -789,6 +867,8 @@ function Get-AppsCatalogCandidateDirectories
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CatalogHelpers.Get-AppsCatalogCandidateDirectories:catch850' -Severity Debug }
+
 			$null = $_
 		}
 	}.GetNewClosure()
@@ -828,6 +908,8 @@ function Get-AppsCatalogCandidateDirectories
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CatalogHelpers.Get-AppsCatalogCandidateDirectories:catch889' -Severity Debug }
+
 			$null = $_
 		}
 	}
@@ -840,6 +922,8 @@ function Get-AppsCatalogCandidateDirectories
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CatalogHelpers.Get-AppsCatalogCandidateDirectories:catch901' -Severity Debug }
+
 			$null = $_
 		}
 	}
@@ -948,14 +1032,15 @@ function Get-BaselineApplicationsCatalog
 	[CmdletBinding()]
 	param (
 		[switch]$Force,
-		[string]$Category = $null
+		[string]$Category = $null,
+		[switch]$SkipPackageManagerAvailabilityRefresh
 	)
 
-	if (Get-Command -Name 'Test-WinGetAvailable' -CommandType Function -ErrorAction SilentlyContinue)
+	if (-not $SkipPackageManagerAvailabilityRefresh -and (Get-Command -Name 'Test-WinGetAvailable' -CommandType Function -ErrorAction SilentlyContinue))
 	{
 		try { $null = Test-WinGetAvailable -Refresh } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Get-BaselineApplicationsCatalog.TestWinGetAvailable' }
 	}
-	if (Get-Command -Name 'Test-ChocolateyAvailable' -CommandType Function -ErrorAction SilentlyContinue)
+	if (-not $SkipPackageManagerAvailabilityRefresh -and (Get-Command -Name 'Test-ChocolateyAvailable' -CommandType Function -ErrorAction SilentlyContinue))
 	{
 		try { $null = Test-ChocolateyAvailable -Refresh } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Get-BaselineApplicationsCatalog.TestChocolateyAvailable' }
 	}
@@ -1108,6 +1193,8 @@ function Get-BaselineApplicationsCatalog
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'CatalogHelpers.Get-BaselineApplicationsCatalog:catch1170' -Severity Debug }
+
 				$null = $_
 			}
 

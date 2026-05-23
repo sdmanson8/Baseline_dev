@@ -5,16 +5,16 @@ using module ..\SharedHelpers.psm1
 function Errors
 {
     <#
-    	.SYNOPSIS
-    	Log the collected script errors and show the final log file location.
+	.SYNOPSIS
+	Log the collected script errors and show the final log file location.
 
-    	.DESCRIPTION
-    	Filters the accumulated PowerShell error list, formats the remaining errors
-    	with file and line information, writes them to the Baseline log, and
-    	then shows the user where the log file was saved.
+	.DESCRIPTION
+	Filters the accumulated PowerShell error list, formats the remaining errors
+	with file and line information, writes them to the Baseline log, and
+	then shows the user where the log file was saved.
 
-    	.EXAMPLE
-    	Errors
+	.EXAMPLE
+	Errors
     #>
     if ($Global:Error)
     {

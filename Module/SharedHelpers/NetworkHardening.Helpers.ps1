@@ -603,6 +603,8 @@ function Disable-BaselineWinRMService
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'NetworkHardening.Helpers.Disable-BaselineWinRMService:catch604' -Severity Debug }
+
 		return [pscustomobject]@{
 			Found      = $false
 			Skipped    = $true

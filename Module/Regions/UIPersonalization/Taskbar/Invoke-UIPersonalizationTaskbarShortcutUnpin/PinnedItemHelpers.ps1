@@ -18,7 +18,7 @@ function Get-UIPersonalizationTaskbarPinnedItems
 	    .SYNOPSIS
 	    Gets taskbar pinned matches.
 
-	    	#>
+		#>
 
 	function Get-UIPersonalizationTaskbarPinnedMatches
 	{
@@ -52,7 +52,7 @@ function Get-UIPersonalizationTaskbarPinnedItems
 	    .SYNOPSIS
 	    Runs taskbar unpin.
 
-	    	#>
+		#>
 
 	function Invoke-UIPersonalizationTaskbarUnpin
 	{
@@ -99,7 +99,7 @@ function Get-UIPersonalizationTaskbarPinnedItems
 	    .SYNOPSIS
 	    Removes taskbar pinned link.
 
-	    	#>
+		#>
 
 	function Remove-UIPersonalizationTaskbarPinnedLink
 	{
@@ -131,7 +131,7 @@ function Get-UIPersonalizationTaskbarPinnedItems
 	    .SYNOPSIS
 	    Runs taskbar unpin with fallback.
 
-	    	#>
+		#>
 
 	function Invoke-UIPersonalizationTaskbarUnpinWithFallback
 	{
@@ -153,7 +153,7 @@ function Get-UIPersonalizationTaskbarPinnedItems
 	    .SYNOPSIS
 	    Removes taskbar pinned links by pattern.
 
-	    	#>
+		#>
 
 	function Remove-UIPersonalizationTaskbarPinnedLinksByPattern
 	{
@@ -206,7 +206,7 @@ function Get-UIPersonalizationTaskbarPinnedItems
 	    .SYNOPSIS
 	    Runs ARM64 shell unpin.
 
-	    	#>
+		#>
 
 	function Invoke-UIPersonalizationARM64ShellUnpin
 	{

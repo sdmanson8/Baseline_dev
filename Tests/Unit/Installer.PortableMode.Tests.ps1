@@ -12,11 +12,40 @@ $script:InstallerTemplates = @(
 )
 
 Describe 'Portable installer registration' {
+    It '<ScriptName> declares a setup mutex so concurrent setup windows are rejected' -ForEach $script:InstallerTemplates {
+        $content = Get-Content -LiteralPath $ScriptPath -Raw -Encoding UTF8
+
+        $content | Should -Match '#define\s+MySetupMutex\s+"Baseline-Setup-D5A779F1-8936-4E66-A24D-9A4E43A2A4D9"' -Because "$ScriptName must keep a stable setup-instance mutex"
+        $content | Should -Match '(?m)^\s*SetupMutex=\{#MySetupMutex\}\s*$' -Because "$ScriptName must let Inno Setup reject a second setup instance"
+    }
+
     It '<ScriptName> disables uninstall registration for portable mode' -ForEach $script:InstallerTemplates {
         $content = Get-Content -LiteralPath $ScriptPath -Raw -Encoding UTF8
 
         $content | Should -Match '(?m)^\s*Uninstallable=IsInstallMode\s*$' -Because "portable mode in $ScriptName must not create an uninstallable entry"
         $content | Should -Match '(?m)^\s*CreateUninstallRegKey=IsInstallMode\s*$' -Because "portable mode in $ScriptName must not register in Apps & Features"
+    }
+
+    It '<ScriptName> disables the incompatible mode for the selected setup scope' -ForEach $script:InstallerTemplates {
+        $content = Get-Content -LiteralPath $ScriptPath -Raw -Encoding UTF8
+
+        $content | Should -Match 'procedure ApplyModeAvailability;' -Because "$ScriptName must keep setup scope and install/portable mode mutually exclusive"
+        $content | Should -Match 'if IsAdminInstallMode then\s+begin\s+RbInstall\.Enabled := True;\s+RbPortable\.Enabled := False;\s+RbInstall\.Checked := True;\s+RbPortable\.Checked := False;\s+GInstallMode := True;' -Because "$ScriptName all-users setup must make portable unavailable"
+        $content | Should -Match 'else\s+begin\s+RbInstall\.Enabled := False;\s+RbPortable\.Enabled := True;\s+RbInstall\.Checked := False;\s+RbPortable\.Checked := True;\s+GInstallMode := False;' -Because "$ScriptName current-user setup must make install unavailable"
+        $content | Should -Match 'if IsAdminInstallMode and Assigned\(RbPortable\) and RbPortable\.Checked then' -Because "$ScriptName must reject a stale portable click in all-users setup"
+        $content | Should -Match 'else if \(not IsAdminInstallMode\) and Assigned\(RbInstall\) and RbInstall\.Checked then' -Because "$ScriptName must reject a stale install click in current-user setup"
+        $content | Should -Match 'ApplyModeAvailability;' -Because "$ScriptName must apply the rule when the mode page is created or shown"
+    }
+
+    It '<ScriptName> explains which setup scope enables each disabled mode option' -ForEach $script:InstallerTemplates {
+        $content = Get-Content -LiteralPath $ScriptPath -Raw -Encoding UTF8
+
+        $content | Should -Match 'Choose "Only me" setup mode to enable Portable\.' -Because "$ScriptName should explain why portable is unavailable during all-users setup"
+        $content | Should -Match 'Choose "Install for all users" setup mode to enable Install\.' -Because "$ScriptName should explain why install is unavailable during current-user setup"
+        $content | Should -Match 'RbInstall\.Hint := InstallHint;' -Because "$ScriptName should attach the install explanation to the disabled install option"
+        $content | Should -Match 'RbInstall\.ShowHint := InstallHint <> '''';' -Because "$ScriptName should only show the install hint when install is disabled"
+        $content | Should -Match 'RbPortable\.Hint := PortableHint;' -Because "$ScriptName should attach the portable explanation to the disabled portable option"
+        $content | Should -Match 'RbPortable\.ShowHint := PortableHint <> '''';' -Because "$ScriptName should only show the portable hint when portable is disabled"
     }
 
     It '<ScriptName> creates launchable install and portable desktop shortcuts' -ForEach $script:InstallerTemplates {

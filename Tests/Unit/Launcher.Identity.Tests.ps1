@@ -141,7 +141,28 @@ Describe 'Launcher identity host' {
         $script:LauncherProgramContent | Should -Match '"NoGui"'
         $script:LauncherProgramContent | Should -Match '"Functions"'
         $script:LauncherProgramContent | Should -Match '"Preset"'
+        $script:LauncherProgramContent | Should -Match '"ConsoleGui"'
         $script:LauncherProgramContent | Should -Match '"TargetComputer"'
+        $script:LauncherProgramContent | Should -Match 'ConsoleGuiArgumentName\s*=\s*"ConsoleGui"'
+        $script:LauncherProgramContent | Should -Match 'IsEnabledPowerShellSwitchArgument\(argument, ConsoleGuiArgumentName\)'
+
+        $headlessArgumentBlock = [regex]::Match($script:LauncherProgramContent, 'HeadlessPowerShellArguments\s*=\s*new\[\]\s*\{[\s\S]*?\};').Value
+        $headlessArgumentBlock | Should -Not -Match '"ConsoleGui"' -Because 'the interactive console menu should not inherit the default headless workflow timeout'
+    }
+
+    It 'rejects duplicate GUI launcher instances before runtime hydration' {
+        $script:LauncherProgramContent | Should -Match 'LauncherGuiInstanceMutexPrefix\s*=\s*@"Local\\Baseline-GuiInstance-"'
+        $script:LauncherProgramContent | Should -Match 'RequiresLauncherGuiInstanceLock\(normalizedArgs\)'
+        $script:LauncherProgramContent | Should -Match 'TryAcquireLauncherGuiInstance\(out launcherGuiInstanceMutex\)'
+        $script:LauncherProgramContent | Should -Match 'ReleaseLauncherGuiInstance\(launcherGuiInstanceMutex\)'
+        $script:LauncherProgramContent | Should -Match 'GetMutexSafeUserName\(Environment\.UserName\)'
+        $script:LauncherProgramContent | Should -Match 'Baseline is already running for this Windows user'
+
+        $lockIndex = $script:LauncherProgramContent.IndexOf('TryAcquireLauncherGuiInstance(out launcherGuiInstanceMutex)')
+        $hydrateIndex = $script:LauncherProgramContent.IndexOf('EnsureHydratedRuntime(launcherPath)')
+        $lockIndex | Should -BeGreaterThan -1
+        $hydrateIndex | Should -BeGreaterThan -1
+        $lockIndex | Should -BeLessThan $hydrateIndex
     }
 
     It 'requires an explicit portable marker or environment flag before portable state is used' {
@@ -191,6 +212,12 @@ Describe 'Launcher identity host' {
     }
 
     It 'builds the launcher with dotnet build for net48' {
+        $manifestRefreshIndex = $script:BuildLauncherContent.IndexOf('New-ModuleIntegrityManifest.ps1')
+        $dotnetBuildIndex = $script:BuildLauncherContent.IndexOf("'build'")
+
+        $manifestRefreshIndex | Should -BeGreaterThan -1
+        $dotnetBuildIndex | Should -BeGreaterThan -1
+        $manifestRefreshIndex | Should -BeLessThan $dotnetBuildIndex
         $script:BuildLauncherContent | Should -Match '''build'''
         $script:BuildLauncherContent | Should -Match '''-f'', ''net48'''
         $script:BuildLauncherContent | Should -Not -Match 'PlatformTarget=x64'

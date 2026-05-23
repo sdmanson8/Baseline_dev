@@ -69,6 +69,7 @@
 		LogBg = "#1E2433"
 		LogDefault = "#F4F7FF"
 		LogInfo = "#7CB7FF"
+		LogDebug = "#C084FC"
 		LogSuccess = "#35D07F"
 		LogWarning = "#D6A84A"
 		LogError = "#FF6B8A"
@@ -144,6 +145,7 @@
 		LogBg = "#F7F8FA"
 		LogDefault = "#1F2937"
 		LogInfo = "#1D4ED8"
+		LogDebug = "#6D28D9"
 		LogSuccess = "#1F7A4C"
 		LogWarning = "#9A6700"
 		LogError = "#B42318"
@@ -175,7 +177,9 @@
 		$shouldLog = $true
 		if ($Script:GuiThemeFallbackWarnings)
 		{
-			try { $shouldLog = $Script:GuiThemeFallbackWarnings.Add($warningKey) } catch { $shouldLog = $true }
+			try { $shouldLog = $Script:GuiThemeFallbackWarnings.Add($warningKey) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ThemeManagement.Write-GuiThemeFallbackWarning:catch180' -Severity Debug }
+			 $shouldLog = $true }
 		}
 		if (-not $shouldLog) { return }
 
@@ -215,7 +219,134 @@
 	    .SYNOPSIS
 	#>
 
-	function Repair-GuiThemePalette
+	function ConvertTo-GuiRgbColorTriplet
+	{
+		param ([object]$Color)
+
+		$colorText = ([string]$Color).Trim()
+		if ([string]::IsNullOrWhiteSpace($colorText)) { return $null }
+
+		if ($colorText -match '^#(?<R>[0-9a-fA-F])(?<G>[0-9a-fA-F])(?<B>[0-9a-fA-F])$')
+		{
+			$rHex = $matches['R'] + $matches['R']
+			$gHex = $matches['G'] + $matches['G']
+			$bHex = $matches['B'] + $matches['B']
+		}
+		elseif ($colorText -match '^#(?<R>[0-9a-fA-F]{2})(?<G>[0-9a-fA-F]{2})(?<B>[0-9a-fA-F]{2})$')
+		{
+			$rHex = $matches['R']
+			$gHex = $matches['G']
+			$bHex = $matches['B']
+		}
+		elseif ($colorText -match '^#(?<A>[0-9a-fA-F]{2})(?<R>[0-9a-fA-F]{2})(?<G>[0-9a-fA-F]{2})(?<B>[0-9a-fA-F]{2})$')
+		{
+			$rHex = $matches['R']
+			$gHex = $matches['G']
+			$bHex = $matches['B']
+		}
+		else
+		{
+			return $null
+		}
+
+		return [pscustomobject]@{
+			R = [int]([Convert]::ToByte($rHex, 16))
+			G = [int]([Convert]::ToByte($gHex, 16))
+			B = [int]([Convert]::ToByte($bHex, 16))
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Get-GuiRelativeColorLuminance
+	{
+		param ([object]$Color)
+
+		$rgb = if ($Color -and $Color.PSObject.Properties['R'] -and $Color.PSObject.Properties['G'] -and $Color.PSObject.Properties['B'])
+		{
+			$Color
+		}
+		else
+		{
+			ConvertTo-GuiRgbColorTriplet -Color $Color
+		}
+		if (-not $rgb) { return $null }
+
+		$getLinearChannel = {
+			param ([int]$Channel)
+
+			$scaled = [double]$Channel / 255.0
+			if ($scaled -le 0.03928)
+			{
+				return ($scaled / 12.92)
+			}
+
+			return [Math]::Pow((($scaled + 0.055) / 1.055), 2.4)
+		}
+
+		$r = & $getLinearChannel ([int]$rgb.R)
+		$g = & $getLinearChannel ([int]$rgb.G)
+		$b = & $getLinearChannel ([int]$rgb.B)
+
+		return ((0.2126 * $r) + (0.7152 * $g) + (0.0722 * $b))
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Get-GuiReadableForegroundColor
+	{
+		param (
+			[object]$BackgroundColor,
+			[string[]]$CandidateColors = @('#FFFFFF', '#111827')
+		)
+
+		if (-not $CandidateColors -or $CandidateColors.Count -eq 0)
+		{
+			$CandidateColors = @('#FFFFFF', '#111827')
+		}
+
+		$backgroundLuminance = Get-GuiRelativeColorLuminance -Color $BackgroundColor
+		if ($null -eq $backgroundLuminance)
+		{
+			return [string]$CandidateColors[0]
+		}
+
+		$bestColor = $null
+		$bestContrast = [double]::NegativeInfinity
+		foreach ($candidateColor in @($CandidateColors))
+		{
+			if ([string]::IsNullOrWhiteSpace([string]$candidateColor)) { continue }
+
+			$candidateLuminance = Get-GuiRelativeColorLuminance -Color $candidateColor
+			if ($null -eq $candidateLuminance) { continue }
+
+			$lighter = [Math]::Max([double]$backgroundLuminance, [double]$candidateLuminance)
+			$darker = [Math]::Min([double]$backgroundLuminance, [double]$candidateLuminance)
+			$contrast = ($lighter + 0.05) / ($darker + 0.05)
+			if ($contrast -gt $bestContrast)
+			{
+				$bestContrast = $contrast
+				$bestColor = [string]$candidateColor
+			}
+		}
+
+		if ([string]::IsNullOrWhiteSpace($bestColor))
+		{
+			return [string]$CandidateColors[0]
+		}
+
+		return $bestColor
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Repair-GuiThemePaletteWithReferences
 	{
 		param (
 			[hashtable]$Theme,
@@ -416,6 +547,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ThemeManagement.New-SafeBrushConverter:catch546' -Severity Debug }
+
 				if ($fallbackCapture -and $fallbackCapture -ne $key)
 				{
 					$fb = $cacheRef[$fallbackCapture]
@@ -427,7 +560,9 @@
 						if ($fb) { $cacheRef[$fallbackCapture] = $fb }
 						return [System.Windows.Media.Brush]$fb
 					}
-					catch { return $null }
+					catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ThemeManagement.New-SafeBrushConverter:catch559' -Severity Debug }
+					 return $null }
 				}
 				return $null
 			}

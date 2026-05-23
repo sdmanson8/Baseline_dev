@@ -2,6 +2,8 @@
 
 BeforeAll {
     $filePath = Join-Path $PSScriptRoot '../../Module/Regions/System/System.FeatureBundles.psm1'
+    $manifestPath = Join-Path $PSScriptRoot '../../Module/Data/System.json'
+    $script:SystemManifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
     $ast = [System.Management.Automation.Language.Parser]::ParseFile($filePath, [ref]$null, [ref]$null)
     $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $functions) {
@@ -229,5 +231,13 @@ Describe 'Feature bundle wrappers' {
         $script:consoleActions[0] | Should -Be 'Disabling Hyper-V Management Tools'
         $script:consoleStatuses[-1] | Should -Be 'success'
         $script:loggedErrorMessages.Count | Should -Be 0
+    }
+
+    It 'declares servicing-length GUI execution timeouts for Windows feature bundles' {
+        foreach ($functionName in @('LegacyMediaBundle', 'NfsBundle', 'HyperVManagementTools')) {
+            $entry = $script:SystemManifest.Entries | Where-Object { $_.Function -eq $functionName } | Select-Object -First 1
+            $entry | Should -Not -BeNullOrEmpty
+            [int]$entry.TimeoutSeconds | Should -BeGreaterOrEqual 900
+        }
     }
 }

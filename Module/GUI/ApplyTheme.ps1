@@ -1,4 +1,4 @@
-﻿		<#
+		<#
 		    .SYNOPSIS
 		#>
 
@@ -24,7 +24,7 @@
 			{
 				$Script:CurrentThemeName = 'Custom'
 			}
-		$Theme = Repair-GuiThemePalette -Theme $Theme -ThemeName $themeRepairName
+		$Theme = Repair-GuiThemePaletteWithReferences -Theme $Theme -ThemeName $themeRepairName
 		$Script:CurrentTheme = $Theme
 		Set-Variable -Name 'BaselineCurrentTheme' -Value $Theme -Scope Global -Force
 		Set-Variable -Name 'BaselineCurrentThemeName' -Value $Script:CurrentThemeName -Scope Global -Force
@@ -149,6 +149,10 @@
 		{
 			Update-GuiScrollBarTheme
 		}
+		if ($Script:UpdateGuiBackToTopButtonScript)
+		{
+			try { & $Script:UpdateGuiBackToTopButtonScript } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ApplyTheme.Set-GUITheme.UpdateBackToTopButton' }
+		}
 
 		if (-not $SkipContentRebuild)
 		{
@@ -204,6 +208,8 @@
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ApplyTheme.Get-BaselineSystemThemePreference:catch209' -Severity Debug }
+
 			return 'Light'
 		}
 	}

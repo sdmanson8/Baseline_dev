@@ -189,9 +189,9 @@ function RecentFiles
 	Show me suggested content in the Settings app
 
 
-	
+
 .DESCRIPTION
-	
+
 Shows me suggested content in the Settings app from Baseline's GUI flow.
 	.PARAMETER Hide
 	Hide from me suggested content in the Settings app
@@ -289,9 +289,9 @@ function SettingsSuggestedContent
 	Ways to get the most out of Windows and finish setting up this device
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for ways to get the most out of Windows and finish setting up this device.
 	.PARAMETER Disable
 	Do not suggest ways to get the most out of Windows and finish setting up this device
@@ -378,9 +378,9 @@ function WhatsNewInWindows
 	Getting tip and suggestions when I use Windows
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for getting tip and suggestions when I use Windows.
 	.PARAMETER Enable
 	Get tip and suggestions when using Windows (default value)
@@ -466,9 +466,9 @@ function WindowsTips
 	The Windows welcome experiences after updates and occasionally when I sign in to highlight what's new and suggested
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the Windows welcome experiences after updates and occasionally when I sign in to highlight what's new and suggested.
 	.PARAMETER Hide
 	Hide the Windows welcome experiences after updates and occasionally when I sign in to highlight what's new and suggested
@@ -550,9 +550,9 @@ function WindowsWelcomeExperience
 	Notification area tray icons visibility in Windows
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for notification area tray icons visibility in Windows.
 	.PARAMETER Enable
 	Always show all notification area tray icons
@@ -637,9 +637,9 @@ function TrayIcons
 	Allow or prevent changing Windows sound scheme
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for allow or prevent changing Windows sound scheme.
 	.PARAMETER Enable
 	Allow changing Windows sound scheme (default value)

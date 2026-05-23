@@ -152,13 +152,38 @@ function Invoke-GuiWindowChromeThemeUpdate
 		return $false
 	}
 
-	$immersiveDarkModeAttribute = if ([Environment]::OSVersion.Version.Build -ge 18362) { 20 } else { 19 }
+	$osBuild = [Environment]::OSVersion.Version.Build
+	$immersiveDarkModeAttributes = [System.Collections.Generic.List[int]]::new()
+	if ($osBuild -ge 18362)
+	{
+		[void]$immersiveDarkModeAttributes.Add(20)
+	}
+	if ($osBuild -ge 17763)
+	{
+		[void]$immersiveDarkModeAttributes.Add(19)
+	}
 	$attributeValue = if ($resolvedUseDarkMode) { 1 } else { 0 }
+	if ($immersiveDarkModeAttributes.Count -eq 0)
+	{
+		return $false
+	}
 
 	try
 	{
-		$result = [WinAPI.GuiWindowChrome]::DwmSetWindowAttribute($windowHandle, $immersiveDarkModeAttribute, [ref]$attributeValue, 4)
-		if ($result -ne 0)
+		$chromeThemeApplied = $false
+		$result = 0
+		foreach ($immersiveDarkModeAttribute in $immersiveDarkModeAttributes)
+		{
+			$candidateAttributeValue = $attributeValue
+			$result = [WinAPI.GuiWindowChrome]::DwmSetWindowAttribute($windowHandle, $immersiveDarkModeAttribute, [ref]$candidateAttributeValue, 4)
+			if ($result -eq 0)
+			{
+				$chromeThemeApplied = $true
+				break
+			}
+		}
+
+		if (-not $chromeThemeApplied)
 		{
 			Write-GuiCommonWarning ("DwmSetWindowAttribute returned 0x{0:X8} while applying {1} chrome." -f ($result -band 0xFFFFFFFF), $(if ($resolvedUseDarkMode) { 'dark' } else { 'light' }))
 			return $false
@@ -277,6 +302,8 @@ function Set-GuiWindowChromeTheme
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'WindowChrome.Set-GuiWindowChromeTheme:catch303' -Severity Debug }
+
 		$existingHandler = $null
 	}
 
@@ -298,6 +325,8 @@ function Set-GuiWindowChromeTheme
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'WindowChrome.Set-GuiWindowChromeTheme:catch324' -Severity Debug }
+
 				$requestedDarkMode = $true
 			}
 

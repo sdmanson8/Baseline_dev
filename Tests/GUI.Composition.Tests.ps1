@@ -92,8 +92,11 @@ BeforeAll {
     $guiPsmPath = Join-Path $repoRoot 'Module/Regions/GUI.psm1'
     Import-AstFunctions -FilePath $guiPsmPath -Include 'New-SafeThickness', 'New-WpfSetter'
 
-    # ── Initialize BrushCache so New-SafeBrushConverter doesn't index into null ──
+    # ── Initialize shared GUI state used by imported rendering helpers ──
     $Script:BrushCache = @{}
+    $Script:SharedBrushConverter = [System.Windows.Media.BrushConverter]::new()
+    $Script:TitleBarText = $null
+    $Script:Form = $null
 
     # ── Execution summary dialog ──
     Import-AstFunctions -FilePath (Join-Path $guiDir 'ExecutionSummaryDialog.ps1') -Include 'Show-ExecutionSummaryDialog'
@@ -215,7 +218,7 @@ Describe 'Preview count generation (W-1c)' {
             Should -Not -BeNullOrEmpty
     }
 
-    It 'returns object with MatchesDesired, StateLabel, StateTone for a Toggle tweak' {
+    It 'returns object with MatchesDesired, StateLabel, StateTone, and detected toggle state for a Toggle tweak' {
         $tweak = [pscustomobject]@{
             Name         = 'TestTweak'
             Type         = 'Toggle'
@@ -245,6 +248,9 @@ Describe 'Preview count generation (W-1c)' {
         $result.PSObject.Properties.Name | Should -Contain 'MatchesDesired'
         $result.PSObject.Properties.Name | Should -Contain 'StateLabel'
         $result.PSObject.Properties.Name | Should -Contain 'StateTone'
+        $result.PSObject.Properties.Name | Should -Contain 'DetectedState'
+        $result.PSObject.Properties.Name | Should -Contain 'GoalState'
+        $result.PSObject.Properties.Name | Should -Contain 'IsSelected'
     }
 
     It 'marks a toggle Already Set only when detected state equals goal state: <CaseName>' -ForEach @(
@@ -292,6 +298,37 @@ Describe 'Preview count generation (W-1c)' {
 
         $result.StateLabel | Should -Be 'Will Change'
         $result.MatchesDesired | Should -BeFalse
+    }
+
+    It 'uses cached toggle detection before invoking a live Detect scriptblock' {
+        $Script:ScanEnabled = $true
+        $script:DetectedToggleState = $false
+        function script:Get-CachedDetection {
+            param([string]$Function)
+            if ($Function -eq 'CachedToggleState') { return $true }
+            return $null
+        }
+
+        try {
+            $tweak = [pscustomobject]@{
+                Name = 'Cached Toggle State'
+                Type = 'Toggle'
+                Default = $true
+                Detect = { $false }
+                Function = 'CachedToggleState'
+                Risk = 'Low'
+                Tags = @()
+                ScenarioTags = @()
+            }
+
+            $result = Get-TweakVisualMetadata -Tweak $tweak -StateSource ([pscustomobject]@{ IsChecked = $false })
+
+            $result.MatchesDesired | Should -BeTrue
+            $result.DetectedState | Should -BeTrue
+        }
+        finally {
+            Remove-Item -LiteralPath Function:\Get-CachedDetection -ErrorAction SilentlyContinue
+        }
     }
 
     It 'returns null for null tweak input' {
@@ -410,6 +447,13 @@ Describe 'Theme management (W-1e)' {
             $item.Measure([System.Windows.Size]::new(1000, 1000))
             $item.Arrange([System.Windows.Rect]::new(0, 0, 240, 30))
         } | Should -Not -Throw
+
+        [void]$item.ApplyTemplate()
+        $itemContentSite = $item.Template.FindName('ItemContentSite', $item)
+        $itemContentSite | Should -Not -BeNullOrEmpty
+        $itemContentBinding = [System.Windows.Data.BindingOperations]::GetBinding($itemContentSite, [System.Windows.Controls.ContentPresenter]::ContentProperty)
+        $itemContentBinding | Should -Not -BeNullOrEmpty
+        $itemContentBinding.Path.Path | Should -Be 'Content'
     }
 
     It 'Set-ChoiceComboStyle keeps a themed custom template in light mode' {
@@ -881,8 +925,12 @@ Describe 'Menu localization refresh (W-1j)' {
             'MenuView',
             'MenuTools',
             'MenuHelp',
+            'MenuActionsConnectToComputer',
+            'MenuActionsDisconnect',
             'MenuFileImportSettings',
             'MenuFileExportSettings',
+            'MenuFileSettings',
+            'MenuFileAuditSettings',
             'MenuFileExportConfigProfile',
             'MenuFileExportSystemState',
             'MenuActionsPreviewRun',
@@ -894,12 +942,34 @@ Describe 'Menu localization refresh (W-1j)' {
             'MenuActionsAuditLog',
             'MenuViewFilters',
             'MenuViewLogsPanel',
+            'MenuViewTheme',
             'MenuToolsAppsManager',
             'MenuToolsUpdateAllApps',
+            'MenuToolsDeveloperDiagnostics',
+            'MenuToolsDeveloperDiagnosticsGenerateReport',
+            'MenuToolsDeveloperDiagnosticsSourceQuality',
+            'MenuToolsDeveloperDiagnosticsUnitTests',
+            'MenuToolsDeveloperDiagnosticsGuiComposition',
+            'MenuToolsDeveloperDiagnosticsOpenLatestReport',
+            'MenuToolsDeveloperDiagnosticsCopyCommands',
+            'MenuToolsDeveloperDiagnosticsIntegrationTests',
+            'MenuToolsExportSupportBundle',
+            'MenuToolsApproveRemoteTargets',
+            'MenuToolsSaveRemoteApprovalPolicy',
+            'MenuToolsLoadRemoteApprovalPolicy',
+            'MenuToolsRemoteConsole',
+            'MenuToolsOperatorConsole',
+            'MenuToolsRemoteSessionStatus',
+            'MenuToolsRemovalPersistence',
+            'MenuHelpHelp',
             'MenuHelpStartGuide',
             'MenuHelpDocumentation',
+            'MenuHelpReadme',
+            'MenuHelpFAQ',
             'MenuHelpChangelog',
             'MenuHelpCheckForUpdate',
+            'MenuHelpReleaseStatus',
+            'MenuHelpTroubleshooting',
             'MenuHelpAbout'
         )) {
             Set-Variable -Scope Script -Name $name -Value $null

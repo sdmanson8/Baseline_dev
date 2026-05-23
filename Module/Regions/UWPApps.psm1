@@ -217,9 +217,9 @@ function Copilot
 	Cortana autostarting
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for cortana autostarting.
 	.PARAMETER Disable
 	Disable Cortana autostarting
@@ -350,7 +350,7 @@ function EdgeDebloat
 		{
 			Write-ConsoleStatus -Action "Enabling Edge Debloat"
 			LogInfo "Enabling Edge Debloat"
-			
+
 			# Create paths if they don't exist
 			if (-not (Test-Path $EdgeUpdatePath))
 			{
@@ -364,7 +364,7 @@ function EdgeDebloat
 			{
 				New-Item -Path $EdgeBlocklistPath -Force -ErrorAction SilentlyContinue | Out-Null
 			}
-			
+
 			Set-ItemProperty -LiteralPath $EdgeUpdatePath -Name "CreateDesktopShortcutDefault" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
 			Set-ItemProperty -LiteralPath $EdgePath -Name "PersonalizationReportingEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
 			Set-ItemProperty -LiteralPath $EdgeBlocklistPath -Name "1" -Type String -Value "ofefcgjbeghpigppfmkologfjadafddi" -Force -ErrorAction SilentlyContinue | Out-Null
@@ -382,7 +382,7 @@ function EdgeDebloat
 			Set-ItemProperty -LiteralPath $EdgePath -Name "DiagnosticData" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
 			Set-ItemProperty -LiteralPath $EdgePath -Name "EdgeAssetDeliveryServiceEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
 			Set-ItemProperty -LiteralPath $EdgePath -Name "WalletDonationEnabled" -Type DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
-			
+
 			LogInfo "Edge debloat policies applied"
 			Write-ConsoleStatus -Status success
 		}
@@ -390,7 +390,7 @@ function EdgeDebloat
 		{
 			Write-ConsoleStatus -Action "Disabling Edge Debloat"
 			LogInfo "Disabling Edge Debloat"
-			
+
 			Remove-ItemProperty -Path $EdgeUpdatePath -Name "CreateDesktopShortcutDefault" -Force -ErrorAction SilentlyContinue | Out-Null
 			Remove-ItemProperty -Path $EdgePath -Name "PersonalizationReportingEnabled" -Force -ErrorAction SilentlyContinue | Out-Null
 			Remove-ItemProperty -Path $EdgeBlocklistPath -Name "1" -Force -ErrorAction SilentlyContinue | Out-Null
@@ -408,7 +408,7 @@ function EdgeDebloat
 			Remove-ItemProperty -Path $EdgePath -Name "DiagnosticData" -Force -ErrorAction SilentlyContinue | Out-Null
 			Remove-ItemProperty -Path $EdgePath -Name "EdgeAssetDeliveryServiceEnabled" -Force -ErrorAction SilentlyContinue | Out-Null
 			Remove-ItemProperty -Path $EdgePath -Name "WalletDonationEnabled" -Force -ErrorAction SilentlyContinue | Out-Null
-			
+
 			LogInfo "Edge debloat policies removed"
 			Write-ConsoleStatus -Status success
 		}
@@ -487,6 +487,8 @@ function EdgeRemoval
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UWPApps.Write-EdgeRemovalLog:catch488' -Severity Debug }
+
 			# Logging must never break removal flow
 		}
 		LogInfo $Message
@@ -839,14 +841,14 @@ function RevertStartMenu
 					Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
 				}
 				New-Item -Path $tempDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
-				
+
 				$zipPath = "$tempDir\BaselineStartMenuTool.zip"
 				Invoke-WebRequest $baselineStartMenuToolUrl -OutFile $zipPath -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop | Out-Null
 				LogInfo "Downloaded Baseline Start Menu tool"
-				
+
 				Expand-Archive $zipPath -DestinationPath $tempDir -Force -ErrorAction Stop | Out-Null
 				LogInfo "Prepared Baseline Start Menu tool"
-				
+
 				$baselineStartMenuToolExe = "$tempDir\ViVeTool.exe"
 				if (-not (Test-Path $baselineStartMenuToolExe))
 				{
@@ -858,7 +860,7 @@ function RevertStartMenu
 					throw "Baseline Start Menu tool returned exit code $($baselineStartMenuToolProcess.ExitCode)"
 				}
 				LogInfo "Applied Baseline Start Menu setting to disable feature $featureId"
-				
+
 				# Cleanup
 				Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
 				LogInfo "Cleaned up temporary files"
@@ -1057,7 +1059,7 @@ function UWPApps
 	    .SYNOPSIS
 	    Request GUI UWP apps selection.
 
-	    	#>
+		#>
 
 		. (Join-Path $PSScriptRoot 'UWPApps\UWPApps\GuiUwpAppsSelection.ps1')
 		$setUWPAppsPickerSurface = ${function:Set-UWPAppsPickerSurface}

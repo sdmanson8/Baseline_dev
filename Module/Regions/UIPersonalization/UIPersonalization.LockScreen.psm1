@@ -6,9 +6,9 @@ using module ..\..\SharedHelpers.psm1
 	Configures Windows lock screen settings.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies Baseline's Windows lock screen settings in GUI and headless runs.
 	.PARAMETER Enable
 	Enable the Windows lock screen (default value)

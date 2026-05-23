@@ -406,7 +406,7 @@ function Import-TweakManifestFromData
 				WhyThisMatters  = $whyThisMattersValue
 			}
 
-			foreach ($propName in @('WinDefaultDesc', 'Detail', 'CautionReason', 'LinkedWith', 'Scannable', 'Restorable', 'RecoveryLevel', 'OnParam', 'OffParam', 'CounterpartFunction', 'DateParam', 'NumericRange', 'ActionPicker', 'SubCategory', 'GamingPreviewGroup', 'GameModeDefault', 'TroubleshootingOnly', 'DecisionPromptKey', 'PlatformSupport', 'SupportsExecution'))
+			foreach ($propName in @('WinDefaultDesc', 'Detail', 'CautionReason', 'LinkedWith', 'Scannable', 'Restorable', 'RecoveryLevel', 'OnParam', 'OffParam', 'CounterpartFunction', 'DateParam', 'NumericRange', 'ActionPicker', 'SubCategory', 'GamingPreviewGroup', 'GameModeDefault', 'TroubleshootingOnly', 'DecisionPromptKey', 'PlatformSupport', 'SupportsExecution', 'TimeoutSeconds'))
 			{
 				if ($entry.PSObject.Properties[$propName] -and $null -ne $entry.$propName)
 				{

@@ -8,9 +8,9 @@ using module ..\SharedHelpers.psm1
 	Time in Notification Center
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for time in Notification Center.
 	.PARAMETER Show
 	Show time in Notification Center
@@ -86,9 +86,9 @@ function ClockInNotificationCenter
 	Seconds on the taskbar clock
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for seconds on the taskbar clock.
 	.PARAMETER Show
 	Show seconds on the taskbar clock

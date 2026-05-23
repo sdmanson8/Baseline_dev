@@ -754,6 +754,17 @@ Describe 'Update notification metadata' {
     }
 }
 
+Describe 'Windows Update repair metadata' {
+    It 'does not expose the repair workflow as a restorable Windows default item' {
+        $windowsUpdateRepair = @($script:SystemData.Entries | Where-Object Function -eq 'WindowsUpdate')
+
+        $windowsUpdateRepair.Count | Should -Be 1
+        $windowsUpdateRepair[0].Restorable | Should -BeFalse
+        $windowsUpdateRepair[0].RecoveryLevel | Should -Be 'Manual'
+        $windowsUpdateRepair[0].WinDefault | Should -Be 'Standard'
+    }
+}
+
 Describe 'FeatureUpdateDeferral' {
     BeforeEach {
         $script:loggedInfoMessages = [System.Collections.Generic.List[string]]::new()

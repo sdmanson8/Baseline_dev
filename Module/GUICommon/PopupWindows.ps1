@@ -105,6 +105,8 @@ function Add-GuiPopupWindowChrome
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Add-GuiPopupWindowChrome:catch106' -Severity Debug }
+
 		$null = $_
 	}
 
@@ -120,6 +122,8 @@ function Add-GuiPopupWindowChrome
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Add-GuiPopupWindowChrome:catch121' -Severity Debug }
+
 		$null = $_
 	}
 
@@ -415,6 +419,8 @@ function Add-GuiPopupWindowChrome
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Add-GuiPopupWindowChrome:catch416' -Severity Debug }
+
 		$null = $_
 	}
 
@@ -431,6 +437,8 @@ function Add-GuiPopupWindowChrome
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Add-GuiPopupWindowChrome:catch432' -Severity Debug }
+
 		$null = $_
 	}
 
@@ -581,6 +589,8 @@ function Register-GuiPopupThemeWindow
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Register-GuiPopupThemeWindow:catch582' -Severity Debug }
+
 					$null = $_
 				}
 			}.GetNewClosure())
@@ -670,6 +680,8 @@ function Set-GuiPopupWindowProgress
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Set-GuiPopupWindowProgress:catch671' -Severity Debug }
+
 		$null = $_
 	}
 
@@ -881,6 +893,8 @@ function Update-GuiPopupWindowThemes
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Update-GuiPopupWindowThemes:catch882' -Severity Debug }
+
 			# If a window has already torn down, prune it from the registry.
 			[void]$Script:GuiPopupThemeWindows.Remove($window)
 			continue
@@ -989,6 +1003,8 @@ function Start-GuiPopupCommandAsync
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Start-GuiPopupCommandAsync:catch990' -Severity Debug }
+
 			$Sync.Error = $_
 		}
 		finally
@@ -1015,7 +1031,9 @@ function Start-GuiPopupCommandAsync
 
 		$timer.Stop()
 
-		try { $ps.EndInvoke($asyncResult) | Out-Null } catch { if (-not $syncHash.Error) { $syncHash.Error = $_ } }
+		try { $ps.EndInvoke($asyncResult) | Out-Null } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Start-GuiPopupCommandAsync:catch1018' -Severity Debug }
+		 if (-not $syncHash.Error) { $syncHash.Error = $_ } }
 		try { $ps.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Start-GuiPopupCommandAsync.DisposePowerShell' }
 		try { $runspace.Close(); $runspace.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'PopupWindows.Start-GuiPopupCommandAsync.DisposeRunspace' }
 

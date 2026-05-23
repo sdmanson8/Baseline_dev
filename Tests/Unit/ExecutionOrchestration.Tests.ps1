@@ -7,6 +7,9 @@ BeforeAll {
     $executionStateSummaryPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration/ExecutionStateSummary.ps1'
     $executionViewPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration/ExecutionView.ps1'
     $executionRunPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration/ExecutionRunOrchestration.ps1'
+    $appExecutionRunPath = Join-Path $PSScriptRoot '../../Module/GUI/ExecutionOrchestration/ExecutionRunOrchestration/Start-GuiAppExecutionRun/Start-GuiAppExecutionRun.ps1'
+    $executionWorkerPath = Join-Path $PSScriptRoot '../../Module/GUIExecution/Start-GuiExecutionWorker/Start-GuiExecutionWorker.ps1'
+    $appExecutionWorkerPath = Join-Path $PSScriptRoot '../../Module/GUIExecution/Start-GuiAppExecutionWorker/Start-GuiAppExecutionWorker.ps1'
     $progressChromePath = Join-Path $PSScriptRoot '../../Module/GUI/AppsModule/ProgressNavChrome.ps1'
     $guiExecutionPath = Join-Path $PSScriptRoot '../../Module/GUIExecution.psm1'
     $sessionStatePath = Join-Path $PSScriptRoot '../../Module/GUI/SessionState.ps1'
@@ -19,6 +22,9 @@ BeforeAll {
     )
     $script:ExecutionViewContent = Get-BaselineTestSourceText -Path $executionViewPath
     $script:ExecutionRunContent = Get-BaselineTestSourceText -Path $executionRunPath
+    $script:AppExecutionRunContent = Get-BaselineTestSourceText -Path $appExecutionRunPath
+    $script:ExecutionWorkerContent = Get-BaselineTestSourceText -Path $executionWorkerPath
+    $script:AppExecutionWorkerContent = Get-BaselineTestSourceText -Path $appExecutionWorkerPath
     $script:ExecutionRunPath = $executionRunPath
     $script:ProgressChromeContent = Get-BaselineTestSourceText -Path $progressChromePath
     $script:GuiExecutionContent = Get-BaselineTestSourceText -Path $guiExecutionPath
@@ -36,6 +42,13 @@ Describe 'Execution orchestration timer wiring' {
         $script:ExecutionContent | Should -Match 'Test-GuiObjectField -Object \$PrimaryTabs -FieldName ''IsEnabled'''
         $script:ExecutionContent | Should -Match 'Test-GuiObjectField -Object \$BtnRun -FieldName ''Content'''
         $script:ExecutionContent | Should -Match 'Test-GuiObjectField -Object \$Script:BtnUndoLastRun -FieldName ''IsEnabled'''
+    }
+
+    It 'tracks not-applicable and not-run items separately from skipped session counts' {
+        $script:ExecutionRunContent | Should -Match "Add-SessionStatistic -Name 'SkippedCount' -Increment \`$guiSummaryPayload\.SkippedCount"
+        $script:ExecutionRunContent | Should -Match "Add-SessionStatistic -Name 'NotApplicableCount' -Increment \`$guiSummaryPayload\.NotApplicableCount"
+        $script:ExecutionRunContent | Should -Match "Add-SessionStatistic -Name 'NotRunCount' -Increment \`$guiSummaryPayload\.NotRunCount"
+        $script:ExecutionRunContent | Should -Not -Match "SkippedCount' -Increment \(\`$guiSummaryPayload\.SkippedCount \+ \`$guiSummaryPayload\.NotApplicableCount \+ \`$guiSummaryPayload\.NotRunCount\)"
     }
 
     It 'uses a native WPF progress bar in the execution header' {
@@ -67,10 +80,200 @@ Describe 'Execution orchestration timer wiring' {
         $script:ExecutionRunContent | Should -Match "GuiProgressPreparingRun' -Fallback 'Busy - preparing run\.\.\.'"
         $script:ExecutionRunContent | Should -Match '& \$Script:UpdateProgressFn -Completed 0 -Total 0 -CurrentAction \$preparingRunLabel'
         $script:ExecutionRunContent | Should -Match "GuiProgressStarting' -Fallback 'Starting\.\.\.'"
+        $script:ExecutionRunContent | Should -Match '\$Script:RunInProgress = \$true'
+        $script:ExecutionRunContent | Should -Match '\$Script:Ctx\.Run\.InProgress = \$true'
         $script:ExecutionRunContent | Should -Match '\$completedStepIndex = if \(\(Test-GuiObjectField -Object \$entry -FieldName ''StepIndex''\)\)'
         $script:ExecutionRunContent | Should -Match '\$completedProgress = if \(\$null -ne \$completedStepIndex\)'
         $script:ExecutionRunContent | Should -Match '\$Script:ExecutionCurrentStepIndex -gt \[int\]\$Script:RunState\[''CompletedCount''\]'
         $script:ExecutionRunContent | Should -Not -Match '\$currentAction = if \(-not \[string\]::IsNullOrWhiteSpace\(\$Script:RunState\[''CurrentTweak''\]\)\)'
+    }
+
+    It 'keeps run startup diagnostics debug-only instead of appending them to the visible console' {
+        $script:ExecutionRunContent | Should -Match "'_RunNotice'"
+        $script:ExecutionRunContent | Should -Match '\$noticeDiagnostic'
+        $script:ExecutionRunContent | Should -Match '\$noticeProgressOnly'
+        $script:ExecutionRunContent | Should -Match 'LogDebug -Message \$noticeMessage -Always'
+        $script:ExecutionRunContent | Should -Match 'if \(\$noticeDiagnostic\)'
+        $script:ExecutionRunContent | Should -Match 'if \(-not \$noticeProgressOnly\)'
+        $script:GuiExecutionContent | Should -Match 'Diagnostic = \$true'
+        $script:GuiExecutionContent | Should -Match 'ProgressOnly = \$true'
+        $script:ExecutionWorkerContent | Should -Match 'Diagnostic = \$true'
+        $script:ExecutionRunContent | Should -Match 'Execution startup: dispatching background worker'
+        $script:ExecutionRunContent | Should -Match 'Execution startup: background worker started'
+        $script:ExecutionRunContent | Should -Match 'Execution startup: starting dispatcher pump\.'
+        $script:ExecutionRunContent | Should -Match 'Execution startup: dispatcher pump started; invoking first tick\.'
+        $script:ExecutionRunContent | Should -Match 'LogDebug -Message \("Execution startup: dispatching background worker.* -Always'
+        $script:ExecutionRunContent | Should -Not -Match 'LogInfo \("Execution startup: dispatching background worker'
+        $script:ExecutionRunContent | Should -Match "Start-GuiPerfScope -Name 'Execution\.WorkerStart'"
+        $script:ExecutionRunContent | Should -Match "Start-GuiPerfScope -Name 'Execution\.TimerStart'"
+        $script:GuiExecutionContent | Should -Match 'Execution startup: creating background runspace\.'
+        $script:GuiExecutionContent | Should -Match 'Execution startup: worker BeginInvoke returned\.'
+        $script:ExecutionWorkerContent | Should -Match 'function Write-GuiExecutionWorkerStartupNotice'
+        $script:ExecutionWorkerContent | Should -Match 'Execution worker entered background runspace\.'
+        $script:ExecutionWorkerContent | Should -Match 'Execution worker importing Baseline modules\.'
+        $script:ExecutionWorkerContent | Should -Match 'Execution worker capturing pre-run system snapshot\.'
+        $script:GuiExecutionContent | Should -Match 'Execution worker snapshot checking \{0\}/\{1\}: \{2\}\.'
+        $script:ExecutionWorkerContent | Should -Match 'Execution worker starting selected tweaks: \{0\} item\(s\)\.'
+    }
+
+    It 'keeps app execution logging aligned with tweak execution diagnostics' {
+        $script:AppExecutionRunContent | Should -Match 'Starting app execution \(action: \{0\}, selected: \{1\}, source: \{2\}\)'
+        $script:AppExecutionRunContent | Should -Match 'Execution startup: dispatching background worker\. mode=Apps; action=\{0\}; selected=\{1\}; loader=\{2\}; log=\{3\}'
+        $script:AppExecutionRunContent | Should -Match 'Execution startup: background worker started\. asyncCompleted=\{0\}; runspaceState=\{1\}'
+        $script:AppExecutionRunContent | Should -Match 'Execution startup: starting dispatcher pump\.'
+        $script:AppExecutionRunContent | Should -Match 'Execution startup: dispatcher pump started; invoking first tick\.'
+        $script:AppExecutionRunContent | Should -Match "Start-GuiPerfScope -Name 'Execution\.WorkerStart'"
+        $script:AppExecutionRunContent | Should -Match "Start-GuiPerfScope -Name 'Execution\.TimerStart'"
+        $script:AppExecutionRunContent | Should -Match 'Write-GuiAppExecutionSummaryToLog -Action'
+        $script:AppExecutionRunContent | Should -Match 'Run summary \| Success \| \[Apps\]'
+        $script:AppExecutionRunContent | Should -Match 'Run summary \| Failed \| \[Apps\]'
+        $script:AppExecutionRunContent | Should -Match 'function Script:Show-GuiAppExecutionSummaryDialog'
+        $script:AppExecutionRunContent | Should -Match 'function Script:ConvertTo-GuiAppExecutionSummaryResults'
+        $script:AppExecutionRunContent | Should -Match 'Get-GuiAppExecutionSummaryCards -Action \$Action -Counts \$counts'
+        $script:AppExecutionRunContent | Should -Match 'Show-ExecutionSummaryDialog -Title \$summaryTitle -SummaryText \$summaryText -Results \$summaryResults -LogPath \$displayLogPath -SummaryCards \$summaryCards -Buttons \$summaryButtons'
+        $script:AppExecutionRunContent | Should -Match 'Show-GuiAppExecutionSummaryDialog -Action \$runAction -Result \$runAppResult -AbortedRun:\$appAbortedRun -LogPath \$Global:LogFilePath'
+        $script:AppExecutionRunContent | Should -Match 'if \(\$appSummaryChoice -eq ''Open Detailed Log'''
+        $script:AppExecutionRunContent | Should -Match 'Close-GuiMainWindow -Reason ''App execution summary exit requested\.'''
+        $script:AppExecutionRunContent | Should -Match 'function Script:Get-GuiAppExecutionProgressVerb'
+        $script:AppExecutionRunContent | Should -Match 'function Script:Write-GuiAppExecutionProgressLog'
+        $script:AppExecutionRunContent | Should -Match 'function Script:Set-GuiAppProgressOutcome'
+        $script:AppExecutionRunContent | Should -Match 'function Script:Get-GuiAppExecutionLiveLogKey'
+        $script:AppExecutionRunContent | Should -Match 'function Script:Write-GuiAppExecutionSummaryToLog'
+        $script:AppExecutionRunContent | Should -Match '''\{0\} \{1\} - \{2\}'' -f \$progressVerb, \$appName, \$statusLabel'
+        $script:AppExecutionRunContent | Should -Match 'Write-GuiAppExecutionProgressLog -Action \(\[string\]\$qEntry\.Action\) -Name \$appName -Started'
+        $script:AppExecutionRunContent | Should -Not -Match 'Write-GuiAppExecutionProgressLog -Action \(\[string\]\$qEntry\.Action\) -Name \$appName -Status ''Running'''
+        $script:AppExecutionRunContent | Should -Match 'Write-GuiAppExecutionProgressLog -Action \(\[string\]\$qEntry\.Action\) -Name \$displayName -Status \$appStatus'
+        $script:AppExecutionRunContent | Should -Match 'function Script:Get-GuiAppExecutionLiveLogMessage'
+        $script:ExecutionRunContent | Should -Match 'function Set-GuiExecutionRunLogLine'
+        $script:AppExecutionRunContent | Should -Match '\$Script:AppExecutionLiveLogBlocks = @\{\}'
+        $script:AppExecutionRunContent | Should -Match '\$Script:AppendLogFn = \{ param\(\$Text, \$Level = ''INFO'', \[switch\]\$PassThru\) Add-GuiExecutionRunLogLine -Text \$Text -Level \$Level -PassThru:\$PassThru \}'
+        $script:AppExecutionRunContent | Should -Match '\$Script:AppExecutionLiveLogBlocks\[\$appLiveLogKey\] = & \$Script:AppendLogFn \$appLiveLogMessage ''INFO'' -PassThru'
+        $script:AppExecutionRunContent | Should -Match 'Set-GuiExecutionRunLogLine -Block \$Script:AppExecutionLiveLogBlocks\[\$appLiveLogKey\] -Text \$appLiveLogMessage -Level \$appLevel'
+        $script:AppExecutionRunContent | Should -Match '& \$Script:AppendLogFn \$appLiveLogMessage \$appLevel'
+        $script:AppExecutionRunContent | Should -Not -Match 'Add-ExecutionLogLine -Text \$appProgressMessage'
+        $script:AppExecutionRunContent | Should -Match 'Raw logger entries belong in the file log'
+        $script:AppExecutionRunContent | Should -Match '\$appActiveProgressText = \$appProgressMessage'
+        $script:AppExecutionRunContent | Should -Match 'Set-SharedProgressBarState -ProgressBar \$Script:ExecutionProgressBar -ProgressText \$Script:ExecutionProgressText -Completed \(\[int\]\$Script:RunState\[''AppCurrentProgressCount''\]\) -Total \$stepTotal -CurrentAction \$appActiveProgressText'
+        $script:AppExecutionRunContent | Should -Match 'Set-SharedProgressBarState -ProgressBar \$Script:ExecutionProgressBar -ProgressText \$Script:ExecutionProgressText -Completed \(\[int\]\$Script:RunState\[''AppCompletedCount''\]\) -Total \(\[int\]\$Script:RunState\[''AppProgressTotal''\]\) -CurrentAction \$finalLabel'
+        $script:ExecutionRunContent | Should -Match 'AppProgressIndeterminate = \$false'
+        $script:AppExecutionWorkerContent | Should -Match '\$Script:RunState\[''AppProgressIndeterminate''\] = \$false'
+        $script:AppExecutionRunContent | Should -Match '\$noticeDiagnostic'
+        $script:AppExecutionRunContent | Should -Match 'LogDebug -Message \$noticeMessage -Always'
+        $script:AppExecutionWorkerContent | Should -Match 'function Write-GuiExecutionWorkerStartupNotice'
+        $script:AppExecutionWorkerContent | Should -Match 'Execution worker entered background runspace\.'
+        $script:AppExecutionWorkerContent | Should -Match 'Execution worker loading JSON and localization helpers\.'
+        $script:AppExecutionWorkerContent | Should -Match 'Execution worker importing GUI execution helpers\.'
+        $script:AppExecutionWorkerContent | Should -Match 'Execution worker importing application modules\.'
+        $script:AppExecutionWorkerContent | Should -Match 'Execution worker connected logging pipeline\.'
+        $script:AppExecutionWorkerContent | Should -Match 'Execution worker creating action host\.'
+        $script:AppExecutionWorkerContent | Should -Match 'Execution worker starting selected apps: \{0\} item\(s\)\.'
+    }
+
+    It 'supplies localization arguments for timer error prefixes' {
+        $script:ExecutionRunContent | Should -Match 'GuiLogExecutionQueueEntryFailed'' -Fallback ''\[Timer\] Queue entry failed \[\{0\}\]: \{1\}'' -FormatArgs @\(\$entryLabel, \$entryError\)'
+        $script:ExecutionRunContent | Should -Match '\$executionUpdateError = if \(\$_\.Exception\) \{ \[string\]\$_\.Exception\.Message \} else \{ \[string\]\$_ \}'
+        $script:ExecutionRunContent | Should -Match 'GuiLogExecutionUpdateFailedDetail'' -Fallback ''Execution UI update failed: \{0\}'' -FormatArgs @\(\$executionUpdateError\)'
+        $script:AppExecutionRunContent | Should -Match 'GuiLogExecutionAppTimerQueueEntryFailed'' -Fallback ''\[AppTimer\] Queue entry failed \[\{0\}\]: \{1\}'' -FormatArgs @\(\$appQueueEntryKind, \$appQueueEntryError\)'
+        $script:AppExecutionRunContent | Should -Match '\$appExecutionUpdateError = if \(\$_\.Exception\) \{ \[string\]\$_\.Exception\.Message \} else \{ \[string\]\$_ \}'
+        $script:AppExecutionRunContent | Should -Match 'GuiLogExecutionAppTimerUpdateFailed'' -Fallback ''\[AppTimer\] Execution UI update failed: \{0\}'' -FormatArgs @\(\$appExecutionUpdateError\)'
+    }
+
+    It 'gates execution pumps through the canonical run-state accessor' {
+        $script:ExecutionContent | Should -Match 'if \(-not \(& \$Script:TestGuiRunInProgressScript\) -or -not \$Script:RunState\) \{ return \}'
+        $script:ExecutionContent | Should -Not -Match 'if \(-not \$Script:RunInProgress -or -not \$Script:RunState\) \{ return \}'
+    }
+
+    It 'drains execution queue events in bounded dispatcher slices' {
+        $script:ExecutionRunContent | Should -Match 'function Invoke-GuiExecutionRunQueueDrain'
+        $script:ExecutionRunContent | Should -Match '\[int\]\$MaxEntries = 64'
+        $script:ExecutionRunContent | Should -Match '\[int\]\$MaxMilliseconds = 40'
+        $script:ExecutionRunContent | Should -Match '\[System\.Diagnostics\.Stopwatch\]::StartNew\(\)'
+        $script:ExecutionRunContent | Should -Match '\$processedEntries -ge \$MaxEntries'
+        $script:ExecutionRunContent | Should -Match '\$drainStopwatch\.ElapsedMilliseconds -ge \$MaxMilliseconds'
+        $script:ExecutionRunContent | Should -Match 'return \(-not \$Script:RunState\[''LogQueue''\]\.IsEmpty\)'
+        $script:ExecutionRunContent | Should -Match '\$queueHasMore = \[bool\]\(& \$Script:DrainExecutionQueueSafely\)'
+        $script:ExecutionRunContent | Should -Match 'if \(\$queueHasMore\) \{ return \}'
+    }
+
+    It 'captures the pre-run snapshot in the background worker before tweaks execute' {
+        $uiSnapshotCall = $script:ExecutionRunContent.IndexOf('Save-GuiExecutionPreRunSnapshot')
+        $workerSnapshotIndex = $script:ExecutionWorkerContent.IndexOf('Invoke-GuiPreRunSnapshotCapture')
+        $firstTweakLoopIndex = $script:ExecutionWorkerContent.IndexOf('foreach ($tweak in $tweakList)')
+
+        $uiSnapshotCall | Should -Be -1
+        $script:ExecutionRunContent | Should -Match 'Sync-GuiExecutionPreRunSnapshotFromRunState'
+        $workerSnapshotIndex | Should -BeGreaterThan 0
+        $firstTweakLoopIndex | Should -BeGreaterThan $workerSnapshotIndex
+        $script:ExecutionWorkerContent | Should -Match '\$Script:RunState\[''PreRunSnapshot''\] = \$preRunSnapshot'
+        $script:ExecutionWorkerContent | Should -Match 'Get-GuiPreRunSnapshotTimeoutSeconds'
+        $script:ExecutionWorkerContent | Should -Match '\$Script:RunState\[''PreRunSnapshotTimedOut''\] = \$true'
+        $script:ExecutionWorkerContent | Should -Match 'continuing with selected tweaks'
+        $script:GuiExecutionContent | Should -Match 'New-SystemStateSnapshot -Manifest \$snapshotManifest -ProgressCallback \$progressCallback'
+        $script:ExecutionWorkerContent | Should -Match 'GUIExecution\.PreRunSnapshot\.ManifestAvailabilityStamp'
+    }
+
+    It 'uses shared localization helpers inside the background execution worker' {
+        $script:ExecutionWorkerContent | Should -Not -Match 'Get-UxBilingualLocalizedString'
+        $script:ExecutionWorkerContent | Should -Match 'Get-BaselineBilingualString'
+    }
+
+    It 'does not stop Explorer during GUI run startup' {
+        $tokens = $null
+        $errors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($script:ExecutionRunPath, [ref]$tokens, [ref]$errors)
+        $errors.Count | Should -Be 0
+
+        $startupFunction = $ast.Find({
+            param($node)
+            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                $node.Name -eq 'Initialize-GuiExecutionRunState'
+        }, $true)
+
+        $startupFunction | Should -Not -BeNullOrEmpty
+        $startupFunction.Extent.Text | Should -Not -Match 'Stop-Foreground'
+    }
+
+    It 'does not stop Explorer after post actions in the background worker' {
+        $script:ExecutionWorkerContent | Should -Not -Match 'Stop-Foreground'
+    }
+
+    It 'passes OnParam for manifest-backed action entries' {
+        $script:ExecutionWorkerContent | Should -Match '\$actionParam = \[string\]\$tweak\.OnParam'
+        $script:ExecutionWorkerContent | Should -Match '\$commandArguments\[\$actionParam\] = \$true'
+        $script:ExecutionWorkerContent | Should -Match '\$tweak\.ExtraArgs\.GetEnumerator\(\) \| ForEach-Object \{ \$commandArguments\[\[string\]\$_.Key\] = \$_.Value \}'
+    }
+
+    It 'builds command arguments for NumericRange entries before invoking the action host' {
+        $script:ExecutionWorkerContent | Should -Match "'NumericRange'"
+        $script:ExecutionWorkerContent | Should -Match 'New-GuiExecutionNumericRangeCommandArguments -Tweak \$tweak'
+        $script:ExecutionWorkerContent | Should -Match 'ACValue = \[int\]\$acValue'
+        $script:ExecutionWorkerContent | Should -Match 'DCValue = \[int\]\$dcValue'
+        $script:ExecutionWorkerContent | Should -Match 'Value = \[int\]\$scalarValue'
+    }
+
+    It 'does not recursively disable the tab tree before replacing it with the execution view' {
+        $tokens = $null
+        $errors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($script:ExecutionRunPath, [ref]$tokens, [ref]$errors)
+        $errors.Count | Should -Be 0
+
+        $startupFunction = $ast.Find({
+            param($node)
+            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                $node.Name -eq 'Initialize-GuiExecutionRunState'
+        }, $true)
+
+        $startupFunction | Should -Not -BeNullOrEmpty
+        $startupFunction.Extent.Text | Should -Not -Match '\$PrimaryTabs\.IsEnabled = \$false'
+        $script:ExecutionViewContent | Should -Match '\$PrimaryTabs\.Visibility = \[System\.Windows\.Visibility\]::Collapsed'
+    }
+
+    It 'hides the footer run buttons while the execution view is active' {
+        $script:ExecutionViewContent | Should -Match '\$Script:ExecutionPreviousFooterVisibility = @\{'
+        $script:ExecutionViewContent | Should -Match '\$BtnRun\.Visibility = \[System\.Windows\.Visibility\]::Collapsed'
+        $script:ExecutionViewContent | Should -Match '\$BtnDefaults\.Visibility = \[System\.Windows\.Visibility\]::Collapsed'
+        $script:ExecutionViewContent | Should -Match '\$BtnRun\.Visibility = if \(\$previousFooterVisibility -and \$previousFooterVisibility\.BtnRun\)'
+        $script:ExecutionViewContent | Should -Match '\$BtnDefaults\.Visibility = if \(\$previousFooterVisibility -and \$previousFooterVisibility\.BtnDefaults\)'
     }
 
     It 'prevents delayed progress updates from moving the header backwards' {
@@ -103,6 +306,16 @@ Describe 'Execution orchestration timer wiring' {
         $script:ExecutionContent | Should -Match "'_AppCompleted'"
         $script:ExecutionContent | Should -Match 'AppUseStructuredProgress = \$false'
         $script:ExecutionContent | Should -Match 'Abort requested - stopping the current app operation now\.'
+    }
+
+    It 'stops app and tweak workers immediately when abort is confirmed' {
+        $script:AppExecutionRunContent | Should -Match 'Abort requested - stopping the current app operation now\.'
+        $script:ExecutionRunContent | Should -Match 'Abort requested - stopping the current operation now\.'
+        $script:AppExecutionRunContent | Should -Not -Match 'TotalSeconds -ge 2'
+        $script:ExecutionRunContent | Should -Not -Match 'TotalSeconds -ge 2'
+        $script:StyledControlsContent | Should -Match '\$Script:RunState\[''Paused''\] = \$true'
+        $script:StyledControlsContent | Should -Match '& \$Script:ExecutionPumpTickFn'
+        $script:StyledControlsContent | Should -Match 'StyledControls\.RequestRunAbort\.PumpTick'
     }
 
     It 'routes connected remote runs through the remote apply helper' {
@@ -266,26 +479,132 @@ Describe 'GUI run completion exit code' {
     }
 }
 
+Describe 'GUI execution NumericRange argument helper' {
+    BeforeAll {
+        $tokens = $null
+        $errors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($executionWorkerPath, [ref]$tokens, [ref]$errors)
+        $errors.Count | Should -Be 0
+
+        $helperNames = @(
+            'Test-GuiExecutionValuePresent',
+            'Add-GuiExecutionExtraArguments',
+            'New-GuiExecutionNumericRangeCommandArguments'
+        )
+        foreach ($helper in $ast.FindAll({
+            param($node)
+            $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in $helperNames
+        }, $true))
+        {
+            Invoke-Expression $helper.Extent.Text
+        }
+
+        function Test-GuiObjectField {
+            param([AllowNull()][object]$Object, [Parameter(Mandatory = $true)][string]$FieldName)
+            if ($null -eq $Object -or [string]::IsNullOrWhiteSpace($FieldName)) { return $false }
+            if ($Object -is [System.Collections.IDictionary]) { return $Object.Contains($FieldName) }
+            return [bool]($Object.PSObject -and $Object.PSObject.Properties[$FieldName])
+        }
+    }
+
+    AfterAll {
+        foreach ($name in @('Test-GuiExecutionValuePresent','Add-GuiExecutionExtraArguments','New-GuiExecutionNumericRangeCommandArguments','Test-GuiObjectField')) {
+            Remove-Item Function:\$name -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'passes explicit AC/DC channel values' {
+        $tweak = [pscustomobject]@{
+            Function = 'ProcessorMinimumState'
+            Type = 'NumericRange'
+            ACValue = '98'
+            DCValue = '7'
+            ExtraArgs = $null
+        }
+
+        $args = New-GuiExecutionNumericRangeCommandArguments -Tweak $tweak
+
+        $args.ACValue | Should -Be 98
+        $args.DCValue | Should -Be 7
+        $args.ContainsKey('Value') | Should -BeFalse
+    }
+
+    It 'passes scalar numeric values' {
+        $tweak = [pscustomobject]@{
+            Function = 'ProcessorPerformanceIncreaseThreshold'
+            Type = 'NumericRange'
+            Value = '13'
+            ExtraArgs = $null
+        }
+
+        $args = New-GuiExecutionNumericRangeCommandArguments -Tweak $tweak
+
+        $args.Value | Should -Be 13
+        $args.ContainsKey('ACValue') | Should -BeFalse
+        $args.ContainsKey('DCValue') | Should -BeFalse
+    }
+
+    It 'reads channel values from the Value object when presets store them there' {
+        $tweak = [pscustomobject]@{
+            Function = 'USBHubSelectiveSuspendTimeout'
+            Type = 'NumericRange'
+            Value = [pscustomobject]@{
+                ACValue = '2431'
+                DCValue = '2825'
+            }
+            ExtraArgs = @{ Units = 'Milliseconds' }
+        }
+
+        $args = New-GuiExecutionNumericRangeCommandArguments -Tweak $tweak
+
+        $args.ACValue | Should -Be 2431
+        $args.DCValue | Should -Be 2825
+        $args.Units | Should -Be 'Milliseconds'
+    }
+
+    It 'rejects incomplete channel selections with a clear error' {
+        $tweak = [pscustomobject]@{
+            Function = 'ProcessorMinimumState'
+            Type = 'NumericRange'
+            ACValue = '98'
+            ExtraArgs = $null
+        }
+
+        { New-GuiExecutionNumericRangeCommandArguments -Tweak $tweak } | Should -Throw -ExpectedMessage '*must include both ACValue and DCValue*'
+    }
+}
+
 Describe 'PlatformSupport availability partition (P2 #18)' {
     # Entries flagged unavailable by Update-BaselineManifestAvailability must
     # be marked "Not applicable" in the run summary and filtered out of the
     # execution list, so the per-preset report surfaces the count of skipped
     # entries instead of silently dropping them.
 
-    It 'partitions the local apply path immediately after Initialize-ExecutionSummary' {
+    It 'does not partition selected tweaks on the WPF dispatcher before local apply' {
         $initIndex = $script:ExecutionContent.IndexOf('Initialize-ExecutionSummary -SelectedTweaks $tweakList')
         $partitionIndex = $script:ExecutionContent.IndexOf('Resolve-GuiExecutionRunnableTweaks -TweakList $tweakList -ForceUnsupported:$ForceUnsupported')
         $initIndex | Should -BeGreaterThan 0
-        $partitionIndex | Should -BeGreaterThan $initIndex
+        $partitionIndex | Should -Be -1
+        $script:ExecutionRunContent | Should -Match 'Availability and\s+# execution-support gates are enforced by the worker'
     }
 
     It 'marks unavailable entries Not applicable via Set-ExecutionSummaryStatus' {
         $script:ExecutionContent | Should -Match "Set-ExecutionSummaryStatus -Key \(\[string\]\`$tweak\.Key\) -Status 'Not applicable' -Detail \`$detailText"
     }
 
-    It 'filters unavailable entries out of the runnable tweak list' {
+    It 'keeps unavailable-entry filtering in the background worker' {
         $script:ExecutionContent | Should -Match 'return @\(\$availableTweaks\.ToArray\(\)\)'
-        $script:ExecutionContent | Should -Match '\$tweakList = @\(Resolve-GuiExecutionRunnableTweaks -TweakList \$tweakList -ForceUnsupported:\$ForceUnsupported\)'
+        $script:ExecutionRunContent | Should -Not -Match '\$tweakList = @\(Resolve-GuiExecutionRunnableTweaks -TweakList \$tweakList -ForceUnsupported:\$ForceUnsupported\)'
+        $script:ExecutionWorkerContent | Should -Match 'Resolve-GuiExecutionAvailabilityGate -Entry \$tweak -ForceUnsupported:\$bgForceUnsupported'
+        $script:ExecutionWorkerContent | Should -Match 'Resolve-GuiExecutionSupportsExecutionGate -Entry \$tweak -ForceUnsupported:\$bgForceUnsupported'
+        ([regex]::Matches($script:ExecutionWorkerContent, "Status = 'not applicable'")).Count | Should -BeGreaterOrEqual 2
+        $script:ExecutionRunContent | Should -Match '\$skipStatus = if \(\$completedStatus -eq ''not applicable''\) \{ ''Not applicable'' \} else \{ ''Skipped'' \}'
+    }
+
+    It 'copies manifest availability and execution-support fields into resolved run selections' {
+        $script:ExecutionRunContent | Should -Match 'Copy-ResolvedExecutionTweakWithGateMetadata'
+        $script:ExecutionRunContent | Should -Match "'Availability', 'SupportsExecution', 'SupportsExecutionReason', 'TimeoutSeconds'"
+        $script:ExecutionRunContent | Should -Match 'Get-ManifestEntryByFunction -Manifest \$Script:TweakManifest -Function \$functionName'
     }
 
     It 'reads availability metadata via the IDictionary and PSObject paths' {

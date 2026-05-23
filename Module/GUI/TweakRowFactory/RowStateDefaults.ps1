@@ -46,6 +46,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RowStateDefaults.Test-TweakRowVisible:catch47' -Severity Debug }
+
 				return $false
 			}
 		}
@@ -62,6 +64,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RowStateDefaults.Test-TweakRowVisible:catch63' -Severity Debug }
+
 				$hideUnavailableItems = $true
 			}
 

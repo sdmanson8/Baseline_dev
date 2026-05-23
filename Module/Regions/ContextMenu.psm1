@@ -8,9 +8,9 @@ using module ..\SharedHelpers.psm1
 	The "Install" item for the Cabinet (.cab) filenames extensions context menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the "Install" item for the Cabinet (.cab) filenames extensions context menu.
 	.PARAMETER Show
 	Show the "Install" item in the Cabinet (.cab) filenames extensions context menu
@@ -96,9 +96,9 @@ function CABInstallContext
 	The "Compressed (zipped) Folder" item in the "New" context menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the "Compressed (zipped) Folder" item in the "New" context menu.
 	.PARAMETER Hide
 	Hide the "Compressed (zipped) Folder" item from the "New" context menu
@@ -182,9 +182,9 @@ function CompressedFolderNewContext
 	The "Edit with Clipchamp" item in the media files context menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the "Edit with Clipchamp" item in the media files context menu.
 	.PARAMETER Hide
 	Hide the "Edit with Clipchamp" item from the media files context menu
@@ -273,9 +273,9 @@ function EditWithClipchampContext
 	The "Edit with Paint" item in the media files context menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the "Edit with Paint" item in the media files context menu.
 	.PARAMETER Hide
 	Hide the "Edit with Paint" item from the media files context menu
@@ -364,9 +364,9 @@ function EditWithPaintContext
 	The "Edit with Photos" item in the media files context menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the "Edit with Photos" item in the media files context menu.
 	.PARAMETER Hide
 	Hide the "Edit with Photos" item from the media files context menu
@@ -455,9 +455,9 @@ function EditWithPhotosContext
 	The "Extract all" item in the Windows Installer (.msi) context menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the "Extract all" item in the Windows Installer (.msi) context menu.
 	.PARAMETER Show
 	Show the "Extract all" item in the Windows Installer (.msi) context menu
@@ -543,9 +543,9 @@ function MSIExtractContext
 	The "Open", "Print", and "Edit" items if more than 15 files selected
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the "Open", "Print", and "Edit" items if more than 15 files selected.
 	.PARAMETER Enable
 	Enable the "Open", "Print", and "Edit" items if more than 15 files selected
@@ -621,9 +621,9 @@ function MultipleInvokeContext
 	The "Open in Windows Terminal" item in the folders context menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the "Open in Windows Terminal" item in the folders context menu.
 	.PARAMETER Hide
 	Hide the "Open in Windows Terminal" item in the folders context menu
@@ -711,9 +711,9 @@ function OpenWindowsTerminalContext
 	The "Print" item in the .bat and .cmd context menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the "Print" item in the .bat and .cmd context menu.
 	.PARAMETER Hide
 	Hide the "Print" item from the .bat and .cmd context menu
@@ -791,9 +791,9 @@ function PrintCMDContext
 	The "Look for an app in the Microsoft Store" item in the "Open with" dialog
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the "Look for an app in the Microsoft Store" item in the "Open with" dialog.
 	.PARAMETER Hide
 	Hide the "Look for an app in the Microsoft Store" item in the "Open with" dialog
@@ -904,9 +904,9 @@ function Get-WindowsTerminalSettingsPath
 	Open Windows Terminal in context menu as administrator
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for open Windows Terminal in context menu as administrator.
 	.PARAMETER Enable
 	Open Windows Terminal in context menu as administrator by default
@@ -1086,9 +1086,9 @@ function OpenWindowsTerminalAdminContext
 	Add "Take Ownership" to context menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for add "Take Ownership" to context menu.
 	.PARAMETER Add
 	Add "Take Ownership" entry to the context menu
@@ -1220,9 +1220,9 @@ function Set-TakeOwnershipContextMenu
 	Show/Hide file extensions in context menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for show/Hide file extensions in context menu.
 	.PARAMETER Enable
 	Add "Show/Hide file extensions" toggle to context menu

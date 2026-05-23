@@ -1,5 +1,15 @@
 # GUI session state, undo snapshots, and settings profile management
 
+if (-not (Get-Variable -Name 'GuiSelectionBulkUpdateInProgress' -Scope Script -ErrorAction SilentlyContinue))
+{
+	$Script:GuiSelectionBulkUpdateInProgress = $false
+}
+
+if (-not (Get-Variable -Name 'GameModePlanSyncPending' -Scope Script -ErrorAction SilentlyContinue))
+{
+	$Script:GameModePlanSyncPending = $false
+}
+
 <#
     .SYNOPSIS
 #>
@@ -31,6 +41,56 @@ function Resolve-GuiModePreference
 		SafeMode = $true
 		AdvancedMode = $false
 	}
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Enter-GuiSelectionBulkUpdate
+{
+	$previousState = [bool]$Script:GuiSelectionBulkUpdateInProgress
+	$Script:GuiSelectionBulkUpdateInProgress = $true
+	return $previousState
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Test-GuiSelectionBulkUpdateInProgress
+{
+	return [bool]$Script:GuiSelectionBulkUpdateInProgress
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Exit-GuiSelectionBulkUpdate
+{
+	param (
+		[bool]$PreviousState
+	)
+
+	$Script:GuiSelectionBulkUpdateInProgress = [bool]$PreviousState
+	if ($Script:GuiSelectionBulkUpdateInProgress)
+	{
+		return
+	}
+
+	if (-not [bool]$Script:GameModePlanSyncPending)
+	{
+		return
+	}
+
+	if (-not (Get-Command -Name 'Sync-GameModePlanFromGamingControls' -CommandType Function -ErrorAction SilentlyContinue))
+	{
+		return
+	}
+
+	$Script:GameModePlanSyncPending = $false
+	Sync-GameModePlanFromGamingControls
 }
 
 <#
@@ -325,6 +385,8 @@ function Prompt-GuiRemoteTargetConnection
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection:catch386' -Severity Debug }
+
 			$canUseWpf = $false
 		}
 	}
@@ -589,6 +651,8 @@ $scrollBarStyleXaml
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection:catch650' -Severity Debug }
+
 			$txtTestStatus.Text = $_.Exception.Message
 			return
 		}
@@ -620,6 +684,8 @@ $scrollBarStyleXaml
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection:catch681' -Severity Debug }
+
 				$txtTestStatus.Text = ('Test failed: {0}' -f $_.Exception.Message)
 				$txtResults.Text = ('Error: {0}' -f $_.Exception.Message)
 			}
@@ -640,6 +706,8 @@ $scrollBarStyleXaml
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.Prompt-GuiRemoteTargetConnection:catch701' -Severity Debug }
+
 			$txtTestStatus.Text = $_.Exception.Message
 			return
 		}
@@ -932,6 +1000,16 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$currentUpdatesModeActive = if (Get-Variable -Name 'UpdatesModeActive' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:UpdatesModeActive } else { $false }
 		$currentDeploymentMediaModeActive = if (Get-Variable -Name 'DeploymentMediaModeActive' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:DeploymentMediaModeActive } else { $false }
 		$currentNavigationMode = if ($currentUpdatesModeActive) { 'Updates' } elseif ($currentDeploymentMediaModeActive) { 'DeploymentMedia' } elseif ($currentAppsModeActive) { 'Apps' } else { 'Optimize' }
+		$currentActivePresetName = if ((Get-Variable -Name 'ActivePresetName' -Scope Script -ErrorAction SilentlyContinue) -and -not [string]::IsNullOrWhiteSpace([string]$Script:ActivePresetName)) { [string]$Script:ActivePresetName } else { $null }
+		$currentActiveScenarioNames = @(
+			if ((Get-Variable -Name 'ActiveScenarioNames' -Scope Script -ErrorAction SilentlyContinue) -and $Script:ActiveScenarioNames -is [System.Collections.IDictionary])
+			{
+				$Script:ActiveScenarioNames.GetEnumerator() |
+					Where-Object { [bool]$_.Value -and -not [string]::IsNullOrWhiteSpace([string]$_.Key) } |
+					Sort-Object Key |
+					ForEach-Object { [string]$_.Key }
+			}
+		)
 
 		$explicitDefinitionsByFunction = @{}
 		$snapshotExplicitDefinitions = [System.Collections.Generic.List[object]]::new()
@@ -977,6 +1055,8 @@ function Import-GuiRemoteTargetApprovalPolicy
 			AppsPackageSourcePreference = if ($Script:AppsPackageSourcePreference) { [string]$Script:AppsPackageSourcePreference } else { 'auto' }
 			AppsSourceFilter = if ($Script:AppsSourceFilter) { [string]$Script:AppsSourceFilter } else { 'All' }
 			NavigationMode = $currentNavigationMode
+			ActivePresetName = $currentActivePresetName
+			ActiveScenarioNames = @($currentActiveScenarioNames)
 			PinnedBaselineVersion = if ($Script:PinnedBaselineVersion) { [string]$Script:PinnedBaselineVersion } else { $null }
 			AppsQueuedActions = @(
 				if ($Script:AppsQueuedActions -is [System.Collections.Generic.Dictionary[string, string]])
@@ -994,6 +1074,11 @@ function Import-GuiRemoteTargetApprovalPolicy
 			ScanEnabled = $scanEnabled
 			AutoScanOnLaunch = [bool]$Script:AutoScanOnLaunch
 			RestoreLastSession = if ($null -ne $Script:RestoreLastSession) { [bool]$Script:RestoreLastSession } else { $true }
+			StartupRunInitialActions = if (Get-Variable -Name 'StartupRunInitialActions' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:StartupRunInitialActions } else { $true }
+			StartupCheckWinGet = if (Get-Variable -Name 'StartupCheckWinGet' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:StartupCheckWinGet } else { $true }
+			StartupWinGetCheckFrequency = if (Get-Variable -Name 'StartupWinGetCheckFrequency' -Scope Script -ErrorAction SilentlyContinue) { [string]$Script:StartupWinGetCheckFrequency } else { 'Startup' }
+			StartupCheckChocolatey = if (Get-Variable -Name 'StartupCheckChocolatey' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:StartupCheckChocolatey } else { $true }
+			StartupChocolateyCheckFrequency = if (Get-Variable -Name 'StartupChocolateyCheckFrequency' -Scope Script -ErrorAction SilentlyContinue) { [string]$Script:StartupChocolateyCheckFrequency } else { 'Startup' }
 			DefaultStartupMode = $currentDefaultStartupMode
 			AutoCheckUpdates = if ($null -ne $Script:AutoCheckUpdates) { [bool]$Script:AutoCheckUpdates } else { $true }
 			UpdateCheckFrequency = if ($Script:UpdateCheckFrequency) { [string]$Script:UpdateCheckFrequency } else { 'Startup' }
@@ -1022,7 +1107,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 			LoggingEnabled = if ($null -ne $Script:LoggingEnabled) { [bool]$Script:LoggingEnabled } else { $true }
 			DebugLoggingEnabled = if ($null -ne $Script:DebugLoggingEnabled) { [bool]$Script:DebugLoggingEnabled } else { $false }
 			LogLevel = if ($Script:LogLevel) { [string]$Script:LogLevel } else { 'All' }
-			ExperimentalFeatures = [bool]$Script:ExperimentalFeatures
 			DesignMode = [bool]$Script:DesignMode
 			HighRiskOnlyFilter = [bool]$Script:HighRiskOnlyFilter
 			RestorableOnlyFilter = [bool]$Script:RestorableOnlyFilter
@@ -1236,6 +1320,16 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$desiredNavigationMode = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'NavigationMode') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.NavigationMode)) { [string]$Snapshot.NavigationMode } else { 'Optimize' }
 		$allowedNavigationModes = @('Optimize', 'Apps', 'Updates', 'DeploymentMedia')
 		if ($allowedNavigationModes -notcontains $desiredNavigationMode) { $desiredNavigationMode = 'Optimize' }
+		$desiredActivePresetName = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'ActivePresetName') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.ActivePresetName)) { [string]$Snapshot.ActivePresetName } else { $null }
+		$desiredActiveScenarioNames = @(
+			if ([string]::IsNullOrWhiteSpace($desiredActivePresetName) -and (Test-GuiObjectField -Object $Snapshot -FieldName 'ActiveScenarioNames') -and $null -ne $Snapshot.ActiveScenarioNames)
+			{
+				@($Snapshot.ActiveScenarioNames) |
+					Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+					ForEach-Object { [string]$_ } |
+					Select-Object -Unique
+			}
+		)
 		$desiredAppsQueuedActions = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsQueuedActions') -and $null -ne $Snapshot.AppsQueuedActions) { @($Snapshot.AppsQueuedActions) } else { @() }
 		$desiredPinnedBaselineVersion = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'PinnedBaselineVersion') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.PinnedBaselineVersion)) { [string]$Snapshot.PinnedBaselineVersion } else { $null }
 		$desiredAutoScanOnLaunch = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
@@ -1245,6 +1339,21 @@ function Import-GuiRemoteTargetApprovalPolicy
 		elseif ((Test-GuiObjectField -Object $Snapshot -FieldName 'AutoScanOnLaunch')) { [bool]$Snapshot.AutoScanOnLaunch }
 		else { $false }
 		$desiredRestoreLastSession = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RestoreLastSession')) { [bool]$Snapshot.RestoreLastSession } else { $true }
+		$snapshotStartupRunInitialActions = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'StartupRunInitialActions')) { [bool]$Snapshot.StartupRunInitialActions } elseif (Get-Variable -Name 'StartupRunInitialActions' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:StartupRunInitialActions } else { $true }
+		$snapshotStartupCheckWinGet = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'StartupCheckWinGet')) { [bool]$Snapshot.StartupCheckWinGet } elseif (Get-Variable -Name 'StartupCheckWinGet' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:StartupCheckWinGet } else { $true }
+		$snapshotStartupWinGetCheckFrequency = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'StartupWinGetCheckFrequency') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.StartupWinGetCheckFrequency)) { [string]$Snapshot.StartupWinGetCheckFrequency } elseif (Get-Variable -Name 'StartupWinGetCheckFrequency' -Scope Script -ErrorAction SilentlyContinue) { [string]$Script:StartupWinGetCheckFrequency } else { 'Startup' }
+		$snapshotStartupCheckChocolatey = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'StartupCheckChocolatey')) { [bool]$Snapshot.StartupCheckChocolatey } elseif (Get-Variable -Name 'StartupCheckChocolatey' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:StartupCheckChocolatey } else { $true }
+		$snapshotStartupChocolateyCheckFrequency = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'StartupChocolateyCheckFrequency') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.StartupChocolateyCheckFrequency)) { [string]$Snapshot.StartupChocolateyCheckFrequency } elseif (Get-Variable -Name 'StartupChocolateyCheckFrequency' -Scope Script -ErrorAction SilentlyContinue) { [string]$Script:StartupChocolateyCheckFrequency } else { 'Startup' }
+		$desiredStartupRunInitialActions = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'StartupRunInitialActions' -Default $snapshotStartupRunInitialActions) } else { $snapshotStartupRunInitialActions }
+		$desiredStartupCheckWinGet = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'StartupCheckWinGet' -Default $snapshotStartupCheckWinGet) } else { $snapshotStartupCheckWinGet }
+		$desiredStartupWinGetCheckFrequency = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [string](Get-BaselineUserPreference -Key 'StartupWinGetCheckFrequency' -Default $snapshotStartupWinGetCheckFrequency) } else { $snapshotStartupWinGetCheckFrequency }
+		$desiredStartupCheckChocolatey = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'StartupCheckChocolatey' -Default $snapshotStartupCheckChocolatey) } else { $snapshotStartupCheckChocolatey }
+		$desiredStartupChocolateyCheckFrequency = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [string](Get-BaselineUserPreference -Key 'StartupChocolateyCheckFrequency' -Default $snapshotStartupChocolateyCheckFrequency) } else { $snapshotStartupChocolateyCheckFrequency }
+		if (Get-Command -Name 'ConvertTo-BaselineUpdateCheckFrequency' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			$desiredStartupWinGetCheckFrequency = ConvertTo-BaselineUpdateCheckFrequency -Frequency $desiredStartupWinGetCheckFrequency
+			$desiredStartupChocolateyCheckFrequency = ConvertTo-BaselineUpdateCheckFrequency -Frequency $desiredStartupChocolateyCheckFrequency
+		}
 		$hasSnapshotUpdateSettings = (Test-GuiObjectField -Object $Snapshot -FieldName 'AutoCheckUpdates') -or (Test-GuiObjectField -Object $Snapshot -FieldName 'UpdateCheckFrequency') -or (Test-GuiObjectField -Object $Snapshot -FieldName 'UpdateBranch') -or (Test-GuiObjectField -Object $Snapshot -FieldName 'IncludePrereleaseUpdates')
 		$desiredAutoCheckUpdates = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AutoCheckUpdates')) { [bool]$Snapshot.AutoCheckUpdates } elseif (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'AutoCheckUpdates' -Default $true) } else { if ($null -ne $Script:AutoCheckUpdates) { [bool]$Script:AutoCheckUpdates } else { $true } }
 		$desiredUpdateCheckFrequency = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'UpdateCheckFrequency') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.UpdateCheckFrequency)) { [string]$Snapshot.UpdateCheckFrequency } elseif (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [string](Get-BaselineUserPreference -Key 'UpdateCheckFrequency' -Default 'Startup') } else { if ($Script:UpdateCheckFrequency) { [string]$Script:UpdateCheckFrequency } else { 'Startup' } }
@@ -1316,7 +1425,6 @@ function Import-GuiRemoteTargetApprovalPolicy
 		{
 			$desiredLogLevel = Normalize-GuiLogLevel -Level $desiredLogLevel
 		}
-		$desiredExperimentalFeatures = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'ExperimentalFeatures')) { [bool]$Snapshot.ExperimentalFeatures } else { $false }
 		$desiredDesignMode = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'DesignMode')) { [bool]$Snapshot.DesignMode } else { [bool]$Script:DesignMode }
 		$desiredHighRiskOnly = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'HighRiskOnlyFilter')) { [bool]$Snapshot.HighRiskOnlyFilter } else { $false }
 		$desiredRestorableOnly = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RestorableOnlyFilter')) { [bool]$Snapshot.RestorableOnlyFilter } else { $false }
@@ -1406,11 +1514,27 @@ function Import-GuiRemoteTargetApprovalPolicy
 		{
 			try { Set-GuiPerfTraceState -Enabled $desiredDebugLoggingEnabled } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SessionState.RestoreGuiSettingsSnapshot.SetPerfTrace' }
 		}
-		$Script:ExperimentalFeatures = $desiredExperimentalFeatures
 		$null = Set-PlatformFilterState -PlatformFilter $desiredPlatform
 		$null = Set-HideUnavailableItemsState -HideUnavailableItems $desiredHideUnavailableItems
 		# P5 rollback checkpoint: Restore-GuiSettingsSnapshot selection replay split to SessionState/Restore-GuiSettingsSnapshot/RestoreExplicitSelectionState.ps1.
-		. (Join-Path $PSScriptRoot 'SessionState\Restore-GuiSettingsSnapshot\RestoreExplicitSelectionState.ps1')
+		$selectionBulkPreviousState = Enter-GuiSelectionBulkUpdate
+		try
+		{
+			. (Join-Path $PSScriptRoot 'SessionState\Restore-GuiSettingsSnapshot\RestoreExplicitSelectionState.ps1')
+		}
+		finally
+		{
+			Exit-GuiSelectionBulkUpdate -PreviousState $selectionBulkPreviousState
+		}
+		$Script:ActivePresetName = $desiredActivePresetName
+		$Script:ActiveScenarioNames = @{}
+		foreach ($scenarioName in @($desiredActiveScenarioNames))
+		{
+			if (-not [string]::IsNullOrWhiteSpace([string]$scenarioName))
+			{
+				$Script:ActiveScenarioNames[[string]$scenarioName] = $true
+			}
+		}
 		$Script:SearchText = $desiredSearch
 		$Script:AppsSearchText = $desiredAppsSearch
 		$Script:AuditRetentionDays = [int]$desiredAuditRetentionDays
@@ -1527,6 +1651,11 @@ function Import-GuiRemoteTargetApprovalPolicy
 		{
 			Sync-UxActionButtonText
 		}
+		if (Get-Command -Name 'Sync-ActivePresetButtonChrome' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Sync-ActivePresetButtonChrome
+		}
+		Update-RunPathContextLabel
 		Set-GuiActionButtonsEnabled -Enabled (-not (& $Script:TestGuiRunInProgressScript))
 	}
 

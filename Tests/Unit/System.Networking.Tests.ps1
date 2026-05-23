@@ -409,6 +409,7 @@ Describe 'OpenSSHServer' {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:callSequence = [System.Collections.Generic.List[string]]::new()
         $script:configWriteValue = $null
+        $script:sshFirewallRuleExists = $true
 
         <#
             .SYNOPSIS
@@ -507,13 +508,27 @@ Describe 'OpenSSHServer' {
         function Get-NetFirewallRule {
             param(
                 [string]$Name,
-                [object]$ErrorAction
+            [object]$ErrorAction
             )
 
             [void]$script:callSequence.Add(('Get-NetFirewallRule:{0}' -f $Name))
+            if (-not $script:sshFirewallRuleExists)
+            {
+                return $null
+            }
             [pscustomobject]@{
                 Enabled = $false
             }
+        }
+
+        function Set-NetFirewallRule {
+            param(
+                [string]$Name,
+                [string]$Enabled,
+                [object]$ErrorAction
+            )
+
+            [void]$script:callSequence.Add(('Set-NetFirewallRule:{0}:{1}' -f $Name, $Enabled))
         }
 
         <#
@@ -615,6 +630,7 @@ Match Group administrators
         Remove-Item Function:\Set-Service -ErrorAction SilentlyContinue
         Remove-Item Function:\Start-Service -ErrorAction SilentlyContinue
         Remove-Item Function:\Get-NetFirewallRule -ErrorAction SilentlyContinue
+        Remove-Item Function:\Set-NetFirewallRule -ErrorAction SilentlyContinue
         Remove-Item Function:\New-NetFirewallRule -ErrorAction SilentlyContinue
         Remove-Item Function:\Test-Path -ErrorAction SilentlyContinue
         Remove-Item Function:\New-Item -ErrorAction SilentlyContinue
@@ -626,14 +642,14 @@ Match Group administrators
     It 'installs OpenSSH Server and normalizes the standard SSH config' {
         OpenSSHServer
 
-        $script:callSequence[0] | Should -Be 'Get-WindowsCapability:OpenSSH.Server'
-        $script:callSequence | Should -Contain 'Add-WindowsCapability:OpenSSH.Server'
+        $script:callSequence[0] | Should -Be 'Get-WindowsCapability:OpenSSH.Server~~~~0.0.1.0'
+        $script:callSequence | Should -Contain 'Add-WindowsCapability:OpenSSH.Server~~~~0.0.1.0'
         $script:callSequence | Should -Contain 'Set-Service:sshd:Automatic'
         $script:callSequence | Should -Contain 'Start-Service:sshd'
         $script:callSequence | Should -Contain 'Set-Service:ssh-agent:Automatic'
         $script:callSequence | Should -Contain 'Start-Service:ssh-agent'
         $script:callSequence | Should -Contain 'Get-NetFirewallRule:sshd'
-        $script:callSequence | Should -Contain 'New-NetFirewallRule:sshd'
+        $script:callSequence | Should -Contain 'Set-NetFirewallRule:sshd:True'
         $script:callSequence | Should -Contain ('New-Item:Directory:{0}' -f (Join-Path $HOME '.ssh'))
         $script:callSequence | Should -Contain ('New-Item:File:{0}' -f (Join-Path (Join-Path $HOME '.ssh') 'authorized_keys'))
         $script:callSequence | Should -Contain 'Get-Content:C:\ProgramData\ssh\sshd_config'
@@ -644,5 +660,15 @@ Match Group administrators
         $script:loggedErrorMessages.Count | Should -Be 0
         $script:configWriteValue | Should -Match '# Match Group administrators'
         $script:configWriteValue | Should -Match '#   AuthorizedKeysFile __PROGRAMDATA__/ssh/administrators_authorized_keys'
+    }
+
+    It 'creates the OpenSSH firewall rule when it is absent' {
+        $script:sshFirewallRuleExists = $false
+
+        OpenSSHServer
+
+        $script:callSequence | Should -Contain 'New-NetFirewallRule:sshd'
+        $script:callSequence | Should -Not -Contain 'Set-NetFirewallRule:sshd:True'
+        $script:consoleStatuses[-1] | Should -Be 'success'
     }
 }

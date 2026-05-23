@@ -68,11 +68,15 @@ function Stop-GuiStartupSplashAbortProcess
 
 	if ($Trace -is [scriptblock])
 	{
-		try { & $Trace $Message } catch { $null = $_ }
+		try { & $Trace $Message } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUI.Stop-GuiStartupSplashAbortProcess:catch71' -Severity Debug }
+		 $null = $_ }
 	}
 
 	[System.Environment]::Exit(0)
-	try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch { $null = $_ }
+	try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch {
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUI.Stop-GuiStartupSplashAbortProcess:catch75' -Severity Debug }
+	 $null = $_ }
 }
 
 function Start-GuiStartupSplashAbortWatchdog
@@ -103,7 +107,9 @@ function Start-GuiStartupSplashAbortWatchdog
 				try { $stream.Write($bytes, 0, $bytes.Length) }
 				finally { $stream.Dispose() }
 			}
-			catch { $null = $_ }
+			catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUI.Start-GuiStartupSplashAbortWatchdog:catch106' -Severity Debug }
+			 $null = $_ }
 		}
 
 		& $trace 'StartupSplashAbortWatchdog: started'
@@ -127,7 +133,9 @@ function Start-GuiStartupSplashAbortWatchdog
 			{
 				& $trace 'StartupSplashAbortWatchdog: startup splash closed before GuiReady; aborting process'
 				[System.Environment]::Exit(0)
-				try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch { $null = $_ }
+				try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUI.Start-GuiStartupSplashAbortWatchdog:catch130' -Severity Debug }
+				 $null = $_ }
 				return
 			}
 
@@ -252,6 +260,8 @@ function New-WpfSetter
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUI.New-WpfSetter:catch253' -Severity Debug }
+
 			$resolvedValue = $Value
 		}
 	}
@@ -280,7 +290,7 @@ function Get-GuiRuntimeFailureDetails
 	)
 
 	$errorLines = New-Object System.Collections.Generic.List[string]
-	[void]$errorLines.Add((Get-UxBilingualLocalizedString -Key 'GuiLogRuntimeFailureEventFailed' -Fallback 'GUI event failed [{0}]: {1}' -FormatArgs @($(if ($Context) { $Context } else { 'GUI' }), $Exception.Message)))
+	[void]$errorLines.Add(('GUI event failed: {0}' -f $Exception.Message))
 	[void]$errorLines.Add((Get-UxBilingualLocalizedString -Key 'GuiLogRuntimeFailureExceptionType' -Fallback 'Exception type: {0}' -FormatArgs @($Exception.GetType().FullName)))
 	$errorRecord = $null
 	try
@@ -292,6 +302,8 @@ function Get-GuiRuntimeFailureDetails
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUI.Get-GuiRuntimeFailureDetails:catch293' -Severity Debug }
+
 		$errorRecord = $null
 	}
 	if ($Exception.InnerException)
@@ -312,7 +324,9 @@ function Get-GuiRuntimeFailureDetails
 		}
 		if ($null -ne $errorRecord.TargetObject)
 		{
-			$targetType = try { $errorRecord.TargetObject.GetType().FullName } catch { 'unknown' }
+			$targetType = try { $errorRecord.TargetObject.GetType().FullName } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUI.Get-GuiRuntimeFailureDetails:catch315' -Severity Debug }
+			 'unknown' }
 			[void]$errorLines.Add((Get-UxBilingualLocalizedString -Key 'GuiLogRuntimeFailureTargetObjectType' -Fallback 'Target object type: {0}' -FormatArgs @($targetType)))
 		}
 	}
@@ -354,13 +368,22 @@ function Show-GuiRuntimeFailure
 	if (-not $Exception) { return $null }
 
 	$errorText = Get-GuiRuntimeFailureDetails -Context $Context -Exception $Exception -DebugTrail $DebugTrail
-	if (Get-Command -Name 'LogError' -CommandType Function -ErrorAction SilentlyContinue)
+	$writeBaselineErrorCommand = Get-Command -Name 'Write-BaselineError' -CommandType Function -ErrorAction SilentlyContinue
+	if ($writeBaselineErrorCommand)
 	{
-		LogError $errorText
+		& $writeBaselineErrorCommand -Message $errorText -Scope $Context
 	}
 	else
 	{
-		Write-Warning $errorText
+		$logErrorCommand = Get-Command -Name 'LogError' -CommandType Function,Alias -ErrorAction SilentlyContinue
+		if ($logErrorCommand)
+		{
+			& $logErrorCommand -Message $errorText -Scope $Context
+		}
+		else
+		{
+			Write-Warning $errorText
+		}
 	}
 
 	if ($ShowDialog -and $Script:MainForm -and $Script:CurrentTheme)
@@ -383,6 +406,8 @@ function Show-GuiRuntimeFailure
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUI.Show-GuiRuntimeFailure:catch393' -Severity Debug }
+
 			$null = $_
 		}
 	}
@@ -405,30 +430,50 @@ function Write-GuiPresetDebug
 
 	if ([string]::IsNullOrWhiteSpace($Message)) { return }
 
-	$debugText = "GUI preset debug [{0}]: {1}" -f $(if ($Context) { $Context } else { 'GUI' }), $Message
+	$debugMessage = "[Context={0}] {1}" -f $(if ($Context) { $Context } else { 'GUI' }), $Message
+	$debugTrailText = "[GUIPreset] {0}" -f $debugMessage
 	try
 	{
 		if (-not $Script:GuiPresetDebugTrail)
 		{
 			$Script:GuiPresetDebugTrail = [System.Collections.Generic.List[string]]::new()
 		}
-		$trailEntry = "[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss.fff'), $debugText
-		[void]$Script:GuiPresetDebugTrail.Add($trailEntry)
+		[void]$Script:GuiPresetDebugTrail.Add($debugTrailText)
 		while ($Script:GuiPresetDebugTrail.Count -gt 100)
 		{
 			$Script:GuiPresetDebugTrail.RemoveAt(0)
 		}
 
-		# Debug trail is kept in memory for diagnostics only - not written to the log file.
+		$loggedDebug = $false
+		if (Get-Command -Name 'LogDebug' -CommandType Function,Alias -ErrorAction SilentlyContinue)
+		{
+			try
+			{
+				LogDebug -Message $debugMessage -Scope 'GUIPreset'
+				$loggedDebug = $true
+			}
+			catch
+			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUI.Write-GuiPresetDebug:catch439' -Severity Debug }
+
+				$loggedDebug = $false
+			}
+		}
+		if (-not $loggedDebug -and (Get-Command -Name 'Write-BaselineDebug' -CommandType Function -ErrorAction SilentlyContinue))
+		{
+			Write-BaselineDebug -Message $debugMessage -Scope 'GUIPreset'
+		}
 	}
 	catch
 	{
 		try
 		{
-			Write-Warning $debugText
+			Write-Warning $debugTrailText
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUI.Write-GuiPresetDebug:catch455' -Severity Debug }
+
 			$null = $_
 		}
 	}
@@ -455,7 +500,9 @@ function Write-GuiRuntimeWarning
 	$shouldLog = $true
 	if ($Script:GuiRuntimeWarnings)
 	{
-		try { $shouldLog = $Script:GuiRuntimeWarnings.Add($warningKey) } catch { $shouldLog = $true }
+		try { $shouldLog = $Script:GuiRuntimeWarnings.Add($warningKey) } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'GUI.Write-GuiRuntimeWarning:catch483' -Severity Debug }
+		 $shouldLog = $true }
 	}
 	if (-not $shouldLog) { return }
 
@@ -510,7 +557,7 @@ function Write-GuiRuntimeWarning
 	  SubCategory     Secondary grouping name
 	  WinGetId        WinGet package identifier
 	  ChocoId         Chocolatey package identifier
-	  EntityType      winget | choco | uwp | feature | system | placeholder
+	  EntityType      winget | choco | store | direct | command | uwp | feature | system | placeholder
 	  SupportsExecution  $true when the backend can execute the item
 #>
 
@@ -551,7 +598,21 @@ function Test-IsExpertModeUX { return ([bool]$Script:AdvancedMode) }
     Checks GUI run in progress.
 
     #>
-function Test-GuiRunInProgress { return [bool]$Script:RunInProgress }
+function Test-GuiRunInProgress
+{
+	if ($Script:GuiState -and $Script:GuiState.Get -is [scriptblock])
+	{
+		$runInProgressState = & $Script:GuiState.Get 'RunInProgress'
+		return [bool]$runInProgressState
+	}
+
+	if ($Script:Ctx -and $Script:Ctx.ContainsKey('Run') -and $Script:Ctx.Run -is [hashtable] -and $Script:Ctx.Run.ContainsKey('InProgress'))
+	{
+		return [bool]$Script:Ctx.Run.InProgress
+	}
+
+	return [bool]$Script:RunInProgress
+}
 
 
 #region GUI Builder
@@ -572,6 +633,8 @@ function Show-TweakGUI
 	#>
 	[CmdletBinding()]
 	param ()
+
+	Update-SessionStatistics -Values @{ IsGUI = $true }
 
 	# Enable per-monitor DPI awareness before any WPF objects are created
 	# so the window renders at native resolution on high-DPI displays.
@@ -603,6 +666,7 @@ function Show-TweakGUI
 	. (Join-Path $Script:GuiExtractedRoot 'UIDensity.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'SessionState.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'TweakAvailability.ps1')
+	. (Join-Path $Script:GuiExtractedRoot 'DetectCache.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'PreviewBuilders.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'ExecutionSummary.ps1')
 	. (Join-Path $Script:GuiExtractedRoot 'PresetManagement.ps1')
@@ -618,12 +682,22 @@ function Show-TweakGUI
 	$__baselineExtractedPartReturnValue = $null
 	. (Join-Path $PSScriptRoot '..\GUI\Show-TweakGUI\ManifestImport.ps1')
 	if ($__baselineExtractedPartDidReturn) { if ($__baselineExtractedPartHasReturnValue) { return $__baselineExtractedPartReturnValue }; return }
+	try
+	{
+		$Script:CurrentBaselineVersion = if (Get-Command -Name 'Get-BaselineDisplayVersion' -CommandType Function -ErrorAction SilentlyContinue) { [string](Get-BaselineDisplayVersion) } else { 'unknown' }
+		Initialize-GuiDetectCache -BaselineVersion $Script:CurrentBaselineVersion
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'Regions.GUI.ShowTweakGUI.InitializeDetectCache'
+	}
 	& $traceGuiStartup 'Manifest ready'
 
 	# Write-GuiRuntimeWarning is defined at module scope so Dispatcher.BeginInvoke closures and .GetNewClosure() scriptblocks can resolve it.
 	. (Join-Path $PSScriptRoot '..\GUI\Show-TweakGUI\WpfCategoryInitialization.ps1')
 
 	. (Join-Path $Script:GuiExtractedRoot 'EventInfrastructure.ps1')
+	. (Join-Path $Script:GuiExtractedRoot 'GuiResponsivenessWatchdog.ps1')
 
 
 	$Script:GuiEventHandlerStore = [System.Collections.Generic.List[object]]::new()
@@ -636,8 +710,8 @@ function Show-TweakGUI
 	if ($Script:TestGuiRunInProgressScript -isnot [scriptblock]) { throw "Test-GuiRunInProgress capture did not resolve to a scriptblock." }
 	if ($Script:NewSafeBrushConverterScript -isnot [scriptblock]) { throw "New-SafeBrushConverter capture did not resolve to a scriptblock." }
 
-	$Script:DarkTheme = Repair-GuiThemePalette -Theme $Script:DarkTheme -ThemeName 'Dark'
-	$Script:LightTheme = Repair-GuiThemePalette -Theme $Script:LightTheme -ThemeName 'Light'
+	$Script:DarkTheme = Repair-GuiThemePaletteWithReferences -Theme $Script:DarkTheme -ThemeName 'Dark'
+	$Script:LightTheme = Repair-GuiThemePaletteWithReferences -Theme $Script:LightTheme -ThemeName 'Light'
 	$Script:CurrentTheme = $Script:DarkTheme
 	$Script:BrushCache = @{}
 	$Script:SharedBrushConverter = [System.Windows.Media.BrushConverter]::new()
@@ -655,6 +729,8 @@ function Show-TweakGUI
 	Initialize-GuiIconSystem -ModuleRoot $Script:GuiModuleBasePath
 
 	. (Join-Path $Script:GuiExtractedRoot 'StyleManagement.ps1')
+	. (Join-Path $Script:GuiExtractedRoot 'BackToTopButton.ps1')
+	. (Join-Path $Script:GuiExtractedRoot 'DeveloperDiagnostics.ps1')
 	$Script:SetButtonChromeScript = ${function:Set-GuiButtonChrome}
 	if ($Script:SetButtonChromeScript -isnot [scriptblock]) { throw 'Set-GuiButtonChrome capture did not resolve to a scriptblock.' }
 	& $traceGuiStartup 'Theme and icon systems ready'
@@ -700,6 +776,7 @@ function Show-TweakGUI
 	#region Helper: Apply theme
 	. (Join-Path $Script:GuiExtractedRoot 'ApplyTheme.ps1')
 	#endregion
+	Initialize-GuiBackToTopButton -Window $Form -ScrollViewer $ContentScroll -AdditionalScrollViewers @($DeploymentMediaScroll, $AppsScroll) -Button $BtnBackToTop
 
 
 	#region Helper: Create styled controls
@@ -847,12 +924,12 @@ function Show-TweakGUI
 	. (Join-Path $PSScriptRoot '..\GUI\Show-TweakGUI\ContentRenderedStartupCompletion.ps1')
 	& $traceGuiStartup 'ContentRendered startup handler registered'
 
-	# The startup splash stays above the main window, so the main window can be activated at ShowDialog time.
+	# When the startup splash is live, let the main window render without stealing focus.
 	if (& $testGuiStartupSplashAbortBlock -Splash $startupSplashHandle)
 	{
 		Stop-GuiStartupSplashAbortProcess -Trace $traceGuiStartup -Message 'Show-TweakGUI aborted before ShowDialog because startup splash was closed'
 	}
-	$Form.ShowActivated = $true
+	$Form.ShowActivated = -not [bool]$hasLiveStartupSplash
 	Initialize-WpfWindowForeground -Window $Form
 	& $traceGuiStartup 'Window activation policy initialized'
 

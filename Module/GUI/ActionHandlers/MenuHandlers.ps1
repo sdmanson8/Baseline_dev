@@ -161,7 +161,12 @@
 						if ($null -ne $Script:RestoreLastSession) { [bool]$Script:RestoreLastSession } else { $true }
 					}
 					AutoScanOnLaunch = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'AutoScanOnLaunch' -Default $false) } else { [bool]$Script:AutoScanOnLaunch }
-					HideUnavailableItems = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'HideUnavailableItems' -Default $true) } else { $true }
+					HideUnavailableItems = if ($null -ne $Script:HideUnavailableItems) { [bool]$Script:HideUnavailableItems } elseif (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'HideUnavailableItems' -Default $true) } else { $true }
+					StartupRunInitialActions = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'StartupRunInitialActions' -Default $true) } elseif ($null -ne $Script:StartupRunInitialActions) { [bool]$Script:StartupRunInitialActions } else { $true }
+					StartupCheckWinGet = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'StartupCheckWinGet' -Default $true) } elseif ($null -ne $Script:StartupCheckWinGet) { [bool]$Script:StartupCheckWinGet } else { $true }
+					StartupWinGetCheckFrequency = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [string](Get-BaselineUserPreference -Key 'StartupWinGetCheckFrequency' -Default 'Startup') } elseif ($Script:StartupWinGetCheckFrequency) { [string]$Script:StartupWinGetCheckFrequency } else { 'Startup' }
+					StartupCheckChocolatey = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'StartupCheckChocolatey' -Default $true) } elseif ($null -ne $Script:StartupCheckChocolatey) { [bool]$Script:StartupCheckChocolatey } else { $true }
+					StartupChocolateyCheckFrequency = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [string](Get-BaselineUserPreference -Key 'StartupChocolateyCheckFrequency' -Default 'Startup') } elseif ($Script:StartupChocolateyCheckFrequency) { [string]$Script:StartupChocolateyCheckFrequency } else { 'Startup' }
 					AutoCheckUpdates = [bool]$updateSettings.AutoCheckUpdates
 					UpdateCheckFrequency = [string]$updateSettings.CheckFrequency
 					UpdateBranch = if ($updateSettings -and $updateSettings.PSObject.Properties['UpdateBranch'] -and -not [string]::IsNullOrWhiteSpace([string]$updateSettings.UpdateBranch)) { [string]$updateSettings.UpdateBranch } elseif (Get-Command -Name 'Get-BaselineDefaultUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue) { Get-BaselineDefaultUpdateBranch } else { 'Stable' }
@@ -186,7 +191,6 @@
 					DefaultLogFileDirectory = $defaultLogFileDirectory
 					LogFileDirectory = $customLogFileDirectory
 					AdvancedMode = [bool]$Script:AdvancedMode
-					ExperimentalFeatures = [bool]$Script:ExperimentalFeatures
 					DesignMode = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue) { [bool](Get-BaselineUserPreference -Key 'DesignMode' -Default $false) } else { [bool]$Script:DesignMode }
 				}
 
@@ -370,6 +374,75 @@
 					{
 						try { Set-BaselineUserPreference -Key 'HideUnavailableItems' -Value $hideUnavailWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist HideUnavailableItems failed') }
 					}
+					if ($Script:ChkHideUnavailableItems -and ($Script:ChkHideUnavailableItems.IsChecked -ne $hideUnavailWanted))
+					{
+						$Script:ChkHideUnavailableItems.IsChecked = $hideUnavailWanted
+					}
+					if (Get-Command -Name 'Update-CurrentTabContent' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						try { Update-CurrentTabContent -SkipIdlePrebuild } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Refresh after HideUnavailableItems change failed') }
+					}
+				}
+				if ($result.ContainsKey('StartupRunInitialActions'))
+				{
+					$startupRunInitialActionsWanted = [bool]$result.StartupRunInitialActions
+					$Script:StartupRunInitialActions = $startupRunInitialActionsWanted
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'StartupRunInitialActions' -Value $startupRunInitialActionsWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist StartupRunInitialActions failed') }
+					}
+				}
+				if ($result.ContainsKey('StartupCheckWinGet'))
+				{
+					$startupCheckWinGetWanted = [bool]$result.StartupCheckWinGet
+					$Script:StartupCheckWinGet = $startupCheckWinGetWanted
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'StartupCheckWinGet' -Value $startupCheckWinGetWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist StartupCheckWinGet failed') }
+					}
+				}
+				if ($result.ContainsKey('StartupWinGetCheckFrequency'))
+				{
+					$startupWinGetCheckFrequencyWanted = [string]$result.StartupWinGetCheckFrequency
+					if (Get-Command -Name 'ConvertTo-BaselineUpdateCheckFrequency' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						$startupWinGetCheckFrequencyWanted = ConvertTo-BaselineUpdateCheckFrequency -Frequency $startupWinGetCheckFrequencyWanted
+					}
+					$Script:StartupWinGetCheckFrequency = $startupWinGetCheckFrequencyWanted
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'StartupWinGetCheckFrequency' -Value $startupWinGetCheckFrequencyWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist StartupWinGetCheckFrequency failed') }
+					}
+				}
+				if ($result.ContainsKey('StartupCheckChocolatey'))
+				{
+					$startupCheckChocolateyWanted = [bool]$result.StartupCheckChocolatey
+					$Script:StartupCheckChocolatey = $startupCheckChocolateyWanted
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'StartupCheckChocolatey' -Value $startupCheckChocolateyWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist StartupCheckChocolatey failed') }
+					}
+				}
+				if ($result.ContainsKey('StartupChocolateyCheckFrequency'))
+				{
+					$startupChocolateyCheckFrequencyWanted = [string]$result.StartupChocolateyCheckFrequency
+					if (Get-Command -Name 'ConvertTo-BaselineUpdateCheckFrequency' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						$startupChocolateyCheckFrequencyWanted = ConvertTo-BaselineUpdateCheckFrequency -Frequency $startupChocolateyCheckFrequencyWanted
+					}
+					$Script:StartupChocolateyCheckFrequency = $startupChocolateyCheckFrequencyWanted
+					if (Get-Command -Name 'Set-BaselineUserPreference' -ErrorAction SilentlyContinue)
+					{
+						try { Set-BaselineUserPreference -Key 'StartupChocolateyCheckFrequency' -Value $startupChocolateyCheckFrequencyWanted } catch { LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Persist StartupChocolateyCheckFrequency failed') }
+					}
+				}
+				try
+				{
+					LogDebug ('Settings startup preferences persisted. RunInitialActions={0}; CheckWinGet={1}; WinGetFrequency="{2}"; CheckChocolatey={3}; ChocolateyFrequency="{4}"' -f [bool]$Script:StartupRunInitialActions, [bool]$Script:StartupCheckWinGet, [string]$Script:StartupWinGetCheckFrequency, [bool]$Script:StartupCheckChocolatey, [string]$Script:StartupChocolateyCheckFrequency)
+				}
+				catch
+				{
+					Write-SwallowedException -ErrorRecord $_ -Source 'MenuHandlers.Settings.StartupPreferencesPersisted.LogDebug' -Severity Warning
 				}
 				if ($result.ContainsKey('AutoCheckUpdates'))
 				{
@@ -543,7 +616,6 @@
 						}
 					}
 				}
-				if ($result.ContainsKey('ExperimentalFeatures')) { $Script:ExperimentalFeatures = [bool]$result.ExperimentalFeatures }
 				if ($result.ContainsKey('DesignMode'))
 				{
 					$desiredDesignMode = [bool]$result.DesignMode
@@ -797,6 +869,10 @@
 			try { $NavModeApps.IsChecked = $true } catch { Write-SwallowedException -ErrorRecord $_ -Source 'ActionHandlers.SyncMenuState.MenuToolsUpdateAllApps.Checked' }
 			& $raiseButtonClick $BtnUpdateAllApps
 		}.GetNewClosure()) | Out-Null
+	}
+	if (Get-Command -Name 'Initialize-GuiDeveloperDiagnosticsMenu' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Initialize-GuiDeveloperDiagnosticsMenu
 	}
 	# Help menu
 	if ($MenuHelpHelp)
@@ -1116,6 +1192,14 @@
 	}
 	if ($MenuToolsAppsManager)         { $MenuToolsAppsManager.Header         = (Get-UxLocalizedString -Key 'GuiMenuToolsAppsManager' -Fallback 'Apps Manager') }
 	if ($MenuToolsUpdateAllApps)       { $MenuToolsUpdateAllApps.Header       = (Get-UxLocalizedString -Key 'GuiMenuToolsUpdateAllApps' -Fallback 'Update All Applications') }
+	if ($MenuToolsDeveloperDiagnostics) { $MenuToolsDeveloperDiagnostics.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnostics' -Fallback 'Developer Diagnostics') }
+	if ($MenuToolsDeveloperDiagnosticsGenerateReport) { $MenuToolsDeveloperDiagnosticsGenerateReport.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnosticsGenerateReport' -Fallback 'Generate Test Report') }
+	if ($MenuToolsDeveloperDiagnosticsSourceQuality) { $MenuToolsDeveloperDiagnosticsSourceQuality.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnosticsSourceQuality' -Fallback 'Run Source Quality Guards') }
+	if ($MenuToolsDeveloperDiagnosticsUnitTests) { $MenuToolsDeveloperDiagnosticsUnitTests.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnosticsUnitTests' -Fallback 'Run Unit Tests') }
+	if ($MenuToolsDeveloperDiagnosticsGuiComposition) { $MenuToolsDeveloperDiagnosticsGuiComposition.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnosticsGuiComposition' -Fallback 'Run GUI Composition Tests') }
+	if ($MenuToolsDeveloperDiagnosticsOpenLatestReport) { $MenuToolsDeveloperDiagnosticsOpenLatestReport.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnosticsOpenLatestReport' -Fallback 'Open Latest Test Report') }
+	if ($MenuToolsDeveloperDiagnosticsCopyCommands) { $MenuToolsDeveloperDiagnosticsCopyCommands.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnosticsCopyCommands' -Fallback 'Copy PowerShell Commands') }
+	if ($MenuToolsDeveloperDiagnosticsIntegrationTests) { $MenuToolsDeveloperDiagnosticsIntegrationTests.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnosticsIntegrationTests' -Fallback 'Run Integration Tests...') }
 	if ($MenuToolsExportSupportBundle) { $MenuToolsExportSupportBundle.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsExportSupportBundle' -Fallback 'Export Support Bundle...') }
 	if ($MenuToolsApproveRemoteTargets){ $MenuToolsApproveRemoteTargets.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsApproveRemoteTargets' -Fallback 'Approve Target List...') }
 	if ($MenuToolsSaveRemoteApprovalPolicy){ $MenuToolsSaveRemoteApprovalPolicy.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsSaveRemoteApprovalPolicy' -Fallback 'Save Remote Approval Policy...') }

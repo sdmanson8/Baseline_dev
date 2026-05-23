@@ -118,6 +118,10 @@ public static void PostMessage()
 		# Kill all explorer instances in case "launch folder windows in a separate process" enabled
 		Get-Process -Name explorer -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue | Out-Null
 		Start-Sleep -Seconds 3
+		if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue))
+		{
+			Invoke-UserLaunch -FilePath 'explorer.exe' -Description 'Explorer shell restart after post actions' | Out-Null
+		}
 
 		# Restoring closed folders
 		if (Get-Variable -Name OpenedFolders -ErrorAction Ignore)

@@ -39,6 +39,8 @@ $Script:ClearTabContentCacheScript = ${function:Clear-TabContentCache}
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\GuiScriptblockCaptures.ps1:40' -Severity Debug }
+
 		$null = $_
 	}
 	Apply-BaselineThemePreference -Preference $initialThemePreference -SkipContentRebuild
@@ -48,7 +50,7 @@ $Script:ClearTabContentCacheScript = ${function:Clear-TabContentCache}
 	# Wire icon content for primary action buttons
 	if ($Script:BtnPreviewRun) { Set-GuiButtonIconContent -Button $Script:BtnPreviewRun -IconName 'PreviewRun'      -Text (Get-UxPreviewButtonLabel) -ToolTip (Get-UxPreviewButtonToolTip) }
 	if ($Script:BtnRun)        { Set-GuiButtonIconContent -Button $Script:BtnRun        -IconName 'RunTweaks'       -Text (Get-UxRunActionLabel) -ToolTip (Get-UxRunActionToolTip) }
-if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefaults   -IconName 'RestoreDefaults' -Text (Get-UxLocalizedString -Key 'GuiBtnRestoreAllTweaks' -Fallback 'Restore all tweaks to Windows Defaults') -ToolTip (Get-UxLocalizedString -Key 'GuiActionRestoreDefaultsTooltip' -Fallback 'Restore supported settings to Windows defaults.') }
+if ($Script:BtnDefaults)   { Set-GuiButtonIconContent -Button $Script:BtnDefaults   -IconName 'RestoreDefaults' -Text (Get-UxLocalizedString -Key 'GuiBtnRestoreAllTweaksRecorded' -Fallback 'Restore all tweaks to default values') -ToolTip (Get-UxLocalizedString -Key 'GuiActionRestoreDefaultsTooltipRecorded' -Fallback 'Restore supported settings to recorded default values.') }
 	if ($BtnLog)        { Set-GuiButtonIconContent -Button $BtnLog        -IconName 'OpenLog'         -Text (Get-UxLocalizedString -Key 'GuiBtnLog' -Fallback 'Open Log') -ToolTip (Get-UxLocalizedString -Key 'GuiActionLogTooltip' -Fallback 'Open the detailed execution log.') }
 	if ($Script:BtnStartHere)  { Set-GuiButtonIconContent -Button $Script:BtnStartHere  -IconName 'QuickStart'     -Text (Get-UxStartGuideButtonLabel) -ToolTip (Get-UxLocalizedString -Key 'GuiActionStartGuideTooltip' -Fallback 'Open the getting started guide.') }
 	if ($Script:BtnHelp)       { Set-GuiButtonIconContent -Button $Script:BtnHelp       -IconName 'Help'           -Text (Get-UxHelpButtonLabel) -ToolTip (Get-UxLocalizedString -Key 'GuiActionOpenHelpTooltip' -Fallback 'Open help and usage guidance.') }

@@ -445,8 +445,6 @@ function New-GuiStartupManagerTabContent
 
 	$theme = $Script:CurrentTheme
 	$bc = New-SafeBrushConverter -Context 'StartupManagerTabContent'
-	$titleText = Get-UxLocalizedString -Key 'GuiStartupManagerTitle' -Fallback 'Startup Manager'
-	$subtitleText = Get-UxLocalizedString -Key 'GuiStartupManagerSubtitle' -Fallback 'Enable or disable Run / RunOnce / Startup folder entries. Toggling here flips the same StartupApproved bit Task Manager uses; the underlying entry is never deleted.'
 	$entries = @(Get-GuiStartupManagerEntries)
 	$entryCountText = if ($entries.Count -eq 1) { '1 startup entry' } else { '{0} startup entries' -f $entries.Count }
 
@@ -461,29 +459,22 @@ function New-GuiStartupManagerTabContent
 	$actionSectionTitle.Margin = [System.Windows.Thickness]::new(8, 8, 8, 8)
 	[void]($mainPanel.Children.Add($actionSectionTitle))
 
-	[void]($mainPanel.Children.Add((New-GuiCustomizationsActionCard `
-		-Title $titleText `
-		-Description ("{0} {1}" -f $subtitleText, $entryCountText) `
-		-ButtonText (Get-UxLocalizedString -Key 'GuiOpenButton' -Fallback 'Open') `
-		-Action { Invoke-GuiCustomizationsStartupManagerAction } `
-		-Theme $theme `
-		-BrushConverter $bc)))
-
-	[void]($mainPanel.Children.Add((New-GuiCustomizationsActionCard `
-		-Title (Get-UxLocalizedString -Key 'GuiUserFoldersTitle' -Fallback 'User Folders') `
-		-Description (Get-UxLocalizedString -Key 'GuiUserFoldersSubtitle' -Fallback 'Move Desktop, Documents, Downloads, Music, Pictures, and Videos from the System Tweaks category.') `
-		-ButtonText (Get-UxLocalizedString -Key 'GuiOpenButton' -Fallback 'Open') `
-		-Action { Invoke-GuiCustomizationsUserFoldersAction } `
-		-Theme $theme `
-		-BrushConverter $bc)))
-
-	[void]($mainPanel.Children.Add((New-GuiCustomizationsActionCard `
-		-Title (Get-UxLocalizedString -Key 'GuiWslInstallTitle' -Fallback 'Install WSL') `
-		-Description (Get-UxLocalizedString -Key 'GuiWslInstallSubtitle' -Fallback 'Install a Windows Subsystem for Linux distribution and enable WSL update delivery from the System Tweaks category.') `
-		-ButtonText (Get-UxLocalizedString -Key 'GuiInstallButton' -Fallback 'Install') `
-		-Action { Invoke-GuiCustomizationsWslInstallAction } `
-		-Theme $theme `
-		-BrushConverter $bc)))
+	foreach ($definition in @(Get-GuiCustomizationsActionCardDefinitions))
+	{
+		$title = Get-UxLocalizedString -Key ([string]$definition.TitleKey) -Fallback ([string]$definition.TitleFallback)
+		$description = Get-UxLocalizedString -Key ([string]$definition.DescriptionKey) -Fallback ([string]$definition.DescriptionFallback)
+		if ([bool]$definition.AppendEntryCount)
+		{
+			$description = "{0} {1}" -f $description, $entryCountText
+		}
+		[void]($mainPanel.Children.Add((New-GuiCustomizationsActionCard `
+			-Title $title `
+			-Description $description `
+			-ButtonText (Get-UxLocalizedString -Key ([string]$definition.ButtonKey) -Fallback ([string]$definition.ButtonFallback)) `
+			-Action ([scriptblock]$definition.Action) `
+			-Theme $theme `
+			-BrushConverter $bc)))
+	}
 
 	return $mainPanel
 }

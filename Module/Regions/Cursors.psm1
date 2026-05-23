@@ -9,9 +9,9 @@ using module ..\SharedHelpers.psm1
 	Free Windows 11 cursors
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for free Windows 11 cursors.
 	.PARAMETER Dark
 	Download and install the dark cursor pack

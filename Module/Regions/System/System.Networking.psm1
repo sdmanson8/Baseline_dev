@@ -6,9 +6,9 @@ using module ..\..\SharedHelpers.psm1
     Configures network interface configuration.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies Baseline's network interface configuration in GUI and headless runs.
 	.PARAMETER Enable
 	Enable Client for Microsoft Networks on all installed network interfaces (default value)
@@ -68,9 +68,9 @@ function MSNetClient
 	Set current network profile category
 
 
-	
+
 .DESCRIPTION
-	
+
 Sets current network profile category using Baseline's source configuration.
 	.PARAMETER Private
 	Set current network profile to Private
@@ -148,9 +148,9 @@ function CurrentNetwork
 	Plain DNS provider presets for all active network adapters
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for plain DNS provider presets for all active network adapters.
 	.PARAMETER Default
 	Leave the current DNS settings unchanged
@@ -405,9 +405,9 @@ function DnsProvider
 	Delivery Optimization
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for delivery Optimization.
 	.PARAMETER Disable
 	Turn off Delivery Optimization
@@ -512,9 +512,9 @@ function DeliveryOptimization
 	SMB Server file and printer sharing configuration
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for sMB Server file and printer sharing configuration.
 	.PARAMETER Enable
 	Enable SMB Server file and printer sharing
@@ -579,9 +579,9 @@ function SMBServer
 	HomeGroup services configuration
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for homeGroup services configuration.
 	.PARAMETER Enable
 	Enable HomeGroup services
@@ -623,42 +623,42 @@ function HomeGroups
 	{
 		"Enable"
 		{
-    		Write-ConsoleStatus -Action "Enabling HomeGroup services"
-    		LogInfo "Enabling HomeGroup services"
+		Write-ConsoleStatus -Action "Enabling HomeGroup services"
+		LogInfo "Enabling HomeGroup services"
 
-    		# Check if services exist before attempting to modify them
-    		$listenerExists = Get-Service "HomeGroupListener" -ErrorAction SilentlyContinue
-    		$providerExists = Get-Service "HomeGroupProvider" -ErrorAction SilentlyContinue
+		# Check if services exist before attempting to modify them
+		$listenerExists = Get-Service "HomeGroupListener" -ErrorAction SilentlyContinue
+		$providerExists = Get-Service "HomeGroupProvider" -ErrorAction SilentlyContinue
 
-    		if ($listenerExists) {
-       		 	Set-Service "HomeGroupListener" -StartupType Manual -ErrorAction SilentlyContinue 2>&1 | Out-Null
-    		}
+		if ($listenerExists) {
+			Set-Service "HomeGroupListener" -StartupType Manual -ErrorAction SilentlyContinue 2>&1 | Out-Null
+		}
 
-    		if ($providerExists) {
-        		Set-Service "HomeGroupProvider" -StartupType Manual -ErrorAction SilentlyContinue 2>&1 | Out-Null
-        		Start-Service "HomeGroupProvider" -ErrorAction SilentlyContinue 2>&1 | Out-Null
-    	}
-    		Write-ConsoleStatus -Status success
+		if ($providerExists) {
+		Set-Service "HomeGroupProvider" -StartupType Manual -ErrorAction SilentlyContinue 2>&1 | Out-Null
+		Start-Service "HomeGroupProvider" -ErrorAction SilentlyContinue 2>&1 | Out-Null
+	}
+		Write-ConsoleStatus -Status success
 		}
 		"Disable"
 		{
-    		Write-ConsoleStatus -Action "Disabling HomeGroup services"
-    		LogInfo "Disabling HomeGroup services"
+		Write-ConsoleStatus -Action "Disabling HomeGroup services"
+		LogInfo "Disabling HomeGroup services"
 
-   	 		# Check if services exist before attempting to modify them
-    		$listenerExists = Get-Service "HomeGroupListener" -ErrorAction SilentlyContinue
-    		$providerExists = Get-Service "HomeGroupProvider" -ErrorAction SilentlyContinue
+			# Check if services exist before attempting to modify them
+		$listenerExists = Get-Service "HomeGroupListener" -ErrorAction SilentlyContinue
+		$providerExists = Get-Service "HomeGroupProvider" -ErrorAction SilentlyContinue
 
-    		If ($listenerExists) {
-        	Stop-Service "HomeGroupListener" -ErrorAction SilentlyContinue 2>&1 | Out-Null
-        	Set-Service "HomeGroupListener" -StartupType Disabled -ErrorAction SilentlyContinue 2>&1 | Out-Null
-    		}
+		If ($listenerExists) {
+	Stop-Service "HomeGroupListener" -ErrorAction SilentlyContinue 2>&1 | Out-Null
+	Set-Service "HomeGroupListener" -StartupType Disabled -ErrorAction SilentlyContinue 2>&1 | Out-Null
+		}
 
-    		If ($providerExists) {
-        	Stop-Service "HomeGroupProvider" -ErrorAction SilentlyContinue 2>&1 | Out-Null
-        	Set-Service "HomeGroupProvider" -StartupType Disabled -ErrorAction SilentlyContinue 2>&1 | Out-Null
-    		}
-    		Write-ConsoleStatus -Status success
+		If ($providerExists) {
+	Stop-Service "HomeGroupProvider" -ErrorAction SilentlyContinue 2>&1 | Out-Null
+	Set-Service "HomeGroupProvider" -StartupType Disabled -ErrorAction SilentlyContinue 2>&1 | Out-Null
+		}
+		Write-ConsoleStatus -Status success
 		}
 	}
 }
@@ -668,9 +668,9 @@ function HomeGroups
 	Internet Connection Sharing (ICS) configuration, e.g., mobile hotspot
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for internet Connection Sharing (ICS) configuration, e.g., mobile hotspot.
 	.PARAMETER Enable
 	Allow Internet Connection Sharing
@@ -730,9 +730,9 @@ function ConnectionSharing
 	Link-Local Multicast Name Resolution (LLMNR) protocol configuration
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for link-Local Multicast Name Resolution (LLMNR) protocol configuration.
 	.PARAMETER Enable
 	Enable LLMNR protocol (default value)
@@ -795,9 +795,9 @@ function LLMNR
 	Network Connectivity Status Indicator (NCSI) active probe configuration
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for network Connectivity Status Indicator (NCSI) active probe configuration.
 	.PARAMETER Enable
 	Enable NCSI active probe (default value)
@@ -858,9 +858,9 @@ function NCSIProbe
 	NetBIOS over TCP/IP configuration on installed network interfaces
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for netBIOS over TCP/IP configuration on installed network interfaces.
 	.PARAMETER Enable
 	Enable NetBIOS over TCP/IP on all installed network interfaces
@@ -920,9 +920,9 @@ function NetBIOS
 	Windows Time NTP server override
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for windows Time NTP server override.
 	.PARAMETER Enable
 	Override Windows Time to use pool.ntp.org
@@ -1008,9 +1008,9 @@ function NtpServerOverride
 	OpenSSH Server dedicated installer
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for openSSH Server dedicated installer.
 	.NOTES
 	Machine-wide
@@ -1023,9 +1023,10 @@ function OpenSSHServer
 	LogInfo "Installing OpenSSH Server"
 	try
 	{
-		if ((Get-WindowsCapability -Name OpenSSH.Server -Online -ErrorAction Stop).State -ne 'Installed')
+		$capabilityName = 'OpenSSH.Server~~~~0.0.1.0'
+		if ((Get-WindowsCapability -Name $capabilityName -Online -ErrorAction Stop).State -ne 'Installed')
 		{
-			Add-WindowsCapability -Online -Name OpenSSH.Server -ErrorAction Stop | Out-Null
+			Add-WindowsCapability -Online -Name $capabilityName -ErrorAction Stop | Out-Null
 		}
 
 		Set-Service -Name sshd -StartupType Automatic -ErrorAction Stop | Out-Null
@@ -1034,10 +1035,14 @@ function OpenSSHServer
 		Set-Service -Name ssh-agent -StartupType Automatic -ErrorAction Stop | Out-Null
 		Start-Service -Name ssh-agent -ErrorAction Stop | Out-Null
 
-		$firewallRule = Get-NetFirewallRule -Name 'sshd' -ErrorAction Stop
-		if (-not $firewallRule.Enabled)
+		$firewallRule = Get-NetFirewallRule -Name 'sshd' -ErrorAction SilentlyContinue | Select-Object -First 1
+		if (-not $firewallRule)
 		{
 			New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' -Enabled $true -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 -ErrorAction Stop | Out-Null
+		}
+		elseif (([string]$firewallRule.Enabled) -notin @('True', '1'))
+		{
+			Set-NetFirewallRule -Name sshd -Enabled True -ErrorAction Stop | Out-Null
 		}
 
 		$sshFolderPath = Join-Path $HOME '.ssh'
@@ -1078,9 +1083,9 @@ function OpenSSHServer
 	Network adapters power management
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for network adapters power management.
 	.PARAMETER Disable
 	Do not allow the computer to turn off the network adapters to save power
@@ -1197,9 +1202,9 @@ function NetworkAdaptersSavePower
 	Automatic installation of network devices
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for automatic installation of network devices.
 	.PARAMETER Enable
 	Allow automatic installation of network devices (default value)
@@ -1262,9 +1267,9 @@ function NetDevicesAutoInst
 	Network Discovery File and Printers Sharing
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for network Discovery File and Printers Sharing.
 	.PARAMETER Enable
 	Enable "Network Discovery" and "File and Printers Sharing" for workgroup networks
@@ -1343,9 +1348,9 @@ function NetworkDiscovery
 	Set network category for unidentified networks
 
 
-	
+
 .DESCRIPTION
-	
+
 Sets network category for unidentified networks using Baseline's source configuration.
 	.PARAMETER Private
 	Set unidentified networks to Private profile
@@ -1408,9 +1413,9 @@ function UnknownNetworks
 	SMB 1.0 protocol configuration
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for sMB 1.0 protocol configuration.
 	.PARAMETER Enable
 	Enable SMB 1.0 protocol

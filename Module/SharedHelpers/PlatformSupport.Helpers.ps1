@@ -1,4 +1,4 @@
-﻿# PlatformSupport — canonical OS-detection + per-entry availability gating.
+# PlatformSupport — canonical OS-detection + per-entry availability gating.
 #
 # Today every tweak/app function detects the host OS itself (or worse,
 # doesn't), and manifests don't declare which platforms they're valid on.
@@ -14,6 +14,9 @@
 #     this system" line in the run report (instead of failing)
 
 $Script:CachedBaselineDefenderExecutionAvailable = $null
+$Script:CachedBaselineDefenderExecutionUnavailableReason = $null
+$Script:CachedBaselineDefenderComponentAvailable = $null
+$Script:CachedBaselineDefenderComponentUnavailableReason = $null
 
 # Shape-agnostic field probes — manifest entries arrive as either ordered
 # hashtables (from Import-TweakManifestFromData) or pscustomobjects (from
@@ -243,6 +246,8 @@ function Get-BaselineSystemPlatformInfo
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PlatformSupport.Helpers.Get-BaselineSystemPlatformInfo:catch247' -Severity Debug }
+
 		$null = $_
 	}
 
@@ -254,6 +259,8 @@ function Get-BaselineSystemPlatformInfo
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PlatformSupport.Helpers.Get-BaselineSystemPlatformInfo:catch258' -Severity Debug }
+
 		$null = $_
 	}
 
@@ -273,6 +280,8 @@ function Get-BaselineSystemPlatformInfo
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PlatformSupport.Helpers.Get-BaselineSystemPlatformInfo:catch277' -Severity Debug }
+
 		$null = $_
 	}
 
@@ -423,10 +432,37 @@ function Set-BaselineDefenderExecutionAvailability
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory)]
-		[bool]$Available
+		[bool]$Available,
+
+		[Parameter(Mandatory = $false)]
+		[AllowNull()]
+		[AllowEmptyString()]
+		[string]$UnavailableReason = $null
 	)
 
 	$Script:CachedBaselineDefenderExecutionAvailable = [bool]$Available
+	$Script:CachedBaselineDefenderExecutionUnavailableReason = if ($Available) { $null } else { [string]$UnavailableReason }
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Set-BaselineDefenderComponentAvailability
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[bool]$Available,
+
+		[Parameter(Mandatory = $false)]
+		[AllowNull()]
+		[AllowEmptyString()]
+		[string]$UnavailableReason = $null
+	)
+
+	$Script:CachedBaselineDefenderComponentAvailable = [bool]$Available
+	$Script:CachedBaselineDefenderComponentUnavailableReason = if ($Available) { $null } else { [string]$UnavailableReason }
 }
 
 <#
@@ -439,6 +475,68 @@ function Reset-BaselineDefenderExecutionAvailability
 	param ()
 
 	$Script:CachedBaselineDefenderExecutionAvailable = $null
+	$Script:CachedBaselineDefenderExecutionUnavailableReason = $null
+	$Script:CachedBaselineDefenderComponentAvailable = $null
+	$Script:CachedBaselineDefenderComponentUnavailableReason = $null
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Resolve-BaselineDefenderExecutionAvailability
+{
+	[CmdletBinding()]
+	[OutputType([pscustomobject])]
+	param ()
+
+	$setMpPreference = Get-Command -Name 'Set-MpPreference' -CommandType Function,Cmdlet -ErrorAction SilentlyContinue
+	if ($setMpPreference)
+	{
+		return [pscustomobject]@{
+			Available = $true
+			Reason = ''
+		}
+	}
+
+	return [pscustomobject]@{
+		Available = $false
+		Reason = 'Microsoft Defender PowerShell command Set-MpPreference is not available on this system.'
+	}
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Resolve-BaselineDefenderComponentAvailability
+{
+	[CmdletBinding()]
+	[OutputType([pscustomobject])]
+	param ()
+
+	$winDefendService = Get-Service -Name 'WinDefend' -ErrorAction SilentlyContinue
+	if ($winDefendService)
+	{
+		return [pscustomobject]@{
+			Available = $true
+			Reason = ''
+		}
+	}
+
+	$mpCmdRunPath = Join-Path -Path $env:ProgramFiles -ChildPath 'Windows Defender\MpCmdRun.exe'
+	if (Test-Path -LiteralPath $mpCmdRunPath)
+	{
+		return [pscustomobject]@{
+			Available = $true
+			Reason = ''
+		}
+	}
+
+	return [pscustomobject]@{
+		Available = $false
+		Reason = 'Microsoft Defender Antivirus service and command-line scanner were not found on this system.'
+	}
 }
 
 <#
@@ -456,7 +554,85 @@ function Test-BaselineDefenderExecutionAvailable
 		return [bool]$Script:CachedBaselineDefenderExecutionAvailable
 	}
 
-	return $false
+	$availability = Resolve-BaselineDefenderExecutionAvailability
+	Set-BaselineDefenderExecutionAvailability -Available ([bool]$availability.Available) -UnavailableReason ([string]$availability.Reason)
+	return [bool]$Script:CachedBaselineDefenderExecutionAvailable
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Get-BaselineDefenderExecutionUnavailableReason
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param ()
+
+	if ($null -eq $Script:CachedBaselineDefenderExecutionAvailable)
+	{
+		[void](Test-BaselineDefenderExecutionAvailable)
+	}
+
+	if ([bool]$Script:CachedBaselineDefenderExecutionAvailable)
+	{
+		return ''
+	}
+
+	if (-not [string]::IsNullOrWhiteSpace([string]$Script:CachedBaselineDefenderExecutionUnavailableReason))
+	{
+		return [string]$Script:CachedBaselineDefenderExecutionUnavailableReason
+	}
+
+	return 'Microsoft Defender PowerShell command surface is not available on this system.'
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Test-BaselineDefenderComponentAvailable
+{
+	[CmdletBinding()]
+	[OutputType([bool])]
+	param ()
+
+	if ($null -ne $Script:CachedBaselineDefenderComponentAvailable)
+	{
+		return [bool]$Script:CachedBaselineDefenderComponentAvailable
+	}
+
+	$availability = Resolve-BaselineDefenderComponentAvailability
+	Set-BaselineDefenderComponentAvailability -Available ([bool]$availability.Available) -UnavailableReason ([string]$availability.Reason)
+	return [bool]$Script:CachedBaselineDefenderComponentAvailable
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Get-BaselineDefenderComponentUnavailableReason
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param ()
+
+	if ($null -eq $Script:CachedBaselineDefenderComponentAvailable)
+	{
+		[void](Test-BaselineDefenderComponentAvailable)
+	}
+
+	if ([bool]$Script:CachedBaselineDefenderComponentAvailable)
+	{
+		return ''
+	}
+
+	if (-not [string]::IsNullOrWhiteSpace([string]$Script:CachedBaselineDefenderComponentUnavailableReason))
+	{
+		return [string]$Script:CachedBaselineDefenderComponentUnavailableReason
+	}
+
+	return 'Microsoft Defender components are not available on this system.'
 }
 
 <#
@@ -508,6 +684,30 @@ function Get-BaselineEntryExecutionSupport
 		return [pscustomobject]$result
 	}
 
+	$requiresPowerSchemeSetting = @{
+		IntelGraphicsPowerPlan = @{
+			SubgroupGuid = '44f3beca-a7c0-460e-9df2-bb8b99e0cba6'
+			SettingGuid  = '3619c3f2-afb2-4afc-b0e9-e7fef372de36'
+			Reason       = 'The Intel integrated graphics power setting is not available on this system.'
+		}
+		USBHubSelectiveSuspendTimeout = @{
+			SubgroupGuid = '2a737441-1930-4402-8d77-b2bebba308a3'
+			SettingGuid  = '0853a681-27c8-4100-a2fd-82013e970683'
+			Reason       = 'The USB hub selective suspend timeout power setting is not available on this system.'
+		}
+	}
+
+	if ($requiresPowerSchemeSetting.ContainsKey($functionName))
+	{
+		$settingRequirement = $requiresPowerSchemeSetting[$functionName]
+		if (-not (Test-BaselinePowerSchemeSettingAvailable -SubgroupGuid ([string]$settingRequirement.SubgroupGuid) -SettingGuid ([string]$settingRequirement.SettingGuid)))
+		{
+			$result.SupportsExecution = $false
+			$result.Reason = [string]$settingRequirement.Reason
+		}
+		return [pscustomobject]$result
+	}
+
 	$requiresAppxPackage = @{
 		TaskbarWidgets = @{
 			Name = 'MicrosoftWindows.Client.WebExperience'
@@ -539,22 +739,31 @@ function Get-BaselineEntryExecutionSupport
 		return [pscustomobject]$result
 	}
 
-	$defenderBackedFunctions = @(
-		'AppsSmartScreen'
+	$defenderComponentBackedFunctions = @(
 		'DefenderSandbox'
+	)
+	if ($functionName -in $defenderComponentBackedFunctions)
+	{
+		if (-not (Test-BaselineDefenderComponentAvailable))
+		{
+			$result.SupportsExecution = $false
+			$result.Reason = Get-BaselineDefenderComponentUnavailableReason
+		}
+		return [pscustomobject]$result
+	}
+
+	$defenderPreferenceBackedFunctions = @(
 		'DefenderScanCPULimit'
 		'DefenderSignatureUpdateInterval'
-		'DismissMSAccount'
-		'DismissSmartScreenFilter'
 		'NetworkProtection'
 		'PUAppsDetection'
 	)
-	if ($functionName -in $defenderBackedFunctions)
+	if ($functionName -in $defenderPreferenceBackedFunctions)
 	{
 		if (-not (Test-BaselineDefenderExecutionAvailable))
 		{
 			$result.SupportsExecution = $false
-			$result.Reason = 'Microsoft Defender is not available on this system.'
+			$result.Reason = Get-BaselineDefenderExecutionUnavailableReason
 		}
 		return [pscustomobject]$result
 	}
@@ -572,6 +781,8 @@ function Get-BaselineEntryExecutionSupport
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PlatformSupport.Helpers.Get-BaselineEntryExecutionSupport:catch776' -Severity Debug }
+
 			$adapters = @()
 		}
 
@@ -585,6 +796,35 @@ function Get-BaselineEntryExecutionSupport
 	}
 
 	return [pscustomobject]$result
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Test-BaselinePowerSchemeSettingAvailable
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[string]$SubgroupGuid,
+
+		[Parameter(Mandatory)]
+		[string]$SettingGuid
+	)
+
+	try
+	{
+		& powercfg /QUERY SCHEME_CURRENT $SubgroupGuid $SettingGuid 2>$null | Out-Null
+		return ($LASTEXITCODE -eq 0)
+	}
+	catch
+	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PlatformSupport.Helpers.Test-BaselinePowerSchemeSettingAvailable:catch813' -Severity Debug }
+
+		Remove-HandledErrorRecord -ErrorRecord $_
+		return $false
+	}
 }
 
 <#

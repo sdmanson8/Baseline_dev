@@ -216,6 +216,27 @@ Describe 'Bootstrap CLI intent wiring' {
         $systemStepIndex | Should -BeLessThan $initialActionsIndex
     }
 
+    It 'sets explicit log scopes for updater, bootstrap, and GUI phases' {
+        $script:BootstrapContent | Should -Match "Set-BaselineLogScope -Scope 'Bootstrap'"
+        $script:BootstrapContent | Should -Match "Set-BaselineLogScope -Scope 'Updater'"
+        $script:BootstrapContent | Should -Match "Set-BaselineLogScope -Scope 'GUI'"
+
+        $updaterScopeIndex = $script:BootstrapContent.IndexOf("Set-BaselineLogScope -Scope 'Updater'")
+        $autoUpdateIndex = $script:BootstrapContent.IndexOf('Invoke-BaselineAutoUpdate -Splash $Script:BootstrapSplash -CurrentVersion $Script:CurrentAppVersion')
+        $restoreBootstrapScopeIndex = $script:BootstrapContent.IndexOf("Set-BaselineLogScope -Scope 'Bootstrap'", $autoUpdateIndex)
+        $guiScopeIndex = $script:BootstrapContent.IndexOf("Set-BaselineLogScope -Scope 'GUI'")
+        $showGuiIndex = $script:BootstrapContent.IndexOf('Show-TweakGUI', $guiScopeIndex)
+
+        $updaterScopeIndex | Should -BeGreaterThan 0
+        $autoUpdateIndex | Should -BeGreaterThan 0
+        $restoreBootstrapScopeIndex | Should -BeGreaterThan 0
+        $guiScopeIndex | Should -BeGreaterThan 0
+        $showGuiIndex | Should -BeGreaterThan 0
+        $updaterScopeIndex | Should -BeLessThan $autoUpdateIndex
+        $autoUpdateIndex | Should -BeLessThan $restoreBootstrapScopeIndex
+        $guiScopeIndex | Should -BeLessThan $showGuiIndex
+    }
+
     It 'logs the bootstrap splash as shown only after the splash content rendered' {
         $script:BootstrapContent | Should -Match '\$Script:BootstrapSplash\.WasRendered'
         $script:BootstrapContent | Should -Match "Write-LaunchTrace 'Bootstrap splash shown'"

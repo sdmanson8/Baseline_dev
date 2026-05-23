@@ -329,6 +329,8 @@ function Set-SheenProgressBarTheme
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ProgressNavChrome.Set-SheenProgressBarTheme:catch330' -Severity Debug }
+
 		$null = $_
 	}
 }
@@ -591,10 +593,12 @@ function Set-GuiUpdatesMode
 	{
 		if ($control) { $control.Visibility = if ($Enable) { $collapsed } else { $visible } }
 	}
-	if ($Script:BtnPreviewRun) { $Script:BtnPreviewRun.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:BtnPreviewRun) { $Script:BtnPreviewRun.Visibility = $visible }
 	if ($Script:BtnDefaults) { $Script:BtnDefaults.Visibility = if ($Enable) { $collapsed } else { $visible } }
-	if ($Script:BtnRun) { $Script:BtnRun.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:BtnRun) { $Script:BtnRun.Visibility = $visible }
 	if ($Script:BtnApplyQueuedActions) { $Script:BtnApplyQueuedActions.Visibility = $collapsed }
+	if ($Script:BtnDeploymentMediaPreviewPlan) { $Script:BtnDeploymentMediaPreviewPlan.Visibility = $collapsed }
+	if ($Script:BtnDeploymentMediaStartBuild) { $Script:BtnDeploymentMediaStartBuild.Visibility = $collapsed }
 
 	if ($Enable)
 	{
@@ -633,6 +637,10 @@ function Set-GuiUpdatesMode
 		{
 			Sync-UxActionButtonText
 		}
+	}
+	if ($Script:UpdateGuiBackToTopButtonScript)
+	{
+		try { & $Script:UpdateGuiBackToTopButtonScript } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiUpdatesMode.UpdateBackToTopButton' }
 	}
 }
 
@@ -765,6 +773,8 @@ function Set-GuiDeploymentMediaMode
 	if ($Script:BtnDefaults) { $Script:BtnDefaults.Visibility = if ($Enable) { $collapsed } else { $visible } }
 	if ($Script:BtnRun) { $Script:BtnRun.Visibility = if ($Enable) { $collapsed } else { $visible } }
 	if ($Script:BtnApplyQueuedActions) { $Script:BtnApplyQueuedActions.Visibility = $collapsed }
+	if ($Script:BtnDeploymentMediaPreviewPlan) { $Script:BtnDeploymentMediaPreviewPlan.Visibility = if ($Enable) { $visible } else { $collapsed } }
+	if ($Script:BtnDeploymentMediaStartBuild) { $Script:BtnDeploymentMediaStartBuild.Visibility = if ($Enable) { $visible } else { $collapsed } }
 
 	if ($Enable)
 	{
@@ -807,6 +817,10 @@ function Set-GuiDeploymentMediaMode
 		{
 			Sync-UxActionButtonText
 		}
+	}
+	if ($Script:UpdateGuiBackToTopButtonScript)
+	{
+		try { & $Script:UpdateGuiBackToTopButtonScript } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiDeploymentMediaMode.UpdateBackToTopButton' }
 	}
 }
 
@@ -980,6 +994,8 @@ function Set-GuiAppsMode
 	if ($Script:BtnDefaults) { $Script:BtnDefaults.Visibility = if ($Enable) { $collapsed } else { $visible } }
 	if ($Script:BtnRun) { $Script:BtnRun.Visibility = if ($Enable) { $collapsed } else { $visible } }
 	if ($Script:BtnApplyQueuedActions) { $Script:BtnApplyQueuedActions.Visibility = if ($Enable) { $visible } else { $collapsed } }
+	if ($Script:BtnDeploymentMediaPreviewPlan) { $Script:BtnDeploymentMediaPreviewPlan.Visibility = $collapsed }
+	if ($Script:BtnDeploymentMediaStartBuild) { $Script:BtnDeploymentMediaStartBuild.Visibility = $collapsed }
 
 	if ($Enable)
 	{
@@ -1003,5 +1019,9 @@ function Set-GuiAppsMode
 		{
 			Sync-UxActionButtonText
 		}
+	}
+	if ($Script:UpdateGuiBackToTopButtonScript)
+	{
+		try { & $Script:UpdateGuiBackToTopButtonScript } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiAppsMode.UpdateBackToTopButton' }
 	}
 }

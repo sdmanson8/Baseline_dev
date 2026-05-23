@@ -3,9 +3,9 @@
     Configures shell and context menu icon settings.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies Baseline's shell and context menu icon settings in GUI and headless runs.
     .PARAMETER Enable
     Enable the Share context menu item (default value)
@@ -175,9 +175,9 @@ function SharingWizard
 	Controls the display of shortcut arrow overlay on icons
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for controls the display of shortcut arrow overlay on icons.
 	.PARAMETER Enable
 	Show shortcut arrow overlay on icons (default value)
@@ -262,9 +262,9 @@ function ShortcutArrow
 	The "- Shortcut" suffix adding to the name of the created shortcuts
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the "- Shortcut" suffix adding to the name of the created shortcuts.
 	.PARAMETER Disable
 	Do not add the "- Shortcut" suffix to the file name of created shortcuts
@@ -352,9 +352,9 @@ function ShortcutsSuffix
 	Windows snapping
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for windows snapping.
 	.PARAMETER Disable
 	When I snap a window, do not show what I can snap next to it
@@ -525,9 +525,9 @@ function SyncNotifications
 	The "This PC" icon on Desktop
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the "This PC" icon on Desktop.
 	.PARAMETER Show
 	Show the "This PC" icon on Desktop
@@ -613,9 +613,9 @@ function ThisPC
     Creation of thumbnail cache files
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for creation of thumbnail cache files.
     .PARAMETER Enable
     Enable creation of thumbnail cache files
@@ -697,9 +697,9 @@ function ThumbnailCache
     Show thumbnails instead of file extension icons
 
 
-    
+
 .DESCRIPTION
-    
+
 Shows thumbnails instead of file extension icons from Baseline's GUI flow.
     .PARAMETER Enable
     Show thumbnails for files
@@ -781,9 +781,9 @@ function Thumbnails
     Creation of Thumbs.db thumbnail cache files on network folders
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for creation of Thumbs.db thumbnail cache files on network folders.
     .PARAMETER Enable
     Enable creation of Thumbs.db cache on network folders
@@ -865,9 +865,9 @@ function ThumbsDBOnNetwork
 	The default Windows mode
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the default Windows mode.
 	.PARAMETER Dark
 	Set the default Windows mode to dark
@@ -949,9 +949,9 @@ function WindowsColorMode
 	The Meet Now icon in the notification area
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the Meet Now icon in the notification area.
 	.PARAMETER Hide
 	Hide the Meet Now icon in the notification area
@@ -1044,9 +1044,9 @@ function Set-UIPersonalizationMeetNowIcon
 	News and Interests
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for news and Interests.
 	.PARAMETER Disable
 	Disable "News and Interests" on the taskbar

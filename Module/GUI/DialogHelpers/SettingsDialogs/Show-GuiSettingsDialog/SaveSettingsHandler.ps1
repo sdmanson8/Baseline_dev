@@ -21,6 +21,11 @@ if ($btnSave)
 					RestoreLastSession = [bool]$chkRestoreLastSession.IsChecked
 					AutoScanOnLaunch = [bool]$chkAutoScanOnLaunch.IsChecked
 					HideUnavailableItems = if ($chkHideUnavailableItems) { [bool]$chkHideUnavailableItems.IsChecked } else { $true }
+					StartupRunInitialActions = if ($chkStartupRunInitialActions) { [bool]$chkStartupRunInitialActions.IsChecked } else { $true }
+					StartupCheckWinGet = if ($chkStartupCheckWinGet) { [bool]$chkStartupCheckWinGet.IsChecked } else { $true }
+					StartupWinGetCheckFrequency = [string](& $getTag $cmbStartupWinGetCheckFrequency 'Startup')
+					StartupCheckChocolatey = if ($chkStartupCheckChocolatey) { [bool]$chkStartupCheckChocolatey.IsChecked } else { $true }
+					StartupChocolateyCheckFrequency = [string](& $getTag $cmbStartupChocolateyCheckFrequency 'Startup')
 					AutoCheckUpdates = if ($chkAutoCheckUpdates) { [bool]$chkAutoCheckUpdates.IsChecked } else { $true }
 					UpdateCheckFrequency = [string](& $getTag $cmbUpdateFrequency 'Startup')
 					UpdateBranch = [string](& $getTag $cmbUpdateBranch $defaultUpdateBranch)
@@ -39,8 +44,15 @@ if ($btnSave)
 					LogLevel = [string](& $getTag $cmbLogLevel 'All')
 					LogFileDirectory = if ($chkAdvancedMode -and [bool]$chkAdvancedMode.IsChecked -and -not [string]::IsNullOrWhiteSpace([string]$settingsLogState.CustomDirectory)) { [string]$settingsLogState.CustomDirectory } else { '' }
 					AdvancedMode = [bool]$chkAdvancedMode.IsChecked
-					ExperimentalFeatures = [bool]$chkExperimentalFeatures.IsChecked
 					DesignMode = [bool]$chkDesignMode.IsChecked
+				}
+				try
+				{
+					LogDebug ('Settings dialog startup controls captured. RunInitialActions={0}; CheckWinGet={1}; WinGetFrequency="{2}"; CheckChocolatey={3}; ChocolateyFrequency="{4}"' -f [bool]$resultRef.Value.StartupRunInitialActions, [bool]$resultRef.Value.StartupCheckWinGet, [string]$resultRef.Value.StartupWinGetCheckFrequency, [bool]$resultRef.Value.StartupCheckChocolatey, [string]$resultRef.Value.StartupChocolateyCheckFrequency)
+				}
+				catch
+				{
+					Write-SwallowedException -ErrorRecord $_ -Source 'SettingsDialog.Save.StartupControls.LogDebug' -Severity Warning
 				}
 				$dlg.Close()
 			}.GetNewClosure())

@@ -1,4 +1,4 @@
-﻿# Pre-flight validation checks that run before execution begins.
+# Pre-flight validation checks that run before execution begins.
 # Catches system-level problems early instead of mid-run.
 
 <#
@@ -559,6 +559,8 @@ function Test-PreflightAdminElevation
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PreflightChecks.Test-PreflightAdminElevation:catch560' -Severity Debug }
+
         return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameAdmin' -Fallback 'Administrator') -Key 'AdminElevation' -Status 'Failed' -Message ((Get-UxLocalizedString -Key 'GuiPreflightAdminError' -Fallback 'Could not verify elevation: {0}') -f $_.Exception.Message) -Category 'Security')
     }
 }
@@ -584,6 +586,8 @@ function Test-PreflightDiskSpace
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PreflightChecks.Test-PreflightDiskSpace:catch585' -Severity Debug }
+
         return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameDisk' -Fallback 'Disk space') -Status 'Warning' -Message ((Get-UxLocalizedString -Key 'GuiPreflightDiskError' -Fallback 'Could not verify disk space: {0}') -f $_.Exception.Message) -Category 'Storage')
     }
 }
@@ -609,6 +613,8 @@ function Test-PreflightVSS
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PreflightChecks.Test-PreflightVSS:catch610' -Severity Debug }
+
         return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameVSS' -Fallback 'Volume Shadow Copy') -Status 'Failed' -Message ((Get-UxLocalizedString -Key 'GuiPreflightVSSError' -Fallback 'VSS service not found: {0}') -f $_.Exception.Message) -Category 'Services')
     }
 }
@@ -630,6 +636,8 @@ function Test-PreflightEventLog
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PreflightChecks.Test-PreflightEventLog:catch631' -Severity Debug }
+
         return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameEventLog' -Fallback 'EventLog service') -Status 'Warning' -Message ((Get-UxLocalizedString -Key 'GuiPreflightEventLogError' -Fallback 'Could not query EventLog service: {0}') -f $_.Exception.Message) -Category 'Services')
     }
 }
@@ -647,6 +655,8 @@ function Test-PreflightWMI
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PreflightChecks.Test-PreflightWMI:catch648' -Severity Debug }
+
         return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameWMI' -Fallback 'WMI health') -Status 'Failed' -Message ((Get-UxLocalizedString -Key 'GuiPreflightWMIFailed' -Fallback 'CIM/WMI query failed: {0}') -f $_.Exception.Message) -Category 'System')
     }
 }
@@ -683,6 +693,8 @@ function Test-PreflightSystemRestore
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PreflightChecks.Test-PreflightSystemRestore:catch684' -Severity Debug }
+
         return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameRestore' -Fallback 'System Restore') -Status 'Warning' -Message ((Get-UxLocalizedString -Key 'GuiPreflightRestoreError' -Fallback 'Could not verify System Protection: {0}') -f $_.Exception.Message) -Category 'System')
     }
 }
@@ -757,6 +769,8 @@ function Test-PreflightManagedPolicyEnvironment
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PreflightChecks.Test-PreflightManagedPolicyEnvironment:catch758' -Severity Debug }
+
         return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNamePolicies' -Fallback 'Managed endpoint policy') -Key 'ManagedPolicyEnvironment' -Status 'Warning' -Message ((Get-UxLocalizedString -Key 'GuiPreflightPoliciesError' -Fallback 'Could not evaluate policy environment: {0}') -f $_.Exception.Message) -Category 'Security')
     }
 }
@@ -795,6 +809,8 @@ function Test-PreflightPendingReboot
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PreflightChecks.Test-PreflightPendingReboot:catch796' -Severity Debug }
+
         return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNamePendingReboot' -Fallback 'Pending reboot') -Key 'PendingReboot' -Status 'Warning' -Message ((Get-UxLocalizedString -Key 'GuiPreflightPendingRebootError' -Fallback 'Could not evaluate reboot state: {0}') -f $_.Exception.Message) -Category 'System')
     }
 }
@@ -825,6 +841,8 @@ function Test-PreflightWinRMReachability
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PreflightChecks.Test-PreflightWinRMReachability:catch826' -Severity Debug }
+
         return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameWinRM' -Fallback 'WinRM reachability') -Key 'WinRMReachability' -Status 'Failed' -Message ((Get-UxLocalizedString -Key 'GuiPreflightWinRMQueryError' -Fallback 'Could not query WinRM service: {0}') -f $_.Exception.Message) -Category 'Services')
     }
 
@@ -840,6 +858,8 @@ function Test-PreflightWinRMReachability
         }
         catch
         {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PreflightChecks.Test-PreflightWinRMReachability:catch841' -Severity Debug }
+
             [void]$unreachable.Add(('{0}: {1}' -f $target, $_.Exception.Message))
         }
     }
@@ -883,6 +903,8 @@ function Test-PreflightRestorePointCreation
     }
     catch
     {
+	if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'PreflightChecks.Test-PreflightRestorePointCreation:catch884' -Severity Debug }
+
         return (New-PreflightCheckResult -Name (Get-UxLocalizedString -Key 'GuiPreflightNameRestorePoint' -Fallback 'Restore Point') -Status 'Warning' -Message ((Get-UxLocalizedString -Key 'GuiPreflightRestorePointError' -Fallback 'Restore point creation failed: {0}') -f $_.Exception.Message) -Category 'Recovery')
     }
 }

@@ -37,4 +37,23 @@ Describe 'Run warning dialog action hierarchy' {
         $script:ButtonHandlersContent | Should -Match "Get-GuiRuntimeCommand -Name 'Show-PlanSummaryDialog'"
         $script:ButtonHandlersContent | Should -Match '& \$showPlanSummaryDialogCommand -SelectedTweaks \$tweakList -PreflightResults \$planPreflightResults'
     }
+
+    It 'defers confirmed plan-summary runs until after the modal dialog unwinds' {
+        $planChoiceIndex = $script:ButtonHandlersContent.IndexOf('$planChoice = & $showPlanSummaryDialogCommand')
+        $deferredStartIndex = $script:ButtonHandlersContent.IndexOf('$runDispatcher.BeginInvoke([System.Action]$startConfirmedRun, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle)')
+        $fallbackStartIndex = $script:ButtonHandlersContent.LastIndexOf('& $startConfirmedRun')
+
+        $planChoiceIndex | Should -BeGreaterThan 0
+        $deferredStartIndex | Should -BeGreaterThan $planChoiceIndex
+        $fallbackStartIndex | Should -BeGreaterThan $deferredStartIndex
+    }
+
+    It 'lets deferred run button errors bubble to the WPF event error handler' {
+        $script:ButtonHandlersContent | Should -Not -Match "Invoke-GuiRuntimeFailureReport -Context 'BtnRun'"
+        $script:ButtonHandlersContent | Should -Not -Match '\$showGuiRuntimeFailureCommand'
+        $script:ButtonHandlersContent | Should -Not -Match '\$Script:ShowGuiRuntimeFailureScript -Context'
+        $script:ButtonHandlersContent | Should -Match '\$startConfirmedRunCommand = \$startGuiExecutionRunCommand'
+        $script:ButtonHandlersContent | Should -Match '\$startConfirmedTweakList = @\(\$tweakList\)'
+        $script:ButtonHandlersContent | Should -Match '\$runDispatcher\.BeginInvoke\(\[System\.Action\]\$startConfirmedRun'
+    }
 }

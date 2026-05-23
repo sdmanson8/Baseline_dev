@@ -6,9 +6,9 @@ using module ..\..\SharedHelpers.psm1
 	Configures File Explorer behavior settings.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies Baseline's File Explorer behavior settings in GUI and headless runs.
 	.PARAMETER Enable
 	Show confirmation dialog when deleting files
@@ -93,9 +93,9 @@ function FileDeleteConfirm
 	File operation progress details in File Explorer
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for file operation progress details in File Explorer.
 	.PARAMETER Enable
 	Show detailed file operation progress information
@@ -180,9 +180,9 @@ function FileOperationsDetails
 	Task Manager details view in Windows 10 and later
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for task Manager details view in Windows 10 and later.
 	.PARAMETER Enable
 	Always show full details view in Task Manager
@@ -281,9 +281,9 @@ function TaskManagerDetails
 	The Control Panel icons view
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the Control Panel icons view.
 	.PARAMETER Category
 	View the Control Panel icons by category (default value)
@@ -418,9 +418,9 @@ function ControlPanelView
 	Files and folders grouping in the Downloads folder
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for files and folders grouping in the Downloads folder.
 	.PARAMETER None
 	Do not group files and folder in the Downloads folder
@@ -464,8 +464,8 @@ function FolderGroupBy
 			LogInfo "Enabling grouping of files and folder in the Downloads folder"
 			# Clear any Common Dialog views
 			Get-ChildItem -Path "HKCU:\Software\Microsoft\Windows\Shell\Bags\*\Shell" -ErrorAction SilentlyContinue |
-    		Where-Object { $_.PSChildName -eq "{885A186E-A440-4ADA-812B-DB871B942259}" } |
-    		Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+		Where-Object { $_.PSChildName -eq "{885A186E-A440-4ADA-812B-DB871B942259}" } |
+		Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
 
 			# https://learn.microsoft.com/en-us/windows/win32/properties/props-system-null
 			if (-not (Test-Path -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\FolderTypes\{885a186e-a440-4ada-812b-db871b942259}\TopViews\{00000000-0000-0000-0000-000000000000}"))
@@ -688,9 +688,9 @@ function ExplorerTitleFullPath
 	File Explorer mode
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for file Explorer mode.
 	.PARAMETER Disable
 	Disable File Explorer compact mode (default value)
@@ -772,9 +772,9 @@ function FileExplorerCompactMode
 	File name extensions
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for file name extensions.
 	.PARAMETER Show
 	Show file name extensions
@@ -860,9 +860,9 @@ function FileExtensions
 	The file transfer dialog box mode
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the file transfer dialog box mode.
 	.PARAMETER Detailed
 	Show the file transfer dialog box in the detailed mode
@@ -949,9 +949,9 @@ function FileTransferDialog
 	First sign-in animation after the upgrade
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for first sign-in animation after the upgrade.
 	.PARAMETER Disable
 	Disable first sign-in animation after the upgrade
@@ -1037,9 +1037,9 @@ function FirstLogonAnimation
 	Folder merge conflicts
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for folder merge conflicts.
 	.PARAMETER Show
 	Show folder merge conflicts
@@ -1205,9 +1205,9 @@ function FldrSeparateProcess
 	Hidden files, folders, and drives
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for hidden files, folders, and drives.
 	.PARAMETER Enable
 	Show hidden files, folders, and drives
@@ -1289,9 +1289,9 @@ function HiddenItems
 	Item check boxes
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for item check boxes.
 	.PARAMETER Disable
 	Do not use item check boxes
@@ -1457,9 +1457,9 @@ function SelectCheckboxes
 	The quality factor of the JPEG desktop wallpapers
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the quality factor of the JPEG desktop wallpapers.
 	.PARAMETER Max
 	Set the quality factor of the JPEG desktop wallpapers to maximum
@@ -1712,9 +1712,9 @@ function NavPaneLibraries
 	Expand to current folder in navigation pane
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for expand to current folder in navigation pane.
 	.PARAMETER Disable
 	Do not expand to open folder on navigation pane (default value)
@@ -1796,9 +1796,9 @@ function NavigationPaneExpand
 	Sync provider notification in File Explorer
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for sync provider notification in File Explorer.
 	.PARAMETER Hide
 	Do not show sync provider notification within File Explorer
@@ -1880,9 +1880,9 @@ function OneDriveFileExplorerAd
 	Configure how to open File Explorer
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for configure how to open File Explorer.
 	.PARAMETER ThisPC
 	Open File Explorer to "This PC"
@@ -1996,9 +1996,9 @@ function OpenFileExplorerTo
 	Show or hide protected operating system files
 
 
-	
+
 .DESCRIPTION
-	
+
 Shows or hide protected operating system files from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show protected operating system files
@@ -2080,9 +2080,9 @@ function SuperHiddenFiles
 	Frequently used folders in Quick access
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for frequently used folders in Quick access.
 	.PARAMETER Hide
 	Hide frequently used folders in Quick access
@@ -2164,9 +2164,9 @@ function QuickAccessFrequentFolders
 	Recently used files in Quick access
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for recently used files in Quick access.
 	.PARAMETER Hide
 	Hide recently used files in Quick access
@@ -2344,9 +2344,9 @@ function RecentShortcuts
 	The recycle bin files delete confirmation dialog
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the recycle bin files delete confirmation dialog.
 	.PARAMETER Enable
 	Display the recycle bin files delete confirmation dialog
@@ -2521,9 +2521,9 @@ function RestoreFldrWindows
 	Startup delay for apps at login
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for startup delay for apps at login.
 	.PARAMETER Disable
 	Disable startup delay for apps at login
@@ -2603,9 +2603,9 @@ function Set-StartupAppDelay
 	Browse folders in same or new window
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for browse folders in same or new window.
 	.PARAMETER SameWindow
 	Browse folders in the same window
@@ -2687,9 +2687,9 @@ function Set-ExplorerBrowseMode
 	Click behavior for items in Explorer
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for click behavior for items in Explorer.
 	.PARAMETER SingleClick
 	Single-click to open items
@@ -2771,9 +2771,9 @@ function Set-ExplorerClickBehavior
 	Show Office files in Quick Access
 
 
-	
+
 .DESCRIPTION
-	
+
 Shows Office files in Quick Access from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show files from Office.com in Quick Access
@@ -2855,9 +2855,9 @@ function Set-OfficeCloudFilesInQuickAccess
 	Always show menu bar in Explorer
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for always show menu bar in Explorer.
 	.PARAMETER Enable
 	Always show menu bar in Explorer
@@ -2937,9 +2937,9 @@ function Set-ExplorerAlwaysShowMenuBar
 	Display file icon on thumbnails
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for display file icon on thumbnails.
 	.PARAMETER Enable
 	Display file icon on thumbnails
@@ -3021,9 +3021,9 @@ function Set-DisplayFileIconOnThumbnails
 	Display file size info in folder tooltips
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for display file size info in folder tooltips.
 	.PARAMETER Enable
 	Display file size info in folder tooltips
@@ -3105,9 +3105,9 @@ function Set-FolderTooltipDetails
 	Show drive letters before drive names
 
 
-	
+
 .DESCRIPTION
-	
+
 Shows drive letters before drive names from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show drive letters before drive names (e.g., "C: Local Disk")
@@ -3184,9 +3184,9 @@ function Set-ShowDriveLetters
 	Hide empty drives
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for hide empty drives.
 	.PARAMETER Enable
 	Hide drives with no media in Explorer
@@ -3266,9 +3266,9 @@ function Set-HideEmptyDrives
 	Show status bar in Explorer
 
 
-	
+
 .DESCRIPTION
-	
+
 Shows status bar in Explorer from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show status bar in Explorer
@@ -3348,9 +3348,9 @@ function Set-ExplorerStatusBar
 	Type-ahead behavior in Explorer list view
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for type-ahead behavior in Explorer list view.
 	.PARAMETER TypeAhead
 	Use type-ahead to search for items
@@ -3432,9 +3432,9 @@ function Set-ExplorerTypeAhead
 	Show 3D Objects folder in This PC
 
 
-	
+
 .DESCRIPTION
-	
+
 Shows 3D Objects folder in This PC from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show the 3D Objects folder in This PC
@@ -3519,9 +3519,9 @@ function Set-Show3DObjectsFolder
 	Show Home folder in navigation pane
 
 
-	
+
 .DESCRIPTION
-	
+
 Shows Home folder in navigation pane from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show Home folder in Explorer navigation pane
@@ -3606,9 +3606,9 @@ function Set-ShowHomeFolderInNavPane
 	Show Gallery in navigation pane
 
 
-	
+
 .DESCRIPTION
-	
+
 Shows Gallery in navigation pane from Baseline's GUI flow.
 	.PARAMETER Enable
 	Show Gallery folder in Explorer navigation pane

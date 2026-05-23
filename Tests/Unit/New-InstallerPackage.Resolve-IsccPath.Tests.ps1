@@ -84,13 +84,41 @@ Describe 'Get-InstallerBuildLayout' {
 }
 
 Describe 'Get-InstallerPayloadEntries' {
-    It 'does not include repository-only automation content in setup' {
+    It 'ships runtime diagnostics tooling without repository-only automation content' {
         $entries = Get-InstallerPayloadEntries
 
         $entries | Should -Contain 'README.md'
         $entries | Should -Contain 'LICENSE'
         $entries | Should -Contain 'CHANGELOG.md'
+        $entries | Should -Contain 'Tools'
+        $entries | Should -Contain 'Tests'
         $entries | Should -Not -Contain '.github'
+    }
+}
+
+Describe 'Assert-InstallerPayloadExcludesRepositoryMetadata' {
+    It 'accepts a curated installer payload root' {
+        $payloadRoot = Join-Path $TestDrive 'Payload'
+        New-Item -ItemType Directory -Path (Join-Path $payloadRoot 'Module') -Force | Out-Null
+
+        { Assert-InstallerPayloadExcludesRepositoryMetadata -SourceRoot $payloadRoot } | Should -Not -Throw
+    }
+
+    It 'rejects repository metadata directories in the installer payload root' {
+        $payloadRoot = Join-Path $TestDrive 'Payload'
+        New-Item -ItemType Directory -Path (Join-Path $payloadRoot '.github') -Force | Out-Null
+
+        { Assert-InstallerPayloadExcludesRepositoryMetadata -SourceRoot $payloadRoot } |
+            Should -Throw '*Installer payload includes repository metadata: .github*'
+    }
+}
+
+Describe 'Baseline-Setup.iss payload exclusions' {
+    It 'keeps repository metadata out of recursive file copy rules' {
+        $templatePath = Join-Path $script:RepoRoot 'dist/Baseline-Setup.iss'
+        $template = Get-Content -LiteralPath $templatePath -Raw
+
+        $template | Should -Match 'Excludes:\s+"\{#MyAppExeName\},\.git\\\*,\.github\\\*"'
     }
 }
 

@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
 #>
 function Set-GuiSettingsStoreUnavailable

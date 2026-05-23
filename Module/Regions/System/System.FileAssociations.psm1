@@ -75,9 +75,9 @@ function Set-Association
 	Export all Windows associations
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for export all Windows associations.
 	.EXAMPLE
 	Export-Associations
@@ -282,9 +282,9 @@ function Export-Associations
 	Import all Windows associations
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for import all Windows associations.
 	.EXAMPLE
 	Import-Associations
@@ -342,9 +342,9 @@ function Import-Associations
 	Change User folders location
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for change User folders location.
 	.PARAMETER Root
 	Change user folders location to the root of any drive using the interactive menu
@@ -403,9 +403,9 @@ function Set-UserShellFolderLocation
 		Change the location of the each user folder using SHSetKnownFolderPath function
 
 
-		
+
 .DESCRIPTION
-		
+
 Applies the Baseline behavior for change the location of the each user folder using SHSetKnownFolderPath function.
 		.EXAMPLE
 		Set-UserShellFolder -UserFolder Desktop -FolderPath "$env:SystemDrive:\Desktop"
@@ -430,9 +430,9 @@ Applies the Baseline behavior for change the location of the each user folder us
 	The location to save screenshots by pressing Win+PrtScr
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the location to save screenshots by pressing Win+PrtScr.
 	.PARAMETER Desktop
 	Save screenshots by pressing Win+PrtScr on the Desktop

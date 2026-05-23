@@ -107,7 +107,9 @@
 			$getTweakPlannedCmd = Get-Command -Name 'Get-TweakPlannedStateValue' -CommandType Function -ErrorAction SilentlyContinue
 			if ($getTweakPlannedCmd)
 			{
-				try { $plannedState = Get-TweakPlannedStateValue -RunListItem $tweak } catch { $plannedState = $null }
+				try { $plannedState = Get-TweakPlannedStateValue -RunListItem $tweak } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'DiffView.Build-TweakDiffData:catch110' -Severity Debug }
+				 $plannedState = $null }
 			}
 
 			switch ($tweakType)

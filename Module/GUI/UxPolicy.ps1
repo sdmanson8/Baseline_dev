@@ -357,7 +357,9 @@ function Get-UxMainWindowTitleText
 		}
 		elseif (Get-Command -Name 'Get-BaselineDisplayVersion' -ErrorAction SilentlyContinue)
 		{
-			try { [string](Get-BaselineDisplayVersion) } catch { $null }
+			try { [string](Get-BaselineDisplayVersion) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UxPolicy.Get-UxHelpDialogSubtitle:catch360' -Severity Debug }
+			 $null }
 		}
 		else
 		{
@@ -411,7 +413,7 @@ function Get-UxMainWindowTitleText
 			)
 			(Get-UxLocalizedString -Key 'GuiHelpExpertGameModeRiskSection' -Fallback 'Risk and Recovery') = @(
 				(Get-UxLocalizedString -Key 'GuiHelpExpertGameModeRiskMeta' -Fallback 'Risk, restart, direct-undo, and restore-point guidance come from the active plan metadata.')
-				(Get-UxLocalizedString -Key 'GuiHelpExpertGameModeRestoreDefaults' -Fallback 'Restore to Windows Defaults resets supported defaults. It is separate from direct undo and rollback export.')
+				(Get-UxLocalizedString -Key 'GuiHelpExpertGameModeRestoreDefaultsRecorded' -Fallback 'Restore Defaults resets supported recorded defaults. It is separate from direct undo and rollback export.')
 				(Get-UxLocalizedString -Key 'GuiHelpExpertGameModeRollbackExport' -Fallback 'Export Rollback Profile, when available after a run, includes only reversible-here undo commands.')
 			)
 			(Get-UxLocalizedString -Key 'GuiHelpExpertGameModeAdvancedSection' -Fallback 'Advanced Options') = @(
@@ -672,7 +674,7 @@ function Get-UxQuickStartSteps
 		{
 			return @(
 				(Get-UxLocalizedString -Key 'GuiUndoRestoreSafeUndo' -Fallback '{0} restores the last preset or imported selection change in the GUI.' -FormatArgs @((Get-UxUndoSelectionActionLabel)))
-				(Get-UxLocalizedString -Key 'GuiUndoRestoreSafeDefaults' -Fallback 'Restore to Windows Defaults restores supported tweaks to their Windows defaults.')
+				(Get-UxLocalizedString -Key 'GuiUndoRestoreSafeDefaultsRecorded' -Fallback 'Restore Defaults restores supported tweaks to recorded default values.')
 				(Get-UxLocalizedString -Key 'GuiUndoRestoreSafeRollback' -Fallback '{0}, when it appears after a run, saves reversible-here undo commands for supported changes.' -FormatArgs @((Get-UxUndoProfileActionLabel)))
 				(Get-UxLocalizedString -Key 'GuiUndoRestoreSafeManual' -Fallback 'Some destructive or one-way actions require manual recovery.')
 			)
@@ -680,7 +682,7 @@ function Get-UxQuickStartSteps
 
 		return @(
 			(Get-UxLocalizedString -Key 'GuiUndoRestoreStdSnapshot' -Fallback 'Restore Snapshot restores the last captured GUI state only. It does not execute tweaks.')
-			(Get-UxLocalizedString -Key 'GuiUndoRestoreStdDefaults' -Fallback 'Restore to Windows Defaults restores supported tweaks to their Windows defaults.')
+			(Get-UxLocalizedString -Key 'GuiUndoRestoreStdDefaultsRecorded' -Fallback 'Restore Defaults restores supported tweaks to recorded default values.')
 			(Get-UxLocalizedString -Key 'GuiUndoRestoreStdRollback' -Fallback 'Export Rollback Profile, when it appears after a run, saves reversible-here undo commands only.')
 			(Get-UxLocalizedString -Key 'GuiUndoRestoreStdManual' -Fallback 'Some destructive or one-way actions require manual recovery.')
 		)
@@ -1433,14 +1435,14 @@ function Get-UxQuickStartSteps
 
 	function Get-UxRestoreDefaultsConfirmation
 	{
-		$restoreTitle = Get-UxLocalizedString -Key 'GuiRestoreDefaultsTitle' -Fallback 'Restore to Windows Defaults'
+		$restoreTitle = Get-UxLocalizedString -Key 'GuiRestoreDefaultsTitleRecorded' -Fallback 'Restore Defaults'
 		$cancelLabel = Get-UxLocalizedString -Key 'GuiBtnCancel' -Fallback 'Cancel'
 		$restoreBtn = Get-UxLocalizedString -Key 'GuiRestoreDefaultsBtn' -Fallback 'Restore Defaults'
 		if (Test-IsSafeModeUX)
 		{
 			return [pscustomobject]@{
 				Title   = $restoreTitle
-				Message = (Get-UxLocalizedString -Key 'GuiRestoreDefaultsSafeMsg' -Fallback "This will undo supported tweaks and return them to their original Windows settings.`n`nSome changes (like removed apps or one-way security settings) require manual recovery.`n`nWould you like to continue?")
+				Message = (Get-UxLocalizedString -Key 'GuiRestoreDefaultsSafeMsgRecorded' -Fallback "This will undo supported tweaks and return them to recorded default values where supported.`n`nSome changes (like removed apps or one-way security settings) require manual recovery.`n`nWould you like to continue?")
 				Buttons = @($cancelLabel, $restoreBtn)
 				DestructiveButton = $restoreBtn
 			}
@@ -1449,14 +1451,14 @@ function Get-UxQuickStartSteps
 		{
 			return [pscustomobject]@{
 				Title   = $restoreTitle
-				Message = (Get-UxLocalizedString -Key 'GuiRestoreDefaultsExpertMsg' -Fallback "Reset tweaks to Windows default values where supported.`n`nOS Hardening, permanent removals, and manual recovery actions will be skipped.")
+				Message = (Get-UxLocalizedString -Key 'GuiRestoreDefaultsExpertMsgRecorded' -Fallback "Reset tweaks to recorded default values where supported.`n`nOS Hardening, permanent removals, and manual recovery actions will be skipped.")
 				Buttons = @($cancelLabel, $restoreBtn)
 				DestructiveButton = $restoreBtn
 			}
 		}
 		return [pscustomobject]@{
 			Title   = $restoreTitle
-			Message = (Get-UxLocalizedString -Key 'GuiRestoreDefaultsStdMsg' -Fallback "This will reset tweaks to their Windows default values where possible.`n`nNote: OS Hardening tweaks and other permanent changes cannot be reversed and will be skipped.`n`nAre you sure you want to continue?")
+			Message = (Get-UxLocalizedString -Key 'GuiRestoreDefaultsStdMsgRecorded' -Fallback "This will reset tweaks to recorded default values where supported.`n`nNote: OS Hardening tweaks and other permanent changes cannot be reversed and will be skipped.`n`nAre you sure you want to continue?")
 			Buttons = @($cancelLabel, $restoreBtn)
 			DestructiveButton = $restoreBtn
 		}
@@ -1695,7 +1697,7 @@ function Get-UxQuickStartSteps
 					(Get-UxLocalizedString -Key 'GuiHelpExpertRiskLow' -Fallback 'Low: safe QoL changes. Medium: behavioral/compatibility impact. High: hard to reverse.')
 					(Get-UxLocalizedString -Key 'GuiHelpExpertRiskRestart' -Fallback 'Restart required: needs reboot to take full effect.')
 				)
-				(Get-UxLocalizedString -Key 'GuiHelpExpertSectionRestoreDefaults' -Fallback 'Restore to Windows Defaults') = @(
+				(Get-UxLocalizedString -Key 'GuiHelpExpertSectionRestoreDefaultsRecorded' -Fallback 'Restore Defaults') = @(
 					(Get-UxLocalizedString -Key 'GuiHelpExpertRestoreResets' -Fallback 'Resets supported defaults. Manual recovery items and OS Hardening items are skipped.')
 					(Get-UxLocalizedString -Key 'GuiHelpExpertRestoreReversible' -Fallback 'Reversible here (post-run) is a separate recovery path.')
 				)
@@ -1747,11 +1749,11 @@ function Get-UxQuickStartSteps
 				(Get-UxLocalizedString -Key 'GuiHelpStdRiskHigh' -Fallback 'High Risk: may reduce compatibility, disable features, or be difficult to reverse.')
 				(Get-UxLocalizedString -Key 'GuiHelpStdRiskRestart' -Fallback 'Restart required badge: the tweak requires a system restart to take full effect.')
 			)
-			(Get-UxLocalizedString -Key 'GuiHelpStdSectionRestoreDefaults' -Fallback 'Restore to Windows Defaults') = @(
+			(Get-UxLocalizedString -Key 'GuiHelpStdSectionRestoreDefaultsRecorded' -Fallback 'Restore Defaults') = @(
 				(Get-UxLocalizedString -Key 'GuiHelpStdRestoreSupported' -Fallback 'Restores supported default values only.')
 				(Get-UxLocalizedString -Key 'GuiHelpStdRestoreNoGuarantee' -Fallback 'Does not guarantee that every previous change can be undone.')
 				(Get-UxLocalizedString -Key 'GuiHelpStdRestoreManual' -Fallback 'Some destructive or one-way actions require manual recovery.')
-				(Get-UxLocalizedString -Key 'GuiHelpStdRestoreReversible' -Fallback 'Reversible here, when available after a run, is a separate recovery path from restoring Windows defaults.')
+				(Get-UxLocalizedString -Key 'GuiHelpStdRestoreReversibleRecorded' -Fallback 'Reversible here, when available after a run, is a separate recovery path from restoring recorded default values.')
 			)
 			(Get-UxLocalizedString -Key 'GuiHelpSectionSafeMode' -Fallback 'Safe Mode') = @(
 				(Get-UxLocalizedString -Key 'GuiHelpStdSafeModeHides' -Fallback 'Safe Mode hides dangerous, hard-to-reverse, and removal-style tweaks.')
@@ -1772,7 +1774,7 @@ function Get-UxQuickStartSteps
 				(Get-UxLocalizedString -Key 'GuiHelpStdIEExport' -Fallback 'Export Settings saves the current GUI selection to a file.')
 				(Get-UxLocalizedString -Key 'GuiHelpStdIEImport' -Fallback 'Import Settings restores a saved selection into the GUI for review before execution.')
 				(Get-UxLocalizedString -Key 'GuiHelpStdIESnapshot' -Fallback 'Restore Snapshot restores the last captured GUI state only. It does not execute tweaks.')
-				(Get-UxLocalizedString -Key 'GuiHelpStdIERollback' -Fallback 'Export Rollback Profile, when offered after a run, saves reversible-here undo commands only and is separate from Restore Snapshot or restoring Windows defaults.')
+				(Get-UxLocalizedString -Key 'GuiHelpStdIERollbackRecorded' -Fallback 'Export Rollback Profile, when offered after a run, saves reversible-here undo commands only and is separate from Restore Snapshot or restoring recorded defaults.')
 			)
 			(Get-UxLocalizedString -Key 'GuiHelpSectionLogs' -Fallback 'Logs and Troubleshooting') = @(
 				(Get-UxLocalizedString -Key 'GuiHelpStdLogOpen' -Fallback 'Open Log opens the current session log for troubleshooting.')

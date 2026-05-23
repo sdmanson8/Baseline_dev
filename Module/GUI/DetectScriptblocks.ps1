@@ -1,4 +1,4 @@
-﻿#region Detect & Visibility Scriptblocks
+#region Detect & Visibility Scriptblocks
 # Detect scriptblocks keyed by Function name (cannot be stored in JSON).
 # Used by system-scan to determine current on/off state of a tweak.
 
@@ -33,7 +33,110 @@ function Get-GuiDetectMpPreference
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.Get-GuiDetectMpPreference:catch34' -Severity Debug }
+
 		return $null
+	}
+}
+
+function Get-GuiDetectWindowsOptionalFeatureState
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$FeatureName,
+
+		[int]$TimeoutSeconds = 8,
+
+		[string]$DismPath = $null
+	)
+
+	if ([string]::IsNullOrWhiteSpace($FeatureName))
+	{
+		return $null
+	}
+
+	if ($TimeoutSeconds -le 0)
+	{
+		$TimeoutSeconds = 8
+	}
+
+	if ([string]::IsNullOrWhiteSpace($DismPath))
+	{
+		$dismCandidates = @()
+		if (-not [string]::IsNullOrWhiteSpace([string]$env:SystemRoot))
+		{
+			if ([System.Environment]::Is64BitOperatingSystem -and -not [System.Environment]::Is64BitProcess)
+			{
+				$dismCandidates += (Join-Path $env:SystemRoot 'Sysnative\dism.exe')
+			}
+			$dismCandidates += (Join-Path $env:SystemRoot 'System32\dism.exe')
+		}
+
+		$DismPath = @($dismCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1)[0]
+		if ([string]::IsNullOrWhiteSpace($DismPath))
+		{
+			$DismPath = 'dism.exe'
+		}
+	}
+
+	$process = $null
+	try
+	{
+		$startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+		$startInfo.FileName = $DismPath
+		$startInfo.Arguments = '/Online /Get-FeatureInfo /FeatureName:{0} /English' -f $FeatureName
+		$startInfo.UseShellExecute = $false
+		$startInfo.CreateNoWindow = $true
+		$startInfo.RedirectStandardOutput = $true
+		$startInfo.RedirectStandardError = $true
+
+		$process = [System.Diagnostics.Process]::new()
+		$process.StartInfo = $startInfo
+		if (-not $process.Start())
+		{
+			return $null
+		}
+
+		if (-not $process.WaitForExit([Math]::Max(1, $TimeoutSeconds) * 1000))
+		{
+			try { $process.Kill() } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.Get-GuiDetectWindowsOptionalFeatureState:catch101' -Severity Debug }
+			 }
+			return $null
+		}
+
+		$output = $process.StandardOutput.ReadToEnd()
+		$null = $process.StandardError.ReadToEnd()
+		if ($process.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($output))
+		{
+			return $null
+		}
+
+		$stateMatch = [regex]::Match($output, '(?im)^\s*State\s*:\s*(?<State>[^\r\n]+?)\s*$')
+		if (-not $stateMatch.Success)
+		{
+			return $null
+		}
+
+		return [string]$stateMatch.Groups['State'].Value.Trim()
+	}
+	catch
+	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Write-SwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.WindowsOptionalFeatureState'
+		}
+		return $null
+	}
+	finally
+	{
+		if ($process)
+		{
+			try { $process.Dispose() } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'DetectScriptblocks.Get-GuiDetectWindowsOptionalFeatureState:catch132' -Severity Debug }
+			 }
+		}
 	}
 }
 
@@ -382,7 +485,7 @@ $Script:DetectScriptblocks = @{
 	'AppsSmartScreen' = { (Get-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name EnableSmartScreen -EA SilentlyContinue).EnableSmartScreen -ne 0 }
 	'SaveZoneInformation' = { (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\Attachments" -Name SaveZoneInformation -EA SilentlyContinue).SaveZoneInformation -ne 2 }
 	'WindowsScriptHost' = { (Get-ItemProperty "HKCU:\Software\Microsoft\Windows Script Host\Settings" -Name Enabled -EA SilentlyContinue).Enabled -ne 0 }
-	'WindowsSandbox' = { (Get-WindowsOptionalFeature -Online -FeatureName Containers-DisposableClientVM -EA SilentlyContinue).State -eq "Enabled" }
+	'WindowsSandbox' = { (Get-GuiDetectWindowsOptionalFeatureState -FeatureName 'Containers-DisposableClientVM') -eq 'Enabled' }
 	'LocalSecurityAuthority' = { (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa" -Name RunAsPPL -EA SilentlyContinue).RunAsPPL -ge 1 }
 	'SharingMappedDrives' = { (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name EnableLinkedConnections -EA SilentlyContinue).EnableLinkedConnections -eq 1 }
 	'Firewall' = { (Get-NetFirewallProfile -EA SilentlyContinue | Where-Object Enabled -eq True | Select-Object -First 1) -ne $null }

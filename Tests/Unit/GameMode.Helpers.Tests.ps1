@@ -6,7 +6,7 @@ BeforeAll {
     # ParseFile only parses (no execution) and we only evaluate FunctionDefinitionAst
     # nodes, which merely define functions without side effects.
 
-    # Json helpers must load first — GameMode.Helpers calls ConvertFrom-BaselineJson.
+    # Json helpers must load first - GameMode.Helpers calls ConvertFrom-BaselineJson.
     . (Join-Path $PSScriptRoot '../../Module/SharedHelpers/Json.Helpers.ps1')
 
     $Script:SharedHelpersModuleRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../Module')).Path

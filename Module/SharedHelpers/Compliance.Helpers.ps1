@@ -386,6 +386,8 @@ function Add-WindowsUpdateComplianceReportSection
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Compliance.Helpers.Add-WindowsUpdateComplianceReportSection:catch387' -Severity Debug }
+
 		$windowsUpdateCompliance = [pscustomobject]@{
 			Schema      = 'Baseline.WindowsUpdateCompliance'
 			GeneratedAt = [System.DateTime]::UtcNow.ToString('o')

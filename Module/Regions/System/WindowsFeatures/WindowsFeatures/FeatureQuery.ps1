@@ -12,6 +12,8 @@ try
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\Regions\System\WindowsFeatures\WindowsFeatures\FeatureQuery.ps1:13' -Severity Debug }
+
 		Remove-HandledErrorRecord -ErrorRecord $_
 		$Features = $null
 	}

@@ -8,9 +8,9 @@ using module ..\SharedHelpers.psm1
 	Most used apps in Start
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for most used apps in Start.
 	.PARAMETER Hide
 	Hide most used Apps in Start (default value)
@@ -110,9 +110,9 @@ function MostUsedStartApps
 	Recently added apps on Start
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for recently added apps on Start.
 	.PARAMETER Hide
 	Hide recently added apps on Start
@@ -206,9 +206,9 @@ function RecentlyAddedStartApps
 	All section with categories in Start
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for all section with categories in Start.
 	.PARAMETER Hide
 	Remove the All section with categories in Start
@@ -318,9 +318,9 @@ function StartMenuAllSectionCategories
 	Most used apps list in Start Menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for most used apps list in Start Menu.
 	.PARAMETER Enable
 	Show most used apps list in Start Menu
@@ -399,9 +399,9 @@ function MostUsedApps
 	Recently added apps list in Start Menu
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for recently added apps list in Start Menu.
 	.PARAMETER Enable
 	Show recently added apps list in Start Menu

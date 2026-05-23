@@ -36,6 +36,8 @@ namespace Baseline.RunLauncher
         private const string RuntimeCacheSchema = "4";
         private const string RuntimeCacheFolderName = "RC";
         private const string StagingSuffix = ".s";
+        private const string LauncherGuiInstanceMutexPrefix = @"Local\Baseline-GuiInstance-";
+        private const string ConsoleGuiArgumentName = "ConsoleGui";
         private static readonly byte[] Utf8Bom = new byte[] { 0xEF, 0xBB, 0xBF };
         private const int DefaultPowerShellTimeoutSeconds = 1800;
         private const string PowerShellTimeoutSecondsVar = "BASELINE_POWERSHELL_TIMEOUT_SECONDS";
@@ -76,6 +78,7 @@ namespace Baseline.RunLauncher
             "OutputFormat",
             "Apply",
             "NoGui",
+            "ConsoleGui",
             "Design",
             "ListPresets",
             "ApplyPreset",
@@ -99,6 +102,7 @@ namespace Baseline.RunLauncher
             "ReadOnly",
             "Apply",
             "NoGui",
+            "ConsoleGui",
             "Design",
             "ListPresets",
             "LifecycleExecute"
@@ -134,6 +138,7 @@ namespace Baseline.RunLauncher
         private static extern int NativeMsgBox(IntPtr hWnd, string text, string caption, uint type);
         private const uint MB_OK = 0x00000000;
         private const uint MB_ICONERROR = 0x00000010;
+        private const uint MB_ICONWARNING = 0x00000030;
 
         /// <summary>
         /// Internal launcher entrypoint for Baseline.
@@ -143,8 +148,20 @@ namespace Baseline.RunLauncher
         [STAThread]
         private static int Main(string[] args)
         {
+            Mutex launcherGuiInstanceMutex = null;
             try
             {
+                var normalizedArgs = NormalizePowerShellArguments(args);
+                if (RequiresLauncherGuiInstanceLock(normalizedArgs) && !TryAcquireLauncherGuiInstance(out launcherGuiInstanceMutex))
+                {
+                    NativeMsgBox(
+                        IntPtr.Zero,
+                        "Baseline is already running for this Windows user.\n\nClose the existing Baseline window before starting another one.",
+                        "Baseline",
+                        MB_OK | MB_ICONWARNING);
+                    return 0;
+                }
+
                 // Verify Windows PowerShell 5.1 (System.Management.Automation) is
                 // reachable before doing anything else.  The launcher loads the
                 // assembly from the GAC_MSIL path so the architecture stays neutral.
@@ -189,6 +206,129 @@ namespace Baseline.RunLauncher
                 NativeMsgBox(IntPtr.Zero, $"Failed to bootstrap Baseline:\n{ex.Message}", "Baseline", MB_OK | MB_ICONERROR);
                 return 1;
             }
+            finally
+            {
+                ReleaseLauncherGuiInstance(launcherGuiInstanceMutex);
+            }
+        }
+
+        /// <summary>
+        /// Acquires the process-lifetime mutex used by the native launcher to
+        /// reject duplicate WPF GUI instances before runtime hydration starts.
+        /// </summary>
+        /// <param name="mutex">The acquired mutex, which must be held until process exit.</param>
+        /// <returns>True when the current process owns the GUI-instance mutex.</returns>
+        private static bool TryAcquireLauncherGuiInstance(out Mutex mutex)
+        {
+            mutex = null;
+            var mutexName = GetLauncherGuiInstanceMutexName();
+            bool createdNew;
+            Mutex candidate = null;
+            try
+            {
+                candidate = new Mutex(true, mutexName, out createdNew);
+                if (createdNew)
+                {
+                    mutex = candidate;
+                    return true;
+                }
+
+                try
+                {
+                    if (candidate.WaitOne(0))
+                    {
+                        mutex = candidate;
+                        return true;
+                    }
+                }
+                catch (AbandonedMutexException)
+                {
+                    mutex = candidate;
+                    return true;
+                }
+
+                candidate.Dispose();
+                return false;
+            }
+            catch
+            {
+                if (candidate != null)
+                {
+                    candidate.Dispose();
+                }
+
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Releases a launcher GUI-instance mutex acquired by the current thread.
+        /// </summary>
+        /// <param name="mutex">The mutex to release and dispose.</param>
+        private static void ReleaseLauncherGuiInstance(Mutex mutex)
+        {
+            if (mutex == null)
+            {
+                return;
+            }
+
+            try
+            {
+                mutex.ReleaseMutex();
+            }
+            catch (ApplicationException)
+            {
+                // The current thread no longer owns the mutex.
+            }
+            finally
+            {
+                mutex.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Builds the per-user mutex name for the launcher-level GUI lock.
+        /// </summary>
+        /// <returns>The named mutex used to identify the current user's GUI instance.</returns>
+        private static string GetLauncherGuiInstanceMutexName()
+        {
+            return LauncherGuiInstanceMutexPrefix + GetMutexSafeUserName(Environment.UserName);
+        }
+
+        /// <summary>
+        /// Normalizes the user name portion of a kernel object name.
+        /// </summary>
+        /// <param name="userName">The raw Windows user name.</param>
+        /// <returns>A lowercase user token containing only mutex-safe characters.</returns>
+        private static string GetMutexSafeUserName(string userName)
+        {
+            var normalized = (userName ?? string.Empty).ToLowerInvariant();
+            var builder = new StringBuilder(normalized.Length);
+            var hasAlphaNumeric = false;
+            foreach (var ch in normalized)
+            {
+                if ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9'))
+                {
+                    builder.Append(ch);
+                    hasAlphaNumeric = true;
+                    continue;
+                }
+
+                if (ch == '.' || ch == '_' || ch == '-')
+                {
+                    builder.Append(ch);
+                    continue;
+                }
+
+                builder.Append('_');
+            }
+
+            if (builder.Length == 0 || !hasAlphaNumeric)
+            {
+                return "unknown";
+            }
+
+            return builder.ToString();
         }
 
         // ── Runtime hydration ─────────────────────────────────────────────────────
@@ -1242,33 +1382,68 @@ namespace Baseline.RunLauncher
         }
 
         /// <summary>
+        /// Determines whether the native launcher must hold the WPF GUI
+        /// single-instance lock for this invocation.
+        /// </summary>
+        /// <param name="normalizedArgs">The normalized command-line arguments passed to the PowerShell workflow.</param>
+        /// <returns>True when the invocation can open the WPF GUI.</returns>
+        private static bool RequiresLauncherGuiInstanceLock(string[] normalizedArgs)
+        {
+            if (normalizedArgs == null || normalizedArgs.Length == 0)
+            {
+                return true;
+            }
+
+            return !normalizedArgs.Any(IsNonWpfPowerShellArgument);
+        }
+
+        /// <summary>
+        /// Determines whether an argument selects a path that bypasses the WPF GUI.
+        /// </summary>
+        /// <param name="argument">The normalized argument text.</param>
+        /// <returns>True when the argument selects headless automation or the console menu.</returns>
+        private static bool IsNonWpfPowerShellArgument(string argument)
+        {
+            return IsHeadlessPowerShellArgument(argument) || IsEnabledPowerShellSwitchArgument(argument, ConsoleGuiArgumentName);
+        }
+
+        /// <summary>
         /// Determines whether an argument selects a headless workflow.
         /// </summary>
         /// <param name="argument">The normalized argument text.</param>
         /// <returns>True when the argument is a known headless entry-point parameter.</returns>
         private static bool IsHeadlessPowerShellArgument(string argument)
         {
-            if (string.IsNullOrWhiteSpace(argument))
+            if (!TryGetPowerShellParameterName(argument, out var parameterName))
             {
                 return false;
             }
 
-            var text = argument.TrimStart();
-            if (!text.StartsWith("-", StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            text = text.TrimStart('-');
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                return false;
-            }
-
-            var separatorIndex = text.IndexOfAny(new[] { ':', '=' });
-            var parameterName = separatorIndex >= 0 ? text.Substring(0, separatorIndex) : text;
             return HeadlessPowerShellArguments.Any(
                 name => string.Equals(name, parameterName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Determines whether an argument enables a specific PowerShell switch.
+        /// </summary>
+        /// <param name="argument">The normalized argument text.</param>
+        /// <param name="expectedName">The parameter name to match.</param>
+        /// <returns>True when the argument enables the requested switch.</returns>
+        private static bool IsEnabledPowerShellSwitchArgument(string argument, string expectedName)
+        {
+            if (string.IsNullOrWhiteSpace(expectedName))
+            {
+                return false;
+            }
+
+            if (!TryGetPowerShellParameterName(argument, out var parameterName) ||
+                !string.Equals(parameterName, expectedName, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return !TrySplitPowerShellParameterAssignment(argument, out _, out var parameterValue) ||
+                ParseSwitchValue(parameterValue);
         }
     }
 }

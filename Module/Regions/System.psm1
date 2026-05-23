@@ -119,9 +119,9 @@ function AdvancedStartupShortcut {
 	Automatic installing suggested apps
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for automatic installing suggested apps.
 	.PARAMETER Disable
 	Turn off automatic installing suggested apps
@@ -201,9 +201,9 @@ function AppsSilentInstalling
 	The User Account Control (UAC) behavior
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the User Account Control (UAC) behavior.
 	.PARAMETER PromptForCredentials
 	Prompt for credentials on the secure desktop
@@ -356,9 +356,9 @@ function AdminApprovalMode
 	AutoPlay for all media and devices
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for autoPlay for all media and devices.
 	.PARAMETER Disable
 	Don't use AutoPlay for all media and devices
@@ -423,9 +423,9 @@ function Autoplay
 	Stop error code when BSoD occurs
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for stop error code when BSoD occurs.
 	.PARAMETER Enable
 	Display Stop error code when BSoD occurs
@@ -501,9 +501,9 @@ function BSoDStopError
 	Caps Lock
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for caps Lock.
 	.PARAMETER Disable
 	Disable Caps Lock
@@ -566,9 +566,9 @@ function CapsLock
 	Override for default input method
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for override for default input method.
 	.PARAMETER English
 	Override for default input method: English
@@ -628,9 +628,9 @@ function InputMethod
 	Default terminal app
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for default terminal app.
 	.PARAMETER WindowsTerminal
 	Set Windows Terminal as default terminal app to host the user interface for command-line applications
@@ -716,9 +716,9 @@ function DefaultTerminalApp
 	Help look up via F1
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for help look up via F1.
 	.PARAMETER Disable
 	Disable help lookup via F1
@@ -782,9 +782,9 @@ function F1HelpPage
 	Use the latest installed .NET runtime for all apps usage
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for use the latest installed .NET runtime for all apps usage.
 	.PARAMETER Enable
 	Use the latest installed .NET runtime for all apps
@@ -875,9 +875,9 @@ function LatestInstalled.NET
 	How do you want to open this file prompt in Windows
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for how do you want to open this file prompt in Windows.
 	.PARAMETER Enable
 	Show How do you want to open this file prompt
@@ -956,9 +956,9 @@ function NewAppPrompt
 	Num Lock at startup
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for num Lock at startup.
 	.PARAMETER Enable
 	Enable Num Lock at startup
@@ -1018,9 +1018,9 @@ function NumLock
 	Desktop shortcut creation upon Microsoft Edge update
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for desktop shortcut creation upon Microsoft Edge update.
 	.PARAMETER Channels
 	List Microsoft Edge channels to prevent desktop shortcut creation upon its update
@@ -1145,9 +1145,9 @@ function PreventEdgeShortcutCreation
 	Quality of Service (QoS) packet scheduler configuration on all network interfaces
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for quality of Service (QoS) packet scheduler configuration on all network interfaces.
 	.PARAMETER Enable
 	Enable QoS packet scheduler on all installed network interfaces (default value)
@@ -1207,9 +1207,9 @@ function QoS
 	Back up the system registry to %SystemRoot%\System32\config\RegBack folder when PC restarts and create a RegIdleBackup in the Task Scheduler task to manage subsequent backups
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for back up the system registry to %SystemRoot%\System32\config\RegBack folder when PC restarts and create a RegIdleBackup in the Task Scheduler task to manage subsequent backups.
 	.PARAMETER Enable
 	Back up the system registry to %SystemRoot%\System32\config\RegBack folder
@@ -1344,9 +1344,9 @@ function StickyShift
 	Storage Sense
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for storage Sense.
 	.PARAMETER Enable
 	Turn on Storage Sense
@@ -1435,9 +1435,9 @@ function StorageSense
 	Verbose startup and shutdown status messages
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for verbose startup and shutdown status messages.
 	.PARAMETER Enable
 	Show detailed status messages during startup and shutdown
@@ -1539,9 +1539,9 @@ function VerboseStatus
 	The Windows 260 character path limit
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the Windows 260 character path limit.
 	.PARAMETER Disable
 	Disable the Windows 260 character path limit

@@ -165,6 +165,7 @@ Describe 'ServicesManual' {
     BeforeEach {
         $script:consoleStatuses = [System.Collections.Generic.List[string]]::new()
         $script:warningMessages = [System.Collections.Generic.List[string]]::new()
+        $script:infoMessages = [System.Collections.Generic.List[string]]::new()
         $script:errorMessages = [System.Collections.Generic.List[string]]::new()
         $script:setServiceCalls = [System.Collections.Generic.List[object]]::new()
         $script:missingService = $null
@@ -173,7 +174,7 @@ Describe 'ServicesManual' {
             param([string]$Action, [string]$Status)
             if (-not [string]::IsNullOrWhiteSpace($Status)) { [void]$script:consoleStatuses.Add($Status) }
         }
-        function LogInfo { param([string]$Message) }
+        function LogInfo { param([string]$Message) [void]$script:infoMessages.Add($Message) }
         function LogWarning { param([string]$Message) [void]$script:warningMessages.Add($Message) }
         function LogError { param([string]$Message) [void]$script:errorMessages.Add($Message) }
         function Get-Service {
@@ -231,12 +232,13 @@ Describe 'ServicesManual' {
         ($script:setServiceCalls | Where-Object { $_.Name -eq 'DiagTrack' }).StartupType | Should -Be 'Automatic'
     }
 
-    It 'logs a warning and continues when a service is not found' {
+    It 'logs missing services as unavailable and continues' {
         $script:missingService = 'DiagTrack'
 
         ServicesManual -Enable
 
-        ($script:warningMessages | Where-Object { $_ -match 'DiagTrack' }).Count | Should -BeGreaterOrEqual 1
+        ($script:infoMessages | Where-Object { $_ -match 'DiagTrack' }).Count | Should -BeGreaterOrEqual 1
+        ($script:warningMessages | Where-Object { $_ -match 'DiagTrack' }).Count | Should -Be 0
         $script:consoleStatuses[-1] | Should -Be 'success'
     }
 }

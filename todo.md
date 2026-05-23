@@ -130,3 +130,40 @@ Progress_WinGet_StartingInstallationSelected
 Progress_WinGet_StartingUninstallation
 Progress_WinGet_StartingUninstallationSelected
 Progress_WinGet_Updating
+
+# TODO: Global Backup Mode
+
+Implement a generic Baseline backup mode instead of treating AIRemoval's `-backupMode` as a universal function parameter.
+
+- Add a GUI/settings toggle such as `BackupBeforeRun`.
+- Before each selected tweak executes, snapshot declared affected state using structured metadata or backup-aware helpers.
+- Store backups by run id, tweak id, action, and timestamp under `%LOCALAPPDATA%\Baseline\Backups\Runs\...`.
+- For registry tweaks, capture prior value existence, type, and data before write or delete operations.
+- For services, scheduled tasks, packages, optional features, files, appx state, and policies, use domain-specific backup records with restore metadata.
+- Keep existing richer per-feature backup logic where it already exists.
+- Pass AIRemoval's `-backupMode` only for Copilot/Windows AI removal when the global setting is enabled.
+- Teach the rollback/restore UI to restore from these structured backup records.
+
+Do not blindly pass `-backupMode` to every manifest function. Most region functions do not accept that parameter, and some tweaks are not registry-only.
+
+# TODO: OS-Specific Default Values
+
+Stop treating one static manifest `WinDefault` value as a true Windows default for every supported platform.
+
+- Add explicit platform/version default metadata for Windows 10, Windows 11, Server 2019, Server 2022, and Server 2025 where a restore target is claimed to be a Microsoft/OEM default.
+- Include build, edition, SKU, and policy caveats when a setting is not universal.
+- Prefer a resolver such as `WinDefaultByPlatform`/`WinDefaultByBuild` over a single global `WinDefault`.
+- Keep current static values labeled as recorded/default restore targets unless and until they are audited.
+- Make restore eligibility depend on a verified platform-specific default when the UI claims “Windows default.”
+- Add validation that rejects new “Windows default” wording unless the manifest entry has verified platform-specific default metadata.
+
+# TODO: Vendor/Baseline Parity Follow-ups
+
+Audit and fix the Baseline behavior deltas found in the Sophia/Baseline parity review.
+
+- `AdvertisingID`: clear `SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo` via `Set-Policy`, not `SOFTWARE\Policies\Microsoft\Windows\DataCollection`.
+- `RecommendedTroubleshooting`: clear HKLM/HKCU Windows Error Reporting policy keys before reporting WER as enabled for troubleshooting.
+- `FolderGroupBy`: clear Shell Bags under `HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\Shell\Bags\*\Shell`.
+- `OneDrive -Uninstall`: block uninstall when any signed-in OneDrive account exists; enumerate `HKCU:\Software\Microsoft\OneDrive\Accounts\*` and check `UserEmail`.
+- `NetworkAdaptersSavePower`: do not restore Sophia's location-permission writes blindly; handle Wi-Fi reconnect as a faithful operation and report failure when Windows denies WLAN access.
+- Review runtime fallback/heuristic paths in `Module/SharedHelpers/Taskbar.Helpers.ps1` and `Module/Regions/SystemTweaks/SystemTweaks.General.psm1`; remove them, replace them with faithful general algorithms, or explicitly document approved product behavior.

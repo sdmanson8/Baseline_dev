@@ -1,4 +1,4 @@
-﻿$Script:StartupOrchestratorRan = $false
+$Script:StartupOrchestratorRan = $false
 
 # Four-phase startup orchestrator.
 # Phase 1 runs synchronously before the GUI builds rows (so NEW badges
@@ -82,6 +82,8 @@ function Invoke-FirstLaunchConfigBackup
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'StartupOrchestrator.Invoke-FirstLaunchConfigBackup:catch83' -Severity Debug }
+
 				$snapshot[$functionName] = $null
 			}
 		}
@@ -162,7 +164,6 @@ function Invoke-BaselineIntegrityCheck
 		$raw = [System.IO.File]::ReadAllText($manifestPath, [System.Text.Encoding]::UTF8)
 		$manifest = ConvertFrom-Json -InputObject $raw -ErrorAction Stop
 		if (-not $manifest -or -not $manifest.files) { return -1 }
-		$algorithm = if ($manifest.algorithm) { [string]$manifest.algorithm } else { 'sha256' }
 		foreach ($prop in $manifest.files.PSObject.Properties)
 		{
 			$relPath = [string]$prop.Name
@@ -176,7 +177,7 @@ function Invoke-BaselineIntegrityCheck
 			}
 			try
 			{
-				$actual = (Get-FileHash -LiteralPath $fullPath -Algorithm $algorithm -ErrorAction Stop).Hash
+				$actual = Get-BaselineFileSha256 -Path $fullPath
 				if ([string]::Equals($actual, $expected, [StringComparison]::OrdinalIgnoreCase)) { continue }
 				# integrity.manifest.json is regenerated on each build but the
 				# user's edited file in the repo can drift from it. Skip the

@@ -1,4 +1,4 @@
-﻿using module ..\..\Logging.psm1
+using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
 <#
@@ -6,9 +6,9 @@ using module ..\..\SharedHelpers.psm1
 	Configures disk cleanup and Windows update cleanup.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies Baseline's disk cleanup and Windows update cleanup in GUI and headless runs.
 .EXAMPLE
 DiskCleanup
@@ -91,6 +91,8 @@ function Invoke-CleanupOperation
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SystemTweaks.Cleanup.Invoke-CleanupOperation:catch92' -Severity Debug }
+
 				$downloads = Join-Path $HOME "Downloads"
 			}
 

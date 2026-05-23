@@ -71,6 +71,49 @@ BeforeAll {
         }
     }
 
+    function New-FakeWindowsUpdateProgressJob
+    {
+        param (
+            [int[]]$Percentages
+        )
+
+        if (-not $Percentages -or $Percentages.Count -eq 0)
+        {
+            $Percentages = @(100)
+        }
+
+        $job = [pscustomobject]@{
+            Percentages   = [int[]]$Percentages
+            ProgressIndex = 0
+            CleanedUp     = $false
+        }
+        $job | Add-Member -MemberType ScriptProperty -Name IsCompleted -Value {
+            return ([int]$this.ProgressIndex -ge ([int]$this.Percentages.Count - 1))
+        } -Force
+        $job | Add-Member -MemberType ScriptMethod -Name GetProgress -Value {
+            $index = [Math]::Min([int]$this.ProgressIndex, ([int]$this.Percentages.Count - 1))
+            $percent = [int]$this.Percentages[$index]
+            if ([int]$this.ProgressIndex -lt ([int]$this.Percentages.Count - 1))
+            {
+                $this.ProgressIndex = [int]$this.ProgressIndex + 1
+            }
+
+            return [pscustomobject]@{
+                PercentComplete              = $percent
+                CurrentUpdateIndex           = 0
+                CurrentUpdatePercentComplete = $percent
+                CurrentUpdateBytesDownloaded = 0
+                CurrentUpdateBytesToDownload = 0
+                TotalBytesDownloaded         = 0
+                TotalBytesToDownload         = 0
+            }
+        } -Force
+        $job | Add-Member -MemberType ScriptMethod -Name CleanUp -Value {
+            $this.CleanedUp = $true
+        } -Force
+        return $job
+    }
+
     function New-FakeWindowsUpdateSessionFixture
     {
         param (
@@ -78,7 +121,10 @@ BeforeAll {
             [object[]]$History = @(),
             [int]$DownloadResultCode = 2,
             [int]$InstallResultCode = 2,
-            [bool]$InstallRebootRequired = $false
+            [bool]$InstallRebootRequired = $false,
+            [bool]$SystemInfoRebootRequired = $false,
+            [int[]]$DownloadProgressPercentages = @(0, 100),
+            [int[]]$InstallProgressPercentages = @(0, 100)
         )
 
         $searcher = [pscustomobject]@{
@@ -105,21 +151,59 @@ BeforeAll {
         } -Force
 
         $downloader = [pscustomobject]@{
-            Updates    = $null
-            ResultCode = $DownloadResultCode
+            Updates                = $null
+            ResultCode             = $DownloadResultCode
+            ProgressPercentages    = [int[]]$DownloadProgressPercentages
+            AsyncJob               = $null
+            BeginProgressCallback  = $null
+            BeginCompletedCallback = $null
+            BeginState             = $null
         }
         $downloader | Add-Member -MemberType ScriptMethod -Name Download -Value {
             return [pscustomobject]@{ ResultCode = $this.ResultCode }
         } -Force
+        $downloader | Add-Member -MemberType ScriptMethod -Name BeginDownload -Value {
+            param ($OnProgressChanged, $OnCompleted, $State)
+            $this.BeginProgressCallback = $OnProgressChanged
+            $this.BeginCompletedCallback = $OnCompleted
+            $this.BeginState = $State
+            $this.AsyncJob = New-FakeWindowsUpdateProgressJob -Percentages $this.ProgressPercentages
+            return $this.AsyncJob
+        } -Force
+        $downloader | Add-Member -MemberType ScriptMethod -Name EndDownload -Value {
+            param ($Job)
+            return [pscustomobject]@{ ResultCode = $this.ResultCode }
+        } -Force
 
         $installer = [pscustomobject]@{
-            Updates        = $null
-            ResultCode     = $InstallResultCode
-            RebootRequired = $InstallRebootRequired
+            Updates                = $null
+            ResultCode             = $InstallResultCode
+            RebootRequired         = $InstallRebootRequired
+            ProgressPercentages    = [int[]]$InstallProgressPercentages
+            AsyncJob               = $null
+            BeginProgressCallback  = $null
+            BeginCompletedCallback = $null
+            BeginState             = $null
         }
         $installer | Add-Member -MemberType ScriptMethod -Name Install -Value {
             return [pscustomobject]@{ ResultCode = $this.ResultCode }
         } -Force
+        $installer | Add-Member -MemberType ScriptMethod -Name BeginInstall -Value {
+            param ($OnProgressChanged, $OnCompleted, $State)
+            $this.BeginProgressCallback = $OnProgressChanged
+            $this.BeginCompletedCallback = $OnCompleted
+            $this.BeginState = $State
+            $this.AsyncJob = New-FakeWindowsUpdateProgressJob -Percentages $this.ProgressPercentages
+            return $this.AsyncJob
+        } -Force
+        $installer | Add-Member -MemberType ScriptMethod -Name EndInstall -Value {
+            param ($Job)
+            return [pscustomobject]@{ ResultCode = $this.ResultCode }
+        } -Force
+
+        $systemInfo = [pscustomobject]@{
+            RebootRequired = $SystemInfoRebootRequired
+        }
 
         $session = [pscustomobject]@{
             Searcher   = $searcher
@@ -135,6 +219,7 @@ BeforeAll {
             Searcher   = $searcher
             Downloader = $downloader
             Installer  = $installer
+            SystemInfo = $systemInfo
         }
     }
 }
@@ -189,6 +274,27 @@ Describe 'Windows Update helper functions' {
         $result.Succeeded | Should -BeTrue
     }
 
+    It 'reports asynchronous download progress percentages from the WUA job' {
+        $updates = @(
+            New-FakeUpdate -Id 'security-id' -RevisionNumber 2 -Title 'Security update' -CategoryNames @('Security Updates')
+        )
+        $fixture = New-FakeWindowsUpdateSessionFixture -Updates $updates -DownloadResultCode 2 -DownloadProgressPercentages @(0, 45, 100)
+        $records = @(Get-WindowsUpdateList -Session $fixture.Session)
+        $percentages = [System.Collections.Generic.List[int]]::new()
+
+        $result = Download-WindowsUpdates -Updates $records -Session $fixture.Session -CollectionFactory { New-FakeIndexedCollection } -ProgressPollMilliseconds 0 -ProgressCallback {
+            param ([object]$Progress)
+            [void]$percentages.Add([int]$Progress.PercentComplete)
+        }
+
+        $result.Succeeded | Should -BeTrue
+        [int[]]$percentages.ToArray() | Should -Be @(0, 45, 100)
+        $fixture.Downloader.BeginProgressCallback | Should -Not -BeNullOrEmpty
+        $fixture.Downloader.BeginCompletedCallback | Should -Not -BeNullOrEmpty
+        $fixture.Downloader.BeginState | Should -Be 'Baseline.WindowsUpdate.Download'
+        $fixture.Downloader.AsyncJob.CleanedUp | Should -BeTrue
+    }
+
     It 'installs selected updates and exposes reboot-required state' {
         $updates = @(
             New-FakeUpdate -Id 'security-id' -RevisionNumber 2 -Title 'Security update' -CategoryNames @('Security Updates')
@@ -196,13 +302,47 @@ Describe 'Windows Update helper functions' {
         $fixture = New-FakeWindowsUpdateSessionFixture -Updates $updates -InstallResultCode 2 -InstallRebootRequired:$true
         $records = @(Get-WindowsUpdateList -Session $fixture.Session)
 
-        $result = Install-WindowsUpdates -Updates $records -Session $fixture.Session -CollectionFactory { New-FakeIndexedCollection }
+        $result = Install-WindowsUpdates -Updates $records -Session $fixture.Session -CollectionFactory { New-FakeIndexedCollection } -SystemInfo $fixture.SystemInfo
 
         $fixture.Installer.Updates.Count | Should -Be 1
         $result.Operation | Should -Be 'Install'
         $result.Result | Should -Be 'Succeeded'
         $result.Succeeded | Should -BeTrue
         $result.RebootRequired | Should -BeTrue
+    }
+
+    It 'reports restart required when Windows Update system state has a pending restart notification' {
+        $updates = @(
+            New-FakeUpdate -Id 'security-id' -RevisionNumber 2 -Title 'Security update' -CategoryNames @('Security Updates')
+        )
+        $fixture = New-FakeWindowsUpdateSessionFixture -Updates $updates -InstallResultCode 2 -InstallRebootRequired:$false -SystemInfoRebootRequired:$true
+        $records = @(Get-WindowsUpdateList -Session $fixture.Session)
+
+        $result = Install-WindowsUpdates -Updates $records -Session $fixture.Session -CollectionFactory { New-FakeIndexedCollection } -SystemInfo $fixture.SystemInfo
+
+        $result.Succeeded | Should -BeTrue
+        $result.RebootRequired | Should -BeTrue
+    }
+
+    It 'reports asynchronous install progress percentages from the WUA job' {
+        $updates = @(
+            New-FakeUpdate -Id 'security-id' -RevisionNumber 2 -Title 'Security update' -CategoryNames @('Security Updates')
+        )
+        $fixture = New-FakeWindowsUpdateSessionFixture -Updates $updates -InstallResultCode 2 -InstallProgressPercentages @(0, 30, 75, 100)
+        $records = @(Get-WindowsUpdateList -Session $fixture.Session)
+        $percentages = [System.Collections.Generic.List[int]]::new()
+
+        $result = Install-WindowsUpdates -Updates $records -Session $fixture.Session -CollectionFactory { New-FakeIndexedCollection } -SystemInfo $fixture.SystemInfo -ProgressPollMilliseconds 0 -ProgressCallback {
+            param ([object]$Progress)
+            [void]$percentages.Add([int]$Progress.PercentComplete)
+        }
+
+        $result.Succeeded | Should -BeTrue
+        [int[]]$percentages.ToArray() | Should -Be @(0, 30, 75, 100)
+        $fixture.Installer.BeginProgressCallback | Should -Not -BeNullOrEmpty
+        $fixture.Installer.BeginCompletedCallback | Should -Not -BeNullOrEmpty
+        $fixture.Installer.BeginState | Should -Be 'Baseline.WindowsUpdate.Install'
+        $fixture.Installer.AsyncJob.CleanedUp | Should -BeTrue
     }
 
     It 'returns read-only Windows Update history records from QueryHistory' {
@@ -257,7 +397,7 @@ Describe 'Windows Update helper functions' {
         )
         $fixture = New-FakeWindowsUpdateSessionFixture -Updates $updates
 
-        $result = Install-WindowsSecurityUpdates -Session $fixture.Session -CollectionFactory { New-FakeIndexedCollection }
+        $result = Install-WindowsSecurityUpdates -Session $fixture.Session -CollectionFactory { New-FakeIndexedCollection } -SystemInfo $fixture.SystemInfo
 
         $fixture.Downloader.Updates.Count | Should -Be 2
         $fixture.Installer.Updates.Count | Should -Be 2

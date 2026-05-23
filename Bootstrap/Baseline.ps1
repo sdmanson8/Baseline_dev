@@ -786,6 +786,68 @@ Write-LaunchTrace ('CLI output format set to {0}.' -f $OutputFormat)
 $Script:CurrentAppVersion = Resolve-BaselineCurrentVersion
 Write-LaunchTrace ('Baseline current version resolved: {0}' -f $Script:CurrentAppVersion)
 
+$Script:StartupSplashSettings = [pscustomobject]@{
+	RunInitialActions = $true
+	CheckWinGet = $true
+	CheckChocolatey = $true
+	WinGetCheckFrequency = 'Startup'
+	ChocolateyCheckFrequency = 'Startup'
+}
+if (Get-Command -Name 'Get-BaselineStartupSplashSettings' -CommandType Function -ErrorAction SilentlyContinue)
+{
+	try
+	{
+		$Script:StartupSplashSettings = Get-BaselineStartupSplashSettings
+		Write-LaunchTrace ('Startup splash settings loaded: initialActions={0}; winget={1}/{2}; chocolatey={3}/{4}' -f [bool]$Script:StartupSplashSettings.RunInitialActions, [bool]$Script:StartupSplashSettings.CheckWinGet, [string]$Script:StartupSplashSettings.WinGetCheckFrequency, [bool]$Script:StartupSplashSettings.CheckChocolatey, [string]$Script:StartupSplashSettings.ChocolateyCheckFrequency)
+	}
+	catch
+	{
+		Write-LaunchTrace ('Startup splash settings read failed; using defaults: {0}' -f $_.Exception.Message)
+		Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.StartupSplashSettings' -Severity Debug
+	}
+}
+
+function Get-BaselineBootstrapSplashStepOrder
+{
+	[CmdletBinding()]
+	[OutputType([string[]])]
+	param (
+		[object]$StartupSettings,
+
+		[switch]$IncludeUpdates
+	)
+
+	$stepOrder = New-Object System.Collections.Generic.List[string]
+	if ([bool]$IncludeUpdates)
+	{
+		[void]$stepOrder.Add('updates')
+	}
+	if ((-not $StartupSettings) -or [bool]$StartupSettings.RunInitialActions)
+	{
+		[void]$stepOrder.Add('system')
+	}
+
+	$startupWinGetEnabled = (-not $StartupSettings) -or [bool]$StartupSettings.CheckWinGet
+	$startupChocolateyEnabled = (-not $StartupSettings) -or [bool]$StartupSettings.CheckChocolatey
+	$startupWinGetFrequency = if ($StartupSettings -and $StartupSettings.PSObject.Properties['WinGetCheckFrequency']) { [string]$StartupSettings.WinGetCheckFrequency } else { 'Startup' }
+	$startupChocolateyFrequency = if ($StartupSettings -and $StartupSettings.PSObject.Properties['ChocolateyCheckFrequency']) { [string]$StartupSettings.ChocolateyCheckFrequency } else { 'Startup' }
+	$startupPackageManagerDecisionCommand = Get-Command -Name 'Get-BaselineStartupPackageManagerCheckDecision' -CommandType Function -ErrorAction Stop | Select-Object -First 1
+	$startupWinGetDecision = & $startupPackageManagerDecisionCommand -PackageManager 'WinGet' -Enabled:$startupWinGetEnabled -Frequency $startupWinGetFrequency
+	$startupChocolateyDecision = & $startupPackageManagerDecisionCommand -PackageManager 'Chocolatey' -Enabled:$startupChocolateyEnabled -Frequency $startupChocolateyFrequency
+
+	if ([bool]$startupWinGetDecision.ShouldCheck)
+	{
+		[void]$stepOrder.Add('winget')
+	}
+	if ([bool]$startupChocolateyDecision.ShouldCheck)
+	{
+		[void]$stepOrder.Add('chocolatey')
+	}
+	[void]$stepOrder.Add('finalize')
+
+	return @($stepOrder.ToArray())
+}
+
 if (-not [string]::IsNullOrWhiteSpace([string]$LifecycleOperation))
 {
 	Write-LaunchTrace ('Lifecycle automation entry point invoked: {0}' -f $LifecycleOperation)
@@ -1018,6 +1080,7 @@ if ($PSBoundParameters.ContainsKey('LogPath') -and -not [string]::IsNullOrWhiteS
 }
 Set-LogFile -Path $Global:LogFilePath
 Initialize-SessionStatistics
+Set-BaselineLogScope -Scope 'Bootstrap'
 Write-LaunchTrace 'Logging initialized'
 
 if ($Script:IsEmbeddedHost)
@@ -1094,14 +1157,16 @@ if ($shouldShowBootstrapSplash)
 			{
 				$shouldPrimeUpdatesPulse = [bool](Test-BaselineAutoUpdateStartupEnabled)
 			}
+			$bootstrapSplashStepOrder = Get-BaselineBootstrapSplashStepOrder -StartupSettings $Script:StartupSplashSettings -IncludeUpdates:$shouldPrimeUpdatesPulse
+			Write-LaunchTrace ('Bootstrap splash steps: {0}' -f ($bootstrapSplashStepOrder -join ', '))
 
 			if (-not $shouldPrimeUpdatesPulse)
 			{
-				$Script:BootstrapSplash = & $showBootstrapSplashCommand
+				$Script:BootstrapSplash = & $showBootstrapSplashCommand -StepOrder $bootstrapSplashStepOrder
 			}
 			else
 			{
-				$Script:BootstrapSplash = & $showBootstrapSplashCommand -StartUpdatesPulse
+				$Script:BootstrapSplash = & $showBootstrapSplashCommand -StartUpdatesPulse -StepOrder $bootstrapSplashStepOrder
 			}
 		}
 		catch
@@ -1155,8 +1220,19 @@ if ([string]::IsNullOrWhiteSpace([string]$Script:CurrentAppVersion) -or $Script:
 {
 	$Script:CurrentAppVersion = Resolve-BaselineCurrentVersion
 }
-Invoke-BaselineAutoUpdate -Splash $Script:BootstrapSplash -CurrentVersion $Script:CurrentAppVersion
-Set-BaselineBootstrapSplashChecklistStep -StepId 'system' -Status 'in_progress' -SubAction ''
+Set-BaselineLogScope -Scope 'Updater'
+try
+{
+	Invoke-BaselineAutoUpdate -Splash $Script:BootstrapSplash -CurrentVersion $Script:CurrentAppVersion
+}
+finally
+{
+	Set-BaselineLogScope -Scope 'Bootstrap'
+}
+if ($Script:StartupSplashSettings -and [bool]$Script:StartupSplashSettings.RunInitialActions)
+{
+	Set-BaselineBootstrapSplashChecklistStep -StepId 'system' -Status 'in_progress' -SubAction ''
+}
 Write-LaunchTrace 'Auto-update checked'
 Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'after auto-update check'
 
@@ -1209,9 +1285,101 @@ if (-not $Script:InitialActionsCommand)
 function Invoke-BaselineInitialActions
 {
 	[CmdletBinding()]
-	param ()
+	param (
+		[switch]$SkipWinGetCheck,
+		[switch]$SkipChocolateyCheck
+	)
 
-	& $Script:InitialActionsCommand
+	& $Script:InitialActionsCommand -SkipWinGetCheck:$SkipWinGetCheck -SkipChocolateyCheck:$SkipChocolateyCheck
+}
+
+function Test-BaselineStartupPackageManagerCheckDue
+{
+	[CmdletBinding()]
+	[OutputType([bool])]
+	param (
+		[Parameter(Mandatory = $true)]
+		[ValidateSet('WinGet', 'Chocolatey')]
+		[string]$PackageManager,
+
+		[bool]$Enabled = $true,
+
+		[string]$Frequency = 'Startup'
+	)
+
+	$decisionCommand = Get-Command -Name 'Get-BaselineStartupPackageManagerCheckDecision' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
+	if (-not $decisionCommand)
+	{
+		throw 'Get-BaselineStartupPackageManagerCheckDecision was not available for startup package-manager scheduling.'
+	}
+
+	$decision = & $decisionCommand -PackageManager $PackageManager -Enabled:$Enabled -Frequency $Frequency
+	Write-LaunchTrace ('Startup {0} check decision: enabled={1}; frequency={2}; shouldCheck={3}; reason={4}' -f $PackageManager, [bool]$Enabled, [string]$decision.Frequency, [bool]$decision.ShouldCheck, [string]$decision.Reason)
+	try
+	{
+		LogDebug ('Startup package-manager check due result consumed. PackageManager="{0}"; Enabled={1}; Frequency="{2}"; ShouldCheck={3}; LastCheckedUtc="{4}"; NextEligibleUtc="{5}"; Reason="{6}"' -f $PackageManager, [bool]$Enabled, [string]$decision.Frequency, [bool]$decision.ShouldCheck, $(if ($decision.LastCheckedUtc) { ([datetime]$decision.LastCheckedUtc).ToUniversalTime().ToString('o') } else { '' }), $(if ($decision.NextEligibleUtc) { ([datetime]$decision.NextEligibleUtc).ToUniversalTime().ToString('o') } else { '' }), [string]$decision.Reason)
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.StartupPackageManagerCheckDue.LogDebug' -Severity Warning
+	}
+	return [bool]$decision.ShouldCheck
+}
+
+function Invoke-BaselinePackageManagerStartupChecks
+{
+	[CmdletBinding()]
+	param (
+		[switch]$SkipWinGetCheck,
+
+		[switch]$SkipChocolateyCheck
+	)
+
+	if ([bool]$SkipWinGetCheck -and [bool]$SkipChocolateyCheck)
+	{
+		Write-LaunchTrace 'Startup package-manager checks skipped by preference or frequency.'
+		try { LogDebug ('Startup package-manager bootstrap skipped. SkipWinGet={0}; SkipChocolatey={1}' -f [bool]$SkipWinGetCheck, [bool]$SkipChocolateyCheck) }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.PackageManagerStartupChecks.SkippedLogDebug' -Severity Warning }
+		return
+	}
+
+	$packageManagerBootstrapCommand = Get-Command -Name 'Initialize-PackageManagersBootstrap' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
+	if (-not $packageManagerBootstrapCommand)
+	{
+		throw 'Initialize-PackageManagersBootstrap was not available for startup package-manager checks.'
+	}
+
+	Write-LaunchTrace ('Package-manager startup checks started (skipWinGet={0}; skipChocolatey={1})' -f [bool]$SkipWinGetCheck, [bool]$SkipChocolateyCheck)
+	try { LogDebug ('Startup package-manager bootstrap command resolved. Command="{0}"; Source="{1}"; IncludeWinGet={2}; IncludeChocolatey={3}' -f [string]$packageManagerBootstrapCommand.Name, [string]$packageManagerBootstrapCommand.Source, (-not [bool]$SkipWinGetCheck), (-not [bool]$SkipChocolateyCheck)) }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.PackageManagerStartupChecks.CommandLogDebug' -Severity Warning }
+	& $packageManagerBootstrapCommand -LoadingSplash $Global:LoadingSplash -IncludeWinGet:(-not [bool]$SkipWinGetCheck) -IncludeChocolatey:(-not [bool]$SkipChocolateyCheck)
+	Write-LaunchTrace 'Package-manager startup checks completed'
+	try { LogDebug ('Startup package-manager bootstrap completed. WinGetRequested={0}; ChocolateyRequested={1}' -f (-not [bool]$SkipWinGetCheck), (-not [bool]$SkipChocolateyCheck)) }
+	catch { Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.PackageManagerStartupChecks.CompletedLogDebug' -Severity Warning }
+}
+
+function Set-BaselineStartupPackageManagerChecksCompleted
+{
+	[CmdletBinding()]
+	param (
+		[bool]$WinGet,
+
+		[bool]$Chocolatey
+	)
+
+	if (-not ($WinGet -or $Chocolatey))
+	{
+		try { LogDebug 'Startup package-manager check completion state not persisted because no checks ran.' }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.PackageManagerStartupChecks.NoCompletionStateLogDebug' -Severity Warning }
+		return
+	}
+
+	if (Get-Command -Name 'Set-BaselineStartupPackageManagerCheckState' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Set-BaselineStartupPackageManagerCheckState -WinGet:$WinGet -Chocolatey:$Chocolatey
+		try { LogDebug ('Startup package-manager check completion state requested. WinGet={0}; Chocolatey={1}' -f [bool]$WinGet, [bool]$Chocolatey) }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.PackageManagerStartupChecks.CompletionStateLogDebug' -Severity Warning }
+	}
 }
 
 Import-BaselineIncludedTweakLibraries -IncludePaths $Include
@@ -2489,12 +2657,42 @@ $Script:LoadingSplash = $Script:BootstrapSplash
 $Global:LoadingSplash = $Script:LoadingSplash
 Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'before initial checks'
 
-# Run mandatory startup checks (no menu prompt)
+# Run configured startup checks (no menu prompt).
 try
 {
-	Write-LaunchTrace 'InitialActions started'
-	Invoke-BaselineInitialActions
-	Write-LaunchTrace 'InitialActions completed'
+	$startupWinGetFrequency = if ($Script:StartupSplashSettings -and $Script:StartupSplashSettings.PSObject.Properties['WinGetCheckFrequency']) { [string]$Script:StartupSplashSettings.WinGetCheckFrequency } else { 'Startup' }
+	$startupChocolateyFrequency = if ($Script:StartupSplashSettings -and $Script:StartupSplashSettings.PSObject.Properties['ChocolateyCheckFrequency']) { [string]$Script:StartupSplashSettings.ChocolateyCheckFrequency } else { 'Startup' }
+	$runStartupWinGetCheck = Test-BaselineStartupPackageManagerCheckDue -PackageManager 'WinGet' -Enabled:($Script:StartupSplashSettings -and [bool]$Script:StartupSplashSettings.CheckWinGet) -Frequency $startupWinGetFrequency
+	$runStartupChocolateyCheck = Test-BaselineStartupPackageManagerCheckDue -PackageManager 'Chocolatey' -Enabled:($Script:StartupSplashSettings -and [bool]$Script:StartupSplashSettings.CheckChocolatey) -Frequency $startupChocolateyFrequency
+	$skipStartupWinGetCheck = -not [bool]$runStartupWinGetCheck
+	$skipStartupChocolateyCheck = -not [bool]$runStartupChocolateyCheck
+	try
+	{
+		LogDebug ('Startup splash execution resolved. RunInitialActions={0}; CheckWinGet={1}; WinGetFrequency="{2}"; WinGetDue={3}; WinGetSkip={4}; CheckChocolatey={5}; ChocolateyFrequency="{6}"; ChocolateyDue={7}; ChocolateySkip={8}' -f [bool]($Script:StartupSplashSettings -and $Script:StartupSplashSettings.RunInitialActions), [bool]($Script:StartupSplashSettings -and $Script:StartupSplashSettings.CheckWinGet), $startupWinGetFrequency, [bool]$runStartupWinGetCheck, [bool]$skipStartupWinGetCheck, [bool]($Script:StartupSplashSettings -and $Script:StartupSplashSettings.CheckChocolatey), $startupChocolateyFrequency, [bool]$runStartupChocolateyCheck, [bool]$skipStartupChocolateyCheck)
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.StartupSplashExecution.LogDebug' -Severity Warning
+	}
+
+	if ($Script:StartupSplashSettings -and -not [bool]$Script:StartupSplashSettings.RunInitialActions)
+	{
+		Write-LaunchTrace 'InitialActions skipped by startup splash settings.'
+		LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_InitialActionsSkippedByPreference' -Fallback 'Initial startup checks skipped by user preference.')
+		try { LogDebug ('Initial startup checks skipped by preference while package-manager checks remain independently scheduled. WinGetSkip={0}; ChocolateySkip={1}' -f [bool]$skipStartupWinGetCheck, [bool]$skipStartupChocolateyCheck) }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.InitialActions.SkippedByPreferenceLogDebug' -Severity Warning }
+	}
+	else
+	{
+		Write-LaunchTrace ('InitialActions started (skipWinGet={0}; skipChocolatey={1})' -f [bool]$skipStartupWinGetCheck, [bool]$skipStartupChocolateyCheck)
+		try { LogDebug ('Initial startup checks invoking with package-manager skip flags. SkipWinGet={0}; SkipChocolatey={1}' -f [bool]$skipStartupWinGetCheck, [bool]$skipStartupChocolateyCheck) }
+		catch { Write-SwallowedException -ErrorRecord $_ -Source 'Bootstrap.InitialActions.InvokeLogDebug' -Severity Warning }
+		Invoke-BaselineInitialActions -SkipWinGetCheck:$skipStartupWinGetCheck -SkipChocolateyCheck:$skipStartupChocolateyCheck
+		Write-LaunchTrace 'InitialActions completed'
+	}
+	Invoke-BaselinePackageManagerStartupChecks -SkipWinGetCheck:$skipStartupWinGetCheck -SkipChocolateyCheck:$skipStartupChocolateyCheck
+	Set-BaselineStartupPackageManagerChecksCompleted -WinGet:$runStartupWinGetCheck -Chocolatey:$runStartupChocolateyCheck
+	Set-BaselineBootstrapSplashChecklistStep -StepId 'finalize' -Status 'in_progress' -SubAction ''
 	Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'after initial checks'
 }
 catch
@@ -2587,6 +2785,7 @@ try
 	# Only hide the console once startup checks and GUI module imports have completed.
 	# This keeps Windows 10 startup failures visible instead of silently disappearing.
 	Hide-ConsoleWindow
+Set-BaselineLogScope -Scope 'GUI'
 Write-LaunchTrace 'Preparing GUI open'
 Stop-BaselineIfBootstrapSplashAbortRequested -Phase 'before Show-TweakGUI'
 Show-TweakGUI

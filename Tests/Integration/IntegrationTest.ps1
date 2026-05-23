@@ -86,7 +86,7 @@ function Write-TestResult
 
     $line = "  $symbol [$Category] $Name"
     if ($Detail) { $line += " -- $Detail" }
-    # Write-Host: intentional — test/tooling console output
+    # Write-Host: intentional - test/tooling console output
     Write-Host $line
 }
 

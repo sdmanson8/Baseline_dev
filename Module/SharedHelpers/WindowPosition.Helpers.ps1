@@ -18,6 +18,122 @@ $BaselineWindowPrefKeys = @{
 	Remember   = 'RememberWindowPosition'
 }
 
+function Get-BaselineWindowPreferencesPath
+{
+	[CmdletBinding()]
+	param ()
+
+	$stateRoot = [System.Environment]::GetEnvironmentVariable('BASELINE_STATE_ROOT')
+	if (-not [string]::IsNullOrWhiteSpace([string]$stateRoot))
+	{
+		return (Join-Path (Join-Path $stateRoot 'Profiles') 'Baseline-user-prefs.json')
+	}
+
+	$localAppData = $env:LOCALAPPDATA
+	if ([string]::IsNullOrWhiteSpace([string]$localAppData))
+	{
+		$localAppData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
+	}
+	if ([string]::IsNullOrWhiteSpace([string]$localAppData))
+	{
+		$localAppData = [System.IO.Path]::GetTempPath()
+	}
+
+	return (Join-Path (Join-Path (Join-Path $localAppData 'Baseline') 'UserState\Profiles') 'Baseline-user-prefs.json')
+}
+
+function Read-BaselineWindowPreferenceValues
+{
+	[CmdletBinding()]
+	param ()
+
+	$path = Get-BaselineWindowPreferencesPath
+	if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $null }
+
+	try
+	{
+		$raw = [System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8)
+		if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
+		$parsed = ConvertFrom-Json -InputObject $raw -ErrorAction Stop
+		if (-not $parsed -or -not $parsed.Values) { return $null }
+		return $parsed.Values
+	}
+	catch
+	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'WindowPosition.Helpers.Read-BaselineWindowPreferenceValues:catch61' -Severity Debug }
+
+		return $null
+	}
+}
+
+function Get-BaselineWindowPreference
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[string]$Key,
+
+		[object]$Default = $null
+	)
+
+	if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		return (Get-BaselineUserPreference -Key $Key -Default $Default)
+	}
+
+	$values = Read-BaselineWindowPreferenceValues
+	if ($values -and $values.PSObject.Properties[$Key])
+	{
+		return $values.PSObject.Properties[$Key].Value
+	}
+
+	return $Default
+}
+
+function Set-BaselineWindowPreference
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[string]$Key,
+
+		[object]$Value
+	)
+
+	if (Get-Command -Name 'Set-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Set-BaselineUserPreference -Key $Key -Value $Value
+		return $true
+	}
+
+	$path = Get-BaselineWindowPreferencesPath
+	$values = [ordered]@{}
+	$existingValues = Read-BaselineWindowPreferenceValues
+	if ($existingValues)
+	{
+		foreach ($property in $existingValues.PSObject.Properties)
+		{
+			$values[[string]$property.Name] = $property.Value
+		}
+	}
+	$values[$Key] = $Value
+
+	$directory = Split-Path -Path $path -Parent
+	if (-not (Test-Path -LiteralPath $directory))
+	{
+		$null = New-Item -Path $directory -ItemType Directory -Force
+	}
+	$payload = [pscustomobject]@{
+		Schema        = 'Baseline.UserPreferences'
+		SchemaVersion = 1
+		SavedAtUtc    = ([DateTime]::UtcNow.ToString('o'))
+		Values        = $values
+	}
+	$json = $payload | ConvertTo-Json -Depth 6
+	[System.IO.File]::WriteAllText($path, $json, [System.Text.Encoding]::UTF8)
+	return $true
+}
+
 function Get-BaselineDisplayWorkAreas
 {
 	<#
@@ -51,6 +167,8 @@ function Get-BaselineDisplayWorkAreas
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'WindowPosition.Helpers.Get-BaselineDisplayWorkAreas:catch166' -Severity Debug }
+
 		try
 		{
 			$wa = [System.Windows.SystemParameters]::WorkArea
@@ -63,6 +181,8 @@ function Get-BaselineDisplayWorkAreas
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'WindowPosition.Helpers.Get-BaselineDisplayWorkAreas:catch178' -Severity Debug }
+
 			$result.Add([pscustomobject]@{
 				Left   = 0.0
 				Top    = 0.0
@@ -182,13 +302,11 @@ function Get-BaselineSavedWindowPlacement
 	[CmdletBinding()]
 	param ()
 
-	if (-not (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)) { return $null }
-
-	$left      = Get-BaselineUserPreference -Key $BaselineWindowPrefKeys.Left
-	$top       = Get-BaselineUserPreference -Key $BaselineWindowPrefKeys.Top
-	$width     = Get-BaselineUserPreference -Key $BaselineWindowPrefKeys.Width
-	$height    = Get-BaselineUserPreference -Key $BaselineWindowPrefKeys.Height
-	$maximized = Get-BaselineUserPreference -Key $BaselineWindowPrefKeys.Maximized -Default $false
+	$left      = Get-BaselineWindowPreference -Key $BaselineWindowPrefKeys.Left
+	$top       = Get-BaselineWindowPreference -Key $BaselineWindowPrefKeys.Top
+	$width     = Get-BaselineWindowPreference -Key $BaselineWindowPrefKeys.Width
+	$height    = Get-BaselineWindowPreference -Key $BaselineWindowPrefKeys.Height
+	$maximized = Get-BaselineWindowPreference -Key $BaselineWindowPrefKeys.Maximized -Default $false
 
 	if ($null -eq $width -or $null -eq $height) { return $null }
 	if ($null -eq $left -or $null -eq $top) { return $null }
@@ -234,20 +352,101 @@ function Save-BaselineWindowPlacement
 		[bool]$Maximized = $false
 	)
 
-	if (-not (Get-Command -Name 'Set-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)) { return $false }
-	if (-not (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)) { return $false }
-
-	$remember = Get-BaselineUserPreference -Key $BaselineWindowPrefKeys.Remember -Default $true
+	$remember = Get-BaselineWindowPreference -Key $BaselineWindowPrefKeys.Remember -Default $true
 	if (-not [bool]$remember) { return $false }
 
 	if ($Width -le 0 -or $Height -le 0) { return $false }
 
-	Set-BaselineUserPreference -Key $BaselineWindowPrefKeys.Left      -Value ([double]$Left)
-	Set-BaselineUserPreference -Key $BaselineWindowPrefKeys.Top       -Value ([double]$Top)
-	Set-BaselineUserPreference -Key $BaselineWindowPrefKeys.Width     -Value ([double]$Width)
-	Set-BaselineUserPreference -Key $BaselineWindowPrefKeys.Height    -Value ([double]$Height)
-	Set-BaselineUserPreference -Key $BaselineWindowPrefKeys.Maximized -Value ([bool]$Maximized)
+	Set-BaselineWindowPreference -Key $BaselineWindowPrefKeys.Left      -Value ([double]$Left) | Out-Null
+	Set-BaselineWindowPreference -Key $BaselineWindowPrefKeys.Top       -Value ([double]$Top) | Out-Null
+	Set-BaselineWindowPreference -Key $BaselineWindowPrefKeys.Width     -Value ([double]$Width) | Out-Null
+	Set-BaselineWindowPreference -Key $BaselineWindowPrefKeys.Height    -Value ([double]$Height) | Out-Null
+	Set-BaselineWindowPreference -Key $BaselineWindowPrefKeys.Maximized -Value ([bool]$Maximized) | Out-Null
 	return $true
+}
+
+function Get-BaselineWindowRectOverlapArea
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[object]$Rect,
+
+		[Parameter(Mandatory)]
+		[object]$WorkArea
+	)
+
+	$rectLeft = [double]$Rect.Left
+	$rectTop = [double]$Rect.Top
+	$rectRight = $rectLeft + [double]$Rect.Width
+	$rectBottom = $rectTop + [double]$Rect.Height
+	$workLeft = [double]$WorkArea.Left
+	$workTop = [double]$WorkArea.Top
+	$workRight = $workLeft + [double]$WorkArea.Width
+	$workBottom = $workTop + [double]$WorkArea.Height
+
+	$overlapWidth = [Math]::Max(0.0, [Math]::Min($rectRight, $workRight) - [Math]::Max($rectLeft, $workLeft))
+	$overlapHeight = [Math]::Max(0.0, [Math]::Min($rectBottom, $workBottom) - [Math]::Max($rectTop, $workTop))
+	return ($overlapWidth * $overlapHeight)
+}
+
+function Resolve-BaselineWindowPlacementWorkArea
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[object]$Rect,
+
+		[Parameter(Mandatory)]
+		[object[]]$WorkAreas
+	)
+
+	$bestWorkArea = $null
+	$bestOverlapArea = -1.0
+
+	foreach ($area in $WorkAreas)
+	{
+		if (-not $area -or [double]$area.Width -le 0 -or [double]$area.Height -le 0) { continue }
+
+		$overlapArea = Get-BaselineWindowRectOverlapArea -Rect $Rect -WorkArea $area
+		if ($overlapArea -gt $bestOverlapArea)
+		{
+			$bestOverlapArea = $overlapArea
+			$bestWorkArea = $area
+		}
+	}
+
+	return $bestWorkArea
+}
+
+function ConvertTo-BaselineWindowPlacementBoundsWithinWorkArea
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory)]
+		[object]$Rect,
+
+		[AllowNull()]
+		[object]$WorkArea
+	)
+
+	if (-not $WorkArea -or [double]$WorkArea.Width -le 0 -or [double]$WorkArea.Height -le 0) { return $Rect }
+
+	$workLeft = [double]$WorkArea.Left
+	$workTop = [double]$WorkArea.Top
+	$workWidth = [double]$WorkArea.Width
+	$workHeight = [double]$WorkArea.Height
+	$boundedWidth = [Math]::Min([Math]::Max([double]$Rect.Width, 1.0), $workWidth)
+	$boundedHeight = [Math]::Min([Math]::Max([double]$Rect.Height, 1.0), $workHeight)
+	$maxLeft = $workLeft + $workWidth - $boundedWidth
+	$maxTop = $workTop + $workHeight - $boundedHeight
+
+	return [pscustomobject]@{
+		Left   = [Math]::Min([Math]::Max([double]$Rect.Left, $workLeft), $maxLeft)
+		Top    = [Math]::Min([Math]::Max([double]$Rect.Top, $workTop), $maxTop)
+		Width  = $boundedWidth
+		Height = $boundedHeight
+	}
 }
 
 function Resolve-BaselineWindowPlacement
@@ -284,10 +483,7 @@ function Resolve-BaselineWindowPlacement
 	)
 
 	$remember = $true
-	if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
-	{
-		$remember = [bool](Get-BaselineUserPreference -Key $BaselineWindowPrefKeys.Remember -Default $true)
-	}
+	$remember = [bool](Get-BaselineWindowPreference -Key $BaselineWindowPrefKeys.Remember -Default $true)
 
 	$default = [pscustomobject]@{
 		Left      = [double]$DefaultRect.Left
@@ -317,12 +513,16 @@ function Resolve-BaselineWindowPlacement
 		return $default
 	}
 
+	$savedMaximized = [bool]$saved.Maximized
+	$targetWorkArea = Resolve-BaselineWindowPlacementWorkArea -Rect $saved -WorkAreas $WorkAreas
+	$saved = ConvertTo-BaselineWindowPlacementBoundsWithinWorkArea -Rect $saved -WorkArea $targetWorkArea
+
 	return [pscustomobject]@{
 		Left      = $saved.Left
 		Top       = $saved.Top
 		Width     = $saved.Width
 		Height    = $saved.Height
-		Maximized = $saved.Maximized
+		Maximized = $savedMaximized
 		Source    = 'saved'
 	}
 }

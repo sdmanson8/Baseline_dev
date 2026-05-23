@@ -1,4 +1,4 @@
-﻿# Tweak visualization helpers: visual metadata, chip panels, section headers, caution sections, execution log, file-save dialog
+# Tweak visualization helpers: visual metadata, chip panels, section headers, caution sections, execution log, file-save dialog
 
 	<#
 	    .SYNOPSIS
@@ -102,18 +102,23 @@
 		$stateDetail = $null
 		$matchesDesired = $false
 		$defaultValueText = $null
+		$detectedState = $null
+		$goalState = $null
+		$isSelected = $false
 
 		switch ($typeKind)
 		{
 			'Toggle'
 			{
-				$goalOn = Get-GuiToggleGoalState -Tweak $Tweak
 				$toggleDisplay = Get-GuiToggleDisplayState -Tweak $Tweak -StateSource $source
 				$stateLabel = [string]$toggleDisplay.StateLabel
 				$stateTone = [string]$toggleDisplay.StateTone
 				$matchesDesired = [bool]$toggleDisplay.MatchesDesired
 				$stateDetail = [string]$toggleDisplay.StateDetail
-				$defaultValueText = if ($goalOn) { Get-UxLocalizedString -Key 'GuiTweakDefaultEnabled' -Fallback 'Enabled' } else { Get-UxLocalizedString -Key 'GuiTweakDefaultDisabled' -Fallback 'Disabled' }
+				$detectedState = $toggleDisplay.DetectedState
+				$goalState = [bool]$toggleDisplay.GoalState
+				$isSelected = [bool]$toggleDisplay.IsSelected
+				$defaultValueText = if ($goalState) { Get-UxLocalizedString -Key 'GuiTweakDefaultEnabled' -Fallback 'Enabled' } else { Get-UxLocalizedString -Key 'GuiTweakDefaultDisabled' -Fallback 'Disabled' }
 			}
 				'Choice'
 				{
@@ -327,6 +332,9 @@
 			StateDetail = $stateDetail
 			DefaultValueText = $defaultValueText
 			MatchesDesired = $matchesDesired
+			DetectedState = $detectedState
+			GoalState = $goalState
+			IsSelected = $isSelected
 			ScenarioTags = @($scenarioTags)
 			FocusGroup = $focusGroup
 			ReasonIncluded = $reasonIncluded
@@ -733,6 +741,7 @@
 				'ERROR'   { & $getLogColor -ColorName 'LogError' -FallbackColor $Script:CurrentTheme.CautionText }
 				'WARNING' { & $getLogColor -ColorName 'LogWarning' -FallbackColor $Script:CurrentTheme.RiskMediumBadge }
 				'SUCCESS' { & $getLogColor -ColorName 'LogSuccess' -FallbackColor $Script:CurrentTheme.LowRiskBadge }
+				'DEBUG'   { & $getLogColor -ColorName 'LogDebug' -FallbackColor $Script:CurrentTheme.TextMuted }
 				default   { & $getLogColor -ColorName 'LogInfo' -FallbackColor $Script:CurrentTheme.TextMuted }
 			}
 			$iconRun.Foreground = $bc.ConvertFromString($logIconColor)
@@ -750,6 +759,7 @@
 			'WARNING' { & $getLogColor -ColorName 'LogWarning' -FallbackColor $Script:CurrentTheme.RiskMediumBadge }
 			'SUCCESS' { & $getLogColor -ColorName 'LogSuccess' -FallbackColor $Script:CurrentTheme.LowRiskBadge }
 			'INFO'    { & $getLogColor -ColorName 'LogInfo' -FallbackColor $Script:CurrentTheme.AccentBlue }
+			'DEBUG'   { & $getLogColor -ColorName 'LogDebug' -FallbackColor $Script:CurrentTheme.TextMuted }
 			default   { & $getLogColor -ColorName 'LogDefault' -FallbackColor $Script:CurrentTheme.TextPrimary }
 		}
 		$contentRun.Foreground = $bc.ConvertFromString($contentColor)

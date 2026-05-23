@@ -12,6 +12,8 @@ $ctxIncidentPack.Add_Click({
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\RemoteDialogs\Show-GuiRemoteConsoleDialog\IncidentReproductionPackContextMenu.ps1:13' -Severity Debug }
+
 					& $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to generate incident reproduction pack.`n`n{0}" -f $_.Exception.Message)
 				}
 			}
@@ -79,6 +81,8 @@ $ctxIncidentPack.Add_Click({
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\RemoteDialogs\Show-GuiRemoteConsoleDialog\IncidentReproductionPackContextMenu.ps1:80' -Severity Debug }
+
 				& $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to export deep-linked support bundle.`n`n{0}" -f $_.Exception.Message)
 			}
 		}.GetNewClosure())
@@ -103,6 +107,8 @@ $ctxIncidentPack.Add_Click({
 					}
 					catch
 					{
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\RemoteDialogs\Show-GuiRemoteConsoleDialog\IncidentReproductionPackContextMenu.ps1:104' -Severity Debug }
+
 						& $showRemoteConsoleError -Title 'Remote Console' -Message ("Failed to stage retry targets.`n`n{0}" -f $_.Exception.Message)
 					}
 				}
@@ -127,7 +133,9 @@ $ctxIncidentPack.Add_Click({
 					$dialog.FileName = ('FailedTargets-{0}.txt' -f $selected.Timestamp.ToString('yyyyMMdd-HHmmss'))
 					if ($dialog.ShowDialog($dlg) -eq $true)
 					{
-						try { [System.IO.File]::WriteAllLines($dialog.FileName, $targets) } catch { & $showRemoteConsoleError -Title 'Export Failed' -Message ("Failed to write file.`n`n{0}" -f $_.Exception.Message) }
+						try { [System.IO.File]::WriteAllLines($dialog.FileName, $targets) } catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\RemoteDialogs\Show-GuiRemoteConsoleDialog\IncidentReproductionPackContextMenu.ps1:130' -Severity Debug }
+						 & $showRemoteConsoleError -Title 'Export Failed' -Message ("Failed to write file.`n`n{0}" -f $_.Exception.Message) }
 					}
 				}
 				else { & $showRemoteConsoleError -Title 'Remote Console' -Message "Failed target list not available in this summary." }
@@ -136,9 +144,13 @@ $ctxIncidentPack.Add_Click({
 
 		$refreshConsole = {
 			$context = $null
-			try { $context = Invoke-CapturedFunction -Name 'Get-GuiRemoteTargetContext' } catch { $context = $null }
+			try { $context = Invoke-CapturedFunction -Name 'Get-GuiRemoteTargetContext' } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\RemoteDialogs\Show-GuiRemoteConsoleDialog\IncidentReproductionPackContextMenu.ps1:139' -Severity Debug }
+			 $context = $null }
 			$sessions = @()
-			try { $sessions = @((Invoke-CapturedFunction -Name 'Get-BaselineRemoteSessionSummary')) } catch { $sessions = @() }
+			try { $sessions = @((Invoke-CapturedFunction -Name 'Get-BaselineRemoteSessionSummary')) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\RemoteDialogs\Show-GuiRemoteConsoleDialog\IncidentReproductionPackContextMenu.ps1:141' -Severity Debug }
+			 $sessions = @() }
 			$recentRuns = @()
 			try
 			{
@@ -157,6 +169,8 @@ $ctxIncidentPack.Add_Click({
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\RemoteDialogs\Show-GuiRemoteConsoleDialog\IncidentReproductionPackContextMenu.ps1:158' -Severity Debug }
+
 				$recentRuns = @()
 			}
 
@@ -165,7 +179,9 @@ $ctxIncidentPack.Add_Click({
 			{
 				$recentRunRows = @($recentRuns | ForEach-Object {
 					$timestamp = $null
-					try { $timestamp = [datetime]::Parse([string]$_.Timestamp) } catch { $timestamp = [datetime]::UtcNow }
+					try { $timestamp = [datetime]::Parse([string]$_.Timestamp) } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\RemoteDialogs\Show-GuiRemoteConsoleDialog\IncidentReproductionPackContextMenu.ps1:168' -Severity Debug }
+					 $timestamp = [datetime]::UtcNow }
 					$succeededCount = if ($_.PSObject.Properties['SucceededCount']) { [int]$_.SucceededCount } else { 0 }
 					$failedCount = if ($_.PSObject.Properties['FailedCount']) { [int]$_.FailedCount } else { 0 }
 					$skippedCount = if ($_.PSObject.Properties['SkippedCount']) { [int]$_.SkippedCount } else { 0 }

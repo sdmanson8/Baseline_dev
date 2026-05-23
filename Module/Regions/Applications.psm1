@@ -1,4 +1,5 @@
-﻿using module ..\Logging.psm1
+using module ..\Logging.psm1
+using module ..\GUICommon.psm1
 using module ..\SharedHelpers.psm1
 
 #region Applications
@@ -112,7 +113,7 @@ function Resolve-ApplicationExecutionRoute
 		[string]$Action = 'Install'
 	)
 
-	$validRouteTypes = @('winget', 'choco', 'uwp', 'feature', 'system', 'placeholder')
+	$validRouteTypes = @('winget', 'choco', 'store', 'direct', 'command', 'uwp', 'feature', 'system', 'placeholder')
 	$normalizedPreferredSource = if ([string]::IsNullOrWhiteSpace([string]$PreferredSource))
 	{
 		'winget'
@@ -172,6 +173,8 @@ function Resolve-ApplicationExecutionRoute
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Resolve-ApplicationExecutionRoute:catch174' -Severity Debug }
+
 			$selectionKey = $null
 		}
 	}
@@ -233,6 +236,8 @@ function Resolve-ApplicationExecutionRoute
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Resolve-ApplicationExecutionRoute:catch235' -Severity Debug }
+
 			$wingetAvailable = $false
 		}
 	}
@@ -259,6 +264,8 @@ function Resolve-ApplicationExecutionRoute
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Resolve-ApplicationExecutionRoute:catch261' -Severity Debug }
+
 			$chocolateyAvailable = $false
 		}
 	}
@@ -1144,6 +1151,8 @@ function Invoke-WingetInstall
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-WingetInstall:catch1146' -Severity Debug }
+
 		Throw-ApplicationActionFailure -TargetName $DisplayName -ActionLabel 'Install' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
@@ -1215,6 +1224,8 @@ function Invoke-WingetUninstall
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-WingetUninstall:catch1217' -Severity Debug }
+
 		Throw-ApplicationActionFailure -TargetName $DisplayName -ActionLabel 'Uninstall' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
@@ -1286,6 +1297,8 @@ function Invoke-WingetUpdate
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-WingetUpdate:catch1288' -Severity Debug }
+
 		Throw-ApplicationActionFailure -TargetName $DisplayName -ActionLabel 'Update' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
@@ -1382,6 +1395,8 @@ function Invoke-ChocoInstall
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ChocoInstall:catch1384' -Severity Debug }
+
 		Throw-ApplicationActionFailure -TargetName $DisplayName -ActionLabel 'Install' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
@@ -1443,6 +1458,8 @@ function Invoke-ChocoUninstall
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ChocoUninstall:catch1445' -Severity Debug }
+
 		Throw-ApplicationActionFailure -TargetName $DisplayName -ActionLabel 'Uninstall' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
@@ -1504,6 +1521,8 @@ function Invoke-ChocoUpdate
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ChocoUpdate:catch1506' -Severity Debug }
+
 		Throw-ApplicationActionFailure -TargetName $DisplayName -ActionLabel 'Update' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
@@ -1569,6 +1588,8 @@ function Invoke-WingetUpdateAll
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-WingetUpdateAll:catch1571' -Severity Debug }
+
 		Throw-ApplicationActionFailure -TargetName 'WinGet Update All' -ActionLabel 'Update' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
@@ -1634,6 +1655,8 @@ function Invoke-ChocoUpdateAll
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-ChocoUpdateAll:catch1636' -Severity Debug }
+
 		Throw-ApplicationActionFailure -TargetName 'Chocolatey Update All' -ActionLabel 'Update' -TimeoutSeconds $TimeoutSeconds -ErrorRecord $_
 	}
 }
@@ -1672,23 +1695,9 @@ function Invoke-StoreInstall
 
 	try
 	{
-		# Resolve theme if not provided (will be available in main module scope)
-		if ($null -eq $Theme)
-		{
-			$Theme = if (Test-Path -Path Variable:\Script:CurrentTheme) { $Script:CurrentTheme } else { @{} }
-		}
-
-		# Resolve ApplyButtonChrome function if not provided
-		if ($null -eq $ApplyButtonChrome)
-		{
-			$ApplyButtonChrome = if (Test-Path -Path Function:\Set-ButtonChrome) { ${function:Set-ButtonChrome} } else { { } }
-		}
-
-		# Resolve UseDarkMode from current theme if available
-		if (Test-Path -Path Variable:\Script:CurrentThemeName)
-		{
-			$UseDarkMode = ($Script:CurrentThemeName -eq 'Dark')
-		}
+		$UseDarkMode = Resolve-ApplicationDialogUseDarkMode -UseDarkMode $UseDarkMode
+		$Theme = Get-ApplicationDialogTheme -Theme $Theme
+		$ApplyButtonChrome = Get-ApplicationDialogButtonChrome -ApplyButtonChrome $ApplyButtonChrome
 
 		# Open Store
 		Start-Process -FilePath $StoreUri
@@ -1696,7 +1705,7 @@ function Invoke-StoreInstall
 		# Show themed dialog that blocks until user clicks OK
 		$messageText = Get-BaselineLocalizedString -Key 'Progress_Store_InstallPrompt' -Fallback "Microsoft Store has been opened for {0}.`n`nPlease install the app manually, then click OK to continue with the next app." -FormatArgs @($DisplayName)
 
-		$dialogResult = GUICommon\Show-ThemedDialog `
+		$dialogResult = GUICommon\Show-GuiCommonThemedDialog `
 			-Theme $Theme `
 			-ApplyButtonChrome $ApplyButtonChrome `
 			-OwnerWindow $OwnerWindow `
@@ -1717,6 +1726,86 @@ function Invoke-StoreInstall
 		LogError $failureMessage
 		throw $failureMessage
 	}
+}
+
+function Get-ApplicationDialogTheme
+{
+	param (
+		[Parameter(Mandatory = $false)]
+		[hashtable]$Theme = $null
+	)
+
+	if ($Theme -and $Theme.Count -gt 0)
+	{
+		return $Theme
+	}
+
+	if (Test-Path -Path Variable:\Script:CurrentTheme)
+	{
+		return $Script:CurrentTheme
+	}
+
+	if (Test-Path -Path Variable:\Global:BaselineCurrentTheme)
+	{
+		return $Global:BaselineCurrentTheme
+	}
+
+	return @{}
+}
+
+function Resolve-ApplicationDialogUseDarkMode
+{
+	param (
+		[Parameter(Mandatory = $false)]
+		[object]$UseDarkMode = $true
+	)
+
+	if (Test-Path -Path Variable:\Script:CurrentThemeName)
+	{
+		return ([string]$Script:CurrentThemeName -ne 'Light')
+	}
+
+	if (Test-Path -Path Variable:\Global:BaselineCurrentThemeName)
+	{
+		return ([string]$Global:BaselineCurrentThemeName -ne 'Light')
+	}
+
+	if (Test-Path -Path Variable:\Global:BaselineUseDarkMode)
+	{
+		return [bool]$Global:BaselineUseDarkMode
+	}
+
+	if (-not [string]::IsNullOrWhiteSpace([string]$env:BASELINE_USE_DARK_MODE))
+	{
+		return ([string]$env:BASELINE_USE_DARK_MODE -eq '1')
+	}
+
+	if (-not [string]::IsNullOrWhiteSpace([string]$env:BASELINE_THEME_NAME))
+	{
+		return ([string]$env:BASELINE_THEME_NAME -ne 'Light')
+	}
+
+	return [bool]$UseDarkMode
+}
+
+function Get-ApplicationDialogButtonChrome
+{
+	param (
+		[Parameter(Mandatory = $false)]
+		[scriptblock]$ApplyButtonChrome = $null
+	)
+
+	if ($ApplyButtonChrome)
+	{
+		return $ApplyButtonChrome
+	}
+
+	if (Test-Path -Path Function:\Set-ButtonChrome)
+	{
+		return ${function:Set-ButtonChrome}
+	}
+
+	return { param($Button, $Variant) }
 }
 
 <#
@@ -2117,9 +2206,9 @@ function Invoke-ApplicationAction
 	Compatibility wrapper for install and uninstall actions.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for compatibility wrapper for install and uninstall actions..
 	.PARAMETER Install
 	Install the specified application.
@@ -2192,9 +2281,9 @@ function AppInstall
 	.SYNOPSIS
 	Retrieves a cached list of installed applications via WinGet to prevent UI freezing.
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for retrieves a cached list of installed applications via WinGet to prevent UI freezing..
 #>
 function Get-InstalledAppCache
@@ -2515,9 +2604,9 @@ function Get-AvailableChocolateyUpdateCache
 	Updates a specific application or all available applications.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for updates a specific application or all available applications..
 	.PARAMETER WinGetId
 	Optional WinGet package identifier for the application to update.
@@ -2588,6 +2677,8 @@ function AppUpdate
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.AppUpdate:catch2656' -Severity Debug }
+
 				[void]$failureMessages.Add([string]$_.Exception.Message)
 			}
 		}
@@ -2610,6 +2701,8 @@ function AppUpdate
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.AppUpdate:catch2678' -Severity Debug }
+
 				[void]$failureMessages.Add([string]$_.Exception.Message)
 			}
 		}
@@ -2646,9 +2739,9 @@ function AppUpdate
 	.SYNOPSIS
 	Applies a single app action across multiple selected applications.
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for applies a single app action across multiple selected applications..
 #>
 function Invoke-AppBatchAction
@@ -2719,6 +2812,8 @@ function Invoke-AppBatchAction
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Applications.Invoke-AppBatchAction:catch2787' -Severity Debug }
+
 			$failedApps.Add([pscustomobject]@{
 				SelectionKey = $route.SelectionKey
 				WinGetId   = $route.WinGetId

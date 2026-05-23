@@ -40,6 +40,13 @@ Describe 'UWP apps picker surface' {
         $script:UwpAppsContent | Should -Match '\$Form\.GuiPopupOperationResult'
     }
 
+    It 'uses the exported common themed dialog for manual Store follow-up' {
+        $script:UwpAppsContent | Should -Match 'GUICommon\\Show-GuiCommonThemedDialog @dialogParams'
+        $script:UwpAppsContent | Should -Not -Match 'GUICommon\\Show-ThemedDialog'
+        $script:UwpAppsContent | Should -Match '\$currentTheme = Get-UWPAppsPickerTheme'
+        $script:UwpAppsContent | Should -Match '\$isDarkMode = Resolve-UWPAppsPickerUseDarkMode'
+    }
+
     It 'loads all WPF assemblies needed by the picker explicitly' {
         ([regex]::Matches($script:UwpAppsContent, 'Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase -ErrorAction Stop')).Count | Should -Be 2
     }

@@ -5,9 +5,9 @@
     Configures privacy and telemetry settings.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies Baseline's privacy and telemetry settings in GUI and headless runs.
     .PARAMETER Hide
     Do not show Activity History-related notifications in Task View
@@ -87,9 +87,9 @@ function ActivityHistory
 	The permission for apps to show me personalized ads by using my advertising ID
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the permission for apps to show me personalized ads by using my advertising ID.
 	.PARAMETER Disable
 	Do not let apps show me personalized ads by using my advertising ID
@@ -174,9 +174,9 @@ function AdvertisingID
     Automatic reboot on crash (BSOD) settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for automatic reboot on crash (BSOD) settings.
     .PARAMETER Enable
     Enable automatic reboot on crash
@@ -336,9 +336,9 @@ function UpdateRestart
 	Online speech recognition
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for online speech recognition.
 	.PARAMETER Enable
 	Enable online speech recognition
@@ -424,9 +424,9 @@ function OnlineSpeechRecognition
 	Narrator online services
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for narrator online services.
 	.PARAMETER Enable
 	Enable Narrator online services
@@ -508,9 +508,9 @@ function NarratorOnlineServices
 	Narrator scripting support
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for narrator scripting support.
 	.PARAMETER Enable
 	Enable Narrator scripting support
@@ -592,9 +592,9 @@ function NarratorScriptingSupport
 	Inking and typing personalization
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for inking and typing personalization.
 	.PARAMETER Enable
 	Enable inking and typing personalization
@@ -680,9 +680,9 @@ function InkingAndTypingPersonalization
 	Search history on this device
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for search history on this device.
 	.PARAMETER Enable
 	Enable search history on this device
@@ -764,9 +764,9 @@ function DeviceSearchHistory
 	Cloud content search
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for cloud content search.
 	.PARAMETER Enable
 	Enable cloud content search for Microsoft and work/school accounts
@@ -850,9 +850,9 @@ function CloudContentSearch
 	Block Workplace Join and AAD device join messages
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for block Workplace Join and AAD device join messages.
 	.PARAMETER Enable
 	Block Workplace Join and AAD device join messages
@@ -941,9 +941,9 @@ function WorkplaceJoinMessages
 	Prevent BitLocker auto encryption
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for prevent BitLocker auto encryption.
 	.PARAMETER Enable
 	Prevent BitLocker auto encryption
@@ -1029,9 +1029,9 @@ function BitLockerAutoEncryption
     Automatic Map Updates settings and scripting
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for automatic Map Updates settings and scripting.
     .PARAMETER Enable
     Enable automatic map updates
@@ -1193,9 +1193,9 @@ function Camera
     Clipboard History feature settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for clipboard History feature settings.
     .PARAMETER Enable
     Enable the Clipboard History feature
@@ -1300,9 +1300,9 @@ function ClipboardHistory
 	Controls sensor-related features, such as screen auto-rotation
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for controls sensor-related features, such as screen auto-rotation.
 	.PARAMETER Disable
 	Disable sensor-related features, such as screen auto-rotation
@@ -1385,9 +1385,9 @@ function Sensors
     Display and sleep mode timeouts
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for display and sleep mode timeouts.
     .PARAMETER Enable
     Enable the display and sleep mode timeouts (default value)
@@ -1582,9 +1582,9 @@ function UpdateDriver
     Fast Startup feature settings
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for fast Startup feature settings.
     .PARAMETER Enable
     Enable the Fast Startup feature (default value)
@@ -1660,9 +1660,9 @@ function FastStartup
 	The feedback frequency
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the feedback frequency.
 	.PARAMETER Never
 	Change the feedback frequency to "Never"
@@ -1751,9 +1751,9 @@ function FeedbackFrequency
 	The provision to websites a locally relevant content by accessing my language list
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for the provision to websites a locally relevant content by accessing my language list.
 	.PARAMETER Disable
 	Do not let websites show me locally relevant content by accessing my language list
@@ -1832,9 +1832,9 @@ function LanguageListAccess
     Location feature settings and scripting
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for location feature settings and scripting.
     .PARAMETER Enable
     Enable the location feature
@@ -1921,9 +1921,9 @@ function LocationService
     Enable or disable the Windows Web Experience Pack (used for widgets and lock screen features)
 
 
-    
+
 .DESCRIPTION
-    
+
 Enables or disables the Windows Web Experience Pack (used for widgets and lock screen features) in GUI and headless runs.
     .PARAMETER Enable
     Install or re-register the Windows Web Experience Pack
@@ -1985,9 +1985,9 @@ function LockWidgets {
 	Remote Assistance
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for remote Assistance.
 	.PARAMETER Enable
 	Allow remote assistance connections

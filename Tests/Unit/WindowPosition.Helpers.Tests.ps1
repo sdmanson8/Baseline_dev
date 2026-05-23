@@ -175,6 +175,38 @@ Describe 'Resolve-BaselineWindowPlacement' {
         $r.Width  | Should -Be 1100.0
     }
 
+    It 'shrinks a saved rect that is larger than the current work area' {
+        $smallWorkArea = @([pscustomobject]@{ Left = 0.0; Top = 0.0; Width = 1366.0; Height = 728.0 })
+        Set-BaselineUserPreference -Key 'WindowLeft'   -Value 0.0
+        Set-BaselineUserPreference -Key 'WindowTop'    -Value 0.0
+        Set-BaselineUserPreference -Key 'WindowWidth'  -Value 1800.0
+        Set-BaselineUserPreference -Key 'WindowHeight' -Value 1000.0
+
+        $r = Resolve-BaselineWindowPlacement -DefaultRect $Script:WPDefaultRect -WorkAreas $smallWorkArea
+
+        $r.Source | Should -Be 'saved'
+        $r.Left   | Should -Be 0.0
+        $r.Top    | Should -Be 0.0
+        $r.Width  | Should -Be 1366.0
+        $r.Height | Should -Be 728.0
+    }
+
+    It 'keeps a resized saved rect fully inside the selected work area' {
+        $smallWorkArea = @([pscustomobject]@{ Left = 0.0; Top = 0.0; Width = 1024.0; Height = 700.0 })
+        Set-BaselineUserPreference -Key 'WindowLeft'   -Value 500.0
+        Set-BaselineUserPreference -Key 'WindowTop'    -Value 250.0
+        Set-BaselineUserPreference -Key 'WindowWidth'  -Value 1200.0
+        Set-BaselineUserPreference -Key 'WindowHeight' -Value 800.0
+
+        $r = Resolve-BaselineWindowPlacement -DefaultRect $Script:WPDefaultRect -WorkAreas $smallWorkArea
+
+        $r.Source | Should -Be 'saved'
+        $r.Left   | Should -Be 0.0
+        $r.Top    | Should -Be 0.0
+        $r.Width  | Should -Be 1024.0
+        $r.Height | Should -Be 700.0
+    }
+
     It "falls back to default with Source='default-off-screen' when saved rect is no longer visible" {
         Set-BaselineUserPreference -Key 'WindowLeft'   -Value 9000.0
         Set-BaselineUserPreference -Key 'WindowTop'    -Value 9000.0
@@ -207,6 +239,68 @@ Describe 'Resolve-BaselineWindowPlacement' {
 
         $r = Resolve-BaselineWindowPlacement -DefaultRect $Script:WPDefaultRect -WorkAreas $Script:WPSingle1080
         $r.Maximized | Should -BeTrue
+    }
+}
+
+Describe 'Window placement preferences before GUI user preferences load' {
+    BeforeEach {
+        $Script:WPPreviousStateRoot = [System.Environment]::GetEnvironmentVariable('BASELINE_STATE_ROOT')
+        $Script:WPDirectStateRoot = Join-Path $TestDrive 'StateRoot'
+        [System.Environment]::SetEnvironmentVariable('BASELINE_STATE_ROOT', $Script:WPDirectStateRoot, 'Process')
+        Remove-Item -Path Function:\Get-BaselineUserPreference -ErrorAction SilentlyContinue
+        Remove-Item -Path Function:\Set-BaselineUserPreference -ErrorAction SilentlyContinue
+    }
+
+    AfterEach {
+        [System.Environment]::SetEnvironmentVariable('BASELINE_STATE_ROOT', $Script:WPPreviousStateRoot, 'Process')
+        $Script:WPTestPrefStore = @{}
+        function script:Get-BaselineUserPreference {
+            param([Parameter(Mandatory)][string]$Key, $Default = $null)
+            if ($Script:WPTestPrefStore.ContainsKey($Key)) { return $Script:WPTestPrefStore[$Key] }
+            return $Default
+        }
+        function script:Set-BaselineUserPreference {
+            param([Parameter(Mandatory)][string]$Key, $Value)
+            $Script:WPTestPrefStore[$Key] = $Value
+        }
+    }
+
+    It 'restores maximized placement from Baseline-user-prefs.json before UserPreferences.ps1 is loaded' {
+        $profilesDirectory = Join-Path $Script:WPDirectStateRoot 'Profiles'
+        $preferencesPath = Join-Path $profilesDirectory 'Baseline-user-prefs.json'
+        New-Item -Path $profilesDirectory -ItemType Directory -Force | Out-Null
+        @{
+            Schema = 'Baseline.UserPreferences'
+            SchemaVersion = 1
+            SavedAtUtc = '2026-05-17T00:00:00.0000000Z'
+            Values = @{
+                RememberWindowPosition = $true
+                WindowLeft = 20.0
+                WindowTop = 30.0
+                WindowWidth = 1200.0
+                WindowHeight = 800.0
+                WindowMaximized = $true
+            }
+        } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $preferencesPath -Encoding UTF8 -Force
+
+        $defaultRect = [pscustomobject]@{ Left = 100.0; Top = 100.0; Width = 900.0; Height = 700.0 }
+        $workAreas = @([pscustomobject]@{ Left = 0.0; Top = 0.0; Width = 1920.0; Height = 1040.0 })
+
+        $placement = Resolve-BaselineWindowPlacement -DefaultRect $defaultRect -WorkAreas $workAreas
+
+        $placement.Source | Should -Be 'saved'
+        $placement.Maximized | Should -BeTrue
+        $placement.Left | Should -Be 20.0
+    }
+
+    It 'writes maximized placement to Baseline-user-prefs.json when the GUI preference API is not loaded' {
+        Save-BaselineWindowPlacement -Left 40 -Top 50 -Width 1100 -Height 720 -Maximized $true | Should -BeTrue
+
+        $preferencesPath = Join-Path (Join-Path $Script:WPDirectStateRoot 'Profiles') 'Baseline-user-prefs.json'
+        $preferences = Get-Content -LiteralPath $preferencesPath -Raw | ConvertFrom-Json
+
+        $preferences.Values.WindowLeft | Should -Be 40.0
+        $preferences.Values.WindowMaximized | Should -BeTrue
     }
 }
 

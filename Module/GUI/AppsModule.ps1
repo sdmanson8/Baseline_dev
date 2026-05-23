@@ -29,6 +29,11 @@ function Start-AppsModuleQueuedActionAsync
 	if ($Script:AppsQueuedActions.Count -eq 0) { return }
 	if ($Script:AppsOperationInProgress -or $Script:AppsCacheRefreshInProgress) { return }
 
+	$startAppsModuleBatchActionAsyncCommand = Get-GuiRuntimeCommand -Name 'Start-AppsModuleBatchActionAsync' -CommandType 'Function'
+	$clearAppsQueuedActionsCommand = Get-GuiRuntimeCommand -Name 'Clear-AppsQueuedActions' -CommandType 'Function'
+	if (-not $startAppsModuleBatchActionAsyncCommand) { throw 'Start-AppsModuleBatchActionAsync not found.' }
+	if (-not $clearAppsQueuedActionsCommand) { throw 'Clear-AppsQueuedActions not found.' }
+
 	$catalog = if (Get-Command -Name 'Get-LoadedBaselineApplicationsCatalog' -CommandType Function -ErrorAction SilentlyContinue) { @(Get-LoadedBaselineApplicationsCatalog) } else { @($Script:BaselineApplicationsCatalog) }
 	if (-not $catalog) { return }
 
@@ -63,7 +68,7 @@ function Start-AppsModuleQueuedActionAsync
 
 	if ($taskQueue.Count -eq 0)
 	{
-		Clear-AppsQueuedActions
+		& $clearAppsQueuedActionsCommand
 		return
 	}
 
@@ -73,6 +78,8 @@ function Start-AppsModuleQueuedActionAsync
 		Active = $false
 		Timer = $null
 	}
+	$getUxBilingualLocalizedStringCapture = Get-GuiFunctionCapture -Name 'Get-UxBilingualLocalizedString'
+	if (-not $getUxBilingualLocalizedStringCapture) { throw 'Get-UxBilingualLocalizedString not found.' }
 
 	$applyTick = {
 		try
@@ -91,9 +98,8 @@ function Start-AppsModuleQueuedActionAsync
 			if ($applyState.Index -ge $applyState.Tasks.Count)
 			{
 				try { $applyState.Timer.Stop() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Start-AppsModuleQueuedActionAsync.TimerStop' }
-				try { $applyState.Timer.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Start-AppsModuleQueuedActionAsync.TimerDispose' }
 				$applyState.Timer = $null
-				Clear-AppsQueuedActions
+				& $clearAppsQueuedActionsCommand
 				return
 			}
 
@@ -109,15 +115,14 @@ function Start-AppsModuleQueuedActionAsync
 			}
 
 			$applyState.Active = $true
-			Start-AppsModuleBatchActionAsync -Action $action -SelectedApps $apps
+			& $startAppsModuleBatchActionAsyncCommand -Action $action -SelectedApps $apps
 		}
 		catch
 		{
-			LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-UxBilingualLocalizedString -Key 'GuiLogExecutionAppQueueStateFailed' -Fallback 'Failed to apply queued app actions'))
+			LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (& $getUxBilingualLocalizedStringCapture -Key 'GuiLogExecutionAppQueueStateFailed' -Fallback 'Failed to apply queued app actions'))
 			try { $applyState.Timer.Stop() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Start-AppsModuleQueuedActionAsync.TimerStop' }
-			try { $applyState.Timer.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Start-AppsModuleQueuedActionAsync.TimerDispose' }
 			$applyState.Timer = $null
-			Clear-AppsQueuedActions
+			& $clearAppsQueuedActionsCommand
 		}
 	}.GetNewClosure()
 
@@ -152,6 +157,8 @@ function Build-AppsViewCards
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Build-AppsViewCards:catch158' -Severity Debug }
+
 			$packageManagerAvailabilityState = $null
 		}
 	}
@@ -165,6 +172,10 @@ function Build-AppsViewCards
 		$renderSignature = Get-AppsViewRenderSignature -PackageManagerAvailabilityState $packageManagerAvailabilityState
 		if ($Script:AppsWrapPanel.Children.Count -gt 0 -and $Script:AppsViewBuildSignature -eq $renderSignature)
 		{
+			if (Get-Command -Name 'Update-AppsCategoryTabCounts' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				try { Update-AppsCategoryTabCounts } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Build-AppsViewCards.UpdateAppsCategoryTabCountsCached' }
+			}
 			Sync-AppsQueuedActionControls
 			Update-AppsSelectionSummary
 			return
@@ -258,6 +269,11 @@ function Build-AppsViewCards
 		}
 	}
 	$cacheReady = [bool]($Script:AppsViewLoaded -and -not $Script:AppsViewDirty)
+	$installedCacheSnapshot = Get-ApplicationCacheSnapshot -CacheState $Script:InstalledAppsCache
+	$installedWingetCache = $installedCacheSnapshot.WinGet
+	$installedChocolateyCache = $installedCacheSnapshot.Chocolatey
+	$wingetUpdateCache = $installedCacheSnapshot.WinGetUpdates
+	$chocolateyUpdateCache = $installedCacheSnapshot.ChocolateyUpdates
 	$cacheRefreshPrompt = if (Get-Command -Name 'Get-AppsCacheRefreshPromptText' -CommandType Function -ErrorAction SilentlyContinue)
 	{
 		Get-AppsCacheRefreshPromptText
@@ -269,9 +285,11 @@ function Build-AppsViewCards
 	$setAppSelectionStateCommand = Get-GuiRuntimeCommand -Name 'Set-AppSelectionState' -CommandType 'Function'
 	$setAppQueuedActionCommand = Get-GuiRuntimeCommand -Name 'Set-AppQueuedAction' -CommandType 'Function'
 	$startAppsModuleActionAsyncCommand = Get-GuiRuntimeCommand -Name 'Start-AppsModuleActionAsync' -CommandType 'Function'
+	$showGuiRuntimeFailureCommand = Get-GuiFunctionCapture -Name 'Invoke-GuiRuntimeFailureReport'
 	if (-not $setAppSelectionStateCommand) { throw 'Set-AppSelectionState not found.' }
 	if (-not $setAppQueuedActionCommand) { throw 'Set-AppQueuedAction not found.' }
 	if (-not $startAppsModuleActionAsyncCommand) { throw 'Start-AppsModuleActionAsync not found.' }
+	if (-not $showGuiRuntimeFailureCommand) { throw 'Invoke-GuiRuntimeFailureReport not found.' }
 
 	if ($allCatalog.Count -eq 0)
 	{
@@ -437,11 +455,23 @@ function Start-AppsCacheRefresh
 
 	if ($Script:AppsCacheRefreshInProgress)
 	{
+		if (Get-Command -Name 'LogInfo' -CommandType Function, Alias -ErrorAction SilentlyContinue)
+		{
+			LogInfo 'Installed app scan is already running.'
+		}
 		return
 	}
 
 	$Script:AppsCacheRefreshInProgress = $true
 	Set-AppsActionControlsEnabled -Enabled $false
+	if (Get-Command -Name 'LogInfo' -CommandType Function, Alias -ErrorAction SilentlyContinue)
+	{
+		LogInfo 'Scanning installed apps...'
+	}
+	$runspace = $null
+	$ps = $null
+	try
+	{
 	# Resolve every localized label here on the UI thread. The background
 	# runspace does NOT have Get-UxLocalizedString / Get-UxBilingualLocalizedString
 	# (they live in Module/GUI/UxPolicy.ps1 and aren't imported by
@@ -483,6 +513,11 @@ function Start-AppsCacheRefresh
 	$appsSetSharedProgressBarStateCommand = Get-Command 'Set-SharedProgressBarState' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
 	$appsGetUxLocalizedStringCommand = Get-Command 'Get-UxLocalizedString' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
 	$appsBuildAppsViewCardsCommand = Get-Command 'Build-AppsViewCards' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
+	$appsLogInfoCommand = Get-Command 'LogInfo' -CommandType Function, Alias -ErrorAction SilentlyContinue | Select-Object -First 1
+	if (-not $appsLogInfoCommand)
+	{
+		$appsLogInfoCommand = Get-Command 'Write-BaselineInfo' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
+	}
 	# LogError is exported as an alias for Write-BaselineError (Logging.psm1);
 	# without -CommandType Function,Alias this lookup always misses and throws
 	# 'LogError not found.' from the guard below - surfaces as GUI-GENERIC-001
@@ -492,6 +527,7 @@ function Start-AppsCacheRefresh
 	{
 		$appsLogErrorCommand = Get-Command 'Write-BaselineError' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
 	}
+	$appsFormatBaselineErrorForLogCommand = Get-Command 'Format-BaselineErrorForLog' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
 	$appsSetActionControlsEnabledCommand = Get-Command 'Set-AppsActionControlsEnabled' -CommandType Function -ErrorAction SilentlyContinue | Select-Object -First 1
 
 	if (-not $appsGetApplicationCacheSnapshotCommand) { throw 'Get-ApplicationCacheSnapshot not found.' }
@@ -499,12 +535,15 @@ function Start-AppsCacheRefresh
 	if (-not $appsGetUxLocalizedStringCommand) { throw 'Get-UxLocalizedString not found.' }
 	if (-not $appsBuildAppsViewCardsCommand) { throw 'Build-AppsViewCards not found.' }
 	if (-not $appsLogErrorCommand) { throw 'LogError not found.' }
+	if (-not $appsFormatBaselineErrorForLogCommand) { throw 'Format-BaselineErrorForLog not found.' }
 	if (-not $appsSetActionControlsEnabledCommand) { throw 'Set-AppsActionControlsEnabled not found.' }
 
 	$null = $ps.AddScript({
 		param ($ModulePath, $Sync)
 		$scanTracePath = Join-Path $env:TEMP 'Baseline-ScanWorker-trace.txt'
-		function Write-ScanTrace { param([string]$Message) try { "$([DateTime]::UtcNow.ToString('o'))`t$Message" | Out-File -FilePath $scanTracePath -Append -Encoding UTF8 -Force } catch { $null = $_ } }
+		function Write-ScanTrace { param([string]$Message) try { "$([DateTime]::UtcNow.ToString('o'))`t$Message" | Out-File -FilePath $scanTracePath -Append -Encoding UTF8 -Force } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Write-ScanTrace:catch542' -Severity Debug }
+		 $null = $_ } }
 		Write-ScanTrace "--- scan worker start ---"
 		Write-ScanTrace ("ModulePath={0} exists={1}" -f $ModulePath, (Test-Path $ModulePath))
 		try
@@ -621,6 +660,8 @@ function Start-AppsCacheRefresh
 			$timer.Stop()
 			& $appsSetSharedProgressBarStateCommand -ProgressBar $tickProgressBar -ProgressText $tickProgressText -Completed 0 -Total 1 -CurrentAction (& $appsGetUxLocalizedStringCommand -Key 'GuiAppsCacheRefreshFailed' -Fallback 'Failed to scan installed applications.') -PassThruText | Out-Null
 			& $appsLogErrorCommand (& $appsGetUxLocalizedStringCommand -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @([string]$syncHash.Error))
+			& $appsScriptScope { $Script:AppsCacheRefreshInProgress = $false }
+			& $appsSetActionControlsEnabledCommand -Enabled $true
 			try { $ps.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Start-AppsCacheRefresh.DisposePowerShell' }
 			try { $runspace.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Start-AppsCacheRefresh.DisposeRunspace' }
 			return
@@ -672,6 +713,10 @@ function Start-AppsCacheRefresh
 				$Script:AppsViewDirty = $false
 			} $resolvedCache
 			& $appsSetSharedProgressBarStateCommand -ProgressBar $tickProgressBar -ProgressText $tickProgressText -Completed $syncHash.Total -Total $syncHash.Total -CurrentAction $syncHash.CurrentAction | Out-Null
+			if ($appsLogInfoCommand)
+			{
+				& $appsLogInfoCommand ([string]$syncHash.PhaseComplete)
+			}
 			if ($syncHash.Warnings -and $syncHash.Warnings.Count -gt 0)
 			{
 				foreach ($warning in $syncHash.Warnings)
@@ -686,6 +731,8 @@ function Start-AppsCacheRefresh
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Start-AppsCacheRefresh:catch728' -Severity Debug }
+
 			& $appsScriptScope {
 				$Script:InstalledAppsCache = [pscustomobject]@{
 					WinGet = @{}
@@ -697,7 +744,8 @@ function Start-AppsCacheRefresh
 				$Script:AppsViewDirty = $true
 			}
 			$progressText = & $appsSetSharedProgressBarStateCommand -ProgressBar $tickProgressBar -ProgressText $tickProgressText -Completed 0 -Total 1 -CurrentAction (& $appsGetUxLocalizedStringCommand -Key 'GuiAppsCacheRefreshFailed' -Fallback 'Failed to scan installed applications.') -PassThruText
-			& $appsLogErrorCommand (& $appsGetUxLocalizedStringCommand -Key 'Progress_Error' -Fallback 'Error: {0}' -FormatArgs @($_.Exception.Message))
+			$cacheRefreshErrorPrefix = & $appsGetUxLocalizedStringCommand -Key 'GuiAppsCacheRefreshFailed' -Fallback 'Failed to scan installed applications.'
+			& $appsLogErrorCommand (& $appsFormatBaselineErrorForLogCommand -ErrorObject $_ -Prefix $cacheRefreshErrorPrefix)
 		}
 		finally
 		{
@@ -708,6 +756,15 @@ function Start-AppsCacheRefresh
 		}
 	}.GetNewClosure())
 	$timer.Start()
+	}
+	catch
+	{
+		$Script:AppsCacheRefreshInProgress = $false
+		try { Set-AppsActionControlsEnabled -Enabled $true } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Start-AppsCacheRefresh.SetupFailureEnableControls' }
+		try { if ($ps) { $ps.Dispose() } } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Start-AppsCacheRefresh.SetupFailureDisposePowerShell' }
+		try { if ($runspace) { $runspace.Dispose() } } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Start-AppsCacheRefresh.SetupFailureDisposeRunspace' }
+		throw
+	}
 }
 
 <#

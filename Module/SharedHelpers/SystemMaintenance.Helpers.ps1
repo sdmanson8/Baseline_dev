@@ -56,6 +56,8 @@ function Invoke-AdditionalServiceOptimizations
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SystemMaintenance.Helpers.Invoke-AdditionalServiceOptimizations:catch57' -Severity Debug }
+
 		$memoryCompressionState = $null
 	}
 

@@ -1,4 +1,4 @@
-﻿using module ..\..\Logging.psm1
+using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
 <#
@@ -635,6 +635,8 @@ function Invoke-BaselineSoftwareDistributionFlush
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SystemTweaks.MaintenanceTasks.Invoke-BaselineSoftwareDistributionFlush:catch636' -Severity Debug }
+
 		$result.SkippedReason = "wuauserv not present: $($_.Exception.Message)"
 		return $result
 	}
@@ -647,6 +649,8 @@ function Invoke-BaselineSoftwareDistributionFlush
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SystemTweaks.MaintenanceTasks.Invoke-BaselineSoftwareDistributionFlush:catch648' -Severity Debug }
+
 			$result.SkippedReason = "Windows Update service is busy (status=$($wuauserv.Status))"
 			return $result
 		}
@@ -668,6 +672,8 @@ function Invoke-BaselineSoftwareDistributionFlush
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SystemTweaks.MaintenanceTasks.Invoke-BaselineSoftwareDistributionFlush:catch669' -Severity Debug }
+
 		$bytes = 0L
 	}
 
@@ -764,6 +770,8 @@ function Invoke-BaselineTempFolderPurge
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SystemTweaks.MaintenanceTasks.Invoke-BaselineTempFolderPurge:catch765' -Severity Debug }
+
 					$skipped++
 				}
 			}
@@ -801,6 +809,8 @@ function Invoke-BaselineTempFolderPurge
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SystemTweaks.MaintenanceTasks.Invoke-BaselineTempFolderPurge:catch802' -Severity Debug }
+
 			$skipped++
 		}
 	}

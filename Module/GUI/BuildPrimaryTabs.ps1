@@ -6,10 +6,7 @@
 		if ($pKey -eq 'Customizations')
 		{
 			$hasTweaks = $true
-			if (Get-Command -Name 'Get-BaselineStartupEntries' -CommandType Function -ErrorAction SilentlyContinue)
-			{
-				try { $tweakCount = @(Get-BaselineStartupEntries).Count } catch { $tweakCount = 0 }
-			}
+			$tweakCount = Get-GuiCustomizationsActionCardCount
 		}
 		else
 		{
@@ -69,6 +66,8 @@
 			try {
 				$CmbRiskFilter.SelectedIndex = [int]$idx
 			} catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\BuildPrimaryTabs.ps1:68' -Severity Debug }
+
 				$CmbRiskFilter.SelectedIndex = 0
 			}
 		}
@@ -90,6 +89,8 @@
 			try {
 				$CmbCategoryFilter.SelectedIndex = [int]$idx
 			} catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\BuildPrimaryTabs.ps1:89' -Severity Debug }
+
 				$CmbCategoryFilter.SelectedIndex = 0
 			}
 		}
@@ -484,7 +485,7 @@
 						catch {
 							$showFn = $Script:ShowGuiRuntimeFailureScript
 							if ($showFn) { $null = & $showFn -Context 'PrimaryTabs/SelectionChanged' -Exception $_.Exception -ShowDialog }
-							else { Write-Warning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'GUI event failed [PrimaryTabs/SelectionChanged]') }
+							else { Write-Warning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'GUI event failed: PrimaryTabs/SelectionChanged') }
 						}
 				}
 		}
@@ -572,7 +573,7 @@
 		catch
 		{
 			if ($showGuiRuntimeFailureCapture) { $null = & $showGuiRuntimeFailureCapture -Context 'InitialTabBuild' -Exception $_.Exception -ShowDialog }
-			else { Write-Warning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'GUI event failed [InitialTabBuild]') }
+			else { Write-Warning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'GUI event failed: InitialTabBuild') }
 		}
 		finally
 		{
@@ -628,7 +629,7 @@
 					catch
 					{
 						if ($showGuiRuntimeFailureCapture) { $null = & $showGuiRuntimeFailureCapture -Context 'InitialTabBuild' -Exception $_.Exception -ShowDialog }
-						else { Write-Warning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'GUI event failed [InitialTabBuild]') }
+						else { Write-Warning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'GUI event failed: InitialTabBuild') }
 					}
 					finally
 					{

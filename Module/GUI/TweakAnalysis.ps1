@@ -1,4 +1,27 @@
-﻿# Pure logic functions for tweak analysis: removal detection, scenario signals, selection state
+# Pure logic functions for tweak analysis: removal detection, scenario signals, selection state
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Get-TweakAnalysisFieldValue
+	{
+		param(
+			[object]$Tweak,
+			[string]$FieldName
+		)
+
+		if ($null -eq $Tweak) { return $null }
+		if ($Tweak -is [System.Collections.IDictionary])
+		{
+			if ($Tweak.Contains($FieldName)) { return $Tweak[$FieldName] }
+			return $null
+		}
+
+		$property = $Tweak.PSObject.Properties[$FieldName]
+		if ($property) { return $property.Value }
+		return $null
+	}
 
 	<#
 	    .SYNOPSIS
@@ -10,17 +33,18 @@
 
 		if (-not $Tweak) { return $false }
 
+		$tagValues = @((Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Tags') | ForEach-Object { [string]$_ })
 		$searchParts = @(
-			[string]$Tweak.Name,
-			[string]$Tweak.Description,
-			[string]$Tweak.Detail,
-			[string]$Tweak.WhyThisMatters,
-			([string[]]@($Tweak.Tags | ForEach-Object { [string]$_ }) -join ' ')
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Name'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Description'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Detail'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'WhyThisMatters'),
+			($tagValues -join ' ')
 		) -join ' '
 
-		if ($Tweak.Type -eq 'Choice')
+		if ([string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Type') -eq 'Choice')
 		{
-			$optionValues = @($Tweak.Options | ForEach-Object { [string]$_ })
+			$optionValues = @((Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Options') | ForEach-Object { [string]$_ })
 			if ($optionValues | Where-Object { $_ -match '^(?i)(uninstall|remove|delete)$' })
 			{
 				return $true
@@ -40,22 +64,22 @@
 
 		if (-not $Tweak) { return $false }
 
-		$tagValues = @($Tweak.Tags | ForEach-Object { [string]$_ })
-		$optionValues = @($Tweak.Options | ForEach-Object { [string]$_ })
+		$tagValues = @((Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Tags') | ForEach-Object { [string]$_ })
+		$optionValues = @((Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Options') | ForEach-Object { [string]$_ })
 		$haystack = @(
-			[string]$Tweak.Name,
-			[string]$Tweak.Function,
-			[string]$Tweak.Description,
-			[string]$Tweak.Detail,
-			[string]$Tweak.WhyThisMatters,
-			[string]$Tweak.CautionReason,
-			[string]$Tweak.SubCategory,
-			[string]$Tweak.SourceRegion,
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Name'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Function'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Description'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Detail'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'WhyThisMatters'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'CautionReason'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'SubCategory'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'SourceRegion'),
 			($tagValues -join ' ')
 		) -join ' '
 
-		if ([string]$Tweak.SubCategory -eq 'App Management') { return $true }
-		if ([string]$Tweak.SourceRegion -eq 'OneDrive') { return $true }
+		if ([string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'SubCategory') -eq 'App Management') { return $true }
+		if ([string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'SourceRegion') -eq 'OneDrive') { return $true }
 		if ($tagValues -contains 'package-manager') { return $true }
 		if (@($optionValues | Where-Object { $_ -match '^(?i)(install|uninstall|update|restore)$' }).Count -gt 0)
 		{
@@ -86,16 +110,16 @@
 			}
 		}.GetNewClosure()
 
-		$tagValues = @($Tweak.Tags | ForEach-Object { [string]$_ })
+		$tagValues = @((Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Tags') | ForEach-Object { [string]$_ })
 		$haystack = @(
-			[string]$Tweak.Name,
-			[string]$Tweak.Description,
-			[string]$Tweak.Detail,
-			[string]$Tweak.WhyThisMatters,
-			[string]$Tweak.CautionReason,
-			[string]$Tweak.Category,
-			[string]$Tweak.SubCategory,
-			[string]$Tweak.SourceRegion,
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Name'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Description'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Detail'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'WhyThisMatters'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'CautionReason'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Category'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'SubCategory'),
+			[string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'SourceRegion'),
 			($tagValues -join ' ')
 		) -join ' '
 		$tagText = $tagValues -join ' '
@@ -275,9 +299,47 @@
 		}
 
 		$goalState = Get-GuiToggleGoalState -Tweak $Tweak
+		$functionName = if ((Test-GuiObjectField -Object $Tweak -FieldName 'Function') -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.Function)) { [string]$Tweak.Function } else { $null }
+
+		$appliedTweaksVariable = Get-Variable -Scope Script -Name 'AppliedTweaks' -ErrorAction SilentlyContinue
+		$appliedTweaks = if ($appliedTweaksVariable) { $appliedTweaksVariable.Value } else { $null }
+		if (-not [string]::IsNullOrWhiteSpace($functionName) -and $appliedTweaks -and $appliedTweaks.Contains($functionName))
+		{
+			if (Get-Command -Name 'Set-CachedDetection' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				try { Set-CachedDetection -Function $functionName -Value ([bool]$goalState) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'TweakAnalysis.GetGuiToggleDetectedState.SetAppliedCache' }
+			}
+			return [pscustomobject]@{
+				Known = $true
+				Value = [bool]$goalState
+			}
+		}
+
+		if (-not [string]::IsNullOrWhiteSpace($functionName) -and (Get-Command -Name 'Get-CachedDetection' -CommandType Function -ErrorAction SilentlyContinue))
+		{
+			try
+			{
+				$cachedValue = Get-CachedDetection -Function $functionName
+				if ($null -ne $cachedValue)
+				{
+					return [pscustomobject]@{
+						Known = $true
+						Value = [bool]$cachedValue
+					}
+				}
+			}
+			catch { Write-SwallowedException -ErrorRecord $_ -Source 'TweakAnalysis.GetGuiToggleDetectedState.GetCachedDetection' }
+		}
+
+		$detectedValue = [bool](Invoke-GuiDetectScriptblock -Detect $Tweak.Detect -DefaultValue $goalState)
+		if (-not [string]::IsNullOrWhiteSpace($functionName) -and (Get-Command -Name 'Set-CachedDetection' -CommandType Function -ErrorAction SilentlyContinue))
+		{
+			try { Set-CachedDetection -Function $functionName -Value $detectedValue } catch { Write-SwallowedException -ErrorRecord $_ -Source 'TweakAnalysis.GetGuiToggleDetectedState.SetCachedDetection' }
+		}
+
 		return [pscustomobject]@{
 			Known = $true
-			Value = [bool](Invoke-GuiDetectScriptblock -Detect $Tweak.Detect -DefaultValue $goalState)
+			Value = $detectedValue
 		}
 	}
 
@@ -407,7 +469,8 @@
 
 		if (-not $Tweak) { return $null }
 
-		$tier = if ([string]::IsNullOrWhiteSpace([string]$Tweak.PresetTier)) { 'Basic' } else { [string]$Tweak.PresetTier }
+		$presetTier = [string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'PresetTier')
+		$tier = if ([string]::IsNullOrWhiteSpace($presetTier)) { 'Basic' } else { $presetTier }
 		$tierText = switch ($tier)
 		{
 			'Minimal' { 'Included because it is a very small, low-risk change.'; break }
@@ -454,8 +517,11 @@
 
 		$isPackageOperation = Test-TweakPackageOperation -Tweak $Tweak
 		$isRemovalOperation = Test-TweakRemovalOperation -Tweak $Tweak
-		$riskLevel = if ([string]::IsNullOrWhiteSpace([string]$Tweak.Risk)) { 'Low' } else { [string]$Tweak.Risk }
-		$impactLevel = if ((Test-GuiObjectField -Object $Tweak -FieldName 'Impact') -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.Impact)) { [string]$Tweak.Impact } else { $riskLevel }
+		$risk = [string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Risk')
+		$impact = [string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Impact')
+		$cautionReason = [string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'CautionReason')
+		$riskLevel = if ([string]::IsNullOrWhiteSpace($risk)) { 'Low' } else { $risk }
+		$impactLevel = if (-not [string]::IsNullOrWhiteSpace($impact)) { $impact } else { $riskLevel }
 
 		$focusNotes = New-Object System.Collections.Generic.List[string]
 		foreach ($tag in @($ScenarioTags))
@@ -508,9 +574,9 @@
 		{
 			[void]$details.Add('Review the linked description before running.')
 		}
-		elseif (-not [string]::IsNullOrWhiteSpace([string]$Tweak.CautionReason))
+		elseif (-not [string]::IsNullOrWhiteSpace($cautionReason))
 		{
-			[void]$details.Add([string]$Tweak.CautionReason.Trim().TrimEnd('.') + '.')
+			[void]$details.Add($cautionReason.Trim().TrimEnd('.') + '.')
 		}
 		else
 		{

@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
 #>
 function Test-GuiCommonUniqueAdd
@@ -152,6 +152,8 @@ function Write-GuiCommonWarning
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Utilities.Write-GuiCommonWarning:catch153' -Severity Debug }
+
 			$shouldLog = $true
 		}
 	}

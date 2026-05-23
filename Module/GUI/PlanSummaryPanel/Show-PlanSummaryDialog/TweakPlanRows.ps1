@@ -1,99 +1,119 @@
+$planRowItems = [System.Collections.Generic.List[object]]::new()
+
+$typeBadgeBackground = $bc.ConvertFromString($theme.StatusPillBg)
+$typeBadgeBorder = $bc.ConvertFromString($theme.StatusPillBorder)
+$typeBadgeForeground = $bc.ConvertFromString($theme.StatusPillText)
+$riskBadgeBackground = $bc.ConvertFromString($theme.RiskHighBadgeBg)
+$riskBadgeBrush = $bc.ConvertFromString($theme.RiskHighBadge)
+$restartBadgeBackground = $bc.ConvertFromString($theme.RiskMediumBadgeBg)
+$restartBadgeBrush = $bc.ConvertFromString($theme.RiskMediumBadge)
+$badgeCornerRadius = [System.Windows.CornerRadius]::new($Script:GuiLayout.PillCornerRadius)
+$rowCornerRadius = [System.Windows.CornerRadius]::new($Script:GuiLayout.BorderRadiusSmall)
+$tinyFontSize = [double]$Script:GuiLayout.FontSizeTiny
+$highRiskLabel = Get-UxLocalizedString -Key 'GuiPlanHighRisk' -Fallback 'High Risk'
+$restartLabel = Get-UxLocalizedString -Key 'GuiPlanRestart' -Fallback 'Restart'
+
 foreach ($tweak in $sortedTweaks)
+{
+	$badgeItems = [System.Collections.Generic.List[object]]::new()
+
+	$tweakType = if (Test-GuiObjectField -Object $tweak -FieldName 'Type') { [string](Get-GuiObjectField -Object $tweak -FieldName 'Type') } else { '' }
+	if (-not [string]::IsNullOrWhiteSpace($tweakType))
 	{
-		$rowBorder = New-Object System.Windows.Controls.Border
-		$rowBorder.Background = $brushCardBg
-		$rowBorder.BorderBrush = $brushCardBorder
-		$rowBorder.BorderThickness = $thickness1
-		$rowBorder.CornerRadius = [System.Windows.CornerRadius]::new($Script:GuiLayout.BorderRadiusSmall)
-		$rowBorder.Padding = [System.Windows.Thickness]::new(12, 8, 12, 8)
-		$rowBorder.Margin = [System.Windows.Thickness]::new(0, 0, 0, 4)
-
-		$rowGrid = New-Object System.Windows.Controls.Grid
-		[void]($rowGrid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star) })))
-		[void]($rowGrid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Auto) })))
-
-		# Tweak name
-		$nameBlock = New-Object System.Windows.Controls.TextBlock
-		$nameBlock.Text = [string]$tweak.Name
-		$nameBlock.Foreground = $brushTextPrimary
-		$nameBlock.FontWeight = [System.Windows.FontWeights]::Normal
-		$nameBlock.TextWrapping = 'NoWrap'
-		$nameBlock.TextTrimming = 'CharacterEllipsis'
-		$nameBlock.VerticalAlignment = 'Center'
-		[System.Windows.Controls.Grid]::SetColumn($nameBlock, 0)
-		[void]($rowGrid.Children.Add($nameBlock))
-
-		# Badge panel (type + risk + restart)
-		$badgePanel = New-Object System.Windows.Controls.StackPanel
-		$badgePanel.Orientation = 'Horizontal'
-		$badgePanel.VerticalAlignment = 'Center'
-
-		# Type badge
-		$tweakType = if (Test-GuiObjectField -Object $tweak -FieldName 'Type') { [string](Get-GuiObjectField -Object $tweak -FieldName 'Type') } else { '' }
-		if (-not [string]::IsNullOrWhiteSpace($tweakType))
-		{
-			$typeBadge = New-Object System.Windows.Controls.Border
-			$typeBadge.CornerRadius = [System.Windows.CornerRadius]::new($Script:GuiLayout.PillCornerRadius)
-			$typeBadge.Padding = [System.Windows.Thickness]::new(8, 2, 8, 2)
-			$typeBadge.Margin = [System.Windows.Thickness]::new(6, 0, 0, 0)
-			$typeBadge.Background = $bc.ConvertFromString($theme.StatusPillBg)
-			$typeBadge.BorderBrush = $bc.ConvertFromString($theme.StatusPillBorder)
-			$typeBadge.BorderThickness = $thickness1
-
-			$typeText = New-Object System.Windows.Controls.TextBlock
-			$typeText.Text = $tweakType
-			$typeText.FontSize = $Script:GuiLayout.FontSizeTiny
-			$typeText.FontWeight = [System.Windows.FontWeights]::SemiBold
-			$typeText.Foreground = $bc.ConvertFromString($theme.StatusPillText)
-			$typeBadge.Child = $typeText
-			[void]($badgePanel.Children.Add($typeBadge))
-		}
-
-		# High risk badge
-		$tweakRisk = if (Test-GuiObjectField -Object $tweak -FieldName 'Risk') { [string](Get-GuiObjectField -Object $tweak -FieldName 'Risk') } else { $null }
-		if ($tweakRisk -eq 'High')
-		{
-			$riskBadge = New-Object System.Windows.Controls.Border
-			$riskBadge.CornerRadius = [System.Windows.CornerRadius]::new($Script:GuiLayout.PillCornerRadius)
-			$riskBadge.Padding = [System.Windows.Thickness]::new(8, 2, 8, 2)
-			$riskBadge.Margin = [System.Windows.Thickness]::new(6, 0, 0, 0)
-			$riskBadge.Background = $bc.ConvertFromString($theme.RiskHighBadgeBg)
-			$riskBadge.BorderBrush = $bc.ConvertFromString($theme.RiskHighBadge)
-			$riskBadge.BorderThickness = $thickness1
-
-			$riskText = New-Object System.Windows.Controls.TextBlock
-			$riskText.Text = (Get-UxLocalizedString -Key 'GuiPlanHighRisk' -Fallback 'High Risk')
-			$riskText.FontSize = $Script:GuiLayout.FontSizeTiny
-			$riskText.FontWeight = [System.Windows.FontWeights]::SemiBold
-			$riskText.Foreground = $bc.ConvertFromString($theme.RiskHighBadge)
-			$riskBadge.Child = $riskText
-			[void]($badgePanel.Children.Add($riskBadge))
-		}
-
-		# Restart indicator
-		$needsRestart = (Test-GuiObjectField -Object $tweak -FieldName 'RequiresRestart') -and [bool](Get-GuiObjectField -Object $tweak -FieldName 'RequiresRestart')
-		if ($needsRestart)
-		{
-			$restartBadge = New-Object System.Windows.Controls.Border
-			$restartBadge.CornerRadius = [System.Windows.CornerRadius]::new($Script:GuiLayout.PillCornerRadius)
-			$restartBadge.Padding = [System.Windows.Thickness]::new(8, 2, 8, 2)
-			$restartBadge.Margin = [System.Windows.Thickness]::new(6, 0, 0, 0)
-			$restartBadge.Background = $bc.ConvertFromString($theme.RiskMediumBadgeBg)
-			$restartBadge.BorderBrush = $bc.ConvertFromString($theme.RiskMediumBadge)
-			$restartBadge.BorderThickness = $thickness1
-
-			$restartText = New-Object System.Windows.Controls.TextBlock
-			$restartText.Text = "$([char]0x21BB) $(Get-UxLocalizedString -Key 'GuiPlanRestart' -Fallback 'Restart')"
-			$restartText.FontSize = $Script:GuiLayout.FontSizeTiny
-			$restartText.FontWeight = [System.Windows.FontWeights]::SemiBold
-			$restartText.Foreground = $bc.ConvertFromString($theme.RiskMediumBadge)
-			$restartBadge.Child = $restartText
-			[void]($badgePanel.Children.Add($restartBadge))
-		}
-
-		[System.Windows.Controls.Grid]::SetColumn($badgePanel, 1)
-		[void]($rowGrid.Children.Add($badgePanel))
-
-		$rowBorder.Child = $rowGrid
-		[void]($bodyStack.Children.Add($rowBorder))
+		[void]($badgeItems.Add([pscustomobject]@{
+					Text = $tweakType
+					Background = $typeBadgeBackground
+					BorderBrush = $typeBadgeBorder
+					Foreground = $typeBadgeForeground
+					CornerRadius = $badgeCornerRadius
+					FontSize = $tinyFontSize
+				}))
 	}
+
+	$tweakRisk = if (Test-GuiObjectField -Object $tweak -FieldName 'Risk') { [string](Get-GuiObjectField -Object $tweak -FieldName 'Risk') } else { $null }
+	if ($tweakRisk -eq 'High')
+	{
+		[void]($badgeItems.Add([pscustomobject]@{
+					Text = $highRiskLabel
+					Background = $riskBadgeBackground
+					BorderBrush = $riskBadgeBrush
+					Foreground = $riskBadgeBrush
+					CornerRadius = $badgeCornerRadius
+					FontSize = $tinyFontSize
+				}))
+	}
+
+	$needsRestart = (Test-GuiObjectField -Object $tweak -FieldName 'RequiresRestart') -and [bool](Get-GuiObjectField -Object $tweak -FieldName 'RequiresRestart')
+	if ($needsRestart)
+	{
+		[void]($badgeItems.Add([pscustomobject]@{
+					Text = ("{0} {1}" -f [char]0x21BB, $restartLabel)
+					Background = $restartBadgeBackground
+					BorderBrush = $restartBadgeBrush
+					Foreground = $restartBadgeBrush
+					CornerRadius = $badgeCornerRadius
+					FontSize = $tinyFontSize
+				}))
+	}
+
+	[void]($planRowItems.Add([pscustomobject]@{
+				Name = [string]$tweak.Name
+				Badges = [object[]]$badgeItems.ToArray()
+				CardBackground = $brushCardBg
+				CardBorder = $brushCardBorder
+				TextForeground = $brushTextPrimary
+				RowCornerRadius = $rowCornerRadius
+			}))
+}
+
+$planRowsList = New-Object System.Windows.Controls.ListBox
+$planRowsList.ItemsSource = $planRowItems
+$planRowsList.BorderThickness = [System.Windows.Thickness]::new(0)
+$planRowsList.Background = [System.Windows.Media.Brushes]::Transparent
+$planRowsList.Focusable = $false
+$planRowsList.HorizontalContentAlignment = [System.Windows.HorizontalAlignment]::Stretch
+$planRowsList.MaxHeight = [Math]::Max(260, ([double]$Script:GuiLayout.DialogLargeHeight - 360))
+$planRowsList.Margin = [System.Windows.Thickness]::new(0, 0, 0, 4)
+
+[System.Windows.Controls.VirtualizingStackPanel]::SetIsVirtualizing($planRowsList, $true)
+[System.Windows.Controls.VirtualizingStackPanel]::SetVirtualizationMode($planRowsList, [System.Windows.Controls.VirtualizationMode]::Recycling)
+[System.Windows.Controls.ScrollViewer]::SetCanContentScroll($planRowsList, $true)
+[System.Windows.Controls.ScrollViewer]::SetVerticalScrollBarVisibility($planRowsList, [System.Windows.Controls.ScrollBarVisibility]::Auto)
+[System.Windows.Controls.ScrollViewer]::SetHorizontalScrollBarVisibility($planRowsList, [System.Windows.Controls.ScrollBarVisibility]::Disabled)
+
+$planRowsItemContainerStyle = New-Object -TypeName System.Windows.Style -ArgumentList ([System.Windows.Controls.ListBoxItem])
+[void]($planRowsItemContainerStyle.Setters.Add((New-Object -TypeName System.Windows.Setter -ArgumentList ([System.Windows.Controls.Control]::HorizontalContentAlignmentProperty), ([System.Windows.HorizontalAlignment]::Stretch))))
+[void]($planRowsItemContainerStyle.Setters.Add((New-Object -TypeName System.Windows.Setter -ArgumentList ([System.Windows.Controls.Control]::PaddingProperty), ([System.Windows.Thickness]::new(0)))))
+[void]($planRowsItemContainerStyle.Setters.Add((New-Object -TypeName System.Windows.Setter -ArgumentList ([System.Windows.Controls.Control]::BackgroundProperty), ([System.Windows.Media.Brushes]::Transparent))))
+$planRowsList.ItemContainerStyle = $planRowsItemContainerStyle
+
+$planRowsTemplateXaml = @'
+<DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<Border Background="{Binding CardBackground}" BorderBrush="{Binding CardBorder}" BorderThickness="1" CornerRadius="{Binding RowCornerRadius}" Padding="12,8,12,8" Margin="0,0,0,4">
+		<Grid>
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="*"/>
+				<ColumnDefinition Width="Auto"/>
+			</Grid.ColumnDefinitions>
+			<TextBlock Grid.Column="0" Text="{Binding Name}" Foreground="{Binding TextForeground}" FontWeight="Normal" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+			<ItemsControl Grid.Column="1" ItemsSource="{Binding Badges}" VerticalAlignment="Center">
+				<ItemsControl.ItemsPanel>
+					<ItemsPanelTemplate>
+						<StackPanel Orientation="Horizontal"/>
+					</ItemsPanelTemplate>
+				</ItemsControl.ItemsPanel>
+				<ItemsControl.ItemTemplate>
+					<DataTemplate>
+						<Border Background="{Binding Background}" BorderBrush="{Binding BorderBrush}" BorderThickness="1" CornerRadius="{Binding CornerRadius}" Padding="8,2,8,2" Margin="6,0,0,0">
+							<TextBlock Text="{Binding Text}" FontSize="{Binding FontSize}" FontWeight="SemiBold" Foreground="{Binding Foreground}"/>
+						</Border>
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
+			</ItemsControl>
+		</Grid>
+	</Border>
+</DataTemplate>
+'@
+$planRowsList.ItemTemplate = [System.Windows.Markup.XamlReader]::Parse($planRowsTemplateXaml)
+
+[void]($bodyStack.Children.Add($planRowsList))

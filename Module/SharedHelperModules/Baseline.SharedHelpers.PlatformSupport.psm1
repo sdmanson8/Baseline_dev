@@ -25,11 +25,19 @@ $ExportedFunctions = @(
     'Get-BaselinePlatformFilterOverride'
     'ConvertTo-BaselinePlatformLabel'
     'Set-BaselineDefenderExecutionAvailability'
+    'Set-BaselineDefenderComponentAvailability'
     'Reset-BaselineDefenderExecutionAvailability'
+    'Resolve-BaselineDefenderExecutionAvailability'
+    'Resolve-BaselineDefenderComponentAvailability'
+    'Test-BaselineDefenderExecutionAvailable'
+    'Get-BaselineDefenderExecutionUnavailableReason'
+    'Test-BaselineDefenderComponentAvailable'
+    'Get-BaselineDefenderComponentUnavailableReason'
     'Test-BaselineEntryAvailable'
     'Test-BaselineEntrySupportsExecution'
     'Get-BaselineEntryAvailabilitySummary'
     'Update-BaselineManifestAvailability'
+    'Update-BaselineManifestExecutionSupport'
 )
 
 Export-ModuleMember -Function $ExportedFunctions

@@ -22,6 +22,7 @@
 	<Color x:Key="Color.LogBg">#F7F8FA</Color>
 	<Color x:Key="Color.LogDefault">#1F2937</Color>
 	<Color x:Key="Color.LogInfo">#1D4ED8</Color>
+	<Color x:Key="Color.LogDebug">#6D28D9</Color>
 	<Color x:Key="Color.LogSuccess">#1F7A4C</Color>
 	<Color x:Key="Color.LogWarning">#9A6700</Color>
 	<Color x:Key="Color.LogError">#B42318</Color>
@@ -65,6 +66,7 @@
 	<SolidColorBrush x:Key="Brush.LogBg" Color="{StaticResource Color.LogBg}"/>
 	<SolidColorBrush x:Key="Brush.LogDefault" Color="{StaticResource Color.LogDefault}"/>
 	<SolidColorBrush x:Key="Brush.LogInfo" Color="{StaticResource Color.LogInfo}"/>
+	<SolidColorBrush x:Key="Brush.LogDebug" Color="{StaticResource Color.LogDebug}"/>
 	<SolidColorBrush x:Key="Brush.LogSuccess" Color="{StaticResource Color.LogSuccess}"/>
 	<SolidColorBrush x:Key="Brush.LogWarning" Color="{StaticResource Color.LogWarning}"/>
 	<SolidColorBrush x:Key="Brush.LogError" Color="{StaticResource Color.LogError}"/>

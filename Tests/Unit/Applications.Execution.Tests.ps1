@@ -25,7 +25,17 @@ BeforeAll {
         (Join-Path $PSScriptRoot '../../Module/GUI/AppsModule/SelectionQueueState.ps1'),
         (Join-Path $PSScriptRoot '../../Module/GUI/AppsModule/ProgressNavChrome.ps1')
     )
-    $targetAppsFunctions = @('Initialize-AppsSelectionState', 'Update-AppsSelectionSummary', 'Start-AppsModuleActionAsync', 'Start-AppsModuleBatchActionAsync', 'Initialize-AppsQueuedActionState')
+    $targetAppsFunctions = @(
+        'Get-ApplicationEntityType',
+        'Test-ApplicationExecutionSupport',
+        'Get-ApplicationCatalogIdentityKey',
+        'Get-ApplicationExecutionState',
+        'Initialize-AppsSelectionState',
+        'Update-AppsSelectionSummary',
+        'Start-AppsModuleActionAsync',
+        'Start-AppsModuleBatchActionAsync',
+        'Initialize-AppsQueuedActionState'
+    )
     foreach ($srcFile in $guiSourceFiles)
     {
         if (-not (Test-Path -LiteralPath $srcFile)) { continue }
@@ -311,6 +321,20 @@ Describe 'Resolve-ApplicationExecutionRoute' {
 
         $route.Route | Should -Be 'unsupported'
         $route.Reason | Should -BeLike '*No install method available*'
+    }
+
+    It 'routes store entries through the Microsoft Store adapter' {
+        $route = Resolve-ApplicationExecutionRoute -Application @{
+            Name       = 'Paint'
+            EntityType = 'store'
+            ExtraArgs  = @{
+                StoreUri = 'ms-windows-store://pdp/?ProductId=9PCFS5B6T72H'
+            }
+        }
+
+        $route.Route | Should -Be 'store'
+        $route.SelectedSource | Should -Be 'store'
+        $route.PackageId | Should -Be 'ms-windows-store://pdp/?ProductId=9PCFS5B6T72H'
     }
 
     It 'rejects winget entries that do not define a WinGetId' {
@@ -783,6 +807,23 @@ Describe 'Process capture cleanup' {
     }
 }
 
+Describe 'Applications manual Store dialog' {
+    It 'loads GUICommon and calls the exported common dialog function' {
+        $script:ApplicationsContent | Should -Match '(?m)^using module \.\.\\GUICommon\.psm1'
+        $script:ApplicationsContent | Should -Match 'GUICommon\\Show-GuiCommonThemedDialog'
+        $script:ApplicationsContent | Should -Not -Match 'GUICommon\\Show-ThemedDialog'
+    }
+
+    It 'resolves dialog theme state shared into the background runspace' {
+        $script:ApplicationsContent | Should -Match 'function Get-ApplicationDialogTheme'
+        $script:ApplicationsContent | Should -Match 'Variable:\\Global:BaselineCurrentTheme'
+        $script:ApplicationsContent | Should -Match 'Variable:\\Global:BaselineCurrentThemeName'
+        $script:ApplicationsContent | Should -Match 'Variable:\\Global:BaselineUseDarkMode'
+        $script:ApplicationsContent | Should -Match '\$env:BASELINE_USE_DARK_MODE'
+        $script:ApplicationsContent | Should -Match '\$env:BASELINE_THEME_NAME'
+    }
+}
+
 Describe 'Apps package manager availability' {
     BeforeEach {
         $script:TestWinGetAvailable = $true
@@ -839,6 +880,50 @@ Describe 'Apps package manager availability' {
     }
 }
 
+Describe 'Application catalog execution state' {
+    It 'treats store entries with StoreUri metadata as executable install routes' {
+        $state = Get-ApplicationExecutionState -Entry ([pscustomobject]@{
+            Name       = 'Paint'
+            SubCategory = 'Imaging'
+            EntityType = 'store'
+            ExtraArgs  = [pscustomobject]@{
+                StoreUri = 'ms-windows-store://pdp/?ProductId=9PCFS5B6T72H'
+            }
+            SupportsExecution = $true
+        })
+
+        $state.SupportsExecution | Should -BeTrue
+        $state.State | Should -Be 'Not installed'
+        $state.Action | Should -Be 'Install'
+        $state.Route | Should -Be 'store'
+        $state.SelectedSource | Should -Be 'store'
+    }
+}
+
+Describe 'Applications catalog store metadata' {
+    It 'does not leave StoreUri-backed app entries marked as placeholders' {
+        $catalogRoot = Join-Path $PSScriptRoot '../../Module/Data/AppsCategory'
+        $offenders = @(
+            Get-ChildItem -LiteralPath $catalogRoot -Filter '*.json' | ForEach-Object {
+                $file = $_.Name
+                $json = Get-Content -Raw -LiteralPath $_.FullName | ConvertFrom-Json
+                foreach ($entry in @($json.Entries))
+                {
+                    if (-not $entry -or -not $entry.ExtraArgs) { continue }
+                    $storeUri = if ($entry.ExtraArgs.PSObject.Properties['StoreUri']) { [string]$entry.ExtraArgs.StoreUri } else { $null }
+                    if ([string]::IsNullOrWhiteSpace($storeUri)) { continue }
+                    if ([string]$entry.EntityType -eq 'placeholder' -or ($entry.PSObject.Properties['SupportsExecution'] -and -not [bool]$entry.SupportsExecution))
+                    {
+                        "{0}::{1}" -f $file, [string]$entry.Name
+                    }
+                }
+            }
+        )
+
+        @($offenders).Count | Should -Be 0
+    }
+}
+
 Describe 'Invoke-ApplicationAction' {
     BeforeEach {
         Mock Invoke-WingetInstall {}
@@ -847,6 +932,7 @@ Describe 'Invoke-ApplicationAction' {
         Mock Invoke-ChocoInstall {}
         Mock Invoke-ChocoUninstall {}
         Mock Invoke-ChocoUpdate {}
+        Mock Invoke-StoreInstall {}
         Mock LogError {}
     }
 
@@ -893,6 +979,24 @@ Describe 'Invoke-ApplicationAction' {
             $PackageManagerAvailabilityState.ChocolateyAvailable -eq $true
         }
         Should -Invoke Invoke-WingetUpdate -Times 0
+    }
+
+    It 'routes store installs to the Microsoft Store adapter' {
+        $application = [pscustomobject]@{
+            Name       = 'Paint'
+            EntityType = 'store'
+            ExtraArgs  = [pscustomobject]@{
+                StoreUri = 'ms-windows-store://pdp/?ProductId=9PCFS5B6T72H'
+            }
+            SupportsExecution = $true
+        }
+
+        Invoke-ApplicationAction -Action Install -Application $application
+
+        Should -Invoke Invoke-StoreInstall -Times 1 -ParameterFilter {
+            $StoreUri -eq 'ms-windows-store://pdp/?ProductId=9PCFS5B6T72H' -and
+            $DisplayName -eq 'Paint'
+        }
     }
 
     It 'throws for unsupported routes' {

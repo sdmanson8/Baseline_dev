@@ -1,4 +1,4 @@
-﻿<#
+<#
 	.SYNOPSIS
 	Toast notification helpers for Baseline (Windows PowerShell 5.1).
 
@@ -133,6 +133,8 @@ function Test-BaselineToastRuntimeAvailable
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Toast.Helpers.Test-BaselineToastRuntimeAvailable:catch134' -Severity Debug }
+
 		return $false
 	}
 }

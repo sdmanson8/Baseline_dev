@@ -65,9 +65,56 @@ $firstRunDialogDispatcher = if ($Form -and $Form.Dispatcher) { $Form.Dispatcher 
 	}
 	$hasLiveStartupSplash = & $testGuiStartupSplashLiveBlock -Splash $startupSplashHandle
 	$startupSplashAbortWatchdog = $null
+	$startupSplashMaximizeMirrorTimer = $null
+	$startupSplashLastMirroredWindowMaximized = $null
 	if ($hasLiveStartupSplash)
 	{
 		$startupSplashAbortWatchdog = Start-GuiStartupSplashAbortWatchdog -Splash $startupSplashHandle
+		if ($Form -and $Form.Dispatcher)
+		{
+			$startupSplashMaximizeMirrorTimer = [System.Windows.Threading.DispatcherTimer]::new([System.Windows.Threading.DispatcherPriority]::Send, $Form.Dispatcher)
+			$startupSplashMaximizeMirrorTimer.Interval = [TimeSpan]::FromMilliseconds(50)
+			$startupSplashMaximizeMirrorTimer.Add_Tick({
+				try
+				{
+					if (-not (& $testGuiStartupSplashLiveBlock -Splash $startupSplashHandle))
+					{
+						$startupSplashMaximizeMirrorTimer.Stop()
+						return
+					}
+					if (-not $startupSplashHandle.ContainsKey('WindowMaximized')) { return }
+					if ($startupSplashHandle.ContainsKey('ProgrammaticClose') -and [bool]$startupSplashHandle['ProgrammaticClose'])
+					{
+						$startupSplashMaximizeMirrorTimer.Stop()
+						return
+					}
+
+					$splashWindowMaximizedNow = [bool]$startupSplashHandle['WindowMaximized']
+					if ($null -ne $startupSplashLastMirroredWindowMaximized -and [bool]$startupSplashLastMirroredWindowMaximized -eq $splashWindowMaximizedNow)
+					{
+						return
+					}
+
+					if ($splashWindowMaximizedNow)
+					{
+						Set-GuiMainWindowWorkAreaMaximized -Window $Form -Maximized $true -PreserveRestoreBounds
+					}
+					elseif ($null -ne $startupSplashLastMirroredWindowMaximized -and [bool]$startupSplashLastMirroredWindowMaximized)
+					{
+						Set-GuiMainWindowWorkAreaMaximized -Window $Form -Maximized $false
+					}
+					$startupSplashLastMirroredWindowMaximized = $splashWindowMaximizedNow
+				}
+				catch
+				{
+					try { $startupSplashMaximizeMirrorTimer.Stop() } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\FirstRunAndSplashHandoff.ps1:110' -Severity Debug }
+					 $null = $_ }
+					Write-SwallowedException -ErrorRecord $_ -Source 'Regions.GUI.StartupSplashMaximizeMirror.Tick'
+				}
+			}.GetNewClosure())
+			$startupSplashMaximizeMirrorTimer.Start()
+		}
 	}
 		. (Join-Path $PSScriptRoot 'WindowPresentation.ps1')
 	& $traceGuiStartup 'Startup visibility applied'

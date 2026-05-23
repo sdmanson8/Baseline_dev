@@ -3,9 +3,9 @@
 	Configures reserved storage management.
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies Baseline's reserved storage management in GUI and headless runs.
 	.PARAMETER Disable
 	Disable and delete reserved storage after the next update installation
@@ -22,6 +22,80 @@ Applies Baseline's reserved storage management in GUI and headless runs.
 	.NOTES
 	Current user
 #>
+
+function Stop-ReservedStorageWorkerAsync
+{
+	param
+	(
+		[AllowNull()]
+		$PowerShell,
+
+		[Parameter(Mandatory = $true)]
+		[string]
+		$Source
+	)
+
+	if (-not $PowerShell)
+	{
+		return $true
+	}
+
+	try
+	{
+		$stopResult = $PowerShell.BeginStop($null, $null)
+		if ($stopResult -and $stopResult.AsyncWaitHandle -and $stopResult.AsyncWaitHandle.WaitOne(1000))
+		{
+			try { $PowerShell.EndStop($stopResult) }
+			catch { LogWarning ("Reserved storage cleanup ({0}) PowerShell stop finalization failed: {1}" -f $Source, $_.Exception.Message) }
+			return $true
+		}
+	}
+	catch
+	{
+		LogWarning ("Reserved storage cleanup ({0}) PowerShell stop request failed: {1}" -f $Source, $_.Exception.Message)
+	}
+
+	return $false
+}
+
+function Close-ReservedStorageRunspace
+{
+	param
+	(
+		[AllowNull()]
+		$Runspace,
+
+		[bool]
+		$Completed,
+
+		[Parameter(Mandatory = $true)]
+		[string]
+		$Source
+	)
+
+	if (-not $Runspace)
+	{
+		return
+	}
+
+	try
+	{
+		if ($Completed)
+		{
+			$Runspace.Close()
+			$Runspace.Dispose()
+		}
+		else
+		{
+			$Runspace.CloseAsync()
+		}
+	}
+	catch
+	{
+		LogWarning ("Reserved storage cleanup ({0}) runspace dispose failed: {1}" -f $Source, $_.Exception.Message)
+	}
+}
+
 function ReservedStorage
 {
 	param
@@ -57,6 +131,7 @@ function ReservedStorage
 				}
 				$storageRs = $null
 				$storagePs = $null
+				$storageCompleted = $false
 				try
 				{
 					$storageRs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
@@ -67,15 +142,16 @@ function ReservedStorage
 					$storageAr = $storagePs.BeginInvoke()
 					if (-not $storageAr.AsyncWaitHandle.WaitOne(30000))
 					{
-						$storagePs.Stop()
+						[void](Stop-ReservedStorageWorkerAsync -PowerShell $storagePs -Source 'disable')
 						throw 'Set-WindowsReservedStorageState timed out after 30 seconds'
 					}
+					$storageCompleted = $true
 					$storagePs.EndInvoke($storageAr)
 				}
 				finally
 				{
 					if ($storagePs) { try { $storagePs.Dispose() } catch { LogWarning ("Reserved storage cleanup (disable) PowerShell dispose failed: " + $_.Exception.Message) } }
-					if ($storageRs) { try { $storageRs.Close(); $storageRs.Dispose() } catch { LogWarning ("Reserved storage cleanup (disable) runspace dispose failed: " + $_.Exception.Message) } }
+					Close-ReservedStorageRunspace -Runspace $storageRs -Completed:$storageCompleted -Source 'disable'
 				}
 				Write-ConsoleStatus -Status success
 			}
@@ -106,6 +182,7 @@ function ReservedStorage
 				}
 				$storageRs = $null
 				$storagePs = $null
+				$storageCompleted = $false
 				try
 				{
 					$storageRs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
@@ -116,15 +193,16 @@ function ReservedStorage
 					$storageAr = $storagePs.BeginInvoke()
 					if (-not $storageAr.AsyncWaitHandle.WaitOne(30000))
 					{
-						$storagePs.Stop()
+						[void](Stop-ReservedStorageWorkerAsync -PowerShell $storagePs -Source 'enable')
 						throw 'Set-WindowsReservedStorageState timed out after 30 seconds'
 					}
+					$storageCompleted = $true
 					$storagePs.EndInvoke($storageAr)
 				}
 				finally
 				{
 					if ($storagePs) { try { $storagePs.Dispose() } catch { LogWarning ("Reserved storage cleanup (enable) PowerShell dispose failed: " + $_.Exception.Message) } }
-					if ($storageRs) { try { $storageRs.Close(); $storageRs.Dispose() } catch { LogWarning ("Reserved storage cleanup (enable) runspace dispose failed: " + $_.Exception.Message) } }
+					Close-ReservedStorageRunspace -Runspace $storageRs -Completed:$storageCompleted -Source 'enable'
 				}
 				Write-ConsoleStatus -Status success
 			}
@@ -162,9 +240,9 @@ function ReservedStorage
 	Windows manages my default printer
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for windows manages my default printer.
 	.PARAMETER Disable
 	Do not let Windows manage my default printer
@@ -242,9 +320,9 @@ function WindowsManageDefaultPrinter
 	Prefer IPv4 over IPv6
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for prefer IPv4 over IPv6.
 	.PARAMETER Enable
 	Set IPv4 as preferred over IPv6 using prefix policy table
@@ -322,9 +400,9 @@ function Set-IPv4Preference
 	UTC clock for Linux dual-boot
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for uTC clock for Linux dual-boot.
 	.PARAMETER Enable
 	Set system clock to UTC for Linux dual-boot compatibility
@@ -404,9 +482,9 @@ function Set-UTCClockForLinuxDualBoot
 	Services pipe timeout
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for services pipe timeout.
 	.PARAMETER Reduce
 	Reduce Services pipe timeout from 60000ms to 30000ms
@@ -486,9 +564,9 @@ function Set-ServicesPipeTimeout
 	Print Spooler service toggle
 
 
-	
+
 .DESCRIPTION
-	
+
 Applies the Baseline behavior for print Spooler service toggle.
 	.PARAMETER Enable
 	Enable Print Spooler service (auto-start)

@@ -56,7 +56,7 @@ function Write-TestResult
 
     $line = "  $symbol $Name"
     if ($Detail) { $line += " -- $Detail" }
-    # Write-Host: intentional — test/tooling console output
+    # Write-Host: intentional - test/tooling console output
     Write-Host $line
 }
 
@@ -325,7 +325,9 @@ $guiModuleFiles = @(
     'PlanSummaryPanel.ps1'
     'ExecutionOrchestration.ps1'
     'EventInfrastructure.ps1'
+    'GuiResponsivenessWatchdog.ps1'
     'StyleManagement.ps1'
+    'DeveloperDiagnostics.ps1'
     'ExecutionSummaryDialog.ps1'
     'DiffView.ps1'
     'ComplianceView.ps1'
@@ -628,12 +630,17 @@ $initialSetupPath = Join-Path $repoRoot 'Module/Regions/InitialSetup.psm1'
 $initialSetupContent = Get-Content -LiteralPath $initialSetupPath -Raw
 $packageManagementHelpersPath = Join-Path $repoRoot 'Module/SharedHelpers/PackageManagement.Helpers.ps1'
 $packageManagementHelpersContent = Get-Content -LiteralPath $packageManagementHelpersPath -Raw
+$winGetMetadataFunctionMatch = [regex]::Match(
+    $packageManagementHelpersContent,
+    '(?s)function\s+Get-WinGetBootstrapInstallerMetadata\b.*?(?=\r?\nfunction\s|\z)'
+)
+$winGetMetadataContent = if ($winGetMetadataFunctionMatch.Success) { $winGetMetadataFunctionMatch.Value } else { '' }
 
 if (
     $initialSetupContent -match '\bGet-WinGetBootstrapInstallerMetadata\b' -and
-    $packageManagementHelpersContent -match 'github\.com/.+/releases/download/' -and
+    $winGetMetadataContent -match 'github\.com/.+/releases/download/' -and
     $initialSetupContent -notmatch 'raw\.githubusercontent\.com/.+/master/' -and
-    $packageManagementHelpersContent -notmatch 'raw\.githubusercontent\.com/.+/master/'
+    $winGetMetadataContent -notmatch 'raw\.githubusercontent\.com/.+/master/'
 )
 {
     Write-TestResult -Name 'CheckWinGet uses a pinned installer URL' -Result Pass

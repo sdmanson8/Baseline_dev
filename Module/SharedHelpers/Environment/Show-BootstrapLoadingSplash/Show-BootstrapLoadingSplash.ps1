@@ -18,20 +18,124 @@ try
 			$effectiveMinH = [Math]::Min($guiMinH, $workArea.Height)
 			$splashWindowWidth  = [int][Math]::Min([Math]::Max($targetW, $effectiveMinW), $maxW)
 			$splashWindowHeight = [int][Math]::Min([Math]::Max($targetH, $effectiveMinH), $workArea.Height)
+			$splashWindowLeft = [double]($workArea.Left + (([double]$workArea.Width - [double]$splashWindowWidth) / 2.0))
+			$splashWindowTop = [double]($workArea.Top + (([double]$workArea.Height - [double]$splashWindowHeight) / 2.0))
+			$splashWindowStartupLocation = 'Manual'
+			$splashDefaultBounds = [pscustomobject]@{
+				Left   = [double]$splashWindowLeft
+				Top    = [double]$splashWindowTop
+				Width  = [double]$splashWindowWidth
+				Height = [double]$splashWindowHeight
+			}
+			$splashStartupWorkAreaBounds = [pscustomobject]@{
+				Left   = [double]$workArea.Left
+				Top    = [double]$workArea.Top
+				Width  = [double]$workArea.Width
+				Height = [double]$workArea.Height
+			}
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:37' -Severity Debug }
+
 			$splashWindowWidth  = $guiMinW
 			$splashWindowHeight = $guiMinH
+			$splashWindowLeft = 0
+			$splashWindowTop = 0
+			$splashWindowStartupLocation = 'CenterScreen'
+			$splashDefaultBounds = [pscustomobject]@{
+				Left   = [double]$splashWindowLeft
+				Top    = [double]$splashWindowTop
+				Width  = [double]$splashWindowWidth
+				Height = [double]$splashWindowHeight
+			}
+			$splashStartupWorkAreaBounds = $null
+		}
+		$testSplashStartupBoundsMatchWorkArea = {
+			param([object]$Bounds)
+
+			if (-not $Bounds -or -not $splashStartupWorkAreaBounds) { return $false }
+			if ($null -eq $Bounds.Left -or $null -eq $Bounds.Top -or $null -eq $Bounds.Width -or $null -eq $Bounds.Height) { return $false }
+			return (
+				[Math]::Abs([double]$Bounds.Left - [double]$splashStartupWorkAreaBounds.Left) -le 1.0 -and
+				[Math]::Abs([double]$Bounds.Top - [double]$splashStartupWorkAreaBounds.Top) -le 1.0 -and
+				[Math]::Abs([double]$Bounds.Width - [double]$splashStartupWorkAreaBounds.Width) -le 1.0 -and
+				[Math]::Abs([double]$Bounds.Height - [double]$splashStartupWorkAreaBounds.Height) -le 1.0
+			)
+		}.GetNewClosure()
+		$splashWindowMaximized = $false
+		try
+		{
+			if (Get-Command -Name 'Resolve-BaselineWindowPlacement' -ErrorAction SilentlyContinue)
+			{
+				$defaultRect = [pscustomobject]@{
+					Left   = [double]$splashWindowLeft
+					Top    = [double]$splashWindowTop
+					Width  = [double]$splashWindowWidth
+					Height = [double]$splashWindowHeight
+				}
+				$placement = Resolve-BaselineWindowPlacement -DefaultRect $defaultRect
+				if ($placement)
+				{
+					$placementBounds = [pscustomobject]@{
+						Left   = [double]$placement.Left
+						Top    = [double]$placement.Top
+						Width  = [double]$placement.Width
+						Height = [double]$placement.Height
+					}
+					if (([string]$placement.Source -eq 'saved') -and (& $testSplashStartupBoundsMatchWorkArea -Bounds $placementBounds) -and (-not (& $testSplashStartupBoundsMatchWorkArea -Bounds $splashDefaultBounds)))
+					{
+						$placementBounds = $splashDefaultBounds
+					}
+					$splashWindowWidth = [int][Math]::Round([double]$placementBounds.Width)
+					$splashWindowHeight = [int][Math]::Round([double]$placementBounds.Height)
+					if ([string]$placement.Source -eq 'saved')
+					{
+						$splashWindowLeft = [double]$placementBounds.Left
+						$splashWindowTop = [double]$placementBounds.Top
+						$splashWindowMaximized = [bool]$placement.Maximized
+						$splashWindowStartupLocation = 'Manual'
+					}
+				}
+			}
+		}
+		catch
+		{
+			Write-EnvironmentLaunchTrace ('Bootstrap splash window placement restore failed: {0}' -f $_.Exception.Message)
+			$splashWindowStartupLocation = 'CenterScreen'
+			$splashWindowMaximized = $false
 		}
 
 		# Match the last saved session first, then fall back to the current Windows theme.
 		$useLightTheme = ((Get-BaselineStartupThemeName) -eq 'Light')
 
-			$splashStepOrder = @('system', 'winget', 'chocolatey', 'finalize')
-			if ([bool]$StartUpdatesPulse)
+			$allowedSplashSteps = @('updates', 'system', 'winget', 'chocolatey', 'finalize')
+			$splashStepOrder = @()
+			if ($StepOrder -and $StepOrder.Count -gt 0)
+			{
+				foreach ($requestedStep in @($StepOrder))
+				{
+					$normalizedStep = [string]$requestedStep
+					if (($allowedSplashSteps -contains $normalizedStep) -and (-not ($splashStepOrder -contains $normalizedStep)))
+					{
+						if (($normalizedStep -ne 'updates') -or [bool]$StartUpdatesPulse)
+						{
+							$splashStepOrder += $normalizedStep
+						}
+					}
+				}
+			}
+			else
+			{
+				$splashStepOrder = @('system', 'winget', 'chocolatey', 'finalize')
+			}
+			if ([bool]$StartUpdatesPulse -and (-not ($splashStepOrder -contains 'updates')))
 			{
 				$splashStepOrder = @('updates') + $splashStepOrder
+			}
+			if (-not ($splashStepOrder -contains 'finalize'))
+			{
+				$splashStepOrder += 'finalize'
 			}
 
 			$syncHash = [hashtable]::Synchronized(@{
@@ -57,6 +161,8 @@ try
 				WasLoaded  = $false
 				WasShown   = $false
 				WasRendered = $false
+				WindowMaximized = $splashWindowMaximized
+				WindowActive = $false
 				InitialStepPrimeApplied = $false
 				ChecklistProgressActive = $false
 				WindowHandle = [IntPtr]::Zero
@@ -116,6 +222,8 @@ try
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:198' -Severity Debug }
+
 			$splashIconPath = $null
 			$splashThemePath = $null
 		}
@@ -132,8 +240,12 @@ try
 		$runspace.SessionStateProxy.SetVariable('splashBtnFg', $splashBtnFg)
 		$runspace.SessionStateProxy.SetVariable('splashStepActive', $splashStepActive)
 		$runspace.SessionStateProxy.SetVariable('splashDarkMode', $splashDarkMode)
+		$runspace.SessionStateProxy.SetVariable('splashWindowLeft', $splashWindowLeft)
+		$runspace.SessionStateProxy.SetVariable('splashWindowTop', $splashWindowTop)
 		$runspace.SessionStateProxy.SetVariable('splashWindowWidth', $splashWindowWidth)
 		$runspace.SessionStateProxy.SetVariable('splashWindowHeight', $splashWindowHeight)
+		$runspace.SessionStateProxy.SetVariable('splashWindowStartupLocation', $splashWindowStartupLocation)
+		$runspace.SessionStateProxy.SetVariable('splashWindowMaximized', $splashWindowMaximized)
 		$runspace.SessionStateProxy.SetVariable('CurrentTheme', $CurrentTheme)
 		$runspace.SessionStateProxy.SetVariable('SplashTheme', $SplashTheme)
 		# Pass localization strings for splash screen
@@ -202,28 +314,38 @@ try
 				$stepWingetEsc = [System.Security.SecurityElement]::Escape($splashLocStepWinget)
 				$stepChocolateyEsc = [System.Security.SecurityElement]::Escape($splashLocStepChocolatey)
 				$stepFinalizeEsc = [System.Security.SecurityElement]::Escape($splashLocStepFinalize)
-				$updatesStepXaml = ''
-				if ($startUpdatesPulse)
+				$stepLabelById = @{
+					'updates'    = $stepUpdatesEsc
+					'system'     = $stepSystemEsc
+					'winget'     = $stepWingetEsc
+					'chocolatey' = $stepChocolateyEsc
+					'finalize'   = $stepFinalizeEsc
+				}
+				$lastSplashStepId = [string]$splashStepOrder[$splashStepOrder.Count - 1]
+				$stepRows = foreach ($splashStepId in @($splashStepOrder))
 				{
-					$updatesStepXaml = @"
-					<Grid Margin="0,0,0,7">
+					$stepLabelEsc = [string]$stepLabelById[[string]$splashStepId]
+					$stepMargin = if ([string]$splashStepId -eq $lastSplashStepId) { '0,0,0,0' } else { '0,0,0,7' }
+					@"
+					<Grid Margin="$stepMargin">
 						<Grid.ColumnDefinitions>
 							<ColumnDefinition Width="22"/>
 							<ColumnDefinition Width="*"/>
 						</Grid.ColumnDefinitions>
-						<Grid Name="StepGlyph_updates" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-							<Ellipse Name="StepIdle_updates" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-							<Ellipse Name="StepPulse_updates" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+						<Grid Name="StepGlyph_$splashStepId" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
+							<Ellipse Name="StepIdle_$splashStepId" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+							<Ellipse Name="StepPulse_$splashStepId" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
 								<Ellipse.RenderTransform>
 									<ScaleTransform/>
 								</Ellipse.RenderTransform>
 							</Ellipse>
-							<TextBlock Name="StepCheck_updates" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
+							<TextBlock Name="StepCheck_$splashStepId" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
 						</Grid>
-						<TextBlock Name="StepLabel_updates" Grid.Column="1" Text="$stepUpdatesEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+						<TextBlock Name="StepLabel_$splashStepId" Grid.Column="1" Text="$stepLabelEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
 					</Grid>
 "@
 				}
+				$stepRowsXaml = ($stepRows -join [System.Environment]::NewLine)
 
 				[xml]$xaml = @"
 <Window
@@ -234,16 +356,16 @@ try
 	Height="$splashWindowHeight"
 	MinWidth="940"
 	MinHeight="660"
-	ResizeMode="NoResize"
-	WindowStartupLocation="CenterScreen"
+	ResizeMode="CanResizeWithGrip"
+	WindowStartupLocation="$splashWindowStartupLocation"
 	Background="Transparent"
 	BorderBrush="Transparent"
 	BorderThickness="0"
 	Foreground="{DynamicResource Brush.TextPrimary}"
 	FontFamily="Segoe UI"
 	ShowInTaskbar="True"
-	ShowActivated="False"
-	Topmost="True"
+	ShowActivated="True"
+	Topmost="False"
 	WindowStyle="None"
 	AllowsTransparency="True"
 	SnapsToDevicePixels="True"
@@ -318,6 +440,8 @@ try
 				<StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
 					<Button Name="BtnMinimize" Content="&#x2015;" Width="28" Height="24" FontSize="11"
 						Cursor="Hand" ToolTip="Minimize" Margin="0,0,2,0" Style="{StaticResource SplashCaptionButtonStyle}"/>
+					<Button Name="BtnMaximize" Content="&#x25A1;" Width="28" Height="24" FontSize="11"
+						Cursor="Hand" ToolTip="Maximize" Margin="0,0,2,0" Style="{StaticResource SplashCaptionButtonStyle}"/>
 					<Button Name="BtnClose" Content="&#x2715;" Width="28" Height="24" FontSize="11"
 						Cursor="Hand" ToolTip="Close" Style="{StaticResource SplashCloseButtonStyle}"/>
 				</StackPanel>
@@ -340,71 +464,7 @@ try
 					FontSize="14" Foreground="{DynamicResource Brush.SplashSubtitle}"
 					HorizontalAlignment="Center" Margin="0,0,0,32"/>
 				<StackPanel Name="StepListPanel" HorizontalAlignment="Center" MinWidth="360" Margin="0,0,0,24">
-$updatesStepXaml
-					<Grid Margin="0,0,0,7">
-						<Grid.ColumnDefinitions>
-							<ColumnDefinition Width="22"/>
-							<ColumnDefinition Width="*"/>
-						</Grid.ColumnDefinitions>
-						<Grid Name="StepGlyph_system" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-							<Ellipse Name="StepIdle_system" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-							<Ellipse Name="StepPulse_system" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
-								<Ellipse.RenderTransform>
-									<ScaleTransform/>
-								</Ellipse.RenderTransform>
-							</Ellipse>
-							<TextBlock Name="StepCheck_system" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
-						</Grid>
-						<TextBlock Name="StepLabel_system" Grid.Column="1" Text="$stepSystemEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-					</Grid>
-					<Grid Margin="0,0,0,7">
-						<Grid.ColumnDefinitions>
-							<ColumnDefinition Width="22"/>
-							<ColumnDefinition Width="*"/>
-						</Grid.ColumnDefinitions>
-						<Grid Name="StepGlyph_winget" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-							<Ellipse Name="StepIdle_winget" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-							<Ellipse Name="StepPulse_winget" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
-								<Ellipse.RenderTransform>
-									<ScaleTransform/>
-								</Ellipse.RenderTransform>
-							</Ellipse>
-							<TextBlock Name="StepCheck_winget" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
-						</Grid>
-						<TextBlock Name="StepLabel_winget" Grid.Column="1" Text="$stepWingetEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-					</Grid>
-					<Grid Margin="0,0,0,7">
-						<Grid.ColumnDefinitions>
-							<ColumnDefinition Width="22"/>
-							<ColumnDefinition Width="*"/>
-						</Grid.ColumnDefinitions>
-						<Grid Name="StepGlyph_chocolatey" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-							<Ellipse Name="StepIdle_chocolatey" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-							<Ellipse Name="StepPulse_chocolatey" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
-								<Ellipse.RenderTransform>
-									<ScaleTransform/>
-								</Ellipse.RenderTransform>
-							</Ellipse>
-							<TextBlock Name="StepCheck_chocolatey" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
-						</Grid>
-						<TextBlock Name="StepLabel_chocolatey" Grid.Column="1" Text="$stepChocolateyEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-					</Grid>
-					<Grid Margin="0,0,0,0">
-						<Grid.ColumnDefinitions>
-							<ColumnDefinition Width="22"/>
-							<ColumnDefinition Width="*"/>
-						</Grid.ColumnDefinitions>
-						<Grid Name="StepGlyph_finalize" Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-							<Ellipse Name="StepIdle_finalize" Width="8" Height="8" Stroke="{DynamicResource Brush.TextMuted}" StrokeThickness="1" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-							<Ellipse Name="StepPulse_finalize" Width="8" Height="8" Fill="{DynamicResource Brush.Accent}" Opacity="0.6" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
-								<Ellipse.RenderTransform>
-									<ScaleTransform/>
-								</Ellipse.RenderTransform>
-							</Ellipse>
-							<TextBlock Name="StepCheck_finalize" Text="&#x2714;" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{DynamicResource Brush.Accent}" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
-						</Grid>
-						<TextBlock Name="StepLabel_finalize" Grid.Column="1" Text="$stepFinalizeEsc" FontSize="13" Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-					</Grid>
+$stepRowsXaml
 				</StackPanel>
 				<StackPanel Name="SubActionPanel" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,14" Visibility="Collapsed">
 					<TextBlock Name="StatusText" Text="$loadingEsc" FontSize="11" Foreground="{DynamicResource Brush.TextMuted}"
@@ -498,7 +558,9 @@ $updatesStepXaml
 						try { $traceStream.Write($traceBytes, 0, $traceBytes.Length) }
 						finally { $traceStream.Dispose() }
 					}
-					catch { $null = $_ }
+					catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:588' -Severity Debug }
+					 $null = $_ }
 				}
 
 				if (-not [string]::IsNullOrWhiteSpace([string]$splashIconPath) -and (Test-Path -LiteralPath $splashIconPath -PathType Leaf))
@@ -574,7 +636,9 @@ $updatesStepXaml
 							$splashCenterIcon.UseLayoutRounding = $true
 						}
 					}
-					catch { & $writeSplashTrace ('Environment.ShowBootstrapLoadingSplash.LoadSplashIcon: {0}' -f $_.Exception.Message) }
+					catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:664' -Severity Debug }
+					 & $writeSplashTrace ('Environment.ShowBootstrapLoadingSplash.LoadSplashIcon: {0}' -f $_.Exception.Message) }
 				}
 
 				# Apply Windows 11 rounded corners and dark title bar
@@ -600,6 +664,7 @@ namespace WinAPI {
 		public const int GWL_STYLE = -16;
 		public const int WS_SYSMENU = 0x00080000;
 		public const int WS_MINIMIZEBOX = 0x00020000;
+		public const int WS_MAXIMIZEBOX = 0x00010000;
 	}
 }
 "@ -ErrorAction Stop | Out-Null
@@ -621,6 +686,7 @@ namespace WinAPI {
 							$styleInt = $style.ToInt64()
 							$styleInt = $styleInt -bor [WinAPI.SplashChrome]::WS_SYSMENU
 							$styleInt = $styleInt -bor [WinAPI.SplashChrome]::WS_MINIMIZEBOX
+							$styleInt = $styleInt -bor [WinAPI.SplashChrome]::WS_MAXIMIZEBOX
 							[void]([WinAPI.SplashChrome]::SetWindowLongPtr($hwnd, [WinAPI.SplashChrome]::GWL_STYLE, [IntPtr]::new($styleInt)))
 							[void]([WinAPI.SplashChrome]::SetWindowPos($hwnd, [IntPtr]::Zero, 0, 0, 0, 0, 0x27))
 							& $writeSplashTrace ('Bootstrap splash source initialized: hwnd={0}' -f $hwnd)
@@ -628,6 +694,8 @@ namespace WinAPI {
 					}
 					catch
 					{
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:718' -Severity Debug }
+
 						$syncHash['ErrorType'] = $_.Exception.GetType().FullName
 						$syncHash['ErrorMessage'] = $_.Exception.Message
 						& $writeSplashTrace ('Bootstrap splash chrome setup failed: {0}' -f $_.Exception.Message)
@@ -656,39 +724,278 @@ namespace WinAPI {
 						if ($shouldExit)
 						{
 							[System.Environment]::Exit(0)
-							try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch { $null = $_ }
+							try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch {
+								if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:748' -Severity Debug }
+							 $null = $_ }
 						}
 					}
 				}.GetNewClosure()
 
-				# Wire up minimize/close buttons and drag-to-move
+				# Wire up caption controls and drag-to-move
+				$rootBorder = $splash.FindName('RootBorder')
 				$btnMin = $splash.FindName('BtnMinimize')
+				$btnMax = $splash.FindName('BtnMaximize')
 				$btnCls = $splash.FindName('BtnClose')
+				$splashWindowChromeState = @{
+					NormalBounds = $null
+					ApplyingState = $false
+				}
+				$readSplashNormalBoundsAction = {
+					$width = [double]$splash.Width
+					$height = [double]$splash.Height
+					if ([double]::IsNaN($width) -or $width -le 0) { $width = [double]$splash.ActualWidth }
+					if ([double]::IsNaN($height) -or $height -le 0) { $height = [double]$splash.ActualHeight }
+					if ([double]::IsNaN($width) -or [double]::IsNaN($height) -or $width -le 0 -or $height -le 0) { return $null }
+
+					return [pscustomobject]@{
+						Left   = [double]$splash.Left
+						Top    = [double]$splash.Top
+						Width  = $width
+						Height = $height
+					}
+				}.GetNewClosure()
+				$captureSplashNormalBoundsAction = {
+					if ($splash.WindowState -ne [System.Windows.WindowState]::Normal) { return }
+					$bounds = & $readSplashNormalBoundsAction
+					if ($bounds) { $splashWindowChromeState['NormalBounds'] = $bounds }
+				}.GetNewClosure()
+				$restoreSplashNormalBoundsAction = {
+					$bounds = $splashWindowChromeState['NormalBounds']
+					if (-not $bounds) { return }
+					$splash.WindowStartupLocation = [System.Windows.WindowStartupLocation]::Manual
+					if (-not [double]::IsNaN([double]$bounds.Left)) { $splash.Left = [double]$bounds.Left }
+					if (-not [double]::IsNaN([double]$bounds.Top)) { $splash.Top = [double]$bounds.Top }
+					$splash.Width = [double]$bounds.Width
+					$splash.Height = [double]$bounds.Height
+				}.GetNewClosure()
+				$getSplashWindowWorkAreaBoundsAction = {
+					try
+					{
+						Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+						$windowInterop = New-Object System.Windows.Interop.WindowInteropHelper($splash)
+						$windowHandle = $windowInterop.Handle
+						if ($windowHandle -eq [IntPtr]::Zero -and $windowInterop.PSObject.Methods['EnsureHandle'])
+						{
+							$windowHandle = $windowInterop.EnsureHandle()
+						}
+						if ($windowHandle -ne [IntPtr]::Zero)
+						{
+							$screen = [System.Windows.Forms.Screen]::FromHandle($windowHandle)
+							if ($screen)
+							{
+								$rect = $screen.WorkingArea
+								$left = [double]$rect.Left
+								$top = [double]$rect.Top
+								$right = [double]$rect.Right
+								$bottom = [double]$rect.Bottom
+								$source = [System.Windows.PresentationSource]::FromVisual($splash)
+								if ($source -and $source.CompositionTarget)
+								{
+									$transform = $source.CompositionTarget.TransformFromDevice
+									$topLeft = $transform.Transform([System.Windows.Point]::new($left, $top))
+									$bottomRight = $transform.Transform([System.Windows.Point]::new($right, $bottom))
+									return [pscustomobject]@{
+										Left   = [double]$topLeft.X
+										Top    = [double]$topLeft.Y
+										Width  = [double]($bottomRight.X - $topLeft.X)
+										Height = [double]($bottomRight.Y - $topLeft.Y)
+									}
+								}
+								return [pscustomobject]@{
+									Left   = $left
+									Top    = $top
+									Width  = [double]($right - $left)
+									Height = [double]($bottom - $top)
+								}
+							}
+						}
+					}
+					catch
+					{
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:832' -Severity Debug }
+
+						$null = $_
+					}
+
+					$workArea = [System.Windows.SystemParameters]::WorkArea
+					return [pscustomobject]@{
+						Left   = [double]$workArea.Left
+						Top    = [double]$workArea.Top
+						Width  = [double]$workArea.Width
+						Height = [double]$workArea.Height
+					}
+				}.GetNewClosure()
+
+				# System-style right-click context menu for splash title area
+				$splashMenu = New-Object System.Windows.Controls.ContextMenu
+				$miRestore = New-Object System.Windows.Controls.MenuItem
+				$miRestore.Header = 'Restore'
+				$miMin = New-Object System.Windows.Controls.MenuItem
+				$miMin.Header = 'Minimize'
+				$miMax = New-Object System.Windows.Controls.MenuItem
+				$miMax.Header = 'Maximize'
+				$miCloseCtx = New-Object System.Windows.Controls.MenuItem
+				$miCloseCtx.Header = 'Close'
+				$miCloseCtx.InputGestureText = 'Alt+F4'
+				$miCloseCtx.FontWeight = [System.Windows.FontWeights]::Bold
+				$splashSep = New-Object System.Windows.Controls.Separator
+				[void]$splashMenu.Items.Add($miRestore)
+				[void]$splashMenu.Items.Add($miMin)
+				[void]$splashMenu.Items.Add($miMax)
+				[void]$splashMenu.Items.Add($splashSep)
+				[void]$splashMenu.Items.Add($miCloseCtx)
+				$splash.ContextMenu = $splashMenu
+
+				$syncSplashWindowStateAction = {
+					$isMaximized = [bool]$syncHash['WindowMaximized']
+					$syncHash['WindowMaximized'] = $isMaximized
+					if ($btnMax)
+					{
+						$btnMax.Content = if ($isMaximized) { [char]0x2750 } else { [char]0x25A1 }
+						$btnMax.ToolTip = if ($isMaximized) { 'Restore' } else { 'Maximize' }
+					}
+					if ($rootBorder)
+					{
+						if ($isMaximized)
+						{
+							$rootBorder.CornerRadius = [System.Windows.CornerRadius]::new(0)
+							$rootBorder.Margin = [System.Windows.Thickness]::new(0)
+						}
+						else
+						{
+							$rootBorder.CornerRadius = [System.Windows.CornerRadius]::new(8)
+							$rootBorder.Margin = [System.Windows.Thickness]::new(0)
+						}
+					}
+				}.GetNewClosure()
+
+				$setSplashWindowMaximizedStateAction = {
+					param([bool]$Maximized)
+
+					$splashWindowChromeState['ApplyingState'] = $true
+					try
+					{
+						if ($Maximized)
+						{
+							if (-not [bool]$syncHash['WindowMaximized']) { & $captureSplashNormalBoundsAction }
+							$syncHash['WindowMaximized'] = $true
+							if ($splash.WindowState -ne [System.Windows.WindowState]::Normal)
+							{
+								$splash.WindowState = [System.Windows.WindowState]::Normal
+							}
+							$workAreaBounds = & $getSplashWindowWorkAreaBoundsAction
+							if ($workAreaBounds -and [double]$workAreaBounds.Width -gt 0 -and [double]$workAreaBounds.Height -gt 0)
+							{
+								$splash.WindowStartupLocation = [System.Windows.WindowStartupLocation]::Manual
+								$splash.Left = [double]$workAreaBounds.Left
+								$splash.Top = [double]$workAreaBounds.Top
+								$splash.Width = [double]$workAreaBounds.Width
+								$splash.Height = [double]$workAreaBounds.Height
+							}
+						}
+						else
+						{
+							$syncHash['WindowMaximized'] = $false
+							if ($splash.WindowState -ne [System.Windows.WindowState]::Normal)
+							{
+								$splash.WindowState = [System.Windows.WindowState]::Normal
+							}
+							& $restoreSplashNormalBoundsAction
+						}
+					}
+					finally
+					{
+						$splashWindowChromeState['ApplyingState'] = $false
+					}
+
+					& $syncSplashWindowStateAction
+				}.GetNewClosure()
+
+				$toggleSplashMaximizeAction = {
+					& $setSplashWindowMaximizedStateAction -Maximized (-not [bool]$syncHash['WindowMaximized'])
+				}.GetNewClosure()
+
 				if ($btnMin)
 				{
 					$btnMin.Add_Click({ $splash.WindowState = [System.Windows.WindowState]::Minimized })
+				}
+				if ($btnMax)
+				{
+					$btnMax.Add_Click({ & $toggleSplashMaximizeAction }.GetNewClosure())
 				}
 				if ($btnCls)
 				{
 					$btnCls.Add_Click({ & $requestSplashAbortAction 'caption button' }.GetNewClosure())
 				}
-				$splash.Add_MouseLeftButtonDown({ param($s,$e) $splash.DragMove() })
+				$splash.Add_MouseLeftButtonDown({
+					param($s,$e)
+					if ([bool]$syncHash['WindowMaximized'])
+					{
+						if ($e.ClickCount -eq 2) { & $toggleSplashMaximizeAction }
+						return
+					}
+					if ($e.ClickCount -eq 2)
+					{
+						& $toggleSplashMaximizeAction
+						return
+					}
+					try { $splash.DragMove() } catch {
+						if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:959' -Severity Debug }
+					 $null = $_ }
+				}.GetNewClosure())
 
-				# System-style right-click context menu for splash title area
-				$splashMenu = New-Object System.Windows.Controls.ContextMenu
-				$miMin = New-Object System.Windows.Controls.MenuItem
-				$miMin.Header = 'Minimize'
+				$miRestore.Add_Click({ & $setSplashWindowMaximizedStateAction -Maximized $false }.GetNewClosure())
 				$miMin.Add_Click({ $splash.WindowState = [System.Windows.WindowState]::Minimized })
-				$miCloseCtx = New-Object System.Windows.Controls.MenuItem
-				$miCloseCtx.Header = 'Close'
-				$miCloseCtx.InputGestureText = 'Alt+F4'
-				$miCloseCtx.FontWeight = [System.Windows.FontWeights]::Bold
+				$miMax.Add_Click({ & $setSplashWindowMaximizedStateAction -Maximized $true }.GetNewClosure())
 				$miCloseCtx.Add_Click({ & $requestSplashAbortAction 'context menu' }.GetNewClosure())
-				$splashSep = New-Object System.Windows.Controls.Separator
-				[void]$splashMenu.Items.Add($miMin)
-				[void]$splashMenu.Items.Add($splashSep)
-				[void]$splashMenu.Items.Add($miCloseCtx)
-				$splash.ContextMenu = $splashMenu
+				$splashMenu.Add_Opened({
+					$isMaximized = [bool]$syncHash['WindowMaximized']
+					$miRestore.IsEnabled = $isMaximized
+					$miMax.IsEnabled = -not $isMaximized
+				}.GetNewClosure())
+				$splash.Add_StateChanged({
+					if ([bool]$splashWindowChromeState['ApplyingState'])
+					{
+						& $syncSplashWindowStateAction
+						return
+					}
+					if ($splash.WindowState -eq [System.Windows.WindowState]::Maximized)
+					{
+						& $setSplashWindowMaximizedStateAction -Maximized $true
+						return
+					}
+					elseif ($splash.WindowState -eq [System.Windows.WindowState]::Normal -and [bool]$syncHash['WindowMaximized'])
+					{
+						$syncHash['WindowMaximized'] = $false
+						& $restoreSplashNormalBoundsAction
+					}
+					& $syncSplashWindowStateAction
+				}.GetNewClosure())
+				$rememberSplashNormalBoundsAction = {
+					if ([bool]$splashWindowChromeState['ApplyingState']) { return }
+					if ([bool]$syncHash['WindowMaximized']) { return }
+					& $captureSplashNormalBoundsAction
+				}.GetNewClosure()
+				$splash.Add_LocationChanged($rememberSplashNormalBoundsAction)
+				$splash.Add_SizeChanged($rememberSplashNormalBoundsAction)
+
+				if ([string]$splashWindowStartupLocation -eq 'Manual')
+				{
+					$splash.WindowStartupLocation = [System.Windows.WindowStartupLocation]::Manual
+					$splash.Left = [double]$splashWindowLeft
+					$splash.Top = [double]$splashWindowTop
+				}
+				$splashWindowChromeState['NormalBounds'] = [pscustomobject]@{
+					Left   = [double]$splashWindowLeft
+					Top    = [double]$splashWindowTop
+					Width  = [double]$splashWindowWidth
+					Height = [double]$splashWindowHeight
+				}
+				if ([bool]$splashWindowMaximized)
+				{
+					& $setSplashWindowMaximizedStateAction -Maximized $true
+				}
+				& $syncSplashWindowStateAction
 
 					$syncHash['Window']     = $splash
 					$syncHash['Dispatcher'] = $splash.Dispatcher
@@ -737,14 +1044,22 @@ namespace WinAPI {
 						'chocolatey' = 'pending'
 						'finalize'   = 'pending'
 					}
-					if (-not $startUpdatesPulse)
+					$activeSplashStepIds = @{}
+					foreach ($activeSplashStepId in @($splashStepOrder))
 					{
-						[void]$stepGlyphs.Remove('updates')
-						[void]$stepIdleDots.Remove('updates')
-						[void]$stepPulseDots.Remove('updates')
-						[void]$stepChecks.Remove('updates')
-						[void]$stepLabels.Remove('updates')
-						[void]$stepStates.Remove('updates')
+						$activeSplashStepIds[[string]$activeSplashStepId] = $true
+					}
+					foreach ($knownStepId in @('updates', 'system', 'winget', 'chocolatey', 'finalize'))
+					{
+						if (-not $activeSplashStepIds.ContainsKey($knownStepId))
+						{
+							[void]$stepGlyphs.Remove($knownStepId)
+							[void]$stepIdleDots.Remove($knownStepId)
+							[void]$stepPulseDots.Remove($knownStepId)
+							[void]$stepChecks.Remove($knownStepId)
+							[void]$stepLabels.Remove($knownStepId)
+							[void]$stepStates.Remove($knownStepId)
+						}
 					}
 					$syncHash['StepGlyphs'] = $stepGlyphs
 					$syncHash['StepIdleDots'] = $stepIdleDots
@@ -760,7 +1075,7 @@ namespace WinAPI {
 						{
 							try
 							{
-								$initialStepId = if ($startUpdatesPulse) { 'updates' } else { 'system' }
+								$initialStepId = if ($splashStepOrder.Count -gt 0) { [string]$splashStepOrder[0] } else { 'finalize' }
 								$stateApplied = $true
 								$stepApplied = $false
 								if ($startUpdatesPulse)
@@ -797,7 +1112,9 @@ namespace WinAPI {
 											$progressBarControl.Visibility = [System.Windows.Visibility]::Visible
 											$progressBarControl.IsIndeterminate = $false
 											$barWidth = 330.0
-											try { $barWidth = Get-BaselineSplashProgressWidth -ProgressBar $progressBarControl } catch { $barWidth = 330.0 }
+											try { $barWidth = Get-BaselineSplashProgressWidth -ProgressBar $progressBarControl } catch {
+												if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:1122' -Severity Debug }
+											 $barWidth = 330.0 }
 											$stepCount = [Math]::Max(1, [double]$splashStepOrder.Count)
 											$activeIdx = [Array]::IndexOf($splashStepOrder, $initialStepId)
 											if ($activeIdx -lt 0) { $activeIdx = 0 }
@@ -818,6 +1135,8 @@ namespace WinAPI {
 										}
 										catch
 										{
+											if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:1141' -Severity Debug }
+
 											& $writeSplashTrace ('Bootstrap splash initial progress failed: {0}' -f $_.Exception.Message)
 										}
 									}
@@ -828,6 +1147,8 @@ namespace WinAPI {
 							}
 							catch
 							{
+								if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:1151' -Severity Debug }
+
 								$syncHash['ErrorType'] = $_.Exception.GetType().FullName
 								$syncHash['ErrorMessage'] = $_.Exception.Message
 								& $writeSplashTrace ('Bootstrap splash initial step failed: {0}' -f $_.Exception.Message)
@@ -844,6 +1165,8 @@ namespace WinAPI {
 						}
 						catch
 						{
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:1167' -Severity Debug }
+
 							& $writeSplashTrace ('Bootstrap splash shown-state trace failed: {0}' -f $_.Exception.Message)
 						}
 					}.GetNewClosure()
@@ -858,12 +1181,16 @@ namespace WinAPI {
 						}
 						catch
 						{
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:1181' -Severity Debug }
+
 							$syncHash['ErrorType'] = $_.Exception.GetType().FullName
 							$syncHash['ErrorMessage'] = $_.Exception.Message
 							$syncHash['IsReady'] = $true
 							$syncHash['IsAlive'] = $false
 							& $writeSplashTrace ('Bootstrap splash load failed: {0}' -f $_.Exception.Message)
-							try { $splash.Close() } catch { $null = $_ }
+							try { $splash.Close() } catch {
+								if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:1188' -Severity Debug }
+							 $null = $_ }
 						}
 					})
 
@@ -879,17 +1206,31 @@ namespace WinAPI {
 						}
 						catch
 						{
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:1202' -Severity Debug }
+
 							$syncHash['ErrorType'] = $_.Exception.GetType().FullName
 							$syncHash['ErrorMessage'] = $_.Exception.Message
 							$syncHash['IsReady'] = $true
 							$syncHash['IsAlive'] = $false
 							& $writeSplashTrace ('Bootstrap splash content render failed: {0}' -f $_.Exception.Message)
-							try { $splash.Close() } catch { $null = $_ }
+							try { $splash.Close() } catch {
+								if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:1209' -Severity Debug }
+							 $null = $_ }
 						}
 					})
 
 					$splash.Add_Activated({
-					try { & $writeSplashTrace 'Bootstrap splash activated' } catch { $null = $_ }
+						$syncHash['WindowActive'] = $true
+						try { & $writeSplashTrace 'Bootstrap splash activated' } catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:1215' -Severity Debug }
+						 $null = $_ }
+					})
+
+					$splash.Add_Deactivated({
+						$syncHash['WindowActive'] = $false
+						try { & $writeSplashTrace 'Bootstrap splash deactivated' } catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:1220' -Severity Debug }
+						 $null = $_ }
 					})
 
 				$splash.Add_Closing({
@@ -907,7 +1248,9 @@ namespace WinAPI {
 						$syncHash['AbortRequested'] = $true
 						& $writeSplashTrace 'Bootstrap splash closed before GUI readiness; aborting process'
 						[System.Environment]::Exit(0)
-						try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch { $null = $_ }
+						try { [System.Diagnostics.Process]::GetCurrentProcess().Kill() } catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:1238' -Severity Debug }
+						 $null = $_ }
 					}
 					& $writeSplashTrace 'Bootstrap splash closed'
 					$splash.Dispatcher.InvokeShutdown()
@@ -918,6 +1261,8 @@ namespace WinAPI {
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:1247' -Severity Debug }
+
 				$syncHash['ErrorType'] = $_.Exception.GetType().FullName
 				$syncHash['ErrorMessage'] = $_.Exception.Message
 				$syncHash['IsReady'] = $true
@@ -935,7 +1280,9 @@ namespace WinAPI {
 					try { $traceStream.Write($traceBytes, 0, $traceBytes.Length) }
 					finally { $traceStream.Dispose() }
 				}
-				catch { $null = $_ }
+				catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:1266' -Severity Debug }
+				 $null = $_ }
 			}
 		})
 
@@ -963,7 +1310,9 @@ namespace WinAPI {
 					Write-EnvironmentLaunchTrace 'Bootstrap splash failed before it became visible.'
 				}
 			}
-			catch { $null = $_ }
+			catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\SharedHelpers\Environment\Show-BootstrapLoadingSplash\Show-BootstrapLoadingSplash.ps1:1294' -Severity Debug }
+			 $null = $_ }
 			try { $ps.Stop(); $ps.Dispose() } catch { Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.CleanupPowerShell' }
 			try { $runspace.Close(); $runspace.Dispose() } catch { Write-EnvironmentSwallowedException -ErrorRecord $_ -Source 'Environment.ShowBootstrapLoadingSplash.CleanupRunspace' }
 			$__baselineExtractedPartReturnValue = $null

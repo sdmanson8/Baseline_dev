@@ -169,7 +169,7 @@
 				$sepDefault = New-Object System.Windows.Controls.Separator
 				$sepDefault.Margin = [System.Windows.Thickness]::new(0, 6, 0, 6)
 				[void]($stackPanel.Children.Add($sepDefault))
-				& $addSectionHeader (Get-UxLocalizedString -Key 'GuiSectionDefault' -Fallback 'Default')
+				& $addSectionHeader (Get-UxLocalizedString -Key 'GuiSectionDefaultReference' -Fallback 'Default reference')
 				$tb = New-Object System.Windows.Controls.TextBlock
 				$tb.Text = $winDefText
 				$tb.TextWrapping = [System.Windows.TextWrapping]::Wrap

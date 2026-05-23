@@ -170,6 +170,82 @@ function Initialize-AppsQueuedActionState
     .SYNOPSIS
 #>
 
+function Get-GuiAppsQueuedBadgeColorSet
+{
+	[CmdletBinding()]
+	param (
+		[object]$Theme = $null
+	)
+
+	if (-not $Theme)
+	{
+		$Theme = Get-GuiCurrentTheme
+	}
+
+	$getThemeColor = {
+		param (
+			[object]$ThemeObject,
+			[string]$Name
+		)
+
+		if (-not $ThemeObject) { return $null }
+		if ($ThemeObject -is [hashtable])
+		{
+			if ($ThemeObject.ContainsKey($Name)) { return [string]$ThemeObject[$Name] }
+			return $null
+		}
+
+		$property = $ThemeObject.PSObject.Properties[$Name]
+		if ($property) { return [string]$property.Value }
+		return $null
+	}
+
+	$backgroundColor = & $getThemeColor -ThemeObject $Theme -Name 'AccentBlue'
+	if ([string]::IsNullOrWhiteSpace($backgroundColor))
+	{
+		$backgroundColor = '#3B82F6'
+	}
+
+	$candidateColors = [System.Collections.Generic.List[string]]::new()
+	foreach ($candidateColor in @('#FFFFFF', '#111827', (& $getThemeColor -ThemeObject $Theme -Name 'WindowBg'), (& $getThemeColor -ThemeObject $Theme -Name 'TextPrimary')))
+	{
+		if ([string]::IsNullOrWhiteSpace([string]$candidateColor)) { continue }
+		if (-not $candidateColors.Contains([string]$candidateColor))
+		{
+			[void]$candidateColors.Add([string]$candidateColor)
+		}
+	}
+
+	$foregroundColor = Get-GuiReadableForegroundColor -BackgroundColor $backgroundColor -CandidateColors @($candidateColors)
+	return [pscustomobject]@{
+		Background = $backgroundColor
+		Foreground = $foregroundColor
+	}
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Set-GuiAppsQueuedBadgeChrome
+{
+	[CmdletBinding()]
+	param (
+		[object]$Badge,
+		[object]$BadgeText
+	)
+
+	if (-not $Badge -or -not $BadgeText) { return }
+
+	$colors = Get-GuiAppsQueuedBadgeColorSet
+	$Badge.Background = ConvertTo-GuiBrush -Color $colors.Background -Context 'AppsQueuedBadge.Background'
+	$BadgeText.Foreground = ConvertTo-GuiBrush -Color $colors.Foreground -Context 'AppsQueuedBadge.Foreground'
+}
+
+<#
+    .SYNOPSIS
+#>
+
 function Sync-AppsQueuedActionControls
 {
 	<#
@@ -269,6 +345,7 @@ function Sync-AppsQueuedActionControls
 							'Update'    { (Get-UxLocalizedString -Key 'GuiAppsQueuedUpdate'    -Fallback 'Queued: Update') }
 							default     { (Get-UxLocalizedString -Key 'GuiAppsQueued' -Fallback 'Queued') }
 						}
+						Set-GuiAppsQueuedBadgeChrome -Badge $badge -BadgeText $badgeText
 						$badgeText.Text = $badgeLabel
 						$badge.Visibility = [System.Windows.Visibility]::Visible
 					}
@@ -276,6 +353,8 @@ function Sync-AppsQueuedActionControls
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SelectionQueueState.Sync-AppsQueuedActionControls:catch354' -Severity Debug }
+
 				$null = $_
 			}
 		}

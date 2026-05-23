@@ -1,4 +1,4 @@
-﻿# Style helper utilities for Baseline UI themes and visual defaults.
+# Style helper utilities for Baseline UI themes and visual defaults.
 
 <#
 	    .SYNOPSIS
@@ -560,15 +560,39 @@
 			if (-not ($topRow -is [System.Windows.Controls.Grid])) { return }
 			$topRow.Measure([System.Windows.Size]::new([double]::PositiveInfinity, [double]::PositiveInfinity))
 			$neededWidth = $topRow.DesiredSize.Width + 56  # header padding (32) + safety margin (24)
-			$workArea = [System.Windows.SystemParameters]::WorkArea
-			$clampedMinWidth = [Math]::Min([Math]::Ceiling($neededWidth), $workArea.Width)
-			if ($clampedMinWidth -gt $Form.MinWidth)
+			$workArea = if (Get-Command -Name 'Get-GuiMainWindowWorkArea' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Get-GuiMainWindowWorkArea -Window $Form
+			}
+			else
+			{
+				$systemWorkArea = [System.Windows.SystemParameters]::WorkArea
+				[pscustomobject]@{
+					Left   = [double]$systemWorkArea.Left
+					Top    = [double]$systemWorkArea.Top
+					Width  = [double]$systemWorkArea.Width
+					Height = [double]$systemWorkArea.Height
+				}
+			}
+			$workAreaWidth = [double]$workArea.Width
+			$workAreaLeft = [double]$workArea.Left
+			$clampedMinWidth = [Math]::Min([Math]::Ceiling($neededWidth), $workAreaWidth)
+			if ($clampedMinWidth -gt $Form.MinWidth -or [double]$Form.MinWidth -gt $workAreaWidth)
 			{
 				$Form.MinWidth = $clampedMinWidth
 			}
-			if ($Form.Width -gt $workArea.Width)
+			if ($Form.Width -gt $workAreaWidth)
 			{
-				$Form.Width = $workArea.Width
+				$Form.Width = $workAreaWidth
+			}
+			$maxLeft = $workAreaLeft + $workAreaWidth - [double]$Form.Width
+			if ($Form.Left -lt $workAreaLeft)
+			{
+				$Form.Left = $workAreaLeft
+			}
+			elseif ($Form.Left -gt $maxLeft)
+			{
+				$Form.Left = $maxLeft
 			}
 		}
 		catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Update-WindowMinWidthFromHeader' }
@@ -670,6 +694,14 @@
 		Update-HeaderModeStateText
 		if ($Script:MenuToolsAppsManager)        { $Script:MenuToolsAppsManager.Header        = (Get-UxLocalizedString -Key 'GuiMenuToolsAppsManager' -Fallback 'Apps Manager') }
 		if ($Script:MenuToolsUpdateAllApps)      { $Script:MenuToolsUpdateAllApps.Header      = (Get-UxLocalizedString -Key 'GuiMenuToolsUpdateAllApps' -Fallback 'Update All Applications') }
+		if ($Script:MenuToolsDeveloperDiagnostics){ $Script:MenuToolsDeveloperDiagnostics.Header = (New-GuiLabeledIconContent -IconName 'Code' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnostics' -Fallback 'Developer Diagnostics') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
+		if ($Script:MenuToolsDeveloperDiagnosticsGenerateReport){ $Script:MenuToolsDeveloperDiagnosticsGenerateReport.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnosticsGenerateReport' -Fallback 'Generate Test Report') }
+		if ($Script:MenuToolsDeveloperDiagnosticsSourceQuality){ $Script:MenuToolsDeveloperDiagnosticsSourceQuality.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnosticsSourceQuality' -Fallback 'Run Source Quality Guards') }
+		if ($Script:MenuToolsDeveloperDiagnosticsUnitTests){ $Script:MenuToolsDeveloperDiagnosticsUnitTests.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnosticsUnitTests' -Fallback 'Run Unit Tests') }
+		if ($Script:MenuToolsDeveloperDiagnosticsGuiComposition){ $Script:MenuToolsDeveloperDiagnosticsGuiComposition.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnosticsGuiComposition' -Fallback 'Run GUI Composition Tests') }
+		if ($Script:MenuToolsDeveloperDiagnosticsOpenLatestReport){ $Script:MenuToolsDeveloperDiagnosticsOpenLatestReport.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnosticsOpenLatestReport' -Fallback 'Open Latest Test Report') }
+		if ($Script:MenuToolsDeveloperDiagnosticsCopyCommands){ $Script:MenuToolsDeveloperDiagnosticsCopyCommands.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnosticsCopyCommands' -Fallback 'Copy PowerShell Commands') }
+		if ($Script:MenuToolsDeveloperDiagnosticsIntegrationTests){ $Script:MenuToolsDeveloperDiagnosticsIntegrationTests.Header = (Get-UxLocalizedString -Key 'GuiMenuToolsDeveloperDiagnosticsIntegrationTests' -Fallback 'Run Integration Tests...') }
 		if ($Script:MenuToolsExportSupportBundle){ $Script:MenuToolsExportSupportBundle.Header = (New-GuiLabeledIconContent -IconName 'Archive' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsExportSupportBundle' -Fallback 'Export Support Bundle...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
 		if ($Script:MenuToolsApproveRemoteTargets){ $Script:MenuToolsApproveRemoteTargets.Header = (New-GuiLabeledIconContent -IconName 'Shield' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsApproveRemoteTargets' -Fallback 'Approve Target List...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
 		if ($Script:MenuToolsSaveRemoteApprovalPolicy){ $Script:MenuToolsSaveRemoteApprovalPolicy.Header = (New-GuiLabeledIconContent -IconName 'Document' -Text (Get-UxLocalizedString -Key 'GuiMenuToolsSaveRemoteApprovalPolicy' -Fallback 'Save Remote Approval Policy...') -IconSize 12 -Gap 6 -TextFontSize 12 -AllowTextOnlyFallback) }
@@ -1062,7 +1094,7 @@
 		# Bottom bar - skip Run/Preview (handled by Sync-UxActionButtonText with execution guards)
 		if ($Script:BtnDefaults -and -not (& $Script:TestGuiRunInProgressScript))
 		{
-			Set-GuiButtonIconContent -Button $Script:BtnDefaults -IconName 'RestoreDefaults' -Text (Get-UxLocalizedString -Key 'GuiBtnRestoreAllTweaks' -Fallback 'Restore all tweaks to Windows Defaults') -ToolTip (Get-UxLocalizedString -Key 'GuiActionRestoreDefaultsTooltip' -Fallback 'Restore supported settings to Windows defaults.')
+			Set-GuiButtonIconContent -Button $Script:BtnDefaults -IconName 'RestoreDefaults' -Text (Get-UxLocalizedString -Key 'GuiBtnRestoreAllTweaksRecorded' -Fallback 'Restore all tweaks to default values') -ToolTip (Get-UxLocalizedString -Key 'GuiActionRestoreDefaultsTooltipRecorded' -Fallback 'Restore supported settings to recorded default values.')
 		}
 		if ($Script:BtnExportSettings)
 		{
@@ -1463,6 +1495,13 @@
 			$Combo.Resources[[System.Windows.SystemColors]::HighlightTextBrushKey] = [System.Windows.Media.Brush]$textPrimaryBrush
 			$Combo.Resources[[System.Windows.SystemColors]::MenuBrushKey] = [System.Windows.Media.Brush]$popupBgBrush
 			$Combo.Resources[[System.Windows.SystemColors]::MenuTextBrushKey] = [System.Windows.Media.Brush]$textPrimaryBrush
+			$newComboBoxItemTemplateBinding = {
+				param ([string]$Path)
+
+				$binding = New-Object System.Windows.Data.Binding($Path)
+				$binding.RelativeSource = New-Object System.Windows.Data.RelativeSource([System.Windows.Data.RelativeSourceMode]::TemplatedParent)
+				return $binding
+			}
 
 			$itemStyle = New-Object System.Windows.Style([System.Windows.Controls.ComboBoxItem])
 			[void]($itemStyle.Setters.Add((New-WpfSetter -Property ([System.Windows.Controls.Control]::BackgroundProperty) -Value $popupBgBrush)))
@@ -1481,6 +1520,11 @@
 			$itemRoot.SetValue([System.Windows.Controls.Border]::PaddingProperty, [System.Windows.Thickness]::new(10, 4, 10, 4))
 			$itemRoot.SetValue([System.Windows.Controls.Border]::SnapsToDevicePixelsProperty, $true)
 			$itemPresenter = New-Object System.Windows.FrameworkElementFactory([System.Windows.Controls.ContentPresenter])
+			$itemPresenter.Name = 'ItemContentSite'
+			$itemPresenter.SetBinding([System.Windows.Controls.ContentPresenter]::ContentProperty, (& $newComboBoxItemTemplateBinding -Path 'Content'))
+			$itemPresenter.SetBinding([System.Windows.Controls.ContentPresenter]::ContentTemplateProperty, (& $newComboBoxItemTemplateBinding -Path 'ContentTemplate'))
+			$itemPresenter.SetBinding([System.Windows.Controls.ContentPresenter]::ContentTemplateSelectorProperty, (& $newComboBoxItemTemplateBinding -Path 'ContentTemplateSelector'))
+			$itemPresenter.SetBinding([System.Windows.Controls.ContentPresenter]::ContentStringFormatProperty, (& $newComboBoxItemTemplateBinding -Path 'ContentStringFormat'))
 			$itemPresenter.SetValue([System.Windows.Controls.ContentPresenter]::HorizontalAlignmentProperty, [System.Windows.HorizontalAlignment]::Stretch)
 			$itemPresenter.SetValue([System.Windows.Controls.ContentPresenter]::VerticalAlignmentProperty, [System.Windows.VerticalAlignment]::Center)
 			$itemPresenter.SetValue([System.Windows.Documents.TextElement]::ForegroundProperty, $textPrimaryBrush)
@@ -1532,6 +1576,8 @@
 			try { [void]$Combo.ApplyTemplate() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-ChoiceComboStyle.ApplyTemplate' }
 		}
 		catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-ChoiceComboStyle:catch1566' -Severity Debug }
+
 			# Silently ignore any remaining errors - the combo will still work
 			return
 		}
@@ -1685,16 +1731,22 @@
 		$remoteTargetContext = $null
 		if (Get-Command -Name 'Test-GuiRemoteTargetConnected' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			try { $isRemoteConnected = [bool](Test-GuiRemoteTargetConnected) } catch { $isRemoteConnected = $false }
+			try { $isRemoteConnected = [bool](Test-GuiRemoteTargetConnected) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-GuiActionButtonsEnabled:catch1720' -Severity Debug }
+			 $isRemoteConnected = $false }
 		}
 		if (Get-Command -Name 'Get-GuiRemoteTargetContext' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			try { $remoteTargetContext = Get-GuiRemoteTargetContext } catch { $remoteTargetContext = $null }
+			try { $remoteTargetContext = Get-GuiRemoteTargetContext } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-GuiActionButtonsEnabled:catch1724' -Severity Debug }
+			 $remoteTargetContext = $null }
 		}
 		$isRemoteApprovalReady = $false
 		if ($isRemoteConnected -and (Get-Command -Name 'Test-GuiRemoteTargetApproval' -CommandType Function -ErrorAction SilentlyContinue) -and $remoteTargetContext)
 		{
-			try { $isRemoteApprovalReady = [bool](Test-GuiRemoteTargetApproval -ComputerName @($remoteTargetContext.TargetComputers)) } catch { $isRemoteApprovalReady = $false }
+			try { $isRemoteApprovalReady = [bool](Test-GuiRemoteTargetApproval -ComputerName @($remoteTargetContext.TargetComputers)) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'StyleManagement.Set-GuiActionButtonsEnabled:catch1729' -Severity Debug }
+			 $isRemoteApprovalReady = $false }
 		}
 		if ($Script:BtnDefaults) { $Script:BtnDefaults.IsEnabled = $Enabled }
 		if ($Script:BtnExportSettings) { $Script:BtnExportSettings.IsEnabled = $Enabled }
@@ -1706,6 +1758,10 @@
 		if ($Script:MenuFileSettings) { $Script:MenuFileSettings.IsEnabled = $Enabled }
 		if ($Script:MenuFileAuditSettings) { $Script:MenuFileAuditSettings.IsEnabled = $Enabled }
 		if ($Script:MenuToolsExportSupportBundle) { $Script:MenuToolsExportSupportBundle.IsEnabled = $Enabled }
+		if (Get-Command -Name 'Update-GuiDeveloperDiagnosticsMenuState' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Update-GuiDeveloperDiagnosticsMenuState
+		}
 		if ($Script:MenuToolsApproveRemoteTargets) { $Script:MenuToolsApproveRemoteTargets.IsEnabled = ($Enabled -and $isRemoteConnected) }
 		if ($Script:MenuToolsSaveRemoteApprovalPolicy) { $Script:MenuToolsSaveRemoteApprovalPolicy.IsEnabled = ($Enabled -and $isRemoteConnected -and $isRemoteApprovalReady) }
 		if ($Script:MenuToolsLoadRemoteApprovalPolicy) { $Script:MenuToolsLoadRemoteApprovalPolicy.IsEnabled = ($Enabled -and $isRemoteConnected) }

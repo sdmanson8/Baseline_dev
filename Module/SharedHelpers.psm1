@@ -596,6 +596,8 @@ function Get-CurrentPowerSchemeGuid
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'SharedHelpers.Get-CurrentPowerSchemeGuid:catch597' -Severity Debug }
+
 		return $null
 	}
 
@@ -731,6 +733,12 @@ function Set-PowerSchemeSettingValue
 		$desiredDCValue = $desiredACValue
 	}
 
+	& powercfg /QUERY $resolvedSchemeGuid $SubgroupGuid $SettingGuid 2>$null | Out-Null
+	if ($LASTEXITCODE -ne 0)
+	{
+		throw "Power scheme setting '$SettingGuid' in subgroup '$SubgroupGuid' is not available for active power scheme '$resolvedSchemeGuid'."
+	}
+
 	$currentValues = Get-PowerSchemeSettingValue -SubgroupGuid $SubgroupGuid -SettingGuid $SettingGuid -SchemeGuid $resolvedSchemeGuid -Units $Units
 	$rawCurrentAC = if ($currentValues -and $null -ne $currentValues.RawACValue) { [string]$currentValues.RawACValue } else { $null }
 	$rawCurrentDC = if ($currentValues -and $null -ne $currentValues.RawDCValue) { [string]$currentValues.RawDCValue } else { $null }
@@ -855,11 +863,19 @@ $ExportedFunctions = @(
     'Get-BaselineSystemPlatformInfo'
     'ConvertTo-BaselinePlatformLabel'
     'Set-BaselineDefenderExecutionAvailability'
+    'Set-BaselineDefenderComponentAvailability'
     'Reset-BaselineDefenderExecutionAvailability'
+    'Resolve-BaselineDefenderExecutionAvailability'
+    'Resolve-BaselineDefenderComponentAvailability'
+    'Test-BaselineDefenderExecutionAvailable'
+    'Get-BaselineDefenderExecutionUnavailableReason'
+    'Test-BaselineDefenderComponentAvailable'
+    'Get-BaselineDefenderComponentUnavailableReason'
     'Test-BaselineEntryAvailable'
     'Test-BaselineEntrySupportsExecution'
     'Get-BaselineEntryAvailabilitySummary'
     'Update-BaselineManifestAvailability'
+    'Update-BaselineManifestExecutionSupport'
     'Get-ManifestEntryByFunction'
     'Get-TweakManifestDefaultCommand'
     'Get-ScenarioProfileDefinitions'
@@ -1087,6 +1103,11 @@ $ExportedFunctions = @(
     'Invoke-BaselineAutoUpdate'
     'Invoke-BaselineUpdateCheck'
     'Get-BaselineUpdateSettings'
+    'Get-BaselineStartupSplashSettings'
+    'Get-BaselineStartupPackageManagerCheckStatePath'
+    'Get-BaselineStartupPackageManagerCheckState'
+    'Set-BaselineStartupPackageManagerCheckState'
+    'Get-BaselineStartupPackageManagerCheckDecision'
     'Get-BaselineUpdateCheckState'
     'Set-BaselineUpdateCheckState'
     'Format-BaselineUpdateLastChecked'

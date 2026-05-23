@@ -30,6 +30,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'FilteringLogic.Test-TweakVisibleByManifestGate:catch31' -Severity Debug }
+
 				return $false
 			}
 		}
@@ -214,7 +216,9 @@
 		# The signature deliberately omits the current selection: user selection movement
 		# should not force a full ComboBox rebuild.
 		$manifestCount = 0
-		try { $manifestCount = [int]$Script:TweakManifest.Count } catch { $manifestCount = 0 }
+		try { $manifestCount = [int]$Script:TweakManifest.Count } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'FilteringLogic.Update-CategoryFilterList:catch217' -Severity Debug }
+		 $manifestCount = 0 }
 		$signature = "{0}|{1}|{2}|{3}|{4}" -f `
 			[int]$Script:FilterGeneration, `
 			[string]$Script:SelectedLanguage, `
@@ -337,6 +341,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'FilteringLogic.Update-RiskFilterList:catch338' -Severity Debug }
+
 				$CmbRiskFilter.SelectedIndex = 0
 			}
 
@@ -402,7 +408,9 @@
 		{
 			if (Get-Command -Name 'Get-BaselineSystemPlatformInfo' -CommandType Function -ErrorAction SilentlyContinue)
 			{
-				try { $Script:BaselineSystemPlatformInfo = Get-BaselineSystemPlatformInfo } catch { $Script:BaselineSystemPlatformInfo = $null }
+				try { $Script:BaselineSystemPlatformInfo = Get-BaselineSystemPlatformInfo } catch {
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'FilteringLogic.Update-PlatformFilterAvailability:catch405' -Severity Debug }
+				 $Script:BaselineSystemPlatformInfo = $null }
 			}
 			if (Get-Command -Name 'Set-BaselineManifestAllAvailable' -CommandType Function -ErrorAction SilentlyContinue)
 			{
@@ -418,11 +426,15 @@
 		$systemInfo = $null
 		if ($resolved -and $resolved.Override -and (Get-Command -Name 'Get-BaselineSystemPlatformInfo' -CommandType Function -ErrorAction SilentlyContinue))
 		{
-			try { $systemInfo = Get-BaselineSystemPlatformInfo -Override $resolved.Override } catch { $systemInfo = $null }
+			try { $systemInfo = Get-BaselineSystemPlatformInfo -Override $resolved.Override } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'FilteringLogic.Update-PlatformFilterAvailability:catch421' -Severity Debug }
+			 $systemInfo = $null }
 		}
 		elseif (Get-Command -Name 'Get-BaselineSystemPlatformInfo' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			try { $systemInfo = Get-BaselineSystemPlatformInfo } catch { $systemInfo = $null }
+			try { $systemInfo = Get-BaselineSystemPlatformInfo } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'FilteringLogic.Update-PlatformFilterAvailability:catch425' -Severity Debug }
+			 $systemInfo = $null }
 		}
 
 		$Script:BaselineSystemPlatformInfo = $systemInfo
@@ -475,7 +487,9 @@
 		$Script:HideUnavailableItems = $normalized
 		if (Get-Command -Name 'Set-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			try { Set-BaselineUserPreference -Key 'HideUnavailableItems' -Value $normalized } catch { $null = $_ }
+			try { Set-BaselineUserPreference -Key 'HideUnavailableItems' -Value $normalized } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'FilteringLogic.Set-HideUnavailableItemsState:catch478' -Severity Debug }
+			 $null = $_ }
 		}
 
 		$Script:FilterGeneration++
@@ -542,6 +556,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'FilteringLogic.Update-PlatformFilterList:catch543' -Severity Debug }
+
 				$CmbPlatformFilter.SelectedIndex = 0
 			}
 
@@ -775,7 +791,9 @@
 		}
 		elseif (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
 		{
-			try { $hideUnavailableItems = [bool](Get-BaselineUserPreference -Key 'HideUnavailableItems' -Default $true) } catch { $hideUnavailableItems = $true }
+			try { $hideUnavailableItems = [bool](Get-BaselineUserPreference -Key 'HideUnavailableItems' -Default $true) } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'FilteringLogic.Test-TweakMatchesCurrentFilters:catch778' -Severity Debug }
+			 $hideUnavailableItems = $true }
 		}
 
 		if ($hideUnavailableItems)

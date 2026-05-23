@@ -39,6 +39,8 @@ function Test-BaselineAppxPackagePresence
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialActions.Test-BaselineAppxPackagePresence:catch40' -Severity Debug }
+
 		# Fall through to WinRT probe.
 	}
 
@@ -50,6 +52,8 @@ function Test-BaselineAppxPackagePresence
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialActions.Test-BaselineAppxPackagePresence:catch51' -Severity Debug }
+
 		return $null
 	}
 }
@@ -106,6 +110,12 @@ function InitialActions
 		.PARAMETER Warning
 		Show the warning prompt during startup checks.
 
+		.PARAMETER SkipWinGetCheck
+		Skip the GUI splash WinGet availability/bootstrap check.
+
+		.PARAMETER SkipChocolateyCheck
+		Skip the GUI splash Chocolatey availability/bootstrap check.
+
 		.EXAMPLE
 		InitialActions
 	#>
@@ -113,7 +123,15 @@ function InitialActions
 	(
 		[Parameter(Mandatory = $false)]
 		[switch]
-		$Warning
+		$Warning,
+
+		[Parameter(Mandatory = $false)]
+		[switch]
+		$SkipWinGetCheck,
+
+		[Parameter(Mandatory = $false)]
+		[switch]
+		$SkipChocolateyCheck
 	)
 
 	$osInfo = Get-OSInfo
@@ -201,6 +219,8 @@ function InitialActions
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialActions.InitialActions:catch202' -Severity Debug }
+
 				$MuiCacheProperties = @()
 			}
 		}
@@ -323,7 +343,25 @@ function InitialActions
 
 	if (Get-Command -Name 'Set-BaselineDefenderExecutionAvailability' -CommandType Function -ErrorAction SilentlyContinue)
 	{
-		Set-BaselineDefenderExecutionAvailability -Available ([bool]$Script:DefenderEnabled)
+		$defenderExecutionAvailability = Resolve-BaselineDefenderExecutionAvailability
+		Set-BaselineDefenderExecutionAvailability -Available ([bool]$defenderExecutionAvailability.Available) -UnavailableReason ([string]$defenderExecutionAvailability.Reason)
+		if (-not $defenderExecutionAvailability.Available)
+		{
+			LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_DefenderExecutionUnavailable' -Fallback 'Microsoft Defender command surface is unavailable: {0}' -FormatArgs @([string]$defenderExecutionAvailability.Reason))
+		}
+		elseif (-not $Script:DefenderEnabled)
+		{
+			LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_DefenderHealthNotFullyEnabled' -Fallback 'Microsoft Defender command surface is available, but Defender is not reported as the active fully enabled antivirus. Defender-backed actions will run and report command failures directly if Windows rejects them.')
+		}
+	}
+	if (Get-Command -Name 'Set-BaselineDefenderComponentAvailability' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		$defenderComponentAvailability = Resolve-BaselineDefenderComponentAvailability
+		Set-BaselineDefenderComponentAvailability -Available ([bool]$defenderComponentAvailability.Available) -UnavailableReason ([string]$defenderComponentAvailability.Reason)
+		if (-not $defenderComponentAvailability.Available)
+		{
+			LogWarning (Get-BaselineBilingualString -Key 'Bootstrap_DefenderComponentsUnavailable' -Fallback 'Microsoft Defender components are unavailable: {0}' -FormatArgs @([string]$defenderComponentAvailability.Reason))
+		}
 	}
 	#endregion Defender checks
 
@@ -385,6 +423,8 @@ function InitialActions
 	}
 	catch [System.Management.Automation.PropertyNotFoundException]
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'InitialActions.InitialActions:catch404' -Severity Debug }
+
 		$Script:OpenedFolders = @()
 	}
 	if ($env:BASELINE_EMBEDDED_HOST -ne '1' -and (Test-InteractiveHost))

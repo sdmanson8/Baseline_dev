@@ -136,12 +136,12 @@ if ($RemoteExecution)
 
 			$dlgTitle = if ($FatalError) { Get-UxLocalizedString -Key 'GuiDlgDefaultsRestoreFailed' -Fallback 'Defaults Restore Failed' } elseif ($restartPendingCount -gt 0 -and $failedCount -eq 0 -and $notRunCount -eq 0) { Get-UxLocalizedString -Key 'GuiDlgDefaultsRestoreRestartPending' -Fallback 'Defaults Restore Restart Pending' } elseif ($failedCount -gt 0 -or $notRunCount -gt 0) { Get-UxLocalizedString -Key 'GuiDlgDefaultsRestorePartiallyCompleted' -Fallback 'Defaults Restore Partially Completed' } else { Get-UxLocalizedString -Key 'GuiDlgDefaultsRestoreComplete' -Fallback 'Defaults Restore Complete' }
 			$whatChangedText = Build-WhatChangedSummaryText `
-				-OpeningLine "What happened: $appliedCount item$(if ($appliedCount -eq 1) { '' } else { 's' }) restored to Windows defaults." `
+				-OpeningLine "What happened: $appliedCount item$(if ($appliedCount -eq 1) { '' } else { 's' }) restored to recorded defaults." `
 				-Noun 'item' `
 				-Insights $executionInsights `
 				-RestartPendingCount $restartPendingCount `
 				-NotRunCount $notRunCount `
-				-AlreadyDesiredPhrase 'already matched the Windows default' `
+				-AlreadyDesiredPhrase 'already matched the recorded default' `
 				-RestartPendingPhrase 'still need a restart to finish restoring' `
 				-NotApplicableSingularPhrase ' does not apply on this PC or this version of Windows' `
 				-NotApplicablePluralPhrase 's do not apply on this PC or this version of Windows' `
@@ -155,10 +155,10 @@ if ($RemoteExecution)
 				"$whatChangedText`n`nThe defaults restore stopped because of an unexpected error.`n`nCompleted $CompletedCount of $Script:TotalRunnableTweaks.`n$summaryCountsText`n`nFatal error:`n$FatalError"
 			}
 			elseif ($failedCount -gt 0 -or $notRunCount -gt 0) {
-				"$whatChangedText`n`nWindows defaults restore partially completed.`n`nCompleted $CompletedCount of $Script:TotalRunnableTweaks.`n$summaryCountsText"
+				"$whatChangedText`n`nRecorded defaults restore partially completed.`n`nCompleted $CompletedCount of $Script:TotalRunnableTweaks.`n$summaryCountsText"
 			}
 			else {
-				"$whatChangedText`n`nWindows defaults restored successfully.`n`nCompleted $CompletedCount of $Script:TotalRunnableTweaks.`n$summaryCountsText"
+				"$whatChangedText`n`nRecorded defaults restored successfully.`n`nCompleted $CompletedCount of $Script:TotalRunnableTweaks.`n$summaryCountsText"
 			}
 			if (-not [string]::IsNullOrWhiteSpace([string]$summaryNextStepsText))
 			{

@@ -182,7 +182,7 @@ Describe 'AdobeNetworkBlock' {
         AdobeNetworkBlock -Enable
 
         $written = [string[]]$script:setContentCalls[0].Value
-        # ads.example.com appears in BOTH existing and downloaded — should appear exactly once
+        # ads.example.com appears in BOTH existing and downloaded - should appear exactly once
         ($written | Where-Object { $_ -match 'ads\.example\.com' }).Count | Should -Be 1
     }
 

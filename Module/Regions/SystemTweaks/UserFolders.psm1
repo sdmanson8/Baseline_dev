@@ -129,6 +129,8 @@ function Get-BaselineUserFolderCurrentPath
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UserFolders.Get-BaselineUserFolderCurrentPath:catch130' -Severity Debug }
+
 		}
 	}
 
@@ -312,6 +314,8 @@ function Invoke-BaselineUserFolderKnownFolderRedirect
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UserFolders.Invoke-BaselineUserFolderKnownFolderRedirect:catch313' -Severity Debug }
+
 	}
 
 	try
@@ -327,6 +331,8 @@ function Invoke-BaselineUserFolderKnownFolderRedirect
 	}
 	catch
 	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UserFolders.Invoke-BaselineUserFolderKnownFolderRedirect:catch328' -Severity Debug }
+
 	}
 
 	return $false

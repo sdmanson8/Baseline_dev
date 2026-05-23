@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Internal logging module for Baseline.
 
@@ -35,8 +35,8 @@ $script:LogStatistics = @{
 }
 # DEBUG entries are gated: they are only emitted when Debug Mode is on
 # (Settings → Diagnostics, persisted as DebugLoggingEnabled in Baseline-user-prefs.json).
-# When off, Write-BaselineDebug returns immediately with no I/O so it is safe
-# to sprinkle through hot paths.
+# When off, Write-BaselineDebug returns immediately with no I/O unless the
+# caller explicitly marks the entry as an always-on support diagnostic.
 $script:DebugLoggingEnabled = $false
 # RunId is a per-session correlation GUID. Generated lazily on first read so
 # unit tests that import the module without bootstrapping still get a stable
@@ -49,6 +49,7 @@ $script:UILogHandler = $null
 $script:ConsoleStatusContext = $null
 $script:OperationScopeStack = [System.Collections.Generic.List[object]]::new()
 $script:LogMode = $null
+$script:LogScope = 'Baseline'
 $script:DefaultLogMutexTimeoutMs = 5000
 $script:LogMutexRetryBackoffMs = @(100, 250, 500)
 $script:PendingLogMessages = [System.Collections.Generic.List[string]]::new()
@@ -64,6 +65,8 @@ $script:SessionStatistics = @{
     SucceededCount      = 0
     FailedCount         = 0
     SkippedCount        = 0
+    NotApplicableCount  = 0
+    NotRunCount         = 0
     IsGUI               = $false
     GameModeActive      = $false
     GameModeProfile     = $null
@@ -302,14 +305,84 @@ function Clear-LogMode {
     $script:LogMode = $null
 }
 
+function ConvertTo-BaselineLogScopeText {
+    param(
+        [AllowNull()]
+        [object]$Scope
+    )
+
+    if ($null -eq $Scope) { return '' }
+
+    $scopeText = ''
+    if ($Scope -is [string]) {
+        $scopeText = [string]$Scope
+    }
+    elseif ($Scope.PSObject -and $Scope.PSObject.Properties['Name']) {
+        $scopeText = [string]$Scope.Name
+    }
+    else {
+        $scopeText = [string]$Scope
+    }
+
+    if ([string]::IsNullOrWhiteSpace($scopeText)) { return '' }
+
+    $scopeText = ($scopeText -replace '[\r\n]+', ' ').Trim()
+    return $scopeText
+}
+
+function Get-BaselineLogScope {
+    $scopeText = ConvertTo-BaselineLogScopeText -Scope $script:LogScope
+    if ([string]::IsNullOrWhiteSpace($scopeText)) { return 'Baseline' }
+    return $scopeText
+}
+
+function Set-BaselineLogScope {
+    param(
+        [string]$Scope
+    )
+
+    $scopeText = ConvertTo-BaselineLogScopeText -Scope $Scope
+    if ([string]::IsNullOrWhiteSpace($scopeText)) {
+        $script:LogScope = 'Baseline'
+        return
+    }
+
+    $script:LogScope = $scopeText
+}
+
+function Clear-BaselineLogScope {
+    $script:LogScope = 'Baseline'
+}
+
+function Resolve-BaselineLogScope {
+    param(
+        [AllowNull()]
+        [object]$Scope
+    )
+
+    $scopeText = ConvertTo-BaselineLogScopeText -Scope $Scope
+    if (-not [string]::IsNullOrWhiteSpace($scopeText)) { return $scopeText }
+
+    $operationScope = Get-BaselineCurrentOperationScope
+    if ($operationScope -and $operationScope.PSObject.Properties['LogScope']) {
+        $scopeText = ConvertTo-BaselineLogScopeText -Scope $operationScope.LogScope
+        if (-not [string]::IsNullOrWhiteSpace($scopeText)) { return $scopeText }
+    }
+
+    $scopeText = ConvertTo-BaselineLogScopeText -Scope $script:LogScope
+    if (-not [string]::IsNullOrWhiteSpace($scopeText)) { return $scopeText }
+
+    return 'Baseline'
+}
+
 <#
     .SYNOPSIS
     Set the log file path used by the logging module.
 
 
-    
+
 .DESCRIPTION
-    
+
 Sets the log file path used by the logging module. using Baseline's source configuration.
     .PARAMETER Path
     Path to the log file that should receive log output.
@@ -326,7 +399,7 @@ function Set-LogFile {
         [string]$Path,
         [switch]$Clear
     )
-    
+
     $script:LogFilePath = $Path
     Reset-LogStatistics
 
@@ -342,8 +415,8 @@ function Set-LogFile {
     } catch { $null = $_ }
 
     $debugTag = if ($script:DebugLoggingEnabled) { ' DebugMode=ON' } else { '' }
-    $runIdTag = ' RunId={0}' -f (Get-BaselineRunId)
-    $header = "=== Log Started at $([DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss zzz'))$debugTag$runIdTag ===`r`n"
+    $sessionIdTag = ' SessionId={0}' -f (Get-BaselineRunId)
+    $header = "=== Log Started at $([DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss zzz'))$debugTag$sessionIdTag ===`r`n"
     $utf8 = [System.Text.Encoding]::UTF8
     if ($Clear) {
         try { [System.IO.File]::WriteAllText($Path, $header, $utf8) } catch { $null = $_ }
@@ -457,9 +530,9 @@ function Write-PendingLogMessagesToFile {
     Write a formatted message to the current log file.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for write a formatted message to the current log file..
     .PARAMETER Message
     Message text to write to the log.
@@ -481,12 +554,14 @@ function Write-LogMessage {
         [string]$Message,
         [ValidateSet('INFO', 'WARNING', 'ERROR', 'DEBUG')]
         [string]$Level = 'INFO',
+        [string]$Scope,
         [switch]$AddGap,
-        [switch]$ShowConsole  # Changed from NoConsole to ShowConsole (default off)
+        [switch]$ShowConsole,  # Changed from NoConsole to ShowConsole (default off)
+        [switch]$Always
     )
 
-    if ($Level -eq 'DEBUG' -and -not $script:DebugLoggingEnabled) { return }
-    
+    if ($Level -eq 'DEBUG' -and -not $script:DebugLoggingEnabled -and -not $Always) { return }
+
     # If the module-scoped path was reset (e.g. by a -Force re-import), fall
     # back to the global path the bootstrap published. Without this, errors
     # raised from GUI event handlers vanish silently — see GUI-GENERIC-001
@@ -506,7 +581,9 @@ function Write-LogMessage {
     $timestamp = Get-Date -Format "dd-MM-yyyy HH:mm"
     $runIdPrefix = '[RunId={0}] ' -f (Get-BaselineRunIdShort)
     $contextPrefix = if ([string]::IsNullOrWhiteSpace($script:LogMode)) { '' } else { "[Mode=$($script:LogMode)] " }
-    $logMessage = "$timestamp $Level`: $runIdPrefix$contextPrefix$Message"
+    $scopeText = Resolve-BaselineLogScope -Scope $Scope
+    $scopePrefix = "[$scopeText] "
+    $logMessage = "$timestamp $Level`: $runIdPrefix$scopePrefix$contextPrefix$Message"
     if ($AddGap) { $logMessage += "`n" }
 
     switch ($Level) {
@@ -521,7 +598,7 @@ function Write-LogMessage {
         Level = $Level
         Message = $Message
     })
-    
+
     # Write-Host: intentional — console logging output channel
     # Show log output in the console only when explicitly requested.
     if ($ShowConsole) {
@@ -531,7 +608,7 @@ function Write-LogMessage {
             default   { Write-Host "INFO: $Message" }
         }
     }
-    
+
     # Use a mutex so multiple log writes do not corrupt the log file.
     $acquired = $false
     $messageQueued = $false
@@ -585,9 +662,9 @@ function Write-LogMessage {
     Write an informational message to the log.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for write an informational message to the log..
     .PARAMETER Message
     Informational message text to log.
@@ -605,10 +682,11 @@ function Write-BaselineInfo {
     param(
         [Parameter(Mandatory=$true)]
         [string]$Message,
+        [string]$Scope,
         [switch]$AddGap,
         [switch]$ShowConsole
     )
-    Write-LogMessage -Message $Message -Level 'INFO' -AddGap:$AddGap -ShowConsole:$ShowConsole
+    Write-LogMessage -Message $Message -Level 'INFO' -Scope $Scope -AddGap:$AddGap -ShowConsole:$ShowConsole
 }
 
 <#
@@ -616,9 +694,9 @@ function Write-BaselineInfo {
     Write a warning message to the log.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for write a warning message to the log..
     .PARAMETER Message
     Warning message text to log.
@@ -636,11 +714,12 @@ function Write-BaselineWarning {
     param(
         [Parameter(Mandatory=$true)]
         [object]$Message,
+        [string]$Scope,
         [switch]$AddGap,
         [switch]$ShowConsole
     )
     $logMessage = Format-BaselineErrorForLog -ErrorObject $Message
-    Write-LogMessage -Message $logMessage -Level 'WARNING' -AddGap:$AddGap -ShowConsole:$ShowConsole
+    Write-LogMessage -Message $logMessage -Level 'WARNING' -Scope $Scope -AddGap:$AddGap -ShowConsole:$ShowConsole
 }
 
 <#
@@ -769,9 +848,9 @@ function Format-BaselineErrorForLog {
     Write an error message to the log.
 
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for write an error message to the log..
     .PARAMETER Message
     Error message text to log.
@@ -789,12 +868,13 @@ function Write-BaselineError {
     param(
         [Parameter(Mandatory=$true)]
         [object]$Message,
+        [string]$Scope,
         [switch]$AddGap,
         [switch]$ShowConsole
     )
     $logMessage = Format-BaselineErrorForLog -ErrorObject $Message
     Set-BaselineOperationFailed -Reason $logMessage
-    Write-LogMessage -Message $logMessage -Level 'ERROR' -AddGap:$AddGap -ShowConsole:$ShowConsole
+    Write-LogMessage -Message $logMessage -Level 'ERROR' -Scope $Scope -AddGap:$AddGap -ShowConsole:$ShowConsole
 }
 
 <#
@@ -824,12 +904,15 @@ function Start-BaselineOperationScope {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)]
-        [string]$Name
+        [string]$Name,
+
+        [string]$LogScope
     )
 
     $scope = [PSCustomObject]@{
         Id = [guid]::NewGuid().ToString('N')
         Name = $Name
+        LogScope = (ConvertTo-BaselineLogScopeText -Scope $LogScope)
         Failed = $false
         FailureReasons = [System.Collections.Generic.List[string]]::new()
     }
@@ -882,25 +965,35 @@ function Stop-BaselineOperationScope {
 
 <#
     .SYNOPSIS
-    Write a debug message to the log. No-op when Debug Mode is off.
+    Write a debug message to the log. No-op when Debug Mode is off unless Always is supplied.
 
     .DESCRIPTION
     DEBUG entries are gated by $script:DebugLoggingEnabled. When the flag is
     off (the default), this function returns immediately without producing
-    any I/O, so it is safe to call from hot paths.
+    any I/O, so it is safe to call from hot paths. Use Always only for
+    diagnostics that are part of the normal support log contract.
+
+    DEBUG is for diagnostic detail, not an INFO/WARNING/ERROR mirror. Use it
+    for state resolution, branch decisions, object counts, resolved paths,
+    retry details, timings, and internal values that explain why or how an
+    operation is running. Do not add DEBUG entries that repeat an operational
+    INFO line such as "Starting scan" or "Checking services" without adding
+    diagnostic context.
 
     .EXAMPLE
-    Write-BaselineDebug -Message "Theme apply: $themeName"
+    Write-BaselineDebug -Message "Theme apply resolved resource dictionary: $themePath"
 #>
 function Write-BaselineDebug {
     param(
         [Parameter(Mandatory=$true)]
         [string]$Message,
+        [string]$Scope,
         [switch]$AddGap,
-        [switch]$ShowConsole
+        [switch]$ShowConsole,
+        [switch]$Always
     )
-    if (-not $script:DebugLoggingEnabled) { return }
-    Write-LogMessage -Message $Message -Level 'DEBUG' -AddGap:$AddGap -ShowConsole:$ShowConsole
+    if (-not $Always -and -not $script:DebugLoggingEnabled) { return }
+    Write-LogMessage -Message $Message -Level 'DEBUG' -Scope $Scope -AddGap:$AddGap -ShowConsole:$ShowConsole -Always:$Always
 }
 
 <#
@@ -924,9 +1017,9 @@ function Set-BaselineDebugLogging {
     .SYNOPSIS
     Returns whether Debug Mode logging is currently enabled.
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for returns whether Debug Mode logging is currently enabled..
 #>
 function Get-BaselineDebugLogging {
@@ -939,7 +1032,7 @@ function Get-BaselineDebugLogging {
 
     .DESCRIPTION
     Bootstrap calls this once just before Set-LogFile so the very first
-    header line and every subsequent log entry carry the same RunId.
+    header line records the full SessionId and every subsequent log entry carries the same RunId.
     Tests can also call it to pin the value.
 #>
 function Set-BaselineRunId {
@@ -957,9 +1050,9 @@ function Set-BaselineRunId {
     .SYNOPSIS
     Returns the full session RunId GUID, generating one on first read.
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for returns the full session RunId GUID, generating one on first read..
 #>
 function Get-BaselineRunId {
@@ -973,9 +1066,9 @@ function Get-BaselineRunId {
     .SYNOPSIS
     Returns the 8-character short form of the session RunId for log prefixing.
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for returns the 8-character short form of the session RunId for log prefixing..
 #>
 function Get-BaselineRunIdShort {
@@ -1035,9 +1128,9 @@ function Add-BaselineActionTrail {
     .SYNOPSIS
     Returns the in-process action trail as an array.
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for returns the in-process action trail as an array..
 #>
 function Get-BaselineActionTrail {
@@ -1049,9 +1142,9 @@ function Get-BaselineActionTrail {
     .SYNOPSIS
     Clears the in-process action trail.
 
-    
+
 .DESCRIPTION
-    
+
 Applies the Baseline behavior for clears the in-process action trail..
 #>
 function Reset-BaselineActionTrail {
@@ -1089,7 +1182,7 @@ function Write-SwallowedException {
             {
                 if ($script:DebugLoggingEnabled)
                 {
-                    Write-LogMessage -Message $message -Level 'DEBUG'
+                    Write-LogMessage -Message $message -Level 'DEBUG' -Scope $Source
                 }
             }
             'Warning'
@@ -1197,6 +1290,8 @@ function Write-ConsoleStatus {
     param(
         [string]$Action,
 
+        [string]$Scope,
+
         [ValidateSet('success', 'failed', 'warning')]
         [string]$Status
     )
@@ -1209,7 +1304,7 @@ function Write-ConsoleStatus {
     }
 
     if (-not [string]::IsNullOrWhiteSpace($Action) -and [string]::IsNullOrWhiteSpace($Status)) {
-        $operationScope = Start-BaselineOperationScope -Name $Action
+        $operationScope = Start-BaselineOperationScope -Name $Action -LogScope $Scope
         $script:ConsoleStatusContext = [PSCustomObject]@{
             Action = $Action
             OperationScope = $operationScope
@@ -1299,6 +1394,8 @@ function Initialize-SessionStatistics {
             SucceededCount      = 0
             FailedCount         = 0
             SkippedCount        = 0
+            NotApplicableCount  = 0
+            NotRunCount         = 0
             IsGUI               = $false
             GameModeActive      = $false
             GameModeProfile     = $null
@@ -1426,9 +1523,14 @@ function Write-SessionSummaryToLog {
 
     # Skip writing if no meaningful activity was tracked (e.g. background runspace
     # that imported the module but never ran through the main session flow).
+    $skippedCount = if ($stats.ContainsKey('SkippedCount')) { [int]$stats.SkippedCount } else { 0 }
+    $notApplicableCount = if ($stats.ContainsKey('NotApplicableCount')) { [int]$stats.NotApplicableCount } else { 0 }
+    $notRunCount = if ($stats.ContainsKey('NotRunCount')) { [int]$stats.NotRunCount } else { 0 }
+
     $hasActivity = ($stats.PreviewRunCount -gt 0 -or $stats.ApplyRunCount -gt 0 -or
                     $stats.SucceededCount -gt 0 -or $stats.FailedCount -gt 0 -or
-                    $stats.SkippedCount -gt 0 -or $stats.TweaksSelected -gt 0)
+                    $skippedCount -gt 0 -or $notApplicableCount -gt 0 -or
+                    $notRunCount -gt 0 -or $stats.TweaksSelected -gt 0)
     if (-not $hasActivity) { return }
 
     # Calculate duration
@@ -1456,7 +1558,7 @@ function Write-SessionSummaryToLog {
         if ([string]::IsNullOrWhiteSpace([string]$stats.GameModeProfile)) { 'Yes' } else { "Yes ($($stats.GameModeProfile))" }
     } else { 'No' }
 
-    $summaryLine = "Preset: $presetDisplay | Tweaks selected: $($stats.TweaksSelected) | Preview runs: $($stats.PreviewRunCount) | Apply runs: $($stats.ApplyRunCount) | Succeeded: $($stats.SucceededCount) | Failed: $($stats.FailedCount) | Skipped: $($stats.SkippedCount) | Mode: $modeDisplay | Game Mode: $gameModeDisplay | Duration: $durationText"
+    $summaryLine = "Preset: $presetDisplay | Tweaks selected: $($stats.TweaksSelected) | Preview runs: $($stats.PreviewRunCount) | Apply runs: $($stats.ApplyRunCount) | Succeeded: $($stats.SucceededCount) | Failed: $($stats.FailedCount) | Skipped: $skippedCount | Not applicable: $notApplicableCount | Not run: $notRunCount | Mode: $modeDisplay | Game Mode: $gameModeDisplay | Duration: $durationText"
     $runIdPrefix = '[RunId={0}] ' -f (Get-BaselineRunIdShort)
 
     $block = @(
@@ -1494,4 +1596,4 @@ Set-Alias -Name LogError -Value Write-BaselineError -Scope Local
 Set-Alias -Name LogDebug -Value Write-BaselineDebug -Scope Local
 
 # Export the logging functions used by the loader and region modules.
-Export-ModuleMember -Function Get-BaselineLogDirectory, Resolve-BaselineLogDirectory, Get-BaselineConfiguredLogDirectory, New-BaselineSessionLogPath, Set-LogFile, Reset-LogStatistics, Get-LogStatistics, Get-BaselineCurrentOperationScope, Start-BaselineOperationScope, Set-BaselineOperationFailed, Stop-BaselineOperationScope, Set-LogMode, Clear-LogMode, Set-UILogHandler, Clear-UILogHandler, Write-BaselineInfo, Write-BaselineWarning, Write-BaselineError, Write-BaselineDebug, Write-SwallowedException, Write-DebugSwallowedException, Format-BaselineErrorForLog, Set-BaselineDebugLogging, Get-BaselineDebugLogging, Set-BaselineRunId, Get-BaselineRunId, Get-BaselineRunIdShort, Add-BaselineActionTrail, Get-BaselineActionTrail, Reset-BaselineActionTrail, Write-LogMessage, Write-ConsoleStatus, Initialize-SessionStatistics, Update-SessionStatistics, Add-SessionStatistic, Get-SessionStatistics, Write-SessionSummaryToLog -Alias LogInfo, LogWarning, LogError, LogDebug
+Export-ModuleMember -Function Get-BaselineLogDirectory, Resolve-BaselineLogDirectory, Get-BaselineConfiguredLogDirectory, New-BaselineSessionLogPath, Set-LogFile, Reset-LogStatistics, Get-LogStatistics, Get-BaselineCurrentOperationScope, Start-BaselineOperationScope, Set-BaselineOperationFailed, Stop-BaselineOperationScope, Set-LogMode, Clear-LogMode, Get-BaselineLogScope, Set-BaselineLogScope, Clear-BaselineLogScope, Set-UILogHandler, Clear-UILogHandler, Write-BaselineInfo, Write-BaselineWarning, Write-BaselineError, Write-BaselineDebug, Write-SwallowedException, Write-DebugSwallowedException, Format-BaselineErrorForLog, Set-BaselineDebugLogging, Get-BaselineDebugLogging, Set-BaselineRunId, Get-BaselineRunId, Get-BaselineRunIdShort, Add-BaselineActionTrail, Get-BaselineActionTrail, Reset-BaselineActionTrail, Write-LogMessage, Write-ConsoleStatus, Initialize-SessionStatistics, Update-SessionStatistics, Add-SessionStatistic, Get-SessionStatistics, Write-SessionSummaryToLog -Alias LogInfo, LogWarning, LogError, LogDebug

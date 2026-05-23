@@ -280,6 +280,8 @@
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ContentDialogs.Show-GuiTroubleshootingGuideDialog:catch281' -Severity Debug }
+
 			$errorCatalog = $null
 		}
 		if (-not $errorCatalog)
@@ -517,7 +519,7 @@
 			[pscustomobject]@{
 				Title = 'Can Baseline automatically undo everything?'
 				Lines = @(
-					'No. Some changes expose direct undo commands, some revert to supported Windows defaults, and some still rely on restore points or manual recovery.'
+					'No. Some changes expose direct undo commands, some revert to recorded default values, and some still rely on restore points or manual recovery.'
 				)
 			}
 			[pscustomobject]@{
@@ -943,6 +945,7 @@
 		$filterErrorsLabel = Get-UxLocalizedString -Key 'GuiLogFilterErrors' -Fallback 'Errors'
 		$filterWarningsLabel = Get-UxLocalizedString -Key 'GuiLogFilterWarnings' -Fallback 'Warnings'
 		$filterInfoLabel = Get-UxLocalizedString -Key 'GuiLogFilterInfo' -Fallback 'Info'
+		$filterDebugLabel = Get-UxLocalizedString -Key 'GuiLogFilterDebug' -Fallback 'Debug'
 		$filterSuccessLabel = Get-UxLocalizedString -Key 'GuiLogFilterSuccess' -Fallback 'Success'
 		$searchLogsLabel = Get-UxLocalizedString -Key 'GuiLogSearchPlaceholder' -Fallback 'Search logs'
 		$closeLabel = Get-UxLocalizedString -Key 'GuiCloseButton' -Fallback 'Close'
@@ -1022,6 +1025,7 @@
 					<ComboBoxItem Content="$filterErrorsLabel"/>
 					<ComboBoxItem Content="$filterWarningsLabel"/>
 					<ComboBoxItem Content="$filterInfoLabel"/>
+					<ComboBoxItem Content="$filterDebugLabel"/>
 					<ComboBoxItem Content="$filterSuccessLabel"/>
 				</ComboBox>
 				<TextBox Name="TxtLogSearch" Grid.Column="2" MinHeight="30" Padding="10,5"
@@ -1053,7 +1057,9 @@
 					<Ellipse Width="8" Height="8" Fill="$($theme.RiskMediumBadge)" Margin="0,0,5,0"/>
 					<TextBlock Text="$skippedWarningLabel" FontSize="11" Foreground="$($theme.TextMuted)" Margin="0,0,14,0"/>
 					<Ellipse Width="8" Height="8" Fill="$($theme.TextMuted)" Margin="0,0,5,0"/>
-					<TextBlock Text="$infoLabel" FontSize="11" Foreground="$($theme.TextMuted)"/>
+					<TextBlock Text="$infoLabel" FontSize="11" Foreground="$($theme.TextMuted)" Margin="0,0,14,0"/>
+					<Ellipse Width="8" Height="8" Fill="$(if ($theme.ContainsKey('LogDebug')) { $theme.LogDebug } else { $theme.TextMuted })" Margin="0,0,5,0"/>
+					<TextBlock Text="$filterDebugLabel" FontSize="11" Foreground="$($theme.TextMuted)"/>
 				</StackPanel>
 				<Button Name="BtnClose" Grid.Column="1" Content=""
 						Padding="20,6" FontSize="13"/>
@@ -1138,12 +1144,14 @@
 			@{ Pattern = '- already applied[.]?$';  Color = $(if ($theme.ContainsKey('LogInfo')) { $theme.LogInfo } else { $theme.AccentBlue }) }
 			@{ Pattern = '\bERROR\b|\bFAIL\b';      Color = $(if ($theme.ContainsKey('LogError')) { $theme.LogError } else { $theme.RiskHighBadge }) }
 			@{ Pattern = '\bWARN\b|\bWARNING\b';    Color = $(if ($theme.ContainsKey('LogWarning')) { $theme.LogWarning } else { $theme.RiskMediumBadge }) }
+			@{ Pattern = '\bDEBUG:';               Color = $(if ($theme.ContainsKey('LogDebug')) { $theme.LogDebug } else { $theme.TextMuted }) }
 			@{ Pattern = '^={3}';                   Color = $(if ($theme.ContainsKey('LogInfo')) { $theme.LogInfo } else { $theme.AccentBlue }) }
 		)
 		$getLogSeverity = {
 			param([string]$Line)
 			if ($Line -match '\bERROR\b|\bFAIL\b|- failed[!]?$') { return 'Errors' }
 			if ($Line -match '\bWARN\b|\bWARNING\b|- skipped[.]?$') { return 'Warnings' }
+			if ($Line -match '\bDEBUG:') { return 'Debug' }
 			if ($Line -match '- success[!]?$') { return 'Success' }
 			return 'Info'
 		}
@@ -1184,6 +1192,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ContentDialogs.Show-LogDialog:catch1191' -Severity Debug }
+
 				$tb = [System.Windows.Controls.TextBlock]::new()
 				$tb.Text = "Failed to read log file: $($_.Exception.Message)"
 				$tb.FontSize = $logFontSizeSubheading
@@ -1209,6 +1219,7 @@
 					if ($selectedFilter -eq $filterErrorsLabel -and $severity -ne 'Errors') { continue }
 					if ($selectedFilter -eq $filterWarningsLabel -and $severity -ne 'Warnings') { continue }
 					if ($selectedFilter -eq $filterInfoLabel -and $severity -ne 'Info') { continue }
+					if ($selectedFilter -eq $filterDebugLabel -and $severity -ne 'Debug') { continue }
 					if ($selectedFilter -eq $filterSuccessLabel -and $severity -ne 'Success') { continue }
 				}
 				if (-not [string]::IsNullOrWhiteSpace($searchText) -and $line.IndexOf($searchText, [System.StringComparison]::OrdinalIgnoreCase) -lt 0)
@@ -1506,6 +1517,8 @@
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ContentDialogs.Show-ChangelogDialog:catch1514' -Severity Debug }
+
 				$txtChangelogContent.Foreground = $bc.ConvertFromString($theme.RiskHighBadge)
 				$txtChangelogContent.Text = "Failed to read changelog.`r`n`r`n$($_.Exception.Message)"
 			}
@@ -1680,7 +1693,9 @@
 
 		if ([string]::IsNullOrWhiteSpace([string]$ReadmePath))
 		{
-			try { $ReadmePath = Resolve-BaselineReadmePath } catch { $ReadmePath = $null }
+			try { $ReadmePath = Resolve-BaselineReadmePath } catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ContentDialogs.Show-ReadmeDialog:catch1690' -Severity Debug }
+			 $ReadmePath = $null }
 		}
 
 		$getReadmeTheme = {

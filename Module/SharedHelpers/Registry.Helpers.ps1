@@ -310,12 +310,16 @@ function Test-RegistryValueEquivalent
 		'DWORD'
 		{
 			try { return ([int64]$CurrentValue -eq [int64]$DesiredValue) }
-			catch { return ([string]$CurrentValue -eq [string]$DesiredValue) }
+			catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Registry.Helpers.Test-RegistryValueEquivalent:catch313' -Severity Debug }
+			 return ([string]$CurrentValue -eq [string]$DesiredValue) }
 		}
 		'QWORD'
 		{
 			try { return ([int64]$CurrentValue -eq [int64]$DesiredValue) }
-			catch { return ([string]$CurrentValue -eq [string]$DesiredValue) }
+			catch {
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Registry.Helpers.Test-RegistryValueEquivalent:catch318' -Severity Debug }
+			 return ([string]$CurrentValue -eq [string]$DesiredValue) }
 		}
 		'STRING' { return ([string]$CurrentValue -eq [string]$DesiredValue) }
 		'EXPANDSTRING' { return ([string]$CurrentValue -eq [string]$DesiredValue) }
@@ -409,6 +413,8 @@ function Set-RegistryValueSafe
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Registry.Helpers.Set-RegistryValueSafe:catch410' -Severity Debug }
+
 			$currentValueKind = $null
 		}
 
@@ -443,6 +449,8 @@ function Set-RegistryValueSafe
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Registry.Helpers.Set-RegistryValueSafe:catch444' -Severity Debug }
+
 				$FallbackSucceeded = $false
 			}
 		}

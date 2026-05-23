@@ -14,13 +14,17 @@ Register-GuiEventHandler -Source $Form -EventName 'Closing' -Handler ({
 			return
 		}
 
-		if (-not $Script:ForceCloseCompleted)
-		{
-			# Persist the current GUI session silently; restore-on-launch is
-			# controlled by the GUI settings toggle.
-			$null = Save-GuiSessionState
-		}
-	}) | Out-Null
+			if (-not $Script:ForceCloseCompleted)
+			{
+				# Persist the current GUI session silently; restore-on-launch is
+				# controlled by the GUI settings toggle.
+				$null = Save-GuiSessionState
+				if (Get-Command -Name 'Save-GuiDetectCache' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					try { Save-GuiDetectCache } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Regions.GUI.DetectCache.SaveOnClosing' }
+				}
+			}
+		}) | Out-Null
 
 	Register-GuiEventHandler -Source $Form -EventName 'Closed' -Handler ({
 			param($closedSender, $e)
@@ -46,6 +50,8 @@ Register-GuiEventHandler -Source $Form -EventName 'Closing' -Handler ({
 				}
 				catch
 				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\Show-TweakGUI\WindowClosingHandler.ps1:51' -Severity Debug }
+
 					$null = $_
 				}
 			}
@@ -59,6 +65,18 @@ Register-GuiEventHandler -Source $Form -EventName 'Closing' -Handler ({
 			{
 				try { $Script:FilterRefreshTimer.Stop() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'Regions.GUI.FilterRefreshTimer.Stop' }
 				$Script:FilterRefreshTimer = $null
+			}
+
+			$stopSupportBundleExportVariable = Get-Variable -Scope Script -Name 'StopGuiSupportBundleExportWorkerScript' -ErrorAction SilentlyContinue
+			$stopSupportBundleExportCommand = if ($stopSupportBundleExportVariable) { $stopSupportBundleExportVariable.Value } else { $null }
+			if (-not $stopSupportBundleExportCommand -and (Get-Command -Name 'Get-GuiFunctionCapture' -CommandType Function -ErrorAction SilentlyContinue))
+			{
+				$stopSupportBundleExportCommand = Get-GuiFunctionCapture -Name 'Stop-GuiSupportBundleExportWorker'
+			}
+			if ($stopSupportBundleExportCommand)
+			{
+				try { & $stopSupportBundleExportCommand -Reason 'Support bundle export stopped because the GUI closed.' -StopPowerShell -SkipEndInvoke }
+				catch { Write-SwallowedException -ErrorRecord $_ -Source 'Regions.GUI.SupportBundleExport.StopOnClose' }
 			}
 
 			Clear-GuiWindowRuntimeState

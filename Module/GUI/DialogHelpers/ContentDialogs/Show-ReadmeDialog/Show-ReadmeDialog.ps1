@@ -44,6 +44,8 @@ try
 		}
 		catch
 		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\ContentDialogs\Show-ReadmeDialog\Show-ReadmeDialog.ps1:45' -Severity Debug }
+
 			$webView2Ready = $false
 			$readmeWebView = $null
 		}
@@ -178,7 +180,9 @@ try
 					if (Test-BaselineMarkdownRuntimeReady)
 					{
 						try { $anchoredResult = ConvertFrom-BaselineMarkdownToAnchoredFlowDocument -Markdown $markdownText }
-						catch { $anchoredResult = $null }
+						catch {
+							if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\ContentDialogs\Show-ReadmeDialog\Show-ReadmeDialog.ps1:181' -Severity Debug }
+						 $anchoredResult = $null }
 						if ($anchoredResult) { $flowDocument = $anchoredResult.Document }
 					}
 
@@ -196,6 +200,8 @@ try
 			}
 			catch
 			{
+				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\DialogHelpers\ContentDialogs\Show-ReadmeDialog\Show-ReadmeDialog.ps1:197' -Severity Debug }
+
 				& $showReadmeAsText -Content ("Failed to read README.`r`n`r`n{0}" -f $_.Exception.Message) -ForegroundHex $activeTheme.RiskHighBadge -ThemeOverride $activeTheme
 			}
 		}.GetNewClosure()
