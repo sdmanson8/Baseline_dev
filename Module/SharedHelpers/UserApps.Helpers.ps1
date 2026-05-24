@@ -1,4 +1,4 @@
-# User-added / custom External Software list helpers.
+﻿# User-added / custom External Software list helpers.
 #
 # Spec: todo.md "#18 User-added / custom External Software list" --
 #   `%LOCALAPPDATA%\Baseline\UserApps\*.json` with the same schema as the

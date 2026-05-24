@@ -1,4 +1,4 @@
-$Script:StartupOrchestratorRan = $false
+﻿$Script:StartupOrchestratorRan = $false
 
 # Four-phase startup orchestrator.
 # Phase 1 runs synchronously before the GUI builds rows (so NEW badges

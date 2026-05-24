@@ -1,4 +1,4 @@
-# Windows Subsystem for Linux (WSL) install helpers.
+﻿# Windows Subsystem for Linux (WSL) install helpers.
 #
 # Spec: todo.md "WSL install flow (`Install-WSL`)" -- picks a distro from
 # the DistributionInfo.json catalog, runs `wsl.exe --install --distribution

@@ -1,4 +1,4 @@
-# Shared helpers for Baseline -- error handling, classification, and user-facing error info.
+﻿# Shared helpers for Baseline -- error handling, classification, and user-facing error info.
 
 <#
     .SYNOPSIS

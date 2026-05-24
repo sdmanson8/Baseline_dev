@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Initial action helpers for Baseline.
 

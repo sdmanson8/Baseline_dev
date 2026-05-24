@@ -30,7 +30,7 @@
 [CmdletBinding()]
 param(
     [string]$Owner = 'sdmanson8',
-    [string]$Repository = 'Baseline',
+    [string]$Repository = 'Baseline_dev',
     [string]$Preset,
     [ValidateSet('stable', 'beta')]
     [string]$ReleaseChannel,

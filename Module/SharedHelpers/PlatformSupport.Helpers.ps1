@@ -1,4 +1,4 @@
-# PlatformSupport — canonical OS-detection + per-entry availability gating.
+﻿# PlatformSupport — canonical OS-detection + per-entry availability gating.
 #
 # Today every tweak/app function detects the host OS itself (or worse,
 # doesn't), and manifests don't declare which platforms they're valid on.

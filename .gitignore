@@ -31,6 +31,9 @@ pester-full.log
 .vscode/
 .codex*/
 AGENTS.md
+/dev_docs/*
+!/dev_docs/
+!/dev_docs/Installer-Signing-Policy.md
 # todo.md carries audited project contracts used by tests.
 !todo.md
 .DS_Store
