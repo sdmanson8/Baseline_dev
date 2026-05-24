@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## 4.0.0-beta | 2026-05-24
+
 ## Changed
 - Version bumped from 3.1.0-beta to 4.0.0-beta across module manifest, entry scripts, and asset scripts.
 - GUI navigation redesigned around workflow modes
