@@ -85,7 +85,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           try {
-            & .\Tools\New-ReleasePackage.ps1 -Force
+            & .\Tools\New-ReleasePackage.ps1 -Force -RefreshInstallerTranslations
           } catch {
             Write-Host "=== New-ReleasePackage.ps1 failed: $_ ===" -ForegroundColor Red
             Write-Host "=== Searching for persisted ISCC diagnostics ===" -ForegroundColor Yellow

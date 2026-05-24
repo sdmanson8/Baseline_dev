@@ -1057,6 +1057,13 @@ Describe 'Source quality guardrails' {
         $content | Should -Match 'Test-ReleaseSmoke\.ps1 @releaseSmokeArgs'
     }
 
+    It 'refreshes installer translations during CI release package generation' {
+        $workflowPath = Join-Path $script:RepoRoot '.github/workflows/ci.yml'
+        $content = Get-BaselineTestSourceText -Path $workflowPath
+
+        $content | Should -Match 'New-ReleasePackage\.ps1 -Force -RefreshInstallerTranslations'
+    }
+
     It 'documents the ProgramData runtime cache and hash-verified reuse contract' {
         $runtimeCacheDocPath = Join-Path $script:RepoRoot 'dev_docs/RuntimeCache.md'
         $content = Get-BaselineTestSourceText -Path $runtimeCacheDocPath
