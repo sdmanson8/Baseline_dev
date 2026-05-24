@@ -10,7 +10,7 @@
     21.03.2026 - Added GUI
 	06.04.2026 - Major changes to the GUI, and added more features
     26.04.2026 - Minor Fixes
-    unreleased - unreleased
+    24.05.2026 - Major changes to the GUI, and added more features
 
 	.AUTHOR
 	sdmanson8 - Copyright (c) 2026

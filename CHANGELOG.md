@@ -6,107 +6,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
-# v4.0.0-beta
-
 ## Changed
-
 - Version bumped from 3.1.0-beta to 4.0.0-beta across module manifest, entry scripts, and asset scripts.
-- Unified process exit codes across headless and GUI paths via `Get-BaselineHeadlessExitCode`.
-- Restructured the main GUI navigation into a top menu bar with `File`, `Actions`, `View`, `Tools`, and `Help` sections.
-- Main navigation now separates Optimize, Gaming, Windows Updates, Windows Setup Builder, and Software & Apps into distinct workflow modes.
-- Presets and recommendation onboarding are centered on Initial Setup. Standard Optimize tabs use a compact pointer, while Gaming and Windows Updates stay focused on their own tweak surfaces.
-- Gaming and Windows Updates reuse the same shared filter chrome as Optimize and restore the previous expanded/collapsed filter state.
-- Deployment Media Builder status/progress routing now keeps active step text in the progress panel/dialog and final/error text in a single banner instead of repeating the same message across multiple surfaces.
-- Refined localization QA and polished visible copy in Gaelic, Amharic, Icelandic, Gujarati, and Swedish.
-- Popup pickers for UWP Apps, Windows Features, and Scheduled Tasks now show realtime progress.
-- Shared popup chrome now repaints live when Light or Dark mode is toggled.
-- Delivery Optimization now writes `DODownloadMode = 99` for the disabled state.
-- Feature update deferral and quality update deferral now live in the existing updates module.
-- Take Ownership ASR copy refresh now uses the updated packaged source.
-- Help menu entries were renamed and expanded.
-- The log file is deleted and recreated on each launch.
-- Application catalog and execution were overhauled:
-  - Split the app catalog into `Module/Data/AppsCategory/*.json`.
-  - Normalized app entries with `EntityType` and `SupportsExecution`.
-  - Added shared package-ID candidate resolution.
-  - Added separate WinGet and Chocolatey caches.
-  - Reworked install, uninstall, update, and batch actions.
-  - Preserved the card-based Apps UI.
-- Software & Apps no longer shows a passive progress strip; the Apps progress bar is reserved for install, uninstall, and update execution. Tweak runs continue to use the shared execution progress bar.
-
----
+- GUI navigation redesigned around workflow modes
+- Optimize, Gaming, Updates, Apps, and Setup Builder now use separated workflow surfaces
+- Preset onboarding moved into Initial Setup
+- Shared filter behavior unified across workflow modes
+- Apps catalog restructured into category-based manifests
+- Logging lifecycle simplified and recreated on startup
+- Deployment Media Builder progress reporting redesigned
+- Localization QA and visible copy polished across multiple languages
 
 ## Added
-
-- Microsoft Edge removal.
-- Custom power plan and Hybrid Sleep toggle.
-- Window position persistence.
-- Expanded Windows parity coverage across System, Privacy, Explorer, Taskbar, Start Menu, Notifications, and Appearance.
-- `windows_hardening.cmd` parity sweep:
-  - LOLBin outbound firewall ruleset toggle.
-  - Mount Manager hardening.
-  - Lock-screen biometric hardening.
-  - Per-profile firewall logging.
-  - Defender scan tuning toggles.
-- WSL install flow back-end and GUI picker.
-- Connect-to-Computer dialog rewrite.
-- Persistent Remote Mode banner.
-- Support Bundle remote-connectivity capture.
-- SSH and WinRM-over-HTTPS reachability probes.
-- Browser enterprise policies back-end.
-- Authentication / domain hardening back-end.
-- OS Hardening protection actions from `windows_hardening.cmd`.
-- OS Hardening Tweaks GUI surface.
-- Managed remote workflow hardening.
-- Expanded headless lifecycle dispatcher.
-- Desktop-session CI on `windows-2022`.
-- Installer signing policy.
-- `-ApplyProfile` CLI flag.
-- Per-app queued-action system.
-- `BtnApplyQueuedActions` and `BtnClearQueuedActions` handler wiring.
-- `Get-CategoryDefaultRunList`.
-- Per-page reset-to-defaults support.
-- ARM64 support in the launcher project.
-- Preset name aliases.
-- Shell customization parity coverage.
-- Manifest validator warning for OS-sensitive tags without `PlatformSupport`.
-- Improved existing Windows Update features:
-  - Added Windows Update notification level selector.
-  - Added Windows Update repair flow.
-  - Added metered-connection and Microsoft Store auto-download controls.
-  - Added `Updates` tab entries for `Security Updates Only Mode` and `Pause Windows Updates`.
-- Auto-update on launch.
-- Update check state tracking for `Last checked` and `Status` values, including `Up to date`, `Update available`, `Failed`, `Skipped (offline)`, and `Disabled`.
-- Comprehensive localization coverage across the GUI.
-- 124 locale files now carry full key coverage.
-- Added 79 new languages.
-- Completed Apps view localization and chrome coverage.
-- Settings -> General -> Updates controls for Baseline auto-check behavior, check frequency, pre-release inclusion, last checked, current version, status, and Check Now.
-- Windows Setup Builder / Deployment Media Builder top-level GUI mode for detecting ISO editions, previewing build plans, creating ISO/USB/folder output, tracking build progress, and saving JSON reports.
-- Gaming profile workflow with Casual, Competitive, Streaming / Content, and Troubleshooting profile plans backed by `Module/Data/GameMode`.
-
----
+- Windows Setup Builder / Deployment Media Builder
+- Gaming profile workflows
+- Software & Apps queued-action system
+- ARM64 launcher support
+- Expanded Windows parity coverage
+- OS hardening GUI workflows
+- WSL install flow
+- Auto-update checks
+- 79 new languages
+- Full Apps localization coverage
+- Remote connectivity probes
+- Managed remote workflow hardening
 
 ## Fixed
+- GUI mode transitions leaking unrelated UI surfaces
+- Multiple Deployment Media Builder worker and callback failures
+- Theme synchronization issues in popup windows
+- Incorrect GUI/headless exit-code reporting
+- Localization refresh inconsistencies
+- Various registry, helper, and startup initialization failures
 
-- Gaming, Windows Updates, and Optimize mode transitions no longer leak Gaming profile UI or recommendation panels into unrelated modes; filters are visible where expected and preserve collapse state.
-- Deployment Media Builder background workers now compile worker source inside the worker runspace and import core PowerShell modules so ISO detection and build stages retain commands such as `Join-Path`.
-- Deployment Media Builder async callbacks now capture required helper commands before dispatcher and worker callbacks run, preventing missing helper failures during telemetry, cancellation, and progress updates.
-- Deployment Media Builder completion and failure messages no longer duplicate the same status across header, banner, and progress surfaces.
-- Remote-target helper module import no longer fails under `Set-StrictMode`.
-- GUI footer and style refresh now keep the Export First-Logon Command button synchronized.
-- GUI theme preference now round-trips Light, Dark, and System through Settings and session restore, and Safe/Expert header toggles keep `DefaultStartupMode` in sync with the active mode.
-- Aborted GUI runs no longer silently report exit code `0` / `clean`.
-- GUI composition and menu localization now stay aligned after runtime refreshes.
-- Localization schema metadata now matches the current `en-US` key set.
-- Launcher elevation metadata now requests administrator rights.
-- Manifest validation data now matches current region ownership and recovery classifications.
-- Test report export now resolves the repository root from the live invocation directory.
-- Language switching no longer throws in deferred WPF dispatcher callbacks.
-- Taskbar Widgets tweak no longer executes registry or policy mutations after its skip branch.
-- GPU Hardware-Accelerated Scheduling detection now uses `Test-IsVirtualMachine`.
-- `Tools/New-ReleasePackage.ps1` now respects `-WhatIf`.
-- The startup splash no longer appears as a separate taskbar thumbnail while Baseline is launching.
 ---
 
 ## 3.1.0-beta | 2026-04-26
