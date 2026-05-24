@@ -276,13 +276,11 @@ Describe 'GUI window chrome theming' {
         $styleManagementContent | Should -Match "StyleManagement\.Update-GuiMenuBarTheme\.UpdateMenuBarBorder"
     }
 
-    It 'updates the single Safe or Expert label on the header mode toggle' {
-        $styleManagementContent | Should -Match '\$safeModeLabel = Get-UxLocalizedString -Key ''GuiHelpSectionSafeMode'' -Fallback ''Safe Mode'''
-        $styleManagementContent | Should -Match '\$expertModeLabel = Get-UxLocalizedString -Key ''GuiHelpSectionExpertMode'' -Fallback ''Expert Mode'''
-        $styleManagementContent | Should -Match '\$modeToggleLabel = if \(\$safeEnabled\) \{ \$safeModeLabel \} else \{ \$expertModeLabel \}'
-        $styleManagementContent | Should -Match '\$ChkSafeMode\.Content = \$modeToggleLabel'
+    It 'does not style the removed Safe or Expert header mode toggle' {
+        $styleManagementContent | Should -Not -Match '\$modeToggleLabel'
+        $styleManagementContent | Should -Not -Match '\$ChkSafeMode'
         $styleManagementContent | Should -Not -Match 'TxtSafeModeLabel|TxtExpertModeLabel'
-        $styleManagementContent | Should -Match 'AutomationProperties\]::SetName\(\$ChkSafeMode'
+        $styleManagementContent | Should -Not -Match 'AutomationProperties\]::SetName\(\$ChkSafeMode'
     }
 
     It 'routes style template cleanup failures through Write-SwallowedException' {

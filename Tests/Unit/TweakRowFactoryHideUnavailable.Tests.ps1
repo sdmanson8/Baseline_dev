@@ -18,7 +18,7 @@ BeforeAll {
             $script:FunctionTextByName[$fn.Name] = $fn.Extent.Text
         }
     }
-    foreach ($requiredFunction in @('Get-GuiTweakAvailability', 'Test-GuiTweakAvailableOnCurrentSystem', 'Test-TweakRowVisible', 'Get-ToggleInitialCheckedState', 'Get-ActionInitialCheckedState', 'Get-ChoiceInitialSelectedIndex')) {
+    foreach ($requiredFunction in @('Get-GuiTweakAvailability', 'Test-GuiTweakAvailableOnCurrentSystem', 'Get-TweakRowFactoryRuntimeCommand', 'Test-TweakRowFactoryTweakAvailable', 'Get-TweakRowFactoryHideUnavailableItems', 'Test-TweakRowVisible', 'Get-ToggleInitialCheckedState', 'Get-ActionInitialCheckedState', 'Get-ChoiceInitialSelectedIndex')) {
         if ($script:FunctionTextByName.ContainsKey($requiredFunction)) {
             Invoke-Expression $script:FunctionTextByName[$requiredFunction]
         } else {
@@ -127,6 +127,7 @@ Describe 'Test-TweakRowVisible HideUnavailableItems gate' {
 
     It 'defaults to hiding unavailable rows when Get-BaselineUserPreference is unavailable' {
         # Simulate the function being absent by removing it for this case.
+        $script:TweakRowFactoryRuntimeCommandCache = @{}
         Remove-Item Function:Get-BaselineUserPreference -ErrorAction SilentlyContinue
         try {
             $tweak = NewUnavailableTweak
@@ -139,6 +140,7 @@ Describe 'Test-TweakRowVisible HideUnavailableItems gate' {
                 if ($Key -eq 'HideUnavailableItems') { return $script:HideUnavailablePrefValue }
                 return $Default
             }
+            $script:TweakRowFactoryRuntimeCommandCache = @{}
         }
     }
 

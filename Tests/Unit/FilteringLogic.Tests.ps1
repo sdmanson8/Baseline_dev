@@ -270,6 +270,7 @@ Describe 'Test-TweakMatchesCurrentFilters' {
         $Script:TweakSearchHaystacks = @{}
         $Script:GameMode = $false
         $Script:GameModeAllowlist = @()
+        $Script:GamingModeActive = $false
         $Script:CategoryToPrimary = @{ 'System' = 'System'; 'Privacy' = 'Privacy' }
     }
 
@@ -288,6 +289,16 @@ Describe 'Test-TweakMatchesCurrentFilters' {
     It 'rejects tweak in wrong tab' {
         $tweak = [pscustomobject]@{ Risk = 'Low'; PresetTier = 'Basic'; Category = 'Privacy'; Tags = @(); Function = 'Test'; Name = 'Test'; Description = ''; Detail = ''; WhyThisMatters = ''; SubCategory = ''; Safe = $true; Impact = ''; RequiresRestart = $false; Type = 'Toggle'; Restorable = $true }
         Test-TweakMatchesCurrentFilters -Tweak $tweak -PrimaryTab 'System' -SearchQuery '' | Should -Be $false
+    }
+
+    It 'hides Gaming tweaks outside the standalone Gaming mode' {
+        $Script:CategoryToPrimary = @{ 'Gaming' = 'Gaming' }
+        $tweak = [pscustomobject]@{ Risk = 'Low'; PresetTier = 'Basic'; Category = 'Gaming'; Tags = @(); Function = 'GameOptimize'; Name = 'Game Optimize'; Description = ''; Detail = ''; WhyThisMatters = ''; SubCategory = ''; Safe = $true; Impact = ''; RequiresRestart = $false; Type = 'Toggle'; Restorable = $true }
+
+        Test-TweakMatchesCurrentFilters -Tweak $tweak -PrimaryTab 'Gaming' -SearchQuery '' | Should -Be $false
+
+        $Script:GamingModeActive = $true
+        Test-TweakMatchesCurrentFilters -Tweak $tweak -PrimaryTab 'Gaming' -SearchQuery '' | Should -Be $true
     }
 
     It 'filters by risk level' {

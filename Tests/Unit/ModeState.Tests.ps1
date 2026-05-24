@@ -22,9 +22,10 @@ Describe 'Mode state' {
         $script:ModeStateContent | Should -Match "ModeState\.Set-DesignModeState\.SavePreference"
     }
 
-    It 'keeps the unified Safe/Expert checkbox content on the active mode label' {
-        $script:ModeStateContent | Should -Match "Get-UxLocalizedString -Key 'GuiHelpSectionSafeMode' -Fallback 'Safe Mode'"
-        $script:ModeStateContent | Should -Match "Get-UxLocalizedString -Key 'GuiHelpSectionExpertMode' -Fallback 'Expert Mode'"
+    It 'keeps Safe and Expert mode state independent of the removed header checkbox' {
+        $script:ModeStateContent | Should -Match "Set-GuiMode -ViewMode"
+        $script:ModeStateContent | Should -Match "Save-GuiDefaultStartupModePreference -Mode"
+        $script:ModeStateContent | Should -Not -Match '\$ChkSafeMode'
         $script:ModeStateContent | Should -Not -Match 'GuiChkSafeMode'
     }
 }

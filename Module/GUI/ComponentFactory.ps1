@@ -129,9 +129,28 @@
 
 			# Current state indicator
 			$stateLabel = Get-GuiObjectField -Object $Tweak -FieldName '_StateLabel'
+			$matchesDesired = if ((Test-GuiObjectField -Object $Tweak -FieldName '_MatchesDesired')) { [bool]$Tweak._MatchesDesired } else { $false }
+			$visualStateCacheVariable = Get-Variable -Name 'TweakVisualStateByFunction' -Scope Script -ErrorAction SilentlyContinue
+			if ([string]::IsNullOrWhiteSpace([string]$stateLabel) -and $visualStateCacheVariable -and ($visualStateCacheVariable.Value -is [hashtable]))
+			{
+				$visualStateKey = if ((Test-GuiObjectField -Object $Tweak -FieldName 'Function') -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.Function))
+				{
+					[string]$Tweak.Function
+				}
+				else
+				{
+					[string][System.Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($Tweak)
+				}
+				$tweakVisualStateByFunction = $visualStateCacheVariable.Value
+				if ($tweakVisualStateByFunction.ContainsKey($visualStateKey))
+				{
+					$visualState = $tweakVisualStateByFunction[$visualStateKey]
+					$stateLabel = [string]$visualState.StateLabel
+					$matchesDesired = [bool]$visualState.MatchesDesired
+				}
+			}
 			if (-not [string]::IsNullOrWhiteSpace([string]$stateLabel))
 			{
-				$matchesDesired = if ((Test-GuiObjectField -Object $Tweak -FieldName '_MatchesDesired')) { [bool]$Tweak._MatchesDesired } else { $false }
 				$sepState = New-Object System.Windows.Controls.Separator
 				$sepState.Margin = [System.Windows.Thickness]::new(0, 6, 0, 6)
 				[void]($stackPanel.Children.Add($sepState))
@@ -364,7 +383,7 @@
 
 		$theme = $Script:CurrentTheme
 
-		$icon = New-Object System.Windows.Controls.TextBlock
+		$icon = [System.Windows.Controls.TextBlock]::new()
 		$icon.Text = [char]0x24D8  # info icon
 		$icon.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI Symbol')
 		$icon.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeSection' -Default 14
@@ -373,7 +392,7 @@
 		$icon.Margin = [System.Windows.Thickness]::new(6, 0, 0, 0)
 		$icon.Cursor = [System.Windows.Input.Cursors]::Help
 
-		$tip = New-Object System.Windows.Controls.ToolTip
+		$tip = [System.Windows.Controls.ToolTip]::new()
 		$tip.MaxWidth = 360
 		$tip.Padding = [System.Windows.Thickness]::new(8, 6, 8, 6)
 		$tip.Background = ConvertTo-GuiBrush -Color $theme.CardBg -Context 'New-InfoIcon'
@@ -435,7 +454,7 @@
 	{
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ()
-		$border = New-Object System.Windows.Controls.Border
+		$border = [System.Windows.Controls.Border]::new()
 		$border.Background = ConvertTo-GuiBrush -Color $Script:CurrentTheme.ImpactBadgeBg -Context 'New-ImpactBadge/Background'
 		$border.BorderBrush = ConvertTo-GuiBrush -Color $Script:CurrentTheme.ImpactBadgeBg -Context 'New-ImpactBadge/BorderBrush'
 		$border.BorderThickness = [System.Windows.Thickness]::new(1)
@@ -444,7 +463,7 @@
 		$border.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
 		$border.VerticalAlignment = "Center"
 
-		$txt = New-Object System.Windows.Controls.TextBlock
+		$txt = [System.Windows.Controls.TextBlock]::new()
 		$txt.Text = (Get-UxLocalizedString -Key 'GuiImpactBadge' -Fallback 'Impact')
 		$txt.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeSmall' -Default 10
 		$txt.FontWeight = [System.Windows.FontWeights]::SemiBold
@@ -463,14 +482,14 @@
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ([string]$Level)
 		$bc = New-SafeBrushConverter -Context 'New-RiskBadge'
-		$border = New-Object System.Windows.Controls.Border
+		$border = [System.Windows.Controls.Border]::new()
 		$border.CornerRadius = [System.Windows.CornerRadius]::new(4)
 		$border.Padding = [System.Windows.Thickness]::new(7, 2, 7, 2)
 		$border.Margin = [System.Windows.Thickness]::new(6, 0, 0, 0)
 		$border.VerticalAlignment = "Center"
 		$border.BorderThickness = [System.Windows.Thickness]::new(1)
 
-		$txt = New-Object System.Windows.Controls.TextBlock
+		$txt = [System.Windows.Controls.TextBlock]::new()
 		$txt.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeSmall' -Default 10
 		$txt.FontWeight = [System.Windows.FontWeights]::SemiBold
 		$riskLevel = if ([string]::IsNullOrWhiteSpace($Level)) { 'Low' } else { [string]$Level }
@@ -523,7 +542,7 @@
 		param ([string]$Text)
 		if ([string]::IsNullOrWhiteSpace($Text)) { return $null }
 		$bc = New-SafeBrushConverter -Context 'New-StatusPill'
-		$border = New-Object System.Windows.Controls.Border
+		$border = [System.Windows.Controls.Border]::new()
 		$border.Background = $bc.ConvertFromString($Script:CurrentTheme.StatusPillBg)
 		$border.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.StatusPillBorder)
 		$border.BorderThickness = [System.Windows.Thickness]::new(1)
@@ -532,7 +551,7 @@
 		$border.Padding = [System.Windows.Thickness]::new(10, 4, 10, 4)
 		$border.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
 
-		$txt = New-Object System.Windows.Controls.TextBlock
+		$txt = [System.Windows.Controls.TextBlock]::new()
 		$txt.Text = $Text
 		$txt.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11
 		$txt.FontWeight = [System.Windows.FontWeights]::SemiBold

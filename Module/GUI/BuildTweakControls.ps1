@@ -77,7 +77,11 @@
 				return
 			}
 
-			if ($Script:UpdatesModeActive)
+			if ($Script:GamingModeActive)
+			{
+				$targetTab = 'Gaming'
+			}
+			elseif ($Script:UpdatesModeActive)
 			{
 				$targetTab = 'Updates'
 			}
@@ -294,7 +298,6 @@
 			$Script:BtnHelp,
 			$BtnLog,
 			$ChkScan,
-			$ChkSafeMode,
 			$ChkTheme,
 			$BtnLanguage,
 			$Script:TxtSearch,

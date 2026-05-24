@@ -19,6 +19,7 @@ BeforeAll {
             'Get-GuiFirstRunWelcomeMarkerPath',
             'Test-GuiFirstRunWelcomePending',
             'Complete-GuiFirstRunWelcome',
+            'Copy-GuiRecommendationPanelCollapseState',
             'Get-GuiSettingsSnapshot'
         )) {
             Invoke-Expression $fn.Extent.Text
@@ -142,6 +143,8 @@ Describe 'GUI session snapshots' {
         $script:SearchResultsTabTag = '__SearchResults'
         $script:SearchText = ''
         $script:AppsSearchText = ''
+        $script:FilterOptionsPanel = $null
+        $script:AppsFilterOptionsPanel = $null
         $script:UIDensity = 'Compact'
         $script:AuditRetentionDays = 90
         $script:AppsPackageSourcePreference = 'auto'
@@ -162,6 +165,7 @@ Describe 'GUI session snapshots' {
         $script:GameModeAdvancedSelections = $null
         $script:DesignMode = $true
         $script:AppsModeActive = $false
+        $script:GamingModeActive = $false
         $script:UpdatesModeActive = $false
         $script:DeploymentMediaModeActive = $false
         $script:AutoScanOnLaunch = $true
@@ -191,6 +195,7 @@ Describe 'GUI session snapshots' {
         $script:GameModePreviousPrimaryTab = $null
         $script:ActivePresetName = $null
         $script:ActiveScenarioNames = @{}
+        $script:RecommendedSelectionsCollapsedByScope = @{}
         $script:Ctx = @{
             Mode = @{
                 Safe = $script:SafeMode
@@ -205,11 +210,16 @@ Describe 'GUI session snapshots' {
     It 'captures GUI preference fields in the GUI snapshot' {
         $script:SearchText = 'powershell'
         $script:AppsSearchText = 'chrome'
+        $script:FilterOptionsPanel = [pscustomobject]@{ Visibility = 'Visible' }
+        $script:AppsFilterOptionsPanel = [pscustomobject]@{ Visibility = 'Collapsed' }
 
         $snapshot = Get-GuiSettingsSnapshot
 
+        $snapshot.SchemaVersion | Should -Be 20
         $snapshot.SearchText | Should -Be 'powershell'
         $snapshot.AppsSearchText | Should -Be 'chrome'
+        $snapshot.FilterPanelExpanded | Should -Be $true
+        $snapshot.AppsFilterPanelExpanded | Should -Be $false
         $snapshot.NavigationMode | Should -Be 'Optimize'
         $snapshot.UIDensity | Should -Be 'Compact'
         $snapshot.AutoScanOnLaunch | Should -Be $true
@@ -253,6 +263,18 @@ Describe 'GUI session snapshots' {
         @($scenarioSnapshot.ActiveScenarioNames) | Should -Be @('Gaming', 'Laptop')
     }
 
+    It 'captures recommendation panel collapse state in the GUI snapshot' {
+        $script:RecommendedSelectionsCollapsedByScope = @{
+            RecommendedSelections = $true
+            GamingProfiles = $false
+        }
+
+        $snapshot = Get-GuiSettingsSnapshot
+
+        $snapshot.RecommendationPanelCollapseState['RecommendedSelections'] | Should -BeTrue
+        $snapshot.RecommendationPanelCollapseState['GamingProfiles'] | Should -BeFalse
+    }
+
     It 'captures the active top-level navigation mode in the GUI snapshot' {
         $script:AppsModeActive = $true
 
@@ -261,6 +283,13 @@ Describe 'GUI session snapshots' {
         $appsSnapshot.NavigationMode | Should -Be 'Apps'
 
         $script:AppsModeActive = $false
+        $script:GamingModeActive = $true
+
+        $gamingSnapshot = Get-GuiSettingsSnapshot
+
+        $gamingSnapshot.NavigationMode | Should -Be 'Gaming'
+
+        $script:GamingModeActive = $false
         $script:UpdatesModeActive = $true
 
         $updatesSnapshot = Get-GuiSettingsSnapshot
@@ -381,9 +410,23 @@ Describe 'GUI session restore mode wiring' {
     It 'round-trips active preset and scenario identity through session restore' {
         $script:SessionStateContent | Should -Match 'ActivePresetName = \$currentActivePresetName'
         $script:SessionStateContent | Should -Match 'ActiveScenarioNames = @\(\$currentActiveScenarioNames\)'
+        $script:SessionStateContent | Should -Match 'RecommendationPanelCollapseState = Convert-JsonManifestValue \$currentRecommendationPanelCollapseState'
+        $script:SessionStateContent | Should -Match 'function Copy-GuiRecommendationPanelCollapseState'
+        $script:SessionStateContent | Should -Match '\$desiredRecommendationPanelCollapseState = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''RecommendationPanelCollapseState''\)\)'
         $script:SessionStateContent | Should -Match '\$Script:ActivePresetName = \$desiredActivePresetName'
         $script:SessionStateContent | Should -Match '\$Script:ActiveScenarioNames = @\{\}'
+        $script:SessionStateContent | Should -Match '\$Script:RecommendedSelectionsCollapsedByScope = Copy-GuiRecommendationPanelCollapseState -State \$desiredRecommendationPanelCollapseState'
         $script:SessionStateContent | Should -Match 'Sync-ActivePresetButtonChrome'
+    }
+
+    It 'round-trips filter panel expanded state through session restore' {
+        $script:SessionStateContent | Should -Match 'FilterPanelExpanded = \[bool\]\$currentFilterPanelExpanded'
+        $script:SessionStateContent | Should -Match 'AppsFilterPanelExpanded = \[bool\]\$currentAppsFilterPanelExpanded'
+        $script:SessionStateContent | Should -Match '\$desiredFilterPanelExpanded = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''FilterPanelExpanded''\)\)'
+        $script:SessionStateContent | Should -Match '\$desiredAppsFilterPanelExpanded = if \(\(Test-GuiObjectField -Object \$Snapshot -FieldName ''AppsFilterPanelExpanded''\)\)'
+        $script:SessionStateContent | Should -Match "Get-GuiFunctionCapture -Name 'Set-GuiFilterPanelExpandedState'"
+        $script:SessionStateContent | Should -Match 'SetGuiFilterPanelExpandedStateScript -Scope ''Optimize'' -Expanded \(\[bool\]\(\$desiredFilterPanelExpanded -and -not \$desiredSafe\)\)'
+        $script:SessionStateContent | Should -Match 'SetGuiFilterPanelExpandedStateScript -Scope ''Apps'' -Expanded \(\[bool\]\$desiredAppsFilterPanelExpanded\)'
     }
 
     It 'persists restored theme and explicit startup mode preferences' {

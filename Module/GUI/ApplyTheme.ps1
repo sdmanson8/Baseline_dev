@@ -95,7 +95,7 @@
 			$Script:UpdateDialogCard.BorderBrush = $bc.ConvertFromString($Theme.BorderColor)
 		}
 		if ($Script:CustomPBarContainer) { $Script:CustomPBarContainer.Background = $bc.ConvertFromString($Theme.CardBorder) }
-		foreach ($progressBar in @($Script:CustomProgressBar, $Script:ExecutionProgressBar, $Script:AppsProgressBar, $Script:PresetProgressBar))
+		foreach ($progressBar in @($Script:CustomProgressBar, $Script:ExecutionProgressBar, $Script:AppsProgressBar, $Script:PresetProgressBar, $Script:DeploymentMediaProgressBar))
 		{
 			if ($progressBar)
 			{
@@ -167,6 +167,10 @@
 					Build-AppsViewCards
 				}
 			}
+			elseif ($Script:GamingModeActive)
+			{
+				Build-TabContent -PrimaryTab 'Gaming' -SkipIdlePrebuild
+			}
 			elseif ($Script:DeploymentMediaModeActive)
 			{
 				if (Get-Command -Name 'Initialize-GuiDeploymentMediaBuilderView' -CommandType Function -ErrorAction SilentlyContinue)
@@ -178,7 +182,7 @@
 					Sync-GuiDeploymentMediaBuilderViewText
 				}
 			}
-			elseif ($null -ne $Script:CurrentPrimaryTab)
+			elseif (-not [string]::IsNullOrWhiteSpace([string]$Script:CurrentPrimaryTab))
 			{
 				Build-TabContent -PrimaryTab $Script:CurrentPrimaryTab -SkipIdlePrebuild
 			}

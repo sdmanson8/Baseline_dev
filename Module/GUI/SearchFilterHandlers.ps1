@@ -3,10 +3,98 @@
 	$Script:SyncSearchInputChromeScript = ${function:Sync-GuiSearchInputChrome}
 	$Script:SetSafeModeStateScript = ${function:Set-SafeModeState}
 	$Script:SetAdvancedModeStateScript = ${function:Set-AdvancedModeState}
-	$Script:SetGameModeStateScript = ${function:Set-GameModeState}
 	$Script:SetDesignModeStateScript = ${function:Set-DesignModeState}
 	$Script:SaveCurrentTabScrollOffsetScript = ${function:Save-CurrentTabScrollOffset}
 	$Script:UpdateMainContentPanelWidthScript = ${function:Update-MainContentPanelWidth}
+	function Get-GuiScriptControlValue
+	{
+		param (
+			[string]$Name
+		)
+
+		$variable = Get-Variable -Name $Name -Scope Script -ErrorAction SilentlyContinue
+		if ($variable) { return $variable.Value }
+		return $null
+	}
+
+	function Test-GuiFilterPanelExpanded
+	{
+		param (
+			[object]$Panel
+		)
+
+		return ($null -ne $Panel -and $Panel.Visibility -eq [System.Windows.Visibility]::Visible)
+	}
+
+	function New-GuiFilterToggleContent
+	{
+		param (
+			[string]$LabelKey,
+			[string]$Fallback,
+			[bool]$Expanded
+		)
+
+		$arrow = if ($Expanded) { [char]0x25BE } else { [char]0x25B8 }
+		$label = Get-UxLocalizedString -Key $LabelKey -Fallback $Fallback
+		$text = "{0} {1}" -f $label, $arrow
+		$hasLabeledIconContent = [bool](Get-GuiScriptControlValue -Name 'HasLabeledIconContent')
+		if (-not $hasLabeledIconContent)
+		{
+			$hasLabeledIconContent = [bool](Get-Command -Name 'New-GuiLabeledIconContent' -CommandType Function -ErrorAction SilentlyContinue)
+			if ($hasLabeledIconContent) { $Script:HasLabeledIconContent = $true }
+		}
+		if ($hasLabeledIconContent)
+		{
+			$content = New-GuiLabeledIconContent -IconName 'Filter' -Text $text -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback
+			if ($content) { return $content }
+		}
+		return $text
+	}
+
+	function Set-GuiFilterPanelExpandedState
+	{
+		param (
+			[ValidateSet('Optimize', 'Apps')]
+			[string]$Scope,
+
+			[bool]$Expanded
+		)
+
+		if ($Scope -eq 'Apps')
+		{
+			$panel = Get-GuiScriptControlValue -Name 'AppsFilterOptionsPanel'
+			$button = Get-GuiScriptControlValue -Name 'BtnAppsFilterToggle'
+			$labelKey = 'GuiBtnAppsFilterToggle'
+			$fallback = 'Filter'
+		}
+		else
+		{
+			$panel = Get-GuiScriptControlValue -Name 'FilterOptionsPanel'
+			$button = Get-GuiScriptControlValue -Name 'BtnFilterToggle'
+			$labelKey = 'GuiBtnFilterToggle'
+			$fallback = 'Filters'
+		}
+
+		if ($panel)
+		{
+			$panel.Visibility = if ($Expanded) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+		}
+		if ($button)
+		{
+			$button.Content = New-GuiFilterToggleContent -LabelKey $labelKey -Fallback $fallback -Expanded $Expanded
+		}
+		if ($Scope -eq 'Optimize')
+		{
+			$menu = Get-GuiScriptControlValue -Name 'MenuViewFilters'
+			if ($menu)
+			{
+				try { $menu.IsChecked = [bool]$Expanded } catch { Write-SwallowedException -ErrorRecord $_ -Source 'SearchFilterHandlers.SetGuiFilterPanelExpandedState.MenuViewFilters' }
+			}
+		}
+	}
+
+	$Script:TestGuiFilterPanelExpandedScript = ${function:Test-GuiFilterPanelExpanded}
+	$Script:SetGuiFilterPanelExpandedStateScript = ${function:Set-GuiFilterPanelExpandedState}
 	$testGuiRunInProgressCapture = $Script:TestGuiRunInProgressScript
 	$syncSearchInputChrome = {
 		if ($Script:SyncSearchInputChromeScript)
@@ -53,22 +141,7 @@
 	$Script:HasLabeledIconContent = [bool](Get-Command -Name 'New-GuiLabeledIconContent' -CommandType Function -ErrorAction SilentlyContinue)
 	# Filter toggle button - shows/hides the collapsible filter options panel
 	$null = Register-GuiEventHandler -Source $BtnFilterToggle -EventName 'Click' -Handler ({
-		if ($FilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Collapsed)
-		{
-			$FilterOptionsPanel.Visibility = [System.Windows.Visibility]::Visible
-			$BtnFilterToggle.Content = $(
-				$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
-				if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" }
-			)
-		}
-		else
-		{
-			$FilterOptionsPanel.Visibility = [System.Windows.Visibility]::Collapsed
-			$BtnFilterToggle.Content = $(
-				$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25B8)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
-				if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25B8)" }
-			)
-		}
+		Set-GuiFilterPanelExpandedState -Scope 'Optimize' -Expanded:(-not (Test-GuiFilterPanelExpanded -Panel $FilterOptionsPanel))
 	})
 	$TxtSearch.Text = if ($Script:AppsModeActive) { [string]$Script:AppsSearchText } else { [string]$Script:SearchText }
 	& $syncSearchInputChrome
@@ -113,14 +186,7 @@
 		{
 			& $Script:GuiState.Set 'RiskFilter' $selectedRisk
 		}
-		if ($selectedRisk -ne 'All' -and $FilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Collapsed)
-		{
-			$FilterOptionsPanel.Visibility = [System.Windows.Visibility]::Visible
-			$BtnFilterToggle.Content = $(
-				$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
-				if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" }
-			)
-		}
+		if ($selectedRisk -ne 'All') { Set-GuiFilterPanelExpandedState -Scope 'Optimize' -Expanded $true }
 	})
 	$null = Register-GuiEventHandler -Source $CmbCategoryFilter -EventName 'SelectionChanged' -Handler ({
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
@@ -135,14 +201,7 @@
 		{
 			& $Script:GuiState.Set 'CategoryFilter' $selectedCat
 		}
-		if ($selectedCat -ne 'All' -and $FilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Collapsed)
-		{
-			$FilterOptionsPanel.Visibility = [System.Windows.Visibility]::Visible
-			$BtnFilterToggle.Content = $(
-				$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
-				if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" }
-			)
-		}
+		if ($selectedCat -ne 'All') { Set-GuiFilterPanelExpandedState -Scope 'Optimize' -Expanded $true }
 	})
 	$null = Register-GuiEventHandler -Source $CmbPlatformFilter -EventName 'SelectionChanged' -Handler ({
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
@@ -156,14 +215,7 @@
 		{
 			Update-CurrentTabContent -SkipIdlePrebuild
 		}
-		if ($selectedPlatform -ne 'ThisDevice' -and $FilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Collapsed)
-		{
-			$FilterOptionsPanel.Visibility = [System.Windows.Visibility]::Visible
-			$BtnFilterToggle.Content = $(
-				$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
-				if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" }
-			)
-		}
+		if ($selectedPlatform -ne 'ThisDevice') { Set-GuiFilterPanelExpandedState -Scope 'Optimize' -Expanded $true }
 	})
 	if ($Script:AppsCategoryTabs)
 	{
@@ -180,51 +232,19 @@
 	if ($Script:BtnAppsFilterToggle -and $Script:AppsFilterOptionsPanel)
 	{
 		$null = Register-GuiEventHandler -Source $Script:BtnAppsFilterToggle -EventName 'Click' -Handler ({
-			if ($Script:AppsFilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Collapsed)
-			{
-				$Script:AppsFilterOptionsPanel.Visibility = [System.Windows.Visibility]::Visible
-				$Script:BtnAppsFilterToggle.Content = $(
-					$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnAppsFilterToggle' -Fallback 'Filter') $([char]0x25BE)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
-					if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnAppsFilterToggle' -Fallback 'Filter') $([char]0x25BE)" }
-				)
-			}
-			else
-			{
-				$Script:AppsFilterOptionsPanel.Visibility = [System.Windows.Visibility]::Collapsed
-				$Script:BtnAppsFilterToggle.Content = $(
-					$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnAppsFilterToggle' -Fallback 'Filter') $([char]0x25B8)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
-					if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnAppsFilterToggle' -Fallback 'Filter') $([char]0x25B8)" }
-				)
-			}
+			Set-GuiFilterPanelExpandedState -Scope 'Apps' -Expanded:(-not (Test-GuiFilterPanelExpanded -Panel $Script:AppsFilterOptionsPanel))
 		})
 	}
 	$null = Register-GuiEventHandler -Source $CmbAppsStatusFilter -EventName 'SelectionChanged' -Handler ({
 		if ($Script:AppsFilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
 		$selectedAppStatus = if ($CmbAppsStatusFilter.SelectedIndex -ge 0 -and $Script:AppsStatusFilterInternalValues -and $CmbAppsStatusFilter.SelectedIndex -lt $Script:AppsStatusFilterInternalValues.Count) { $Script:AppsStatusFilterInternalValues[$CmbAppsStatusFilter.SelectedIndex] } else { 'All' }
 		Set-AppStatusFilterState -Status $selectedAppStatus
-		if ($selectedAppStatus -ne 'All' -and $Script:AppsFilterOptionsPanel -and $Script:AppsFilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Collapsed)
-		{
-			$Script:AppsFilterOptionsPanel.Visibility = [System.Windows.Visibility]::Visible
-			if ($Script:BtnAppsFilterToggle)
-			{
-				$Script:BtnAppsFilterToggle.Content = $(
-					$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnAppsFilterToggle' -Fallback 'Filter') $([char]0x25BE)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
-					if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnAppsFilterToggle' -Fallback 'Filter') $([char]0x25BE)" }
-				)
-			}
-		}
+		if ($selectedAppStatus -ne 'All') { Set-GuiFilterPanelExpandedState -Scope 'Apps' -Expanded $true }
 	})
 	$null = Register-GuiEventHandler -Source $ChkSelectedOnly -EventName 'Checked' -Handler ({
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
 		& $Script:GuiState.Set 'SelectedOnlyFilter' $true
-		if ($FilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Collapsed)
-		{
-			$FilterOptionsPanel.Visibility = [System.Windows.Visibility]::Visible
-			$BtnFilterToggle.Content = $(
-				$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
-				if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" }
-			)
-		}
+		Set-GuiFilterPanelExpandedState -Scope 'Optimize' -Expanded $true
 	})
 	$null = Register-GuiEventHandler -Source $ChkSelectedOnly -EventName 'Unchecked' -Handler ({
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
@@ -257,14 +277,7 @@
 	$null = Register-GuiEventHandler -Source $ChkHighRiskOnly -EventName 'Checked' -Handler ({
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
 		& $Script:GuiState.Set 'HighRiskOnlyFilter' $true
-		if ($FilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Collapsed)
-		{
-			$FilterOptionsPanel.Visibility = [System.Windows.Visibility]::Visible
-			$BtnFilterToggle.Content = $(
-				$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
-				if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" }
-			)
-		}
+		Set-GuiFilterPanelExpandedState -Scope 'Optimize' -Expanded $true
 	})
 	$null = Register-GuiEventHandler -Source $ChkHighRiskOnly -EventName 'Unchecked' -Handler ({
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
@@ -273,14 +286,7 @@
 	$null = Register-GuiEventHandler -Source $ChkRestorableOnly -EventName 'Checked' -Handler ({
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
 		& $Script:GuiState.Set 'RestorableOnlyFilter' $true
-		if ($FilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Collapsed)
-		{
-			$FilterOptionsPanel.Visibility = [System.Windows.Visibility]::Visible
-			$BtnFilterToggle.Content = $(
-				$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
-				if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" }
-			)
-		}
+		Set-GuiFilterPanelExpandedState -Scope 'Optimize' -Expanded $true
 	})
 	$null = Register-GuiEventHandler -Source $ChkRestorableOnly -EventName 'Unchecked' -Handler ({
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
@@ -289,34 +295,11 @@
 	$null = Register-GuiEventHandler -Source $ChkGamingOnly -EventName 'Checked' -Handler ({
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
 		& $Script:GuiState.Set 'GamingOnlyFilter' $true
-		if ($FilterOptionsPanel.Visibility -eq [System.Windows.Visibility]::Collapsed)
-		{
-			$FilterOptionsPanel.Visibility = [System.Windows.Visibility]::Visible
-			$BtnFilterToggle.Content = $(
-				$fc = if ($Script:HasLabeledIconContent) { New-GuiLabeledIconContent -IconName 'Filter' -Text "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" -IconSize 14 -Gap 6 -TextFontSize 11 -AllowTextOnlyFallback } else { $null }
-				if ($fc) { $fc } else { "$(Get-UxLocalizedString -Key 'GuiBtnFilterToggle' -Fallback 'Filters') $([char]0x25BE)" }
-			)
-		}
+		Set-GuiFilterPanelExpandedState -Scope 'Optimize' -Expanded $true
 	})
 	$null = Register-GuiEventHandler -Source $ChkGamingOnly -EventName 'Unchecked' -Handler ({
 		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
 		& $Script:GuiState.Set 'GamingOnlyFilter' $false
-	})
-	$null = Register-GuiEventHandler -Source $ChkSafeMode -EventName 'Checked' -Handler ({
-		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
-		& $Script:SetSafeModeStateScript -Enabled $true
-	})
-	$null = Register-GuiEventHandler -Source $ChkSafeMode -EventName 'Unchecked' -Handler ({
-		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
-		& $Script:SetAdvancedModeStateScript -Enabled $true
-	})
-	$null = Register-GuiEventHandler -Source $ChkGameMode -EventName 'Checked' -Handler ({
-		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
-		& $Script:SetGameModeStateScript -Enabled $true
-	})
-	$null = Register-GuiEventHandler -Source $ChkGameMode -EventName 'Unchecked' -Handler ({
-		if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
-		& $Script:SetGameModeStateScript -Enabled $false
 	})
 	if ($ChkDesignMode)
 	{

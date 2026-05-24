@@ -36,4 +36,13 @@ Describe 'WindowSetup swallowed-exception routing' {
         $script:WindowSetupContent | Should -Match 'Set-BaselineDebugLogging -Enabled \(\[bool\]\$Script:DebugLoggingEnabled\)'
         $script:WindowSetupContent | Should -Match 'Set-GuiPerfTraceState -Enabled \(\[bool\]\$Script:DebugLoggingEnabled\)'
     }
+
+    It 'keeps dispatcher failure reporting from promoting non-fatal GUI errors to fatal shutdowns' {
+        $script:WindowSetupContent | Should -Match '\$dispatcherException = \$e\.Exception'
+        $script:WindowSetupContent | Should -Match 'Reporting failures below must\s+# never promote a non-fatal dispatcher exception into a fatal shutdown\.'
+        $script:WindowSetupContent | Should -Match 'WindowSetup\.DispatcherRuntimeFailureReport'
+        $script:WindowSetupContent | Should -Match '\[System\.IO\.File\]::AppendAllText'
+        $script:WindowSetupContent | Should -Not -Match 'If our own handler fails, the original exception must not be swallowed'
+        $script:WindowSetupContent | Should -Not -Match '(?s)catch\s*\{\s*if \(Get-Command -Name ''Write-SwallowedException''[\s\S]+?\$isFatal = \$true'
+    }
 }

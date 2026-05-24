@@ -19,6 +19,97 @@
 	    .SYNOPSIS
 	#>
 
+	function Get-TweakRowFactoryRuntimeCommand
+	{
+		param (
+			[Parameter(Mandatory = $true)]
+			[string]$Name
+		)
+
+		$cacheVariable = Get-Variable -Name 'TweakRowFactoryRuntimeCommandCache' -Scope Script -ErrorAction SilentlyContinue
+		if (-not $cacheVariable -or -not ($cacheVariable.Value -is [hashtable]))
+		{
+			$Script:TweakRowFactoryRuntimeCommandCache = @{}
+		}
+
+		if (-not $Script:TweakRowFactoryRuntimeCommandCache.ContainsKey($Name))
+		{
+			$command = @(
+				Get-Command -Name $Name -CommandType Function -ErrorAction SilentlyContinue
+			) | Select-Object -First 1
+
+			$Script:TweakRowFactoryRuntimeCommandCache[$Name] = $command
+		}
+
+		return $Script:TweakRowFactoryRuntimeCommandCache[$Name]
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Test-TweakRowFactoryTweakAvailable
+	{
+		param ([object]$Tweak)
+
+		$availabilityTest = Get-TweakRowFactoryRuntimeCommand -Name 'Test-GuiTweakAvailableOnCurrentSystem'
+		if (-not $availabilityTest)
+		{
+			return $true
+		}
+
+		return [bool](& $availabilityTest -Tweak $Tweak)
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Get-TweakRowFactoryHideUnavailableItems
+	{
+		$preferenceCommand = Get-TweakRowFactoryRuntimeCommand -Name 'Get-BaselineUserPreference'
+		if (-not $preferenceCommand)
+		{
+			return $true
+		}
+
+		try
+		{
+			return [bool](& $preferenceCommand -Key 'HideUnavailableItems' -Default $true)
+		}
+		catch
+		{
+			$writeSwallowedException = Get-TweakRowFactoryRuntimeCommand -Name 'Write-SwallowedException'
+			if ($writeSwallowedException)
+			{
+				& $writeSwallowedException -ErrorRecord $_ -Source 'RowStateDefaults.Get-TweakRowFactoryHideUnavailableItems' -Severity Debug
+			}
+
+			return $true
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Remove-TweakRowFactoryExplicitSelectionDefinition
+	{
+		param ([string]$FunctionName)
+
+		if ([string]::IsNullOrWhiteSpace($FunctionName)) { return }
+
+		$removeSelectionCommand = Get-TweakRowFactoryRuntimeCommand -Name 'Remove-GuiExplicitSelectionDefinition'
+		if ($removeSelectionCommand)
+		{
+			& $removeSelectionCommand -FunctionName $FunctionName
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
 	function Test-TweakRowVisible
 	{
 		param ([object]$Tweak)
@@ -52,24 +143,9 @@
 			}
 		}
 
-		if ((Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue) -and -not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak))
+		if (-not (Test-TweakRowFactoryTweakAvailable -Tweak $Tweak))
 		{
-			$hideUnavailableItems = $true
-			try
-			{
-				if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
-				{
-					$hideUnavailableItems = [bool](Get-BaselineUserPreference -Key 'HideUnavailableItems' -Default $true)
-				}
-			}
-			catch
-			{
-				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'RowStateDefaults.Test-TweakRowVisible:catch63' -Severity Debug }
-
-				$hideUnavailableItems = $true
-			}
-
-			if ($hideUnavailableItems) { return $false }
+			if (Get-TweakRowFactoryHideUnavailableItems) { return $false }
 		}
 
 		return $true
@@ -246,7 +322,7 @@
 			[object]$Tweak
 		)
 
-		if ((Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue) -and -not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak))
+		if (-not (Test-TweakRowFactoryTweakAvailable -Tweak $Tweak))
 		{
 			return $false
 		}
@@ -286,7 +362,7 @@
 			[object]$Tweak
 		)
 
-		if ((Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue) -and -not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak))
+		if (-not (Test-TweakRowFactoryTweakAvailable -Tweak $Tweak))
 		{
 			return $false
 		}
@@ -325,7 +401,7 @@
 			[object]$RowContext = $null
 		)
 
-		if ((Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue) -and -not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak))
+		if (-not (Test-TweakRowFactoryTweakAvailable -Tweak $Tweak))
 		{
 			return -1
 		}
@@ -364,7 +440,7 @@
 			[object]$RowContext = $null
 		)
 
-		if ((Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue) -and -not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak))
+		if (-not (Test-TweakRowFactoryTweakAvailable -Tweak $Tweak))
 		{
 			return $false
 		}
@@ -507,7 +583,7 @@
 			[object]$Tweak
 		)
 
-		if ((Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue) -and -not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak))
+		if (-not (Test-TweakRowFactoryTweakAvailable -Tweak $Tweak))
 		{
 			return $false
 		}

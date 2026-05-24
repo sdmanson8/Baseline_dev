@@ -39,7 +39,7 @@ Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 	}
 
 	# Primary category tabs (top tier)
-	$PrimaryCategories = [ordered]@{
+	$Script:PrimaryCategories = [ordered]@{
 		"Initial Setup"        = @()
 		"Privacy & Telemetry"  = @()
 		"Security"             = @("Security", "OS Hardening")
@@ -50,9 +50,11 @@ Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 		"Gaming"               = @()
 		"Context Menu"         = @()
 	}
+	$PrimaryCategories = $Script:PrimaryCategories
 
 	# Map manifest categories to primary tabs
-	$CategoryToPrimary = @{}
+	$Script:CategoryToPrimary = @{}
+	$CategoryToPrimary = $Script:CategoryToPrimary
 		. (Join-Path $PSScriptRoot 'CategoryPathMapping.ps1')
 	$Script:UpdatesPrimaryTabFunctions = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 		. (Join-Path $PSScriptRoot 'AvailabilityStateOverrides.ps1')
@@ -60,9 +62,9 @@ Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 	# Ensure all manifest categories map somewhere
 	foreach ($t in $Script:TweakManifest)
 	{
-		if (-not $CategoryToPrimary.ContainsKey($t.Category))
+		if (-not $Script:CategoryToPrimary.ContainsKey($t.Category))
 		{
-			$CategoryToPrimary[$t.Category] = $t.Category
+			$Script:CategoryToPrimary[$t.Category] = $t.Category
 		}
 	}
 

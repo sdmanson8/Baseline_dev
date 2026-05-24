@@ -48,24 +48,43 @@ function Get-UxLocalizedString
 		# GUI callers pass Fallback as the required display text. Use it whenever
 		# the active locale does not provide a non-empty value so controls never
 		# receive blank labels from incomplete translation packs.
-		$template = $Fallback
 		$localizationSource = $Global:Localization
-		if ($null -ne $localizationSource)
+		$cacheVariable = Get-Variable -Name 'UxLocalizedStringTemplateCache' -Scope Script -ErrorAction SilentlyContinue
+		$cacheSourceVariable = Get-Variable -Name 'UxLocalizedStringTemplateCacheSource' -Scope Script -ErrorAction SilentlyContinue
+		$cacheSource = if ($cacheSourceVariable) { $cacheSourceVariable.Value } else { $null }
+		if (-not $cacheVariable -or -not ($cacheVariable.Value -is [hashtable]) -or -not [object]::ReferenceEquals($cacheSource, $localizationSource))
 		{
-			$candidate = $null
-			if ($localizationSource -is [System.Collections.IDictionary] -and $localizationSource.Contains($Key))
+			$Script:UxLocalizedStringTemplateCache = @{}
+			$Script:UxLocalizedStringTemplateCacheSource = $localizationSource
+		}
+
+		$cacheKey = [string]::Concat($Key, [char]0, $Fallback)
+		if ($Script:UxLocalizedStringTemplateCache.ContainsKey($cacheKey))
+		{
+			$template = [string]$Script:UxLocalizedStringTemplateCache[$cacheKey]
+		}
+		else
+		{
+			$template = $Fallback
+			if ($null -ne $localizationSource)
 			{
-				$candidate = [string]$localizationSource[$Key]
-			}
-			elseif ($localizationSource.PSObject -and $localizationSource.PSObject.Properties[$Key])
-			{
-				$candidate = [string]$localizationSource.$Key
+				$candidate = $null
+				if ($localizationSource -is [System.Collections.IDictionary] -and $localizationSource.Contains($Key))
+				{
+					$candidate = [string]$localizationSource[$Key]
+				}
+				elseif ($localizationSource.PSObject -and $localizationSource.PSObject.Properties[$Key])
+				{
+					$candidate = [string]$localizationSource.$Key
+				}
+
+				if (-not [string]::IsNullOrWhiteSpace($candidate))
+				{
+					$template = $candidate
+				}
 			}
 
-			if (-not [string]::IsNullOrWhiteSpace($candidate))
-			{
-				$template = $candidate
-			}
+			$Script:UxLocalizedStringTemplateCache[$cacheKey] = $template
 		}
 
 		if ($FormatArgs.Count -gt 0)

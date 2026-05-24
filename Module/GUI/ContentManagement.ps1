@@ -161,6 +161,12 @@
 			return $false
 		}
 
+		if (($cacheEntry -is [System.Collections.IDictionary]) -and $cacheEntry.ContainsKey('PrimaryTab') -and [string]$cacheEntry.PrimaryTab -ne $PrimaryTab)
+		{
+			[void]($Script:TabContentCache.Remove($PrimaryTab))
+			return $false
+		}
+
 		# Evict stale entries whose filter generation no longer matches the current state.
 		if ($null -ne $cacheEntry.FilterGeneration -and $cacheEntry.FilterGeneration -ne $Script:FilterGeneration)
 		{
@@ -193,6 +199,7 @@
 		}
 
 		$ContentScroll.Content = $cacheEntry.Panel
+		$Script:VisibleTabContentPrimaryTab = $PrimaryTab
 		Update-MainContentPanelWidth -Panel $cacheEntry.Panel
 		Restore-CurrentTabScrollOffset -TabKey $PrimaryTab
 		return $true

@@ -220,6 +220,704 @@
 	    .SYNOPSIS
 	#>
 
+	function Initialize-GuiRecommendationDisclosureState
+	{
+		if (-not ($Script:RecommendedSelectionsCollapsedByScope -is [System.Collections.IDictionary]))
+		{
+			$Script:RecommendedSelectionsCollapsedByScope = @{}
+		}
+		if (-not ($Script:RecommendationDisclosureRefsByKey -is [System.Collections.IDictionary]))
+		{
+			$Script:RecommendationDisclosureRefsByKey = @{}
+		}
+		if (-not ($Script:RecommendationCompactStripRefsByKey -is [System.Collections.IDictionary]))
+		{
+			$Script:RecommendationCompactStripRefsByKey = @{}
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Test-GuiRecommendationHasManualCollapseState
+	{
+		param ([string]$Scope)
+
+		Initialize-GuiRecommendationDisclosureState
+		if ([string]::IsNullOrWhiteSpace([string]$Scope)) { return $false }
+		return $Script:RecommendedSelectionsCollapsedByScope.Contains([string]$Scope)
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Test-GuiRecommendationHasSelection
+	{
+		param ([string]$Scope)
+
+		if ([string]$Scope -eq 'GamingProfiles')
+		{
+			if (-not [string]::IsNullOrWhiteSpace([string]$Script:GameModeProfile)) { return $true }
+			return ($Script:GameModePlan -and @($Script:GameModePlan).Count -gt 0)
+		}
+
+		if (-not [string]::IsNullOrWhiteSpace([string]$Script:ActivePresetName)) { return $true }
+		if ($Script:ActiveScenarioNames -is [System.Collections.IDictionary])
+		{
+			foreach ($scenarioEntry in $Script:ActiveScenarioNames.GetEnumerator())
+			{
+				if ([bool]$scenarioEntry.Value) { return $true }
+			}
+		}
+		if ($Script:ExplicitPresetSelections -is [System.Collections.IDictionary] -and $Script:ExplicitPresetSelections.Count -gt 0) { return $true }
+
+		foreach ($control in @($Script:Controls))
+		{
+			if ($control -and (Test-GuiObjectField -Object $control -FieldName 'IsChecked') -and [bool]$control.IsChecked)
+			{
+				return $true
+			}
+		}
+
+		return $false
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Get-GuiRecommendationDefaultCollapsedState
+	{
+		param ([string]$Scope)
+
+		if (Test-IsSafeModeUX) { return $false }
+		if (-not (Test-GuiRecommendationHasSelection -Scope $Scope)) { return $false }
+		if (Test-IsExpertModeUX) { return $true }
+		return $true
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Get-GuiRecommendationCollapsedState
+	{
+		param ([string]$Scope)
+
+		Initialize-GuiRecommendationDisclosureState
+		if ((Test-GuiRecommendationHasManualCollapseState -Scope $Scope))
+		{
+			return [bool]$Script:RecommendedSelectionsCollapsedByScope[[string]$Scope]
+		}
+
+		return (Get-GuiRecommendationDefaultCollapsedState -Scope $Scope)
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Get-GuiRecommendationProfileLabel
+	{
+		param (
+			[string]$ProfileName,
+			[string]$PrimaryTab = $null
+		)
+
+		if ([string]::IsNullOrWhiteSpace([string]$ProfileName)) { return $null }
+		if ((Test-IsSafeModeUX) -and [string]$PrimaryTab -eq 'Initial Setup')
+		{
+			switch ([string]$ProfileName)
+			{
+				'Minimal' { return (Get-UxLocalizedString -Key 'GuiPresetQuickStart' -Fallback 'Quick Start') }
+				'Basic' { return (Get-UxLocalizedString -Key 'GuiPresetRecommended' -Fallback 'Recommended') }
+			}
+		}
+		if (Get-Command -Name 'Get-UxPresetDisplayName' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			return (Get-UxPresetDisplayName -PresetName ([string]$ProfileName))
+		}
+		return (Get-PresetButtonLabel -PresetName ([string]$ProfileName))
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Get-GuiRecommendationScenarioLabel
+	{
+		param ([string]$ScenarioName)
+
+		if ([string]::IsNullOrWhiteSpace([string]$ScenarioName)) { return $null }
+		foreach ($scenarioDefinition in @(Get-ScenarioProfileDefinitions))
+		{
+			if ([string]$scenarioDefinition.Name -eq [string]$ScenarioName)
+			{
+				return (Get-UxLocalizedString -Key "GuiScenarioLabel$ScenarioName" -Fallback ([string]$scenarioDefinition.Label))
+			}
+		}
+		return [string]$ScenarioName
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Get-GuiGamingProfileLabel
+	{
+		param ([string]$ProfileName)
+
+		if ([string]::IsNullOrWhiteSpace([string]$ProfileName)) { return $null }
+		foreach ($profileDefinition in @(Get-GameModeProfileDefinitions))
+		{
+			if ([string]$profileDefinition.Name -ne [string]$ProfileName) { continue }
+			$profileLocKeyBase = switch ([string]$profileDefinition.Name)
+			{
+				'Casual' { 'GuiProfileCasualGaming' }
+				'Competitive' { 'GuiProfileCompetitiveGaming' }
+				'Streaming' { 'GuiProfileStreamingContent' }
+				'Troubleshooting' { 'GuiProfileTroubleshooting' }
+				default { $null }
+			}
+			if ($profileLocKeyBase)
+			{
+				return (Get-UxLocalizedString -Key $profileLocKeyBase -Fallback ([string]$profileDefinition.Label))
+			}
+			return [string]$profileDefinition.Label
+		}
+
+		return [string]$ProfileName
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Get-GuiRecommendationSelectedSummaryText
+	{
+		param (
+			[string]$Scope,
+			[string]$PrimaryTab = $null
+		)
+
+		if ([string]$Scope -eq 'GamingProfiles')
+		{
+			$profileLabel = Get-GuiGamingProfileLabel -ProfileName ([string]$Script:GameModeProfile)
+			if (-not [string]::IsNullOrWhiteSpace([string]$profileLabel))
+			{
+				return (Get-UxLocalizedString -Key 'GuiRecommendationSelectedSuffix' -Fallback '{0} selected' -FormatArgs @($profileLabel))
+			}
+			return $null
+		}
+
+		if (-not [string]::IsNullOrWhiteSpace([string]$Script:ActivePresetName))
+		{
+			$presetLabel = Get-GuiRecommendationProfileLabel -ProfileName ([string]$Script:ActivePresetName) -PrimaryTab $PrimaryTab
+			if (-not [string]::IsNullOrWhiteSpace([string]$presetLabel))
+			{
+				return (Get-UxLocalizedString -Key 'GuiRecommendationSelectedSuffix' -Fallback '{0} selected' -FormatArgs @($presetLabel))
+			}
+		}
+
+		$activeScenarioLabels = @(
+			if ($Script:ActiveScenarioNames -is [System.Collections.IDictionary])
+			{
+				$Script:ActiveScenarioNames.GetEnumerator() |
+					Where-Object { [bool]$_.Value -and -not [string]::IsNullOrWhiteSpace([string]$_.Key) } |
+					Sort-Object Key |
+					ForEach-Object { Get-GuiRecommendationScenarioLabel -ScenarioName ([string]$_.Key) }
+			}
+		) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
+
+		if ($activeScenarioLabels.Count -gt 0)
+		{
+			$scenarioText = $activeScenarioLabels -join ' + '
+			return (Get-UxLocalizedString -Key 'GuiRecommendationSelectedSuffix' -Fallback '{0} selected' -FormatArgs @($scenarioText))
+		}
+
+		return $null
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Get-GuiRecommendationDisclosureHeaderText
+	{
+		param (
+			[string]$Scope,
+			[string]$Title,
+			[string]$PrimaryTab = $null,
+			[bool]$Collapsed
+		)
+
+		$prefix = if ($Collapsed) { [string][char]0x25B6 } else { [string][char]0x25BC }
+		$summary = Get-GuiRecommendationSelectedSummaryText -Scope $Scope -PrimaryTab $PrimaryTab
+		if (-not [string]::IsNullOrWhiteSpace([string]$summary))
+		{
+			return ('{0} {1} ({2})' -f $prefix, $Title, $summary)
+		}
+
+		return ('{0} {1}' -f $prefix, $Title)
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Update-GuiRecommendationDisclosureHeaders
+	{
+		Initialize-GuiRecommendationDisclosureState
+		foreach ($disclosureRef in @($Script:RecommendationDisclosureRefsByKey.Values))
+		{
+			if (-not $disclosureRef -or -not $disclosureRef.HeaderTextBlock) { continue }
+			$collapsed = Get-GuiRecommendationCollapsedState -Scope ([string]$disclosureRef.Scope)
+			$headerText = Get-GuiRecommendationDisclosureHeaderText -Scope ([string]$disclosureRef.Scope) -Title ([string]$disclosureRef.Title) -PrimaryTab ([string]$disclosureRef.PrimaryTab) -Collapsed:$collapsed
+			$disclosureRef.HeaderTextBlock.Text = $headerText
+			if ($disclosureRef.HeaderButton)
+			{
+				[System.Windows.Automation.AutomationProperties]::SetName($disclosureRef.HeaderButton, $headerText)
+			}
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Set-GuiRecommendationDisclosureVisualState
+	{
+		param (
+			[object]$DisclosureRef,
+			[bool]$Collapsed,
+			[switch]$Animate
+		)
+
+		if (-not $DisclosureRef -or -not $DisclosureRef.BodyPanel) { return }
+		$bodyPanel = $DisclosureRef.BodyPanel
+		$scaleTransform = $DisclosureRef.ScaleTransform
+		$duration = [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds(170))
+
+		if (-not $Animate)
+		{
+			$bodyPanel.Visibility = if ($Collapsed) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
+			$bodyPanel.Opacity = if ($Collapsed) { 0.0 } else { 1.0 }
+			if ($scaleTransform)
+			{
+				$scaleTransform.ScaleY = if ($Collapsed) { 0.96 } else { 1.0 }
+			}
+			return
+		}
+
+		if ($Collapsed)
+		{
+			$opacityAnimation = [System.Windows.Media.Animation.DoubleAnimation]::new()
+			$opacityAnimation.To = 0.0
+			$opacityAnimation.Duration = $duration
+			$opacityAnimation.Add_Completed({
+				$bodyPanel.Visibility = [System.Windows.Visibility]::Collapsed
+			}.GetNewClosure())
+			$bodyPanel.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $opacityAnimation, [System.Windows.Media.Animation.HandoffBehavior]::SnapshotAndReplace)
+
+			if ($scaleTransform)
+			{
+				$scaleAnimation = [System.Windows.Media.Animation.DoubleAnimation]::new()
+				$scaleAnimation.To = 0.96
+				$scaleAnimation.Duration = $duration
+				$scaleTransform.BeginAnimation([System.Windows.Media.ScaleTransform]::ScaleYProperty, $scaleAnimation, [System.Windows.Media.Animation.HandoffBehavior]::SnapshotAndReplace)
+			}
+			return
+		}
+
+		$bodyPanel.Visibility = [System.Windows.Visibility]::Visible
+		$bodyPanel.Opacity = 0.0
+		if ($scaleTransform) { $scaleTransform.ScaleY = 0.96 }
+		$showOpacityAnimation = [System.Windows.Media.Animation.DoubleAnimation]::new()
+		$showOpacityAnimation.To = 1.0
+		$showOpacityAnimation.Duration = $duration
+		$bodyPanel.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $showOpacityAnimation, [System.Windows.Media.Animation.HandoffBehavior]::SnapshotAndReplace)
+
+		if ($scaleTransform)
+		{
+			$showScaleAnimation = [System.Windows.Media.Animation.DoubleAnimation]::new()
+			$showScaleAnimation.To = 1.0
+			$showScaleAnimation.Duration = $duration
+			$scaleTransform.BeginAnimation([System.Windows.Media.ScaleTransform]::ScaleYProperty, $showScaleAnimation, [System.Windows.Media.Animation.HandoffBehavior]::SnapshotAndReplace)
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Set-GuiRecommendationDisclosureScopeState
+	{
+		param (
+			[string]$Scope,
+			[bool]$Collapsed,
+			[switch]$Animate
+		)
+
+		Initialize-GuiRecommendationDisclosureState
+		if ([string]::IsNullOrWhiteSpace([string]$Scope)) { return }
+		$Script:RecommendedSelectionsCollapsedByScope[[string]$Scope] = [bool]$Collapsed
+		foreach ($disclosureRef in @($Script:RecommendationDisclosureRefsByKey.Values))
+		{
+			if (-not $disclosureRef -or [string]$disclosureRef.Scope -ne [string]$Scope) { continue }
+			Set-GuiRecommendationDisclosureVisualState -DisclosureRef $disclosureRef -Collapsed:$Collapsed -Animate:$Animate
+		}
+		Update-GuiRecommendationDisclosureHeaders
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function New-GuiRecommendationDisclosurePanel
+	{
+		param (
+			[Parameter(Mandatory = $true)]
+			[string]$Scope,
+			[Parameter(Mandatory = $true)]
+			[string]$Title,
+			[Parameter(Mandatory = $true)]
+			[object]$Body,
+			[Parameter(Mandatory = $true)]
+			[object]$BrushConverter,
+			[string]$PrimaryTab = $null,
+			[string]$InstanceKey = $null,
+			[object]$DefaultCollapsed = $null,
+			[double]$BorderThickness = 1.5,
+			[int]$CornerRadius = 10,
+			[System.Windows.Thickness]$Margin = $null,
+			[System.Windows.Thickness]$Padding = $null,
+			[switch]$Compact,
+			[switch]$UseShadow
+		)
+
+		Initialize-GuiRecommendationDisclosureState
+		if ([string]::IsNullOrWhiteSpace([string]$InstanceKey))
+		{
+			$InstanceKey = [string]$Scope
+		}
+		if ($null -ne $DefaultCollapsed -and -not (Test-GuiRecommendationHasManualCollapseState -Scope $Scope))
+		{
+			$Script:RecommendedSelectionsCollapsedByScope[[string]$Scope] = [bool]$DefaultCollapsed
+		}
+		if ($null -eq $Margin) { $Margin = if ($Compact) { [System.Windows.Thickness]::new(8, 6, 8, 6) } else { [System.Windows.Thickness]::new(8, 14, 8, 10) } }
+		if ($null -eq $Padding) { $Padding = if ($Compact) { [System.Windows.Thickness]::new(10, 7, 10, 7) } else { [System.Windows.Thickness]::new(16, 12, 16, 14) } }
+
+		$collapsed = Get-GuiRecommendationCollapsedState -Scope $Scope
+		$outerBorder = New-Object System.Windows.Controls.Border
+		$outerBorder.Background = $BrushConverter.ConvertFromString($Script:CurrentTheme.PresetPanelBg)
+		$outerBorder.BorderBrush = $BrushConverter.ConvertFromString($Script:CurrentTheme.PresetPanelBorder)
+		$outerBorder.BorderThickness = [System.Windows.Thickness]::new($BorderThickness)
+		$outerBorder.CornerRadius = [System.Windows.CornerRadius]::new($CornerRadius)
+		$outerBorder.Margin = $Margin
+		$outerBorder.Padding = $Padding
+		if ($UseShadow)
+		{
+			$shadow = New-Object System.Windows.Media.Effects.DropShadowEffect
+			$shadow.BlurRadius = 12
+			$shadow.ShadowDepth = 2
+			$shadow.Opacity = 0.25
+			$shadow.Color = [System.Windows.Media.Colors]::Black
+			if ($shadow.CanFreeze) { $shadow.Freeze() }
+			$outerBorder.Effect = $shadow
+		}
+
+		$container = New-Object System.Windows.Controls.StackPanel
+		$container.Orientation = 'Vertical'
+
+		$headerButton = New-Object System.Windows.Controls.Button
+		$headerButton.Background = [System.Windows.Media.Brushes]::Transparent
+		$headerButton.BorderThickness = [System.Windows.Thickness]::new(0)
+		$headerButton.Padding = [System.Windows.Thickness]::new(0)
+		$headerButton.HorizontalContentAlignment = [System.Windows.HorizontalAlignment]::Stretch
+		$headerButton.Cursor = [System.Windows.Input.Cursors]::Hand
+		$headerButton.Focusable = $true
+		$headerButton.ToolTip = Get-UxLocalizedString -Key 'GuiRecommendationCollapseTooltip' -Fallback 'Show or hide recommended selections.'
+
+		$headerPanel = New-Object System.Windows.Controls.DockPanel
+		$headerPanel.LastChildFill = $true
+		$headerTextBlock = New-Object System.Windows.Controls.TextBlock
+		$headerTextBlock.Text = Get-GuiRecommendationDisclosureHeaderText -Scope $Scope -Title $Title -PrimaryTab $PrimaryTab -Collapsed:$collapsed
+		$headerTextBlock.FontSize = if ($Compact) { $Script:GuiLayout.FontSizeLabel } else { $Script:GuiLayout.FontSizeSection }
+		$headerTextBlock.FontWeight = [System.Windows.FontWeights]::Bold
+		$headerTextBlock.Foreground = $BrushConverter.ConvertFromString($Script:CurrentTheme.TextPrimary)
+		$headerTextBlock.TextWrapping = 'Wrap'
+		[void]($headerPanel.Children.Add($headerTextBlock))
+		$headerButton.Content = $headerPanel
+		[System.Windows.Automation.AutomationProperties]::SetName($headerButton, [string]$headerTextBlock.Text)
+		[System.Windows.Automation.AutomationProperties]::SetHelpText($headerButton, (Get-UxLocalizedString -Key 'GuiRecommendationCollapseHelp' -Fallback 'Press Enter or Space to expand or collapse the recommendation section.'))
+		[void]($container.Children.Add($headerButton))
+
+		$bodyPanel = $Body
+		$bodyPanel.Margin = [System.Windows.Thickness]::new(0, 8, 0, 0)
+		$bodyPanel.RenderTransformOrigin = [System.Windows.Point]::new(0.5, 0.0)
+		$scaleTransform = [System.Windows.Media.ScaleTransform]::new(1.0, $(if ($collapsed) { 0.96 } else { 1.0 }))
+		$bodyPanel.RenderTransform = $scaleTransform
+		$bodyPanel.Visibility = if ($collapsed) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
+		$bodyPanel.Opacity = if ($collapsed) { 0.0 } else { 1.0 }
+		[void]($container.Children.Add($bodyPanel))
+
+		$disclosureRef = [pscustomobject]@{
+			Scope = [string]$Scope
+			PrimaryTab = [string]$PrimaryTab
+			Title = [string]$Title
+			HeaderButton = $headerButton
+			HeaderTextBlock = $headerTextBlock
+			BodyPanel = $bodyPanel
+			ScaleTransform = $scaleTransform
+		}
+		$Script:RecommendationDisclosureRefsByKey[[string]$InstanceKey] = $disclosureRef
+		$getRecommendationCollapsedStateScript = ${function:Get-GuiRecommendationCollapsedState}
+		$toggleRecommendationScopeScript = ${function:Set-GuiRecommendationDisclosureScopeState}
+		$null = Register-GuiEventHandler -Source $headerButton -EventName 'Click' -Handler ({
+			$newCollapsed = -not (& $getRecommendationCollapsedStateScript -Scope $Scope)
+			& $toggleRecommendationScopeScript -Scope $Scope -Collapsed:$newCollapsed -Animate
+		}.GetNewClosure())
+
+		$outerBorder.Child = $container
+		return $outerBorder
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function New-GuiRecommendationPanelContainer
+	{
+		param (
+			[Parameter(Mandatory = $true)]
+			[string]$Title,
+			[Parameter(Mandatory = $true)]
+			[object]$Body,
+			[Parameter(Mandatory = $true)]
+			[object]$BrushConverter,
+			[double]$BorderThickness = 1.5,
+			[int]$CornerRadius = 10,
+			[System.Windows.Thickness]$Margin = $null,
+			[System.Windows.Thickness]$Padding = $null,
+			[switch]$UseShadow
+		)
+
+		if ($null -eq $Margin) { $Margin = [System.Windows.Thickness]::new(8, 14, 8, 10) }
+		if ($null -eq $Padding) { $Padding = [System.Windows.Thickness]::new(18, 14, 18, 14) }
+
+		$outerBorder = New-Object System.Windows.Controls.Border
+		$outerBorder.Background = $BrushConverter.ConvertFromString($Script:CurrentTheme.PresetPanelBg)
+		$outerBorder.BorderBrush = $BrushConverter.ConvertFromString($Script:CurrentTheme.PresetPanelBorder)
+		$outerBorder.BorderThickness = [System.Windows.Thickness]::new($BorderThickness)
+		$outerBorder.CornerRadius = [System.Windows.CornerRadius]::new($CornerRadius)
+		$outerBorder.Margin = $Margin
+		$outerBorder.Padding = $Padding
+		if ($UseShadow)
+		{
+			$shadow = New-Object System.Windows.Media.Effects.DropShadowEffect
+			$shadow.BlurRadius = 12
+			$shadow.ShadowDepth = 2
+			$shadow.Opacity = 0.25
+			$shadow.Color = [System.Windows.Media.Colors]::Black
+			if ($shadow.CanFreeze) { $shadow.Freeze() }
+			$outerBorder.Effect = $shadow
+		}
+
+		$container = New-Object System.Windows.Controls.StackPanel
+		$container.Orientation = 'Vertical'
+		$titleBlock = New-Object System.Windows.Controls.TextBlock
+		$titleBlock.Text = $Title
+		$titleBlock.FontSize = $Script:GuiLayout.FontSizeSection
+		$titleBlock.FontWeight = [System.Windows.FontWeights]::Bold
+		$titleBlock.Foreground = $BrushConverter.ConvertFromString($Script:CurrentTheme.TextPrimary)
+		$titleBlock.TextWrapping = 'Wrap'
+		[void]($container.Children.Add($titleBlock))
+
+		$Body.Margin = [System.Windows.Thickness]::new(0, 8, 0, 0)
+		[void]($container.Children.Add($Body))
+		$outerBorder.Child = $container
+		return $outerBorder
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Get-GuiRecommendationCompactStatusText
+	{
+		param (
+			[string]$Scope = 'RecommendedSelections',
+			[string]$PrimaryTab = $null
+		)
+
+		if (Test-IsSafeModeUX)
+		{
+			$safeSummary = Get-GuiRecommendationSelectedSummaryText -Scope $Scope -PrimaryTab $PrimaryTab
+			if (-not [string]::IsNullOrWhiteSpace([string]$safeSummary))
+			{
+				return (Get-UxLocalizedString -Key 'GuiSafeModeCompactBannerWithSelection' -Fallback 'Safe Mode is enabled - {0}' -FormatArgs @($safeSummary))
+			}
+			return (Get-UxLocalizedString -Key 'GuiSafeModeCompactBanner' -Fallback 'Safe Mode is enabled. Advanced presets are hidden.')
+		}
+
+		$summary = Get-GuiRecommendationSelectedSummaryText -Scope $Scope -PrimaryTab $PrimaryTab
+		if (-not [string]::IsNullOrWhiteSpace([string]$summary))
+		{
+			return (Get-UxLocalizedString -Key 'GuiRecommendationsCompactActive' -Fallback 'Recommendations active - {0}' -FormatArgs @($summary))
+		}
+
+		return (Get-UxLocalizedString -Key 'GuiRecommendationsCompactInitialSetup' -Fallback 'Presets and recommendations are on Initial Setup.')
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Set-GuiRecommendationCompactStripState
+	{
+		param ([object]$StripRef)
+
+		if (-not $StripRef -or -not $StripRef.StatusTextBlock) { return }
+		$stripScope = [string]$StripRef.Scope
+		$primaryTab = [string]$StripRef.PrimaryTab
+		$isSafeMode = Test-IsSafeModeUX
+		$hasSelection = Test-GuiRecommendationHasSelection -Scope $stripScope
+
+		$StripRef.StatusTextBlock.Text = Get-GuiRecommendationCompactStatusText -Scope $stripScope -PrimaryTab $primaryTab
+		$StripRef.StatusTextBlock.FontWeight = if ($isSafeMode -or $hasSelection) { [System.Windows.FontWeights]::SemiBold } else { [System.Windows.FontWeights]::Normal }
+
+		if ($StripRef.Border -and $StripRef.BrushConverter)
+		{
+			$hasStateAccent = ($Script:CurrentTheme -is [System.Collections.IDictionary]) -and $Script:CurrentTheme.Contains('StateAccent')
+			$borderColor = if ($isSafeMode -and $hasStateAccent) { [string]$Script:CurrentTheme['StateAccent'] } elseif ($hasSelection) { [string]$Script:CurrentTheme.ActiveTabBorder } else { [string]$Script:CurrentTheme.CardBorder }
+			if ([string]::IsNullOrWhiteSpace([string]$borderColor)) { $borderColor = '#D8E0EC' }
+			$StripRef.Border.BorderBrush = $StripRef.BrushConverter.ConvertFromString($borderColor)
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Update-GuiRecommendationCompactStrips
+	{
+		Initialize-GuiRecommendationDisclosureState
+		foreach ($stripRef in @($Script:RecommendationCompactStripRefsByKey.Values))
+		{
+			Set-GuiRecommendationCompactStripState -StripRef $stripRef
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Invoke-GuiInitialSetupTabNavigation
+	{
+		$targetTabTag = 'Initial Setup'
+		$targetTab = $null
+		if ($Script:GetPrimaryTabItemScript)
+		{
+			$targetTab = & $Script:GetPrimaryTabItemScript -Tag $targetTabTag
+		}
+		elseif ($PrimaryTabs)
+		{
+			foreach ($tab in $PrimaryTabs.Items)
+			{
+				if (($tab -is [System.Windows.Controls.TabItem]) -and [string]$tab.Tag -eq $targetTabTag)
+				{
+					$targetTab = $tab
+					break
+				}
+			}
+		}
+
+		if ($PrimaryTabs -and $targetTab)
+		{
+			if ($PrimaryTabs.SelectedItem -ne $targetTab)
+			{
+				$Script:SkipIdlePrebuildOnNextPrimaryTabSelection = $true
+				$PrimaryTabs.SelectedItem = $targetTab
+			}
+			elseif ($Script:UpdateCurrentTabContentScript)
+			{
+				& $Script:UpdateCurrentTabContentScript -SkipIdlePrebuild
+			}
+			return
+		}
+
+		$Script:CurrentPrimaryTab = $targetTabTag
+		if ($Script:UpdateCurrentTabContentScript)
+		{
+			& $Script:UpdateCurrentTabContentScript -SkipIdlePrebuild
+		}
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function New-GuiRecommendationCompactStrip
+	{
+		param (
+			[Parameter(Mandatory = $true)]
+			[object]$BuildContext,
+			[string]$Scope = 'RecommendedSelections',
+			[string]$InstanceKey = $null,
+			[switch]$ShowChangeButton
+		)
+
+		Initialize-GuiRecommendationDisclosureState
+		if ([string]::IsNullOrWhiteSpace([string]$InstanceKey))
+		{
+			$InstanceKey = ('{0}:{1}' -f [string]$Scope, [string]$BuildContext.PrimaryTab)
+		}
+
+		$strip = New-Object System.Windows.Controls.Border
+		$strip.Background = $BuildContext.BrushConverter.ConvertFromString($Script:CurrentTheme.CardBg)
+		$strip.BorderThickness = [System.Windows.Thickness]::new(1)
+		$strip.CornerRadius = [System.Windows.CornerRadius]::new($Script:GuiLayout.CardCornerRadius)
+		$strip.Margin = [System.Windows.Thickness]::new(8, 6, 8, 6)
+		$strip.Padding = [System.Windows.Thickness]::new(10, 7, 10, 7)
+
+		$dockPanel = New-Object System.Windows.Controls.DockPanel
+		$dockPanel.LastChildFill = $true
+		if ($ShowChangeButton)
+		{
+			$changeButton = New-PresetButton -Label (Get-UxLocalizedString -Key 'GuiRecommendationsChange' -Fallback 'Change') -Variant 'Subtle' -Compact -Muted
+			$changeButton.Margin = [System.Windows.Thickness]::new(10, 0, 0, 0)
+			$changeButton.ToolTip = Get-UxLocalizedString -Key 'GuiRecommendationsChangeTooltip' -Fallback 'Open Initial Setup to change presets and recommendations.'
+			[System.Windows.Automation.AutomationProperties]::SetName($changeButton, (Get-UxLocalizedString -Key 'GuiRecommendationsChangeAutomation' -Fallback 'Change recommendations'))
+			[System.Windows.Controls.DockPanel]::SetDock($changeButton, [System.Windows.Controls.Dock]::Right)
+			$navigateToInitialSetupScript = ${function:Invoke-GuiInitialSetupTabNavigation}
+			$null = Register-GuiEventHandler -Source $changeButton -EventName 'Click' -Handler ({
+				& $navigateToInitialSetupScript
+			}.GetNewClosure())
+			[void]($dockPanel.Children.Add($changeButton))
+		}
+
+		$statusText = New-Object System.Windows.Controls.TextBlock
+		$statusText.FontSize = $Script:GuiLayout.FontSizeSmall
+		$statusText.Foreground = $BuildContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextSecondary)
+		$statusText.TextWrapping = 'Wrap'
+		$statusText.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+		[void]($dockPanel.Children.Add($statusText))
+		$strip.Child = $dockPanel
+
+		$stripRef = [pscustomobject]@{
+			Scope = [string]$Scope
+			PrimaryTab = [string]$BuildContext.PrimaryTab
+			Border = $strip
+			StatusTextBlock = $statusText
+			BrushConverter = $BuildContext.BrushConverter
+		}
+		$Script:RecommendationCompactStripRefsByKey[[string]$InstanceKey] = $stripRef
+		Set-GuiRecommendationCompactStripState -StripRef $stripRef
+		return $strip
+	}
+
 	function Sync-ActivePresetButtonChrome
 	{
 		$activePresetName = [string](Get-GuiActivePreset)
@@ -270,6 +968,9 @@
 				Set-ButtonChrome -Button $scenarioRef.Button -Variant 'Selection'
 			}
 		}
+
+		Update-GuiRecommendationDisclosureHeaders
+		Update-GuiRecommendationCompactStrips
 	}
 
 	<#
@@ -477,37 +1178,14 @@
 	{
 		param ([object]$BuildContext)
 
-		$presetPanel = New-Object System.Windows.Controls.Border
-		$presetPanel.Background = $BuildContext.BrushConverter.ConvertFromString($Script:CurrentTheme.PresetPanelBg)
-		$presetPanel.BorderBrush = $BuildContext.BrushConverter.ConvertFromString($Script:CurrentTheme.PresetPanelBorder)
-		$presetPanel.BorderThickness = [System.Windows.Thickness]::new(1.5)
-		$presetPanel.CornerRadius = [System.Windows.CornerRadius]::new($Script:GuiLayout.BorderRadiusLarge)
-		$presetPanel.Margin = [System.Windows.Thickness]::new(8, 14, 8, 10)
-		$presetPanel.Padding = [System.Windows.Thickness]::new(18, 16, 18, 14)
-		# Subtle drop shadow for elevation
-		$presetPanelShadow = New-Object System.Windows.Media.Effects.DropShadowEffect
-		$presetPanelShadow.BlurRadius = 12
-		$presetPanelShadow.ShadowDepth = 2
-		$presetPanelShadow.Opacity = 0.25
-		$presetPanelShadow.Color = [System.Windows.Media.Colors]::Black
-		if ($presetPanelShadow.CanFreeze) { $presetPanelShadow.Freeze() }
-		$presetPanel.Effect = $presetPanelShadow
-
 		$presetPanelStack = New-Object System.Windows.Controls.StackPanel
 		$presetPanelStack.Orientation = 'Vertical'
-
-		$presetHeader = New-Object System.Windows.Controls.TextBlock
-		$presetHeader.Text = Get-UxLocalizedString -Key 'GuiPresetPanelHeading' -Fallback 'Recommended Selections'
-		$presetHeader.FontSize = $Script:GuiLayout.FontSizeSection
-		$presetHeader.FontWeight = [System.Windows.FontWeights]::Bold
-		$presetHeader.Foreground = $BuildContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextPrimary)
-		[void]($presetPanelStack.Children.Add($presetHeader))
 
 		$presetSubheading = New-Object System.Windows.Controls.TextBlock
 		$presetSubheading.Text = Get-UxPresetEmphasisText
 		$presetSubheading.FontSize = $Script:GuiLayout.FontSizeLabel
 		$presetSubheading.TextWrapping = 'Wrap'
-		$presetSubheading.Margin = [System.Windows.Thickness]::new(0, 4, 0, 0)
+		$presetSubheading.Margin = [System.Windows.Thickness]::new(0, 0, 0, 0)
 		$presetSubheading.Foreground = $BuildContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextSecondary)
 		[void]($presetPanelStack.Children.Add($presetSubheading))
 		[void]($presetPanelStack.Children.Add((New-TabPresetButtonsPanel -BuildContext $BuildContext)))
@@ -568,8 +1246,15 @@
 		$reassuranceNote.Opacity = 0.7
 		[void]($presetPanelStack.Children.Add($reassuranceNote))
 
-		$presetPanel.Child = $presetPanelStack
-		return $presetPanel
+		return (New-GuiRecommendationPanelContainer `
+			-Title (Get-UxLocalizedString -Key 'GuiPresetPanelHeading' -Fallback 'Recommended Selections') `
+			-Body $presetPanelStack `
+			-BrushConverter $BuildContext.BrushConverter `
+			-BorderThickness 1.5 `
+			-CornerRadius $Script:GuiLayout.BorderRadiusLarge `
+			-Margin ([System.Windows.Thickness]::new(8, 14, 8, 10)) `
+			-Padding ([System.Windows.Thickness]::new(18, 14, 18, 14)) `
+			-UseShadow)
 	}
 
 	<#
@@ -616,70 +1301,7 @@
 
 		if ($BuildContext.PrimaryTab -eq 'Gaming')
 		{
-			try
-			{
-				$gameModeBar = New-Object System.Windows.Controls.Border
-				$gameModeBar.Background = $BuildContext.BrushConverter.ConvertFromString($Script:CurrentTheme.HeaderBg)
-				$gameModeBar.BorderBrush = $BuildContext.BrushConverter.ConvertFromString($Script:CurrentTheme.AccentBlue)
-				$gameModeBar.BorderThickness = [System.Windows.Thickness]::new(1.5)
-				$gameModeBar.CornerRadius = [System.Windows.CornerRadius]::new($Script:GuiLayout.CardCornerRadius)
-				$gameModeBar.Margin = [System.Windows.Thickness]::new(8, 8, 8, 6)
-				$gameModeBar.Padding = [System.Windows.Thickness]::new(16, 10, 16, 10)
-				$gameModeShadow = New-Object System.Windows.Media.Effects.DropShadowEffect
-				$gameModeShadow.BlurRadius = 8
-				$gameModeShadow.ShadowDepth = 1
-				$gameModeShadow.Opacity = 0.2
-				$gameModeShadow.Color = [System.Windows.Media.Colors]::Black
-				if ($gameModeShadow.CanFreeze) { $gameModeShadow.Freeze() }
-				$gameModeBar.Effect = $gameModeShadow
-
-				$gameModeBarGrid = New-Object System.Windows.Controls.Grid
-				$col0 = New-Object System.Windows.Controls.ColumnDefinition
-				$col0.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
-				$col1 = New-Object System.Windows.Controls.ColumnDefinition
-				$col1.Width = [System.Windows.GridLength]::Auto
-				[void]$gameModeBarGrid.ColumnDefinitions.Add($col0)
-				[void]$gameModeBarGrid.ColumnDefinitions.Add($col1)
-
-				$gameModeLabel = New-Object System.Windows.Controls.TextBlock
-				$gameModeLabel.Text = Get-UxString -Key 'GuiGameModeHeader' -Fallback 'GAME MODE'
-				$gameModeLabel.FontSize = $Script:GuiLayout.FontSizeSubheading
-				$gameModeLabel.FontWeight = [System.Windows.FontWeights]::Bold
-				$gameModeLabel.Foreground = $BuildContext.BrushConverter.ConvertFromString($Script:CurrentTheme.AccentBlue)
-				$gameModeLabel.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-				[System.Windows.Controls.Grid]::SetColumn($gameModeLabel, 0)
-				[void]$gameModeBarGrid.Children.Add($gameModeLabel)
-
-				$gameModeToggle = New-Object System.Windows.Controls.CheckBox
-				$gameModeToggle.Content = if ([bool]$Script:GameMode) { Get-UxString -Key 'GuiGameModeOn' -Fallback 'On' } else { Get-UxString -Key 'GuiGameModeOff' -Fallback 'Off' }
-				$gameModeToggle.IsChecked = [bool]$Script:GameMode
-				$gameModeToggle.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-				Set-HeaderToggleStyle -CheckBox $gameModeToggle -Palette Mode
-				[System.Windows.Controls.Grid]::SetColumn($gameModeToggle, 1)
-				[void]$gameModeBarGrid.Children.Add($gameModeToggle)
-
-				$setGameModeCapture = $Script:SetGameModeStateScript
-				$testGuiRunInProgressCapture = $Script:TestGuiRunInProgressScript
-				$gameModeToggle.Add_Checked({
-					if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
-					& $setGameModeCapture -Enabled $true
-				}.GetNewClosure())
-				$gameModeToggle.Add_Unchecked({
-					if ($Script:FilterUiUpdating -or (& $testGuiRunInProgressCapture)) { return }
-					& $setGameModeCapture -Enabled $false
-				}.GetNewClosure())
-
-				$gameModeBar.Child = $gameModeBarGrid
-				[void]($BuildContext.MainPanel.Children.Add($gameModeBar))
-			}
-			catch
-			{
-				Write-GuiRuntimeWarning -Context 'Build-TabContent/GameModeToggle' -Message ("Game Mode toggle bar failed for Gaming tab: {0}" -f $_.Exception.Message)
-			}
-
 			# "Reset Gaming Tweaks" button - restores Gaming-tab entries to recorded defaults
-			# Placed before the Game Mode landing panel so it stays visible regardless
-			# of whether Game Mode is on or off.
 			try
 			{
 				$resetGamingButton = New-PresetButton -Label (Get-UxLocalizedString -Key 'GuiResetGamingTweaks' -Fallback 'Reset Gaming Tweaks') -Variant 'DangerSubtle' -Compact
@@ -723,17 +1345,14 @@
 				Write-GuiRuntimeWarning -Context 'Build-TabContent/ResetGamingButton' -Message ("Reset Gaming button failed: {0}" -f $_.Exception.Message)
 			}
 
-			if ([bool]$Script:GameMode)
+			try
 			{
-				try
-				{
-					[void]($BuildContext.MainPanel.Children.Add((New-GameModeLandingPanel)))
-					return
-				}
-				catch
-				{
-					throw "Build-TabContent/GameModeLandingPanel for tab '$($BuildContext.PrimaryTab)' failed: $($_.Exception.Message)"
-				}
+				[void]($BuildContext.MainPanel.Children.Add((New-GameModeLandingPanel)))
+				return
+			}
+			catch
+			{
+				throw "Build-TabContent/GameModeLandingPanel for tab '$($BuildContext.PrimaryTab)' failed: $($_.Exception.Message)"
 			}
 		}
 
@@ -762,11 +1381,18 @@
 
 		try
 		{
-			[void]($BuildContext.MainPanel.Children.Add((New-TabPresetPanel -BuildContext $BuildContext)))
+			if ($BuildContext.PrimaryTab -eq 'Initial Setup')
+			{
+				[void]($BuildContext.MainPanel.Children.Add((New-TabPresetPanel -BuildContext $BuildContext)))
+			}
+			elseif ($BuildContext.PrimaryTab -ne 'Gaming' -and $BuildContext.PrimaryTab -ne 'Updates')
+			{
+				[void]($BuildContext.MainPanel.Children.Add((New-GuiRecommendationCompactStrip -BuildContext $BuildContext -ShowChangeButton)))
+			}
 		}
 		catch
 		{
-			throw "Build-TabContent/PresetPanel for tab '$($BuildContext.PrimaryTab)' failed: $($_.Exception.Message)"
+			throw "Build-TabContent/RecommendationContext for tab '$($BuildContext.PrimaryTab)' failed: $($_.Exception.Message)"
 		}
 	}
 

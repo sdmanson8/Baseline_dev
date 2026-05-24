@@ -79,7 +79,7 @@ $tweakRowFactorySplitRoot = Join-Path $PSScriptRoot 'TweakRowFactory'
 	{
 		param ([int]$Index, [object]$Tweak, [object]$BrushConverter = $null)
 
-		$__perf = Start-GuiPerfScope -Name 'BuildTweakRow' -Note ("{0}:{1}:{2}" -f $Index, [string]$Tweak.Type, [string]$Tweak.Function)
+		$__perf = Start-GuiPerfScope -Name 'BuildTweakRow' -Note ("{0}:{1}:{2}" -f $Index, [string]$Tweak.Type, [string]$Tweak.Function) -Detailed
 		try
 		{
 			if (-not (Test-TweakRowVisible -Tweak $Tweak))
@@ -99,6 +99,7 @@ $tweakRowFactorySplitRoot = Join-Path $PSScriptRoot 'TweakRowFactory'
 					RemoveExplicitSelectionDefinition = ${function:Remove-GuiExplicitSelectionDefinition}
 					TestSelectionBulkUpdateInProgress = ${function:Test-GuiSelectionBulkUpdateInProgress}
 					SyncGameModePlanFromControlsScript = ${function:Sync-GameModePlanFromGamingControls}
+					UpdateRunActionAvailabilityScript = ${function:Update-GuiScopedRunActionAvailability}
 					RowCardMargin                     = $densityTokens.RowCardMargin
 					RowCardPadding                    = $densityTokens.RowCardPadding
 					BadgeSpacing                      = $densityTokens.BadgeSpacing
@@ -124,6 +125,7 @@ $tweakRowFactorySplitRoot = Join-Path $PSScriptRoot 'TweakRowFactory'
 				RemoveExplicitSelectionDefinition = $shared.RemoveExplicitSelectionDefinition
 				TestSelectionBulkUpdateInProgress = $shared.TestSelectionBulkUpdateInProgress
 				SyncGameModePlanFromControlsScript = $shared.SyncGameModePlanFromControlsScript
+				UpdateRunActionAvailabilityScript = $shared.UpdateRunActionAvailabilityScript
 				Metadata                          = Get-TweakVisualMetadata -Tweak $Tweak -StateSource $Script:Controls[$Index]
 				UseCompactRecoveryLevelLabel      = ([string]$Tweak.Category -eq 'Initial Setup')
 				RowCardMargin                     = $shared.RowCardMargin

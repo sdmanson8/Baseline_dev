@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Version bumped from 3.1.0-beta to 4.0.0-beta across module manifest, entry scripts, and asset scripts.
 - Unified process exit codes across headless and GUI paths via `Get-BaselineHeadlessExitCode`.
 - Restructured the main GUI navigation into a top menu bar with `File`, `Actions`, `View`, `Tools`, and `Help` sections.
+- Main navigation now separates Optimize, Gaming, Windows Updates, Windows Setup Builder, and Software & Apps into distinct workflow modes.
+- Presets and recommendation onboarding are centered on Initial Setup. Standard Optimize tabs use a compact pointer, while Gaming and Windows Updates stay focused on their own tweak surfaces.
+- Gaming and Windows Updates reuse the same shared filter chrome as Optimize and restore the previous expanded/collapsed filter state.
+- Deployment Media Builder status/progress routing now keeps active step text in the progress panel/dialog and final/error text in a single banner instead of repeating the same message across multiple surfaces.
 - Refined localization QA and polished visible copy in Gaelic, Amharic, Icelandic, Gujarati, and Swedish.
 - Popup pickers for UWP Apps, Windows Features, and Scheduled Tasks now show realtime progress.
 - Shared popup chrome now repaints live when Light or Dark mode is toggled.
@@ -28,7 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   - Added separate WinGet and Chocolatey caches.
   - Reworked install, uninstall, update, and batch actions.
   - Preserved the card-based Apps UI.
-- Apps & Software no longer shows a passive progress strip; the Apps progress bar is reserved for install, uninstall, and update execution. Tweak runs continue to use the shared execution progress bar.
+- Software & Apps no longer shows a passive progress strip; the Apps progress bar is reserved for install, uninstall, and update execution. Tweak runs continue to use the shared execution progress bar.
 
 ---
 
@@ -78,11 +82,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Added 79 new languages.
 - Completed Apps view localization and chrome coverage.
 - Settings -> General -> Updates controls for Baseline auto-check behavior, check frequency, pre-release inclusion, last checked, current version, status, and Check Now.
+- Windows Setup Builder / Deployment Media Builder top-level GUI mode for detecting ISO editions, previewing build plans, creating ISO/USB/folder output, tracking build progress, and saving JSON reports.
+- Gaming profile workflow with Casual, Competitive, Streaming / Content, and Troubleshooting profile plans backed by `Module/Data/GameMode`.
 
 ---
 
 ## Fixed
 
+- Gaming, Windows Updates, and Optimize mode transitions no longer leak Gaming profile UI or recommendation panels into unrelated modes; filters are visible where expected and preserve collapse state.
+- Deployment Media Builder background workers now compile worker source inside the worker runspace and import core PowerShell modules so ISO detection and build stages retain commands such as `Join-Path`.
+- Deployment Media Builder async callbacks now capture required helper commands before dispatcher and worker callbacks run, preventing missing helper failures during telemetry, cancellation, and progress updates.
+- Deployment Media Builder completion and failure messages no longer duplicate the same status across header, banner, and progress surfaces.
 - Remote-target helper module import no longer fails under `Set-StrictMode`.
 - GUI footer and style refresh now keep the Export First-Logon Command button synchronized.
 - GUI theme preference now round-trips Light, Dark, and System through Settings and session restore, and Safe/Expert header toggles keep `DefaultStartupMode` in sync with the active mode.

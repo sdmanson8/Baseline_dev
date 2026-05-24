@@ -736,10 +736,13 @@
 			{
 				if ([bool]$Script:GameMode)
 				{
-					$gamingTab = Get-PrimaryTabItem -Tag 'Gaming'
-					if ($gamingTab -and $PrimaryTabs)
+					if ($Script:NavModeGaming)
 					{
-						$PrimaryTabs.SelectedItem = $gamingTab
+						$Script:NavModeGaming.IsChecked = $true
+					}
+					elseif (Get-Command -Name 'Set-GuiGamingMode' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						Set-GuiGamingMode -Enable:$true
 					}
 					& $setGuiStatusTextCommand -Text (& $getUxLocalizedStringCapture -Key 'GuiActionGameModeActive' -Fallback ('Game Mode active. Review the gaming plan, then use Preview Run before {0}.' -f (& $getUxRunActionLabelCommand))) -Tone 'accent'
 				}

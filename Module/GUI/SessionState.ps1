@@ -937,6 +937,28 @@ function Import-GuiRemoteTargetApprovalPolicy
 		Set-GuiActionButtonsEnabled -Enabled (-not (& $Script:TestGuiRunInProgressScript))
 	}
 
+	function Copy-GuiRecommendationPanelCollapseState
+	{
+		param ([object]$State)
+
+		$copy = @{}
+		if ($null -eq $State) { return $copy }
+
+		$normalizedState = Convert-JsonManifestValue $State
+		if ($normalizedState -is [System.Collections.IDictionary])
+		{
+			foreach ($collapseEntry in $normalizedState.GetEnumerator())
+			{
+				if (-not [string]::IsNullOrWhiteSpace([string]$collapseEntry.Key))
+				{
+					$copy[[string]$collapseEntry.Key] = [bool]$collapseEntry.Value
+				}
+			}
+		}
+
+		return $copy
+	}
+
 	function Get-GuiSettingsSnapshot
 	{
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
@@ -997,9 +1019,10 @@ function Import-GuiRemoteTargetApprovalPolicy
 		}
 		if ($currentDefaultStartupMode -notin @('Safe', 'Expert')) { $currentDefaultStartupMode = 'Safe' }
 		$currentAppsModeActive = if (Get-Variable -Name 'AppsModeActive' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:AppsModeActive } else { $false }
+		$currentGamingModeActive = if (Get-Variable -Name 'GamingModeActive' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:GamingModeActive } else { $false }
 		$currentUpdatesModeActive = if (Get-Variable -Name 'UpdatesModeActive' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:UpdatesModeActive } else { $false }
 		$currentDeploymentMediaModeActive = if (Get-Variable -Name 'DeploymentMediaModeActive' -Scope Script -ErrorAction SilentlyContinue) { [bool]$Script:DeploymentMediaModeActive } else { $false }
-		$currentNavigationMode = if ($currentUpdatesModeActive) { 'Updates' } elseif ($currentDeploymentMediaModeActive) { 'DeploymentMedia' } elseif ($currentAppsModeActive) { 'Apps' } else { 'Optimize' }
+		$currentNavigationMode = if ($currentGamingModeActive) { 'Gaming' } elseif ($currentUpdatesModeActive) { 'Updates' } elseif ($currentDeploymentMediaModeActive) { 'DeploymentMedia' } elseif ($currentAppsModeActive) { 'Apps' } else { 'Optimize' }
 		$currentActivePresetName = if ((Get-Variable -Name 'ActivePresetName' -Scope Script -ErrorAction SilentlyContinue) -and -not [string]::IsNullOrWhiteSpace([string]$Script:ActivePresetName)) { [string]$Script:ActivePresetName } else { $null }
 		$currentActiveScenarioNames = @(
 			if ((Get-Variable -Name 'ActiveScenarioNames' -Scope Script -ErrorAction SilentlyContinue) -and $Script:ActiveScenarioNames -is [System.Collections.IDictionary])
@@ -1010,6 +1033,9 @@ function Import-GuiRemoteTargetApprovalPolicy
 					ForEach-Object { [string]$_.Key }
 			}
 		)
+		$currentRecommendationPanelCollapseState = if ((Get-Variable -Name 'RecommendedSelectionsCollapsedByScope' -Scope Script -ErrorAction SilentlyContinue)) { Copy-GuiRecommendationPanelCollapseState -State $Script:RecommendedSelectionsCollapsedByScope } else { @{} }
+		$currentFilterPanelExpanded = if ((Get-Variable -Name 'FilterOptionsPanel' -Scope Script -ErrorAction SilentlyContinue) -and $Script:FilterOptionsPanel) { [string]$Script:FilterOptionsPanel.Visibility -eq 'Visible' } else { $false }
+		$currentAppsFilterPanelExpanded = if ((Get-Variable -Name 'AppsFilterOptionsPanel' -Scope Script -ErrorAction SilentlyContinue) -and $Script:AppsFilterOptionsPanel) { [string]$Script:AppsFilterOptionsPanel.Visibility -eq 'Visible' } else { $false }
 
 		$explicitDefinitionsByFunction = @{}
 		$snapshotExplicitDefinitions = [System.Collections.Generic.List[object]]::new()
@@ -1044,7 +1070,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 		$snapshot = [ordered]@{
 			Schema = 'Baseline.GuiSettings'
-			SchemaVersion = 19
+			SchemaVersion = 20
 			SavedAt = (Get-Date).ToString('o')
 			Theme = $themeName
 			Language = if ($Script:SelectedLanguage) { [string]$Script:SelectedLanguage } else { 'en' }
@@ -1057,6 +1083,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 			NavigationMode = $currentNavigationMode
 			ActivePresetName = $currentActivePresetName
 			ActiveScenarioNames = @($currentActiveScenarioNames)
+			RecommendationPanelCollapseState = Convert-JsonManifestValue $currentRecommendationPanelCollapseState
 			PinnedBaselineVersion = if ($Script:PinnedBaselineVersion) { [string]$Script:PinnedBaselineVersion } else { $null }
 			AppsQueuedActions = @(
 				if ($Script:AppsQueuedActions -is [System.Collections.Generic.Dictionary[string, string]])
@@ -1098,6 +1125,8 @@ function Import-GuiRemoteTargetApprovalPolicy
 			RiskFilter = if ($Script:RiskFilter) { [string]$Script:RiskFilter } else { 'All' }
 			CategoryFilter = if ($Script:CategoryFilter) { [string]$Script:CategoryFilter } else { 'All' }
 			PlatformFilter = if ($Script:PlatformFilter) { [string]$Script:PlatformFilter } else { 'ThisDevice' }
+			FilterPanelExpanded = [bool]$currentFilterPanelExpanded
+			AppsFilterPanelExpanded = [bool]$currentAppsFilterPanelExpanded
 			AppsCategoryFilter = if ($Script:AppsCategoryFilter) { [string]$Script:AppsCategoryFilter } else { 'Browsers' }
 			AppsStatusFilter = if ($Script:AppsStatusFilter) { [string]$Script:AppsStatusFilter } else { 'All' }
 			SelectedOnlyFilter = [bool]$Script:SelectedOnlyFilter
@@ -1318,7 +1347,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$allowedAppsSourceFilter = @('All', 'winget', 'choco')
 		if ($allowedAppsSourceFilter -notcontains $desiredAppsSourceFilter) { $desiredAppsSourceFilter = 'All' }
 		$desiredNavigationMode = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'NavigationMode') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.NavigationMode)) { [string]$Snapshot.NavigationMode } else { 'Optimize' }
-		$allowedNavigationModes = @('Optimize', 'Apps', 'Updates', 'DeploymentMedia')
+		$allowedNavigationModes = @('Optimize', 'Gaming', 'Apps', 'Updates', 'DeploymentMedia')
 		if ($allowedNavigationModes -notcontains $desiredNavigationMode) { $desiredNavigationMode = 'Optimize' }
 		$desiredActivePresetName = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'ActivePresetName') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.ActivePresetName)) { [string]$Snapshot.ActivePresetName } else { $null }
 		$desiredActiveScenarioNames = @(
@@ -1330,6 +1359,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 					Select-Object -Unique
 			}
 		)
+		$desiredRecommendationPanelCollapseState = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RecommendationPanelCollapseState')) { Copy-GuiRecommendationPanelCollapseState -State $Snapshot.RecommendationPanelCollapseState } else { @{} }
 		$desiredAppsQueuedActions = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsQueuedActions') -and $null -ne $Snapshot.AppsQueuedActions) { @($Snapshot.AppsQueuedActions) } else { @() }
 		$desiredPinnedBaselineVersion = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'PinnedBaselineVersion') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.PinnedBaselineVersion)) { [string]$Snapshot.PinnedBaselineVersion } else { $null }
 		$desiredAutoScanOnLaunch = if (Get-Command -Name 'Get-BaselineUserPreference' -CommandType Function -ErrorAction SilentlyContinue)
@@ -1390,6 +1420,10 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$desiredRequireRunConfirmation = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'RequireRunConfirmation')) { [bool]$Snapshot.RequireRunConfirmation } else { $true }
 		$desiredPreviewBeforeRunDefault = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'PreviewBeforeRunDefault')) { [bool]$Snapshot.PreviewBeforeRunDefault } else { $false }
 		$desiredGameMode = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'GameMode')) { [bool]$Snapshot.GameMode } else { $false }
+		if ($desiredGameMode -and $desiredNavigationMode -eq 'Optimize')
+		{
+			$desiredNavigationMode = 'Gaming'
+		}
 		$desiredGameModeProfile = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'GameModeProfile')) { [string]$Snapshot.GameModeProfile } else { $null }
 		$desiredGameModeCorePlan = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'GameModeCorePlan')) { @($Snapshot.GameModeCorePlan) } else { @() }
 		$desiredGameModePlan = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'GameModePlan')) { @($Snapshot.GameModePlan) } else { @() }
@@ -1414,6 +1448,8 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$desiredAppsStatus = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsStatusFilter') -and -not [string]::IsNullOrWhiteSpace([string]$Snapshot.AppsStatusFilter)) { [string]$Snapshot.AppsStatusFilter } else { 'All' }
 		$allowedAppsStatus = @('All', 'Installed', 'NotInstalled', 'UpdateAvailable')
 		if ($allowedAppsStatus -notcontains $desiredAppsStatus) { $desiredAppsStatus = 'All' }
+		$desiredFilterPanelExpanded = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'FilterPanelExpanded')) { [bool]$Snapshot.FilterPanelExpanded } else { $false }
+		$desiredAppsFilterPanelExpanded = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsFilterPanelExpanded')) { [bool]$Snapshot.AppsFilterPanelExpanded } else { $false }
 		$desiredSelectedOnly = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'SelectedOnlyFilter')) { [bool]$Snapshot.SelectedOnlyFilter } else { $false }
 		$desiredHideUnavailableItems = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'HideUnavailableItems')) { [bool]$Snapshot.HideUnavailableItems } else { [bool]$Script:HideUnavailableItems }
 		$desiredAppsAutoUpdate = if ((Test-GuiObjectField -Object $Snapshot -FieldName 'AppsAutoUpdate')) { [bool]$Snapshot.AppsAutoUpdate } else { $false }
@@ -1535,6 +1571,7 @@ function Import-GuiRemoteTargetApprovalPolicy
 				$Script:ActiveScenarioNames[[string]$scenarioName] = $true
 			}
 		}
+		$Script:RecommendedSelectionsCollapsedByScope = Copy-GuiRecommendationPanelCollapseState -State $desiredRecommendationPanelCollapseState
 		$Script:SearchText = $desiredSearch
 		$Script:AppsSearchText = $desiredAppsSearch
 		$Script:AuditRetentionDays = [int]$desiredAuditRetentionDays
@@ -1590,6 +1627,12 @@ function Import-GuiRemoteTargetApprovalPolicy
 		$Script:FilterUiUpdating = $true
 		# P5 rollback checkpoint: Restore-GuiSettingsSnapshot filter/search split to SessionState/Restore-GuiSettingsSnapshot/RestoreFilterAndSearchState.ps1.
 		. (Join-Path $PSScriptRoot 'SessionState\Restore-GuiSettingsSnapshot\RestoreFilterAndSearchState.ps1')
+		$setGuiFilterPanelExpandedStateScript = Get-GuiFunctionCapture -Name 'Set-GuiFilterPanelExpandedState'
+		if ($setGuiFilterPanelExpandedStateScript)
+		{
+			& $setGuiFilterPanelExpandedStateScript -Scope 'Optimize' -Expanded ([bool]($desiredFilterPanelExpanded -and -not $desiredSafe))
+			& $setGuiFilterPanelExpandedStateScript -Scope 'Apps' -Expanded ([bool]$desiredAppsFilterPanelExpanded)
+		}
 
 		Update-CategoryFilterList -PrimaryTab $(if ($desiredSearch) { $Script:SearchResultsTabTag } else { $desiredTab })
 		Update-SearchResultsTabState
@@ -1608,6 +1651,14 @@ function Import-GuiRemoteTargetApprovalPolicy
 
 		# P5 rollback checkpoint: Restore-GuiSettingsSnapshot navigation split to SessionState/Restore-GuiSettingsSnapshot/RestoreNavigationMode.ps1.
 		. (Join-Path $PSScriptRoot 'SessionState\Restore-GuiSettingsSnapshot\RestoreNavigationMode.ps1')
+		if ($setGuiFilterPanelExpandedStateScript)
+		{
+			if ($desiredNavigationMode -ne 'Apps' -and $desiredNavigationMode -ne 'DeploymentMedia')
+			{
+				& $setGuiFilterPanelExpandedStateScript -Scope 'Optimize' -Expanded ([bool]($desiredFilterPanelExpanded -and -not $desiredSafe))
+			}
+			& $setGuiFilterPanelExpandedStateScript -Scope 'Apps' -Expanded ([bool]$desiredAppsFilterPanelExpanded)
+		}
 
 		if (Get-Command -Name 'Set-DesignModeState' -CommandType Function -ErrorAction SilentlyContinue)
 		{

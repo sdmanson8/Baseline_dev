@@ -31,6 +31,6 @@ Describe 'Apps progress strip' {
 
 Describe 'Apps mode navigation restore' {
     It 'hydrates the selected Optimize tab when leaving Apps mode' {
-        $script:ProgressNavChromeContent | Should -Match '(?s)elseif \(-not \[bool\]\$Script:UpdatesModeActive -and -not \[bool\]\$Script:DeploymentMediaModeActive\)\s*\{\s*if \(Get-Command -Name ''Update-CurrentTabContent'' -CommandType Function -ErrorAction SilentlyContinue\)\s*\{\s*Update-CurrentTabContent -SkipIdlePrebuild'
+        $script:ProgressNavChromeContent | Should -Match '(?s)elseif \(-not \[bool\]\$Script:GamingModeActive -and -not \[bool\]\$Script:UpdatesModeActive -and -not \[bool\]\$Script:DeploymentMediaModeActive\)\s*\{\s*if \(Get-Command -Name ''Update-CurrentTabContent'' -CommandType Function -ErrorAction SilentlyContinue\)\s*\{\s*Update-CurrentTabContent -SkipIdlePrebuild'
     }
 }

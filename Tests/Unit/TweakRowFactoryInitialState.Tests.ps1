@@ -32,7 +32,7 @@ BeforeAll {
         $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
         foreach ($fn in $functions) {
             $script:FunctionTextByName[$fn.Name] = $fn.Extent.Text
-            if ($fn.Name -in @('Get-GameModePlanEntryForTweak', 'Get-ToggleInitialCheckedState', 'Get-ActionInitialCheckedState', 'Get-ChoiceInitialSelectedIndex', 'ConvertTo-GuiDateTimeValue', 'Get-DateInitialRunState', 'Get-DateInitialSelectedDate')) {
+            if ($fn.Name -in @('Get-TweakRowFactoryRuntimeCommand', 'Test-TweakRowFactoryTweakAvailable', 'Get-GameModePlanEntryForTweak', 'Get-ToggleInitialCheckedState', 'Get-ActionInitialCheckedState', 'Get-ChoiceInitialSelectedIndex', 'ConvertTo-GuiDateTimeValue', 'Get-DateInitialRunState', 'Get-DateInitialSelectedDate')) {
                 Invoke-Expression $fn.Extent.Text
             }
         }
@@ -131,6 +131,8 @@ Describe 'Tweak row content pins' {
         $script:FunctionTextByName['New-ToggleStatusRow'] | Should -Match 'Get-ToggleDisplayStateFromRowMetadata -RowContext \$RowContext'
         $script:FunctionTextByName['New-ToggleStatusRow'] | Should -Match 'if \(-not \$toggleDisplay\)'
         $script:FunctionTextByName['New-ToggleStatusRow'] | Should -Match 'Get-GuiToggleDisplayState -Tweak \$Tweak -StateSource \$CheckBox'
+        $script:FileContent | Should -Not -Match 'Add-Member -MemberType NoteProperty -Name ''_StateLabel'''
+        $script:FileContent | Should -Match 'TweakVisualStateByFunction'
     }
 
     It 'labels manifest default chips as Baseline defaults, not Windows defaults' {

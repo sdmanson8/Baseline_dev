@@ -518,12 +518,633 @@ function Update-GuiNavModeChrome
 	param ()
 
 	$appsActive = [bool]$Script:AppsModeActive
+	$gamingActive = [bool]$Script:GamingModeActive
 	$updatesActive = [bool]$Script:UpdatesModeActive
 	$deploymentMediaActive = [bool]$Script:DeploymentMediaModeActive
-	if ($Script:NavModeTweaks) { Set-GuiNavButtonChrome -Button $Script:NavModeTweaks -IsActive (-not $appsActive -and -not $updatesActive -and -not $deploymentMediaActive) }
+	if ($Script:NavModeTweaks) { Set-GuiNavButtonChrome -Button $Script:NavModeTweaks -IsActive (-not $appsActive -and -not $gamingActive -and -not $updatesActive -and -not $deploymentMediaActive) }
+	if ($Script:NavModeGaming) { Set-GuiNavButtonChrome -Button $Script:NavModeGaming -IsActive $gamingActive }
 	if ($Script:NavModeApps) { Set-GuiNavButtonChrome -Button $Script:NavModeApps -IsActive $appsActive }
 	if ($Script:NavModeUpdates) { Set-GuiNavButtonChrome -Button $Script:NavModeUpdates -IsActive $updatesActive }
 	if ($Script:NavModeDeploymentMedia) { Set-GuiNavButtonChrome -Button $Script:NavModeDeploymentMedia -IsActive $deploymentMediaActive }
+}
+
+function Set-GuiNavModeCheckedState
+{
+	[CmdletBinding()]
+	param ()
+
+	$previousSuppressNavModeSelectionChanged = [bool]$Script:SuppressNavModeSelectionChanged
+	$Script:SuppressNavModeSelectionChanged = $true
+	try
+	{
+		$appsActive = [bool]$Script:AppsModeActive
+		$gamingActive = [bool]$Script:GamingModeActive
+		$updatesActive = [bool]$Script:UpdatesModeActive
+		$deploymentMediaActive = [bool]$Script:DeploymentMediaModeActive
+		if ($Script:NavModeTweaks) { $Script:NavModeTweaks.IsChecked = (-not $appsActive -and -not $gamingActive -and -not $updatesActive -and -not $deploymentMediaActive) }
+		if ($Script:NavModeGaming) { $Script:NavModeGaming.IsChecked = $gamingActive }
+		if ($Script:NavModeApps) { $Script:NavModeApps.IsChecked = $appsActive }
+		if ($Script:NavModeUpdates) { $Script:NavModeUpdates.IsChecked = $updatesActive }
+		if ($Script:NavModeDeploymentMedia) { $Script:NavModeDeploymentMedia.IsChecked = $deploymentMediaActive }
+	}
+	finally
+	{
+		$Script:SuppressNavModeSelectionChanged = $previousSuppressNavModeSelectionChanged
+	}
+
+	try { Update-GuiNavModeChrome } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiNavModeCheckedState.UpdateGuiNavModeChrome' }
+}
+
+function Clear-GuiTabContentIfOwnedBy
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$PrimaryTab
+	)
+
+	if (-not $ContentScroll)
+	{
+		return
+	}
+
+	if ([string]$Script:VisibleTabContentPrimaryTab -ne $PrimaryTab)
+	{
+		return
+	}
+
+	try
+	{
+		if ($null -eq $Script:TabContentBuildGeneration)
+		{
+			$Script:TabContentBuildGeneration = 0
+		}
+		$Script:TabContentBuildGeneration = [int]$Script:TabContentBuildGeneration + 1
+		$ContentScroll.Content = $null
+		$Script:VisibleTabContentPrimaryTab = $null
+		if ($Script:PresetStatusBadge)
+		{
+			$Script:PresetStatusBadge = $null
+		}
+		if ($Script:UpdateGuiBackToTopButtonScript)
+		{
+			& $Script:UpdateGuiBackToTopButtonScript
+		}
+		if ($ContentScroll.Dispatcher)
+		{
+			$ContentScroll.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Render, [System.Action]{})
+		}
+	}
+	catch
+	{
+		Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Clear-GuiTabContentIfOwnedBy'
+	}
+}
+
+function Copy-GuiControlSelectionState
+{
+	[CmdletBinding()]
+	param (
+		[object]$Control
+	)
+
+	if (-not $Control)
+	{
+		return $null
+	}
+
+	$state = [ordered]@{}
+	foreach ($fieldName in @('IsChecked', 'SelectedIndex', 'SelectedDate', 'Value', 'NumericValue', 'ACValue', 'DCValue', 'Run', 'Text'))
+	{
+		if (Test-GuiObjectField -Object $Control -FieldName $fieldName)
+		{
+			$state[$fieldName] = $Control.$fieldName
+		}
+	}
+
+	$children = @{}
+	foreach ($childField in @('CheckBox', 'ComboBox', 'DatePicker', 'ACSlider', 'DCSlider'))
+	{
+		if (-not (Test-GuiObjectField -Object $Control -FieldName $childField) -or -not $Control.$childField)
+		{
+			continue
+		}
+
+		$childState = [ordered]@{}
+		foreach ($fieldName in @('IsChecked', 'SelectedIndex', 'SelectedDate', 'Value', 'Text'))
+		{
+			if (Test-GuiObjectField -Object $Control.$childField -FieldName $fieldName)
+			{
+				$childState[$fieldName] = $Control.$childField.$fieldName
+			}
+		}
+		if ($childState.Count -gt 0)
+		{
+			$children[$childField] = [pscustomobject]$childState
+		}
+	}
+	if ($children.Count -gt 0)
+	{
+		$state.Children = $children
+	}
+
+	if ($state.Count -eq 0)
+	{
+		return $null
+	}
+
+	return [pscustomobject]$state
+}
+
+function Set-GuiControlSelectionState
+{
+	[CmdletBinding()]
+	param (
+		[object]$Control,
+		[object]$State
+	)
+
+	if (-not $Control -or -not $State)
+	{
+		return
+	}
+
+	$hadRestoringFlag = (Test-GuiObjectField -Object $Control -FieldName 'IsRestoring')
+	$previousRestoring = $false
+	if ($hadRestoringFlag)
+	{
+		$previousRestoring = [bool]$Control.IsRestoring
+		$Control.IsRestoring = $true
+	}
+
+	try
+	{
+		foreach ($fieldName in @('IsChecked', 'SelectedIndex', 'SelectedDate', 'Value', 'NumericValue', 'ACValue', 'DCValue', 'Run', 'Text'))
+		{
+			if ((Test-GuiObjectField -Object $Control -FieldName $fieldName) -and (Test-GuiObjectField -Object $State -FieldName $fieldName))
+			{
+				$Control.$fieldName = $State.$fieldName
+			}
+		}
+
+		if ((Test-GuiObjectField -Object $State -FieldName 'Children') -and $State.Children -is [System.Collections.IDictionary])
+		{
+			foreach ($childName in @($State.Children.Keys))
+			{
+				if (-not (Test-GuiObjectField -Object $Control -FieldName ([string]$childName)) -or -not $Control.$childName)
+				{
+					continue
+				}
+
+				$childState = $State.Children[$childName]
+				foreach ($fieldName in @('IsChecked', 'SelectedIndex', 'SelectedDate', 'Value', 'Text'))
+				{
+					if ((Test-GuiObjectField -Object $Control.$childName -FieldName $fieldName) -and (Test-GuiObjectField -Object $childState -FieldName $fieldName))
+					{
+						$Control.$childName.$fieldName = $childState.$fieldName
+					}
+				}
+			}
+		}
+	}
+	finally
+	{
+		if ($hadRestoringFlag)
+		{
+			$Control.IsRestoring = $previousRestoring
+		}
+	}
+}
+
+function Clear-GuiControlSelectionState
+{
+	[CmdletBinding()]
+	param (
+		[object]$Control
+	)
+
+	if (-not $Control)
+	{
+		return
+	}
+
+	$hadRestoringFlag = (Test-GuiObjectField -Object $Control -FieldName 'IsRestoring')
+	$previousRestoring = $false
+	if ($hadRestoringFlag)
+	{
+		$previousRestoring = [bool]$Control.IsRestoring
+		$Control.IsRestoring = $true
+	}
+
+	try
+	{
+		if (Test-GuiObjectField -Object $Control -FieldName 'IsChecked') { $Control.IsChecked = $false }
+		if (Test-GuiObjectField -Object $Control -FieldName 'SelectedIndex') { $Control.SelectedIndex = [int]-1 }
+		if (Test-GuiObjectField -Object $Control -FieldName 'SelectedDate') { $Control.SelectedDate = $null }
+		foreach ($childField in @('CheckBox', 'ComboBox', 'DatePicker', 'ACSlider', 'DCSlider'))
+		{
+			if (-not (Test-GuiObjectField -Object $Control -FieldName $childField) -or -not $Control.$childField)
+			{
+				continue
+			}
+			if (Test-GuiObjectField -Object $Control.$childField -FieldName 'IsChecked') { $Control.$childField.IsChecked = $false }
+			if (Test-GuiObjectField -Object $Control.$childField -FieldName 'SelectedIndex') { $Control.$childField.SelectedIndex = [int]-1 }
+			if (Test-GuiObjectField -Object $Control.$childField -FieldName 'SelectedDate') { $Control.$childField.SelectedDate = $null }
+		}
+	}
+	finally
+	{
+		if ($hadRestoringFlag)
+		{
+			$Control.IsRestoring = $previousRestoring
+		}
+	}
+}
+
+function Save-GuiStandardSelectionStateForGaming
+{
+	[CmdletBinding()]
+	param ()
+
+	if ($Script:StandardSelectionStateBeforeGaming)
+	{
+		return
+	}
+
+	$controlStates = @{}
+	if ($Script:Controls -is [System.Collections.IDictionary])
+	{
+		foreach ($controlKey in @($Script:Controls.Keys))
+		{
+			$controlState = Copy-GuiControlSelectionState -Control $Script:Controls[$controlKey]
+			if ($controlState)
+			{
+				$controlStates[$controlKey] = $controlState
+			}
+		}
+	}
+
+	$explicitDefinitions = @{}
+	if (Get-Command -Name 'Initialize-GuiSelectionStateStores' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Initialize-GuiSelectionStateStores
+	}
+	if ($Script:ExplicitPresetSelectionDefinitions -is [System.Collections.IDictionary])
+	{
+		foreach ($definitionKey in @($Script:ExplicitPresetSelectionDefinitions.Keys))
+		{
+			$definition = $Script:ExplicitPresetSelectionDefinitions[$definitionKey]
+			if (-not $definition) { continue }
+			$definitionCopy = if (Get-Command -Name 'Copy-GuiExplicitSelectionDefinition' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Copy-GuiExplicitSelectionDefinition -Definition $definition -FunctionName ([string]$definitionKey)
+			}
+			else
+			{
+				$definition
+			}
+			if ($definitionCopy)
+			{
+				$explicitDefinitions[[string]$definitionKey] = $definitionCopy
+			}
+		}
+	}
+
+	$Script:StandardSelectionStateBeforeGaming = [pscustomobject]@{
+		ControlStates = $controlStates
+		ExplicitDefinitions = $explicitDefinitions
+	}
+}
+
+function Restore-GuiStandardSelectionStateAfterGaming
+{
+	[CmdletBinding()]
+	param ()
+
+	$snapshot = $Script:StandardSelectionStateBeforeGaming
+	if (-not $snapshot)
+	{
+		return
+	}
+
+	$previousGameModeControlSync = [bool]$Script:GameModeControlSyncInProgress
+	$previousBulkUpdate = [bool]$Script:GuiSelectionBulkUpdateInProgress
+	$Script:GameModeControlSyncInProgress = $true
+	$Script:GuiSelectionBulkUpdateInProgress = $true
+	try
+	{
+		$controlStates = if ((Test-GuiObjectField -Object $snapshot -FieldName 'ControlStates') -and $snapshot.ControlStates -is [System.Collections.IDictionary]) { $snapshot.ControlStates } else { @{} }
+		if ($Script:Controls -is [System.Collections.IDictionary])
+		{
+			foreach ($controlKey in @($Script:Controls.Keys))
+			{
+				if ($controlStates.ContainsKey($controlKey))
+				{
+					Set-GuiControlSelectionState -Control $Script:Controls[$controlKey] -State $controlStates[$controlKey]
+				}
+				else
+				{
+					Clear-GuiControlSelectionState -Control $Script:Controls[$controlKey]
+				}
+			}
+		}
+
+		if (Get-Command -Name 'Initialize-GuiSelectionStateStores' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Initialize-GuiSelectionStateStores
+		}
+
+		if ($Script:ExplicitPresetSelectionDefinitions -is [System.Collections.IDictionary])
+		{
+			foreach ($definitionKey in @($Script:ExplicitPresetSelectionDefinitions.Keys))
+			{
+				$definition = $Script:ExplicitPresetSelectionDefinitions[$definitionKey]
+				if ($definition -and (Test-GuiObjectField -Object $definition -FieldName 'Source') -and [string]$definition.Source -eq 'GameMode')
+				{
+					Remove-GuiExplicitSelectionDefinition -FunctionName ([string]$definitionKey)
+				}
+			}
+		}
+
+		$explicitDefinitions = if ((Test-GuiObjectField -Object $snapshot -FieldName 'ExplicitDefinitions') -and $snapshot.ExplicitDefinitions -is [System.Collections.IDictionary]) { $snapshot.ExplicitDefinitions } else { @{} }
+		foreach ($definitionKey in @($explicitDefinitions.Keys))
+		{
+			Set-GuiExplicitSelectionDefinition -FunctionName ([string]$definitionKey) -Definition $explicitDefinitions[$definitionKey]
+		}
+	}
+	finally
+	{
+		$Script:GameModeControlSyncInProgress = $previousGameModeControlSync
+		$Script:GuiSelectionBulkUpdateInProgress = $previousBulkUpdate
+		$Script:StandardSelectionStateBeforeGaming = $null
+	}
+}
+
+function Set-GuiGamingRuntimeState
+{
+	[CmdletBinding()]
+	param (
+		[bool]$Enabled
+	)
+
+	$Script:GameMode = [bool]$Enabled
+	if ($Script:Ctx -and $Script:Ctx.ContainsKey('Mode'))
+	{
+		$Script:Ctx.Mode.Game = [bool]$Enabled
+	}
+
+	if (Get-Command -Name 'Update-SessionStatistics' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Update-SessionStatistics -Values @{
+			GameModeActive  = [bool]$Enabled
+			GameModeProfile = if ($Enabled -and -not [string]::IsNullOrWhiteSpace([string]$Script:GameModeProfile)) { [string]$Script:GameModeProfile } else { $null }
+		}
+	}
+
+	if ($Script:SyncGameModeContextStateScript)
+	{
+		& $Script:SyncGameModeContextStateScript
+	}
+	elseif (Get-Command -Name 'Sync-GameModeContextState' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Sync-GameModeContextState
+	}
+}
+
+function Set-GuiOptimizeFilterChromeVisible
+{
+	[CmdletBinding()]
+	param (
+		[bool]$Visible
+	)
+
+	$collapsed = [System.Windows.Visibility]::Collapsed
+	$visibleState = [System.Windows.Visibility]::Visible
+	$safeModeActive = $false
+	if (Get-Command -Name 'Test-IsSafeModeUX' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		$safeModeActive = [bool](Test-IsSafeModeUX)
+	}
+
+	$shouldShow = [bool]$Visible -and -not $safeModeActive
+	$panel = $Script:FilterOptionsPanel
+	if (-not $shouldShow)
+	{
+		if ($panel -and -not $safeModeActive)
+		{
+			$Script:OptimizeFilterPanelExpandedBeforeModeHide = ($panel.Visibility -eq $visibleState)
+		}
+		if ($Script:BtnFilterToggle) { $Script:BtnFilterToggle.Visibility = $collapsed }
+		if ($panel) { $panel.Visibility = $collapsed }
+		if ($Script:MenuViewFilters)
+		{
+			try { $Script:MenuViewFilters.IsChecked = $false } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.SetGuiOptimizeFilterChromeVisible.MenuViewFilters.Hide' }
+		}
+		return
+	}
+
+	if ($Script:BtnFilterToggle) { $Script:BtnFilterToggle.Visibility = $visibleState }
+
+	$rememberedState = Get-Variable -Name 'OptimizeFilterPanelExpandedBeforeModeHide' -Scope Script -ErrorAction SilentlyContinue
+	if ($rememberedState)
+	{
+		$expanded = [bool]$rememberedState.Value
+		Remove-Variable -Name 'OptimizeFilterPanelExpandedBeforeModeHide' -Scope Script -ErrorAction SilentlyContinue
+	}
+	else
+	{
+		$expanded = ($panel -and $panel.Visibility -eq $visibleState)
+	}
+
+	if (Get-Command -Name 'Set-GuiFilterPanelExpandedState' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Set-GuiFilterPanelExpandedState -Scope 'Optimize' -Expanded $expanded
+		return
+	}
+
+	if ($panel)
+	{
+		$panel.Visibility = if ($expanded) { $visibleState } else { $collapsed }
+	}
+	if ($Script:MenuViewFilters)
+	{
+		try { $Script:MenuViewFilters.IsChecked = [bool]$expanded } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.SetGuiOptimizeFilterChromeVisible.MenuViewFilters.Show' }
+	}
+}
+
+<#
+    .SYNOPSIS
+#>
+
+function Set-GuiGamingMode
+{
+	[CmdletBinding()]
+	param (
+		[bool]$Enable = $false,
+		[switch]$SkipContentRestore
+	)
+
+	if ([bool]$Script:GamingModeActive -eq $Enable)
+	{
+		if ($Enable -and -not [bool]$Script:GameMode)
+		{
+			Save-GuiStandardSelectionStateForGaming
+			Set-GuiGamingRuntimeState -Enabled:$true
+			if ($Script:SyncGameModePlanToGamingControlsScript)
+			{
+				& $Script:SyncGameModePlanToGamingControlsScript
+			}
+		}
+		elseif (-not $Enable)
+		{
+			Restore-GuiStandardSelectionStateAfterGaming
+			Clear-GuiTabContentIfOwnedBy -PrimaryTab 'Gaming'
+		}
+		return
+	}
+
+	$collapsed = [System.Windows.Visibility]::Collapsed
+	$visible = [System.Windows.Visibility]::Visible
+
+	if ($Enable)
+	{
+		if (Get-Command -Name 'Stop-GuiTabContentBackgroundBuilds' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Stop-GuiTabContentBackgroundBuilds
+		}
+		$selectedPrimaryTab = if ($Script:PrimaryTabs -and $Script:PrimaryTabs.SelectedItem -and $Script:PrimaryTabs.SelectedItem.Tag) { [string]$Script:PrimaryTabs.SelectedItem.Tag } else { $null }
+		$Script:GamingReturnPrimaryTab = if (-not [string]::IsNullOrWhiteSpace($selectedPrimaryTab) -and $selectedPrimaryTab -ne $Script:SearchResultsTabTag) { $selectedPrimaryTab } elseif (-not [string]::IsNullOrWhiteSpace([string]$Script:LastStandardPrimaryTab)) { [string]$Script:LastStandardPrimaryTab } else { 'Initial Setup' }
+		Save-GuiStandardSelectionStateForGaming
+		$Script:GamingModeActive = $true
+		Set-GuiGamingRuntimeState -Enabled:$true
+		if ([bool]$Script:AppsModeActive)
+		{
+			Set-GuiAppsMode -Enable:$false
+		}
+		if ([bool]$Script:DeploymentMediaModeActive -and (Get-Command -Name 'Set-GuiDeploymentMediaMode' -CommandType Function -ErrorAction SilentlyContinue))
+		{
+			Set-GuiDeploymentMediaMode -Enable:$false
+		}
+		if ([bool]$Script:UpdatesModeActive -and (Get-Command -Name 'Set-GuiUpdatesMode' -CommandType Function -ErrorAction SilentlyContinue))
+		{
+			Set-GuiUpdatesMode -Enable:$false
+		}
+	}
+	else
+	{
+		$Script:GamingModeActive = $false
+		Set-GuiGamingRuntimeState -Enabled:$false
+		Restore-GuiStandardSelectionStateAfterGaming
+		Clear-GuiTabContentIfOwnedBy -PrimaryTab 'Gaming'
+	}
+
+	if ($Enable)
+	{
+		$Script:AppsModeActive = $false
+		$Script:UpdatesModeActive = $false
+		$Script:DeploymentMediaModeActive = $false
+	}
+
+	Set-GuiNavModeCheckedState
+
+	if ($Script:ModeSubtitle)
+	{
+		$subtitleKey = if ($Enable) { 'GuiGameModeHeader' } else { 'Nav_OptimizeSubtitle' }
+		$subtitleFallback = if ($Enable) { 'Game Mode' } else { 'Configure system behavior' }
+		$Script:ModeSubtitle.Text = (Get-UxLocalizedString -Key $subtitleKey -Fallback $subtitleFallback)
+		$Script:ModeSubtitle.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+	}
+
+	if ($Script:TweaksView) { $Script:TweaksView.Visibility = $visible }
+	if ($Script:AppsView) { $Script:AppsView.Visibility = $collapsed }
+	if ($Script:DeploymentMediaView) { $Script:DeploymentMediaView.Visibility = $collapsed }
+	if ($Script:PrimaryTabHost) { $Script:PrimaryTabHost.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:ExpertModeBanner)
+	{
+		$Script:ExpertModeBanner.Visibility = if ($Enable)
+		{
+			$collapsed
+		}
+		elseif ((Get-Command -Name 'Test-IsExpertModeUX' -CommandType Function -ErrorAction SilentlyContinue) -and (Test-IsExpertModeUX))
+		{
+			$visible
+		}
+		else
+		{
+			$collapsed
+		}
+	}
+	Set-GuiOptimizeFilterChromeVisible -Visible $true
+	if ($Script:BtnPreviewRun) { $Script:BtnPreviewRun.Visibility = $visible }
+	if ($Script:BtnDefaults) { $Script:BtnDefaults.Visibility = if ($Enable) { $collapsed } else { $visible } }
+	if ($Script:BtnRun) { $Script:BtnRun.Visibility = $visible }
+	if ($Script:BtnApplyQueuedActions) { $Script:BtnApplyQueuedActions.Visibility = $collapsed }
+	if ($Script:BtnDeploymentMediaPreviewPlan) { $Script:BtnDeploymentMediaPreviewPlan.Visibility = $collapsed }
+	if ($Script:BtnDeploymentMediaStartBuild) { $Script:BtnDeploymentMediaStartBuild.Visibility = $collapsed }
+
+	if ($Enable)
+	{
+		if (Get-Command -Name 'Build-TabContent' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Build-TabContent -PrimaryTab 'Gaming' -SkipIdlePrebuild
+		}
+		if ($Script:SyncGameModePlanToGamingControlsScript)
+		{
+			& $Script:SyncGameModePlanToGamingControlsScript
+		}
+		if ([string]::IsNullOrWhiteSpace([string]$Script:GameModeProfile))
+		{
+			$message = Get-UxLocalizedString -Key 'GuiGamingWorkflowReadyStatus' -Fallback 'Gaming workflow ready. Choose a profile to build a gaming plan.'
+			$Script:PresetStatusMessage = $message
+			if ($Script:PresetStatusBadge -and $Script:PresetStatusBadge.Child -is [System.Windows.Controls.TextBlock])
+			{
+				$Script:PresetStatusBadge.Child.Text = $message
+			}
+			if ($Script:UpdateGameModeStatusTextScript)
+			{
+				& $Script:UpdateGameModeStatusTextScript -Message $message -Tone 'Accent'
+			}
+		}
+	}
+	elseif (-not $SkipContentRestore -and -not [bool]$Script:AppsModeActive -and -not [bool]$Script:UpdatesModeActive -and -not [bool]$Script:DeploymentMediaModeActive)
+	{
+		$restoreTab = if (-not [string]::IsNullOrWhiteSpace([string]$Script:GamingReturnPrimaryTab)) { [string]$Script:GamingReturnPrimaryTab } else { 'Initial Setup' }
+		if ($Script:PrimaryTabs)
+		{
+			foreach ($tab in $Script:PrimaryTabs.Items)
+			{
+				if (($tab -is [System.Windows.Controls.TabItem]) -and $tab.Tag -and ([string]$tab.Tag -eq $restoreTab))
+				{
+					$Script:PrimaryTabs.SelectedItem = $tab
+					break
+				}
+			}
+		}
+		if (Get-Command -Name 'Build-TabContent' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Build-TabContent -PrimaryTab $restoreTab -SkipIdlePrebuild
+		}
+	}
+
+	if (Get-Command -Name 'Sync-UxActionButtonText' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		if ($Script:SyncUxActionButtonTextScript)
+		{
+			& $Script:SyncUxActionButtonTextScript
+		}
+		else
+		{
+			Sync-UxActionButtonText
+		}
+	}
+	if (Get-Command -Name 'Update-GuiScopedRunActionAvailability' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Update-GuiScopedRunActionAvailability
+	}
+	if ($Script:UpdateGuiBackToTopButtonScript)
+	{
+		try { & $Script:UpdateGuiBackToTopButtonScript } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiGamingMode.UpdateBackToTopButton' }
+	}
 }
 
 <#
@@ -547,11 +1168,19 @@ function Set-GuiUpdatesMode
 
 	if ($Enable)
 	{
+		if (Get-Command -Name 'Stop-GuiTabContentBackgroundBuilds' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Stop-GuiTabContentBackgroundBuilds
+		}
 		$selectedPrimaryTab = if ($Script:PrimaryTabs -and $Script:PrimaryTabs.SelectedItem -and $Script:PrimaryTabs.SelectedItem.Tag) { [string]$Script:PrimaryTabs.SelectedItem.Tag } else { $null }
 		$Script:UpdatesReturnPrimaryTab = if (-not [string]::IsNullOrWhiteSpace($selectedPrimaryTab) -and $selectedPrimaryTab -ne $Script:SearchResultsTabTag) { $selectedPrimaryTab } elseif (-not [string]::IsNullOrWhiteSpace([string]$Script:LastStandardPrimaryTab)) { [string]$Script:LastStandardPrimaryTab } else { 'Initial Setup' }
 		if ([bool]$Script:AppsModeActive)
 		{
 			Set-GuiAppsMode -Enable:$false
+		}
+		if ([bool]$Script:GamingModeActive -and (Get-Command -Name 'Set-GuiGamingMode' -CommandType Function -ErrorAction SilentlyContinue))
+		{
+			Set-GuiGamingMode -Enable:$false -SkipContentRestore
 		}
 		if ([bool]$Script:DeploymentMediaModeActive -and (Get-Command -Name 'Set-GuiDeploymentMediaMode' -CommandType Function -ErrorAction SilentlyContinue))
 		{
@@ -563,14 +1192,11 @@ function Set-GuiUpdatesMode
 	if ($Enable)
 	{
 		$Script:AppsModeActive = $false
+		$Script:GamingModeActive = $false
 		$Script:DeploymentMediaModeActive = $false
 	}
 
-	if ($Script:NavModeTweaks) { $Script:NavModeTweaks.IsChecked = (-not $Enable -and -not [bool]$Script:AppsModeActive -and -not [bool]$Script:DeploymentMediaModeActive) }
-	if ($Script:NavModeApps) { $Script:NavModeApps.IsChecked = [bool]$Script:AppsModeActive }
-	if ($Script:NavModeUpdates) { $Script:NavModeUpdates.IsChecked = $Enable }
-	if ($Script:NavModeDeploymentMedia) { $Script:NavModeDeploymentMedia.IsChecked = [bool]$Script:DeploymentMediaModeActive }
-	try { Update-GuiNavModeChrome } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiUpdatesMode.UpdateGuiNavModeChrome' }
+	Set-GuiNavModeCheckedState
 
 	if ($Script:ModeSubtitle)
 	{
@@ -588,11 +1214,7 @@ function Set-GuiUpdatesMode
 	{
 		$Script:ExpertModeBanner.Visibility = $collapsed
 	}
-	if ($Script:SafeModeGroup) { $Script:SafeModeGroup.Visibility = $visible }
-	foreach ($control in @($Script:BtnFilterToggle, $Script:FilterOptionsPanel))
-	{
-		if ($control) { $control.Visibility = if ($Enable) { $collapsed } else { $visible } }
-	}
+	Set-GuiOptimizeFilterChromeVisible -Visible $true
 	if ($Script:BtnPreviewRun) { $Script:BtnPreviewRun.Visibility = $visible }
 	if ($Script:BtnDefaults) { $Script:BtnDefaults.Visibility = if ($Enable) { $collapsed } else { $visible } }
 	if ($Script:BtnRun) { $Script:BtnRun.Visibility = $visible }
@@ -607,7 +1229,7 @@ function Set-GuiUpdatesMode
 			Build-TabContent -PrimaryTab 'Updates' -SkipIdlePrebuild
 		}
 	}
-	elseif (-not [bool]$Script:DeploymentMediaModeActive)
+	elseif (-not [bool]$Script:DeploymentMediaModeActive -and -not [bool]$Script:GamingModeActive)
 	{
 		$restoreTab = if (-not [string]::IsNullOrWhiteSpace([string]$Script:UpdatesReturnPrimaryTab)) { [string]$Script:UpdatesReturnPrimaryTab } else { 'Initial Setup' }
 		if ($Script:PrimaryTabs)
@@ -638,6 +1260,10 @@ function Set-GuiUpdatesMode
 			Sync-UxActionButtonText
 		}
 	}
+	if (Get-Command -Name 'Update-GuiScopedRunActionAvailability' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Update-GuiScopedRunActionAvailability
+	}
 	if ($Script:UpdateGuiBackToTopButtonScript)
 	{
 		try { & $Script:UpdateGuiBackToTopButtonScript } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiUpdatesMode.UpdateBackToTopButton' }
@@ -665,12 +1291,20 @@ function Set-GuiDeploymentMediaMode
 
 	if ($Enable)
 	{
+		if (Get-Command -Name 'Stop-GuiTabContentBackgroundBuilds' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Stop-GuiTabContentBackgroundBuilds
+		}
 		$selectedPrimaryTab = if ($Script:PrimaryTabs -and $Script:PrimaryTabs.SelectedItem -and $Script:PrimaryTabs.SelectedItem.Tag) { [string]$Script:PrimaryTabs.SelectedItem.Tag } else { $null }
 		$Script:DeploymentMediaReturnPrimaryTab = if (-not [string]::IsNullOrWhiteSpace($selectedPrimaryTab) -and $selectedPrimaryTab -ne $Script:SearchResultsTabTag) { $selectedPrimaryTab } elseif (-not [string]::IsNullOrWhiteSpace([string]$Script:LastStandardPrimaryTab)) { [string]$Script:LastStandardPrimaryTab } else { 'Initial Setup' }
 		$Script:DeploymentMediaModeActive = $true
 		if ([bool]$Script:AppsModeActive)
 		{
 			Set-GuiAppsMode -Enable:$false
+		}
+		if ([bool]$Script:GamingModeActive -and (Get-Command -Name 'Set-GuiGamingMode' -CommandType Function -ErrorAction SilentlyContinue))
+		{
+			Set-GuiGamingMode -Enable:$false -SkipContentRestore
 		}
 		if ([bool]$Script:UpdatesModeActive)
 		{
@@ -682,14 +1316,11 @@ function Set-GuiDeploymentMediaMode
 	if ($Enable)
 	{
 		$Script:AppsModeActive = $false
+		$Script:GamingModeActive = $false
 		$Script:UpdatesModeActive = $false
 	}
 
-	if ($Script:NavModeTweaks) { $Script:NavModeTweaks.IsChecked = (-not $Enable -and -not [bool]$Script:AppsModeActive -and -not [bool]$Script:UpdatesModeActive) }
-	if ($Script:NavModeUpdates) { $Script:NavModeUpdates.IsChecked = [bool]$Script:UpdatesModeActive }
-	if ($Script:NavModeDeploymentMedia) { $Script:NavModeDeploymentMedia.IsChecked = $Enable }
-	if ($Script:NavModeApps) { $Script:NavModeApps.IsChecked = [bool]$Script:AppsModeActive }
-	try { Update-GuiNavModeChrome } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiDeploymentMediaMode.UpdateGuiNavModeChrome' }
+	Set-GuiNavModeCheckedState
 
 	if ($Script:ModeSubtitle)
 	{
@@ -719,46 +1350,9 @@ function Set-GuiDeploymentMediaMode
 		}
 	}
 
-	if ($Script:SafeModeGroup) { $Script:SafeModeGroup.Visibility = if ($Enable) { $collapsed } else { $visible } }
 	if ($Script:ThemeToggleGroup) { $Script:ThemeToggleGroup.Visibility = $collapsed }
 
-	$tweaksOnlyMenu = @(
-		$Script:MenuActionsPreviewRun,
-		$Script:MenuActionsRunTweaks,
-		$Script:MenuActionsUndoLastRun,
-		$Script:MenuActionsRestoreDefaults,
-		$Script:MenuActionsCheckCompliance,
-		$Script:MenuActionsScanSystem,
-		$Script:MenuActionsAuditLog,
-		$Script:MenuActionsSep1,
-		$Script:MenuActionsSep2,
-		$Script:MenuActionsSep3,
-		$Script:MenuToolsApproveRemoteTargets,
-		$Script:MenuToolsSaveRemoteApprovalPolicy,
-		$Script:MenuToolsLoadRemoteApprovalPolicy,
-		$Script:MenuToolsRemoteConsole,
-		$Script:MenuToolsOperatorConsole,
-		$Script:MenuToolsRemoteSessionStatus
-	)
-	foreach ($item in $tweaksOnlyMenu)
-	{
-		if ($item) { $item.Visibility = if ($Enable) { $collapsed } else { $visible } }
-	}
-
-	$appsOnlyMenu = @(
-		$Script:MenuToolsAppsManager,
-		$Script:MenuToolsUpdateAllApps,
-		$Script:MenuToolsSepApps
-	)
-	foreach ($item in $appsOnlyMenu)
-	{
-		if ($item) { $item.Visibility = $collapsed }
-	}
-
-	foreach ($control in @($Script:BtnFilterToggle, $Script:FilterOptionsPanel))
-	{
-		if ($control) { $control.Visibility = if ($Enable) { $collapsed } else { $visible } }
-	}
+	Set-GuiOptimizeFilterChromeVisible -Visible:(-not $Enable)
 
 	foreach ($control in @($Script:TxtSearch, $Script:TxtSearchPlaceholder, $Script:BtnClearSearch))
 	{
@@ -787,7 +1381,7 @@ function Set-GuiDeploymentMediaMode
 			Sync-GuiDeploymentMediaBuilderViewText
 		}
 	}
-	else
+	elseif (-not [bool]$Script:GamingModeActive)
 	{
 		$restoreTab = if (-not [string]::IsNullOrWhiteSpace([string]$Script:DeploymentMediaReturnPrimaryTab)) { [string]$Script:DeploymentMediaReturnPrimaryTab } else { 'Initial Setup' }
 		if ($Script:PrimaryTabs)
@@ -818,6 +1412,10 @@ function Set-GuiDeploymentMediaMode
 			Sync-UxActionButtonText
 		}
 	}
+	if (Get-Command -Name 'Update-GuiScopedRunActionAvailability' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Update-GuiScopedRunActionAvailability
+	}
 	if ($Script:UpdateGuiBackToTopButtonScript)
 	{
 		try { & $Script:UpdateGuiBackToTopButtonScript } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiDeploymentMediaMode.UpdateBackToTopButton' }
@@ -840,22 +1438,28 @@ function Set-GuiAppsMode
 		return
 	}
 
+	if ($Enable -and (Get-Command -Name 'Stop-GuiTabContentBackgroundBuilds' -CommandType Function -ErrorAction SilentlyContinue))
+	{
+		Stop-GuiTabContentBackgroundBuilds
+	}
+
 	if ($Enable -and [bool]$Script:DeploymentMediaModeActive -and (Get-Command -Name 'Set-GuiDeploymentMediaMode' -CommandType Function -ErrorAction SilentlyContinue))
 	{
 		Set-GuiDeploymentMediaMode -Enable:$false
+	}
+	if ($Enable -and [bool]$Script:GamingModeActive -and (Get-Command -Name 'Set-GuiGamingMode' -CommandType Function -ErrorAction SilentlyContinue))
+	{
+		Set-GuiGamingMode -Enable:$false -SkipContentRestore
 	}
 
 	$Script:AppsModeActive = $Enable
 	if ($Enable)
 	{
 		$Script:UpdatesModeActive = $false
+		$Script:GamingModeActive = $false
 		$Script:DeploymentMediaModeActive = $false
 	}
-	if ($Script:NavModeTweaks) { $Script:NavModeTweaks.IsChecked = (-not $Enable -and -not [bool]$Script:UpdatesModeActive -and -not [bool]$Script:DeploymentMediaModeActive) }
-	if ($Script:NavModeApps) { $Script:NavModeApps.IsChecked = $Enable }
-	if ($Script:NavModeUpdates) { $Script:NavModeUpdates.IsChecked = $false }
-	if ($Script:NavModeDeploymentMedia) { $Script:NavModeDeploymentMedia.IsChecked = [bool]$Script:DeploymentMediaModeActive }
-	try { Update-GuiNavModeChrome } catch { Write-SwallowedException -ErrorRecord $_ -Source 'AppsModule.Set-GuiAppsMode.UpdateGuiNavModeChrome' }
+	Set-GuiNavModeCheckedState
 	if ($Script:ModeSubtitle)
 	{
 		$subtitleKey = if ($Enable) { 'Nav_SoftwareAndAppsSubtitle' } else { 'Nav_OptimizeSubtitle' }
@@ -898,49 +1502,9 @@ function Set-GuiAppsMode
 		}
 	}
 
-	if ($Script:SafeModeGroup)
-	{
-		$Script:SafeModeGroup.Visibility = if ($Enable) { $collapsed } else { $visible }
-	}
-
 	if ($Script:ThemeToggleGroup)
 	{
 		$Script:ThemeToggleGroup.Visibility = $collapsed
-	}
-
-	# Tweaks-only menu items: hide while in Apps mode.
-	$tweaksOnlyMenu = @(
-		$Script:MenuActionsPreviewRun,
-		$Script:MenuActionsRunTweaks,
-		$Script:MenuActionsUndoLastRun,
-		$Script:MenuActionsRestoreDefaults,
-		$Script:MenuActionsCheckCompliance,
-		$Script:MenuActionsScanSystem,
-		$Script:MenuActionsAuditLog,
-		$Script:MenuActionsSep1,
-		$Script:MenuActionsSep2,
-		$Script:MenuActionsSep3,
-		$Script:MenuToolsApproveRemoteTargets,
-		$Script:MenuToolsSaveRemoteApprovalPolicy,
-		$Script:MenuToolsLoadRemoteApprovalPolicy,
-		$Script:MenuToolsRemoteConsole,
-		$Script:MenuToolsOperatorConsole,
-		$Script:MenuToolsRemoteSessionStatus
-	)
-	foreach ($item in $tweaksOnlyMenu)
-	{
-		if ($item) { $item.Visibility = if ($Enable) { $collapsed } else { $visible } }
-	}
-
-	# Apps-only menu items: hide while in Tweaks mode.
-	$appsOnlyMenu = @(
-		$Script:MenuToolsAppsManager,
-		$Script:MenuToolsUpdateAllApps,
-		$Script:MenuToolsSepApps
-	)
-	foreach ($item in $appsOnlyMenu)
-	{
-		if ($item) { $item.Visibility = if ($Enable) { $visible } else { $collapsed } }
 	}
 
 	if ($Script:TxtSearch)
@@ -982,13 +1546,7 @@ function Set-GuiAppsMode
 		}
 	}
 
-	foreach ($control in @($Script:BtnFilterToggle, $Script:FilterOptionsPanel))
-	{
-		if ($control)
-		{
-			$control.Visibility = if ($Enable) { $collapsed } else { $visible }
-		}
-	}
+	Set-GuiOptimizeFilterChromeVisible -Visible:(-not $Enable)
 
 	if ($Script:BtnPreviewRun) { $Script:BtnPreviewRun.Visibility = if ($Enable) { $collapsed } else { $visible } }
 	if ($Script:BtnDefaults) { $Script:BtnDefaults.Visibility = if ($Enable) { $collapsed } else { $visible } }
@@ -1001,7 +1559,7 @@ function Set-GuiAppsMode
 	{
 		Build-AppsViewCards
 	}
-	elseif (-not [bool]$Script:UpdatesModeActive -and -not [bool]$Script:DeploymentMediaModeActive)
+	elseif (-not [bool]$Script:GamingModeActive -and -not [bool]$Script:UpdatesModeActive -and -not [bool]$Script:DeploymentMediaModeActive)
 	{
 		if (Get-Command -Name 'Update-CurrentTabContent' -CommandType Function -ErrorAction SilentlyContinue)
 		{
@@ -1019,6 +1577,10 @@ function Set-GuiAppsMode
 		{
 			Sync-UxActionButtonText
 		}
+	}
+	if (Get-Command -Name 'Update-GuiScopedRunActionAvailability' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Update-GuiScopedRunActionAvailability
 	}
 	if ($Script:UpdateGuiBackToTopButtonScript)
 	{

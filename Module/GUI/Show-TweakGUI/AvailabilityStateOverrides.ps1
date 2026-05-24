@@ -72,9 +72,11 @@ foreach (
 			return $null
 		}
 
-		if ($CategoryToPrimary.ContainsKey($categoryName))
+		$categoryMap = if ($Script:CategoryToPrimary -is [hashtable]) { $Script:CategoryToPrimary } else { $null }
+
+		if ($categoryMap -and $categoryMap.ContainsKey($categoryName))
 		{
-			return [string]$CategoryToPrimary[$categoryName]
+			return [string]$categoryMap[$categoryName]
 		}
 
 		return $categoryName

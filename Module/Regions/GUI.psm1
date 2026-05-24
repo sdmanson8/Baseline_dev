@@ -7,6 +7,8 @@ $Script:GuiLayout = GUICommon\Get-GuiLayout
 $Script:GuiFontSizeWarnings = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 $Script:SetButtonChromeScript = $null
 
+. (Join-Path $PSScriptRoot '..\GUI\PerfTrace.ps1')
+
 function Set-ButtonChrome
 {
 	[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]

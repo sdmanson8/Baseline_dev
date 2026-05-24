@@ -7,7 +7,10 @@
 		# When search text is active, use the search sentinel tag so category
 		# filters reflect cross-tab results.  Fall back to the selected real tab.
 		$hasSearchText = -not [string]::IsNullOrWhiteSpace([string]$Script:SearchText)
-		$targetTab = if ($hasSearchText) {
+		$targetTab = if ($Script:GamingModeActive) {
+			'Gaming'
+		}
+		elseif ($hasSearchText) {
 			$Script:SearchResultsTabTag
 		}
 		elseif ($PrimaryTabs -and $PrimaryTabs.SelectedItem -and $PrimaryTabs.SelectedItem.Tag) {
@@ -64,7 +67,10 @@
 		# filters reflect cross-tab results (inline banner replaces the old
 		# Search Results tab).  Fall back to the selected real tab otherwise.
 		$hasSearchText = -not [string]::IsNullOrWhiteSpace([string]$Script:SearchText)
-		$targetTab = if ($hasSearchText) {
+		$targetTab = if ($Script:GamingModeActive) {
+			'Gaming'
+		}
+		elseif ($hasSearchText) {
 			$Script:SearchResultsTabTag
 		}
 		elseif ($PrimaryTabs -and $PrimaryTabs.SelectedItem -and $PrimaryTabs.SelectedItem.Tag) {

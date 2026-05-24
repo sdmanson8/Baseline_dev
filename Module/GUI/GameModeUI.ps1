@@ -129,7 +129,7 @@
 	    .SYNOPSIS
 	#>
 
-	function Get-GameModeToggleStateLabel
+	function Get-GameModeActionStateLabel
 	{
 		param ([string]$ActionParam)
 
@@ -204,7 +204,7 @@
 
 		$visual = Get-TweakVisualMetadata -Tweak $Tweak
 		$scenarioTags = if ((Test-GuiObjectField -Object $Tweak -FieldName 'ScenarioTags') -and $Tweak.ScenarioTags) { @($Tweak.ScenarioTags) } else { @($visual.ScenarioTags) }
-		$stateLabel = Get-GameModeToggleStateLabel -ActionParam $ToggleParam
+		$stateLabel = Get-GameModeActionStateLabel -ActionParam $ToggleParam
 		$stateDetail = (Get-UxLocalizedString -Key 'GuiGameModeStateDetail' -Fallback "Game Mode will run '{0}' for this setting.") -f $ToggleParam
 		$blastRadius = Get-TweakBlastRadiusText -Tweak $Tweak -TypeLabel $visual.TypeLabel -ScenarioTags $scenarioTags -MatchesDesired:$false
 		$previewGroup = if ([bool]$IsAdvanced -and -not [string]::IsNullOrWhiteSpace($AdvancedCategory))
@@ -453,9 +453,11 @@
 			return $false
 		}
 
-		$primaryTab = if ($CategoryToPrimary -and $CategoryToPrimary.ContainsKey($categoryName))
+		$categoryMap = if ($Script:CategoryToPrimary -is [hashtable]) { $Script:CategoryToPrimary } else { $null }
+
+		$primaryTab = if ($categoryMap -and $categoryMap.ContainsKey($categoryName))
 		{
-			[string]$CategoryToPrimary[$categoryName]
+			[string]$categoryMap[$categoryName]
 		}
 		else
 		{
@@ -917,10 +919,6 @@
 				GameModeActive  = [bool]$Enabled
 				GameModeProfile = if ($Enabled -and -not [string]::IsNullOrWhiteSpace([string]$Script:GameModeProfile)) { [string]$Script:GameModeProfile } else { $null }
 			}
-			if ($ChkGameMode)
-			{
-				$ChkGameMode.IsChecked = $Enabled
-			}
 		}
 		finally
 		{
@@ -942,25 +940,32 @@
 				$Script:GameModePreviousPrimaryTab = [string]$PrimaryTabs.SelectedItem.Tag
 			}
 
-			$gamingTab = & $Script:GetPrimaryTabItemScript -Tag 'Gaming'
-			if ($gamingTab)
+			if ([bool]$Script:GamingModeActive)
 			{
-				if ($PrimaryTabs.SelectedItem -ne $gamingTab)
+				& $Script:UpdateCurrentTabContentScript -SkipIdlePrebuild
+			}
+			else
+			{
+				$gamingTab = & $Script:GetPrimaryTabItemScript -Tag 'Gaming'
+				if ($gamingTab)
 				{
-					$Script:SkipIdlePrebuildOnNextPrimaryTabSelection = $true
-					$PrimaryTabs.SelectedItem = $gamingTab
+					if ($PrimaryTabs.SelectedItem -ne $gamingTab)
+					{
+						$Script:SkipIdlePrebuildOnNextPrimaryTabSelection = $true
+						$PrimaryTabs.SelectedItem = $gamingTab
+					}
+					else
+					{
+						& $Script:UpdateCurrentTabContentScript -SkipIdlePrebuild
+					}
 				}
 				else
 				{
 					& $Script:UpdateCurrentTabContentScript -SkipIdlePrebuild
 				}
 			}
-			else
-			{
-				& $Script:UpdateCurrentTabContentScript -SkipIdlePrebuild
-			}
 
-			if ($PrimaryTabs)
+			if ($PrimaryTabs -and -not [bool]$Script:GamingModeActive)
 			{
 				foreach ($tab in $PrimaryTabs.Items)
 				{
@@ -971,7 +976,7 @@
 				}
 			}
 
-			$message = "$([char]0x25C9) $(Get-UxLocalizedString -Key 'GuiGameModeActiveStatus' -Fallback 'GAME MODE ACTIVE - only the Gaming plan can be edited or run. Turn off Game Mode to use other tabs.')"
+			$message = "$([char]0x25C9) $(Get-UxLocalizedString -Key 'GuiGameModeActiveStatus' -Fallback 'GAME MODE ACTIVE - the Gaming workflow is ready. Switch modes from the top navigation when needed.')"
 		}
 		else
 		{
@@ -988,7 +993,12 @@
 
 			& $Script:ClearGameModePlanScript -Quiet
 			$restoreTab = if ($Script:GameModePreviousPrimaryTab) { & $Script:GetPrimaryTabItemScript -Tag $Script:GameModePreviousPrimaryTab } else { $null }
-			if ($restoreTab -and $PrimaryTabs.SelectedItem -and [string]$PrimaryTabs.SelectedItem.Tag -eq 'Gaming')
+			if ([bool]$Script:GamingModeActive)
+			{
+				& $Script:ClearTabContentCacheScript
+				& $Script:UpdateCurrentTabContentScript -SkipIdlePrebuild
+			}
+			elseif ($restoreTab -and $PrimaryTabs.SelectedItem -and [string]$PrimaryTabs.SelectedItem.Tag -eq 'Gaming')
 			{
 				$Script:SkipIdlePrebuildOnNextPrimaryTabSelection = $true
 				$PrimaryTabs.SelectedItem = $restoreTab
@@ -1387,13 +1397,8 @@
 	function New-GameModeLandingPanel
 	{
 		$bc = & $Script:NewSafeBrushConverterScript -Context 'New-GameModeLandingPanel'
-		$panel = New-Object System.Windows.Controls.Border
-		$panel.Background = $bc.ConvertFromString($Script:CurrentTheme.PresetPanelBg)
-		$panel.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.PresetPanelBorder)
-		$panel.BorderThickness = [System.Windows.Thickness]::new(1)
-		$panel.CornerRadius = [System.Windows.CornerRadius]::new(10)
-		$panel.Margin = [System.Windows.Thickness]::new(8, 12, 8, 8)
-		$panel.Padding = [System.Windows.Thickness]::new(14, 12, 14, 12)
+		$rootStack = New-Object System.Windows.Controls.StackPanel
+		$rootStack.Orientation = 'Vertical'
 
 		$stack = New-Object System.Windows.Controls.StackPanel
 		$stack.Orientation = 'Vertical'
@@ -1489,13 +1494,28 @@
 		}
 
 		[void]($stack.Children.Add($profileCards))
+		$profileDisclosure = New-GuiRecommendationDisclosurePanel `
+			-Scope 'GamingProfiles' `
+			-Title (Get-UxLocalizedString -Key 'GuiGameModeProfilesHeading' -Fallback 'Gaming Profiles') `
+			-Body $stack `
+			-BrushConverter $bc `
+			-PrimaryTab 'Gaming' `
+			-InstanceKey 'GamingProfiles' `
+			-DefaultCollapsed $true `
+			-BorderThickness 1 `
+			-CornerRadius 10 `
+			-Margin ([System.Windows.Thickness]::new(8, 6, 8, 6)) `
+			-Padding ([System.Windows.Thickness]::new(10, 7, 10, 7)) `
+			-Compact
+		[void]($rootStack.Children.Add($profileDisclosure))
+
 		$planBorder = New-Object System.Windows.Controls.Border
 		$planBorder.Background = $bc.ConvertFromString($Script:CurrentTheme.CardBg)
 		$planBorder.BorderBrush = $bc.ConvertFromString($Script:CurrentTheme.CardBorder)
 		$planBorder.BorderThickness = [System.Windows.Thickness]::new(1)
 		$planBorder.CornerRadius = [System.Windows.CornerRadius]::new(8)
 		$planBorder.Padding = [System.Windows.Thickness]::new(12, 12, 12, 12)
-		$planBorder.Margin = [System.Windows.Thickness]::new(0, 2, 0, 0)
+		$planBorder.Margin = [System.Windows.Thickness]::new(8, 2, 8, 0)
 
 		$planStack = New-Object System.Windows.Controls.StackPanel
 		$planStack.Orientation = 'Vertical'
@@ -1626,7 +1646,7 @@
 		}
 
 		$planBorder.Child = $planStack
-		[void]($stack.Children.Add($planBorder))
+		[void]($rootStack.Children.Add($planBorder))
 
 		# Advanced Options expander - collapsed by default, shown when a profile is selected.
 		# Gated in Safe Mode: expert-only advanced options are hidden for beginners.
@@ -1635,7 +1655,8 @@
 			$advancedPanel = New-GameModeAdvancedPanel -ProfileName ([string]$Script:GameModeProfile)
 			if ($advancedPanel)
 			{
-				[void]($stack.Children.Add($advancedPanel))
+				$advancedPanel.Margin = [System.Windows.Thickness]::new(8, 12, 8, 0)
+				[void]($rootStack.Children.Add($advancedPanel))
 			}
 		}
 
@@ -1646,12 +1667,12 @@
 			$comparisonPanel = & $newGameModeComparisonPanelScript
 			if ($comparisonPanel)
 			{
-				[void]($stack.Children.Add($comparisonPanel))
+				$comparisonPanel.Margin = [System.Windows.Thickness]::new(8, 12, 8, 0)
+				[void]($rootStack.Children.Add($comparisonPanel))
 			}
 		}
 
-		$panel.Child = $stack
-		return $panel
+		return $rootStack
 	}
 
 	<#

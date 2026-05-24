@@ -251,11 +251,8 @@
 						if ($ChkTheme.IsChecked -ne $wantLight) { $ChkTheme.IsChecked = $wantLight }
 					}
 				}
-				# Apply Safe / Expert mode transitions on save. Flipping ChkSafeMode
-				# alone is not enough — when the checkbox is already at the target
-				# value no Checked/Unchecked event fires, so the mode transition
-				# function is never invoked and the GUI stays put. Call the mode
-				# functions directly and let them handle the checkbox + side effects.
+				# Apply Safe / Expert mode transitions on save. Settings is the
+				# visible mode selector, so call the transition functions directly.
 				$wantAdvanced = $result.ContainsKey('AdvancedMode') -and [bool]$result.AdvancedMode
 				$wantSafe = $result.ContainsKey('SafeMode') -and [bool]$result.SafeMode
 				if ($result.ContainsKey('DefaultStartupMode') -and ([string]$result.DefaultStartupMode -eq 'Expert'))

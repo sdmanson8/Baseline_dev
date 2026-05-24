@@ -30,6 +30,7 @@ function Import-GuiDeploymentMediaExecutionHelpers
 		'New-GuiDeploymentMediaCancellationState',
 		'Assert-GuiDeploymentMediaNotCancelled',
 		'Invoke-GuiDeploymentMediaPowerShellStage',
+		'Import-GuiDeploymentMediaDismModule',
 		'Invoke-GuiDeploymentMediaIsoDismountCleanup'
 	)
 
@@ -203,7 +204,7 @@ function New-GuiDeploymentMediaBuildPlan
 		'Always cleanup mounts.',
 		'Support safe cancellation.',
 		'Never silently ignore DISM or oscdimg failures.',
-		'Use Preview Build Plan before exposing Start ISO Build.'
+		'Preview Build Plan remains optional before Start ISO Build.'
 	)
 
 	return [pscustomobject]@{
@@ -263,10 +264,7 @@ function Get-GuiDeploymentMediaIsoImageInfo
 	{
 		throw 'Mount-DiskImage is required to inspect Windows ISO media.'
 	}
-	if (-not (Get-Command -Name 'Get-WindowsImage' -CommandType Function, Cmdlet -ErrorAction SilentlyContinue))
-	{
-		throw 'Get-WindowsImage is required to read install.wim/install.esd editions.'
-	}
+	Import-GuiDeploymentMediaDismModule
 
 	$diskImage = $null
 	$result = $null
@@ -311,6 +309,7 @@ function Get-GuiDeploymentMediaIsoImageInfo
 		$imageTimeoutSeconds = [Math]::Max(1, ($TimeoutSeconds - 300))
 		foreach ($image in @(Invoke-GuiDeploymentMediaPowerShellStage -Name 'Read install image editions' -ScriptBlock {
 			param ([string]$Path)
+			Import-Module -Name 'Dism' -ErrorAction Stop -WarningAction SilentlyContinue
 			foreach ($windowsImage in @(Get-WindowsImage -ImagePath $Path -ErrorAction Stop))
 			{
 				$architecture = ''
@@ -1859,7 +1858,7 @@ function Get-GuiDeploymentMediaUupWorkflowLayout
 			'Run the reviewed command script locally and persist an auditable transparency manifest.'
 		)
 		PackageTypes = @('.cab', '.esd', '.psf')
-		RequiredTools = @('dism.exe', 'oscdimg.exe')
+		RequiredTools = @('dism.exe', 'Microsoft.OSCDIMG')
 		OptionalTools = @('wimlib-imagex.exe')
 		AssemblyStages = @(
 			'Open the UUP package generator website.',
@@ -2183,14 +2182,37 @@ function Test-GuiDeploymentMediaUupToolchain
 	param ()
 
 	$dismPath = Join-Path $env:SystemRoot 'System32\dism.exe'
-	$oscdimgCommand = Get-Command -Name 'oscdimg.exe' -CommandType Application -ErrorAction SilentlyContinue
+	$oscdimgPath = ''
+	if (Get-Command -Name 'Resolve-GuiDeploymentMediaOscdimgPath' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		try
+		{
+			$oscdimgPath = [string](Resolve-GuiDeploymentMediaOscdimgPath)
+		}
+		catch
+		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Write-SwallowedException -ErrorRecord $_ -Source 'DeploymentMediaBuilder.Validation.TestUupToolchain.ResolveOscdimg' -Severity Debug
+			}
+			$oscdimgPath = ''
+		}
+	}
+	if ([string]::IsNullOrWhiteSpace($oscdimgPath))
+	{
+		$oscdimgCommand = Get-Command -Name 'oscdimg.exe' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+		if ($oscdimgCommand -and -not [string]::IsNullOrWhiteSpace([string]$oscdimgCommand.Source))
+		{
+			$oscdimgPath = [string]$oscdimgCommand.Source
+		}
+	}
 	$wimlibCommand = Get-Command -Name 'wimlib-imagex.exe' -CommandType Application -ErrorAction SilentlyContinue
 
 	return [pscustomobject]@{
 		DismPath = $dismPath
 		DismAvailable = (Test-Path -LiteralPath $dismPath -PathType Leaf)
-		OscdimgPath = $(if ($oscdimgCommand) { [string]$oscdimgCommand.Source } else { '' })
-		OscdimgAvailable = [bool]$oscdimgCommand
+		OscdimgPath = $oscdimgPath
+		OscdimgAvailable = (-not [string]::IsNullOrWhiteSpace($oscdimgPath))
 		WimlibPath = $(if ($wimlibCommand) { [string]$wimlibCommand.Source } else { '' })
 		WimlibAvailable = [bool]$wimlibCommand
 	}

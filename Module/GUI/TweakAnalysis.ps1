@@ -27,6 +27,52 @@
 	    .SYNOPSIS
 	#>
 
+	function Get-TweakAnalysisRuntimeCommand
+	{
+		param (
+			[Parameter(Mandatory = $true)]
+			[string]$Name
+		)
+
+		$cacheVariable = Get-Variable -Name 'TweakAnalysisRuntimeCommandCache' -Scope Script -ErrorAction SilentlyContinue
+		if (-not $cacheVariable -or -not ($cacheVariable.Value -is [hashtable]))
+		{
+			$Script:TweakAnalysisRuntimeCommandCache = @{}
+		}
+
+		if (-not $Script:TweakAnalysisRuntimeCommandCache.ContainsKey($Name))
+		{
+			$command = @(
+				Get-Command -Name $Name -CommandType Function -ErrorAction SilentlyContinue
+			) | Select-Object -First 1
+
+			$Script:TweakAnalysisRuntimeCommandCache[$Name] = $command
+		}
+
+		return $Script:TweakAnalysisRuntimeCommandCache[$Name]
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
+	function Test-TweakAnalysisTweakAvailable
+	{
+		param ([object]$Tweak)
+
+		$availabilityTest = Get-TweakAnalysisRuntimeCommand -Name 'Test-GuiTweakAvailableOnCurrentSystem'
+		if (-not $availabilityTest)
+		{
+			return $true
+		}
+
+		return [bool](& $availabilityTest -Tweak $Tweak)
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
 	function Test-TweakRemovalOperation
 	{
 		param ([object]$Tweak)
@@ -95,7 +141,10 @@
 
 	function Get-TweakScenarioSignals
 	{
-		param ([object]$Tweak)
+		param (
+			[object]$Tweak,
+			[object]$IsRemoval = $null
+		)
 
 		if (-not $Tweak) { return @() }
 
@@ -136,7 +185,8 @@
 			& $addSignal 'Privacy'
 		}
 
-		if ((Test-TweakRemovalOperation -Tweak $Tweak) -or
+		$isRemovalOperation = if ($null -ne $IsRemoval) { [bool]$IsRemoval } else { Test-TweakRemovalOperation -Tweak $Tweak }
+		if ($isRemovalOperation -or
 			$haystack -match '(?i)\b(cleanup|debloat|uninstall|remove|delete|clear recent|recent files|recent shortcuts)\b' -or
 			$tagText -match '(?i)\b(cleanup|debloat|uninstall|remove|delete)\b')
 		{
@@ -182,13 +232,7 @@
 		)
 
 		if (-not $Tweak) { return $false }
-		if (Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue)
-		{
-			if (-not (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak))
-			{
-				return $false
-			}
-		}
+		if (-not (Test-TweakAnalysisTweakAvailable -Tweak $Tweak)) { return $false }
 		$source = if ($StateSource) { $StateSource } else { $Tweak }
 		if (-not $source) { return $false }
 
@@ -507,7 +551,9 @@
 			[object]$Tweak,
 			[string]$TypeLabel,
 			[string[]]$ScenarioTags,
-			[bool]$MatchesDesired = $false
+			[bool]$MatchesDesired = $false,
+			[object]$IsRemoval = $null,
+			[object]$IsPackageOperation = $null
 		)
 
 		if ($MatchesDesired)
@@ -515,8 +561,8 @@
 			return (Get-UxLocalizedString -Key 'GuiTweakAlreadySetMessage' -Fallback 'Already set. No change is expected from this selection.')
 		}
 
-		$isPackageOperation = Test-TweakPackageOperation -Tweak $Tweak
-		$isRemovalOperation = Test-TweakRemovalOperation -Tweak $Tweak
+		$isPackageOperation = if ($null -ne $IsPackageOperation) { [bool]$IsPackageOperation } else { Test-TweakPackageOperation -Tweak $Tweak }
+		$isRemovalOperation = if ($null -ne $IsRemoval) { [bool]$IsRemoval } else { Test-TweakRemovalOperation -Tweak $Tweak }
 		$risk = [string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Risk')
 		$impact = [string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'Impact')
 		$cautionReason = [string](Get-TweakAnalysisFieldValue -Tweak $Tweak -FieldName 'CautionReason')

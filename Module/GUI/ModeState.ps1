@@ -1,8 +1,5 @@
 ﻿# Safe Mode / Expert Mode state toggle functions.
 # Loaded inside Show-TweakGUI.
-#
-# Single unified toggle: ChkSafeMode checked = Safe Mode, unchecked = Expert Mode.
-# The toggle label updates dynamically to reflect the active mode.
 
 	function Save-GuiDefaultStartupModePreference
 	{
@@ -28,9 +25,8 @@
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ([bool]$Enabled)
 
-		# Toggling Safe Mode on via the header is also a vote for Safe being the
-		# default mode at the next launch, so keep DefaultStartupMode in sync
-		# (Settings dialog reads it back from $Script:DefaultStartupMode).
+		# Settings uses the same transition path as startup restore, so keep
+		# DefaultStartupMode in sync with the selected mode preference.
 		if ($Enabled)
 		{
 			$Script:DefaultStartupMode = 'Safe'
@@ -43,18 +39,6 @@
 		try
 		{
 			Set-GuiMode -ViewMode $(if ($Enabled) { 'Safe' } else { 'Standard' })
-			if ($ChkSafeMode)
-			{
-				$ChkSafeMode.IsChecked = $Enabled
-				$ChkSafeMode.Content = if ($Enabled)
-				{
-					Get-UxLocalizedString -Key 'GuiHelpSectionSafeMode' -Fallback 'Safe Mode'
-				}
-				else
-				{
-					Get-UxLocalizedString -Key 'GuiHelpSectionExpertMode' -Fallback 'Expert Mode'
-				}
-			}
 		}
 		finally
 		{
@@ -150,8 +134,8 @@
 		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 		param ([bool]$Enabled)
 
-		# Enabling Expert via the header makes Expert the new startup default;
-		# disabling drops back to Safe (Standard isn't a startup option).
+		# Enabling Expert through Settings makes Expert the new startup default;
+		# disabling drops back to Safe because Standard is not a startup option.
 		$nextStartupMode = if ($Enabled) { 'Expert' } else { 'Safe' }
 		$Script:DefaultStartupMode = $nextStartupMode
 		Save-GuiDefaultStartupModePreference -Mode $nextStartupMode
@@ -162,18 +146,6 @@
 		try
 		{
 			Set-GuiMode -ViewMode $(if ($Enabled) { 'Expert' } else { 'Standard' })
-			if ($ChkSafeMode)
-			{
-				$ChkSafeMode.IsChecked = $false
-				$ChkSafeMode.Content = if ($Enabled)
-				{
-					Get-UxLocalizedString -Key 'GuiHelpSectionExpertMode' -Fallback 'Expert Mode'
-				}
-				else
-				{
-					Get-UxLocalizedString -Key 'GuiHelpSectionSafeMode' -Fallback 'Safe Mode'
-				}
-			}
 		}
 		finally
 		{

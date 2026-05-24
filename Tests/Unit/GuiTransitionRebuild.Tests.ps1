@@ -21,9 +21,13 @@ BeforeAll {
     $presetUiPath = Join-Path $PSScriptRoot '../../Module/GUI/PresetUI.ps1'
     $actionHandlersPath = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers.ps1'
     $actionHandlersSplitRoot = Join-Path $PSScriptRoot '../../Module/GUI/ActionHandlers'
+    $categoryInitializationPath = Join-Path $showTweakGuiSplitRoot 'WpfCategoryInitialization.ps1'
+    $categoryPathMappingPath = Join-Path $showTweakGuiSplitRoot 'CategoryPathMapping.ps1'
+    $availabilityStateOverridesPath = Join-Path $showTweakGuiSplitRoot 'AvailabilityStateOverrides.ps1'
     $stateTransitionPath = Join-Path $PSScriptRoot '../../Module/GUI/StateTransitions.ps1'
     $sessionStatePath = Join-Path $PSScriptRoot '../../Module/GUI/SessionState.ps1'
     $gameModePath = Join-Path $PSScriptRoot '../../Module/GUI/GameModeUI.ps1'
+    $presetSelectionStatePath = Join-Path $PSScriptRoot '../../Module/GUI/PresetManagement/PresetSelectionState.ps1'
     $updatesPanelPath = Join-Path $PSScriptRoot '../../Module/GUI/UpdatesPanel.ps1'
     $searchFilterHandlersPath = Join-Path $PSScriptRoot '../../Module/GUI/SearchFilterHandlers.ps1'
 
@@ -66,18 +70,36 @@ BeforeAll {
         (Join-Path $actionHandlersSplitRoot 'SystemScanFooterHandlers.ps1')
         (Join-Path $actionHandlersSplitRoot 'MenuHandlers.ps1')
     )
+    $script:CategoryInitializationContent = Get-BaselineTestSourceText -Path $categoryInitializationPath
+    $script:CategoryPathMappingContent = Get-BaselineTestSourceText -Path $categoryPathMappingPath
+    $script:AvailabilityStateOverridesContent = Get-BaselineTestSourceText -Path $availabilityStateOverridesPath
     $script:StateTransitionContent = Get-BaselineTestSourceText -Path $stateTransitionPath
     $script:SessionStateContent = Get-BaselineTestSourceText -Path $sessionStatePath
     $script:GameModeContent = Get-BaselineTestSourceText -Path $gameModePath
+    $script:PresetSelectionStateContent = Get-BaselineTestSourceText -Path $presetSelectionStatePath
     $script:UpdatesPanelContent = Get-BaselineTestSourceText -Path $updatesPanelPath
 }
 
 Describe 'Focused GUI rebuilds' {
-    It 'keeps idle tab prebuild available but makes it opt-in per rebuild' {
+    It 'keeps idle startup work guarded and cancels hidden tab builds outside Optimize mode' {
         $script:GuiContent | Should -Match 'function Build-TabContent'
         $script:GuiContent | Should -Match '\[switch\]\$SkipIdlePrebuild'
-        $script:GuiContent | Should -Match 'if \(-not \$SkipIdlePrebuild -and \$PrimaryTabs -and \$PrimaryTabs\.Dispatcher\)'
+        $script:BuildTabContentContent | Should -Match 'function Stop-GuiTabContentBackgroundBuilds'
+        $script:BuildTabContentContent | Should -Match 'function Test-GuiIdleTabPrebuildAllowed'
+        $script:BuildTabContentContent | Should -Match 'Stop-GuiTabContentBackgroundBuilds'
+        $script:BuildTabContentContent | Should -Match 'if \(\$SkipIdlePrebuild -or -not \$PrimaryTabs -or -not \$PrimaryTabs\.Dispatcher -or -not \(Test-GuiIdleTabPrebuildAllowed\)\)'
+        $script:BuildTabContentContent | Should -Not -Match 'foreach \(\$tabItem in \$PrimaryTabs\.Items\)[\s\S]{0,500}Build-TabContent -PrimaryTab \$capturedTag -BackgroundBuild'
         $script:GuiContent | Should -Match '\[System\.Windows\.Threading\.DispatcherPriority\]::ApplicationIdle'
+    }
+
+    It 'keeps primary tab ownership maps in script state for deferred row hydration' {
+        $script:CategoryInitializationContent | Should -Match '\$Script:PrimaryCategories = \[ordered\]@\{'
+        $script:CategoryInitializationContent | Should -Match '\$PrimaryCategories = \$Script:PrimaryCategories'
+        $script:CategoryInitializationContent | Should -Match '\$Script:CategoryToPrimary = @\{\}'
+        $script:CategoryPathMappingContent | Should -Match '\$CategoryToPrimary = \$Script:CategoryToPrimary'
+        $script:AvailabilityStateOverridesContent | Should -Match '\$categoryMap = if \(\$Script:CategoryToPrimary -is \[hashtable\]\)'
+        $script:AvailabilityStateOverridesContent | Should -Match '\$categoryMap\.ContainsKey\(\$categoryName\)'
+        $script:GameModeContent | Should -Match '\$categoryMap = if \(\$Script:CategoryToPrimary -is \[hashtable\]\)'
     }
 
     It 'keeps the splash until startup tab content is hydrated' {
@@ -127,12 +149,41 @@ Describe 'Focused GUI rebuilds' {
         $script:GuiContent | Should -Match '& \$updateCurrentTabContentScript -SkipIdlePrebuild:\$skipIdlePrebuild'
     }
 
-    It 'cooperatively yields during foreground tab row hydration' {
-        $script:BuildTabContentContent | Should -Match 'Add-TabSectionsToPanel -BuildContext \$buildContext -CooperativeYield'
+    It 'hydrates tab rows progressively without blocking the dispatcher for a full tab' {
+        $script:BuildTabContentContent | Should -Match 'function Start-ProgressiveTabSectionsHydration'
+        $script:BuildTabContentContent | Should -Match 'BuildTabContent\.ProgressiveHydration'
+        $script:BuildTabContentContent | Should -Match '\$chunkWatch = \[System\.Diagnostics\.Stopwatch\]::StartNew\(\)'
+        $script:BuildTabContentContent | Should -Match '\$rowsAdded -ge 1 -or \$chunkWatch\.ElapsedMilliseconds -ge 35'
+        $script:BuildTabContentContent | Should -Match '\[System\.Windows\.Threading\.DispatcherPriority\]::Loaded'
+        $script:BuildTabContentContent | Should -Match 'Action = \$null'
+        $script:BuildTabContentContent | Should -Match '\$state\.Action = \[System\.Action\]\$chunkAction'
+        $script:BuildTabContentContent | Should -Match '\$dispatcher\.BeginInvoke\(\$state\.Action, \$priority\)'
+        $script:BuildTabContentContent | Should -Match '(?s)if \(\$BackgroundBuild\)\s*\{\s*\$null = \$dispatcher\.BeginInvoke\(\$state\.Action, \$priority\)\s*\}\s*else\s*\{\s*\$state\.Action\.Invoke\(\)\s*\}'
+        $script:BuildTabContentContent | Should -Match 'Complete-TabContentBuild -BuildContext \$BuildContext'
+        $script:BuildTabContentContent | Should -Match 'Show-TabContentBuildPanel -BuildContext \$buildContext'
+        $script:BuildTabContentContent | Should -Match 'Start-GuiIdleTabPrebuilds -PrimaryTab \$primaryTab -SkipIdlePrebuild:\$SkipIdlePrebuild'
+        $script:BuildTabContentContent | Should -Match 'Add-TabSectionsToPanel -BuildContext \$buildContext -CooperativeYield -YieldEveryNRows 2'
+        $script:BuildTabContentContent | Should -Match 'Complete-TabContentBuild -BuildContext \$buildContext -AllTabIndexes \$allTabIndexes -BuildGeneration \$buildGeneration -BuildToken \$buildToken -SkipIdlePrebuild:\$SkipIdlePrebuild -AlreadyDisplayed'
+        $script:BuildTabContentContent | Should -Match '(?s)if \(\$BackgroundBuild\)\s*\{\s*Start-ProgressiveTabSectionsHydration -BuildContext \$buildContext -AllTabIndexes \$allTabIndexes'
+        $script:BuildTabContentContent | Should -Match 'Test-TabContentBuildTokenCurrent -PrimaryTab \$primaryTab -BuildToken \$BuildToken'
+        $script:BuildTabContentContent | Should -Match 'function Test-TabContentHydrationCurrent'
+        $script:BuildTabContentContent | Should -Match 'Test-TabContentHydrationCurrent -PrimaryTab \$primaryTab -BuildGeneration \$BuildGeneration -BuildToken \$BuildToken'
+        $script:BuildTabContentContent | Should -Match '\$hydrated = Add-TabSectionsToPanel -BuildContext \$buildContext'
+        $script:BuildTabContentContent | Should -Match 'if \(-not \$hydrated\)'
+        $script:BuildTabContentContent | Should -Match '\$Script:TabContentBuildTokens\[\$PrimaryTab\] = \$buildToken'
+        $script:BuildTabContentContent | Should -Match 'function Resolve-TabContentBuildPrimaryTab'
+        $script:BuildTabContentContent | Should -Match '\$PrimaryTab = Resolve-TabContentBuildPrimaryTab -PrimaryTab \$PrimaryTab'
+        $script:BuildTabContentContent | Should -Match 'Build-TabContent requires a non-empty primary tab'
+        $script:BuildTabContentContent | Should -Match '\$visiblePrimaryMatches = \(\[string\]\$Script:VisibleTabContentPrimaryTab -eq \$PrimaryTab\)'
+        $script:BuildTabContentContent | Should -Match '\$PrimaryTab -eq ''Updates'''
+        $script:BuildTabContentContent | Should -Match '\[bool\]\$Script:GamingModeActive -or \[bool\]\$Script:UpdatesModeActive'
+        $script:BuildTabContentContent | Should -Match 'if \(\[string\]::IsNullOrWhiteSpace\(\[string\]\$PrimaryTab\) -or \[string\]::IsNullOrWhiteSpace\(\[string\]\$BuildToken\)\)'
         $script:BuildTabContentContent | Should -Match '\[int\]\$YieldEveryNRows = 3'
-        $script:BuildTabContentContent | Should -Match '\$yieldDispatcherPriority = if \(\$BackgroundBuild\) \{ \[System\.Windows\.Threading\.DispatcherPriority\]::Background \} else \{ \[System\.Windows\.Threading\.DispatcherPriority\]::Render \}'
-        $script:BuildTabContentContent | Should -Match '-YieldDispatcherPriority \$yieldDispatcherPriority'
         $script:BuildTabContentContent | Should -Match 'BuildTabContent\.AddRow\.DispatcherYield'
+        $script:BuildTabContentContent | Should -Match '\$startGuiPerfScopeScript = Get-GuiFunctionCapture -Name ''Start-GuiPerfScope'''
+        $script:BuildTabContentContent | Should -Match '\$stopGuiPerfScopeScript = Get-GuiFunctionCapture -Name ''Stop-GuiPerfScope'''
+        $script:BuildTabContentContent | Should -Match '\$chunkAction = \$mod\.NewBoundScriptBlock\(\$chunkAction\)'
+        $script:BuildTabContentContent | Should -Not -Match '(?m)^\s*Stop-GuiPerfScope -Scope'
     }
 
     It 'invokes page reset through a captured script-scope handler for WPF events' {
@@ -206,9 +257,9 @@ Describe 'Focused GUI rebuilds' {
         $script:SessionStateContent | Should -Match 'param \(\s*\[object\]\s*\$Snapshot = \$null\s*\)'
     }
 
-    It 'routes Build-TabContent init cleanup failures through Write-SwallowedException' {
-        $script:GuiContent | Should -Match "BuildTabContent\.MainPanel\.BeginInit"
-        $script:GuiContent | Should -Match "BuildTabContent\.MainPanel\.EndInit"
+    It 'routes Build-TabContent cleanup failures through Write-SwallowedException' {
+        $script:BuildTabContentContent | Should -Match "BuildTabContent\.ProgressiveHydration"
+        $script:BuildTabContentContent | Should -Match 'Clear-TabContentBuildToken -PrimaryTab \$primaryTab -BuildToken \$BuildToken'
         $script:GuiContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''BuildTabContent\.Update-PrimaryTabHeaders'''
     }
 
@@ -219,12 +270,12 @@ Describe 'Focused GUI rebuilds' {
 
     It 'routes dispatcher-yield failures in state transitions through Write-SwallowedException' {
         $script:StateTransitionContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''StateTransitions\.Invoke-GuiStateTransition\.DispatcherYield'''
-    }
+	}
 
-    It 'routes nav-mode chrome and theme status lookups through Write-SwallowedException' {
-        $script:GuiContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''AppsModule\.Set-GuiAppsMode\.UpdateGuiNavModeChrome'''
-        $script:GuiContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''AppsModule\.Build-AppsViewCards\.UpdateAppsPackageManagerBanner'''
-        $script:GuiContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''AppsModule\.Set-GuiAppsMode\.UpdateAppsPackageManagerBanner'''
+	It 'routes nav-mode chrome and theme status lookups through Write-SwallowedException' {
+		$script:GuiContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''AppsModule\.Set-GuiNavModeCheckedState\.UpdateGuiNavModeChrome'''
+		$script:GuiContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''AppsModule\.Build-AppsViewCards\.UpdateAppsPackageManagerBanner'''
+		$script:GuiContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''AppsModule\.Set-GuiAppsMode\.UpdateAppsPackageManagerBanner'''
         $script:GuiContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''AppsModule\.Set-AppsActionControlsEnabled\.ControlEnabled'''
         $script:GuiContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ApplyTheme\.Set-GUITheme\.UpdateGuiNavModeChrome'''
         $script:GuiContent | Should -Match 'Write-SwallowedException -ErrorRecord \$_ -Source ''ApplyTheme\.Set-GUITheme\.ReadStatusText'''
@@ -441,6 +492,40 @@ Describe 'Focused GUI rebuilds' {
         $script:ActionHandlersContent | Should -Match 'Register-GuiEventHandler -Source \$BtnScanInstalledApps -EventName ''Click'''
     }
 
+    It 'keeps full recommendations on Initial Setup and uses compact context elsewhere' {
+        $script:PresetUiContent | Should -Match 'function New-GuiRecommendationDisclosurePanel'
+        $script:PresetUiContent | Should -Match 'function New-GuiRecommendationPanelContainer'
+        $script:PresetUiContent | Should -Match 'function New-GuiRecommendationCompactStrip'
+        $script:PresetUiContent | Should -Match 'RecommendedSelectionsCollapsedByScope'
+        $script:PresetUiContent | Should -Match 'RecommendationCompactStripRefsByKey'
+        $script:PresetUiContent | Should -Match '\[System\.Windows\.Media\.Animation\.DoubleAnimation\]::new\(\)'
+        $script:PresetUiContent | Should -Match 'FromMilliseconds\(170\)'
+        $script:PresetUiContent | Should -Match 'Register-GuiEventHandler -Source \$headerButton -EventName ''Click'''
+        $script:PresetUiContent | Should -Match '\[System\.Windows\.Automation\.AutomationProperties\]::SetName\(\$headerButton'
+        $script:PresetUiContent | Should -Match 'if \(\$BuildContext\.PrimaryTab -eq ''Initial Setup''\)'
+        $script:PresetUiContent | Should -Match 'New-TabPresetPanel -BuildContext \$BuildContext'
+        $script:PresetUiContent | Should -Match 'elseif \(\$BuildContext\.PrimaryTab -ne ''Gaming'' -and \$BuildContext\.PrimaryTab -ne ''Updates''\)'
+        $script:PresetUiContent | Should -Match 'New-GuiRecommendationCompactStrip -BuildContext \$BuildContext -ShowChangeButton'
+        $script:PresetUiContent | Should -Not -Match 'RecommendedSelections:Gaming'
+        $script:PresetUiContent | Should -Not -Match 'GamingRecommendationContextStrip'
+        $script:GameModeContent | Should -Match "Scope 'GamingProfiles'"
+        $script:GameModeContent | Should -Match 'DefaultCollapsed \$true'
+        $script:GameModeContent | Should -Match '\-Compact'
+        $script:GameModeContent | Should -Match 'return \$rootStack'
+        $script:SessionStateContent | Should -Match 'RecommendationPanelCollapseState = Convert-JsonManifestValue \$currentRecommendationPanelCollapseState'
+        $script:SessionStateContent | Should -Match '\$Script:RecommendedSelectionsCollapsedByScope = Copy-GuiRecommendationPanelCollapseState -State \$desiredRecommendationPanelCollapseState'
+    }
+
+    It 'keeps shared filters available in Gaming and Updates while preserving collapsed state' {
+        $script:GuiContent | Should -Match 'function Set-GuiOptimizeFilterChromeVisible'
+        $script:GuiContent | Should -Match 'Set-GuiOptimizeFilterChromeVisible -Visible \$true'
+        $script:GuiContent | Should -Match 'Set-GuiOptimizeFilterChromeVisible -Visible:\(-not \$Enable\)'
+        $script:GuiContent | Should -Not -Match 'foreach \(\$control in @\(\$Script:BtnFilterToggle, \$Script:FilterOptionsPanel\)\)[\s\S]{0,140}\$control\.Visibility = if \(\$Enable\) \{ \$collapsed \} else \{ \$visible \}'
+        $script:SessionStateContent | Should -Match 'RestoreNavigationMode\.ps1'
+        $script:SessionStateContent | Should -Match 'if \(\$desiredNavigationMode -ne ''Apps'' -and \$desiredNavigationMode -ne ''DeploymentMedia''\)'
+        $script:SessionStateContent | Should -Match 'SetGuiFilterPanelExpandedState.*-Scope ''Optimize'''
+    }
+
     It 'wires the Updates tab runtime workflow outside manifest execution' {
         $script:GuiContent | Should -Match "UpdatesPanel\.ps1"
         $script:PresetUiContent | Should -Match "Get-GuiRuntimeCommand -Name 'New-GuiWindowsUpdateLeadCardsPanel'"
@@ -612,13 +697,13 @@ Describe 'Focused GUI rebuilds' {
         $syncButtonsSource = $script:ActionHandlersContent.Substring($syncButtonsStart, $syncButtonsEnd - $syncButtonsStart)
 
         $script:GuiContent | Should -Match 'Name="NavModeUpdates"'
-        $script:GuiContent | Should -Match '(?s)Name="NavModeTweaks".*Name="NavModeUpdates".*Name="NavModeDeploymentMedia".*Name="NavModeApps"'
+        $script:GuiContent | Should -Match '(?s)Name="NavModeTweaks".*Name="NavModeGaming".*Name="NavModeUpdates".*Name="NavModeDeploymentMedia".*Name="NavModeApps"'
         $script:GuiContent | Should -Match 'function Set-GuiUpdatesMode'
         $script:GuiContent | Should -Match 'Build-TabContent -PrimaryTab ''Updates'' -SkipIdlePrebuild'
         $script:GuiContent | Should -Match 'if \(\$Script:UpdatesModeActive\)\s*\{\s*\$targetTab = ''Updates'''
         $script:GuiContent | Should -Match '\$Script:ModeSubtitle\.HorizontalAlignment = \[System\.Windows\.HorizontalAlignment\]::Center'
         $script:GuiContent | Should -Match '\$Script:PrimaryTabHost\.Visibility = if \(\$Enable\) \{ \$collapsed \} else \{ \$visible \}'
-        $script:GuiContent | Should -Match 'if \(\$Script:SafeModeGroup\) \{ \$Script:SafeModeGroup\.Visibility = \$visible \}'
+        $script:GuiContent | Should -Not -Match 'SafeModeGroup'
         $updatesModeSource | Should -Match '\$Script:BtnPreviewRun\.Visibility = \$visible'
         $updatesModeSource | Should -Match '\$Script:BtnRun\.Visibility = \$visible'
         $updatesModeSource | Should -Match '\$Script:BtnDeploymentMediaPreviewPlan\.Visibility = \$collapsed'
@@ -633,6 +718,109 @@ Describe 'Focused GUI rebuilds' {
         $syncButtonsSource | Should -Match '\$Script:BtnDefaults\.Visibility = if \(\$updatesModeActive\) \{ \[System\.Windows\.Visibility\]::Collapsed \} else \{ \[System\.Windows\.Visibility\]::Visible \}'
         $script:ActionHandlersContent | Should -Not -Match 'if \(\$Script:UpdatesModeActive\) \{ return \}'
         $script:GuiContent | Should -Not -Match '"Updates"\s+=\s+@\(\)'
+    }
+
+    It 'exposes Gaming as a standalone top navigation mode' {
+        $gamingModeStart = $script:GuiContent.IndexOf('function Set-GuiGamingMode')
+        $gamingModeEnd = $script:GuiContent.IndexOf('function Set-GuiUpdatesMode', $gamingModeStart)
+        $gamingModeSource = $script:GuiContent.Substring($gamingModeStart, $gamingModeEnd - $gamingModeStart)
+        $gamingNavStart = $script:ActionHandlersContent.IndexOf('if ($NavModeGaming)')
+        $gamingNavEnd = $script:ActionHandlersContent.IndexOf('if ($NavModeApps)', $gamingNavStart)
+        $gamingNavSource = $script:ActionHandlersContent.Substring($gamingNavStart, $gamingNavEnd - $gamingNavStart)
+        $gamingLeadStart = $script:PresetUiContent.IndexOf("if (`$BuildContext.PrimaryTab -eq 'Gaming')")
+        $gamingLeadEnd = $script:PresetUiContent.IndexOf("if (`$BuildContext.PrimaryTab -notin @('Gaming', 'Initial Setup'))", $gamingLeadStart)
+        $gamingLeadSource = $script:PresetUiContent.Substring($gamingLeadStart, $gamingLeadEnd - $gamingLeadStart)
+
+        $script:GuiContent | Should -Match 'Name="NavModeGaming"'
+        $script:GuiContent | Should -Match 'function Set-GuiGamingMode'
+        $script:StyleContent | Should -Match 'Set-GuiButtonIconContent -Button \$Script:NavModeGaming -IconName ''Games'''
+        $script:GuiContent | Should -Match 'if \(\[string\]\$pKey -eq ''Gaming''\)\s*\{\s*continue\s*\}'
+        $script:GuiContent | Should -Match 'if \(\$Script:GamingModeActive\)\s*\{\s*\$targetTab = ''Gaming'''
+        $gamingModeSource | Should -Not -Match 'Set-GameModeState'
+        $gamingModeSource | Should -Match 'Set-GuiGamingRuntimeState -Enabled:\$true'
+        $gamingModeSource | Should -Match '\[switch\]\$SkipContentRestore'
+        $gamingModeSource | Should -Match 'Build-TabContent -PrimaryTab ''Gaming'' -SkipIdlePrebuild'
+        $gamingModeSource | Should -Match '\$Script:PrimaryTabHost\.Visibility = if \(\$Enable\) \{ \$collapsed \} else \{ \$visible \}'
+        $script:BuildTabContentContent | Should -Match '(?s)Add-TabContentLeadPanel -BuildContext \$buildContext\s*\$contentAlreadyDisplayed = \$false\s*if \(\$PrimaryTab -eq ''Gaming'' -and -not \$BackgroundBuild\)'
+        $script:BuildTabContentContent | Should -Match 'Show-TabContentBuildPanel -BuildContext \$buildContext'
+        $script:BuildTabContentContent | Should -Match '\$Script:VisibleTabContentPrimaryTab = \[string\]\$BuildContext.PrimaryTab'
+        $script:ContentManagementContent | Should -Match '\$Script:VisibleTabContentPrimaryTab = \$PrimaryTab'
+        $script:BuildTabContentContent | Should -Match 'Test-TabContentBuildStillCurrent -PrimaryTab \$PrimaryTab -BuildGeneration \$buildGeneration'
+        $script:BuildTabContentContent | Should -Match 'Start-ProgressiveTabSectionsHydration -BuildContext \$buildContext -AllTabIndexes \$allTabIndexes'
+        $script:BuildTabContentContent | Should -Match 'Save-TabContentCacheEntry -BuildContext \$BuildContext -AllTabIndexes \$AllTabIndexes -CacheOnly:\(\$AlreadyDisplayed -or -not \$displayBuiltContent\)'
+        $script:BuildTabContentContent | Should -Match 'BuildTabContent\.GamingLeadPanel\.RenderYield'
+        $script:BuildTabContentContent | Should -Match 'BuildTabContent\.ProgressiveHydration'
+        $script:ContentManagementContent | Should -Not -Match '\$groupedTweaks = if \(\$PrimaryTab -eq ''Gaming''\)'
+        $gamingNavSource | Should -Match 'Set-GuiGamingMode -Enable:\$true'
+        $gamingNavSource | Should -Not -Match 'Set-GuiUpdatesMode|Set-GuiDeploymentMediaMode|Set-GuiAppsMode'
+        $script:ActionHandlersContent | Should -Match 'Set-GuiGamingMode -Enable:\$false -SkipContentRestore'
+        $gamingLeadSource | Should -Match 'New-GameModeLandingPanel'
+        $gamingLeadSource | Should -Match '(?s)New-GameModeLandingPanel\)\)\)\s*return'
+        $gamingLeadSource | Should -Not -Match 'New-TabPresetPanel'
+        $script:GuiContent | Should -Not -Match 'ChkGameMode'
+        $script:StyleContent | Should -Not -Match 'ChkGameMode'
+        $script:PresetUiContent | Should -Not -Match '\$gameModeToggle|Build-TabContent/GameModeToggle'
+    }
+
+    It 'clears visible Gaming content immediately when another top mode is selected' {
+        $gamingModeStart = $script:GuiContent.IndexOf('function Set-GuiGamingMode')
+        $gamingModeEnd = $script:GuiContent.IndexOf('function Set-GuiUpdatesMode', $gamingModeStart)
+        $gamingModeSource = $script:GuiContent.Substring($gamingModeStart, $gamingModeEnd - $gamingModeStart)
+
+        $script:GuiContent | Should -Match 'function Clear-GuiTabContentIfOwnedBy'
+        $script:GuiContent | Should -Match '\[string\]\$Script:VisibleTabContentPrimaryTab -ne \$PrimaryTab'
+        $script:GuiContent | Should -Match '\$Script:TabContentBuildGeneration = \[int\]\$Script:TabContentBuildGeneration \+ 1'
+        $script:GuiContent | Should -Match '\$ContentScroll.Content = \$null'
+        $script:GuiContent | Should -Match '\$Script:VisibleTabContentPrimaryTab = \$null'
+        $script:GuiContent | Should -Match 'AppsModule\.Clear-GuiTabContentIfOwnedBy'
+        $gamingModeSource | Should -Match 'Clear-GuiTabContentIfOwnedBy -PrimaryTab ''Gaming'''
+    }
+
+    It 'restores standard Optimize selections when leaving Gaming mode' {
+        $gamingModeStart = $script:GuiContent.IndexOf('function Set-GuiGamingMode')
+        $gamingModeEnd = $script:GuiContent.IndexOf('function Set-GuiUpdatesMode', $gamingModeStart)
+        $gamingModeSource = $script:GuiContent.Substring($gamingModeStart, $gamingModeEnd - $gamingModeStart)
+
+        $script:GuiContent | Should -Match 'function Save-GuiStandardSelectionStateForGaming'
+        $script:GuiContent | Should -Match 'function Restore-GuiStandardSelectionStateAfterGaming'
+        $script:GuiContent | Should -Match 'function Copy-GuiControlSelectionState'
+        $script:GuiContent | Should -Match 'function Set-GuiControlSelectionState'
+        $script:GuiContent | Should -Match 'function Clear-GuiControlSelectionState'
+        $script:GuiContent | Should -Match '\$Script:StandardSelectionStateBeforeGaming = \[pscustomobject\]@\{'
+        $script:GuiContent | Should -Match 'Copy-GuiExplicitSelectionDefinition -Definition \$definition -FunctionName \(\[string\]\$definitionKey\)'
+        $script:GuiContent | Should -Match '\[string\]\$definition.Source -eq ''GameMode'''
+        $script:GuiContent | Should -Match 'Remove-GuiExplicitSelectionDefinition -FunctionName \(\[string\]\$definitionKey\)'
+        $script:GuiContent | Should -Match 'Set-GuiExplicitSelectionDefinition -FunctionName \(\[string\]\$definitionKey\) -Definition \$explicitDefinitions\[\$definitionKey\]'
+        $script:PresetSelectionStateContent | Should -Match "\[string\]\`$definition.Source -eq 'GameMode' -and -not \[bool\]\`$Script:GameMode"
+        $gamingModeSource | Should -Match 'Save-GuiStandardSelectionStateForGaming'
+        $gamingModeSource | Should -Match 'Restore-GuiStandardSelectionStateAfterGaming'
+        $gamingModeSource | Should -Match '& \$Script:SyncGameModePlanToGamingControlsScript'
+    }
+
+    It 'suppresses recursive top navigation events during programmatic mode synchronization' {
+        $script:GuiContent | Should -Match 'function Set-GuiNavModeCheckedState'
+        $script:GuiContent | Should -Match '\$Script:SuppressNavModeSelectionChanged = \$true'
+        $script:GuiContent | Should -Match '\$Script:SuppressNavModeSelectionChanged = \$previousSuppressNavModeSelectionChanged'
+        $script:GuiContent | Should -Match 'Set-GuiNavModeCheckedState'
+        $script:ActionHandlersContent | Should -Match 'if \(\$Script:SuppressNavModeSelectionChanged\) \{ return \}'
+        $script:GuiContent | Should -Not -Match 'AppsModule\.Set-GuiGamingMode\.UpdateGuiNavModeChrome'
+        $script:GuiContent | Should -Not -Match 'AppsModule\.Set-GuiUpdatesMode\.UpdateGuiNavModeChrome'
+        $script:GuiContent | Should -Not -Match 'AppsModule\.Set-GuiDeploymentMediaMode\.UpdateGuiNavModeChrome'
+        $script:GuiContent | Should -Not -Match 'AppsModule\.Set-GuiAppsMode\.UpdateGuiNavModeChrome'
+    }
+
+    It 'keeps top menu options visible across navigation modes' {
+        $script:MainWindowContent | Should -Match '<MenuItem Name="MenuFile"'
+        $script:MainWindowContent | Should -Match '<MenuItem Name="MenuActions"'
+        $script:MainWindowContent | Should -Match '<MenuItem Name="MenuView"'
+        $script:MainWindowContent | Should -Match '<MenuItem Name="MenuTools"'
+        $script:MainWindowContent | Should -Match '<MenuItem Name="MenuHelp"'
+        $script:MainWindowContent | Should -Match '<MenuItem Name="MenuToolsAppsManager" Header="Apps Manager"/>'
+        $script:MainWindowContent | Should -Match '<MenuItem Name="MenuToolsUpdateAllApps" Header="Update All Applications"/>'
+        $script:MainWindowContent | Should -Match '<Separator Name="MenuToolsSepApps"/>'
+        $script:GuiContent | Should -Not -Match '\$tweaksOnlyMenu|\$appsOnlyMenu'
+        $script:GuiContent | Should -Not -Match 'MenuActionsPreviewRun[\s\S]{0,300}\.Visibility = if \(\$Enable\)'
+        $script:GuiContent | Should -Not -Match 'MenuToolsAppsManager[\s\S]{0,300}\.Visibility = if \(\$Enable\)'
     }
 
     It 'exposes Deployment Media Builder as a top navigation GUI without view-level search or filters' {
@@ -664,7 +852,9 @@ Describe 'Focused GUI rebuilds' {
         $idxEnd | Should -BeGreaterThan $idxStart
         $deploymentViewXaml = $script:MainWindowContent.Substring($idxStart, $idxEnd - $idxStart)
         $deploymentViewXaml | Should -Match 'Setup checklist'
-        $deploymentViewXaml | Should -Match 'TxtDeploymentMediaPlanPreview'
+        $deploymentViewXaml | Should -Match 'Name="DeploymentMediaChecklistExpander"'
+        $deploymentViewXaml.IndexOf('Setup checklist') | Should -BeLessThan $deploymentViewXaml.IndexOf('Choose source ISO')
+        $deploymentViewXaml | Should -Not -Match 'TxtDeploymentMediaPlanPreview'
         $deploymentViewXaml | Should -Not -Match 'Search'
         $deploymentViewXaml | Should -Not -Match 'Filter'
         $deploymentViewXaml | Should -Not -Match 'Name="BtnDeploymentMediaPreviewPlan"'

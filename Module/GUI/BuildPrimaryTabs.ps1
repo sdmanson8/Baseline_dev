@@ -1,5 +1,10 @@
 	foreach ($pKey in $PrimaryCategories.Keys)
 	{
+		if ([string]$pKey -eq 'Gaming')
+		{
+			continue
+		}
+
 		# Check if any tweaks exist for this primary tab
 		$hasTweaks = $false
 		$tweakCount = 0
@@ -97,8 +102,6 @@
 
 		# Checkboxes
 		if ($ChkHideUnavailableItems) { try { $ChkHideUnavailableItems.IsChecked = [bool]$Script:HideUnavailableItems } catch { Write-GuiRuntimeWarning -Context 'FilterSync:HideUnavailableItems' -Message $_.Exception.Message } }
-		if ($ChkSafeMode)      { try { $ChkSafeMode.IsChecked      = [bool]$Script:SafeMode } catch { Write-GuiRuntimeWarning -Context 'FilterSync:SafeMode' -Message $_.Exception.Message } }
-		if ($ChkGameMode)      { try { $ChkGameMode.IsChecked      = [bool]$Script:GameMode } catch { Write-GuiRuntimeWarning -Context 'FilterSync:GameMode' -Message $_.Exception.Message } }
 		if ($ChkScan)          { try { $ChkScan.IsChecked          = [bool]$Script:ScanEnabled } catch { Write-GuiRuntimeWarning -Context 'FilterSync:ScanEnabled' -Message $_.Exception.Message } }
 
 		# Language selector button + popup
@@ -314,7 +317,7 @@
 				# 5. Rebuild tab content
 				$Script:FilterGeneration++
 				Clear-TabContentCache
-				if ($null -ne $Script:CurrentPrimaryTab)
+				if (-not [string]::IsNullOrWhiteSpace([string]$Script:CurrentPrimaryTab))
 				{
 					Update-CurrentTabContent -SkipIdlePrebuild
 				}

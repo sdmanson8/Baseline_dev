@@ -72,18 +72,6 @@ try
 			{
 				Set-TweakRowFactoryDensityTokens
 			}
-			if ($ChkSafeMode)
-			{
-				$ChkSafeMode.IsChecked = $desiredSafe
-				$ChkSafeMode.Content = if ($desiredSafe)
-				{
-					Get-UxLocalizedString -Key 'GuiHelpSectionSafeMode' -Fallback 'Safe Mode'
-				}
-				else
-				{
-					Get-UxLocalizedString -Key 'GuiHelpSectionExpertMode' -Fallback 'Expert Mode'
-				}
-			}
 			if ($ExpertModeBanner)
 			{
 				$ExpertModeBanner.Visibility = if ($desiredAdvanced) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
@@ -126,13 +114,6 @@ try
 			{
 				if ([string]::IsNullOrWhiteSpace([string]$advSelKey)) { continue }
 				$Script:GameModeAdvancedSelections[[string]$advSelKey] = [bool]$desiredGameModeAdvancedSelections[$advSelKey]
-			}
-			if ($ChkGameMode)
-			{
-				if ([bool]$ChkGameMode.IsChecked -ne $desiredGameMode)
-				{
-					$ChkGameMode.IsChecked = $desiredGameMode
-				}
 			}
 
 			$Script:RiskFilter = $desiredRisk

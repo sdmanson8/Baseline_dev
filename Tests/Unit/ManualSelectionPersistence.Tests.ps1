@@ -77,6 +77,7 @@ BeforeAll {
         )
 
         $selectionStore = @{}
+        $script:RunActionAvailabilityRefreshCount = 0
 
         return [pscustomobject]@{
             SelectionStore = $selectionStore
@@ -99,6 +100,9 @@ BeforeAll {
             }.GetNewClosure()
             TestSelectionBulkUpdateInProgress = $TestSelectionBulkUpdateInProgress
             SyncGameModePlanFromControlsScript = $null
+            UpdateRunActionAvailabilityScript = {
+                $script:RunActionAvailabilityRefreshCount++
+            }
         }
     }
 
@@ -305,6 +309,25 @@ Describe 'Manual explicit selection persistence' {
         $rowContext.SelectionStore['DemoToggle'].Type | Should -Be 'Toggle'
         $rowContext.SelectionStore['DemoToggle'].State | Should -Be 'Off'
         $rowContext.SelectionStore['DemoToggle'].Source | Should -Be 'Preset'
+    }
+
+    It 'does not require module-scoped run availability helper when a choice event fires' {
+        $combo = [System.Windows.Controls.ComboBox]::new()
+        [void]$combo.Items.Add('Install')
+        [void]$combo.Items.Add('Uninstall')
+        $combo.SelectedIndex = 1
+        $rowContext = NewRowContext
+        $stateControl = [pscustomobject]@{ IsRestoring = $false }
+        $script:RunActionAvailabilityRefreshCount = 0
+
+        Register-GuiChoiceSelectionHandler -ComboBox $combo -FunctionName 'WindowsCapabilities' -ChoiceOptions @('Install', 'Uninstall') -RowContext $rowContext -StateControl $stateControl
+
+        Invoke-WithFunctionNamesRemoved -Name @('Invoke-GuiTweakRowRunActionAvailabilityRefresh') -ScriptBlock {
+            { & $combo.CapturedHandlers['SelectionChanged'] } | Should -Not -Throw
+        }
+
+        $rowContext.SelectionStore['WindowsCapabilities'].Value | Should -Be 'Uninstall'
+        $script:RunActionAvailabilityRefreshCount | Should -Be 1
     }
 }
 

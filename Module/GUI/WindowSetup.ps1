@@ -685,11 +685,7 @@
 	$TxtLanguageSearchPlaceholder = $Form.FindName("TxtLanguageSearchPlaceholder")
 	$LanguageListPanel = $Form.FindName("LanguageListPanel")
 	$TxtLanguageState = $Form.FindName("TxtLanguageState")
-	$ChkSafeMode   = $Form.FindName("ChkSafeMode")
-	$ChkGameMode   = $Form.FindName("ChkGameMode")
-	$SafeModeGroup = $Form.FindName("SafeModeGroup")
 	$ThemeToggleGroup = $Form.FindName("ThemeToggleGroup")
-	$TxtAdvancedModeState = $Form.FindName("TxtAdvancedModeState")
 	$TxtThemeState = $Form.FindName("TxtThemeState")
 	$BtnStartHere  = $Form.FindName("BtnStartHere")
 	$BtnHelp       = $Form.FindName("BtnHelp")
@@ -716,6 +712,7 @@
 	$BtnFilterToggle = $Form.FindName("BtnFilterToggle")
 	$FilterOptionsPanel = $Form.FindName("FilterOptionsPanel")
 	$NavModeTweaks = $Form.FindName("NavModeTweaks")
+	$NavModeGaming = $Form.FindName("NavModeGaming")
 	$NavModeApps = $Form.FindName("NavModeApps")
 	$NavModeUpdates = $Form.FindName("NavModeUpdates")
 	$NavModeDeploymentMedia = $Form.FindName("NavModeDeploymentMedia")
@@ -730,6 +727,9 @@
 	$DeploymentMediaStatusBanner = $Form.FindName("DeploymentMediaStatusBanner")
 	$TxtDeploymentMediaSelectionStatus = $Form.FindName("TxtDeploymentMediaSelectionStatus")
 	$TxtDeploymentMediaBuildStatus = $Form.FindName("TxtDeploymentMediaBuildStatus")
+	$DeploymentMediaProgressPanel = $Form.FindName("DeploymentMediaProgressPanel")
+	$DeploymentMediaProgressBar = $Form.FindName("DeploymentMediaProgressBar")
+	$TxtDeploymentMediaProgressText = $Form.FindName("TxtDeploymentMediaProgressText")
 	$CmbDeploymentMediaMicrosoftIso = $Form.FindName("CmbDeploymentMediaMicrosoftIso")
 	$BtnDeploymentMediaDownloadMicrosoftIso = $Form.FindName("BtnDeploymentMediaDownloadMicrosoftIso")
 	$TxtDeploymentMediaSourceIso = $Form.FindName("TxtDeploymentMediaSourceIso")
@@ -919,7 +919,6 @@
 	$Script:ContentScrollHost = $ContentScrollHost
 	$Script:BtnBackToTop = $BtnBackToTop
 	$Script:ExpertModeBanner = $ExpertModeBanner
-	$Script:SafeModeGroup = $SafeModeGroup
 	$Script:ThemeToggleGroup = $ThemeToggleGroup
 	$Script:SearchLabel = $SearchLabel
 	$Script:TxtSearch = $TxtSearch
@@ -943,6 +942,7 @@
 	$Script:BtnStartHere = $BtnStartHere
 	$Script:BtnHelp = $BtnHelp
 	$Script:NavModeTweaks = $NavModeTweaks
+	$Script:NavModeGaming = $NavModeGaming
 	$Script:NavModeApps = $NavModeApps
 	$Script:NavModeUpdates = $NavModeUpdates
 	$Script:NavModeDeploymentMedia = $NavModeDeploymentMedia
@@ -957,6 +957,9 @@
 	$Script:DeploymentMediaStatusBanner = $DeploymentMediaStatusBanner
 	$Script:TxtDeploymentMediaSelectionStatus = $TxtDeploymentMediaSelectionStatus
 	$Script:TxtDeploymentMediaBuildStatus = $TxtDeploymentMediaBuildStatus
+	$Script:DeploymentMediaProgressPanel = $DeploymentMediaProgressPanel
+	$Script:DeploymentMediaProgressBar = $DeploymentMediaProgressBar
+	$Script:TxtDeploymentMediaProgressText = $TxtDeploymentMediaProgressText
 	$Script:CmbDeploymentMediaMicrosoftIso = $CmbDeploymentMediaMicrosoftIso
 	$Script:BtnDeploymentMediaDownloadMicrosoftIso = $BtnDeploymentMediaDownloadMicrosoftIso
 	$Script:TxtDeploymentMediaSourceIso = $TxtDeploymentMediaSourceIso
@@ -1048,6 +1051,8 @@
 		ChocolateyUpdates = @{}
 	}
 	$Script:AppsModeActive = $false
+	$Script:GamingModeActive = $false
+	$Script:GamingReturnPrimaryTab = $null
 	$Script:UpdatesModeActive = $false
 	$Script:UpdatesReturnPrimaryTab = $null
 	$Script:DeploymentMediaModeActive = $false
@@ -1177,39 +1182,94 @@
 			}
 			$Script:GuiDispatcherHandlingError = $true
 
-			$isFatal = $false
+			$dispatcherException = $null
+			if ($e -and $e.Exception)
+			{
+				$dispatcherException = $e.Exception
+			}
+
+			# Treat critical .NET exceptions as fatal. Reporting failures below must
+			# never promote a non-fatal dispatcher exception into a fatal shutdown.
+			$isFatal = $dispatcherException -is [System.StackOverflowException] -or
+				$dispatcherException -is [System.OutOfMemoryException] -or
+				$dispatcherException -is [System.AccessViolationException] -or
+				$dispatcherException -is [System.InvalidProgramException]
+
 			try
 			{
 				$showGuiRuntimeFailureScript = $Script:ShowGuiRuntimeFailureScript
-				if ($showGuiRuntimeFailureScript)
+				if ($showGuiRuntimeFailureScript -and $dispatcherException)
 				{
-					$null = & $showGuiRuntimeFailureScript -Context 'WPF Dispatcher' -Exception $e.Exception -ShowDialog
+					[void](& $showGuiRuntimeFailureScript -Context 'WPF Dispatcher' -Exception $dispatcherException -ShowDialog)
+				}
+				elseif ($dispatcherException)
+				{
+					Write-Warning (Format-BaselineErrorForLog -ErrorObject $dispatcherException -Prefix 'GUI event failed: WPF Dispatcher')
 				}
 				else
 				{
-					Write-Warning (Format-BaselineErrorForLog -ErrorObject $e -Prefix 'GUI event failed: WPF Dispatcher')
+					Write-Warning 'GUI event failed: WPF Dispatcher raised an unhandled exception event without an exception payload.'
 				}
-
-				# Treat critical .NET exceptions as fatal - do not suppress them
-				$ex = $e.Exception
-				$isFatal = $ex -is [System.StackOverflowException] -or
-					$ex -is [System.OutOfMemoryException] -or
-					$ex -is [System.AccessViolationException] -or
-					$ex -is [System.InvalidProgramException]
 			}
 			catch
 			{
-				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Module\GUI\WindowSetup.ps1:1196' -Severity Debug }
+				$reporterErrorRecord = $_
+				$dispatcherErrorText = if ($dispatcherException) {
+					try { Format-BaselineErrorForLog -ErrorObject $dispatcherException -Prefix 'GUI event failed: WPF Dispatcher' }
+					catch { 'GUI event failed: WPF Dispatcher: {0}: {1}' -f $dispatcherException.GetType().FullName, $dispatcherException.Message }
+				} else {
+					'GUI event failed: WPF Dispatcher raised an unhandled exception event without an exception payload.'
+				}
+				$reporterErrorText = try {
+					Format-BaselineErrorForLog -ErrorObject $reporterErrorRecord.Exception -Prefix 'GUI dispatcher failure reporter failed'
+				}
+				catch {
+					'GUI dispatcher failure reporter failed.'
+				}
 
-				# If our own handler fails, the original exception must not be swallowed
-				$isFatal = $true
+				try
+				{
+					if (Get-Command -Name 'LogError' -CommandType Function,Alias -ErrorAction SilentlyContinue)
+					{
+						LogError $dispatcherErrorText
+						LogError $reporterErrorText
+					}
+					elseif ($Global:LogFilePath)
+					{
+						$timestamp = Get-Date -Format 'dd-MM-yyyy HH:mm'
+						$lines = @(
+							('{0} ERROR: {1}' -f $timestamp, $dispatcherErrorText),
+							('{0} ERROR: {1}' -f $timestamp, $reporterErrorText)
+						)
+						[System.IO.File]::AppendAllText([string]$Global:LogFilePath, (($lines -join [Environment]::NewLine) + [Environment]::NewLine), [System.Text.Encoding]::UTF8)
+					}
+					else
+					{
+						Write-Warning $dispatcherErrorText
+						Write-Warning $reporterErrorText
+					}
+				}
+				catch
+				{
+					Write-Warning $dispatcherErrorText
+					Write-Warning $reporterErrorText
+				}
+
+				try
+				{
+					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+					{
+						Write-SwallowedException -ErrorRecord $reporterErrorRecord -Source 'WindowSetup.DispatcherRuntimeFailureReport' -Severity Warning
+					}
+				}
+				catch { }
 			}
 			finally
 			{
 				$Script:GuiDispatcherHandlingError = $false
 			}
 
-			$e.Handled = -not $isFatal
+			if ($e) { $e.Handled = -not $isFatal }
 		}
 
 		try

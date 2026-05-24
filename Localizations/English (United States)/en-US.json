@@ -498,7 +498,7 @@
   "GuiFooterExportSystemState": "Export System State",
   "GuiFooterImportSettings": "Import Settings",
   "GuiFooterUndoLastRun": "Undo Last Run",
-  "GuiGameModeActiveStatus": "GAME MODE ACTIVE — only the Gaming plan can be edited or run. Turn off Game Mode to use other tabs.",
+  "GuiGameModeActiveStatus": "GAME MODE ACTIVE - the Gaming workflow is ready. Switch modes from the top navigation when needed.",
   "GuiGameModeAdvancedCount": "{0} advanced option(s) available.",
   "GuiGameModeAdvancedCountActive": "{0} advanced option(s) available, {1} active.",
   "GuiGameModeAdvancedHeader": "ADVANCED GAME MODE OPTIONS",

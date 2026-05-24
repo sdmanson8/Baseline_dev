@@ -2,6 +2,10 @@ switch ($desiredNavigationMode)
 		{
 			'Apps'
 			{
+				if (Get-Command -Name 'Set-GuiGamingMode' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Set-GuiGamingMode -Enable:$false
+				}
 				if (Get-Command -Name 'Set-GuiDeploymentMediaMode' -CommandType Function -ErrorAction SilentlyContinue)
 				{
 					Set-GuiDeploymentMediaMode -Enable:$false
@@ -15,8 +19,31 @@ switch ($desiredNavigationMode)
 					Set-GuiAppsMode -Enable:$true
 				}
 			}
+			'Gaming'
+			{
+				if (Get-Command -Name 'Set-GuiDeploymentMediaMode' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Set-GuiDeploymentMediaMode -Enable:$false
+				}
+				if (Get-Command -Name 'Set-GuiUpdatesMode' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Set-GuiUpdatesMode -Enable:$false
+				}
+				if (Get-Command -Name 'Set-GuiAppsMode' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Set-GuiAppsMode -Enable:$false
+				}
+				if (Get-Command -Name 'Set-GuiGamingMode' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Set-GuiGamingMode -Enable:$true
+				}
+			}
 			'Updates'
 			{
+				if (Get-Command -Name 'Set-GuiGamingMode' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Set-GuiGamingMode -Enable:$false
+				}
 				if (Get-Command -Name 'Set-GuiDeploymentMediaMode' -CommandType Function -ErrorAction SilentlyContinue)
 				{
 					Set-GuiDeploymentMediaMode -Enable:$false
@@ -28,6 +55,10 @@ switch ($desiredNavigationMode)
 			}
 			'DeploymentMedia'
 			{
+				if (Get-Command -Name 'Set-GuiGamingMode' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Set-GuiGamingMode -Enable:$false
+				}
 				if (Get-Command -Name 'Set-GuiUpdatesMode' -CommandType Function -ErrorAction SilentlyContinue)
 				{
 					Set-GuiUpdatesMode -Enable:$false
@@ -43,6 +74,10 @@ switch ($desiredNavigationMode)
 			}
 			default
 			{
+				if (Get-Command -Name 'Set-GuiGamingMode' -CommandType Function -ErrorAction SilentlyContinue)
+				{
+					Set-GuiGamingMode -Enable:$false
+				}
 				if (Get-Command -Name 'Set-GuiDeploymentMediaMode' -CommandType Function -ErrorAction SilentlyContinue)
 				{
 					Set-GuiDeploymentMediaMode -Enable:$false

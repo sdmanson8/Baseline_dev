@@ -137,7 +137,12 @@
 		Initialize-GuiSelectionStateStores
 		if ([string]::IsNullOrWhiteSpace([string]$FunctionName)) { return $null }
 		if (-not $Script:ExplicitPresetSelectionDefinitions.ContainsKey([string]$FunctionName)) { return $null }
-		return $Script:ExplicitPresetSelectionDefinitions[[string]$FunctionName]
+		$definition = $Script:ExplicitPresetSelectionDefinitions[[string]$FunctionName]
+		if ($definition -and (Test-GuiObjectField -Object $definition -FieldName 'Source') -and [string]$definition.Source -eq 'GameMode' -and -not [bool]$Script:GameMode)
+		{
+			return $null
+		}
+		return $definition
 	}
 
 	function Set-GuiExplicitSelectionDefinition

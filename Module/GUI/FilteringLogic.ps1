@@ -759,6 +759,10 @@
 		if (-not (Test-TweakVisibleInCurrentMode -Tweak $Tweak)) { return $false }
 
 		$owningPrimary = Resolve-GuiPrimaryTabForTweak -Tweak $Tweak
+		if (-not [bool]$Script:GamingModeActive -and $owningPrimary -eq 'Gaming')
+		{
+			return $false
+		}
 		if (-not $IsSearchResultsTab -and $owningPrimary -ne $PrimaryTab)
 		{
 			# Cross-tab entries: allow specific tweaks from other tabs to appear in Gaming

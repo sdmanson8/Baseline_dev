@@ -1,3 +1,10 @@
+if (-not ($Script:CategoryToPrimary -is [hashtable]))
+{
+	$Script:CategoryToPrimary = @{}
+}
+
+$CategoryToPrimary = $Script:CategoryToPrimary
+
 foreach ($prim in $PrimaryCategories.Keys)
 	{
 		$subs = $PrimaryCategories[$prim]

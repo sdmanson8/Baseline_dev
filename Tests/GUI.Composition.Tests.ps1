@@ -533,13 +533,11 @@ Describe 'Theme menu state (W-1g)' {
         $Script:MenuViewTheme = [System.Windows.Controls.MenuItem]::new()
         $Script:MenuViewTheme.IsCheckable = $true
         $Script:ChkTheme = [System.Windows.Controls.CheckBox]::new()
-        $Script:ChkSafeMode = [System.Windows.Controls.CheckBox]::new()
         $Script:TxtThemeState = [System.Windows.Controls.TextBlock]::new()
         $Script:CurrentTheme = $Script:DarkTheme
         $Script:CurrentThemeName = 'Dark'
         $Script:SafeMode = $false
         $Script:AdvancedMode = $false
-        $Script:TxtAdvancedModeState = [System.Windows.Controls.TextBlock]::new()
     }
 
     It 'syncs the menu label and check state for Light theme' {
@@ -577,7 +575,6 @@ Describe 'Safe Mode visibility (W-1h)' {
             )
 
             switch ($Key) {
-                'GuiChkSafeMode' { return 'Safe Mode' }
                 'GuiStatusSafeModeEnabled' { return 'Safe mode enabled.' }
                 'GuiStatusSafeModeDisabledRestored' { return 'Safe mode disabled.' }
                 'GuiStatusSafeModeDisabledCleared' { return ('Safe mode disabled and {0} selection(s) cleared.' -f $FormatArgs[0]) }
@@ -716,7 +713,6 @@ Describe 'Safe Mode visibility (W-1h)' {
         $Script:MenuFileExportSystemState.Visibility = 'Visible'
         $Script:MenuFileExportConfigProfile = [System.Windows.Controls.MenuItem]::new()
         $Script:MenuFileExportConfigProfile.Visibility = 'Visible'
-        $Script:ChkSafeMode = [System.Windows.Controls.CheckBox]::new()
         $Script:ExpertModeBanner = [System.Windows.Controls.Border]::new()
         $Script:ExpertModeBanner.Visibility = 'Visible'
     }
@@ -753,8 +749,6 @@ Describe 'Safe Mode visibility (W-1h)' {
         $script:MenuViewFilters.Visibility | Should -Be 'Collapsed'
         $script:MenuFileExportSystemState.Visibility | Should -Be 'Collapsed'
         $script:MenuFileExportConfigProfile.Visibility | Should -Be 'Collapsed'
-        $script:ChkSafeMode.IsChecked | Should -BeTrue
-        [string]$script:ChkSafeMode.Content | Should -Be 'Safe Mode'
     }
 
     It 'restores controls when Safe Mode is disabled' {
@@ -810,8 +804,6 @@ Describe 'Safe Mode visibility (W-1h)' {
         $script:MenuViewFilters.Visibility | Should -Be 'Visible'
         $script:MenuFileExportSystemState.Visibility | Should -Be 'Visible'
         $script:MenuFileExportConfigProfile.Visibility | Should -Be 'Visible'
-        $script:ChkSafeMode.IsChecked | Should -BeFalse
-        [string]$script:ChkSafeMode.Content | Should -Be 'Expert Mode'
     }
 
     It 'keeps the header log button hidden when Expert Mode is enabled' {
@@ -829,8 +821,6 @@ Describe 'Safe Mode visibility (W-1h)' {
         $script:BtnFilterToggle.Visibility | Should -Be 'Visible'
         $script:ChkScan.Visibility | Should -Be 'Visible'
         $script:ExpertModeBanner.Visibility | Should -Be 'Visible'
-        $script:ChkSafeMode.IsChecked | Should -BeFalse
-        [string]$script:ChkSafeMode.Content | Should -Be 'Expert Mode'
     }
 }
 
@@ -914,7 +904,6 @@ Describe 'Menu localization refresh (W-1j)' {
             GuiMenuViewOpenLogs        = 'Open Logs'
             GuiMenuViewSwitchToLightMode = 'Switch to Light Mode'
             GuiMenuViewSwitchToDarkMode  = 'Switch to Dark Mode'
-            GuiChkSafeMode             = 'Safe Mode'
             GuiThemeDark               = 'Theme: Dark'
             GuiThemeLight              = 'Theme: Light'
         }
@@ -986,9 +975,7 @@ Describe 'Menu localization refresh (W-1j)' {
         $Script:ChkTheme = [System.Windows.Controls.CheckBox]::new()
         $Script:ChkTheme.IsChecked = $false
         $Script:MenuViewTheme.IsCheckable = $true
-        $Script:ChkSafeMode = [System.Windows.Controls.CheckBox]::new()
         $Script:TxtThemeState = [System.Windows.Controls.TextBlock]::new()
-        $Script:TxtAdvancedModeState = [System.Windows.Controls.TextBlock]::new()
         $Script:CurrentTheme = $Script:DarkTheme
         $Script:CurrentThemeName = 'Dark'
         $Script:SafeMode = $false
@@ -1018,7 +1005,6 @@ Describe 'Menu localization refresh (W-1j)' {
             GuiMenuViewOpenLogs        = 'Ouvrir les journaux'
             GuiMenuViewSwitchToLightMode = 'Basculer vers le mode clair'
             GuiMenuViewSwitchToDarkMode  = 'Basculer vers le mode sombre'
-            GuiChkSafeMode             = 'Mode sans echec'
             GuiThemeDark               = 'Theme : sombre'
             GuiThemeLight              = 'Theme : clair'
         }

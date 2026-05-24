@@ -117,22 +117,24 @@ Describe 'Deployment Media Builder top navigation view' {
         $script:XamlContent | Should -Match 'Name="BtnDeploymentMediaCreateAutounattend"'
         $script:XamlContent | Should -Match 'Official Microsoft ISO Download'
         $script:XamlContent | Should -Match "Powered by Microsoft's Media Creation Tool"
+        $script:XamlContent | Should -Match 'Name="DeploymentMediaChecklistExpander"'
         $script:XamlContent | Should -Match 'Setup checklist'
-        $script:XamlContent | Should -Match 'Preview becomes available after source ISO, detected edition, and output settings are complete.'
+        $script:XamlContent | Should -Match 'Preview and Start ISO Build become available together after required setup inputs validate.'
+        $script:XamlContent | Should -Not -Match 'Name="DeploymentMediaPlanCard"'
+        $script:XamlContent | Should -Not -Match 'Name="TxtDeploymentMediaPlanPreview"'
         $script:XamlContent | Should -Match 'Name="BtnDeploymentMediaPreviewPlan"[^>]*IsEnabled="False"'
 
+        $stepChecklist = $script:XamlContent.IndexOf('Setup checklist')
         $stepSource = $script:XamlContent.IndexOf('Choose source ISO')
         $stepDetect = $script:XamlContent.IndexOf('Detect editions')
         $stepOutput = $script:XamlContent.IndexOf('Choose build output')
         $stepCustomize = $script:XamlContent.IndexOf('Add optional setup customizations')
-        $stepChecklist = $script:XamlContent.IndexOf('Setup checklist')
-        $stepPreview = $script:XamlContent.IndexOf('Preview build plan')
+        $stepChecklist | Should -BeGreaterThan -1
         $stepSource | Should -BeGreaterThan -1
+        $stepChecklist | Should -BeLessThan $stepSource
         $stepDetect | Should -BeGreaterThan $stepSource
         $stepOutput | Should -BeGreaterThan $stepDetect
         $stepCustomize | Should -BeGreaterThan $stepOutput
-        $stepChecklist | Should -BeGreaterThan $stepCustomize
-        $stepPreview | Should -BeGreaterThan $stepChecklist
 
         $bottomActionStart = $script:XamlContent.IndexOf('<WrapPanel Name="BottomActionBar"')
         $bottomActionStart | Should -BeGreaterThan -1
@@ -173,10 +175,26 @@ Describe 'Deployment Media Builder top navigation view' {
         $script:ViewContent | Should -Match 'function Invoke-GuiDeploymentMediaBuilderDownloadMicrosoftIso'
         $script:ViewContent | Should -Match 'function Test-GuiDeploymentMediaBuilderPreviewPrerequisites'
         $script:ViewContent | Should -Match 'function Update-GuiDeploymentMediaBuilderPreviewAvailability'
+        $script:ViewContent | Should -Match '\$Script:BtnDeploymentMediaPreviewPlan\.IsEnabled = \$actionReady'
+        $script:ViewContent | Should -Match '\$Script:BtnDeploymentMediaStartBuild\.IsEnabled = \$actionReady'
+        $script:ViewContent | Should -Not -Match '\$Script:BtnDeploymentMediaStartBuild\.IsEnabled = \$Enabled -and \$Script:DeploymentMediaCurrentPlan'
         $script:ViewContent | Should -Match 'function Select-GuiDeploymentMediaBuilderWorkerPayload'
         $script:ViewContent | Should -Match 'function Clear-GuiDeploymentMediaBuilderDetectedIsoState'
         $script:ViewContent | Should -Match 'function Test-GuiDeploymentMediaBuilderIsoInfoPayload'
         $script:ViewContent | Should -Match 'function Set-GuiDeploymentMediaBuilderDetectedIsoInfo'
+        $script:ViewContent | Should -Match 'function Set-GuiDeploymentMediaBuilderProgressState'
+        $script:ViewContent | Should -Match 'function Initialize-GuiDeploymentMediaBuilderProgressChrome'
+        $script:ViewContent | Should -Match 'function Show-GuiDeploymentMediaBuildPlanPreviewDialog'
+        $script:ViewContent | Should -Match 'Show-ExecutionSummaryDialog -Title ''Preview Build Plan'''
+        $script:ViewContent | Should -Match 'function Show-GuiDeploymentMediaBuildProgressDialog'
+        $script:ViewContent | Should -Match 'function Set-GuiDeploymentMediaBuildDialogProgressState'
+        $script:ViewContent | Should -Match 'function Add-GuiDeploymentMediaBuildDialogLogLine'
+        $script:ViewContent | Should -Match 'function Complete-GuiDeploymentMediaBuildProgressDialog'
+        $script:XamlContent | Should -Match 'Name="DeploymentMediaProgressPanel"'
+        $script:XamlContent | Should -Match 'Name="DeploymentMediaProgressBar"'
+        $script:XamlContent | Should -Match 'Name="TxtDeploymentMediaProgressText"'
+        $script:WindowSetupContent | Should -Match '\$DeploymentMediaProgressPanel = \$Form\.FindName\("DeploymentMediaProgressPanel"\)'
+        $script:WindowSetupContent | Should -Match '\$Script:DeploymentMediaProgressBar = \$DeploymentMediaProgressBar'
         $script:ViewContent | Should -Match 'Run Detect Editions again after changing the source ISO'
         $script:ViewContent | Should -Match 'Register-GuiEventHandler -Source \$Script:TxtDeploymentMediaSourceIso -EventName ''TextChanged'''
         $script:ViewContent | Should -Match 'ISO detection completed without usable edition data'
@@ -190,7 +208,11 @@ Describe 'Deployment Media Builder top navigation view' {
 
     It 'runs ISO detection and media builds off the WPF thread with timeouts' {
         $script:ViewContent | Should -Match 'function Start-GuiDeploymentMediaBuilderBackgroundOperation'
-        $script:ViewContent | Should -Match '\[System\.Management\.Automation\.Runspaces\.RunspaceFactory\]::CreateRunspace\(\)'
+        $script:ViewContent | Should -Match '\[System\.Management\.Automation\.Runspaces\.InitialSessionState\]::CreateDefault\(\)'
+        $script:ViewContent | Should -Match '\$initialSessionState\.ImportPSModule\(@\(''Microsoft\.PowerShell\.Management'', ''Microsoft\.PowerShell\.Utility''\)\)'
+        $script:ViewContent | Should -Match '\[System\.Management\.Automation\.Runspaces\.RunspaceFactory\]::CreateRunspace\(\$initialSessionState\)'
+        $script:ViewContent | Should -Match '\$workerSource = \$Worker\.ToString\(\)'
+        $script:ViewContent | Should -Match '\[scriptblock\]::Create\(\$WorkerSource\)'
         $script:ViewContent | Should -Match '\[System\.Windows\.Threading\.DispatcherTimer\]::new\(\)'
         $script:ViewContent | Should -Match '\$ps\.BeginInvoke\(\)'
         $script:ViewContent | Should -Match '\$ps\.BeginStop\(\$null, \$null\)'
@@ -224,7 +246,13 @@ Describe 'Deployment Media Builder top navigation view' {
             'function Convert-GuiDeploymentMediaBuilderWorkerErrorRecord',
             '\$convertWorkerErrorScript = \$\{function:Convert-GuiDeploymentMediaBuilderWorkerErrorRecord\}',
             '\$writeDebugLogScript = \$\{function:Write-GuiDeploymentMediaBuilderViewDebugLog\}',
+            '\$ErrorActionPreference = ''Stop''',
+            '\$workerBlock = \[scriptblock\]::Create\(\$WorkerSource\)',
+            'ProgressPayload = \$null',
             'LastStatus = ''''',
+            '\$streamErrors = @\(\$ps\.Streams\.Error\)',
+            'ErrorCount=\{2\}',
+            'DeploymentMediaBuilderView\.BackgroundOperation\.ErrorStream',
             '\$showMicrosoftIsoFailureDialogScript = \$\{function:Show-GuiDeploymentMediaMicrosoftIsoFailureDialog\}',
             '\$writeSwallowedExceptionScript = Get-Command -Name ''Write-SwallowedException''',
             '& \$setStatusScript -Message \$Message -Tone ''muted'' -ShowBanner',
@@ -232,9 +260,13 @@ Describe 'Deployment Media Builder top navigation view' {
             '& \$clearDetectedIsoStateScript -Summary',
             '& \$setControlsEnabledScript -Enabled:\$true',
             '& \$completeOperationScript -Operation \$operation',
+            '\$workerErrorRecord = & \$convertWorkerErrorScript -ErrorRecord \$streamErrorRecord -OperationName \$Name',
             '\$workerErrorRecord = & \$convertWorkerErrorScript -ErrorRecord \$_ -OperationName \$Name',
             '& \$writeDebugLogScript -Message',
-            '\$operation\.LastStatus = \$status',
+            '\$operation\.LastStatus = \$statusKey',
+            '& \$StatusCallback \$progressPayload',
+            'DeploymentMediaBuilderMissingWorkerPayload',
+            'DeploymentMediaBuilderView\.BackgroundOperation\.MissingPayload',
             '& \$FailedCallback -ErrorRecord \$workerErrorRecord',
             '& \$showDialogScript -Title ''Deployment Media Builder'''
         )) {
@@ -248,13 +280,41 @@ Describe 'Deployment Media Builder top navigation view' {
         $script:ViewContent | Should -Match 'function Invoke-GuiDeploymentMediaBuilderDetectIso[\s\S]+?\$completedCallback = \{[\s\S]+?& \$writeDebugLogScript -Message'
         $script:ViewContent | Should -Match 'function Invoke-GuiDeploymentMediaBuilderDetectIso[\s\S]+?\$failedCallback = \{[\s\S]+?& \$writeDebugLogScript -Message'
         $script:ViewContent | Should -Match 'function Invoke-GuiDeploymentMediaBuilderStartBuild[\s\S]+?\$writeDebugLogScript = \$\{function:Write-GuiDeploymentMediaBuilderViewDebugLog\}'
+        $script:ViewContent | Should -Match 'function Invoke-GuiDeploymentMediaBuilderStartBuild[\s\S]+?\$buildResult = Invoke-GuiDeploymentMediaBuild @buildParameters[\s\S]+?if \(\$null -eq \$buildResult\)'
         $script:ViewContent | Should -Match 'function Invoke-GuiDeploymentMediaBuilderStartBuild[\s\S]+?\$completedCallback = \{[\s\S]+?& \$writeDebugLogScript -Message'
+        $script:ViewContent | Should -Match 'function Invoke-GuiDeploymentMediaBuilderStartBuild[\s\S]+?\$completedCallback = \{[\s\S]+?if \(-not \$buildResult\)'
+        $script:ViewContent | Should -Match 'Deployment media build returned an incomplete result\. OutputPath="\{0\}"; ReportPath="\{1\}"\.'
         $script:ViewContent | Should -Match 'function Invoke-GuiDeploymentMediaBuilderStartBuild[\s\S]+?\$failedCallback = \{[\s\S]+?& \$writeDebugLogScript -Message'
 
         $script:ViewContent | Should -Not -Match '(?m)^\s*Set-GuiDeploymentMediaBuilderStatus -Message \$Message -Tone ''muted'' -ShowBanner'
         $script:ViewContent | Should -Not -Match '(?m)^\s*Complete-GuiDeploymentMediaBuilderBackgroundOperation -Operation \$operation'
         $script:ViewContent | Should -Not -Match '(?m)^\s*\$lastStatus = '''''
         $script:ViewContent | Should -Not -Match '(?m)^\s*& \$FailedCallback -ErrorRecord \$_'
+    }
+
+    It 'routes deployment media build progress through the shared progress dialog without duplicate status text' {
+        $script:ViewContent | Should -Match '\$setProgressStateScript = \$\{function:Set-GuiDeploymentMediaBuilderProgressState\}'
+        $script:ViewContent | Should -Match '\$showBuildDialogScript = \$\{function:Show-GuiDeploymentMediaBuildProgressDialog\}'
+        $script:ViewContent | Should -Match '\$setBuildDialogProgressScript = \$\{function:Set-GuiDeploymentMediaBuildDialogProgressState\}'
+        $script:ViewContent | Should -Match '\$addBuildDialogProgressLogScript = \$\{function:Add-GuiDeploymentMediaBuildDialogProgressLog\}'
+        $script:ViewContent | Should -Match '\$completeBuildDialogScript = \$\{function:Complete-GuiDeploymentMediaBuildProgressDialog\}'
+        $script:ViewContent | Should -Match '& \$setProgressStateScript -Progress \$Progress -Message \$message'
+        $script:ViewContent | Should -Match '& \$setBuildDialogProgressScript -Dialog \$buildDialog -Progress \$Progress -Message \$message'
+        $script:ViewContent | Should -Match '& \$addBuildDialogProgressLogScript -Dialog \$buildDialog -Progress \$Progress -Message \$message'
+        $script:ViewContent | Should -Match '& \$setStatusScript -Message ''Build running\.'' -Tone ''muted'''
+        $script:ViewContent | Should -Match '& \$setProgressStateScript -Hide'
+        $script:ViewContent | Should -Not -Match '\$statusMessage ='
+        $script:ViewContent | Should -Not -Match 'function Invoke-GuiDeploymentMediaBuilderStartBuild[\s\S]+?\$statusCallback = \{[\s\S]+?& \$setStatusScript -Message \$statusMessage'
+        $script:ViewContent | Should -Match '\$inlineStatusText = if \(\$ShowBanner\) \{ '''' \} else \{ \[string\]\$Message \}'
+        $script:ViewContent | Should -Match 'function Get-GuiDeploymentMediaSharedProgressBarStateCommand'
+        $script:ViewContent | Should -Match '\$setSharedProgressBarState = Get-GuiDeploymentMediaSharedProgressBarStateCommand'
+        $script:ViewContent | Should -Match '& \$setSharedProgressBarState -ProgressBar \$Script:DeploymentMediaProgressBar'
+        $script:ViewContent | Should -Match '& \$setSharedProgressBarState -ProgressBar \$Dialog\.ProgressBar'
+        $script:ViewContent | Should -Match 'New-Object System\.Windows\.Controls\.RichTextBox'
+        $script:ViewContent | Should -Match '\$abortButton\.Content = ''Abort'''
+        $script:ViewContent | Should -Match 'Stop-GuiDeploymentMediaBuilderBackgroundOperation'
+        $script:ViewContent | Should -Not -Match 'function Invoke-GuiDeploymentMediaBuilderStartBuild[\s\S]+?\$Script:TxtDeploymentMediaPlanPreview\.Text = \(& \$convertPlanTextScript -Plan \$plan\) \+ \[Environment\]::NewLine \+ \[Environment\]::NewLine \+ \$Message'
+        $script:ViewContent | Should -Not -Match 'function Invoke-GuiDeploymentMediaBuilderStartBuild[\s\S]+?& \$setStatusScript -Message \$Message -Tone ''muted'' -ShowBanner'
     }
 
     It 'populates detected ISO editions as selectable data and syncs the selected image index' {
@@ -435,6 +495,12 @@ Describe 'Deployment Media Builder top navigation view' {
             '\$tabScroll\.HorizontalScrollBarVisibility = \[System\.Windows\.Controls\.ScrollBarVisibility\]::Auto',
             'MouseLeftButtonUp',
             'Advanced mode',
+            '\$startInAdvancedMode = \$false',
+            'Test-IsExpertModeUX',
+            '\$advancedModeCheckBox\.IsChecked = \$startInAdvancedMode',
+            '\$initialShowAdvanced = \[bool\]\$advancedModeCheckBox\.IsChecked',
+            '& \$setChoiceDisplayModeScript -Controls \$controls -ShowAdvanced:\$initialShowAdvanced',
+            '& \$updateDependenciesScript -Controls \$controls -ShowAdvanced:\$initialShowAdvanced',
             'raw XML/internal values',
             'GeneratedPreview',
             'Review XML',
@@ -664,6 +730,10 @@ Describe 'Deployment Media Builder dialog contract' {
         $script:DialogContent | Should -Match 'function Save-GuiDeploymentMediaMicrosoftLatestIso'
         $script:DialogContent | Should -Match 'function Invoke-GuiDeploymentMediaBuild'
         $script:DialogContent | Should -Match 'function Resolve-GuiDeploymentMediaOscdimgPath'
+        $script:DialogContent | Should -Match 'function Install-GuiDeploymentMediaOscdimgPackage'
+        $script:DialogContent | Should -Match 'function Test-GuiDeploymentMediaOscdimgDependencyError'
+        $script:DialogContent | Should -Match 'function Get-GuiDeploymentMediaOscdimgInstallPageUrl'
+        $script:DialogContent | Should -Match 'function Show-GuiDeploymentMediaDialogOscdimgInstallPrompt'
         $script:DialogContent | Should -Match 'function Invoke-GuiDeploymentMediaDriverInjection'
         $script:DialogContent | Should -Match 'function Save-GuiDeploymentMediaBuildReport'
     }
@@ -713,7 +783,11 @@ Describe 'Deployment Media Builder dialog contract' {
 
     It 'runs legacy modal ISO detection and media builds off the WPF thread' {
         $script:DialogContent | Should -Match 'function Start-GuiDeploymentMediaDialogBackgroundOperation'
-        $script:DialogContent | Should -Match '\[System\.Management\.Automation\.Runspaces\.RunspaceFactory\]::CreateRunspace\(\)'
+        $script:DialogContent | Should -Match '\[System\.Management\.Automation\.Runspaces\.InitialSessionState\]::CreateDefault\(\)'
+        $script:DialogContent | Should -Match '\$initialSessionState\.ImportPSModule\(@\(''Microsoft\.PowerShell\.Management'', ''Microsoft\.PowerShell\.Utility''\)\)'
+        $script:DialogContent | Should -Match '\[System\.Management\.Automation\.Runspaces\.RunspaceFactory\]::CreateRunspace\(\$initialSessionState\)'
+        $script:DialogContent | Should -Match '\$workerSource = \$Worker\.ToString\(\)'
+        $script:DialogContent | Should -Match '\[scriptblock\]::Create\(\$WorkerSource\)'
         $script:DialogContent | Should -Match '\[System\.Windows\.Threading\.DispatcherTimer\]::new\(\)'
         $script:DialogContent | Should -Match '\$ps\.BeginInvoke\(\)'
         $script:DialogContent | Should -Match '\$ps\.BeginStop\(\$null, \$null\)'
@@ -742,7 +816,7 @@ Describe 'Deployment Media Builder dialog contract' {
             'Always cleanup mounts',
             'Support safe cancellation',
             'Never silently ignore DISM or oscdimg failures',
-            'Use Preview Build Plan before exposing Start ISO Build'
+            'Preview Build Plan remains optional before Start ISO Build'
         )) {
             $script:DialogContent | Should -Match ([regex]::Escape($expected))
         }
@@ -756,11 +830,17 @@ Describe 'Deployment Media Builder dialog contract' {
         $script:DialogContent | Should -Match 'Detected ISO image details belong to a different source ISO'
         $script:DialogContent | Should -Match 'Autounattend file must be an \.xml file'
         $script:DialogContent | Should -Match 'Driver source directory does not exist'
-        $script:DialogContent | Should -Match '\$btnStartBuild\.IsEnabled = \[bool\]\$currentPlan\.IsValid'
+        $script:DialogContent | Should -Match '\$btnPreview\.IsEnabled = \$ready'
+        $script:DialogContent | Should -Match '\$btnStartBuild\.IsEnabled = \$ready'
+        $script:DialogContent | Should -Match 'Ready to preview or start ISO build'
     }
 
     It 'inspects the selected ISO with Windows image APIs and cleans up the mount' {
         $script:DialogContent | Should -Match "Get-Command -Name 'Mount-DiskImage' -CommandType Function, Cmdlet"
+        $script:DialogContent | Should -Match 'function Import-GuiDeploymentMediaDismModule'
+        $script:DialogContent | Should -Match "Import-Module -Name 'Dism' -ErrorAction Stop"
+        $script:DialogContent | Should -Match 'function Invoke-GuiDeploymentMediaPowerShellStage[\s\S]+?\[System\.Management\.Automation\.Runspaces\.InitialSessionState\]::CreateDefault\(\)'
+        $script:DialogContent | Should -Match 'function Invoke-GuiDeploymentMediaPowerShellStage[\s\S]+?\[System\.Management\.Automation\.Runspaces\.RunspaceFactory\]::CreateRunspace\(\$initialSessionState\)'
         $script:DialogContent | Should -Match 'Invoke-GuiDeploymentMediaPowerShellStage -Name ''Mount source ISO for edition detection'''
         $script:DialogContent | Should -Match 'Mount-DiskImage -ImagePath \$Path'
         $script:DialogContent | Should -Match 'Get-WindowsImage -ImagePath \$Path'
@@ -781,6 +861,16 @@ Describe 'Deployment Media Builder dialog contract' {
         $script:DialogContent | Should -Match 'Invoke-GuiDeploymentMediaDismountImage -MountPath \$installMountPath -Mode Save'
         $script:DialogContent | Should -Match 'Invoke-GuiDeploymentMediaEmergencyDismCleanup'
         $script:DialogContent | Should -Match 'oscdimg\.exe is required to create an ISO'
+        $script:DialogContent | Should -Match 'Microsoft\.OSCDIMG'
+        $script:DialogContent | Should -Match "Resolve-GuiDeploymentMediaOscdimgPath -InstallIfMissing"
+        $script:DialogContent | Should -Match "'--id', 'Microsoft\.OSCDIMG'"
+        $script:DialogContent | Should -Match "'--accept-package-agreements'"
+        $script:DialogContent | Should -Match "'--accept-source-agreements'"
+        $script:DialogContent | Should -Match "'--disable-interactivity'"
+        $script:DialogContent | Should -Match "'--source', 'winget'"
+        $script:DialogContent | Should -Match 'https://winstall\.app/apps/Microsoft\.OSCDIMG'
+        $script:DialogContent | Should -Match 'Open Install Page'
+        $script:DialogContent | Should -Match 'Invoke-UserLaunch -FilePath \$pageUrl -Description ''Microsoft OSCDIMG install page'''
         $script:DialogContent | Should -Match 'Invoke-GuiDeploymentMediaProcess -FilePath \$oscdimgPath'
         $script:DialogContent | Should -Match 'Invoke-GuiDeploymentMediaRobocopy -Source \$mediaRoot -Destination \$targetRoot'
         $script:DialogContent | Should -Match 'Invoke-GuiDeploymentMediaProcess -FilePath \$bootsectPath'
@@ -793,10 +883,23 @@ Describe 'Deployment Media Builder dialog contract' {
         $script:DialogContent | Should -Match 'New-GuiDeploymentMediaBuildTelemetry'
         $script:DialogContent | Should -Match 'StageRecords'
         $script:DialogContent | Should -Match 'CleanupRecords'
+        $script:DialogContent | Should -Match 'function New-GuiDeploymentMediaByteProgressRecord'
+        $script:DialogContent | Should -Match 'Write-GuiDeploymentMediaBuildCopyProgress'
+        $script:DialogContent | Should -Match 'CompletedBytes'
+        $script:DialogContent | Should -Match 'TotalBytes'
+        $script:DialogContent | Should -Match 'RemainingSeconds'
+        $script:DialogContent | Should -Match '\[System\.IO\.File\]::Open'
+        $script:DialogContent | Should -Not -Match 'robocopy\.exe'
     }
 
     It 'uses structured telemetry and retrying cleanup for long-running media operations' {
         $script:DialogContent | Should -Match 'function Write-GuiDeploymentMediaTelemetryLog'
+        $script:DialogContent | Should -Match 'function Get-GuiDeploymentMediaExecutionFunctionCapture'
+        $script:DialogContent | Should -Match 'function Get-GuiDeploymentMediaTelemetryRecordWriter'
+        $script:DialogContent | Should -Match '\$addTelemetryRecord = Get-GuiDeploymentMediaTelemetryRecordWriter'
+        $script:DialogContent | Should -Match '\$assertNotCancelled = Get-GuiDeploymentMediaExecutionFunctionCapture -Name ''Assert-GuiDeploymentMediaNotCancelled'''
+        $script:DialogContent | Should -Match '\$writeCopyProgress = Get-GuiDeploymentMediaExecutionFunctionCapture -Name ''Write-GuiDeploymentMediaBuildCopyProgress'''
+        $script:DialogContent | Should -Not -Match '(?m)^\s*Add-GuiDeploymentMediaTelemetryRecord -Telemetry'
         $script:DialogContent | Should -Match 'DeploymentMediaTelemetry'
         $script:DialogContent | Should -Match 'SourceIsoName'
         $script:DialogContent | Should -Match 'Architecture'

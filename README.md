@@ -50,13 +50,15 @@ Baseline is a PowerShell-based utility for configuring, auditing, hardening, and
 
 It includes:
 
-- a WPF desktop GUI with search, filters, risk labels, preset selection, and DPI-aware layout
+- a WPF desktop GUI with separate Optimize, Gaming, Windows Updates, Windows Setup Builder, and Software & Apps modes
+- search, filters, risk labels, Initial Setup recommendations, and DPI-aware layout for tweak workflows
 - Preview Run, pre-flight checks, and a plan summary before changes are applied
 - structured post-run results with per-tweak status and recovery hints
 - configuration profiles, snapshots, audit logs, and compliance checks for repeatable setups
 - headless execution for scripted runs, scheduled tasks, and exported profiles
 - optional remote execution over PowerShell Remoting for advanced users
 - manifest-backed tweak metadata, presets, and validation tooling
+- Windows setup media building with ISO edition detection, preview, build progress, and JSON reports
 - coverage across privacy, telemetry, security, Defender, UI, taskbar, Start menu, OneDrive, UWP apps, networking, gaming, updates, and system behavior
 
 ### Defender ASR note
@@ -95,7 +97,7 @@ Most Windows tweak tools are opaque script blocks with no metadata, no preview, 
 - **Preview-first execution** - pre-flight checks, plan summary, and visual diff before anything runs
 - **Configuration tracking** - system snapshots, configuration profiles, compliance checks, and audit logs
 - **Preset semantics** - four named presets with clear scope and honest warnings instead of a single "run everything" button
-- **Scenario modes** - Game Mode, Workstation, Privacy, and Recovery profiles stay separate from the core preset ladder
+- **Focused GUI modes** - Optimize, Gaming, Windows Updates, Windows Setup Builder, and Software & Apps stay separate instead of mixing unrelated workflows into every tab
 - **Headless support** - repeatable runs without the GUI
 
 ## Presets
@@ -136,12 +138,14 @@ Baseline is intentionally opinionated about when it warns and when it stays cons
 ## Key features
 
 - **Preview-first safety**: admin and environment checks, plan summary, visual diff, and clear post-run results before and after execution.
-- **Preset-driven configuration**: `Minimal`, `Basic`, `Balanced`, and `Advanced`, with Safe Mode / Expert Mode gating and explicit risk language.
-- **GUI workflow**: category tabs, search, filters, risk and impact labels, Light/Dark/System theme, runtime language switching, and Settings controls.
+- **Preset-driven configuration**: `Minimal`, `Basic`, `Balanced`, and `Advanced`, with Safe Mode / Expert Mode gating and explicit risk language. The full Recommended Selections panel lives on Initial Setup so execution tabs stay focused.
+- **GUI workflow**: top-level Optimize, Gaming, Windows Updates, Windows Setup Builder, and Software & Apps modes, category tabs, search, remembered filters, risk and impact labels, Light/Dark/System theme, runtime language switching, and Settings controls.
 - **Configuration tracking**: snapshots, exported profiles, audit logs, compliance checks, and direct recovery guidance where available.
 - **Headless workflow**: run presets, individual functions, dry runs, exported profiles, and compliance checks from the command line.
-- **Apps and updates**: manage supported apps through WinGet/Chocolatey-backed actions, Windows Update controls, and Baseline's own update-check settings.
-- **Scenario modes**: Game Mode plus Workstation, Privacy, and Recovery profiles for common use cases.
+- **Apps and updates**: manage supported apps through the Software & Apps mode, WinGet/Chocolatey-backed queued actions, Windows Update controls, and Baseline's own update-check settings.
+- **Gaming profiles**: Casual, Competitive, Streaming / Content, and Troubleshooting profiles build focused gaming plans from manifest-backed gaming entries.
+- **Windows setup media**: detect ISO editions, preview a Deployment Media Builder plan, create ISO/USB/folder output, and save build reports.
+- **Scenario profiles**: Workstation, Privacy, and Recovery profiles remain available for headless automation.
 - **Manifest-driven design**: tweak metadata and presets are stored in JSON, validated by tooling, and kept separate from implementation code.
 
 ## Screenshots
@@ -223,6 +227,14 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File $bootstrap
 ```powershell
 .\Baseline.exe
 ```
+
+### GUI modes
+
+- **Optimize**: Initial Setup plus manifest-backed tweak tabs for privacy, security, system behavior, UI, apps, and related Windows settings.
+- **Gaming**: gaming tweaks and profile planning for Casual, Competitive, Streaming / Content, and Troubleshooting workflows.
+- **Windows Updates**: Windows Update policy, pause, notification, repair, and delivery controls.
+- **Windows Setup Builder**: detect Windows ISO editions, preview the build plan, and create ISO, USB, or exported working-folder output.
+- **Software & Apps**: supported app install, uninstall, update, and queued package actions through WinGet and Chocolatey.
 
 ### Direct PowerShell launch
 
@@ -420,19 +432,19 @@ docs/website/       GitHub Pages source for the project site
 ### Validate manifest ownership / duplicates
 
 ```powershell
-powershell -File .\Tools\Validate-ManifestData.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Tools\Validate-ManifestData.ps1
 ```
 
 ### Add generated metadata to manifests
 
 ```powershell
-powershell -File .\Tools\Add-MissingMetadata.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Tools\Add-MissingMetadata.ps1
 ```
 
 ### Generate preset files from manifest metadata
 
 ```powershell
-powershell -File .\Tools\Generate-PresetFiles.ps1 -DryRun
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Tools\Generate-PresetFiles.ps1 -DryRun
 ```
 
 The generator currently targets the lower-risk preset tiers and is meant to reduce drift between metadata and curated preset files.
@@ -454,7 +466,7 @@ Custom preset files live under `Module/Data/Presets/` and use the same JSON shap
 Each entry is a command string that starts with a manifest-referenced function name and then optional parameters. Use the checked-in `Minimal`, `Basic`, `Balanced`, and `Advanced` preset files as templates, and validate changes with:
 
 ```powershell
-powershell -File .\Tools\Test-PresetGeneration.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Tools\Test-PresetGeneration.ps1
 ```
 
 If you are generating presets from manifest metadata, `Tools/Generate-PresetFiles.ps1` can rebuild the curated low-risk tiers from the manifest data.
@@ -462,7 +474,7 @@ If you are generating presets from manifest metadata, `Tools/Generate-PresetFile
 ### Validate generated preset files
 
 ```powershell
-powershell -File .\Tools\Test-PresetGeneration.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Tools\Test-PresetGeneration.ps1
 ```
 
 This generates fresh `Minimal`, `Basic`, and `Balanced` preset files and validates them against manifest policy. The same check runs in GitHub Actions alongside validation of the checked-in preset files.
@@ -470,7 +482,7 @@ This generates fresh `Minimal`, `Basic`, and `Balanced` preset files and validat
 ### Build the release zip
 
 ```powershell
-powershell -File .\Tools\New-ReleasePackage.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Tools\New-ReleasePackage.ps1
 ```
 
 This produces `Baseline-<version>-stable.zip` or `Baseline-<version>-beta.zip` plus the matching `.zip.sha256.json` in `dist/`. The zip contains `Baseline-<version>-setup.exe` for stable releases or `Baseline-<version>-<channel>-setup.exe` for prerelease channels; the setup supports both install and portable modes.

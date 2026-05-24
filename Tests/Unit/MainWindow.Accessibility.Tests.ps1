@@ -29,18 +29,33 @@ Describe 'MainWindow.xaml accessibility coverage' {
         $script:xamlText | Should -Not -Match 'MenuViewTheme'
     }
 
-    It 'uses one dynamic Safe or Expert label on the header mode toggle' {
+    It 'does not expose the Safe or Expert mode selector in the main header' {
         $script:xamlText | Should -Not -Match 'TxtSafeModeLabel|TxtExpertModeLabel'
-        $script:xamlText | Should -Match 'Name="SafeModeGroup"[^>]+Orientation="Horizontal"[^>]+Margin="0,0,12,0"[^>]+VerticalAlignment="Center"'
-        $script:xamlText | Should -Match 'Name="ChkSafeMode"[^>]+Content="Safe Mode"'
-        $script:xamlText | Should -Match 'Name="ChkSafeMode"[^>]+VerticalContentAlignment="Center"'
-        $script:xamlText | Should -Match 'AutomationProperties.Name="Safe / Expert mode"'
-        $script:xamlText | Should -Match 'Name="TxtAdvancedModeState"[^>]+Visibility="Collapsed"'
+        $script:xamlText | Should -Not -Match 'Name="SafeModeGroup"'
+        $script:xamlText | Should -Not -Match 'Name="ChkSafeMode"'
+        $script:xamlText | Should -Not -Match 'AutomationProperties.Name="Safe / Expert mode"'
+        $script:xamlText | Should -Not -Match 'Name="TxtAdvancedModeState"'
     }
 
     It 'keeps the duplicate header log button hidden by default' {
         $script:xamlText | Should -Match 'Name="BtnLog"[^>]+Visibility="Collapsed"'
         $script:xamlText | Should -Match 'Name="BtnLog"[^>]+IsTabStop="False"'
+    }
+
+    It 'keeps action menus and search in the title bar next to the window icon' {
+        $script:xamlText | Should -Match '(?s)Name="TitleBar".*Name="TitleBarLogo".*Name="MenuBarBorder"[^>]+Grid.Column="1".*Name="MainMenuBar".*Name="MenuHelp".*Grid.Column="2" Width="320".*Name="TxtSearch"'
+        $script:xamlText | Should -Not -Match 'Name="MenuBarBorder"[^>]+Grid.Row="0"'
+        $script:xamlText | Should -Not -Match '(?s)Name="HeaderBorder".*Name="TxtSearch"'
+    }
+
+    It 'does not render the app title text in the custom title bar' {
+        $script:xamlText | Should -Match 'Name="TitleBarText"[^>]+Visibility="Collapsed"'
+    }
+
+    It 'keeps the mode navigation pulled up after moving search to the title bar' {
+        $script:xamlText | Should -Match 'Name="HeaderBorder"[^>]+Padding="16,4,16,6"'
+        $script:xamlText | Should -Match 'Name="HeaderActionRow"[^>]+Visibility="Collapsed"'
+        $script:xamlText | Should -Match '<StackPanel Grid.Row="1" Margin="0,0,0,0" Orientation="Vertical">'
     }
 
     It 'keeps tweak filters split into dropdown and view rows' {
@@ -75,7 +90,6 @@ Describe 'MainWindow tab order coverage' {
             'BtnHelp',
             'BtnLog',
             'ChkScan',
-            'ChkSafeMode',
             'ChkTheme',
             'BtnLanguage',
             'TxtSearch',

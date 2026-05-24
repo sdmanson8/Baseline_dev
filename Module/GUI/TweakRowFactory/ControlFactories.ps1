@@ -25,6 +25,16 @@
 		}.GetNewClosure()
 	}
 
+	function Invoke-GuiTweakRowRunActionAvailabilityRefresh
+	{
+		param ([object]$RowContext)
+
+		if (-not $RowContext) { return }
+		if (-not (Test-GuiObjectField -Object $RowContext -FieldName 'UpdateRunActionAvailabilityScript')) { return }
+		if ($RowContext.UpdateRunActionAvailabilityScript -isnot [scriptblock]) { return }
+		& $RowContext.UpdateRunActionAvailabilityScript
+	}
+
 	<#
 	    .SYNOPSIS
 	#>
@@ -38,7 +48,7 @@
 			[object]$Tweak = $null
 		)
 
-		$card = New-Object System.Windows.Controls.Border
+		$card = [System.Windows.Controls.Border]::new()
 		$res = Get-CardHoverResources
 		$card.Background = $res.DefaultBg
 		$card.CornerRadius = $Script:CardCornerRadius6
@@ -79,16 +89,16 @@
 
 		$namePanel = if ($UseWrapPanel)
 		{
-			New-Object System.Windows.Controls.WrapPanel
+			[System.Windows.Controls.WrapPanel]::new()
 		}
 		else
 		{
-			New-Object System.Windows.Controls.StackPanel
+			[System.Windows.Controls.StackPanel]::new()
 		}
 		$namePanel.Orientation = 'Horizontal'
 		$namePanel.VerticalAlignment = 'Center'
 
-		$nameText = New-Object System.Windows.Controls.TextBlock
+		$nameText = [System.Windows.Controls.TextBlock]::new()
 		$nameLabel = if ($Tweak.NameKey) { Get-UxString -Key $Tweak.NameKey -Fallback $Tweak.Name } else { $Tweak.Name }
 		Set-TweakSearchHighlightedTextBlock -TextBlock $nameText -Text $nameLabel -BrushConverter $BrushConverter
 		$nameText.FontSize = $FontSize
@@ -130,8 +140,23 @@
 		# Attach visualization state to tweak for tooltip display
 		if ($RowContext -and $RowContext.Metadata)
 		{
-			$Tweak | Add-Member -MemberType NoteProperty -Name '_StateLabel' -Value ([string]$RowContext.Metadata.StateLabel) -Force
-			$Tweak | Add-Member -MemberType NoteProperty -Name '_MatchesDesired' -Value ([bool]$RowContext.Metadata.MatchesDesired) -Force
+			$visualStateCacheVariable = Get-Variable -Name 'TweakVisualStateByFunction' -Scope Script -ErrorAction SilentlyContinue
+			if (-not $visualStateCacheVariable -or -not ($visualStateCacheVariable.Value -is [hashtable]))
+			{
+				$Script:TweakVisualStateByFunction = @{}
+			}
+			$visualStateKey = if ((Test-GuiObjectField -Object $Tweak -FieldName 'Function') -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.Function))
+			{
+				[string]$Tweak.Function
+			}
+			else
+			{
+				[string][System.Runtime.CompilerServices.RuntimeHelpers]::GetHashCode($Tweak)
+			}
+			$Script:TweakVisualStateByFunction[$visualStateKey] = [pscustomobject]@{
+				StateLabel = [string]$RowContext.Metadata.StateLabel
+				MatchesDesired = [bool]$RowContext.Metadata.MatchesDesired
+			}
 		}
 		[void]($namePanel.Children.Add($nameText))
 		[void]($namePanel.Children.Add((New-InfoIcon -TooltipText $(if ($Tweak.DescriptionKey) { Get-UxString -Key $Tweak.DescriptionKey -Fallback $Tweak.Description } else { $Tweak.Description }) -Tweak $Tweak)))
@@ -156,7 +181,7 @@
 			[System.Windows.Thickness]$BadgeSpacing
 		)
 
-		$badgesPanel = New-Object System.Windows.Controls.StackPanel
+		$badgesPanel = [System.Windows.Controls.StackPanel]::new()
 		$badgesPanel.Orientation = 'Horizontal'
 		$badgesPanel.VerticalAlignment = 'Center'
 		$badgesPanel.HorizontalAlignment = 'Right'
@@ -511,6 +536,7 @@
 				{
 					& $RowContext.SyncGameModePlanFromControlsScript
 				}
+				if ($RowContext.UpdateRunActionAvailabilityScript -is [scriptblock]) { & $RowContext.UpdateRunActionAvailabilityScript }
 				return
 			}
 
@@ -528,6 +554,7 @@
 			{
 				& $RowContext.SyncGameModePlanFromControlsScript
 			}
+			if ($RowContext.UpdateRunActionAvailabilityScript -is [scriptblock]) { & $RowContext.UpdateRunActionAvailabilityScript }
 		}.GetNewClosure()
 
 		$null = Register-GuiEventHandler -Source $CheckBox -EventName 'Checked' -Handler ({
@@ -626,7 +653,7 @@
 		)
 
 		$card = New-TweakRowCard -BrushConverter $RowContext.BrushConverter -Margin $RowContext.RowCardMargin -Padding $RowContext.RowCardPadding -Tweak $Tweak
-		$leftStack = New-Object System.Windows.Controls.StackPanel
+		$leftStack = [System.Windows.Controls.StackPanel]::new()
 		$leftStack.Orientation = 'Vertical'
 		$leftStack.VerticalAlignment = 'Center'
 
@@ -644,7 +671,7 @@
 		}
 		[void]($leftStack.Children.Add((New-ToggleLikeHeaderGrid -CheckBox $checkBox -Tweak $Tweak -RowContext $RowContext)))
 
-		$datePicker = New-Object System.Windows.Controls.DatePicker
+		$datePicker = [System.Windows.Controls.DatePicker]::new()
 		$datePicker.MinWidth = $Script:GuiLayout.ComboBoxMinWidth
 		$datePicker.VerticalAlignment = 'Center'
 		$datePicker.Margin = $Script:T.ComboLeft
@@ -666,12 +693,12 @@
 		$stateControl.SelectedDate = $datePicker.SelectedDate
 		$stateControl.IsChecked = [bool]$checkBox.IsChecked
 
-		$dateRow = New-Object System.Windows.Controls.StackPanel
+		$dateRow = [System.Windows.Controls.StackPanel]::new()
 		$dateRow.Orientation = 'Horizontal'
 		$dateRow.VerticalAlignment = 'Center'
 		$dateRow.Margin = [System.Windows.Thickness]::new(28, 5, 0, 0)
 
-		$dateLabel = New-Object System.Windows.Controls.TextBlock
+		$dateLabel = [System.Windows.Controls.TextBlock]::new()
 		$dateLabel.Text = Get-UxString -Key 'GuiPauseStartDateLabel' -Fallback 'Pause start date:'
 		$dateLabel.Margin = [System.Windows.Thickness]::new(0, 0, 10, 0)
 		$dateLabel.VerticalAlignment = 'Center'
@@ -708,7 +735,7 @@
 			[double]$FontSize = (GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeLabel' -Default 11)
 		)
 
-		$checkBox = New-Object System.Windows.Controls.CheckBox
+		$checkBox = [System.Windows.Controls.CheckBox]::new()
 		$checkBox.VerticalAlignment = 'Center'
 		$checkBox.Margin = $Script:T.CheckBoxRight
 		$checkBox.FontSize = $FontSize
@@ -730,8 +757,7 @@
 		)
 
 		if (-not $Control) { return }
-		if (-not (Get-Command -Name 'Test-GuiTweakAvailableOnCurrentSystem' -CommandType Function -ErrorAction SilentlyContinue)) { return }
-		if (Test-GuiTweakAvailableOnCurrentSystem -Tweak $Tweak) { return }
+		if (Test-TweakRowFactoryTweakAvailable -Tweak $Tweak) { return }
 
 		if ((Test-GuiObjectField -Object $Control -FieldName 'IsRestoring'))
 		{
@@ -786,10 +812,7 @@
 			}
 		}
 
-		if (Get-Command -Name 'Remove-GuiExplicitSelectionDefinition' -CommandType Function -ErrorAction SilentlyContinue)
-		{
-			Remove-GuiExplicitSelectionDefinition -FunctionName ([string]$Tweak.Function)
-		}
+		Remove-TweakRowFactoryExplicitSelectionDefinition -FunctionName ([string]$Tweak.Function)
 	}
 
 	<#
@@ -804,7 +827,7 @@
 			[object]$RowContext
 		)
 
-		$headerGrid = New-Object System.Windows.Controls.Grid
+		$headerGrid = [System.Windows.Controls.Grid]::new()
 		[void]($headerGrid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::Auto })))
 		[void]($headerGrid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star) })))
 		[void]($headerGrid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::Auto })))
@@ -854,7 +877,7 @@
 			[object]$RowContext
 		)
 
-		$nameRow = New-Object System.Windows.Controls.Grid
+		$nameRow = [System.Windows.Controls.Grid]::new()
 		[void]($nameRow.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star) })))
 		[void]($nameRow.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::Auto })))
 
@@ -926,12 +949,12 @@
 			[object]$RowContext
 		)
 
-		$statusRow = New-Object System.Windows.Controls.Grid
+		$statusRow = [System.Windows.Controls.Grid]::new()
 		[void]($statusRow.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star) })))
 		[void]($statusRow.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::Auto })))
 		$statusRow.Margin = $Script:T.StatusRow
 
-		$statusLabel = New-Object System.Windows.Controls.TextBlock
+		$statusLabel = [System.Windows.Controls.TextBlock]::new()
 		$statusLabel.FontSize = $RowContext.DetailFontSize
 		$statusLabel.LineHeight = $RowContext.DetailLineHeight
 		$statusLabel.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
@@ -964,10 +987,7 @@
 			{
 				$CheckBox.IsChecked = $true
 				$CheckBox.IsEnabled = $false
-				if (Get-Command -Name 'Remove-GuiExplicitSelectionDefinition' -CommandType Function -ErrorAction SilentlyContinue)
-				{
-					Remove-GuiExplicitSelectionDefinition -FunctionName ([string]$Tweak.Function)
-				}
+				Remove-TweakRowFactoryExplicitSelectionDefinition -FunctionName ([string]$Tweak.Function)
 			}
 
 			$statusLabel.Text = [string]$toggleDisplay.StateLabel
@@ -1124,6 +1144,7 @@
 			{
 				& $RowContext.SyncGameModePlanFromControlsScript
 			}
+			if ($RowContext.UpdateRunActionAvailabilityScript -is [scriptblock]) { & $RowContext.UpdateRunActionAvailabilityScript }
 		}.GetNewClosure())
 		$null = Register-GuiEventHandler -Source $CheckBox -EventName 'Unchecked' -Handler ({
 			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
@@ -1148,6 +1169,7 @@
 			{
 				& $RowContext.SyncGameModePlanFromControlsScript
 			}
+			if ($RowContext.UpdateRunActionAvailabilityScript -is [scriptblock]) { & $RowContext.UpdateRunActionAvailabilityScript }
 		}.GetNewClosure())
 	}
 
@@ -1419,6 +1441,7 @@
 		{
 			& $RowContext.SyncGameModePlanFromControlsScript
 		}
+		if ($RowContext.UpdateRunActionAvailabilityScript -is [scriptblock]) { & $RowContext.UpdateRunActionAvailabilityScript }
 
 		return $true
 	}
@@ -1477,6 +1500,7 @@
 		{
 			& $RowContext.SyncGameModePlanFromControlsScript
 		}
+		if ($RowContext.UpdateRunActionAvailabilityScript -is [scriptblock]) { & $RowContext.UpdateRunActionAvailabilityScript }
 	}
 
 	function New-GuiActionPickerPanel
@@ -1486,7 +1510,7 @@
 			[object]$RowContext
 		)
 
-		$grid = New-Object System.Windows.Controls.Grid
+		$grid = [System.Windows.Controls.Grid]::new()
 		$grid.Margin = [System.Windows.Thickness]::new(28, 8, 0, 0)
 		[void]($grid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::Auto })))
 		[void]($grid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star) })))
@@ -1498,7 +1522,7 @@
 		$button.ToolTip = [string](Get-GuiActionPickerField -ActionPicker $ActionPicker -FieldName 'Title' -DefaultValue (Get-UxString -Key 'GuiActionPickerTitle' -Fallback 'Select file'))
 		[System.Windows.Controls.Grid]::SetColumn($button, 0)
 
-		$selectionText = New-Object System.Windows.Controls.TextBlock
+		$selectionText = [System.Windows.Controls.TextBlock]::new()
 		$selectionText.VerticalAlignment = 'Center'
 		$selectionText.TextWrapping = 'Wrap'
 		$selectionText.FontSize = GUICommon\Get-GuiCommonSafeFontSize -Key 'FontSizeSmall' -Default 10
@@ -1615,6 +1639,7 @@
 			{
 				& $RowContext.SyncGameModePlanFromControlsScript
 			}
+			if ($RowContext.UpdateRunActionAvailabilityScript -is [scriptblock]) { & $RowContext.UpdateRunActionAvailabilityScript }
 		}.GetNewClosure())
 		$null = Register-GuiEventHandler -Source $CheckBox -EventName 'Unchecked' -Handler ({
 			if ($StateControl -and (& $hasField -Object $StateControl -FieldName 'IsRestoring') -and [bool]$StateControl.IsRestoring)
@@ -1631,6 +1656,7 @@
 			{
 				& $RowContext.SyncGameModePlanFromControlsScript
 			}
+			if ($RowContext.UpdateRunActionAvailabilityScript -is [scriptblock]) { & $RowContext.UpdateRunActionAvailabilityScript }
 		}.GetNewClosure())
 
 		if ($ActionPicker -and $ActionPickerButton)
@@ -1711,6 +1737,7 @@
 			{
 				& $RowContext.SyncGameModePlanFromControlsScript
 			}
+			if ($RowContext.UpdateRunActionAvailabilityScript -is [scriptblock]) { & $RowContext.UpdateRunActionAvailabilityScript }
 		}.GetNewClosure())
 	}
 
@@ -1817,6 +1844,7 @@
 				{
 					& $RowContext.SyncGameModePlanFromControlsScript
 				}
+				if ($RowContext.UpdateRunActionAvailabilityScript -is [scriptblock]) { & $RowContext.UpdateRunActionAvailabilityScript }
 				return
 			}
 
@@ -1837,6 +1865,7 @@
 			{
 				& $RowContext.SyncGameModePlanFromControlsScript
 			}
+			if ($RowContext.UpdateRunActionAvailabilityScript -is [scriptblock]) { & $RowContext.UpdateRunActionAvailabilityScript }
 		}.GetNewClosure()
 
 		$null = Register-GuiEventHandler -Source $CheckBox -EventName 'Checked' -Handler ({
@@ -1960,7 +1989,7 @@
 		)
 
 		$card = New-TweakRowCard -BrushConverter $RowContext.BrushConverter -Margin $RowContext.RowCardMargin -Padding $RowContext.RowCardPadding -Tweak $Tweak
-		$leftStack = New-Object System.Windows.Controls.StackPanel
+		$leftStack = [System.Windows.Controls.StackPanel]::new()
 		$leftStack.Orientation = 'Vertical'
 		$leftStack.VerticalAlignment = 'Center'
 
@@ -2006,16 +2035,16 @@
 		)
 
 		$card = New-TweakRowCard -BrushConverter $RowContext.BrushConverter -Margin $RowContext.RowCardMargin -Padding $RowContext.RowCardPadding -Tweak $Tweak
-		$grid = New-Object System.Windows.Controls.Grid
+		$grid = [System.Windows.Controls.Grid]::new()
 		[void]($grid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star) })))
 		[void]($grid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::Auto })))
 
-		$leftStack = New-Object System.Windows.Controls.StackPanel
+		$leftStack = [System.Windows.Controls.StackPanel]::new()
 		$leftStack.Orientation = 'Vertical'
 		$leftStack.VerticalAlignment = 'Center'
 		[System.Windows.Controls.Grid]::SetColumn($leftStack, 0)
 
-		$combo = New-Object System.Windows.Controls.ComboBox
+		$combo = [System.Windows.Controls.ComboBox]::new()
 		$combo.MinWidth = $Script:GuiLayout.ComboBoxMinWidth
 		$combo.VerticalAlignment = 'Center'
 		$combo.Margin = $Script:T.ComboLeft
@@ -2075,7 +2104,7 @@
 		)
 
 		$card = New-TweakRowCard -BrushConverter $RowContext.BrushConverter -Margin $RowContext.RowCardMargin -Padding $RowContext.RowCardPadding -Tweak $Tweak
-		$leftStack = New-Object System.Windows.Controls.StackPanel
+		$leftStack = [System.Windows.Controls.StackPanel]::new()
 		$leftStack.Orientation = 'Vertical'
 		$leftStack.VerticalAlignment = 'Center'
 
@@ -2086,7 +2115,7 @@
 		Apply-PendingLinkedToggleState -CheckBox $checkBox -FunctionName ([string]$Tweak.Function)
 		Disable-GuiUnavailableTweakControl -Tweak $Tweak -Control $checkBox
 
-		$summaryText = New-Object System.Windows.Controls.TextBlock
+		$summaryText = [System.Windows.Controls.TextBlock]::new()
 		$summaryText.TextWrapping = [System.Windows.TextWrapping]::Wrap
 		$summaryText.FontSize = $RowContext.LabelFontSize
 		$summaryText.LineHeight = $RowContext.LabelLineHeight
@@ -2095,7 +2124,7 @@
 		$summaryText.Foreground = $RowContext.BrushConverter.ConvertFromString($Script:CurrentTheme.TextSecondary)
 		[void]($leftStack.Children.Add($summaryText))
 
-		$channelGrid = New-Object System.Windows.Controls.Grid
+		$channelGrid = [System.Windows.Controls.Grid]::new()
 		$channelGrid.Margin = [System.Windows.Thickness]::new(28, 8, 0, 0)
 		[void]($channelGrid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::Auto })))
 		[void]($channelGrid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star) })))
@@ -2110,7 +2139,7 @@
 				[double]$InitialValue
 			)
 
-			$label = New-Object System.Windows.Controls.TextBlock
+			$label = [System.Windows.Controls.TextBlock]::new()
 			$label.Text = $LabelText
 			$label.VerticalAlignment = 'Center'
 			$label.Margin = [System.Windows.Thickness]::new(0, 0, 10, 0)
@@ -2121,7 +2150,7 @@
 			[System.Windows.Controls.Grid]::SetRow($label, $RowIndex)
 			[System.Windows.Controls.Grid]::SetColumn($label, 0)
 
-			$slider = New-Object System.Windows.Controls.Slider
+			$slider = [System.Windows.Controls.Slider]::new()
 			$slider.Minimum = if ($numericRange -and (Test-GuiObjectField -Object $numericRange -FieldName 'MinValue')) { [double](Get-GuiObjectField -Object $numericRange -FieldName 'MinValue') } else { 0 }
 			$slider.Maximum = if ($numericRange -and (Test-GuiObjectField -Object $numericRange -FieldName 'MaxValue')) { [double](Get-GuiObjectField -Object $numericRange -FieldName 'MaxValue') } else { 100 }
 			$slider.Value = [double]$InitialValue
@@ -2136,7 +2165,7 @@
 			[System.Windows.Controls.Grid]::SetRow($slider, $RowIndex)
 			[System.Windows.Controls.Grid]::SetColumn($slider, 1)
 
-			$valueText = New-Object System.Windows.Controls.TextBlock
+			$valueText = [System.Windows.Controls.TextBlock]::new()
 			$valueText.Text = (Format-GuiNumericRangeValueText -Value $InitialValue -NumericRange $numericRange -Units $units)
 			$valueText.VerticalAlignment = 'Center'
 			$valueText.FontSize = $RowContext.LabelFontSize
@@ -2240,7 +2269,7 @@
 			}
 		}
 
-		$nameRowWithDescription = New-Object System.Windows.Controls.StackPanel
+		$nameRowWithDescription = [System.Windows.Controls.StackPanel]::new()
 		$nameRowWithDescription.Orientation = 'Vertical'
 		$stateControl = [pscustomobject]@{
 			Type = 'Action'

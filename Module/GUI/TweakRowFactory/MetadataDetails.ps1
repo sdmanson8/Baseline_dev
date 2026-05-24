@@ -74,7 +74,7 @@
 		}
 		$bc = New-SafeBrushConverter -Context 'Get-CardHoverResources'
 		$isLight = ($Script:CurrentTheme -eq $Script:LightTheme)
-		$shadow = New-Object System.Windows.Media.Effects.DropShadowEffect
+		$shadow = [System.Windows.Media.Effects.DropShadowEffect]::new()
 		$shadow.Color = [System.Windows.Media.Colors]::Black
 		$shadow.Direction = 270
 		$shadow.ShadowDepth = 0
@@ -259,7 +259,7 @@
 		else
 		{
 			$existingChild = $DetailsHost.Child
-			$stack = New-Object System.Windows.Controls.StackPanel
+			$stack = [System.Windows.Controls.StackPanel]::new()
 			$stack.Orientation = 'Vertical'
 			if ($existingChild)
 			{
@@ -280,7 +280,7 @@
 		$moreTagsToolTip = Get-UxString -Key 'GuiTweakChipTooltipMoreTags' -Fallback 'Additional scenario tags are present in the manifest.'
 		$moreTagsFormat = Get-UxString -Key 'GuiTweakChipMoreFormat' -Fallback '+{0} more'
 
-		$tagsPanel = New-Object System.Windows.Controls.WrapPanel
+		$tagsPanel = [System.Windows.Controls.WrapPanel]::new()
 		$tagsPanel.Orientation = 'Horizontal'
 		$tagsPanel.HorizontalAlignment = 'Left'
 		$tagsPanel.Margin = [System.Windows.Thickness]::new(0, 7, 0, -5)
@@ -293,7 +293,7 @@
 
 			if ([string]::IsNullOrWhiteSpace($Label)) { return }
 
-			$pill = New-Object System.Windows.Controls.Border
+			$pill = [System.Windows.Controls.Border]::new()
 			$pill.Background = $RowContext.BrushConverter.ConvertFromString($tagBackground)
 			$pill.BorderBrush = $RowContext.BrushConverter.ConvertFromString($tagBorder)
 			$pill.BorderThickness = [System.Windows.Thickness]::new(1)
@@ -303,7 +303,7 @@
 			$pill.VerticalAlignment = 'Center'
 			$pill.ToolTip = $ToolTip
 
-			$text = New-Object System.Windows.Controls.TextBlock
+			$text = [System.Windows.Controls.TextBlock]::new()
 			$text.Text = $Label
 			$text.FontSize = $RowContext.DetailFontSize
 			$text.LineHeight = $RowContext.DetailLineHeight
@@ -340,7 +340,7 @@
 			[System.Windows.Thickness]$BlastMargin
 		)
 
-		$descriptionTextBlock = New-Object System.Windows.Controls.TextBlock
+		$descriptionTextBlock = [System.Windows.Controls.TextBlock]::new()
 		Set-TweakSearchHighlightedTextBlock -TextBlock $descriptionTextBlock -Text $DescriptionText -BrushConverter $RowContext.BrushConverter
 		$descriptionTextBlock.FontSize = $RowContext.DetailFontSize
 		$descriptionTextBlock.LineHeight = $RowContext.DetailLineHeight
@@ -355,7 +355,7 @@
 		if ([string]$Tweak.Risk -eq 'High' -and [bool]$Tweak.Caution -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.CautionReason))
 		{
 			$cautionColor = if ($Script:CurrentTheme -and $Script:CurrentTheme.CautionText) { $Script:CurrentTheme.CautionText } else { '#E5A84B' }
-			$cautionInline = New-Object System.Windows.Controls.TextBlock
+			$cautionInline = [System.Windows.Controls.TextBlock]::new()
 			$cautionInline.TextWrapping = 'Wrap'
 			$cautionInline.Margin = $DescriptionMargin
 			$cautionInline.FontSize = $RowContext.DetailFontSize
@@ -391,7 +391,7 @@
 
 		if (-not [bool]$RowContext.Metadata.MatchesDesired -and -not [string]::IsNullOrWhiteSpace([string]$RowContext.Metadata.BlastRadius))
 		{
-			$blastText = New-Object System.Windows.Controls.TextBlock
+			$blastText = [System.Windows.Controls.TextBlock]::new()
 			$blastText.Text = [string]$RowContext.Metadata.BlastRadius
 			$blastText.TextWrapping = 'Wrap'
 			$blastText.Margin = $BlastMargin
@@ -428,7 +428,7 @@
 			return $null
 		}
 
-		$whyRow = New-Object System.Windows.Controls.Grid
+		$whyRow = [System.Windows.Controls.Grid]::new()
 		[void]($whyRow.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star) })))
 		[void]($whyRow.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = [System.Windows.GridLength]::Auto })))
 		$whyRow.Margin = $RowMargin

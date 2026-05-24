@@ -2089,6 +2089,16 @@ function Show-GuiDeploymentMediaUnattendGeneratorDialog
 	$advancedModeCheckBox.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
 	$advancedModeCheckBox.Foreground = ConvertTo-GuiDeploymentMediaUnattendBrush -Theme $theme -BrushConverter $bc -Name 'TextSecondary' -Default '#C7D0E0'
 	$advancedModeCheckBox.ToolTip = 'Show advanced-only settings and raw XML/internal values beside friendly labels.'
+	$startInAdvancedMode = $false
+	if (Get-Command -Name 'Test-IsExpertModeUX' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		try { $startInAdvancedMode = [bool](Test-IsExpertModeUX) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'DeploymentMediaBuilderView.UnattendGenerator.ResolveExpertMode' -Severity Debug }
+	}
+	elseif ((Test-Path -Path Variable:\Script:AdvancedMode) -and $Script:AdvancedMode)
+	{
+		$startInAdvancedMode = $true
+	}
+	$advancedModeCheckBox.IsChecked = $startInAdvancedMode
 	[void]$headerActions.Children.Add($advancedModeCheckBox)
 	[System.Windows.Controls.Grid]::SetColumn($headerActions, 1)
 	[void]$header.Children.Add($headerActions)
@@ -2355,8 +2365,9 @@ function Show-GuiDeploymentMediaUnattendGeneratorDialog
 		}.GetNewClosure()) | Out-Null
 	}
 
-	& $setChoiceDisplayModeScript -Controls $controls -ShowAdvanced:$false
-	& $updateDependenciesScript -Controls $controls -ShowAdvanced:$false
+	$initialShowAdvanced = [bool]$advancedModeCheckBox.IsChecked
+	& $setChoiceDisplayModeScript -Controls $controls -ShowAdvanced:$initialShowAdvanced
+	& $updateDependenciesScript -Controls $controls -ShowAdvanced:$initialShowAdvanced
 	& $updateBloatwarePreviewScript -Controls $controls
 	[void](& $refreshReviewScript)
 	if (-not [string]::IsNullOrWhiteSpace($initialPageKey)) { & $selectPageScript -Key $initialPageKey }

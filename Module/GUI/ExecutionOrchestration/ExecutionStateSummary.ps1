@@ -189,9 +189,94 @@
 	    .SYNOPSIS
 	#>
 
+	function Get-GuiTweakRunListPrimaryTab
+	{
+		param ([object]$Tweak)
+
+		if (-not $Tweak)
+		{
+			return $null
+		}
+
+		if (Get-Command -Name 'Resolve-GuiPrimaryTabForTweak' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			$primaryTab = Resolve-GuiPrimaryTabForTweak -Tweak $Tweak
+			if (-not [string]::IsNullOrWhiteSpace([string]$primaryTab))
+			{
+				return [string]$primaryTab
+			}
+		}
+
+		if ($Tweak -is [System.Collections.IDictionary])
+		{
+			if ($Tweak.Contains('Category') -and -not [string]::IsNullOrWhiteSpace([string]$Tweak['Category']))
+			{
+				return [string]$Tweak['Category']
+			}
+			return $null
+		}
+
+		if ($Tweak.PSObject -and $Tweak.PSObject.Properties['Category'] -and -not [string]::IsNullOrWhiteSpace([string]$Tweak.Category))
+		{
+			return [string]$Tweak.Category
+		}
+
+		return $null
+	}
+
+	function Test-GuiTweakRunListItemBelongsToUpdates
+	{
+		param ([object]$Tweak)
+
+		$primaryTab = Get-GuiTweakRunListPrimaryTab -Tweak $Tweak
+		return [string]::Equals([string]$primaryTab, 'Updates', [System.StringComparison]::OrdinalIgnoreCase)
+	}
+
+	function Test-GuiTweakRunListItemBelongsToGaming
+	{
+		param ([object]$Tweak)
+
+		$primaryTab = Get-GuiTweakRunListPrimaryTab -Tweak $Tweak
+		return [string]::Equals([string]$primaryTab, 'Gaming', [System.StringComparison]::OrdinalIgnoreCase)
+	}
+
+	function Select-GuiModeScopedTweakRunList
+	{
+		param ([object[]]$SelectedTweaks)
+
+		$updatesModeActive = [bool]$Script:UpdatesModeActive
+		$gamingModeActive = [bool]$Script:GamingModeActive
+		$scopedTweaks = [System.Collections.Generic.List[object]]::new()
+
+		foreach ($selectedTweak in @($SelectedTweaks))
+		{
+			if (-not $selectedTweak) { continue }
+
+			$isUpdatesTweak = Test-GuiTweakRunListItemBelongsToUpdates -Tweak $selectedTweak
+			$isGamingTweak = Test-GuiTweakRunListItemBelongsToGaming -Tweak $selectedTweak
+			if (($updatesModeActive -and $isUpdatesTweak) -or ($gamingModeActive -and $isGamingTweak) -or (-not $updatesModeActive -and -not $gamingModeActive -and -not $isUpdatesTweak -and -not $isGamingTweak))
+			{
+				[void]$scopedTweaks.Add($selectedTweak)
+			}
+		}
+
+		return $scopedTweaks.ToArray()
+	}
+
+	<#
+	    .SYNOPSIS
+	#>
+
 	function Get-ActiveTweakRunList
 	{
-		$selectedTweaks = @(Get-SelectedTweakRunList)
+		$allSelectedTweaks = @(Get-SelectedTweakRunList)
+		$selectedTweaks = @(Select-GuiModeScopedTweakRunList -SelectedTweaks $allSelectedTweaks)
+		if ($allSelectedTweaks.Count -ne $selectedTweaks.Count -and (Get-Command -Name 'LogDebug' -CommandType Function -ErrorAction SilentlyContinue))
+		{
+			$modeName = if ([bool]$Script:GamingModeActive) { 'Gaming' } elseif ([bool]$Script:UpdatesModeActive) { 'Windows Updates' } else { 'Optimize' }
+			LogDebug -Message ('Scoped selected tweak run list for {0} mode: kept {1} of {2} selected item(s).' -f $modeName, $selectedTweaks.Count, $allSelectedTweaks.Count)
+		}
+
 		if (-not [bool]$Script:GameMode)
 		{
 			return $selectedTweaks
@@ -267,3 +352,55 @@
 		return @($mergedRunList)
 	}
 
+	function Get-GuiScopedRunActionAvailability
+	{
+		$runInProgress = $false
+		if ($Script:TestGuiRunInProgressScript -is [scriptblock])
+		{
+			$runInProgress = [bool](& $Script:TestGuiRunInProgressScript)
+		}
+		elseif (Get-Command -Name 'Test-GuiRunInProgress' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			$runInProgress = [bool](Test-GuiRunInProgress)
+		}
+
+		$hasScopedSelection = $false
+		if (-not [bool]$Script:AppsModeActive -and -not [bool]$Script:DeploymentMediaModeActive)
+		{
+			$hasScopedSelection = (@(Get-ActiveTweakRunList).Count -gt 0)
+		}
+
+		return [pscustomobject]@{
+			RunInProgress     = $runInProgress
+			HasScopedSelection = $hasScopedSelection
+			PreviewEnabled    = ((-not $runInProgress) -and $hasScopedSelection)
+			RunEnabled        = ($runInProgress -or $hasScopedSelection)
+			MenuRunEnabled    = ((-not $runInProgress) -and $hasScopedSelection)
+		}
+	}
+
+	function Update-GuiScopedRunActionAvailability
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param ()
+
+		try
+		{
+			$availability = Get-GuiScopedRunActionAvailability
+			if ($Script:BtnPreviewRun) { $Script:BtnPreviewRun.IsEnabled = [bool]$availability.PreviewEnabled }
+			if ($Script:BtnRun) { $Script:BtnRun.IsEnabled = [bool]$availability.RunEnabled }
+			if ($Script:MenuActionsPreviewRun) { $Script:MenuActionsPreviewRun.IsEnabled = [bool]$availability.PreviewEnabled }
+			if ($Script:MenuActionsRunTweaks) { $Script:MenuActionsRunTweaks.IsEnabled = [bool]$availability.MenuRunEnabled }
+		}
+		catch
+		{
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+			{
+				Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionStateSummary.Update-GuiScopedRunActionAvailability'
+			}
+			if ($Script:BtnPreviewRun) { $Script:BtnPreviewRun.IsEnabled = $false }
+			if ($Script:BtnRun) { $Script:BtnRun.IsEnabled = $false }
+			if ($Script:MenuActionsPreviewRun) { $Script:MenuActionsPreviewRun.IsEnabled = $false }
+			if ($Script:MenuActionsRunTweaks) { $Script:MenuActionsRunTweaks.IsEnabled = $false }
+		}
+	}

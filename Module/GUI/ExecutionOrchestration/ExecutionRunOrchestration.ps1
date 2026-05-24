@@ -1142,6 +1142,40 @@
 		}
 	}
 
+	function Restore-GuiExecutionRunControls
+	{
+		[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
+		param (
+			[string]$SourcePrefix = 'ExecutionRunOrchestration.RestoreGuiExecutionRunControls'
+		)
+
+		try { if ($Script:GuiState) { & $Script:GuiState.Set 'RunInProgress' $false } else { $Script:RunInProgress = $false } } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source ('{0}.RunInProgress' -f $SourcePrefix) -Severity Debug }
+			$null = $_ }
+		$Script:CurrentTweakDisplayName = $null
+		try { if ((Test-GuiObjectField -Object $PrimaryTabs -FieldName 'IsEnabled')) { $PrimaryTabs.IsEnabled = $true } } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source ('{0}.PrimaryTabs' -f $SourcePrefix) -Severity Debug }
+			$null = $_ }
+		try { if ((Test-GuiObjectField -Object $BtnDefaults -FieldName 'IsEnabled')) { $BtnDefaults.IsEnabled = $true } } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source ('{0}.BtnDefaults' -f $SourcePrefix) -Severity Debug }
+			$null = $_ }
+		try { Set-GuiActionButtonsEnabled -Enabled $true } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source ('{0}.ActionButtons' -f $SourcePrefix) -Severity Debug }
+			$null = $_ }
+		try { if (Get-Command -Name 'Update-GuiScopedRunActionAvailability' -CommandType Function -ErrorAction SilentlyContinue) { Update-GuiScopedRunActionAvailability } } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source ('{0}.RunActionAvailability' -f $SourcePrefix) -Severity Debug }
+			$null = $_ }
+		try { if ((Test-GuiObjectField -Object $ChkScan -FieldName 'IsEnabled')) { $ChkScan.IsEnabled = $true } } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source ('{0}.ChkScan' -f $SourcePrefix) -Severity Debug }
+			$null = $_ }
+		try { if ((Test-GuiObjectField -Object $ChkTheme -FieldName 'IsEnabled')) { $ChkTheme.IsEnabled = $true } } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source ('{0}.ChkTheme' -f $SourcePrefix) -Severity Debug }
+			$null = $_ }
+		try { Set-SearchControlsEnabled -Enabled $true } catch {
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source ('{0}.SearchControls' -f $SourcePrefix) -Severity Debug }
+			$null = $_ }
+	}
+
 	function Get-GuiExecutionRunLogColor
 	{
 			param($Level = 'INFO')
@@ -1870,16 +1904,7 @@
 
 				Clear-UILogHandler
 				Remove-Variable -Name 'GUIRunState' -Scope Global -ErrorAction SilentlyContinue
-				if ($Script:GuiState) { & $Script:GuiState.Set 'RunInProgress' $false } else { $Script:RunInProgress = $false }
-				$Script:CurrentTweakDisplayName = $null
-                if ((Test-GuiObjectField -Object $PrimaryTabs -FieldName 'IsEnabled')) { $PrimaryTabs.IsEnabled = $true }
-                if ((Test-GuiObjectField -Object $BtnRun -FieldName 'IsEnabled')) { $BtnRun.IsEnabled = $true }
-                if ($BtnPreviewRun) { $BtnPreviewRun.IsEnabled = $true }
-                if ((Test-GuiObjectField -Object $BtnDefaults -FieldName 'IsEnabled')) { $BtnDefaults.IsEnabled = $true }
-                Set-GuiActionButtonsEnabled -Enabled $true
-                if ((Test-GuiObjectField -Object $ChkScan -FieldName 'IsEnabled')) { $ChkScan.IsEnabled = $true }
-                if ((Test-GuiObjectField -Object $ChkTheme -FieldName 'IsEnabled')) { $ChkTheme.IsEnabled = $true }
-                Set-SearchControlsEnabled -Enabled $true
+				Restore-GuiExecutionRunControls -SourcePrefix 'ExecutionRunOrchestration.RunComplete'
 				if (Get-Command -Name 'Sync-UxActionButtonText' -CommandType Function -ErrorAction SilentlyContinue)
 				{
 					Sync-UxActionButtonText
@@ -2007,33 +2032,7 @@
 				# so a thrown pump-tick body doesn't leave the GUI permanently
 				# spinning ("Applying tweaks" with hourglass cursor). The
 				# success path above already does this; this catch did not.
-				try { if ($Script:GuiState) { & $Script:GuiState.Set 'RunInProgress' $false } else { $Script:RunInProgress = $false } } catch {
-					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch1998' -Severity Debug }
-				 $null = $_ }
-				try { if ((Test-GuiObjectField -Object $PrimaryTabs -FieldName 'IsEnabled')) { $PrimaryTabs.IsEnabled = $true } } catch {
-					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch1999' -Severity Debug }
-				 $null = $_ }
-				try { if ((Test-GuiObjectField -Object $BtnRun -FieldName 'IsEnabled')) { $BtnRun.IsEnabled = $true } } catch {
-					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2000' -Severity Debug }
-				 $null = $_ }
-				try { if ($BtnPreviewRun) { $BtnPreviewRun.IsEnabled = $true } } catch {
-					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2001' -Severity Debug }
-				 $null = $_ }
-				try { if ((Test-GuiObjectField -Object $BtnDefaults -FieldName 'IsEnabled')) { $BtnDefaults.IsEnabled = $true } } catch {
-					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2002' -Severity Debug }
-				 $null = $_ }
-				try { Set-GuiActionButtonsEnabled -Enabled $true } catch {
-					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2003' -Severity Debug }
-				 $null = $_ }
-				try { if ((Test-GuiObjectField -Object $ChkScan -FieldName 'IsEnabled')) { $ChkScan.IsEnabled = $true } } catch {
-					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2004' -Severity Debug }
-				 $null = $_ }
-				try { if ((Test-GuiObjectField -Object $ChkTheme -FieldName 'IsEnabled')) { $ChkTheme.IsEnabled = $true } } catch {
-					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2005' -Severity Debug }
-				 $null = $_ }
-				try { Set-SearchControlsEnabled -Enabled $true } catch {
-					if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2006' -Severity Debug }
-				 $null = $_ }
+				Restore-GuiExecutionRunControls -SourcePrefix 'ExecutionRunOrchestration.ExecutionTimerCatch'
 				$null = & $Script:ShowGuiRuntimeFailureScript -Context 'ExecutionTimer' -Exception $_.Exception -ShowDialog
 			}
 		}
@@ -2074,33 +2073,7 @@
 			try { Exit-ExecutionView } catch {
 				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2042' -Severity Debug }
 			 $null = $_ }
-			try { if ($Script:GuiState) { & $Script:GuiState.Set 'RunInProgress' $false } else { $Script:RunInProgress = $false } } catch {
-				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2043' -Severity Debug }
-			 $null = $_ }
-			try { if ((Test-GuiObjectField -Object $PrimaryTabs -FieldName 'IsEnabled')) { $PrimaryTabs.IsEnabled = $true } } catch {
-				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2044' -Severity Debug }
-			 $null = $_ }
-			try { if ((Test-GuiObjectField -Object $BtnRun -FieldName 'IsEnabled')) { $BtnRun.IsEnabled = $true } } catch {
-				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2045' -Severity Debug }
-			 $null = $_ }
-			try { if ($BtnPreviewRun) { $BtnPreviewRun.IsEnabled = $true } } catch {
-				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2046' -Severity Debug }
-			 $null = $_ }
-			try { if ((Test-GuiObjectField -Object $BtnDefaults -FieldName 'IsEnabled')) { $BtnDefaults.IsEnabled = $true } } catch {
-				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2047' -Severity Debug }
-			 $null = $_ }
-			try { Set-GuiActionButtonsEnabled -Enabled $true } catch {
-				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2048' -Severity Debug }
-			 $null = $_ }
-			try { if ((Test-GuiObjectField -Object $ChkScan -FieldName 'IsEnabled')) { $ChkScan.IsEnabled = $true } } catch {
-				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2049' -Severity Debug }
-			 $null = $_ }
-			try { if ((Test-GuiObjectField -Object $ChkTheme -FieldName 'IsEnabled')) { $ChkTheme.IsEnabled = $true } } catch {
-				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2050' -Severity Debug }
-			 $null = $_ }
-			try { Set-SearchControlsEnabled -Enabled $true } catch {
-				if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'ExecutionRunOrchestration.Start-GuiExecutionRun:catch2051' -Severity Debug }
-			 $null = $_ }
+			Restore-GuiExecutionRunControls -SourcePrefix 'ExecutionRunOrchestration.TimerStartCatch'
 			throw
 		}
 	}

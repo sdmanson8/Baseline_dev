@@ -4,6 +4,7 @@
 # Output: $env:LOCALAPPDATA\Temp\Baseline\perf.log (one line per scope: ISO8601, ms, name, note).
 
 $Script:GuiPerfEnabled = $null
+$Script:GuiPerfDetailedEnabled = $false
 $Script:GuiPerfLogPath = $null
 $Script:GuiPerfSink    = $null
 
@@ -52,6 +53,8 @@ function Initialize-GuiPerfTrace
 
 	$raw = [System.Environment]::GetEnvironmentVariable('BASELINE_PERF_LOG')
 	$perfRequested = (-not [string]::IsNullOrWhiteSpace($raw)) -and ($raw -ne '0' -and $raw.ToLowerInvariant() -ne 'false' -and $raw.ToLowerInvariant() -ne 'off')
+	$detailRaw = [System.Environment]::GetEnvironmentVariable('BASELINE_PERF_DETAIL')
+	$Script:GuiPerfDetailedEnabled = (-not [string]::IsNullOrWhiteSpace($detailRaw)) -and ($detailRaw -ne '0' -and $detailRaw.ToLowerInvariant() -ne 'false' -and $detailRaw.ToLowerInvariant() -ne 'off')
 	$debugEnabled = Test-GuiPerfTraceDebugEnabled
 	$Script:GuiPerfEnabled = ($debugEnabled -and $perfRequested)
 
@@ -80,10 +83,12 @@ function Start-GuiPerfScope
 	[OutputType([object])]
 	param(
 		[Parameter(Mandatory)][string]$Name,
-		[string]$Note = ''
+		[string]$Note = '',
+		[switch]$Detailed
 	)
 
 	if (-not $Script:GuiPerfEnabled) { return $null }
+	if ($Detailed -and -not $Script:GuiPerfDetailedEnabled) { return $null }
 	return [pscustomobject]@{
 		Name = $Name
 		Note = $Note

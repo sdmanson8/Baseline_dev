@@ -200,6 +200,45 @@ function Show-GuiDeploymentMediaMicrosoftIsoFailureDialog
 	}
 }
 
+function Show-GuiDeploymentMediaOscdimgInstallPrompt
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[object]$ErrorRecord,
+		[Parameter(Mandatory = $true)]
+		[scriptblock]$ShowDialog
+	)
+
+	$pageUrl = Get-GuiDeploymentMediaOscdimgInstallPageUrl
+	$message = @(
+		'Baseline could not install Microsoft OSCDIMG automatically.',
+		'',
+		[string]$ErrorRecord.Exception.Message,
+		'',
+		'Open the Microsoft.OSCDIMG install page, install the package, then run Start ISO Build again.'
+	) -join [Environment]::NewLine
+
+	$choice = & $ShowDialog -Title 'Deployment Media Builder' -Message $message -Buttons @('OK', 'Open Install Page') -AccentButton 'Open Install Page'
+	if ([string]$choice -ne 'Open Install Page') { return }
+
+	try
+	{
+		if (-not (Invoke-UserLaunch -FilePath $pageUrl -Description 'Microsoft OSCDIMG install page'))
+		{
+			[void](& $ShowDialog -Title 'Deployment Media Builder' -Message ("Failed to open the Microsoft.OSCDIMG install page.`n`n{0}" -f $pageUrl) -Buttons @('OK') -AccentButton 'OK')
+		}
+	}
+	catch
+	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Write-SwallowedException -ErrorRecord $_ -Source 'DeploymentMediaBuilderView.OscdimgInstallPageLaunch' -Severity Warning
+		}
+		[void](& $ShowDialog -Title 'Deployment Media Builder' -Message ("Failed to open the Microsoft.OSCDIMG install page.`n`n{0}`n`n{1}" -f $pageUrl, $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+	}
+}
+
 function Invoke-GuiDeploymentMediaBuilderDownloadMicrosoftIso
 {
 	[CmdletBinding()]
@@ -335,11 +374,11 @@ function Invoke-GuiDeploymentMediaBuilderDownloadMicrosoftIso
 			{
 				if ([string]$downloadResult.AcquisitionMode -eq 'UUPLocal')
 				{
-					$Script:TxtDeploymentMediaPlanPreview.Text = ('UUP ISO imported:{0}{1}{0}SHA256: {2}{0}Package ZIP: {3}{0}Command script: {4}{0}Command script SHA256: {5}{0}Transparency manifest: {6}{0}{0}Run Detect Editions before previewing the build plan.' -f [Environment]::NewLine, $downloadResult.Path, $downloadResult.Sha256, $downloadResult.PackageArchivePath, $downloadResult.CommandScriptPath, $downloadResult.CommandScriptSha256, $downloadResult.TransparencyManifestPath)
+					$Script:TxtDeploymentMediaPlanPreview.Text = ('UUP ISO imported:{0}{1}{0}SHA256: {2}{0}Package ZIP: {3}{0}Command script: {4}{0}Command script SHA256: {5}{0}Transparency manifest: {6}{0}{0}Run Detect Editions before previewing or building.' -f [Environment]::NewLine, $downloadResult.Path, $downloadResult.Sha256, $downloadResult.PackageArchivePath, $downloadResult.CommandScriptPath, $downloadResult.CommandScriptSha256, $downloadResult.TransparencyManifestPath)
 				}
 				else
 				{
-					$Script:TxtDeploymentMediaPlanPreview.Text = ('Official Microsoft ISO imported:{0}{1}{0}SHA256: {2}{0}Media Creation Tool SHA256: {3}{0}{0}Run Detect Editions before previewing the build plan.' -f [Environment]::NewLine, $downloadResult.Path, $downloadResult.Sha256, $downloadResult.ToolSha256)
+					$Script:TxtDeploymentMediaPlanPreview.Text = ('Official Microsoft ISO imported:{0}{1}{0}SHA256: {2}{0}Media Creation Tool SHA256: {3}{0}{0}Run Detect Editions before previewing or building.' -f [Environment]::NewLine, $downloadResult.Path, $downloadResult.Sha256, $downloadResult.ToolSha256)
 				}
 			}
 			& $setStatusScript -Message $(if ([string]$downloadResult.AcquisitionMode -eq 'UUPLocal') { 'UUP ISO imported. Run Detect Editions to continue.' } else { 'Microsoft ISO imported. Run Detect Editions to continue.' }) -Tone 'success' -ShowBanner
@@ -482,7 +521,7 @@ function Invoke-GuiDeploymentMediaBuilderDetectIso
 				$Script:TxtDeploymentMediaPlanPreview.Text = ('Detected {0}: {1}{2}Edition count: {3}' -f $isoInfo.ImageKind, $isoInfo.ImagePath, [Environment]::NewLine, @($isoInfo.Editions).Count)
 			}
 			& $resetStartStateScript
-			& $setStatusScript -Message 'ISO editions detected. Preview the build plan to continue.' -Tone 'success' -ShowBanner
+			& $setStatusScript -Message 'ISO editions detected. Preview or Start ISO Build when ready.' -Tone 'success' -ShowBanner
 			try { LogInfo ('Deployment media ISO editions detected. Source={0}; Image={1}; Editions={2}' -f $isoInfo.SourceIso, $isoInfo.ImagePath, @($isoInfo.Editions).Count) } catch { Write-SwallowedException -ErrorRecord $_ -Source 'DeploymentMediaBuilderView.DetectIso.SuccessLog' -Severity Warning }
 		}.GetNewClosure()
 		$failedCallback = {
@@ -560,32 +599,23 @@ function Invoke-GuiDeploymentMediaBuilderPreviewPlan
 		Write-GuiDeploymentMediaBuilderViewDebugLog -Message ('Deployment media build plan preview blocked. Reason="{0}"; SourceIso="{1}"; HasDetectedIso={2}; SourceMatchesDetectedIso={3}; SelectedEdition="{4}"; EditionIndexText="{5}"' -f [string]$previewState.Message, (Get-GuiDeploymentMediaBuilderSourceIsoPath), [bool]$Script:DeploymentMediaDetectedIsoInfo, (Test-GuiDeploymentMediaBuilderSourceMatchesDetectedIso), $(if ($Script:CmbDeploymentMediaDetectedEdition -and $Script:CmbDeploymentMediaDetectedEdition.SelectedItem) { [string]$Script:CmbDeploymentMediaDetectedEdition.SelectedItem.DisplayName } else { '' }), $(if ($Script:TxtDeploymentMediaEditionIndex) { [string]$Script:TxtDeploymentMediaEditionIndex.Text } else { '' })) -Source 'DeploymentMediaBuilderView.PreviewPlan.Blocked'
 		Update-GuiDeploymentMediaBuilderPreviewAvailability
 		Set-GuiDeploymentMediaBuilderStatus -Message ([string]$previewState.Message) -Tone 'warning' -ShowBanner
-		if ($Script:TxtDeploymentMediaPlanPreview)
-		{
-			$Script:TxtDeploymentMediaPlanPreview.Text = [string]$previewState.Message
-		}
+		[void](Show-ThemedDialog -Title 'Deployment Media Builder' -Message ([string]$previewState.Message) -Buttons @('OK') -AccentButton 'OK')
 		return
 	}
 
 	$plan = Get-GuiDeploymentMediaBuilderPlan
 	$Script:DeploymentMediaCurrentPlan = $plan
 	Write-GuiDeploymentMediaBuilderViewDebugLog -Message ('Deployment media build plan preview generated. IsValid={0}; ErrorCount={1}; OutputMode="{2}"; SourceIso="{3}"; EditionIndex={4}; EditionName="{5}"; WorkingDirectory="{6}"' -f [bool]$plan.IsValid, @($plan.Errors).Count, [string]$plan.OutputMode, [string]$plan.SourceIso, [int]$plan.EditionIndex, [string]$plan.EditionName, [string]$plan.WorkingDirectory) -Source 'DeploymentMediaBuilderView.PreviewPlan.Generated'
-	if ($Script:TxtDeploymentMediaPlanPreview)
-	{
-		$Script:TxtDeploymentMediaPlanPreview.Text = Convert-GuiDeploymentMediaBuildPlanToText -Plan $plan
-	}
-	if ($Script:BtnDeploymentMediaStartBuild)
-	{
-		$Script:BtnDeploymentMediaStartBuild.IsEnabled = [bool]$plan.IsValid
-	}
+	Update-GuiDeploymentMediaBuilderPreviewAvailability
+	[void](Show-GuiDeploymentMediaBuildPlanPreviewDialog -Plan $plan)
 
 	if ([bool]$plan.IsValid)
 	{
-		Set-GuiDeploymentMediaBuilderStatus -Message 'Build plan validated. Start ISO Build is available.' -Tone 'success' -ShowBanner
+		Set-GuiDeploymentMediaBuilderStatus -Message 'Build plan validated. Preview and Start ISO Build are available independently.' -Tone 'success' -ShowBanner
 	}
 	else
 	{
-		Set-GuiDeploymentMediaBuilderStatus -Message 'Build plan needs required inputs before Start ISO Build can run.' -Tone 'warning' -ShowBanner
+		Set-GuiDeploymentMediaBuilderStatus -Message 'Build plan needs required inputs before Preview or Start ISO Build can run.' -Tone 'warning' -ShowBanner
 	}
 }
 
@@ -597,21 +627,21 @@ function Invoke-GuiDeploymentMediaBuilderStartBuild
 	if ($Script:DeploymentMediaBuilderOperation)
 	{
 		Write-GuiDeploymentMediaBuilderViewDebugLog -Message ('Deployment media Start ISO Build click routed to cancellation. ActiveOperation="{0}"' -f [string]$Script:DeploymentMediaBuilderOperation.Name) -Source 'DeploymentMediaBuilderView.StartBuild.CancelActiveOperation'
+		if ($Script:DeploymentMediaBuildProgressDialog)
+		{
+			Add-GuiDeploymentMediaBuildDialogLogLine -Dialog $Script:DeploymentMediaBuildProgressDialog -Text 'Cancellation requested from the Start ISO Build button.' -Level 'WARNING'
+		}
 		[void](Stop-GuiDeploymentMediaBuilderBackgroundOperation)
 		return
 	}
 
 	$plan = Get-GuiDeploymentMediaBuilderPlan
 	$Script:DeploymentMediaCurrentPlan = $plan
-	if ($Script:TxtDeploymentMediaPlanPreview)
-	{
-		$Script:TxtDeploymentMediaPlanPreview.Text = Convert-GuiDeploymentMediaBuildPlanToText -Plan $plan
-	}
 	if (-not [bool]$plan.IsValid)
 	{
 		Write-GuiDeploymentMediaBuilderViewDebugLog -Message ('Deployment media build start blocked by invalid plan. ErrorCount={0}; SourceIso="{1}"; OutputMode="{2}"; EditionIndex={3}; EditionName="{4}"' -f @($plan.Errors).Count, [string]$plan.SourceIso, [string]$plan.OutputMode, [int]$plan.EditionIndex, [string]$plan.EditionName) -Source 'DeploymentMediaBuilderView.StartBuild.InvalidPlan'
 		if ($Script:BtnDeploymentMediaStartBuild) { $Script:BtnDeploymentMediaStartBuild.IsEnabled = $false }
-		Set-GuiDeploymentMediaBuilderStatus -Message 'Preview the plan and resolve validation issues before starting.' -Tone 'warning' -ShowBanner
+		Set-GuiDeploymentMediaBuilderStatus -Message 'Complete required deployment media inputs before starting.' -Tone 'warning' -ShowBanner
 		return
 	}
 
@@ -627,7 +657,16 @@ function Invoke-GuiDeploymentMediaBuilderStartBuild
 	$writeErrorLogScript = ${function:Write-GuiDeploymentMediaBuilderErrorLog}
 	$showDialogScript = ${function:Show-ThemedDialog}
 	$convertPlanTextScript = ${function:Convert-GuiDeploymentMediaBuildPlanToText}
+	$setProgressStateScript = ${function:Set-GuiDeploymentMediaBuilderProgressState}
 	$writeDebugLogScript = ${function:Write-GuiDeploymentMediaBuilderViewDebugLog}
+	$showBuildDialogScript = ${function:Show-GuiDeploymentMediaBuildProgressDialog}
+	$setBuildDialogProgressScript = ${function:Set-GuiDeploymentMediaBuildDialogProgressState}
+	$addBuildDialogProgressLogScript = ${function:Add-GuiDeploymentMediaBuildDialogProgressLog}
+	$addBuildDialogLogScript = ${function:Add-GuiDeploymentMediaBuildDialogLogLine}
+	$completeBuildDialogScript = ${function:Complete-GuiDeploymentMediaBuildProgressDialog}
+	$testOscdimgDependencyErrorScript = ${function:Test-GuiDeploymentMediaOscdimgDependencyError}
+	$showOscdimgInstallPromptScript = ${function:Show-GuiDeploymentMediaOscdimgInstallPrompt}
+	$buildDialog = $null
 
 	try
 	{
@@ -642,8 +681,15 @@ function Invoke-GuiDeploymentMediaBuilderStartBuild
 		& $writeDebugLogScript -Message ('Deployment media build start accepted. SourceIso="{0}"; EditionIndex={1}; EditionName="{2}"; OutputMode="{3}"; IncludeBaselineTweaks={4}; SelectedTweaks={5}; DialogPath="{6}"; ExecutionPath="{7}"; ProcessHelperPath="{8}"' -f [string]$plan.SourceIso, [int]$plan.EditionIndex, [string]$plan.EditionName, [string]$plan.OutputMode, [bool]$plan.IncludeBaselineTweaks, $(if ($null -ne $selectedTweaks) { @($selectedTweaks).Count } else { 0 }), $dialogPath, $executionPath, $processHelperPath) -Source 'DeploymentMediaBuilderView.StartBuild.Accepted'
 
 		$Script:DeploymentMediaBuildInProgress = $true
+		$buildDialog = & $showBuildDialogScript -Plan $plan
+		$Script:DeploymentMediaBuildProgressDialog = $buildDialog
+		& $addBuildDialogLogScript -Dialog $buildDialog -Text ('Source ISO: {0}' -f [string]$plan.SourceIso)
+		& $addBuildDialogLogScript -Dialog $buildDialog -Text ('Selected edition: {0}' -f $(if ([string]::IsNullOrWhiteSpace([string]$plan.EditionName)) { ('Image index {0}' -f [int]$plan.EditionIndex) } else { ('{0}: {1}' -f [int]$plan.EditionIndex, [string]$plan.EditionName) }))
+		& $addBuildDialogLogScript -Dialog $buildDialog -Text ('Output mode: {0}' -f [string]$plan.OutputMode)
 		& $setControlsEnabledScript -Enabled:$false
-		& $setStatusScript -Message 'Deployment media build started.' -Tone 'muted' -ShowBanner
+		& $setProgressStateScript -Message 'Deployment media build started.' -Indeterminate
+		& $setBuildDialogProgressScript -Dialog $buildDialog -Message 'Deployment media build started.' -Indeterminate
+		& $setStatusScript -Message 'Build running.' -Tone 'muted'
 
 		$worker = {
 			param (
@@ -656,8 +702,18 @@ function Invoke-GuiDeploymentMediaBuilderStartBuild
 			$null = . ([string]$Context.ExecutionPath)
 
 			$progressCallback = {
-				param([string]$Message)
-				$Sync.Status = [string]$Message
+				param([object]$Progress)
+
+				if ($Progress -and $Progress.PSObject.Properties['Message'])
+				{
+					$Sync.Status = [string]$Progress.Message
+					$Sync.ProgressPayload = $Progress
+				}
+				else
+				{
+					$Sync.Status = [string]$Progress
+					$Sync.ProgressPayload = $null
+				}
 			}.GetNewClosure()
 
 			$buildParameters = @{
@@ -671,26 +727,47 @@ function Invoke-GuiDeploymentMediaBuilderStartBuild
 				$buildParameters['SelectedTweaks'] = @($Context.SelectedTweaks)
 			}
 
-			return Invoke-GuiDeploymentMediaBuild @buildParameters
+			$buildResult = Invoke-GuiDeploymentMediaBuild @buildParameters
+			if ($null -eq $buildResult)
+			{
+				throw 'Deployment media build completed without returning a build result.'
+			}
+			return $buildResult
 		}
 		$statusCallback = {
-			param ([string]$Message)
-			if ($Script:TxtDeploymentMediaPlanPreview)
-			{
-				$Script:TxtDeploymentMediaPlanPreview.Text = (& $convertPlanTextScript -Plan $plan) + [Environment]::NewLine + [Environment]::NewLine + $Message
-			}
-			& $setStatusScript -Message $Message -Tone 'muted' -ShowBanner
+			param ([object]$Progress)
+
+			$message = if ($Progress -and $Progress.PSObject.Properties['Message']) { [string]$Progress.Message } else { [string]$Progress }
+			& $setProgressStateScript -Progress $Progress -Message $message
+			& $setBuildDialogProgressScript -Dialog $buildDialog -Progress $Progress -Message $message
+			& $addBuildDialogProgressLogScript -Dialog $buildDialog -Progress $Progress -Message $message
 		}.GetNewClosure()
 		$completedCallback = {
 			param ([object]$Result)
 			$buildResult = $Result
-			& $writeDebugLogScript -Message ('Deployment media build completed. OutputPath="{0}"; ReportPath="{1}"; BuildRoot="{2}"' -f $(if ($buildResult.PSObject.Properties['OutputPath']) { [string]$buildResult.OutputPath } else { '' }), $(if ($buildResult.PSObject.Properties['ReportPath']) { [string]$buildResult.ReportPath } else { '' }), $(if ($buildResult.PSObject.Properties['BuildRoot']) { [string]$buildResult.BuildRoot } else { '' })) -Source 'DeploymentMediaBuilderView.StartBuild.Completed'
+			if (-not $buildResult)
+			{
+				throw 'Deployment media build completed without returning a build result.'
+			}
+
+			$outputPath = if ($buildResult.PSObject.Properties['OutputPath']) { [string]$buildResult.OutputPath } else { '' }
+			$reportPath = if ($buildResult.PSObject.Properties['ReportPath']) { [string]$buildResult.ReportPath } else { '' }
+			$buildRoot = if ($buildResult.PSObject.Properties['BuildRoot']) { [string]$buildResult.BuildRoot } else { '' }
+			if ([string]::IsNullOrWhiteSpace($outputPath) -or [string]::IsNullOrWhiteSpace($reportPath))
+			{
+				throw ('Deployment media build returned an incomplete result. OutputPath="{0}"; ReportPath="{1}".' -f $outputPath, $reportPath)
+			}
+
+			& $writeDebugLogScript -Message ('Deployment media build completed. OutputPath="{0}"; ReportPath="{1}"; BuildRoot="{2}"' -f $outputPath, $reportPath, $buildRoot) -Source 'DeploymentMediaBuilderView.StartBuild.Completed'
 			$Script:DeploymentMediaCurrentPlan = $plan
 			if ($Script:TxtDeploymentMediaPlanPreview)
 			{
-				$Script:TxtDeploymentMediaPlanPreview.Text = (& $convertPlanTextScript -Plan $plan) + [Environment]::NewLine + [Environment]::NewLine + ('Build output: {0}' -f $buildResult.OutputPath) + [Environment]::NewLine + ('Build report saved: {0}' -f $buildResult.ReportPath)
+				$Script:TxtDeploymentMediaPlanPreview.Text = (& $convertPlanTextScript -Plan $plan) + [Environment]::NewLine + [Environment]::NewLine + ('Build output: {0}' -f $outputPath) + [Environment]::NewLine + ('Build report saved: {0}' -f $reportPath)
 			}
-			& $setStatusScript -Message ('Build complete. Report: {0}' -f $buildResult.ReportPath) -Tone 'success' -ShowBanner
+			$completeMessage = ('Build complete. Report: {0}' -f $reportPath)
+			& $setProgressStateScript -Hide
+			& $completeBuildDialogScript -Dialog $buildDialog -Message $completeMessage -Level 'SUCCESS'
+			& $setStatusScript -Message $completeMessage -Tone 'success' -ShowBanner
 		}.GetNewClosure()
 		$failedCallback = {
 			param ([object]$ErrorRecord)
@@ -700,11 +777,21 @@ function Invoke-GuiDeploymentMediaBuilderStartBuild
 			{
 				$Script:TxtDeploymentMediaPlanPreview.Text = (& $convertPlanTextScript -Plan $plan) + [Environment]::NewLine + [Environment]::NewLine + ('Build {0}: {1}' -f $(if ($isCancelled) { 'cancelled' } else { 'failed' }), $ErrorRecord.Exception.Message)
 			}
-			& $setStatusScript -Message ('Build {0}: {1}' -f $(if ($isCancelled) { 'cancelled' } else { 'failed' }), $ErrorRecord.Exception.Message) -Tone $(if ($isCancelled) { 'warning' } else { 'error' }) -ShowBanner
+			$failureMessage = ('Build {0}: {1}' -f $(if ($isCancelled) { 'cancelled' } else { 'failed' }), $ErrorRecord.Exception.Message)
+			& $setProgressStateScript -Hide
+			& $completeBuildDialogScript -Dialog $buildDialog -Message $failureMessage -Level $(if ($isCancelled) { 'WARNING' } else { 'ERROR' }) -Failed
+			& $setStatusScript -Message $failureMessage -Tone $(if ($isCancelled) { 'warning' } else { 'error' }) -ShowBanner
 			if (-not $isCancelled)
 			{
 				& $writeErrorLogScript -ErrorRecord $ErrorRecord -Prefix 'Deployment media build failed' -Source 'DeploymentMediaBuilderView.StartBuild.LogError'
-				[void](& $showDialogScript -Title 'Deployment Media Builder' -Message ("Deployment media build failed.`n`n{0}" -f $ErrorRecord.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+				if (& $testOscdimgDependencyErrorScript -ErrorRecord $ErrorRecord)
+				{
+					& $showOscdimgInstallPromptScript -ErrorRecord $ErrorRecord -ShowDialog $showDialogScript
+				}
+				else
+				{
+					[void](& $showDialogScript -Title 'Deployment Media Builder' -Message ("Deployment media build failed.`n`n{0}" -f $ErrorRecord.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+				}
 			}
 		}.GetNewClosure()
 		$finallyCallback = {
@@ -730,6 +817,8 @@ function Invoke-GuiDeploymentMediaBuilderStartBuild
 		if (-not $started)
 		{
 			$Script:DeploymentMediaBuildInProgress = $false
+			& $setProgressStateScript -Hide
+			& $completeBuildDialogScript -Dialog $buildDialog -Message 'Deployment media build could not start because another operation is active.' -Level 'WARNING' -Failed
 			& $setControlsEnabledScript -Enabled:$true
 		}
 		else
@@ -746,9 +835,18 @@ function Invoke-GuiDeploymentMediaBuilderStartBuild
 		{
 			$Script:TxtDeploymentMediaPlanPreview.Text = (& $convertPlanTextScript -Plan $plan) + [Environment]::NewLine + [Environment]::NewLine + ('Build failed: {0}' -f $_.Exception.Message)
 		}
+		& $setProgressStateScript -Message ('Build failed: {0}' -f $_.Exception.Message) -Failed
+		& $completeBuildDialogScript -Dialog $buildDialog -Message ('Build failed: {0}' -f $_.Exception.Message) -Level 'ERROR' -Failed
 		& $setStatusScript -Message ('Build failed: {0}' -f $_.Exception.Message) -Tone 'error' -ShowBanner
 		& $writeErrorLogScript -ErrorRecord $_ -Prefix 'Deployment media build failed' -Source 'DeploymentMediaBuilderView.StartBuild.LogError'
-		[void](& $showDialogScript -Title 'Deployment Media Builder' -Message ("Deployment media build failed.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+		if (& $testOscdimgDependencyErrorScript -ErrorRecord $_)
+		{
+			& $showOscdimgInstallPromptScript -ErrorRecord $_ -ShowDialog $showDialogScript
+		}
+		else
+		{
+			[void](& $showDialogScript -Title 'Deployment Media Builder' -Message ("Deployment media build failed.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+		}
 	}
 }
 
@@ -780,6 +878,7 @@ function Initialize-GuiDeploymentMediaBuilderView
 	$previewPlanScript = ${function:Invoke-GuiDeploymentMediaBuilderPreviewPlan}
 	$startBuildScript = ${function:Invoke-GuiDeploymentMediaBuilderStartBuild}
 	$syncTextScript = ${function:Sync-GuiDeploymentMediaBuilderViewText}
+	$initializeProgressChromeScript = ${function:Initialize-GuiDeploymentMediaBuilderProgressChrome}
 	$syncEditionSelectionScript = ${function:Sync-GuiDeploymentMediaBuilderEditionSelection}
 	$updatePreviewAvailabilityScript = ${function:Update-GuiDeploymentMediaBuilderPreviewAvailability}
 	$clearDetectedIsoStateScript = ${function:Clear-GuiDeploymentMediaBuilderDetectedIsoState}
@@ -794,7 +893,7 @@ function Initialize-GuiDeploymentMediaBuilderView
 
 	$markPlanDirty = {
 		& $resetStartStateScript
-		& $setStatusScript -Message 'Preview the build plan after changing inputs.' -Tone 'muted'
+		& $setStatusScript -Message 'Inputs changed. Preview is optional; Start ISO Build is available when required inputs validate.' -Tone 'muted'
 		& $updatePreviewAvailabilityScript
 	}.GetNewClosure()
 
@@ -806,8 +905,8 @@ function Initialize-GuiDeploymentMediaBuilderView
 			return
 		}
 
-		& $clearDetectedIsoStateScript -Summary 'Source ISO changed. Run Detect Editions before previewing.' -Preview 'Run Detect Editions for the selected ISO, then preview the build plan.' -ResetPlan
-		& $setStatusScript -Message 'Run Detect Editions for the selected ISO before previewing.' -Tone 'muted'
+		& $clearDetectedIsoStateScript -Summary 'Source ISO changed. Run Detect Editions before previewing or building.' -Preview 'Run Detect Editions for the selected ISO. Preview is optional before Start ISO Build.' -ResetPlan
+		& $setStatusScript -Message 'Run Detect Editions for the selected ISO before previewing or building.' -Tone 'muted'
 	}.GetNewClosure()
 
 	if ($Script:TxtDeploymentMediaSourceIso)
@@ -919,9 +1018,10 @@ function Initialize-GuiDeploymentMediaBuilderView
 
 	Initialize-GuiDeploymentMediaMicrosoftIsoOptionList
 	& $syncTextScript
+	& $initializeProgressChromeScript
 	if (-not (& $testIsoInfoPayloadScript -IsoInfo $Script:DeploymentMediaDetectedIsoInfo))
 	{
-		& $clearDetectedIsoStateScript -Summary 'No ISO inspected yet.' -Preview 'Choose or import a Windows ISO, run Detect Editions, then preview the build plan.' -ResetPlan
+		& $clearDetectedIsoStateScript -Summary 'No ISO inspected yet.' -Preview 'Choose or import a Windows ISO, then run Detect Editions. Preview is optional before Start ISO Build.' -ResetPlan
 		$sourceIso = & $getSourceIsoPathScript
 		if ([string]::IsNullOrWhiteSpace($sourceIso))
 		{
@@ -929,7 +1029,7 @@ function Initialize-GuiDeploymentMediaBuilderView
 		}
 		else
 		{
-			& $setStatusScript -Message 'Run Detect Editions for the selected ISO before previewing.' -Tone 'muted'
+			& $setStatusScript -Message 'Run Detect Editions for the selected ISO before previewing or building.' -Tone 'muted'
 		}
 	}
 	Write-GuiDeploymentMediaBuilderViewDebugLog -Message ('Deployment media builder view initialized. SourceIso="{0}"; WorkingDirectory="{1}"; OutputMode="{2}"; HasDetectedIso={3}; EditionComboEnabled={4}; EditionItems={5}; PreviewEnabled={6}; StartEnabled={7}' -f (& $getSourceIsoPathScript), $(if ($Script:TxtDeploymentMediaWorkingDirectory) { [string]$Script:TxtDeploymentMediaWorkingDirectory.Text } else { '' }), (Get-GuiDeploymentMediaBuilderOutputMode), [bool]$Script:DeploymentMediaDetectedIsoInfo, $(if ($Script:CmbDeploymentMediaDetectedEdition) { [bool]$Script:CmbDeploymentMediaDetectedEdition.IsEnabled } else { $false }), $(if ($Script:CmbDeploymentMediaDetectedEdition) { [int]$Script:CmbDeploymentMediaDetectedEdition.Items.Count } else { 0 }), $(if ($Script:BtnDeploymentMediaPreviewPlan) { [bool]$Script:BtnDeploymentMediaPreviewPlan.IsEnabled } else { $false }), $(if ($Script:BtnDeploymentMediaStartBuild) { [bool]$Script:BtnDeploymentMediaStartBuild.IsEnabled } else { $false })) -Source 'DeploymentMediaBuilderView.Initialize.Completed'

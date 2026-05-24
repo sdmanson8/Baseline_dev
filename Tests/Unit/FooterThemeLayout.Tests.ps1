@@ -36,9 +36,17 @@ Describe 'Footer and theme toggle layout' {
         $script:GuiContent | Should -Match 'Set-GuiButtonIconContent -Button \$Script:BtnRun\s+-IconName ''RunTweaks'''
     }
 
+    It 'starts shared run actions disabled until the active GUI has selected items' {
+        $script:GuiContent | Should -Match '<Button Name="BtnPreviewRun"[^>]+IsEnabled="False"'
+        $script:GuiContent | Should -Match '<Button Name="BtnRun"[^>]+IsEnabled="False"'
+        $script:GuiContent | Should -Match '<MenuItem Name="MenuActionsPreviewRun"[^>]+IsEnabled="False"'
+        $script:GuiContent | Should -Match '<MenuItem Name="MenuActionsRunTweaks"[^>]+IsEnabled="False"'
+    }
+
     It 'clamps header-driven window width updates to the available work area' {
-        $script:StyleContent | Should -Match '\$workArea = \[System\.Windows\.SystemParameters\]::WorkArea'
-        $script:StyleContent | Should -Match '\$clampedMinWidth = \[Math\]::Min\(\[Math\]::Ceiling\(\$neededWidth\), \$workArea\.Width\)'
+        $script:StyleContent | Should -Match "Get-Command -Name 'Get-GuiMainWindowWorkArea'"
+        $script:StyleContent | Should -Match '\$systemWorkArea = \[System\.Windows\.SystemParameters\]::WorkArea'
+        $script:StyleContent | Should -Match '\$clampedMinWidth = \[Math\]::Min\(\[Math\]::Ceiling\(\$neededWidth\), \$workAreaWidth\)'
         $script:GuiContent | Should -Match 'Update-WindowMinWidthFromHeader'
     }
 

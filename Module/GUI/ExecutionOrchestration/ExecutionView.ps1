@@ -309,12 +309,15 @@
         if ($ActionButtonBar) { $ActionButtonBar.Visibility = if ($previousFooterVisibility -and $previousFooterVisibility.ActionButtonBar) { $previousFooterVisibility.ActionButtonBar } else { [System.Windows.Visibility]::Visible } }
         if ($BtnRun) { $BtnRun.Visibility = if ($previousFooterVisibility -and $previousFooterVisibility.BtnRun) { $previousFooterVisibility.BtnRun } else { [System.Windows.Visibility]::Visible } }
         if ($BtnDefaults) { $BtnDefaults.Visibility = if ($previousFooterVisibility -and $previousFooterVisibility.BtnDefaults) { $previousFooterVisibility.BtnDefaults } else { [System.Windows.Visibility]::Visible } }
-        if ($BtnPreviewRun) { $BtnPreviewRun.Visibility = if ($previousFooterVisibility -and $previousFooterVisibility.BtnPreviewRun) { $previousFooterVisibility.BtnPreviewRun } else { [System.Windows.Visibility]::Visible }; $BtnPreviewRun.IsEnabled = $true }
+        if ($BtnPreviewRun) { $BtnPreviewRun.Visibility = if ($previousFooterVisibility -and $previousFooterVisibility.BtnPreviewRun) { $previousFooterVisibility.BtnPreviewRun } else { [System.Windows.Visibility]::Visible } }
         if ($StatusText) { $StatusText.Visibility = if ($previousFooterVisibility -and $previousFooterVisibility.StatusText) { $previousFooterVisibility.StatusText } else { [System.Windows.Visibility]::Visible } }
         # Re-enable controls
-        if ($BtnRun) { $BtnRun.IsEnabled = $true }
         if ($BtnDefaults) { $BtnDefaults.IsEnabled = $true }
         Set-GuiActionButtonsEnabled -Enabled $true
+        if (Get-Command -Name 'Update-GuiScopedRunActionAvailability' -CommandType Function -ErrorAction SilentlyContinue)
+        {
+            Update-GuiScopedRunActionAvailability
+        }
         if ($ChkScan) { $ChkScan.IsEnabled = $true }
         if ($ChkTheme) { $ChkTheme.IsEnabled = $true }
         Set-SearchControlsEnabled -Enabled $true

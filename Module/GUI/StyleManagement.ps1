@@ -535,7 +535,6 @@
 
 		try
 		{
-			if ($ChkSafeMode) { Set-HeaderToggleStyle -CheckBox $ChkSafeMode -Palette Mode }
 			if ($ChkTheme) { Set-HeaderToggleStyle -CheckBox $ChkTheme -Palette Theme }
 		}
 		catch
@@ -615,30 +614,6 @@
 			$Script:MenuViewTheme.Header = $themeMenuLabel
 		}
 
-		$bc = New-SafeBrushConverter -Context 'Update-HeaderModeStateText'
-		$safeEnabled = [bool]$Script:SafeMode
-		$advancedEnabled = [bool]$Script:AdvancedMode
-		$safeModeLabel = Get-UxLocalizedString -Key 'GuiHelpSectionSafeMode' -Fallback 'Safe Mode'
-		$expertModeLabel = Get-UxLocalizedString -Key 'GuiHelpSectionExpertMode' -Fallback 'Expert Mode'
-		$modeToggleLabel = if ($safeEnabled) { $safeModeLabel } else { $expertModeLabel }
-		if ($TxtAdvancedModeState)
-		{
-			if ($advancedEnabled)
-			{
-				$TxtAdvancedModeState.Text = (Get-UxLocalizedString -Key 'GuiExpertModeOn' -Fallback 'Expert Mode: On')
-			}
-			else
-			{
-				$TxtAdvancedModeState.Text = ''
-			}
-			$TxtAdvancedModeState.Foreground = $bc.ConvertFromString($(if ($advancedEnabled) { $Script:CurrentTheme.ToggleOn } else { $Script:CurrentTheme.TextMuted }))
-		}
-		if ($ChkSafeMode)
-		{
-			$ChkSafeMode.Content = $modeToggleLabel
-			$ChkSafeMode.ToolTip = ('{0} / {1}' -f $safeModeLabel, $expertModeLabel)
-			[System.Windows.Automation.AutomationProperties]::SetName($ChkSafeMode, ('{0} / {1}' -f $safeModeLabel, $expertModeLabel))
-		}
 		if ($TitleBarText -and $Form)
 		{
 			try
@@ -654,6 +629,7 @@
 		}
 		if ($TxtThemeState)
 		{
+			$bc = New-SafeBrushConverter -Context 'Update-HeaderModeStateText'
 			$themeLabel = if ($lightEnabled) { (Get-UxLocalizedString -Key 'GuiThemeLight' -Fallback 'Theme: Light') } else { (Get-UxLocalizedString -Key 'GuiThemeDark' -Fallback 'Theme: Dark') }
 			$TxtThemeState.Text = $themeLabel
 			$TxtThemeState.Foreground = $bc.ConvertFromString($(if ($lightEnabled) { $Script:CurrentTheme.AccentBlue } else { $Script:CurrentTheme.TextMuted }))
@@ -931,6 +907,13 @@
 			[System.Windows.Controls.ToolTipService]::SetInitialShowDelay($Script:NavModeTweaks, 350)
 			[System.Windows.Controls.ToolTipService]::SetShowDuration($Script:NavModeTweaks, 15000)
 		}
+		if ($Script:NavModeGaming)
+		{
+			$gamingTip = (Get-UxLocalizedString -Key 'GuiGameModeIntro' -Fallback 'Choose a gaming profile, review the gaming plan, then run it.')
+			Set-GuiButtonIconContent -Button $Script:NavModeGaming -IconName 'Games' -Text (Get-UxLocalizedString -Key 'GuiTabGaming' -Fallback 'Gaming') -ToolTip $gamingTip -IconSize 14 -Gap 6 -TextFontSize 11
+			[System.Windows.Controls.ToolTipService]::SetInitialShowDelay($Script:NavModeGaming, 350)
+			[System.Windows.Controls.ToolTipService]::SetShowDuration($Script:NavModeGaming, 15000)
+		}
 		if ($Script:NavModeApps)
 		{
 			$appsTip = (Get-UxLocalizedString -Key 'Nav_SoftwareAndAppsTooltip' -Fallback "Install, update, or uninstall applications via WinGet or Chocolatey.`nQueue actions across many apps, then Apply Changes as a batch.")
@@ -954,8 +937,8 @@
 		}
 		if ($Script:ModeSubtitle)
 		{
-			$modeSubtitleKey = if ($Script:UpdatesModeActive) { 'Nav_WindowsUpdatesSubtitle' } elseif ($Script:DeploymentMediaModeActive) { 'Nav_DeploymentMediaSubtitle' } elseif ($Script:AppsModeActive) { 'Nav_SoftwareAndAppsSubtitle' } else { 'Nav_OptimizeSubtitle' }
-			$modeSubtitleFallback = if ($Script:UpdatesModeActive) { 'Manage Windows Update' } elseif ($Script:DeploymentMediaModeActive) { 'Build Windows setup media' } elseif ($Script:AppsModeActive) { 'Manage installed applications' } else { 'Configure system behavior' }
+			$modeSubtitleKey = if ($Script:GamingModeActive) { 'GuiGameModeHeader' } elseif ($Script:UpdatesModeActive) { 'Nav_WindowsUpdatesSubtitle' } elseif ($Script:DeploymentMediaModeActive) { 'Nav_DeploymentMediaSubtitle' } elseif ($Script:AppsModeActive) { 'Nav_SoftwareAndAppsSubtitle' } else { 'Nav_OptimizeSubtitle' }
+			$modeSubtitleFallback = if ($Script:GamingModeActive) { 'Game Mode' } elseif ($Script:UpdatesModeActive) { 'Manage Windows Update' } elseif ($Script:DeploymentMediaModeActive) { 'Build Windows setup media' } elseif ($Script:AppsModeActive) { 'Manage installed applications' } else { 'Configure system behavior' }
 			$Script:ModeSubtitle.Text = (Get-UxLocalizedString -Key $modeSubtitleKey -Fallback $modeSubtitleFallback)
 			$Script:ModeSubtitle.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
 		}
@@ -1662,8 +1645,6 @@
 		if ($ChkHighRiskOnly) { $ChkHighRiskOnly.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
 		if ($ChkRestorableOnly) { $ChkRestorableOnly.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
 		if ($ChkGamingOnly) { $ChkGamingOnly.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
-		if ($ChkSafeMode) { $ChkSafeMode.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
-		if ($ChkGameMode) { $ChkGameMode.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
 		if ($BtnFilterToggle) { $BtnFilterToggle.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
 		if ($Script:BtnAppsFilterToggle) { $Script:BtnAppsFilterToggle.Foreground = $bc.ConvertFromString($Script:CurrentTheme.TextSecondary) }
 		if ($CmbRiskFilter) { Set-ChoiceComboStyle -Combo $CmbRiskFilter }
@@ -1714,8 +1695,6 @@
 		if ($ChkHighRiskOnly) { $ChkHighRiskOnly.IsEnabled = $Enabled }
 		if ($ChkRestorableOnly) { $ChkRestorableOnly.IsEnabled = $Enabled }
 		if ($ChkGamingOnly) { $ChkGamingOnly.IsEnabled = $Enabled }
-		if ($ChkSafeMode) { $ChkSafeMode.IsEnabled = $Enabled }
-		if ($ChkGameMode) { $ChkGameMode.IsEnabled = $Enabled }
 		Set-SearchInputStyle
 	}
 

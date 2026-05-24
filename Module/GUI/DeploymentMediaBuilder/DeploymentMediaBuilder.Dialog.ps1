@@ -50,6 +50,45 @@ function Resolve-GuiDeploymentMediaDialogSupportPath
 	throw ('Required Deployment Media Builder dialog support file was not found: {0}' -f $Name)
 }
 
+function Show-GuiDeploymentMediaDialogOscdimgInstallPrompt
+{
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[object]$ErrorRecord,
+		[Parameter(Mandatory = $true)]
+		[string]$Title
+	)
+
+	$pageUrl = Get-GuiDeploymentMediaOscdimgInstallPageUrl
+	$message = @(
+		'Baseline could not install Microsoft OSCDIMG automatically.',
+		'',
+		[string]$ErrorRecord.Exception.Message,
+		'',
+		'Open the Microsoft.OSCDIMG install page, install the package, then run Start ISO Build again.'
+	) -join [Environment]::NewLine
+
+	$choice = Show-ThemedDialog -Title $Title -Message $message -Buttons @('OK', 'Open Install Page') -AccentButton 'Open Install Page'
+	if ([string]$choice -ne 'Open Install Page') { return }
+
+	try
+	{
+		if (-not (Invoke-UserLaunch -FilePath $pageUrl -Description 'Microsoft OSCDIMG install page'))
+		{
+			[void](Show-ThemedDialog -Title $Title -Message ("Failed to open the Microsoft.OSCDIMG install page.`n`n{0}" -f $pageUrl) -Buttons @('OK') -AccentButton 'OK')
+		}
+	}
+	catch
+	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
+		{
+			Write-SwallowedException -ErrorRecord $_ -Source 'DeploymentMediaBuilderDialog.OscdimgInstallPageLaunch' -Severity Warning
+		}
+		[void](Show-ThemedDialog -Title $Title -Message ("Failed to open the Microsoft.OSCDIMG install page.`n`n{0}`n`n{1}" -f $pageUrl, $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+	}
+}
+
 function Complete-GuiDeploymentMediaDialogBackgroundOperation
 {
 	[CmdletBinding()]
@@ -151,7 +190,9 @@ function Start-GuiDeploymentMediaDialogBackgroundOperation
 		StageStartedUtc = $null
 	})
 
-	$runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+	$initialSessionState = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
+	$initialSessionState.ImportPSModule(@('Microsoft.PowerShell.Management', 'Microsoft.PowerShell.Utility'))
+	$runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace($initialSessionState)
 	$runspace.ApartmentState = 'STA'
 	$runspace.ThreadOptions = 'ReuseThread'
 	$runspace.Open()
@@ -160,14 +201,15 @@ function Start-GuiDeploymentMediaDialogBackgroundOperation
 	$ps.Runspace = $runspace
 	$operationScript = {
 		param (
-			[string]$WorkerText,
+			[string]$WorkerSource,
 			[hashtable]$WorkerContext,
 			[hashtable]$Sync
 		)
 
+		$ErrorActionPreference = 'Stop'
+		$workerBlock = [scriptblock]::Create($WorkerSource)
 		try
 		{
-			$workerBlock = [scriptblock]::Create($WorkerText)
 			& $workerBlock -Context $WorkerContext -Sync $Sync
 		}
 		finally
@@ -175,7 +217,8 @@ function Start-GuiDeploymentMediaDialogBackgroundOperation
 			$Sync.Done = $true
 		}
 	}
-	$null = $ps.AddScript($operationScript).AddArgument($Worker.ToString()).AddArgument($Context).AddArgument($syncHash)
+	$workerSource = $Worker.ToString()
+	$null = $ps.AddScript($operationScript).AddArgument($workerSource).AddArgument($Context).AddArgument($syncHash)
 	$asyncResult = $ps.BeginInvoke()
 	$timer = [System.Windows.Threading.DispatcherTimer]::new()
 	$timer.Interval = [TimeSpan]::FromMilliseconds(150)
@@ -391,7 +434,7 @@ function Show-GuiDeploymentMediaBuilderDialog
 			</ScrollViewer>
 			<Border Grid.Row="2" Background="$($theme.HeaderBg)" BorderBrush="$($theme.BorderColor)" BorderThickness="0,1,0,0" Padding="16,10,16,10">
 				<StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-					<Button Name="BtnPreview" Content="$previewLabel" MinWidth="132" MinHeight="32" Margin="0,0,8,0"/>
+					<Button Name="BtnPreview" Content="$previewLabel" MinWidth="132" MinHeight="32" Margin="0,0,8,0" IsEnabled="False"/>
 					<Button Name="BtnStartBuild" Content="$startLabel" MinWidth="118" MinHeight="32" Margin="0,0,8,0" IsEnabled="False"/>
 					<Button Name="BtnClose" Content="$closeLabel" MinWidth="90" MinHeight="32"/>
 				</StackPanel>
@@ -431,8 +474,9 @@ function Show-GuiDeploymentMediaBuilderDialog
 	$currentPlan = $null
 	$detectedIsoInfo = $null
 	$txtWorkingDirectory.Text = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Baseline\DeploymentMediaBuilder\Working'
-	$txtPlanPreview.Text = "Select an official Microsoft Windows 10/11 ISO, run Detect Editions, then use Preview Build Plan before Start ISO Build."
+	$txtPlanPreview.Text = "Select an official Microsoft Windows 10/11 ISO, run Detect Editions, then preview or start the ISO build."
 	$operationState = @{ Operation = $null }
+	$updateActionAvailability = $null
 
 	$setControlsEnabled = {
 		param([bool]$Enabled)
@@ -468,7 +512,12 @@ function Show-GuiDeploymentMediaBuilderDialog
 		}
 
 		$btnStartBuild.Content = $startLabel
-		$btnStartBuild.IsEnabled = ($Enabled -and $currentPlan -and [bool]$currentPlan.IsValid)
+		if ($updateActionAvailability) { & $updateActionAvailability -ControlsEnabled:$Enabled }
+		else
+		{
+			$btnPreview.IsEnabled = $false
+			$btnStartBuild.IsEnabled = $false
+		}
 		if ($cmbDetectedEdition) { $cmbDetectedEdition.IsEnabled = ($Enabled -and $detectedIsoInfo -and $cmbDetectedEdition.Items.Count -gt 0) }
 	}.GetNewClosure()
 
@@ -525,6 +574,43 @@ function Show-GuiDeploymentMediaBuilderDialog
 		if (-not [int]::TryParse([string]$txtEditionIndex.Text, [ref]$editionIndex)) { $editionIndex = 0 }
 		return New-GuiDeploymentMediaBuildPlan -SourceIso $txtSourceIso.Text -WorkingDirectory $txtWorkingDirectory.Text -EditionIndex $editionIndex -EditionName (& $getEditionName) -AutounattendPath $txtAutounattend.Text -DriverSource $txtDriverSource.Text -UsbTargetRoot $txtUsbTargetRoot.Text -IsoImageInfo $detectedIsoInfo -OutputMode (& $getOutputMode) -InjectBootDrivers:([bool]$chkBootDrivers.IsChecked) -IncludeBaselineTweaks:([bool]$chkBaselineTweaks.IsChecked)
 	}
+	$updateActionAvailability = {
+		param([bool]$ControlsEnabled = $true)
+
+		if ($operationState.Operation)
+		{
+			$btnPreview.IsEnabled = $false
+			$btnStartBuild.Content = 'Cancel Operation'
+			$btnStartBuild.IsEnabled = $true
+			return
+		}
+
+		$currentPlan = & $getPlan
+		$ready = $ControlsEnabled -and [bool]$currentPlan.IsValid
+		$message = if ($ready)
+		{
+			'Ready to preview or start ISO build.'
+		}
+		elseif (@($currentPlan.Errors).Count -gt 0)
+		{
+			@($currentPlan.Errors) -join [Environment]::NewLine
+		}
+		else
+		{
+			'Complete required deployment media inputs before previewing or building.'
+		}
+
+		$btnPreview.IsEnabled = $ready
+		$btnPreview.ToolTip = $message
+		$btnStartBuild.Content = $startLabel
+		$btnStartBuild.IsEnabled = $ready
+		$btnStartBuild.ToolTip = $message
+		if ($cmbDetectedEdition) { $cmbDetectedEdition.IsEnabled = ($ControlsEnabled -and $detectedIsoInfo -and $cmbDetectedEdition.Items.Count -gt 0) }
+	}.GetNewClosure()
+	$markPlanChanged = {
+		$currentPlan = $null
+		& $updateActionAvailability -ControlsEnabled:$true
+	}.GetNewClosure()
 
 	$btnBrowseIso.Add_Click({ $path = & $browseFile 'Windows ISO (*.iso)|*.iso'; if ($path) { $txtSourceIso.Text = $path } }.GetNewClosure())
 	$btnDetectIso.Add_Click({
@@ -578,8 +664,7 @@ function Show-GuiDeploymentMediaBuilderDialog
 					$txtEditionIndex.Text = [string]$detectedIsoInfo.Editions[0].Index
 				}
 				$txtPlanPreview.Text = ('Detected {0}: {1}{2}Edition count: {3}' -f $detectedIsoInfo.ImageKind, $detectedIsoInfo.ImagePath, [Environment]::NewLine, @($detectedIsoInfo.Editions).Count)
-				$currentPlan = $null
-				$btnStartBuild.IsEnabled = $false
+				& $updateActionAvailability -ControlsEnabled:$true
 			}.GetNewClosure()
 			$failedCallback = {
 				param ([object]$ErrorRecord)
@@ -587,7 +672,7 @@ function Show-GuiDeploymentMediaBuilderDialog
 				$detectedIsoInfo = $null
 				$cmbDetectedEdition.Items.Clear()
 				$cmbDetectedEdition.IsEnabled = $false
-				$btnStartBuild.IsEnabled = $false
+				& $updateActionAvailability -ControlsEnabled:$true
 				$txtPlanPreview.Text = ('ISO detection {0}: {1}' -f $(if ($isCancelled) { 'cancelled' } else { 'failed' }), $ErrorRecord.Exception.Message)
 				if (-not $isCancelled)
 				{
@@ -601,6 +686,7 @@ function Show-GuiDeploymentMediaBuilderDialog
 			$cmbDetectedEdition.Items.Clear()
 			$cmbDetectedEdition.IsEnabled = $false
 			$currentPlan = $null
+			& $updateActionAvailability -ControlsEnabled:$false
 			$txtPlanPreview.Text = 'Detecting ISO editions...'
 			& $setControlsEnabled $false
 			$started = Start-GuiDeploymentMediaDialogBackgroundOperation -OperationState $operationState -Name 'Deployment media ISO detection' -Worker $worker -Context @{ DialogPath = $dialogPath; ExecutionPath = $executionPath; SourceIso = $sourceIso } -TimeoutSeconds 900 -StatusCallback $statusCallback -CompletedCallback $completedCallback -FailedCallback $failedCallback -FinallyCallback $finallyCallback
@@ -611,7 +697,7 @@ function Show-GuiDeploymentMediaBuilderDialog
 			$detectedIsoInfo = $null
 			$cmbDetectedEdition.Items.Clear()
 			$cmbDetectedEdition.IsEnabled = $false
-			$btnStartBuild.IsEnabled = $false
+			& $updateActionAvailability -ControlsEnabled:$true
 			$txtPlanPreview.Text = ('ISO detection failed: {0}' -f $_.Exception.Message)
 			try { LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Deployment media ISO detection failed') } catch { Write-SwallowedException -ErrorRecord $_ -Source 'DeploymentMediaBuilderDialog.DetectIso.StartLogError' -Severity Warning }
 			[void](Show-ThemedDialog -Title $titleText -Message ("ISO detection failed.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
@@ -621,18 +707,31 @@ function Show-GuiDeploymentMediaBuilderDialog
 		if ($cmbDetectedEdition.SelectedItem -and $cmbDetectedEdition.SelectedItem.Tag)
 		{
 			$txtEditionIndex.Text = [string]$cmbDetectedEdition.SelectedItem.Tag.Index
-			$btnStartBuild.IsEnabled = $false
+			& $updateActionAvailability -ControlsEnabled:$true
 		}
 	}.GetNewClosure())
-	$btnBrowseAutounattend.Add_Click({ $path = & $browseFile 'Answer files (*.xml)|*.xml'; if ($path) { $txtAutounattend.Text = $path } }.GetNewClosure())
-	$btnBrowseWorking.Add_Click({ $path = & $browseFolder; if ($path) { $txtWorkingDirectory.Text = $path } }.GetNewClosure())
-	$btnBrowseDrivers.Add_Click({ $path = & $browseFolder; if ($path) { $txtDriverSource.Text = $path } }.GetNewClosure())
-	$btnBrowseUsbTarget.Add_Click({ $path = & $browseFolder; if ($path) { $txtUsbTargetRoot.Text = [System.IO.Path]::GetPathRoot($path) } }.GetNewClosure())
+	$btnBrowseAutounattend.Add_Click({ $path = & $browseFile 'Answer files (*.xml)|*.xml'; if ($path) { $txtAutounattend.Text = $path; & $updateActionAvailability -ControlsEnabled:$true } }.GetNewClosure())
+	$btnBrowseWorking.Add_Click({ $path = & $browseFolder; if ($path) { $txtWorkingDirectory.Text = $path; & $updateActionAvailability -ControlsEnabled:$true } }.GetNewClosure())
+	$btnBrowseDrivers.Add_Click({ $path = & $browseFolder; if ($path) { $txtDriverSource.Text = $path; & $updateActionAvailability -ControlsEnabled:$true } }.GetNewClosure())
+	$btnBrowseUsbTarget.Add_Click({ $path = & $browseFolder; if ($path) { $txtUsbTargetRoot.Text = [System.IO.Path]::GetPathRoot($path); & $updateActionAvailability -ControlsEnabled:$true } }.GetNewClosure())
+	foreach ($textBox in @($txtSourceIso, $txtWorkingDirectory, $txtEditionIndex, $txtAutounattend, $txtDriverSource, $txtUsbTargetRoot))
+	{
+		if ($textBox) { $textBox.Add_TextChanged($markPlanChanged) }
+	}
+	if ($cmbOutputMode) { $cmbOutputMode.Add_SelectionChanged($markPlanChanged) }
+	foreach ($checkBox in @($chkBootDrivers, $chkBaselineTweaks))
+	{
+		if ($checkBox)
+		{
+			$checkBox.Add_Checked($markPlanChanged)
+			$checkBox.Add_Unchecked($markPlanChanged)
+		}
+	}
 
 	$btnPreview.Add_Click({
 		$currentPlan = & $getPlan
 		$txtPlanPreview.Text = Convert-GuiDeploymentMediaBuildPlanToText -Plan $currentPlan
-		$btnStartBuild.IsEnabled = [bool]$currentPlan.IsValid
+		& $updateActionAvailability -ControlsEnabled:$true
 		$result.Previewed = $true
 	}.GetNewClosure())
 
@@ -675,8 +774,20 @@ function Show-GuiDeploymentMediaBuilderDialog
 				. ([string]$Context.ExecutionPath)
 
 				$progressCallback = {
-					param([string]$Message)
-					$Sync.Status = [string]$Message
+					param([object]$Progress)
+
+					if ($Progress -and $Progress.PSObject.Properties['DisplayText'])
+					{
+						$Sync.Status = [string]$Progress.DisplayText
+					}
+					elseif ($Progress -and $Progress.PSObject.Properties['Message'])
+					{
+						$Sync.Status = [string]$Progress.Message
+					}
+					else
+					{
+						$Sync.Status = [string]$Progress
+					}
 				}.GetNewClosure()
 
 				$buildParameters = @{
@@ -718,7 +829,14 @@ function Show-GuiDeploymentMediaBuilderDialog
 				if (-not $isCancelled)
 				{
 					try { LogError (Format-BaselineErrorForLog -ErrorObject $ErrorRecord -Prefix 'Deployment media build failed') } catch { Write-SwallowedException -ErrorRecord $_ -Source 'DeploymentMediaBuilderDialog.StartBuild.LogError' -Severity Warning }
-					[void](Show-ThemedDialog -Title $titleText -Message ("Deployment media build failed.`n`n{0}" -f $ErrorRecord.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+					if (Test-GuiDeploymentMediaOscdimgDependencyError -ErrorRecord $ErrorRecord)
+					{
+						Show-GuiDeploymentMediaDialogOscdimgInstallPrompt -ErrorRecord $ErrorRecord -Title $titleText
+					}
+					else
+					{
+						[void](Show-ThemedDialog -Title $titleText -Message ("Deployment media build failed.`n`n{0}" -f $ErrorRecord.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+					}
 				}
 			}.GetNewClosure()
 			$finallyCallback = { & $setControlsEnabled $true }.GetNewClosure()
@@ -745,7 +863,14 @@ function Show-GuiDeploymentMediaBuilderDialog
 			& $setControlsEnabled $true
 			$txtPlanPreview.Text = (Convert-GuiDeploymentMediaBuildPlanToText -Plan $currentPlan) + [Environment]::NewLine + [Environment]::NewLine + ('Build failed: {0}' -f $_.Exception.Message)
 			try { LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Deployment media build failed') } catch { Write-SwallowedException -ErrorRecord $_ -Source 'DeploymentMediaBuilderDialog.StartBuild.StartLogError' -Severity Warning }
-			[void](Show-ThemedDialog -Title $titleText -Message ("Deployment media build failed.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+			if (Test-GuiDeploymentMediaOscdimgDependencyError -ErrorRecord $_)
+			{
+				Show-GuiDeploymentMediaDialogOscdimgInstallPrompt -ErrorRecord $_ -Title $titleText
+			}
+			else
+			{
+				[void](Show-ThemedDialog -Title $titleText -Message ("Deployment media build failed.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+			}
 		}
 	}.GetNewClosure())
 

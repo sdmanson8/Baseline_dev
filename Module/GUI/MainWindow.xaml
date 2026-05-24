@@ -324,12 +324,206 @@
 			<Grid>
 				<Grid.ColumnDefinitions>
 					<ColumnDefinition Width="Auto"/>
+					<ColumnDefinition Width="Auto"/>
+					<ColumnDefinition Width="Auto"/>
 					<ColumnDefinition Width="*"/>
 					<ColumnDefinition Width="Auto"/>
 				</Grid.ColumnDefinitions>
-				<Image Name="TitleBarLogo" Grid.Column="0" Width="18" Height="18" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0" SnapsToDevicePixels="True" UseLayoutRounding="True" RenderOptions.BitmapScalingMode="HighQuality"/>
-				<TextBlock Name="TitleBarText" Grid.Column="1" Text="" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource Brush.TextPrimary}"/>
-				<StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+				<Image Name="TitleBarLogo" Grid.Column="0" Width="18" Height="18" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,10,0" SnapsToDevicePixels="True" UseLayoutRounding="True" RenderOptions.BitmapScalingMode="HighQuality"/>
+				<Border Name="MenuBarBorder" Grid.Column="1" Background="{DynamicResource MenuBarBackground}" BorderBrush="{DynamicResource MenuBarBorder}" BorderThickness="0" Padding="0" Margin="0,0,12,0" VerticalAlignment="Center">
+					<Menu Name="MainMenuBar" Background="Transparent" Foreground="{DynamicResource MenuBarForeground}" FontFamily="Segoe UI" FontSize="12" Padding="0">
+						<Menu.Resources>
+							<!-- Themed fallback brushes; replaced at runtime by Set-GUITheme -->
+							<SolidColorBrush x:Key="MenuBarBackground" Color="#151824"/>
+							<SolidColorBrush x:Key="MenuBarBorder" Color="#293044"/>
+							<SolidColorBrush x:Key="MenuBarForeground" Color="#F4F7FF"/>
+							<SolidColorBrush x:Key="MenuBarHoverBg" Color="#3670B8"/>
+							<SolidColorBrush x:Key="MenuBarHoverFg" Color="#FFFFFF"/>
+							<SolidColorBrush x:Key="MenuSubmenuBg" Color="#202638"/>
+							<SolidColorBrush x:Key="MenuSubmenuBorder" Color="#293044"/>
+							<SolidColorBrush x:Key="MenuSeparatorBrush" Color="#293044"/>
+
+							<!-- Top-level MenuItem (header in the menu bar) -->
+							<ControlTemplate x:Key="BaselineTopMenuItemTemplate" TargetType="MenuItem">
+								<Border Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4" SnapsToDevicePixels="True">
+									<ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
+								</Border>
+								<ControlTemplate.Triggers>
+									<Trigger Property="IsHighlighted" Value="True">
+										<Setter TargetName="Bd" Property="Background" Value="{DynamicResource MenuBarHoverBg}"/>
+										<Setter Property="Foreground" Value="{DynamicResource MenuBarHoverFg}"/>
+									</Trigger>
+									<Trigger Property="IsSubmenuOpen" Value="True">
+										<Setter TargetName="Bd" Property="Background" Value="{DynamicResource MenuBarHoverBg}"/>
+										<Setter Property="Foreground" Value="{DynamicResource MenuBarHoverFg}"/>
+									</Trigger>
+								</ControlTemplate.Triggers>
+							</ControlTemplate>
+
+							<!-- Submenu MenuItem (items inside a dropdown) -->
+							<ControlTemplate x:Key="BaselineSubMenuItemTemplate" TargetType="MenuItem">
+								<Border Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4" SnapsToDevicePixels="True">
+									<Grid>
+										<Grid.ColumnDefinitions>
+											<ColumnDefinition Width="18"/>
+											<ColumnDefinition Width="*"/>
+											<ColumnDefinition Width="Auto"/>
+										</Grid.ColumnDefinitions>
+										<TextBlock Name="CheckGlyph" Grid.Column="0" Text="&#x2713;" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
+										<ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center" Margin="4,0,0,0"/>
+										<TextBlock Grid.Column="2" Text="{TemplateBinding InputGestureText}" Opacity="0.6" Margin="16,0,0,0" VerticalAlignment="Center"/>
+									</Grid>
+								</Border>
+								<ControlTemplate.Triggers>
+									<Trigger Property="IsChecked" Value="True">
+										<Setter TargetName="CheckGlyph" Property="Visibility" Value="Visible"/>
+									</Trigger>
+									<Trigger Property="IsHighlighted" Value="True">
+										<Setter TargetName="Bd" Property="Background" Value="{DynamicResource MenuBarHoverBg}"/>
+										<Setter Property="Foreground" Value="{DynamicResource MenuBarHoverFg}"/>
+									</Trigger>
+									<Trigger Property="IsEnabled" Value="False">
+										<Setter Property="Opacity" Value="0.5"/>
+									</Trigger>
+								</ControlTemplate.Triggers>
+							</ControlTemplate>
+
+							<!-- TopLevelHeader with themed submenu popup chrome -->
+							<ControlTemplate x:Key="BaselineTopMenuHeaderTemplate" TargetType="MenuItem">
+								<Grid>
+									<Border Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4" SnapsToDevicePixels="True">
+										<ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
+									</Border>
+									<Popup Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsSubmenuOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+										<Border Name="SubmenuBorder" Background="{DynamicResource MenuSubmenuBg}" BorderBrush="{DynamicResource MenuSubmenuBorder}" BorderThickness="1" CornerRadius="8" Padding="4" SnapsToDevicePixels="True">
+											<StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+										</Border>
+									</Popup>
+								</Grid>
+								<ControlTemplate.Triggers>
+									<Trigger Property="IsHighlighted" Value="True">
+										<Setter TargetName="Bd" Property="Background" Value="{DynamicResource MenuBarHoverBg}"/>
+										<Setter Property="Foreground" Value="{DynamicResource MenuBarHoverFg}"/>
+									</Trigger>
+									<Trigger Property="IsSubmenuOpen" Value="True">
+										<Setter TargetName="Bd" Property="Background" Value="{DynamicResource MenuBarHoverBg}"/>
+										<Setter Property="Foreground" Value="{DynamicResource MenuBarHoverFg}"/>
+									</Trigger>
+								</ControlTemplate.Triggers>
+							</ControlTemplate>
+
+							<Style TargetType="MenuItem">
+								<Setter Property="Foreground" Value="{DynamicResource MenuBarForeground}"/>
+								<Setter Property="Background" Value="Transparent"/>
+								<Setter Property="Padding" Value="10,6"/>
+								<Setter Property="FontFamily" Value="Segoe UI"/>
+								<Setter Property="FontSize" Value="12"/>
+								<Style.Triggers>
+									<Trigger Property="Role" Value="TopLevelHeader">
+										<Setter Property="Template" Value="{StaticResource BaselineTopMenuHeaderTemplate}"/>
+									</Trigger>
+									<Trigger Property="Role" Value="TopLevelItem">
+										<Setter Property="Template" Value="{StaticResource BaselineTopMenuItemTemplate}"/>
+									</Trigger>
+									<Trigger Property="Role" Value="SubmenuHeader">
+										<Setter Property="Template" Value="{StaticResource BaselineSubMenuItemTemplate}"/>
+									</Trigger>
+									<Trigger Property="Role" Value="SubmenuItem">
+										<Setter Property="Template" Value="{StaticResource BaselineSubMenuItemTemplate}"/>
+									</Trigger>
+								</Style.Triggers>
+							</Style>
+
+							<Style TargetType="Separator">
+								<Setter Property="Background" Value="{DynamicResource MenuSeparatorBrush}"/>
+								<Setter Property="Height" Value="1"/>
+								<Setter Property="Margin" Value="4,4"/>
+							</Style>
+						</Menu.Resources>
+						<MenuItem Name="MenuFile" Header="_File">
+							<MenuItem Name="MenuFileImportSettings" Header="Import Settings..."/>
+							<MenuItem Name="MenuFileExportSettings" Header="Export Settings..."/>
+							<Separator/>
+							<MenuItem Name="MenuFileSettings" Header="Settings..."/>
+							<MenuItem Name="MenuFileAuditSettings" Header="Audit Settings..."/>
+							<Separator/>
+							<MenuItem Name="MenuFileExportConfigProfile" Header="Export Config Profile..."/>
+							<MenuItem Name="MenuFileExportSystemState" Header="Export System State..."/>
+							<Separator/>
+							<MenuItem Name="MenuFileExit" Header="E_xit" InputGestureText="Alt+F4"/>
+						</MenuItem>
+						<MenuItem Name="MenuActions" Header="_Actions">
+							<MenuItem Name="MenuActionsConnectToComputer" Header="Connect to Computer..."/>
+							<MenuItem Name="MenuActionsDisconnect" Header="Disconnect"/>
+							<Separator Name="MenuActionsSep1"/>
+							<MenuItem Name="MenuActionsPreviewRun" Header="Preview Run" IsEnabled="False"/>
+							<MenuItem Name="MenuActionsRunTweaks" Header="Run Tweaks" IsEnabled="False"/>
+							<Separator Name="MenuActionsSep2"/>
+							<MenuItem Name="MenuActionsUndoLastRun" Header="Undo Last Run"/>
+							<MenuItem Name="MenuActionsRestoreDefaults" Header="Restore Defaults"/>
+							<Separator Name="MenuActionsSep3"/>
+							<MenuItem Name="MenuActionsCheckCompliance" Header="Check Compliance..."/>
+							<MenuItem Name="MenuActionsScanSystem" Header="Scan System" IsCheckable="True"/>
+							<MenuItem Name="MenuActionsAuditLog" Header="Audit Log..."/>
+						</MenuItem>
+						<MenuItem Name="MenuView" Header="_View">
+							<MenuItem Name="MenuViewFilters" Header="Show Filters Panel" IsCheckable="True"/>
+							<MenuItem Name="MenuViewLogsPanel" Header="Open Logs"/>
+						</MenuItem>
+						<MenuItem Name="MenuTools" Header="_Tools">
+							<MenuItem Name="MenuToolsAppsManager" Header="Apps Manager"/>
+							<MenuItem Name="MenuToolsUpdateAllApps" Header="Update All Applications"/>
+							<Separator Name="MenuToolsSepApps"/>
+							<Separator Name="MenuToolsSepDeveloperDiagnostics" Visibility="Collapsed"/>
+							<MenuItem Name="MenuToolsDeveloperDiagnostics" Header="Developer Diagnostics" Visibility="Collapsed">
+								<MenuItem Name="MenuToolsDeveloperDiagnosticsGenerateReport" Header="Generate Test Report"/>
+								<MenuItem Name="MenuToolsDeveloperDiagnosticsSourceQuality" Header="Run Source Quality Guards"/>
+								<MenuItem Name="MenuToolsDeveloperDiagnosticsUnitTests" Header="Run Unit Tests"/>
+								<MenuItem Name="MenuToolsDeveloperDiagnosticsGuiComposition" Header="Run GUI Composition Tests"/>
+								<Separator/>
+								<MenuItem Name="MenuToolsDeveloperDiagnosticsOpenLatestReport" Header="Open Latest Test Report"/>
+								<MenuItem Name="MenuToolsDeveloperDiagnosticsCopyCommands" Header="Copy PowerShell Commands"/>
+								<Separator Name="MenuToolsDeveloperDiagnosticsIntegrationSeparator" Visibility="Collapsed"/>
+								<MenuItem Name="MenuToolsDeveloperDiagnosticsIntegrationTests" Header="Run Integration Tests..." Visibility="Collapsed" IsEnabled="False"/>
+							</MenuItem>
+							<MenuItem Name="MenuToolsExportSupportBundle" Header="Export Support Bundle..."/>
+							<MenuItem Name="MenuToolsApproveRemoteTargets" Header="Approve Target List..."/>
+							<MenuItem Name="MenuToolsSaveRemoteApprovalPolicy" Header="Save Remote Approval Policy..."/>
+							<MenuItem Name="MenuToolsLoadRemoteApprovalPolicy" Header="Load Remote Approval Policy..."/>
+							<MenuItem Name="MenuToolsRemoteConsole" Header="Remote Console..."/>
+							<MenuItem Name="MenuToolsOperatorConsole" Header="Operator Console..."/>
+							<MenuItem Name="MenuToolsRemoteSessionStatus" Header="Remote Session Status..."/>
+							<MenuItem Name="MenuToolsRemovalPersistence" Header="Removal Persistence..."/>
+						</MenuItem>
+						<MenuItem Name="MenuHelp" Header="_Help">
+							<MenuItem Name="MenuHelpHelp" Header="Help"/>
+							<Separator/>
+							<MenuItem Name="MenuHelpStartGuide" Header="Quick Start"/>
+							<MenuItem Name="MenuHelpReadme" Header="Readme"/>
+							<MenuItem Name="MenuHelpFAQ" Header="FAQ"/>
+							<MenuItem Name="MenuHelpChangelog" Header="Release Notes"/>
+							<Separator/>
+							<MenuItem Name="MenuHelpCheckForUpdate" Header="Check for Updates..."/>
+							<Separator/>
+							<MenuItem Name="MenuHelpReleaseStatus" Header="Release Status..."/>
+							<MenuItem Name="MenuHelpTroubleshooting" Header="Troubleshooting Guide..."/>
+							<MenuItem Name="MenuHelpAbout" Header="About"/>
+						</MenuItem>
+					</Menu>
+				</Border>
+				<Grid Grid.Column="2" Width="320" Margin="0,0,16,0" VerticalAlignment="Center" HorizontalAlignment="Left">
+					<TextBox Name="TxtSearch" Height="30" Padding="10,4,36,4" VerticalContentAlignment="Center" AutomationProperties.Name="Search tweaks"/>
+					<TextBlock Name="TxtSearchPlaceholder" Text=""
+						Margin="12,0,40,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+					<Button Name="BtnClearSearch" Content="" Cursor="Hand"
+						HorizontalAlignment="Right" VerticalAlignment="Center"
+						Width="26" Height="24" Margin="0,0,3,0" Padding="4,2"
+						Background="Transparent" BorderThickness="0"
+						AutomationProperties.Name="Clear search"/>
+					<TextBlock Name="SearchLabel" Visibility="Collapsed"/>
+				</Grid>
+				<TextBlock Name="TitleBarText" Grid.Column="3" Text="" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource Brush.TextPrimary}" TextTrimming="CharacterEllipsis" Visibility="Collapsed"/>
+				<StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
 					<Button Name="BtnMinimize" Content="&#x2212;" FontFamily="Arial" FontSize="12" Width="36" Height="28" Background="Transparent" Foreground="{DynamicResource Brush.TextPrimary}" BorderThickness="0" Cursor="Hand" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
 					<Button Name="BtnMaximize" Content="&#x25A1;" FontFamily="Arial" FontSize="10" Width="36" Height="28" Background="Transparent" Foreground="{DynamicResource Brush.TextPrimary}" BorderThickness="0" Cursor="Hand" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
 					<Button Name="BtnClose" Content="×" FontFamily="Arial" FontSize="12" Width="36" Height="28" Background="Transparent" Foreground="{DynamicResource Brush.TextPrimary}" BorderThickness="0" Cursor="Hand" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
@@ -346,188 +540,6 @@
 			<RowDefinition Height="*"/>
 			<RowDefinition Height="Auto"/>
 		</Grid.RowDefinitions>
-		<!-- Top Menu Bar -->
-		<Border Name="MenuBarBorder" Grid.Row="0" Background="{DynamicResource MenuBarBackground}" BorderBrush="{DynamicResource MenuBarBorder}" BorderThickness="0,0,0,1" Padding="8,0">
-			<Menu Name="MainMenuBar" Background="Transparent" Foreground="{DynamicResource MenuBarForeground}" FontFamily="Segoe UI" FontSize="12" Padding="0">
-				<Menu.Resources>
-					<!-- Themed fallback brushes; replaced at runtime by Set-GUITheme -->
-					<SolidColorBrush x:Key="MenuBarBackground" Color="#151824"/>
-					<SolidColorBrush x:Key="MenuBarBorder" Color="#293044"/>
-					<SolidColorBrush x:Key="MenuBarForeground" Color="#F4F7FF"/>
-					<SolidColorBrush x:Key="MenuBarHoverBg" Color="#3670B8"/>
-					<SolidColorBrush x:Key="MenuBarHoverFg" Color="#FFFFFF"/>
-					<SolidColorBrush x:Key="MenuSubmenuBg" Color="#202638"/>
-					<SolidColorBrush x:Key="MenuSubmenuBorder" Color="#293044"/>
-					<SolidColorBrush x:Key="MenuSeparatorBrush" Color="#293044"/>
-
-					<!-- Top-level MenuItem (header in the menu bar) -->
-					<ControlTemplate x:Key="BaselineTopMenuItemTemplate" TargetType="MenuItem">
-						<Border Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4" SnapsToDevicePixels="True">
-							<ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
-						</Border>
-						<ControlTemplate.Triggers>
-							<Trigger Property="IsHighlighted" Value="True">
-								<Setter TargetName="Bd" Property="Background" Value="{DynamicResource MenuBarHoverBg}"/>
-								<Setter Property="Foreground" Value="{DynamicResource MenuBarHoverFg}"/>
-							</Trigger>
-							<Trigger Property="IsSubmenuOpen" Value="True">
-								<Setter TargetName="Bd" Property="Background" Value="{DynamicResource MenuBarHoverBg}"/>
-								<Setter Property="Foreground" Value="{DynamicResource MenuBarHoverFg}"/>
-							</Trigger>
-						</ControlTemplate.Triggers>
-					</ControlTemplate>
-
-					<!-- Submenu MenuItem (items inside a dropdown) -->
-					<ControlTemplate x:Key="BaselineSubMenuItemTemplate" TargetType="MenuItem">
-						<Border Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4" SnapsToDevicePixels="True">
-							<Grid>
-								<Grid.ColumnDefinitions>
-									<ColumnDefinition Width="18"/>
-									<ColumnDefinition Width="*"/>
-									<ColumnDefinition Width="Auto"/>
-								</Grid.ColumnDefinitions>
-								<TextBlock Name="CheckGlyph" Grid.Column="0" Text="&#x2713;" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
-								<ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center" Margin="4,0,0,0"/>
-								<TextBlock Grid.Column="2" Text="{TemplateBinding InputGestureText}" Opacity="0.6" Margin="16,0,0,0" VerticalAlignment="Center"/>
-							</Grid>
-						</Border>
-						<ControlTemplate.Triggers>
-							<Trigger Property="IsChecked" Value="True">
-								<Setter TargetName="CheckGlyph" Property="Visibility" Value="Visible"/>
-							</Trigger>
-							<Trigger Property="IsHighlighted" Value="True">
-								<Setter TargetName="Bd" Property="Background" Value="{DynamicResource MenuBarHoverBg}"/>
-								<Setter Property="Foreground" Value="{DynamicResource MenuBarHoverFg}"/>
-							</Trigger>
-							<Trigger Property="IsEnabled" Value="False">
-								<Setter Property="Opacity" Value="0.5"/>
-							</Trigger>
-						</ControlTemplate.Triggers>
-					</ControlTemplate>
-
-					<!-- TopLevelHeader with themed submenu popup chrome -->
-					<ControlTemplate x:Key="BaselineTopMenuHeaderTemplate" TargetType="MenuItem">
-						<Grid>
-							<Border Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4" SnapsToDevicePixels="True">
-								<ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
-							</Border>
-							<Popup Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsSubmenuOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
-								<Border Name="SubmenuBorder" Background="{DynamicResource MenuSubmenuBg}" BorderBrush="{DynamicResource MenuSubmenuBorder}" BorderThickness="1" CornerRadius="8" Padding="4" SnapsToDevicePixels="True">
-									<StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
-								</Border>
-							</Popup>
-						</Grid>
-						<ControlTemplate.Triggers>
-							<Trigger Property="IsHighlighted" Value="True">
-								<Setter TargetName="Bd" Property="Background" Value="{DynamicResource MenuBarHoverBg}"/>
-								<Setter Property="Foreground" Value="{DynamicResource MenuBarHoverFg}"/>
-							</Trigger>
-							<Trigger Property="IsSubmenuOpen" Value="True">
-								<Setter TargetName="Bd" Property="Background" Value="{DynamicResource MenuBarHoverBg}"/>
-								<Setter Property="Foreground" Value="{DynamicResource MenuBarHoverFg}"/>
-							</Trigger>
-						</ControlTemplate.Triggers>
-					</ControlTemplate>
-
-					<Style TargetType="MenuItem">
-						<Setter Property="Foreground" Value="{DynamicResource MenuBarForeground}"/>
-						<Setter Property="Background" Value="Transparent"/>
-						<Setter Property="Padding" Value="10,6"/>
-						<Setter Property="FontFamily" Value="Segoe UI"/>
-						<Setter Property="FontSize" Value="12"/>
-						<Style.Triggers>
-							<Trigger Property="Role" Value="TopLevelHeader">
-								<Setter Property="Template" Value="{StaticResource BaselineTopMenuHeaderTemplate}"/>
-							</Trigger>
-							<Trigger Property="Role" Value="TopLevelItem">
-								<Setter Property="Template" Value="{StaticResource BaselineTopMenuItemTemplate}"/>
-							</Trigger>
-							<Trigger Property="Role" Value="SubmenuHeader">
-								<Setter Property="Template" Value="{StaticResource BaselineSubMenuItemTemplate}"/>
-							</Trigger>
-							<Trigger Property="Role" Value="SubmenuItem">
-								<Setter Property="Template" Value="{StaticResource BaselineSubMenuItemTemplate}"/>
-							</Trigger>
-						</Style.Triggers>
-					</Style>
-
-					<Style TargetType="Separator">
-						<Setter Property="Background" Value="{DynamicResource MenuSeparatorBrush}"/>
-						<Setter Property="Height" Value="1"/>
-						<Setter Property="Margin" Value="4,4"/>
-					</Style>
-				</Menu.Resources>
-				<MenuItem Name="MenuFile" Header="_File">
-					<MenuItem Name="MenuFileImportSettings" Header="Import Settings..."/>
-					<MenuItem Name="MenuFileExportSettings" Header="Export Settings..."/>
-					<Separator/>
-					<MenuItem Name="MenuFileSettings" Header="Settings..."/>
-					<MenuItem Name="MenuFileAuditSettings" Header="Audit Settings..."/>
-					<Separator/>
-					<MenuItem Name="MenuFileExportConfigProfile" Header="Export Config Profile..."/>
-					<MenuItem Name="MenuFileExportSystemState" Header="Export System State..."/>
-					<Separator/>
-					<MenuItem Name="MenuFileExit" Header="E_xit" InputGestureText="Alt+F4"/>
-				</MenuItem>
-				<MenuItem Name="MenuActions" Header="_Actions">
-					<MenuItem Name="MenuActionsConnectToComputer" Header="Connect to Computer..."/>
-					<MenuItem Name="MenuActionsDisconnect" Header="Disconnect"/>
-					<Separator Name="MenuActionsSep1"/>
-					<MenuItem Name="MenuActionsPreviewRun" Header="Preview Run"/>
-					<MenuItem Name="MenuActionsRunTweaks" Header="Run Tweaks"/>
-					<Separator Name="MenuActionsSep2"/>
-					<MenuItem Name="MenuActionsUndoLastRun" Header="Undo Last Run"/>
-					<MenuItem Name="MenuActionsRestoreDefaults" Header="Restore Defaults"/>
-					<Separator Name="MenuActionsSep3"/>
-					<MenuItem Name="MenuActionsCheckCompliance" Header="Check Compliance..."/>
-					<MenuItem Name="MenuActionsScanSystem" Header="Scan System" IsCheckable="True"/>
-					<MenuItem Name="MenuActionsAuditLog" Header="Audit Log..."/>
-				</MenuItem>
-				<MenuItem Name="MenuView" Header="_View">
-					<MenuItem Name="MenuViewFilters" Header="Show Filters Panel" IsCheckable="True"/>
-					<MenuItem Name="MenuViewLogsPanel" Header="Open Logs"/>
-				</MenuItem>
-				<MenuItem Name="MenuTools" Header="_Tools">
-					<MenuItem Name="MenuToolsAppsManager" Header="Apps Manager" Visibility="Collapsed"/>
-					<MenuItem Name="MenuToolsUpdateAllApps" Header="Update All Applications" Visibility="Collapsed"/>
-					<Separator Name="MenuToolsSepApps" Visibility="Collapsed"/>
-					<Separator Name="MenuToolsSepDeveloperDiagnostics" Visibility="Collapsed"/>
-					<MenuItem Name="MenuToolsDeveloperDiagnostics" Header="Developer Diagnostics" Visibility="Collapsed">
-						<MenuItem Name="MenuToolsDeveloperDiagnosticsGenerateReport" Header="Generate Test Report"/>
-						<MenuItem Name="MenuToolsDeveloperDiagnosticsSourceQuality" Header="Run Source Quality Guards"/>
-						<MenuItem Name="MenuToolsDeveloperDiagnosticsUnitTests" Header="Run Unit Tests"/>
-						<MenuItem Name="MenuToolsDeveloperDiagnosticsGuiComposition" Header="Run GUI Composition Tests"/>
-						<Separator/>
-						<MenuItem Name="MenuToolsDeveloperDiagnosticsOpenLatestReport" Header="Open Latest Test Report"/>
-						<MenuItem Name="MenuToolsDeveloperDiagnosticsCopyCommands" Header="Copy PowerShell Commands"/>
-						<Separator Name="MenuToolsDeveloperDiagnosticsIntegrationSeparator" Visibility="Collapsed"/>
-						<MenuItem Name="MenuToolsDeveloperDiagnosticsIntegrationTests" Header="Run Integration Tests..." Visibility="Collapsed" IsEnabled="False"/>
-					</MenuItem>
-					<MenuItem Name="MenuToolsExportSupportBundle" Header="Export Support Bundle..."/>
-					<MenuItem Name="MenuToolsApproveRemoteTargets" Header="Approve Target List..."/>
-					<MenuItem Name="MenuToolsSaveRemoteApprovalPolicy" Header="Save Remote Approval Policy..."/>
-					<MenuItem Name="MenuToolsLoadRemoteApprovalPolicy" Header="Load Remote Approval Policy..."/>
-					<MenuItem Name="MenuToolsRemoteConsole" Header="Remote Console..."/>
-					<MenuItem Name="MenuToolsOperatorConsole" Header="Operator Console..."/>
-					<MenuItem Name="MenuToolsRemoteSessionStatus" Header="Remote Session Status..."/>
-					<MenuItem Name="MenuToolsRemovalPersistence" Header="Removal Persistence..."/>
-				</MenuItem>
-				<MenuItem Name="MenuHelp" Header="_Help">
-					<MenuItem Name="MenuHelpHelp" Header="Help"/>
-					<Separator/>
-					<MenuItem Name="MenuHelpStartGuide" Header="Quick Start"/>
-					<MenuItem Name="MenuHelpReadme" Header="Readme"/>
-					<MenuItem Name="MenuHelpFAQ" Header="FAQ"/>
-					<MenuItem Name="MenuHelpChangelog" Header="Release Notes"/>
-					<Separator/>
-					<MenuItem Name="MenuHelpCheckForUpdate" Header="Check for Updates..."/>
-					<Separator/>
-					<MenuItem Name="MenuHelpReleaseStatus" Header="Release Status..."/>
-					<MenuItem Name="MenuHelpTroubleshooting" Header="Troubleshooting Guide..."/>
-					<MenuItem Name="MenuHelpAbout" Header="About"/>
-				</MenuItem>
-			</Menu>
-		</Border>
 		<!-- Remote Mode banner (visible only when a remote session is active) -->
 		<Border Name="RemoteModeBanner" Grid.Row="1" Visibility="Collapsed" Background="{DynamicResource Brush.Accent}" Padding="12,6">
 			<Grid>
@@ -546,13 +558,13 @@
 			</Grid>
 		</Border>
 		<!-- Header -->
-		<Border Name="HeaderBorder" Grid.Row="2" Padding="16,10">
+		<Border Name="HeaderBorder" Grid.Row="2" Padding="16,4,16,6">
 			<Grid>
 				<Grid.RowDefinitions>
 					<RowDefinition Height="Auto"/>
 					<RowDefinition Height="Auto"/>
 				</Grid.RowDefinitions>
-				<Grid Grid.Row="0">
+				<Grid Name="HeaderActionRow" Grid.Row="0" Visibility="Collapsed">
 					<Grid.ColumnDefinitions>
 						<ColumnDefinition Width="*" MinWidth="200"/>
 						<ColumnDefinition Width="Auto"/>
@@ -568,17 +580,6 @@
 					<TextBlock Name="TitleText" Grid.Column="0"
 						FontSize="18" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,12,0"
 						TextTrimming="CharacterEllipsis" Visibility="Collapsed"/>
-					<Grid Grid.Column="0" Margin="0,0,12,0" VerticalAlignment="Center">
-						<TextBox Name="TxtSearch" Height="30" Padding="10,4,36,4" VerticalContentAlignment="Center" AutomationProperties.Name="Search tweaks"/>
-						<TextBlock Name="TxtSearchPlaceholder" Text=""
-							Margin="12,0,40,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
-						<Button Name="BtnClearSearch" Content="" Cursor="Hand"
-							HorizontalAlignment="Right" VerticalAlignment="Center"
-							Width="26" Height="24" Margin="0,0,3,0" Padding="4,2"
-							Background="Transparent" BorderThickness="0"
-							AutomationProperties.Name="Clear search"/>
-						<TextBlock Name="SearchLabel" Visibility="Collapsed"/>
-					</Grid>
 					<Button Name="BtnStartHere" Grid.Column="2" Content=""
 						FontSize="11" Margin="0,0,8,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center" Visibility="Collapsed" IsTabStop="False"/>
 					<Button Name="BtnHelp" Grid.Column="3" Content=""
@@ -593,12 +594,6 @@
 					<!-- Separator between actions and state toggles -->
 					<Border Name="HeaderSeparator" Grid.Column="6" Width="1" Height="28"
 						Margin="6,0,12,0" VerticalAlignment="Center" Opacity="0.65"/>
-					<StackPanel Name="SafeModeGroup" Grid.Column="7" Orientation="Horizontal" Margin="0,0,12,0" VerticalAlignment="Center">
-						<CheckBox Name="ChkSafeMode" VerticalAlignment="Center" VerticalContentAlignment="Center" Content="Safe Mode" Margin="0,0,10,0" AutomationProperties.Name="Safe / Expert mode"/>
-						<CheckBox Name="ChkDesignMode" VerticalAlignment="Center" Content="Design Mode" Margin="0,0,10,0" ToolTip="Build a config using default values instead of reading live system state." Visibility="Collapsed"/>
-						<CheckBox Name="ChkGameMode" Visibility="Collapsed" AutomationProperties.Name="Game mode"/>
-						<TextBlock Name="TxtAdvancedModeState" Visibility="Collapsed" Margin="0" FontSize="10" Text="" ToolTip=""/>
-					</StackPanel>
 					<StackPanel Name="ThemeToggleGroup" Grid.Column="8" Orientation="Vertical" VerticalAlignment="Center" Margin="0,0,12,0" Visibility="Collapsed">
 						<CheckBox Name="ChkTheme" VerticalAlignment="Center" Content="" AutomationProperties.Name="Toggle light or dark theme"/>
 						<TextBlock Name="TxtThemeState" Margin="2,4,0,0" FontSize="10" Text="" ToolTip=""/>
@@ -622,10 +617,11 @@
 						<TextBlock Name="TxtLanguageState" Margin="2,4,0,0" FontSize="10" Text="" ToolTip=""/>
 					</StackPanel>
 				</Grid>
-				<StackPanel Grid.Row="1" Margin="0,8,0,0" Orientation="Vertical">
+				<StackPanel Grid.Row="1" Margin="0,0,0,0" Orientation="Vertical">
 					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Margin="0,0,0,8">
 						<StackPanel Orientation="Horizontal" Margin="0,0,0,2">
 							<RadioButton Name="NavModeTweaks" Content="" IsChecked="True" FontSize="11" Margin="0,0,10,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
+							<RadioButton Name="NavModeGaming" Content="" FontSize="11" Margin="0,0,10,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
 							<RadioButton Name="NavModeUpdates" Content="" FontSize="11" Margin="0,0,10,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
 							<RadioButton Name="NavModeDeploymentMedia" Content="" FontSize="11" Margin="0,0,10,0" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
 							<RadioButton Name="NavModeApps" Content="" FontSize="11" Padding="10,4" Cursor="Hand" VerticalAlignment="Center"/>
@@ -730,10 +726,42 @@
 						<Border Name="DeploymentMediaStatusBanner" Visibility="Collapsed" Margin="0,0,0,8" Padding="10,6" CornerRadius="6" BorderThickness="1">
 							<TextBlock Name="TxtDeploymentMediaBuildStatus" VerticalAlignment="Center" TextWrapping="Wrap"/>
 						</Border>
+						<Border Name="DeploymentMediaProgressPanel" Visibility="Collapsed" Margin="0,0,0,8" Padding="10,8" CornerRadius="6" BorderThickness="1" Background="{DynamicResource Brush.SurfaceElevated}" BorderBrush="{DynamicResource Brush.Border}">
+							<StackPanel Orientation="Vertical">
+								<ProgressBar Name="DeploymentMediaProgressBar" Height="10" Minimum="0" Maximum="1" Value="0" Margin="0,0,0,6"/>
+								<TextBlock Name="TxtDeploymentMediaProgressText" FontSize="11" Foreground="{DynamicResource Brush.TextSecondary}" TextTrimming="CharacterEllipsis"/>
+							</StackPanel>
+						</Border>
 					</StackPanel>
 					<ScrollViewer Name="DeploymentMediaScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto"
 						HorizontalScrollBarVisibility="Disabled">
 						<StackPanel Name="DeploymentMediaWrapPanel" Orientation="Vertical" HorizontalAlignment="Left" Margin="10">
+							<Border Name="DeploymentMediaChecklistCard" Width="872" MinHeight="64" Margin="0,0,12,12" Padding="14" CornerRadius="6" BorderThickness="1" Background="{DynamicResource Brush.SurfaceElevated}" BorderBrush="{DynamicResource Brush.Border}">
+								<Expander Name="DeploymentMediaChecklistExpander" IsExpanded="True" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource Brush.TextPrimary}">
+									<Expander.Header>
+										<StackPanel Orientation="Vertical">
+											<TextBlock Text="Setup checklist" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextPrimary}" VerticalAlignment="Center"/>
+											<TextBlock Text="Preview and Start ISO Build become available together after required setup inputs validate." TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextSecondary}" Margin="0,4,0,0"/>
+										</StackPanel>
+									</Expander.Header>
+									<Grid Margin="0,12,0,0">
+										<Grid.ColumnDefinitions>
+											<ColumnDefinition Width="*"/>
+											<ColumnDefinition Width="*"/>
+										</Grid.ColumnDefinitions>
+										<StackPanel Grid.Column="0" Margin="0,0,12,0">
+											<TextBlock Text="Required: source ISO path" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,6"/>
+											<TextBlock Text="Required: detected WIM/ESD image" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,6"/>
+											<TextBlock Text="Required: selected Windows edition" Foreground="{DynamicResource Brush.TextPrimary}"/>
+										</StackPanel>
+										<StackPanel Grid.Column="1" Margin="12,0,0,0">
+											<TextBlock Text="Required: working directory" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,6"/>
+											<TextBlock Text="Required for USB: removable-drive root" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,6"/>
+											<TextBlock Text="Optional: answer file and driver folder" Foreground="{DynamicResource Brush.TextPrimary}"/>
+										</StackPanel>
+									</Grid>
+								</Expander>
+							</Border>
 							<Border Name="DeploymentMediaSourceCard" Width="872" MinHeight="206" Margin="0,0,12,12" Padding="14" CornerRadius="6" BorderThickness="1" Background="{DynamicResource Brush.SurfaceElevated}" BorderBrush="{DynamicResource Brush.Border}">
 								<Grid>
 									<Grid.RowDefinitions>
@@ -917,55 +945,6 @@
 									</Grid>
 								</Grid>
 							</Border>
-							<Border Name="DeploymentMediaChecklistCard" Width="872" MinHeight="160" Margin="0,0,12,12" Padding="14" CornerRadius="6" BorderThickness="1" Background="{DynamicResource Brush.SurfaceElevated}" BorderBrush="{DynamicResource Brush.Border}">
-								<Grid>
-									<Grid.RowDefinitions>
-										<RowDefinition Height="Auto"/>
-										<RowDefinition Height="Auto"/>
-										<RowDefinition Height="Auto"/>
-									</Grid.RowDefinitions>
-									<StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
-										<Border Width="24" Height="24" CornerRadius="12" Background="{DynamicResource Brush.Accent}" Margin="0,0,8,0">
-											<TextBlock Text="5" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-										</Border>
-										<TextBlock Text="Setup checklist" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextPrimary}" VerticalAlignment="Center"/>
-									</StackPanel>
-									<TextBlock Grid.Row="1" Text="Preview becomes available after source ISO, detected edition, and output settings are complete." TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextSecondary}" Margin="32,0,0,12"/>
-									<Grid Grid.Row="2">
-										<Grid.ColumnDefinitions>
-											<ColumnDefinition Width="*"/>
-											<ColumnDefinition Width="*"/>
-										</Grid.ColumnDefinitions>
-										<StackPanel Grid.Column="0" Margin="0,0,12,0">
-											<TextBlock Text="Required: source ISO path" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,6"/>
-											<TextBlock Text="Required: detected WIM/ESD image" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,6"/>
-											<TextBlock Text="Required: selected Windows edition" Foreground="{DynamicResource Brush.TextPrimary}"/>
-										</StackPanel>
-										<StackPanel Grid.Column="1" Margin="12,0,0,0">
-											<TextBlock Text="Required: working directory" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,6"/>
-											<TextBlock Text="Required for USB: removable-drive root" Foreground="{DynamicResource Brush.TextPrimary}" Margin="0,0,0,6"/>
-											<TextBlock Text="Optional: answer file and driver folder" Foreground="{DynamicResource Brush.TextPrimary}"/>
-										</StackPanel>
-									</Grid>
-								</Grid>
-							</Border>
-							<Border Name="DeploymentMediaPlanCard" Width="872" MinHeight="304" Margin="0,0,12,12" Padding="14" CornerRadius="6" BorderThickness="1" Background="{DynamicResource Brush.SurfaceElevated}" BorderBrush="{DynamicResource Brush.Border}">
-								<Grid>
-									<Grid.RowDefinitions>
-										<RowDefinition Height="Auto"/>
-										<RowDefinition Height="Auto"/>
-										<RowDefinition Height="*"/>
-									</Grid.RowDefinitions>
-									<StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
-										<Border Width="24" Height="24" CornerRadius="12" Background="{DynamicResource Brush.Accent}" Margin="0,0,8,0">
-											<TextBlock Text="6" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-										</Border>
-										<TextBlock Text="Preview build plan" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Brush.TextPrimary}" VerticalAlignment="Center"/>
-									</StackPanel>
-									<TextBlock Grid.Row="1" Text="Preview records validation results and the exact media operation Baseline will run." TextWrapping="Wrap" Foreground="{DynamicResource Brush.TextSecondary}" Margin="32,0,0,12"/>
-									<TextBox Name="TxtDeploymentMediaPlanPreview" Grid.Row="2" MinHeight="220" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True"/>
-								</Grid>
-							</Border>
 						</StackPanel>
 					</ScrollViewer>
 				</Grid>
@@ -1100,9 +1079,9 @@
 					<WrapPanel Name="BottomActionBar" Grid.Column="1"
 						Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
 						<Button Name="BtnPreviewRun" Content=""
-							FontFamily="FluentSystemIcons" FontSize="13" Margin="4" Padding="18,10" Cursor="Hand" FontWeight="SemiBold" MinWidth="160"/>
+							FontFamily="FluentSystemIcons" FontSize="13" Margin="4" Padding="18,10" Cursor="Hand" FontWeight="SemiBold" MinWidth="160" IsEnabled="False" ToolTipService.ShowOnDisabled="True"/>
 						<Button Name="BtnRun" Content=""
-							FontFamily="FluentSystemIcons" FontSize="15" Margin="4" Padding="28,12" Cursor="Hand" FontWeight="Bold" MinWidth="170"/>
+							FontFamily="FluentSystemIcons" FontSize="15" Margin="4" Padding="28,12" Cursor="Hand" FontWeight="Bold" MinWidth="170" IsEnabled="False" ToolTipService.ShowOnDisabled="True"/>
 						<Button Name="BtnApplyQueuedActions" Content=""
 							FontFamily="FluentSystemIcons" FontSize="15" Margin="4" Padding="28,12" Cursor="Hand" FontWeight="Bold" MinWidth="170" Visibility="Collapsed" IsEnabled="False" ToolTipService.ShowOnDisabled="True"/>
 						<Button Name="BtnDeploymentMediaPreviewPlan" Content=""

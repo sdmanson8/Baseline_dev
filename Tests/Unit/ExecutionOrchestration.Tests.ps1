@@ -14,6 +14,7 @@ BeforeAll {
     $guiExecutionPath = Join-Path $PSScriptRoot '../../Module/GUIExecution.psm1'
     $sessionStatePath = Join-Path $PSScriptRoot '../../Module/GUI/SessionState.ps1'
     $styledControlsPath = Join-Path $PSScriptRoot '../../Module/GUI/StyledControlsSetup.ps1'
+    $script:ExecutionStateSummaryPath = $executionStateSummaryPath
     $script:ExecutionContent = Get-BaselineTestSourceText -Path @(
         $executionPath
         $executionStateSummaryPath
@@ -362,7 +363,7 @@ Describe 'GUI apply pipeline busy-state cleanup' {
     # the run-in-progress state, or the GUI can remain permanently spinning on
     # "Applying tweaks". Baseline's state is the `RunInProgress` flag on
     # `$Script:GuiState` plus the disabled
-    # `PrimaryTabs` / `BtnRun` / `BtnPreviewRun` / `BtnDefaults` /
+    # `PrimaryTabs` / scoped run-action availability / `BtnDefaults` /
     # `Set-GuiActionButtonsEnabled` / `ChkScan` / `ChkTheme` / search controls.
     # These tests pin that EVERY exit path out of the apply pipeline restores
     # all of them, so a thrown pump-tick body or a failed timer construction
@@ -382,15 +383,15 @@ Describe 'GUI apply pipeline busy-state cleanup' {
         $functionBoundary = $outerCatchSlice.IndexOf("`tfunction Get-ActiveTweakRunList")
         if ($functionBoundary -lt 0) { $functionBoundary = $outerCatchSlice.Length }
         $catchBody = $outerCatchSlice.Substring(0, $functionBoundary)
-        $catchBody | Should -Match "& \`$Script:GuiState\.Set 'RunInProgress' \`$false"
-        $catchBody | Should -Match "\`$PrimaryTabs\.IsEnabled = \`$true"
-        $catchBody | Should -Match "\`$BtnRun\.IsEnabled = \`$true"
-        $catchBody | Should -Match "\`$BtnPreviewRun\.IsEnabled = \`$true"
-        $catchBody | Should -Match "\`$BtnDefaults\.IsEnabled = \`$true"
-        $catchBody | Should -Match 'Set-GuiActionButtonsEnabled -Enabled \$true'
-        $catchBody | Should -Match "\`$ChkScan\.IsEnabled = \`$true"
-        $catchBody | Should -Match "\`$ChkTheme\.IsEnabled = \`$true"
-        $catchBody | Should -Match 'Set-SearchControlsEnabled -Enabled \$true'
+        $catchBody | Should -Match 'Restore-GuiExecutionRunControls -SourcePrefix ''ExecutionRunOrchestration\.ExecutionTimerCatch'''
+        $script:ExecutionRunContent | Should -Match "& \`$Script:GuiState\.Set 'RunInProgress' \`$false"
+        $script:ExecutionRunContent | Should -Match "\`$PrimaryTabs\.IsEnabled = \`$true"
+        $script:ExecutionRunContent | Should -Match 'Update-GuiScopedRunActionAvailability'
+        $script:ExecutionRunContent | Should -Match "\`$BtnDefaults\.IsEnabled = \`$true"
+        $script:ExecutionRunContent | Should -Match 'Set-GuiActionButtonsEnabled -Enabled \$true'
+        $script:ExecutionRunContent | Should -Match "\`$ChkScan\.IsEnabled = \`$true"
+        $script:ExecutionRunContent | Should -Match "\`$ChkTheme\.IsEnabled = \`$true"
+        $script:ExecutionRunContent | Should -Match 'Set-SearchControlsEnabled -Enabled \$true'
     }
 
     It 'synchronous timer-start is wrapped so a throw before first tick still clears RunInProgress' {
@@ -571,6 +572,178 @@ Describe 'GUI execution NumericRange argument helper' {
         }
 
         { New-GuiExecutionNumericRangeCommandArguments -Tweak $tweak } | Should -Throw -ExpectedMessage '*must include both ACValue and DCValue*'
+    }
+}
+
+Describe 'Execution selected tweak mode scoping' {
+    BeforeAll {
+        . $script:ExecutionStateSummaryPath
+
+        function Get-SelectedTweakRunList {
+            return @($script:SelectedTweakRunListForScopeTest)
+        }
+
+        function Resolve-GuiPrimaryTabForTweak {
+            param ([object]$Tweak)
+
+            $functionName = if ($Tweak -is [System.Collections.IDictionary])
+            {
+                if ($Tweak.Contains('Function')) { [string]$Tweak['Function'] } else { $null }
+            }
+            elseif ($Tweak.PSObject.Properties['Function']) { [string]$Tweak.Function }
+            else { $null }
+
+            if ([string]::Equals([string]$functionName, 'WindowsUpdate', [System.StringComparison]::OrdinalIgnoreCase))
+            {
+                return 'Updates'
+            }
+
+            if ([string]::Equals([string]$functionName, 'GameOptimize', [System.StringComparison]::OrdinalIgnoreCase))
+            {
+                return 'Gaming'
+            }
+
+            if ($Tweak -is [System.Collections.IDictionary])
+            {
+                if ($Tweak.Contains('Category')) { return [string]$Tweak['Category'] }
+                return $null
+            }
+
+            if ($Tweak.PSObject.Properties['Category'])
+            {
+                return [string]$Tweak.Category
+            }
+
+            return $null
+        }
+    }
+
+    BeforeEach {
+        $Script:GameMode = $false
+        $Script:GamingModeActive = $false
+        $Script:UpdatesModeActive = $false
+        $Script:AppsModeActive = $false
+        $Script:DeploymentMediaModeActive = $false
+        $Script:TestGuiRunInProgressScript = $null
+        $script:SelectedTweakRunListForScopeTest = @(
+            @{ Name = 'Optimize item'; Function = 'AdvertisingID'; Category = 'Privacy' }
+            @{ Name = 'Update item'; Function = 'WindowsUpdate'; Category = 'System' }
+        )
+    }
+
+    It 'excludes Windows Updates selections from Optimize preview and run lists' {
+        $Script:UpdatesModeActive = $false
+
+        $result = @(Get-ActiveTweakRunList)
+
+        $result.Count | Should -Be 1
+        [string]$result[0]['Function'] | Should -Be 'AdvertisingID'
+    }
+
+    It 'excludes Optimize selections from Windows Updates preview and run lists' {
+        $Script:UpdatesModeActive = $true
+
+        $result = @(Get-ActiveTweakRunList)
+
+        $result.Count | Should -Be 1
+        [string]$result[0]['Function'] | Should -Be 'WindowsUpdate'
+    }
+
+    It 'excludes Gaming selections from Optimize preview and run lists' {
+        $script:SelectedTweakRunListForScopeTest = @(
+            @{ Name = 'Optimize item'; Function = 'AdvertisingID'; Category = 'Privacy' }
+            @{ Name = 'Gaming item'; Function = 'GameOptimize'; Category = 'Gaming' }
+        )
+
+        $result = @(Get-ActiveTweakRunList)
+
+        $result.Count | Should -Be 1
+        [string]$result[0]['Function'] | Should -Be 'AdvertisingID'
+    }
+
+    It 'excludes Optimize selections from Gaming preview and run lists' {
+        $Script:GamingModeActive = $true
+        $script:SelectedTweakRunListForScopeTest = @(
+            @{ Name = 'Optimize item'; Function = 'AdvertisingID'; Category = 'Privacy' }
+            @{ Name = 'Gaming item'; Function = 'GameOptimize'; Category = 'Gaming' }
+        )
+
+        $result = @(Get-ActiveTweakRunList)
+
+        $result.Count | Should -Be 1
+        [string]$result[0]['Function'] | Should -Be 'GameOptimize'
+    }
+
+    It 'keeps Optimize preview and run actions disabled when only Windows Updates items are selected' {
+        $Script:UpdatesModeActive = $false
+        $script:SelectedTweakRunListForScopeTest = @(
+            @{ Name = 'Update item'; Function = 'WindowsUpdate'; Category = 'System' }
+        )
+        $Script:BtnPreviewRun = [pscustomobject]@{ IsEnabled = $true }
+        $Script:BtnRun = [pscustomobject]@{ IsEnabled = $true }
+        $Script:MenuActionsPreviewRun = [pscustomobject]@{ IsEnabled = $true }
+        $Script:MenuActionsRunTweaks = [pscustomobject]@{ IsEnabled = $true }
+
+        Update-GuiScopedRunActionAvailability
+
+        $Script:BtnPreviewRun.IsEnabled | Should -BeFalse
+        $Script:BtnRun.IsEnabled | Should -BeFalse
+        $Script:MenuActionsPreviewRun.IsEnabled | Should -BeFalse
+        $Script:MenuActionsRunTweaks.IsEnabled | Should -BeFalse
+    }
+
+    It 'enables Optimize preview and run actions when an Optimize item is selected' {
+        $Script:UpdatesModeActive = $false
+        $script:SelectedTweakRunListForScopeTest = @(
+            @{ Name = 'Optimize item'; Function = 'AdvertisingID'; Category = 'Privacy' }
+        )
+        $Script:BtnPreviewRun = [pscustomobject]@{ IsEnabled = $false }
+        $Script:BtnRun = [pscustomobject]@{ IsEnabled = $false }
+        $Script:MenuActionsPreviewRun = [pscustomobject]@{ IsEnabled = $false }
+        $Script:MenuActionsRunTweaks = [pscustomobject]@{ IsEnabled = $false }
+
+        Update-GuiScopedRunActionAvailability
+
+        $Script:BtnPreviewRun.IsEnabled | Should -BeTrue
+        $Script:BtnRun.IsEnabled | Should -BeTrue
+        $Script:MenuActionsPreviewRun.IsEnabled | Should -BeTrue
+        $Script:MenuActionsRunTweaks.IsEnabled | Should -BeTrue
+    }
+
+    It 'keeps Windows Updates preview and run actions disabled when only Optimize items are selected' {
+        $Script:UpdatesModeActive = $true
+        $script:SelectedTweakRunListForScopeTest = @(
+            @{ Name = 'Optimize item'; Function = 'AdvertisingID'; Category = 'Privacy' }
+        )
+        $Script:BtnPreviewRun = [pscustomobject]@{ IsEnabled = $true }
+        $Script:BtnRun = [pscustomobject]@{ IsEnabled = $true }
+        $Script:MenuActionsPreviewRun = [pscustomobject]@{ IsEnabled = $true }
+        $Script:MenuActionsRunTweaks = [pscustomobject]@{ IsEnabled = $true }
+
+        Update-GuiScopedRunActionAvailability
+
+        $Script:BtnPreviewRun.IsEnabled | Should -BeFalse
+        $Script:BtnRun.IsEnabled | Should -BeFalse
+        $Script:MenuActionsPreviewRun.IsEnabled | Should -BeFalse
+        $Script:MenuActionsRunTweaks.IsEnabled | Should -BeFalse
+    }
+
+    It 'enables Windows Updates preview and run actions when a Windows Updates item is selected' {
+        $Script:UpdatesModeActive = $true
+        $script:SelectedTweakRunListForScopeTest = @(
+            @{ Name = 'Update item'; Function = 'WindowsUpdate'; Category = 'System' }
+        )
+        $Script:BtnPreviewRun = [pscustomobject]@{ IsEnabled = $false }
+        $Script:BtnRun = [pscustomobject]@{ IsEnabled = $false }
+        $Script:MenuActionsPreviewRun = [pscustomobject]@{ IsEnabled = $false }
+        $Script:MenuActionsRunTweaks = [pscustomobject]@{ IsEnabled = $false }
+
+        Update-GuiScopedRunActionAvailability
+
+        $Script:BtnPreviewRun.IsEnabled | Should -BeTrue
+        $Script:BtnRun.IsEnabled | Should -BeTrue
+        $Script:MenuActionsPreviewRun.IsEnabled | Should -BeTrue
+        $Script:MenuActionsRunTweaks.IsEnabled | Should -BeTrue
     }
 }
 

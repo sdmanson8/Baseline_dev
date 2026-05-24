@@ -32,7 +32,7 @@ BeforeAll {
     $executionAst = [System.Management.Automation.Language.Parser]::ParseFile($executionPath, [ref]$null, [ref]$null)
     $executionFunctions = $executionAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
     foreach ($fn in $executionFunctions) {
-        if ($fn.Name -eq 'Get-ActiveTweakRunList') {
+        if ($fn.Name -in @('Get-GuiTweakRunListPrimaryTab', 'Test-GuiTweakRunListItemBelongsToUpdates', 'Test-GuiTweakRunListItemBelongsToGaming', 'Select-GuiModeScopedTweakRunList', 'Get-ActiveTweakRunList')) {
             Invoke-Expression $fn.Extent.Text
         }
     }
@@ -371,6 +371,8 @@ Describe 'Set-GameModeProfile' {
 Describe 'Get-ActiveTweakRunList' {
     BeforeEach {
         $script:GameMode = $true
+        $script:GamingModeActive = $true
+        $script:UpdatesModeActive = $false
         $script:GameModePlan = @()
         $script:GameModeAllowlist = @(
             'Profile01', 'Profile02', 'Profile03', 'Profile04', 'Profile05', 'Profile06',
@@ -393,10 +395,12 @@ Describe 'Get-ActiveTweakRunList' {
         $script:SelectedTweaks = @(
             [pscustomobject]@{
                 Function = 'PowerPlan'
+                Category = 'Gaming'
                 Selection = 'Ultimate'
             }
             [pscustomobject]@{
                 Function = 'MouseAcceleration'
+                Category = 'Gaming'
                 Selection = 'Enable'
             }
         )

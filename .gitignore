@@ -35,4 +35,6 @@ AGENTS.md
 !todo.md
 .DS_Store
 *.zip.sha256.json
+*.exe.sha256.json
 /.dotnet-home 
+Baseline-4.0.0-beta-setup.exe.sha256.json

@@ -20,6 +20,109 @@ function Write-GuiDeploymentMediaBuildStatus
 	}
 }
 
+function Format-GuiDeploymentMediaExecutionByteProgressText
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$Operation,
+		[long]$CompletedBytes,
+		[long]$TotalBytes,
+		[long]$RemainingSeconds = -1
+	)
+
+	$safeCompleted = [Math]::Max([int64]0, [int64]$CompletedBytes)
+	$safeTotal = [Math]::Max([int64]1, [int64]$TotalBytes)
+	$completedGb = $safeCompleted / 1GB
+	$totalGb = $safeTotal / 1GB
+	$pct = if ($TotalBytes -le 0)
+	{
+		if ($CompletedBytes -ge $TotalBytes) { 100.0 } else { 0.0 }
+	}
+	else
+	{
+		[Math]::Round(($safeCompleted / [double]$safeTotal) * 100, 1)
+	}
+	$remainingText = if ($RemainingSeconds -ge 0)
+	{
+		$remaining = [TimeSpan]::FromSeconds([double]$RemainingSeconds)
+		if ($remaining.TotalHours -ge 1) { '{0:00}:{1:00}:{2:00}' -f [int]$remaining.TotalHours, $remaining.Minutes, $remaining.Seconds }
+		else { '{0:00}:{1:00}' -f $remaining.Minutes, $remaining.Seconds }
+	}
+	else
+	{
+		'calculating'
+	}
+
+	return ('{0}: {1:N2}/{2:N2} GB ({3:N1}%). Time remaining: {4}.' -f $Operation, $completedGb, $totalGb, $pct, $remainingText)
+}
+
+function New-GuiDeploymentMediaByteProgressRecord
+{
+	[CmdletBinding()]
+	[OutputType([pscustomobject])]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$Operation,
+		[long]$CompletedBytes,
+		[long]$TotalBytes,
+		[Parameter(Mandatory = $true)]
+		[DateTime]$StartedUtc
+	)
+
+	$remainingSeconds = [int64]-1
+	if ($CompletedBytes -ge $TotalBytes -and $TotalBytes -ge 0)
+	{
+		$remainingSeconds = [int64]0
+	}
+	else
+	{
+		$elapsedSeconds = ([DateTime]::UtcNow - $StartedUtc).TotalSeconds
+		if ($CompletedBytes -gt 0 -and $elapsedSeconds -gt 0)
+		{
+			$bytesPerSecond = $CompletedBytes / [double]$elapsedSeconds
+			if ($bytesPerSecond -gt 0)
+			{
+				$remainingSeconds = [int64][Math]::Ceiling(([Math]::Max([int64]0, [int64]$TotalBytes - [int64]$CompletedBytes)) / $bytesPerSecond)
+			}
+		}
+	}
+
+	$displayText = Format-GuiDeploymentMediaExecutionByteProgressText -Operation $Operation -CompletedBytes $CompletedBytes -TotalBytes $TotalBytes -RemainingSeconds $remainingSeconds
+	return [pscustomobject]@{
+		IsByteProgress = $true
+		Operation = $Operation
+		Message = $Operation
+		CompletedBytes = [int64]$CompletedBytes
+		TotalBytes = [int64]$TotalBytes
+		RemainingSeconds = [int64]$remainingSeconds
+		DisplayText = $displayText
+		StartedUtc = $StartedUtc
+		UpdatedUtc = [DateTime]::UtcNow
+	}
+}
+
+function Write-GuiDeploymentMediaBuildCopyProgress
+{
+	[CmdletBinding()]
+	param (
+		[scriptblock]$ProgressCallback,
+		[Parameter(Mandatory = $true)]
+		[string]$Operation,
+		[long]$CompletedBytes,
+		[long]$TotalBytes,
+		[Parameter(Mandatory = $true)]
+		[DateTime]$StartedUtc
+	)
+
+	if (-not $ProgressCallback) { return }
+
+	$newProgressRecord = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'New-GuiDeploymentMediaByteProgressRecord'
+	$progress = & $newProgressRecord -Operation $Operation -CompletedBytes $CompletedBytes -TotalBytes $TotalBytes -StartedUtc $StartedUtc
+	& $ProgressCallback $progress
+}
+
 function New-GuiDeploymentMediaCancellationState
 {
 	[CmdletBinding()]
@@ -252,6 +355,36 @@ function Add-GuiDeploymentMediaTelemetryRecord
 	Write-GuiDeploymentMediaTelemetryLog -Telemetry $Telemetry -Kind $Kind -Record $record
 }
 
+function Get-GuiDeploymentMediaExecutionFunctionCapture
+{
+	[CmdletBinding()]
+	[OutputType([scriptblock])]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$Name
+	)
+
+	$command = Get-Command -Name $Name -CommandType Function -ErrorAction SilentlyContinue
+	if (-not $command -or -not $command.ScriptBlock)
+	{
+		throw ('Deployment media required helper is not loaded: {0}' -f $Name)
+	}
+
+	$scriptBlock = $command.ScriptBlock
+	return {
+		& $scriptBlock @args
+	}.GetNewClosure()
+}
+
+function Get-GuiDeploymentMediaTelemetryRecordWriter
+{
+	[CmdletBinding()]
+	[OutputType([scriptblock])]
+	param ()
+
+	return (Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'Add-GuiDeploymentMediaTelemetryRecord')
+}
+
 function Get-GuiDeploymentMediaStageTimeoutSeconds
 {
 	[CmdletBinding()]
@@ -293,6 +426,7 @@ function Invoke-GuiDeploymentMediaCleanupWithRetry
 	)
 
 	$startedUtc = [DateTime]::UtcNow
+	$addTelemetryRecord = Get-GuiDeploymentMediaTelemetryRecordWriter
 	$attemptCount = [Math]::Max(1, $MaxAttempts)
 	$lastError = $null
 	for ($attempt = 1; $attempt -le $attemptCount; $attempt++)
@@ -301,7 +435,7 @@ function Invoke-GuiDeploymentMediaCleanupWithRetry
 		{
 			& $Action
 			$successDetail = ('{0}; Attempts={1}' -f $Detail, $attempt).Trim(@(';', ' '))
-			Add-GuiDeploymentMediaTelemetryRecord -Telemetry $Telemetry -Kind Cleanup -Name $Name -StartedUtc $startedUtc -CompletedUtc ([DateTime]::UtcNow) -Outcome 'Succeeded' -Detail $successDetail
+			& $addTelemetryRecord -Telemetry $Telemetry -Kind Cleanup -Name $Name -StartedUtc $startedUtc -CompletedUtc ([DateTime]::UtcNow) -Outcome 'Succeeded' -Detail $successDetail
 			return
 		}
 		catch
@@ -311,7 +445,7 @@ function Invoke-GuiDeploymentMediaCleanupWithRetry
 			{
 				if (Get-Command -Name 'LogWarning' -CommandType Function, Alias -ErrorAction SilentlyContinue)
 				{
-					LogWarning ('Deployment media cleanup retry {0}/{1} for {2}: {3}' -f ($attempt + 1), $attemptCount, $Name, $_.Exception.Message)
+					LogWarning (Format-BaselineErrorForLog -ErrorObject $_ -Prefix ('Deployment media cleanup retry {0}/{1} for {2}' -f ($attempt + 1), $attemptCount, $Name))
 				}
 				if ($DelayMilliseconds -gt 0)
 				{
@@ -322,7 +456,7 @@ function Invoke-GuiDeploymentMediaCleanupWithRetry
 	}
 
 	$failureDetail = ('{0}; Attempts={1}; Error={2}' -f $Detail, $attemptCount, $lastError.Exception.Message).Trim(@(';', ' '))
-	Add-GuiDeploymentMediaTelemetryRecord -Telemetry $Telemetry -Kind Cleanup -Name $Name -StartedUtc $startedUtc -CompletedUtc ([DateTime]::UtcNow) -Outcome 'Failed' -Detail $failureDetail
+	& $addTelemetryRecord -Telemetry $Telemetry -Kind Cleanup -Name $Name -StartedUtc $startedUtc -CompletedUtc ([DateTime]::UtcNow) -Outcome 'Failed' -Detail $failureDetail
 	if ($lastError) { throw $lastError }
 }
 
@@ -371,6 +505,31 @@ function Request-GuiDeploymentMediaPowerShellStop
 	return $true
 }
 
+function Import-GuiDeploymentMediaDismModule
+{
+	[CmdletBinding()]
+	param ()
+
+	if (Get-Command -Name 'Get-WindowsImage' -CommandType Function, Cmdlet -ErrorAction SilentlyContinue)
+	{
+		return
+	}
+
+	try
+	{
+		Import-Module -Name 'Dism' -ErrorAction Stop -WarningAction SilentlyContinue
+	}
+	catch
+	{
+		throw ('The inbox DISM PowerShell module is required to inspect Windows images, but Baseline could not load it: {0}' -f $_.Exception.Message)
+	}
+
+	if (-not (Get-Command -Name 'Get-WindowsImage' -CommandType Function, Cmdlet -ErrorAction SilentlyContinue))
+	{
+		throw 'The inbox DISM PowerShell module is required to inspect Windows images, but Get-WindowsImage was not available after loading Dism.'
+	}
+}
+
 function Invoke-GuiDeploymentMediaPowerShellStage
 {
 	[CmdletBinding()]
@@ -388,17 +547,23 @@ function Invoke-GuiDeploymentMediaPowerShellStage
 		[hashtable]$Telemetry
 	)
 
-	Assert-GuiDeploymentMediaNotCancelled -CancellationState $CancellationState -Stage $Name
-	Set-GuiDeploymentMediaCurrentStage -CancellationState $CancellationState -Stage $Name
+	$assertNotCancelled = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'Assert-GuiDeploymentMediaNotCancelled'
+	$setCurrentStage = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'Set-GuiDeploymentMediaCurrentStage'
+	$requestPowerShellStop = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'Request-GuiDeploymentMediaPowerShellStop'
+	$testCancellationRequested = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'Test-GuiDeploymentMediaCancellationRequested'
+	& $assertNotCancelled -CancellationState $CancellationState -Stage $Name
+	& $setCurrentStage -CancellationState $CancellationState -Stage $Name
 
 	$startedUtc = [DateTime]::UtcNow
+	$addTelemetryRecord = Get-GuiDeploymentMediaTelemetryRecordWriter
 	$runspace = $null
 	$ps = $null
 	$asyncResult = $null
 	$completed = $false
 	try
 	{
-		$runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+		$initialSessionState = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
+		$runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace($initialSessionState)
 		$runspace.ApartmentState = 'STA'
 		$runspace.ThreadOptions = 'ReuseThread'
 		$runspace.Open()
@@ -415,35 +580,35 @@ function Invoke-GuiDeploymentMediaPowerShellStage
 		$deadlineUtc = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
 		while (-not $asyncResult.AsyncWaitHandle.WaitOne(250))
 		{
-			if (Test-GuiDeploymentMediaCancellationRequested -CancellationState $CancellationState)
+			if (& $testCancellationRequested -CancellationState $CancellationState)
 			{
-				[void](Request-GuiDeploymentMediaPowerShellStop -PowerShell $ps -Source ('DeploymentMedia.{0}.CancelStop' -f $Name))
+				[void](& $requestPowerShellStop -PowerShell $ps -Source ('DeploymentMedia.{0}.CancelStop' -f $Name))
 				throw ([System.OperationCanceledException]::new(('Deployment media stage cancelled: {0}' -f $Name)))
 			}
 			if ([DateTime]::UtcNow -ge $deadlineUtc)
 			{
-				[void](Request-GuiDeploymentMediaPowerShellStop -PowerShell $ps -Source ('DeploymentMedia.{0}.TimeoutStop' -f $Name))
+				[void](& $requestPowerShellStop -PowerShell $ps -Source ('DeploymentMedia.{0}.TimeoutStop' -f $Name))
 				throw ([System.TimeoutException]::new(('{0} timed out after {1} second(s).' -f $Name, $TimeoutSeconds)))
 			}
 		}
 
 		$completed = $true
 		$result = @($ps.EndInvoke($asyncResult))
-		Add-GuiDeploymentMediaTelemetryRecord -Telemetry $Telemetry -Kind Stage -Name $Name -StartedUtc $startedUtc -CompletedUtc ([DateTime]::UtcNow) -Outcome 'Succeeded'
+		& $addTelemetryRecord -Telemetry $Telemetry -Kind Stage -Name $Name -StartedUtc $startedUtc -CompletedUtc ([DateTime]::UtcNow) -Outcome 'Succeeded'
 		if ($result.Count -eq 0) { return $null }
 		if ($result.Count -eq 1) { return $result[0] }
 		return $result
 	}
 	catch
 	{
-		Add-GuiDeploymentMediaTelemetryRecord -Telemetry $Telemetry -Kind Stage -Name $Name -StartedUtc $startedUtc -CompletedUtc ([DateTime]::UtcNow) -Outcome 'Failed' -Detail $_.Exception.Message
+		& $addTelemetryRecord -Telemetry $Telemetry -Kind Stage -Name $Name -StartedUtc $startedUtc -CompletedUtc ([DateTime]::UtcNow) -Outcome 'Failed' -Detail $_.Exception.Message
 		throw
 	}
 	finally
 	{
 		if (-not $completed -and $ps)
 		{
-			[void](Request-GuiDeploymentMediaPowerShellStop -PowerShell $ps -Source ('DeploymentMedia.{0}.FinalStop' -f $Name))
+			[void](& $requestPowerShellStop -PowerShell $ps -Source ('DeploymentMedia.{0}.FinalStop' -f $Name))
 		}
 		try { if ($ps) { $ps.Dispose() } }
 		catch
@@ -471,11 +636,61 @@ function Invoke-GuiDeploymentMediaPowerShellStage
 	}
 }
 
-function Resolve-GuiDeploymentMediaOscdimgPath
+function Get-GuiDeploymentMediaOscdimgCandidatePaths
+{
+	[CmdletBinding()]
+	[OutputType([string[]])]
+	param ()
+
+	$candidates = [System.Collections.Generic.List[string]]::new()
+	$addCandidate = {
+		param ([string]$Path)
+		if (-not [string]::IsNullOrWhiteSpace($Path))
+		{
+			[void]$candidates.Add([System.IO.Path]::GetFullPath($Path))
+		}
+	}
+
+	foreach ($root in @(${env:ProgramFiles(x86)}, $env:ProgramFiles))
+	{
+		if ([string]::IsNullOrWhiteSpace([string]$root)) { continue }
+		foreach ($architecture in @('amd64', 'x86', 'arm64'))
+		{
+			& $addCandidate (Join-Path $root ('Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\{0}\Oscdimg\oscdimg.exe' -f $architecture))
+		}
+	}
+
+	$wingetRoots = [System.Collections.Generic.List[string]]::new()
+	if (-not [string]::IsNullOrWhiteSpace([string]$env:LOCALAPPDATA)) { [void]$wingetRoots.Add((Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet')) }
+	if (-not [string]::IsNullOrWhiteSpace([string]$env:ProgramFiles)) { [void]$wingetRoots.Add((Join-Path $env:ProgramFiles 'WinGet')) }
+	if (-not [string]::IsNullOrWhiteSpace([string]${env:ProgramFiles(x86)})) { [void]$wingetRoots.Add((Join-Path ${env:ProgramFiles(x86)} 'WinGet')) }
+	foreach ($wingetRoot in @($wingetRoots))
+	{
+		if ([string]::IsNullOrWhiteSpace([string]$wingetRoot)) { continue }
+		& $addCandidate (Join-Path $wingetRoot 'Links\oscdimg.exe')
+		$packageRoot = Join-Path $wingetRoot 'Packages'
+		if (Test-Path -LiteralPath $packageRoot -PathType Container)
+		{
+			foreach ($directory in @(Get-ChildItem -LiteralPath $packageRoot -Directory -Filter 'Microsoft.OSCDIMG_*' -ErrorAction SilentlyContinue))
+			{
+				& $addCandidate (Join-Path $directory.FullName 'oscdimg.exe')
+			}
+		}
+	}
+
+	return @($candidates.ToArray() | Select-Object -Unique)
+}
+
+function Find-GuiDeploymentMediaOscdimgPath
 {
 	[CmdletBinding()]
 	[OutputType([string])]
 	param ()
+
+	if (Get-Command -Name 'Update-ProcessPathFromRegistry' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Update-ProcessPathFromRegistry
+	}
 
 	$command = Get-Command -Name 'oscdimg.exe' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
 	if ($command -and -not [string]::IsNullOrWhiteSpace([string]$command.Source))
@@ -483,17 +698,7 @@ function Resolve-GuiDeploymentMediaOscdimgPath
 		return [string]$command.Source
 	}
 
-	$candidates = [System.Collections.Generic.List[string]]::new()
-	foreach ($root in @(${env:ProgramFiles(x86)}, $env:ProgramFiles))
-	{
-		if ([string]::IsNullOrWhiteSpace([string]$root)) { continue }
-		foreach ($architecture in @('amd64', 'x86', 'arm64'))
-		{
-			[void]$candidates.Add((Join-Path $root ('Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\{0}\Oscdimg\oscdimg.exe' -f $architecture)))
-		}
-	}
-
-	foreach ($candidate in $candidates)
+	foreach ($candidate in @(Get-GuiDeploymentMediaOscdimgCandidatePaths))
 	{
 		if (Test-Path -LiteralPath $candidate -PathType Leaf)
 		{
@@ -501,7 +706,156 @@ function Resolve-GuiDeploymentMediaOscdimgPath
 		}
 	}
 
-	throw 'oscdimg.exe is required to create an ISO. Install the Windows ADK Deployment Tools or put oscdimg.exe on PATH.'
+	return ''
+}
+
+function Resolve-GuiDeploymentMediaWingetPath
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param ()
+
+	if (Get-Command -Name 'Resolve-WinGetExecutable' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		$resolved = Resolve-WinGetExecutable
+		if (-not [string]::IsNullOrWhiteSpace([string]$resolved) -and (Test-Path -LiteralPath ([string]$resolved) -PathType Leaf))
+		{
+			return [string]$resolved
+		}
+	}
+
+	if (Get-Command -Name 'Update-ProcessPathFromRegistry' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Update-ProcessPathFromRegistry
+	}
+
+	$command = Get-Command -Name 'winget.exe' -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+	if ($command -and -not [string]::IsNullOrWhiteSpace([string]$command.Source))
+	{
+		return [string]$command.Source
+	}
+
+	foreach ($candidate in @(
+		(Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\winget.exe'),
+		(Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\winget.exe')
+	))
+	{
+		if (-not [string]::IsNullOrWhiteSpace([string]$candidate) -and (Test-Path -LiteralPath $candidate -PathType Leaf))
+		{
+			return [string]$candidate
+		}
+	}
+
+	return ''
+}
+
+function Get-GuiDeploymentMediaOscdimgInstallPageUrl
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param ()
+
+	return 'https://winstall.app/apps/Microsoft.OSCDIMG'
+}
+
+function Test-GuiDeploymentMediaOscdimgDependencyError
+{
+	[CmdletBinding()]
+	[OutputType([bool])]
+	param (
+		[AllowNull()]
+		[object]$ErrorRecord,
+		[string]$Message = ''
+	)
+
+	$text = [string]$Message
+	if ([string]::IsNullOrWhiteSpace($text) -and $ErrorRecord -and $ErrorRecord.PSObject.Properties['Exception'])
+	{
+		$text = [string]$ErrorRecord.Exception.Message
+	}
+
+	if ([string]::IsNullOrWhiteSpace($text)) { return $false }
+	return ($text -match 'Microsoft OSCDIMG' -or $text -match 'Microsoft\.OSCDIMG' -or $text -match 'oscdimg\.exe is required')
+}
+
+function Install-GuiDeploymentMediaOscdimgPackage
+{
+	[CmdletBinding()]
+	param (
+		[scriptblock]$ProgressCallback,
+		[AllowNull()]
+		[hashtable]$CancellationState,
+		[AllowNull()]
+		[hashtable]$Telemetry,
+		[int]$TimeoutSeconds = 1800
+	)
+
+	$assertNotCancelled = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'Assert-GuiDeploymentMediaNotCancelled'
+	& $assertNotCancelled -CancellationState $CancellationState -Stage 'Install Microsoft OSCDIMG'
+
+	if (Get-Command -Name 'Test-WinGetAvailable' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		if (-not (Test-WinGetAvailable -Refresh))
+		{
+			throw 'Microsoft OSCDIMG could not be installed because WinGet is not available.'
+		}
+	}
+
+	$wingetPath = Resolve-GuiDeploymentMediaWingetPath
+	if ([string]::IsNullOrWhiteSpace([string]$wingetPath))
+	{
+		throw 'Microsoft OSCDIMG could not be installed because winget.exe was not found.'
+	}
+
+	Write-GuiDeploymentMediaBuildStatus -ProgressCallback $ProgressCallback -Message 'Installing Microsoft OSCDIMG from WinGet.'
+	$arguments = @(
+		'install',
+		'--id', 'Microsoft.OSCDIMG',
+		'--exact',
+		'--silent',
+		'--accept-package-agreements',
+		'--accept-source-agreements',
+		'--disable-interactivity',
+		'--source', 'winget'
+	)
+	$null = Invoke-GuiDeploymentMediaProcess -FilePath $wingetPath -ArgumentList $arguments -TimeoutSeconds $TimeoutSeconds -AllowedExitCodes @(0) -CancellationState $CancellationState -StageName 'Install Microsoft OSCDIMG' -Telemetry $Telemetry
+	if (Get-Command -Name 'Update-ProcessPathFromRegistry' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		Update-ProcessPathFromRegistry
+	}
+}
+
+function Resolve-GuiDeploymentMediaOscdimgPath
+{
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[switch]$InstallIfMissing,
+		[scriptblock]$ProgressCallback,
+		[AllowNull()]
+		[hashtable]$CancellationState,
+		[AllowNull()]
+		[hashtable]$Telemetry,
+		[int]$TimeoutSeconds = 1800
+	)
+
+	$resolved = Find-GuiDeploymentMediaOscdimgPath
+	if (-not [string]::IsNullOrWhiteSpace([string]$resolved))
+	{
+		return [string]$resolved
+	}
+
+	if ($InstallIfMissing)
+	{
+		Install-GuiDeploymentMediaOscdimgPackage -ProgressCallback $ProgressCallback -CancellationState $CancellationState -Telemetry $Telemetry -TimeoutSeconds $TimeoutSeconds
+		$resolved = Find-GuiDeploymentMediaOscdimgPath
+		if (-not [string]::IsNullOrWhiteSpace([string]$resolved))
+		{
+			return [string]$resolved
+		}
+	}
+
+	throw 'oscdimg.exe is required to create an ISO. Baseline can install the official Microsoft.OSCDIMG package from WinGet when WinGet is available.'
 }
 
 function Resolve-GuiDeploymentMediaDismPath
@@ -543,21 +897,19 @@ function Invoke-GuiDeploymentMediaProcess
 		[hashtable]$Telemetry
 	)
 
-	if (-not (Get-Command -Name 'ConvertTo-BaselineProcessArgumentString' -CommandType Function -ErrorAction SilentlyContinue))
-	{
-		throw 'ConvertTo-BaselineProcessArgumentString is required for deployment media external tool execution.'
-	}
-	if (-not (Get-Command -Name 'Stop-BaselineProcessTree' -CommandType Function -ErrorAction SilentlyContinue))
-	{
-		throw 'Stop-BaselineProcessTree is required for deployment media timeout and cancellation cleanup.'
-	}
+	$convertProcessArguments = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'ConvertTo-BaselineProcessArgumentString'
+	$stopProcessTree = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'Stop-BaselineProcessTree'
+	$assertNotCancelled = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'Assert-GuiDeploymentMediaNotCancelled'
+	$setCurrentStage = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'Set-GuiDeploymentMediaCurrentStage'
+	$testCancellationRequested = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'Test-GuiDeploymentMediaCancellationRequested'
 
 	$effectiveStageName = if ([string]::IsNullOrWhiteSpace($StageName)) { [System.IO.Path]::GetFileName($FilePath) } else { $StageName }
-	Assert-GuiDeploymentMediaNotCancelled -CancellationState $CancellationState -Stage $effectiveStageName
-	Set-GuiDeploymentMediaCurrentStage -CancellationState $CancellationState -Stage $effectiveStageName
+	& $assertNotCancelled -CancellationState $CancellationState -Stage $effectiveStageName
+	& $setCurrentStage -CancellationState $CancellationState -Stage $effectiveStageName
 
 	$startedUtc = [DateTime]::UtcNow
-	$argumentDisplay = ConvertTo-BaselineProcessArgumentString -ArgumentList $ArgumentList
+	$addTelemetryRecord = Get-GuiDeploymentMediaTelemetryRecordWriter
+	$argumentDisplay = & $convertProcessArguments -ArgumentList $ArgumentList
 	$psi = [System.Diagnostics.ProcessStartInfo]::new()
 	$psi.FileName = $FilePath
 	$argumentListProperty = $psi.GetType().GetProperty('ArgumentList')
@@ -592,14 +944,14 @@ function Invoke-GuiDeploymentMediaProcess
 		$deadlineUtc = [DateTime]::UtcNow.AddSeconds([Math]::Max(1, $TimeoutSeconds))
 		while (-not $process.WaitForExit(250))
 		{
-			if (Test-GuiDeploymentMediaCancellationRequested -CancellationState $CancellationState)
+			if (& $testCancellationRequested -CancellationState $CancellationState)
 			{
-				Stop-BaselineProcessTree -Process $process -Source ('DeploymentMedia.{0}.Cancel' -f $effectiveStageName)
+				& $stopProcessTree -Process $process -Source ('DeploymentMedia.{0}.Cancel' -f $effectiveStageName)
 				throw ([System.OperationCanceledException]::new(('Deployment media process cancelled during {0}.' -f $effectiveStageName)))
 			}
 			if ([DateTime]::UtcNow -ge $deadlineUtc)
 			{
-				Stop-BaselineProcessTree -Process $process -Source ('DeploymentMedia.{0}.Timeout' -f $effectiveStageName)
+				& $stopProcessTree -Process $process -Source ('DeploymentMedia.{0}.Timeout' -f $effectiveStageName)
 				throw ([System.TimeoutException]::new(('{0} timed out after {1} second(s). Process: {2}' -f $effectiveStageName, $TimeoutSeconds, $FilePath)))
 			}
 		}
@@ -611,7 +963,7 @@ function Invoke-GuiDeploymentMediaProcess
 			throw ("Process '{0}' failed with exit code {1}. Arguments: {2}" -f $FilePath, $process.ExitCode, $argumentDisplay)
 		}
 
-		Add-GuiDeploymentMediaTelemetryRecord -Telemetry $Telemetry -Kind Stage -Name $effectiveStageName -StartedUtc $startedUtc -CompletedUtc ([DateTime]::UtcNow) -Outcome 'Succeeded' -Detail ('ProcessId={0}; ExitCode={1}' -f $process.Id, $process.ExitCode)
+		& $addTelemetryRecord -Telemetry $Telemetry -Kind Stage -Name $effectiveStageName -StartedUtc $startedUtc -CompletedUtc ([DateTime]::UtcNow) -Outcome 'Succeeded' -Detail ('ProcessId={0}; ExitCode={1}' -f $process.Id, $process.ExitCode)
 		return [pscustomobject]@{
 			ExitCode = [int]$process.ExitCode
 			TimedOut = $false
@@ -622,7 +974,7 @@ function Invoke-GuiDeploymentMediaProcess
 	}
 	catch
 	{
-		Add-GuiDeploymentMediaTelemetryRecord -Telemetry $Telemetry -Kind Stage -Name $effectiveStageName -StartedUtc $startedUtc -CompletedUtc ([DateTime]::UtcNow) -Outcome 'Failed' -Detail $_.Exception.Message
+		& $addTelemetryRecord -Telemetry $Telemetry -Kind Stage -Name $effectiveStageName -StartedUtc $startedUtc -CompletedUtc ([DateTime]::UtcNow) -Outcome 'Failed' -Detail $_.Exception.Message
 		throw
 	}
 	finally
@@ -746,18 +1098,121 @@ function Invoke-GuiDeploymentMediaRobocopy
 		[AllowNull()]
 		[hashtable]$CancellationState,
 		[AllowNull()]
-		[hashtable]$Telemetry
+		[hashtable]$Telemetry,
+		[scriptblock]$ProgressCallback,
+		[string]$Operation = 'Copying deployment media'
 	)
 
-	$robocopyPath = Join-Path $env:SystemRoot 'System32\robocopy.exe'
-	if (-not (Test-Path -LiteralPath $robocopyPath -PathType Leaf))
+	if (-not (Test-Path -LiteralPath $Source -PathType Container))
 	{
-		throw ('robocopy.exe was not found at {0}.' -f $robocopyPath)
+		throw ('Deployment media copy source directory does not exist: {0}' -f $Source)
 	}
 
-	[void][System.IO.Directory]::CreateDirectory($Destination)
-	$arguments = @($Source, $Destination, '/E', '/COPY:DAT', '/DCOPY:DAT', '/R:2', '/W:2', '/NFL', '/NDL')
-	$null = Invoke-GuiDeploymentMediaProcess -FilePath $robocopyPath -ArgumentList $arguments -TimeoutSeconds 7200 -AllowedExitCodes @(0, 1, 2, 3, 4, 5, 6, 7) -CancellationState $CancellationState -StageName ('Robocopy {0}' -f [System.IO.Path]::GetFileName($Destination.TrimEnd('\'))) -Telemetry $Telemetry
+	$stageName = if ([string]::IsNullOrWhiteSpace($Operation)) { 'Copying deployment media' } else { [string]$Operation }
+	$startedUtc = [DateTime]::UtcNow
+	$addTelemetryRecord = Get-GuiDeploymentMediaTelemetryRecordWriter
+	$assertNotCancelled = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'Assert-GuiDeploymentMediaNotCancelled'
+	$setCurrentStage = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'Set-GuiDeploymentMediaCurrentStage'
+	$writeCopyProgress = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'Write-GuiDeploymentMediaBuildCopyProgress'
+	$sourceRoot = [System.IO.Path]::GetFullPath($Source)
+	$destinationRoot = [System.IO.Path]::GetFullPath($Destination)
+	$sourcePrefix = $sourceRoot
+	if (-not $sourcePrefix.EndsWith([System.IO.Path]::DirectorySeparatorChar.ToString()) -and -not $sourcePrefix.EndsWith([System.IO.Path]::AltDirectorySeparatorChar.ToString()))
+	{
+		$sourcePrefix += [System.IO.Path]::DirectorySeparatorChar
+	}
+	[void][System.IO.Directory]::CreateDirectory($destinationRoot)
+	& $setCurrentStage -CancellationState $CancellationState -Stage $stageName
+
+	try
+	{
+		$directories = @(Get-ChildItem -LiteralPath $sourceRoot -Directory -Recurse -Force -ErrorAction Stop)
+		$files = @(Get-ChildItem -LiteralPath $sourceRoot -File -Recurse -Force -ErrorAction Stop)
+		$totalBytes = [int64]0
+		foreach ($file in $files)
+		{
+			$totalBytes += [int64]$file.Length
+		}
+
+		& $writeCopyProgress -ProgressCallback $ProgressCallback -Operation $stageName -CompletedBytes 0 -TotalBytes $totalBytes -StartedUtc $startedUtc
+
+		foreach ($directory in $directories)
+		{
+			& $assertNotCancelled -CancellationState $CancellationState -Stage $stageName
+			$relativeDirectory = $directory.FullName.Substring($sourcePrefix.Length).TrimStart([char[]]@('\', '/'))
+			if ([string]::IsNullOrWhiteSpace($relativeDirectory)) { continue }
+			$targetDirectory = Join-Path $destinationRoot $relativeDirectory
+			[void][System.IO.Directory]::CreateDirectory($targetDirectory)
+		}
+
+		$completedBytes = [int64]0
+		$lastProgressUtc = [DateTime]::UtcNow.AddSeconds(-1)
+		$buffer = New-Object byte[] (4MB)
+		foreach ($file in $files)
+		{
+			& $assertNotCancelled -CancellationState $CancellationState -Stage $stageName
+			$relativeFile = $file.FullName.Substring($sourcePrefix.Length).TrimStart([char[]]@('\', '/'))
+			$targetFile = Join-Path $destinationRoot $relativeFile
+			$targetDirectory = [System.IO.Path]::GetDirectoryName($targetFile)
+			if (-not [string]::IsNullOrWhiteSpace($targetDirectory))
+			{
+				[void][System.IO.Directory]::CreateDirectory($targetDirectory)
+			}
+
+			$sourceStream = $null
+			$destinationStream = $null
+			try
+			{
+				$sourceStream = [System.IO.File]::Open($file.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+				$destinationStream = [System.IO.File]::Open($targetFile, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+				while ($true)
+				{
+					& $assertNotCancelled -CancellationState $CancellationState -Stage $stageName
+					$bytesRead = $sourceStream.Read($buffer, 0, $buffer.Length)
+					if ($bytesRead -le 0) { break }
+					$destinationStream.Write($buffer, 0, $bytesRead)
+					$completedBytes += [int64]$bytesRead
+					$nowUtc = [DateTime]::UtcNow
+					if (($nowUtc - $lastProgressUtc).TotalMilliseconds -ge 500 -or $completedBytes -ge $totalBytes)
+					{
+						& $writeCopyProgress -ProgressCallback $ProgressCallback -Operation $stageName -CompletedBytes $completedBytes -TotalBytes $totalBytes -StartedUtc $startedUtc
+						$lastProgressUtc = $nowUtc
+					}
+				}
+			}
+			finally
+			{
+				if ($destinationStream) { $destinationStream.Dispose() }
+				if ($sourceStream) { $sourceStream.Dispose() }
+			}
+
+			$targetInfo = Get-Item -LiteralPath $targetFile -Force -ErrorAction Stop
+			$targetInfo.CreationTimeUtc = $file.CreationTimeUtc
+			$targetInfo.LastWriteTimeUtc = $file.LastWriteTimeUtc
+			$targetInfo.LastAccessTimeUtc = $file.LastAccessTimeUtc
+			$targetInfo.Attributes = $file.Attributes
+		}
+
+		foreach ($directory in $directories)
+		{
+			$relativeDirectory = $directory.FullName.Substring($sourcePrefix.Length).TrimStart([char[]]@('\', '/'))
+			if ([string]::IsNullOrWhiteSpace($relativeDirectory)) { continue }
+			$targetDirectory = Join-Path $destinationRoot $relativeDirectory
+			$targetInfo = Get-Item -LiteralPath $targetDirectory -Force -ErrorAction Stop
+			$targetInfo.CreationTimeUtc = $directory.CreationTimeUtc
+			$targetInfo.LastWriteTimeUtc = $directory.LastWriteTimeUtc
+			$targetInfo.LastAccessTimeUtc = $directory.LastAccessTimeUtc
+			$targetInfo.Attributes = $directory.Attributes
+		}
+
+		& $writeCopyProgress -ProgressCallback $ProgressCallback -Operation $stageName -CompletedBytes $totalBytes -TotalBytes $totalBytes -StartedUtc $startedUtc
+		& $addTelemetryRecord -Telemetry $Telemetry -Kind Stage -Name $stageName -StartedUtc $startedUtc -CompletedUtc ([DateTime]::UtcNow) -Outcome 'Succeeded' -Detail ('Files={0}; Bytes={1}' -f @($files).Count, $totalBytes)
+	}
+	catch
+	{
+		& $addTelemetryRecord -Telemetry $Telemetry -Kind Stage -Name $stageName -StartedUtc $startedUtc -CompletedUtc ([DateTime]::UtcNow) -Outcome 'Failed' -Detail $_.Exception.Message
+		throw
+	}
 }
 
 function Get-GuiDeploymentMediaPreparedInstallImagePath
@@ -800,12 +1255,13 @@ function Invoke-GuiDeploymentMediaDriverInjection
 		return
 	}
 
+	$assertNotCancelled = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'Assert-GuiDeploymentMediaNotCancelled'
 	$null = Resolve-GuiDeploymentMediaDismPath
 	[void][System.IO.Directory]::CreateDirectory($MountRoot)
 
 	if (-not [string]::IsNullOrWhiteSpace([string]$Plan.DriverSource))
 	{
-		Assert-GuiDeploymentMediaNotCancelled -CancellationState $CancellationState -Stage 'Install image driver injection'
+		& $assertNotCancelled -CancellationState $CancellationState -Stage 'Install image driver injection'
 		$installImagePath = Get-GuiDeploymentMediaPreparedInstallImagePath -MediaRoot $MediaRoot
 		if ([System.IO.Path]::GetExtension($installImagePath).Equals('.esd', [System.StringComparison]::OrdinalIgnoreCase))
 		{
@@ -838,7 +1294,7 @@ function Invoke-GuiDeploymentMediaDriverInjection
 
 	if ([bool]$Plan.InjectBootDrivers)
 	{
-		Assert-GuiDeploymentMediaNotCancelled -CancellationState $CancellationState -Stage 'Boot image driver injection'
+		& $assertNotCancelled -CancellationState $CancellationState -Stage 'Boot image driver injection'
 		if ([string]::IsNullOrWhiteSpace([string]$Plan.DriverSource))
 		{
 			throw 'Boot driver injection requires a driver source directory.'
@@ -852,6 +1308,7 @@ function Invoke-GuiDeploymentMediaDriverInjection
 
 		$bootImages = @(Invoke-GuiDeploymentMediaPowerShellStage -Name 'Inspect boot images' -ScriptBlock {
 			param ([string]$ImagePath)
+			Import-Module -Name 'Dism' -ErrorAction Stop -WarningAction SilentlyContinue
 			foreach ($image in @(Get-WindowsImage -ImagePath $ImagePath -ErrorAction Stop))
 			{
 				[pscustomobject]@{
@@ -861,7 +1318,7 @@ function Invoke-GuiDeploymentMediaDriverInjection
 		} -ArgumentList @($bootImagePath) -TimeoutSeconds 900 -CancellationState $CancellationState -Telemetry $Telemetry)
 		foreach ($bootImage in $bootImages)
 		{
-			Assert-GuiDeploymentMediaNotCancelled -CancellationState $CancellationState -Stage ('Boot image {0} driver injection' -f $bootImage.ImageIndex)
+			& $assertNotCancelled -CancellationState $CancellationState -Stage ('Boot image {0} driver injection' -f $bootImage.ImageIndex)
 			$bootMountPath = Join-Path $MountRoot ('Boot-{0}' -f $bootImage.ImageIndex)
 			[void][System.IO.Directory]::CreateDirectory($bootMountPath)
 			Write-GuiDeploymentMediaBuildStatus -ProgressCallback $ProgressCallback -Message ('Mounting boot image index {0} for driver injection.' -f $bootImage.ImageIndex)
@@ -928,7 +1385,8 @@ function Invoke-GuiDeploymentMediaBuild
 	{
 		$CancellationState = New-GuiDeploymentMediaCancellationState
 	}
-	Assert-GuiDeploymentMediaNotCancelled -CancellationState $CancellationState -Stage 'Deployment media build'
+	$assertNotCancelled = Get-GuiDeploymentMediaExecutionFunctionCapture -Name 'Assert-GuiDeploymentMediaNotCancelled'
+	& $assertNotCancelled -CancellationState $CancellationState -Stage 'Deployment media build'
 
 	if (-not [bool]$Plan.IsValid)
 	{
@@ -974,8 +1432,8 @@ function Invoke-GuiDeploymentMediaBuild
 		} -ArgumentList @([string]$Plan.SourceIso) -TimeoutSeconds $mountTimeoutSeconds -CancellationState $CancellationState -Telemetry $telemetry
 		$isoRoot = ('{0}:\' -f $mountInfo.DriveLetter)
 		Write-GuiDeploymentMediaBuildStatus -ProgressCallback $ProgressCallback -Message ('Copying ISO contents from {0} to {1}.' -f $isoRoot, $mediaRoot)
-		Assert-GuiDeploymentMediaNotCancelled -CancellationState $CancellationState -Stage 'Copy source ISO contents'
-		Invoke-GuiDeploymentMediaRobocopy -Source $isoRoot -Destination $mediaRoot -CancellationState $CancellationState -Telemetry $telemetry
+		& $assertNotCancelled -CancellationState $CancellationState -Stage 'Copy source ISO contents'
+		Invoke-GuiDeploymentMediaRobocopy -Source $isoRoot -Destination $mediaRoot -CancellationState $CancellationState -Telemetry $telemetry -ProgressCallback $ProgressCallback -Operation 'Copying ISO contents'
 	}
 	catch
 	{
@@ -1007,13 +1465,13 @@ function Invoke-GuiDeploymentMediaBuild
 		throw $primaryError
 	}
 
-	Assert-GuiDeploymentMediaNotCancelled -CancellationState $CancellationState -Stage 'Prepare deployment media'
+	& $assertNotCancelled -CancellationState $CancellationState -Stage 'Prepare deployment media'
 	$installImagePath = Get-GuiDeploymentMediaPreparedInstallImagePath -MediaRoot $mediaRoot
 	Write-GuiDeploymentMediaBuildStatus -ProgressCallback $ProgressCallback -Message ('Prepared install image: {0}.' -f $installImagePath)
 
 	if (-not [string]::IsNullOrWhiteSpace([string]$Plan.AutounattendPath))
 	{
-		Assert-GuiDeploymentMediaNotCancelled -CancellationState $CancellationState -Stage 'Stage autounattend.xml'
+		& $assertNotCancelled -CancellationState $CancellationState -Stage 'Stage autounattend.xml'
 		$answerDestination = Join-Path $mediaRoot 'autounattend.xml'
 		Copy-Item -LiteralPath ([string]$Plan.AutounattendPath) -Destination $answerDestination -Force -ErrorAction Stop
 		Write-GuiDeploymentMediaBuildStatus -ProgressCallback $ProgressCallback -Message ('Staged autounattend.xml at {0}.' -f $answerDestination)
@@ -1021,7 +1479,7 @@ function Invoke-GuiDeploymentMediaBuild
 
 	if ([bool]$Plan.IncludeBaselineTweaks)
 	{
-		Assert-GuiDeploymentMediaNotCancelled -CancellationState $CancellationState -Stage 'Stage Baseline setup customizations'
+		& $assertNotCancelled -CancellationState $CancellationState -Stage 'Stage Baseline setup customizations'
 		$selectedTweaks = if ($null -ne $SelectedTweaks) { @($SelectedTweaks) } else { @(Get-GuiDeploymentMediaSelectedTweaksForSetup) }
 		if ($selectedTweaks.Count -lt 1)
 		{
@@ -1046,13 +1504,15 @@ function Invoke-GuiDeploymentMediaBuild
 	{
 		'Export Working Folder Only'
 		{
-			Assert-GuiDeploymentMediaNotCancelled -CancellationState $CancellationState -Stage 'Export working folder'
+			& $assertNotCancelled -CancellationState $CancellationState -Stage 'Export working folder'
 			$outputPath = $mediaRoot
 		}
 		'Create ISO'
 		{
-			Assert-GuiDeploymentMediaNotCancelled -CancellationState $CancellationState -Stage 'Create ISO output'
-			$oscdimgPath = Resolve-GuiDeploymentMediaOscdimgPath
+			& $assertNotCancelled -CancellationState $CancellationState -Stage 'Create ISO output'
+			Write-GuiDeploymentMediaBuildStatus -ProgressCallback $ProgressCallback -Message 'Resolving Microsoft OSCDIMG tool.'
+			$dependencyTimeoutSeconds = Get-GuiDeploymentMediaStageTimeoutSeconds -OperationStartedUtc $startedUtc -GlobalTimeoutSeconds $GlobalTimeoutSeconds -StageTimeoutSeconds 1800
+			$oscdimgPath = Resolve-GuiDeploymentMediaOscdimgPath -InstallIfMissing -ProgressCallback $ProgressCallback -CancellationState $CancellationState -Telemetry $telemetry -TimeoutSeconds $dependencyTimeoutSeconds
 			$etfsbootPath = Join-Path $mediaRoot 'boot\etfsboot.com'
 			$efisysPath = Join-Path $mediaRoot 'efi\microsoft\boot\efisys.bin'
 			if (-not (Test-Path -LiteralPath $etfsbootPath -PathType Leaf))
@@ -1076,7 +1536,7 @@ function Invoke-GuiDeploymentMediaBuild
 		}
 		'Create USB'
 		{
-			Assert-GuiDeploymentMediaNotCancelled -CancellationState $CancellationState -Stage 'Create USB output'
+			& $assertNotCancelled -CancellationState $CancellationState -Stage 'Create USB output'
 			$targetRoot = [System.IO.Path]::GetFullPath([string]$Plan.UsbTargetRoot)
 			$bootsectPath = Join-Path $mediaRoot 'boot\bootsect.exe'
 			if (-not (Test-Path -LiteralPath $bootsectPath -PathType Leaf))
@@ -1084,7 +1544,7 @@ function Invoke-GuiDeploymentMediaBuild
 				throw ('USB boot sector tool is missing from prepared media: {0}' -f $bootsectPath)
 			}
 			Write-GuiDeploymentMediaBuildStatus -ProgressCallback $ProgressCallback -Message ('Copying prepared media to USB target {0}.' -f $targetRoot)
-			Invoke-GuiDeploymentMediaRobocopy -Source $mediaRoot -Destination $targetRoot -CancellationState $CancellationState -Telemetry $telemetry
+			Invoke-GuiDeploymentMediaRobocopy -Source $mediaRoot -Destination $targetRoot -CancellationState $CancellationState -Telemetry $telemetry -ProgressCallback $ProgressCallback -Operation 'Copying prepared media to USB target'
 			$driveArgument = [System.IO.Path]::GetPathRoot($targetRoot).TrimEnd('\')
 			$null = Invoke-GuiDeploymentMediaProcess -FilePath $bootsectPath -ArgumentList @('/nt60', $driveArgument, '/force') -TimeoutSeconds 300 -AllowedExitCodes @(0) -CancellationState $CancellationState -StageName 'Write USB boot sector' -Telemetry $telemetry
 			$outputPath = $targetRoot

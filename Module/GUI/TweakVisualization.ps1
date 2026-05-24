@@ -310,7 +310,7 @@
 			[void]$scenarioTags.Add($formattedTag)
 		}
 
-		$scenarioSignals = @(Get-TweakScenarioSignals -Tweak $Tweak)
+		$scenarioSignals = @(Get-TweakScenarioSignals -Tweak $Tweak -IsRemoval $isRemoval)
 		foreach ($signal in $scenarioSignals)
 		{
 			if ([string]::IsNullOrWhiteSpace([string]$signal)) { continue }
@@ -320,7 +320,7 @@
 
 		$focusGroup = Get-TweakFocusGroup -Tweak $Tweak -ScenarioSignals $scenarioSignals
 		$reasonIncluded = Get-TweakInclusionReason -Tweak $Tweak -FocusGroup $focusGroup -ScenarioSignals $scenarioSignals
-		$blastRadius = Get-TweakBlastRadiusText -Tweak $Tweak -TypeLabel $typeLabel -ScenarioTags @($scenarioTags) -MatchesDesired $matchesDesired
+		$blastRadius = Get-TweakBlastRadiusText -Tweak $Tweak -TypeLabel $typeLabel -ScenarioTags @($scenarioTags) -MatchesDesired $matchesDesired -IsRemoval $isRemoval -IsPackageOperation $isPackageOperation
 
 		return [pscustomobject]@{
 			TypeKind = $typeKind
