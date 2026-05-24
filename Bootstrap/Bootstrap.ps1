@@ -6,7 +6,7 @@
     This script is designed to be hosted at a raw GitHub URL, downloaded to a
     local file, inspected if desired, and executed as a script file:
 
-        Invoke-WebRequest -Uri https://raw.githubusercontent.com/sdmanson8/Baseline/main/Bootstrap/Bootstrap.ps1 -OutFile "$env:TEMP\Baseline.Bootstrap.ps1" -UseBasicParsing
+        Invoke-WebRequest -Uri https://raw.githubusercontent.com/sdmanson8/Baseline_dev/main/Bootstrap/Bootstrap.ps1 -OutFile "$env:TEMP\Baseline.Bootstrap.ps1" -UseBasicParsing
         powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\Baseline.Bootstrap.ps1"
 
     It queries the GitHub Releases API for the latest non-draft release,
