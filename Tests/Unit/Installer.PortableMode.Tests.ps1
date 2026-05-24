@@ -5,10 +5,6 @@ $script:InstallerTemplates = @(
         ScriptName = 'Baseline-Setup.iss'
         ScriptPath = Join-Path $PSScriptRoot '../../dist/Baseline-Setup.iss'
     }
-    @{
-        ScriptName = 'Baseline-Setup-dev.iss'
-        ScriptPath = Join-Path $PSScriptRoot '../../dist/Baseline-Setup-dev.iss'
-    }
 )
 
 Describe 'Portable installer registration' {
