@@ -1,7 +1,7 @@
 {
     "schemaVersion":  1,
     "algorithm":  "sha256",
-    "generatedUtc":  "2026-05-24T21:39:23.0940721Z",
+    "generatedUtc":  "2026-05-25T04:49:28.1412286Z",
     "fileCount":  387,
     "files":  {
                   "Baseline.psd1":  "19dc67f3c1130d5e40e6f50e75ea904b1c7080afe7b7f75247f3c27c062e261e",
@@ -338,7 +338,7 @@
                   "SharedHelperModules/Baseline.SharedHelpers.WindowsFeatures.psm1":  "93118826c4186faccc497ca05c5db39acc828866b028fd63a63231ba98069090",
                   "SharedHelperModules/Baseline.SharedHelpers.WindowsUpdate.psm1":  "03cef89b3e439452a4f92cb2308ebf0e8fd885ab5b58566a3143ba7585f9e97a",
                   "SharedHelperModules/Baseline.SharedHelpers.Wsl.psm1":  "9fda2604a85b09b9069df25b95bd299ffc0ec3b90a61f11be39768375da7fe72",
-                  "SharedHelpers.psm1":  "01b97db2bca56ecdc0b15cc9d23fb1188e4479e4daf0aa38c75e9fc7292220ac",
+                  "SharedHelpers.psm1":  "e118b78694f2d97ec9d059b502e54487ba1d97427903fe20518d3cdeaede905c",
                   "SharedHelpers/AdvancedStartup.Helpers.ps1":  "9d3ff67a68d07a943230b031bbc94828f5f0cf5994ea7b14179d46392a2f705d",
                   "SharedHelpers/AuditTrail.Helpers.ps1":  "46c0327895ea3409e1adc5071da13f7b16fac64a759edca91c5819e1865198df",
                   "SharedHelpers/AuthHardening.Helpers.ps1":  "418c063a8dfa1cc582b3fac8331ade2dab3eaf08f733618dc6649eb81694a00d",

@@ -1091,7 +1091,8 @@ Describe 'Source quality guardrails' {
         $content | Should -Match 'Export-TestReport\.ps1'
         $content | Should -Match 'Import-PowerShellDataFile -LiteralPath \.\\Module\\Baseline\.psd1'
         $content | Should -Match '\$manifest\.PrivateData\.Prerelease'
-        $content | Should -Match '\$releaseSmokeArgs \+= ''-AllowUnsignedPreview'''
+        $content | Should -Match '\$releaseSmokeArgs = @\{\}'
+        $content | Should -Match '\$releaseSmokeArgs\[''AllowUnsignedPreview''\] = \$true'
         $content | Should -Match 'Test-ReleaseSmoke\.ps1 @releaseSmokeArgs'
     }
 

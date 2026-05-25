@@ -85,7 +85,6 @@ foreach ($helperModuleName in $HelperModuleNames)
     catch
     {
         $message = "Failed to import shared helper module '$helperModuleName' from '$helperModulePath': $($_.Exception.Message)"
-        Write-Error -Message $message -ErrorAction Continue
         $exception = New-Object System.InvalidOperationException -ArgumentList $message, $_.Exception
         throw $exception
     }

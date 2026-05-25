@@ -1,5 +1,5 @@
 ﻿{
-    "generated":  "2026-05-24T23:41:23.0007920+02:00",
+    "generated":  "2026-05-25T07:34:53.9524544+02:00",
     "platform":  {
                      "os":  "Microsoft Windows NT 10.0.26100.0",
                      "edition":  "Desktop",
@@ -14,7 +14,7 @@
                                  "passed":  0,
                                  "failed":  0,
                                  "skipped":  0,
-                                 "duration":  224.17,
+                                 "duration":  223.62,
                                  "output":  ""
                              },
                    "unit":  {
@@ -24,7 +24,7 @@
                                 "passed":  5730,
                                 "failed":  0,
                                 "skipped":  4,
-                                "duration":  993.37,
+                                "duration":  995.95,
                                 "output":  "Tests: 5734 | Passed: 5730 | Failed: 0 | Skipped: 4"
                             },
                    "composition":  {
@@ -34,7 +34,7 @@
                                        "passed":  44,
                                        "failed":  0,
                                        "skipped":  0,
-                                       "duration":  3.78,
+                                       "duration":  3.8,
                                        "output":  "Tests: 44 | Passed: 44 | Failed: 0 | Skipped: 0"
                                    },
                    "preset":  {
@@ -44,7 +44,7 @@
                                   "passed":  0,
                                   "failed":  0,
                                   "skipped":  0,
-                                  "duration":  5.42,
+                                  "duration":  5.52,
                                   "output":  ""
                               }
                },
