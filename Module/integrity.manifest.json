@@ -1,7 +1,7 @@
 {
     "schemaVersion":  1,
     "algorithm":  "sha256",
-    "generatedUtc":  "2026-05-25T04:49:28.1412286Z",
+    "generatedUtc":  "2026-05-25T06:38:58.2327212Z",
     "fileCount":  387,
     "files":  {
                   "Baseline.psd1":  "19dc67f3c1130d5e40e6f50e75ea904b1c7080afe7b7f75247f3c27c062e261e",
@@ -358,7 +358,7 @@
                   "SharedHelpers/GameMode.Helpers.ps1":  "2a740889a72bbf50c9dbb3753f8dfac6bcb5599aaab24bead277ea515eddd3cf",
                   "SharedHelpers/GroupPolicy.Helpers.ps1":  "12976f4a7de7211aa17446abb6f211dc80b1707f3393d8d866d99c16c5a44e10",
                   "SharedHelpers/InitialActions.Helpers.ps1":  "373ea641b364cd1e79bfaa9733b0ee57b87fb0a07e0bc27fa2f5e2132f4cecd3",
-                  "SharedHelpers/Integrity.Helpers.ps1":  "19d7b459f1df824f709679e2315f71d4e6ded7f3ef928219055c2d970dfe9d74",
+                  "SharedHelpers/Integrity.Helpers.ps1":  "4b383b66c0ec6c3804fe8200a4e28db69735125ea9114034399253d2cd018972",
                   "SharedHelpers/Json.Helpers.ps1":  "a4afdb99601662f10ae74c25dbbf6b58cffaca5c2f9754f8f415d924d194b6bc",
                   "SharedHelpers/Lifecycle.Helpers.ps1":  "8294631de76e4625d96a4a3826a3ddede7c3643fb5352b47e4b97668903213df",
                   "SharedHelpers/Localization.Helpers.ps1":  "7dca852df08b9f61acd2522b767383972b8ac197e39b4b04b2f539b2ebd13575",

@@ -146,7 +146,16 @@ Describe 'Integrity gate — opt-in behaviour' {
 
     It 'is a no-op in Audit mode when manifest is absent' {
         $env:BASELINE_INTEGRITY_MODE = 'Audit'
+        $script:auditWarning = $null
+        Mock -CommandName Write-Warning -MockWith {
+            param([string]$Message)
+            $script:auditWarning = $Message
+        }
+
         { Invoke-BaselineModuleIntegrityGate -ModuleRoot $script:gateRoot } | Should -Not -Throw
+
+        Should -Invoke -CommandName Write-Warning -Exactly -Times 1 -Scope It
+        $script:auditWarning | Should -Match 'BASELINE_INTEGRITY_MODE=Audit will skip verification'
     }
 
     It 'throws in Strict mode when manifest is absent' {

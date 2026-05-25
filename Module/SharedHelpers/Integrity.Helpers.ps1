@@ -256,13 +256,12 @@ function Invoke-BaselineModuleIntegrityGate
                 "Baseline integrity manifest not found at '$manifestPath' but BASELINE_INTEGRITY_MODE=Strict requires one.",
                 $manifestPath)
         }
+        $warningMessage = "Baseline integrity manifest not found at '$manifestPath'; BASELINE_INTEGRITY_MODE=Audit will skip verification."
+        Write-Warning $warningMessage
+
         if (Get-Command -Name 'LogWarning' -CommandType Function -ErrorAction SilentlyContinue)
         {
-            LogWarning "Baseline integrity manifest not found at '$manifestPath'; BASELINE_INTEGRITY_MODE=Audit will skip verification."
-        }
-        else
-        {
-            Write-Warning "Baseline integrity manifest not found at '$manifestPath'; BASELINE_INTEGRITY_MODE=Audit will skip verification."
+            LogWarning $warningMessage
         }
         return
     }
