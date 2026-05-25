@@ -31,6 +31,39 @@ BeforeAll {
         }
     }
 
+    $script:ImmutableSupportBundleProcessCaptureStub = {
+        param(
+            [string]$FilePath,
+            [object[]]$ArgumentList,
+            [int]$TimeoutSeconds
+        )
+
+        $scriptText = if ($ArgumentList -contains '-File') { Get-Content -LiteralPath ([string]$ArgumentList[-1]) -Raw -Encoding UTF8 } else { [string]$ArgumentList[-1] }
+        if ($scriptText -match 'Get-MpComputerStatus') {
+            return [pscustomobject]@{
+                ExitCode       = 0
+                StandardOutput = '{"AMServiceEnabled":true,"AntivirusEnabled":true,"RealTimeProtectionEnabled":true,"IoavProtectionEnabled":true,"NISEnabled":true,"AntispywareEnabled":true}'
+                StandardError  = ''
+            }
+        }
+
+        if ($scriptText -match 'Get-WindowsOptionalFeature -Online') {
+            return [pscustomobject]@{
+                ExitCode       = 0
+                StandardOutput = '[{"Name":"NetFx3","State":"Enabled"},{"Name":"SMB1Protocol","State":"Disabled"}]'
+                StandardError  = ''
+            }
+        }
+
+        return [pscustomobject]@{
+            ExitCode       = 0
+            StandardOutput = ''
+            StandardError  = ''
+        }
+    }
+    Set-Item -Path Function:\Invoke-BaselineSupportBundleProcessCapture -Value $script:ImmutableSupportBundleProcessCaptureStub
+    Set-Item -Path Function:\Global:Invoke-BaselineSupportBundleProcessCapture -Value $script:ImmutableSupportBundleProcessCaptureStub
+
     $script:TempRoot = Join-Path $env:TEMP ('BaselineImmutableBundleTests_' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $script:TempRoot -Force | Out-Null
     $script:OriginalLocalAppData = $env:LOCALAPPDATA

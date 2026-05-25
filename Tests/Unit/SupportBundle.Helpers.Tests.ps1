@@ -55,10 +55,18 @@ BeforeAll {
         )
 
         $scriptText = if ($ArgumentList -contains '-File') { Get-Content -LiteralPath ([string]$ArgumentList[-1]) -Raw -Encoding UTF8 } else { [string]$ArgumentList[-1] }
+        if ($scriptText -match 'Get-MpComputerStatus') {
+            return [pscustomobject]@{
+                ExitCode       = 0
+                StandardOutput = '{"AMServiceEnabled":true,"AntivirusEnabled":true,"RealTimeProtectionEnabled":true,"IoavProtectionEnabled":true,"NISEnabled":true,"AntispywareEnabled":true}'
+                StandardError  = ''
+            }
+        }
+
         if ($scriptText -match 'Get-WindowsOptionalFeature -Online') {
             return [pscustomobject]@{
                 ExitCode       = 0
-                StandardOutput = '[]'
+                StandardOutput = '[{"Name":"NetFx3","State":"Enabled"},{"Name":"SMB1Protocol","State":"Disabled"}]'
                 StandardError  = ''
             }
         }
@@ -69,6 +77,7 @@ BeforeAll {
             StandardError  = ''
         }
     }
+    Set-Item -Path Function:\Invoke-BaselineSupportBundleProcessCapture -Value $script:SupportBundleUnitProcessCaptureStub
     Set-Item -Path Function:\Global:Invoke-BaselineSupportBundleProcessCapture -Value $script:SupportBundleUnitProcessCaptureStub
 
     $script:TempRoot = Join-Path $env:TEMP ('BaselineSupportBundleTests_' + [guid]::NewGuid().ToString('N'))
@@ -175,6 +184,9 @@ Describe 'Export-BaselineSupportBundle' {
         $features = Get-Content -LiteralPath $featuresPath -Raw | ConvertFrom-Json
         $features.Schema | Should -Be 'Baseline.WindowsFeatures'
         @($features.Services | Where-Object Name -eq 'WinRM').Count | Should -Be 1
+        $features.CollectionStatus.Defender | Should -Be 'Collected'
+        $features.CollectionStatus.OptionalFeatures | Should -Be 'Collected'
+        ($features.OptionalFeatures | Where-Object Name -eq 'NetFx3').State | Should -Be 'Enabled'
 
         $storage = Get-Content -LiteralPath $storagePath -Raw | ConvertFrom-Json
         $storage.Schema | Should -Be 'Baseline.StorageSummary'

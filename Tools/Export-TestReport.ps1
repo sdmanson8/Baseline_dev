@@ -136,6 +136,60 @@ function Invoke-TestLayer
     return $layer
 }
 
+function ConvertTo-PesterFailureSummary
+{
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Failure
+    )
+
+    $errorRecord = $null
+    if ($Failure.PSObject.Properties['ErrorRecord'])
+    {
+        $errorRecord = $Failure.ErrorRecord
+    }
+
+    $message = ''
+    $line = $null
+    $scriptStackTrace = ''
+    $fullyQualifiedErrorId = ''
+
+    if ($errorRecord)
+    {
+        if ($errorRecord.Exception)
+        {
+            $message = [string]$errorRecord.Exception.Message
+        }
+        else
+        {
+            $message = [string]$errorRecord
+        }
+
+        if ($errorRecord.InvocationInfo)
+        {
+            $line = $errorRecord.InvocationInfo.ScriptLineNumber
+        }
+
+        $fullyQualifiedErrorId = [string]$errorRecord.FullyQualifiedErrorId
+        $scriptStackTrace = [string]$errorRecord.ScriptStackTrace
+    }
+
+    if ([string]::IsNullOrWhiteSpace($message) -and $Failure.PSObject.Properties['ErrorRecord'])
+    {
+        $message = [string]$Failure.ErrorRecord
+    }
+
+    return [ordered]@{
+        name                  = [string]$Failure.Name
+        expandedName          = [string]$Failure.ExpandedName
+        path                  = [string]$Failure.Path
+        line                  = $line
+        message               = $message
+        fullyQualifiedErrorId = $fullyQualifiedErrorId
+        scriptStackTrace      = $scriptStackTrace
+    }
+}
+
 # ── Helper: run Pester and capture results ──
 <#
     .SYNOPSIS
@@ -157,6 +211,7 @@ function Invoke-PesterLayer
         skipped  = 0
         duration = $null
         output   = ''
+        failures = @()
     }
 
     if (-not (Test-Path -LiteralPath $Path))
@@ -184,6 +239,10 @@ function Invoke-PesterLayer
         $layer.failed = $pesterResult.FailedCount
         $layer.skipped = $pesterResult.SkippedCount
         $layer.output = "Tests: $($pesterResult.TotalCount) | Passed: $($pesterResult.PassedCount) | Failed: $($pesterResult.FailedCount) | Skipped: $($pesterResult.SkippedCount)"
+        if ($pesterResult.FailedCount -gt 0)
+        {
+            $layer.failures = @($pesterResult.Failed | ForEach-Object { ConvertTo-PesterFailureSummary -Failure $_ })
+        }
 
         if ($pesterResult.FailedCount -gt 0)
         {
@@ -359,6 +418,39 @@ Write-Host ''
 
 if ($hasFailingLayer)
 {
+    Write-Host ''
+    Write-Host '=== Failure Details ===' -ForegroundColor Red
+    foreach ($layer in $failingLayers)
+    {
+        Write-Host ("[{0}] {1}" -f $layer.result, $layer.name) -ForegroundColor Red
+        if (-not [string]::IsNullOrWhiteSpace([string]$layer.output))
+        {
+            Write-Host ("  {0}" -f $layer.output)
+        }
+
+        if ($layer.Contains('failures') -and $layer.failures -and $layer.failures.Count -gt 0)
+        {
+            foreach ($failure in $layer.failures)
+            {
+                $location = [string]$failure.path
+                if ($failure.line)
+                {
+                    $location = '{0}:{1}' -f $location, $failure.line
+                }
+
+                Write-Host ("  FAIL: {0}" -f $failure.expandedName) -ForegroundColor Red
+                if (-not [string]::IsNullOrWhiteSpace($location))
+                {
+                    Write-Host ("    at {0}" -f $location)
+                }
+                if (-not [string]::IsNullOrWhiteSpace([string]$failure.message))
+                {
+                    Write-Host ("    {0}" -f $failure.message)
+                }
+            }
+        }
+    }
+    Write-Host ''
     Write-Host '  REPORT: FAILURES DETECTED' -ForegroundColor Red
     exit 1
 }
