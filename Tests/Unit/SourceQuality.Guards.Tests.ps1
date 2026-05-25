@@ -1168,31 +1168,12 @@ Describe 'Source quality guardrails' {
 
     It 'keeps mojibake markers out of module code' {
         $pattern = [string]::Join('|', @((226, 65533, 195, 194) | ForEach-Object { [regex]::Escape([string][char]$_) }))
-        $rawHits = @(& rg -n $pattern (Join-Path $script:RepoRoot 'Module') --glob '!vendor/**' --path-separator '/')
-        if ($LASTEXITCODE -notin @(0, 1)) {
-            throw "rg failed while scanning for mojibake markers. Exit code: $LASTEXITCODE"
-        }
+        $rawHits = @(Find-SourcePattern -Files (Get-RepoPowerShellFile -Roots @('Module')) -Pattern $pattern)
 
         $badMarkerHits = @($rawHits | Where-Object {
-            $parts = $_ -split ':', 4
-            if ($parts.Count -lt 3) { return $true }
-            $hitPath = if ($parts[0] -match '^[A-Za-z]$' -and $parts.Count -ge 4) {
-                '{0}:{1}' -f $parts[0], $parts[1]
-            }
-            else {
-                $parts[0]
-            }
-
-            $line = if ($parts[0] -match '^[A-Za-z]$' -and $parts.Count -ge 4) { $parts[3] } else { $parts[2] }
-            $relativePath = if ([System.IO.Path]::IsPathRooted($hitPath)) {
-                Get-RelativeSourcePath -Path $hitPath
-            }
-            else {
-                $hitPath -replace '/', '\'
-            }
             -not (
-                $line.Contains('Romanian') -and
-                $relativePath -in @('Module\GUI\BuildPrimaryTabs.ps1', 'Module\GUI\LanguageCatalog.ps1')
+                $_.Text.Contains('Romanian') -and
+                $_.Path -in @('Module\GUI\BuildPrimaryTabs.ps1', 'Module\GUI\LanguageCatalog.ps1')
             )
         })
 

@@ -5,6 +5,7 @@ dist/*
 _net48ref/
 *.zip
 *.exe
+!Assets/BaselinePolicyTool.exe
 *.msi
 *.nupkg
 *.snupkg
