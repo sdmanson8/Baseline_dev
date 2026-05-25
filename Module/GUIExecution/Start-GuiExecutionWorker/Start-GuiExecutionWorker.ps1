@@ -1,4 +1,4 @@
-$worker = [powershell]::Create().AddScript({
+﻿$worker = [powershell]::Create().AddScript({
 		try
 		{
 			$Global:GUIMode = $true
@@ -21,7 +21,7 @@ $worker = [powershell]::Create().AddScript({
 				$Global:BaselineUseDarkMode = [bool]$bgUseDarkMode
 			}
 			$Script:RunState = $runState
-			function Write-GuiExecutionWorkerStartupNotice
+			function Write-GuiTweakExecutionWorkerStartupNotice
 			{
 				param(
 					[Parameter(Mandatory = $true)]
@@ -52,10 +52,10 @@ $worker = [powershell]::Create().AddScript({
 					}
 				}
 			}
-			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker entered background runspace.' -Progress
+			Write-GuiTweakExecutionWorkerStartupNotice -Message 'Execution worker entered background runspace.' -Progress
 
 			# Load JSON and localization helpers in the background runspace before importing the execution module.
-			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker loading JSON and localization helpers.' -Progress
+			Write-GuiTweakExecutionWorkerStartupNotice -Message 'Execution worker loading JSON and localization helpers.' -Progress
 			$bgModuleRoot = Split-Path $bgLoaderPath -Parent
 			$bgJsonHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Json.Helpers.ps1'
 			$bgHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Localization.Helpers.ps1'
@@ -68,14 +68,14 @@ $worker = [powershell]::Create().AddScript({
 			# because this runs in a fresh background runspace.
 			try
 			{
-				Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker importing Baseline modules.' -Progress
+				Write-GuiTweakExecutionWorkerStartupNotice -Message 'Execution worker importing Baseline modules.' -Progress
 				$Global:LogFilePath = $bgLogFilePath
 				Import-Module $bgLoaderPath -Force -Global -ErrorAction Stop
 				if (Get-Command -Name Set-BaselineOperationMode -ErrorAction SilentlyContinue)
 				{
 					Set-BaselineOperationMode -Mode ([string]$bgOperationMode)
 				}
-				Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker imported Baseline modules.' -Progress
+				Write-GuiTweakExecutionWorkerStartupNotice -Message 'Execution worker imported Baseline modules.' -Progress
 			}
 			catch
 			{
@@ -91,7 +91,7 @@ $worker = [powershell]::Create().AddScript({
 			Set-LogFile -Path $bgLogFilePath
 			Set-LogMode -Mode $bgLogMode
 			Set-UILogHandler { param($entry) $Script:RunState['LogQueue'].Enqueue($entry) }
-			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker connected logging pipeline.' -Progress
+			Write-GuiTweakExecutionWorkerStartupNotice -Message 'Execution worker connected logging pipeline.' -Progress
 
 			function Test-GuiExecutionValuePresent
 			{
@@ -163,7 +163,7 @@ $worker = [powershell]::Create().AddScript({
 				throw "The numeric range selection for '$($Tweak.Function)' did not include Value, NumericValue, or ACValue/DCValue to execute."
 			}
 
-			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker validating selected tweak functions.' -Progress
+			Write-GuiTweakExecutionWorkerStartupNotice -Message 'Execution worker validating selected tweak functions.' -Progress
 			$missingFunctions = @(
 				$tweakList |
 					ForEach-Object { $_.Function } |
@@ -182,7 +182,7 @@ $worker = [powershell]::Create().AddScript({
 				$Script:RunState['PreRunSnapshot'] = $null
 				$Script:RunState['PostRunSnapshot'] = $null
 
-				Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker loading pre-run snapshot metadata.' -Progress
+				Write-GuiTweakExecutionWorkerStartupNotice -Message 'Execution worker loading pre-run snapshot metadata.' -Progress
 				$snapshotDetectScriptblocks = @{}
 				$snapshotVisibleIfScriptblocks = @{}
 				$detectScriptblocksPath = Join-Path $bgModuleRoot 'GUI\DetectScriptblocks.ps1'
@@ -204,7 +204,7 @@ $worker = [powershell]::Create().AddScript({
 				$snapshotManifest = Import-TweakManifestFromData -DetectScriptblocks $snapshotDetectScriptblocks -VisibleIfScriptblocks $snapshotVisibleIfScriptblocks
 				try
 				{
-					Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker checking manifest availability.' -Progress
+					Write-GuiTweakExecutionWorkerStartupNotice -Message 'Execution worker checking manifest availability.' -Progress
 					$snapshotSystemInfo = Get-BaselineSystemPlatformInfo
 					$null = Update-BaselineManifestAvailability -Manifest $snapshotManifest -SystemInfo $snapshotSystemInfo
 					$null = Update-BaselineManifestExecutionSupport -Manifest $snapshotManifest
@@ -214,7 +214,7 @@ $worker = [powershell]::Create().AddScript({
 					Write-SwallowedException -ErrorRecord $_ -Source 'GUIExecution.PreRunSnapshot.ManifestAvailabilityStamp'
 				}
 
-				Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker capturing pre-run system snapshot.' -Progress
+				Write-GuiTweakExecutionWorkerStartupNotice -Message 'Execution worker capturing pre-run system snapshot.' -Progress
 				$snapshotTimeoutSeconds = Get-GuiPreRunSnapshotTimeoutSeconds
 				$snapshotResult = Invoke-GuiPreRunSnapshotCapture `
 					-LoaderPath $bgLoaderPath `
@@ -234,13 +234,13 @@ $worker = [powershell]::Create().AddScript({
 					$Script:RunState['PreRunSnapshotPath'] = $snapshotPath
 					$Script:RunState['PreRunSnapshotTimedOut'] = $false
 					LogDebug -Message (Get-BaselineBilingualString -Key 'GuiLogExecutionPreRunSnapshotSaved' -Fallback 'Pre-run snapshot saved: {0} entries captured to {1}' -FormatArgs @([int]$snapshotResult.EntryCount, $snapshotPath)) -Always
-					Write-GuiExecutionWorkerStartupNotice -Message ("Execution worker captured pre-run snapshot: {0} entries." -f [int]$snapshotResult.EntryCount) -Progress
+					Write-GuiTweakExecutionWorkerStartupNotice -Message ("Execution worker captured pre-run snapshot: {0} entries." -f [int]$snapshotResult.EntryCount) -Progress
 				}
 				elseif ($snapshotResult -and $snapshotResult.Aborted)
 				{
 					$Script:RunState['AbortedRun'] = $true
 					$Script:RunState['PreRunSnapshotAborted'] = $true
-					Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker pre-run snapshot capture was aborted.' -Level 'WARNING' -Progress
+					Write-GuiTweakExecutionWorkerStartupNotice -Message 'Execution worker pre-run snapshot capture was aborted.' -Level 'WARNING' -Progress
 				}
 				elseif ($snapshotResult -and $snapshotResult.TimedOut)
 				{
@@ -274,22 +274,22 @@ $worker = [powershell]::Create().AddScript({
 					$Script:RunState['PreRunSnapshotLastProgress'] = $lastSnapshotProgress
 					$timeoutMessage = 'Execution worker pre-run snapshot exceeded {0} second(s) while checking {1}; continuing with selected tweaks.' -f $snapshotTimeoutSeconds, $lastSnapshotLabel
 					LogDebug -Message $timeoutMessage -Always
-					Write-GuiExecutionWorkerStartupNotice -Message $timeoutMessage -Level 'WARNING' -Progress
+					Write-GuiTweakExecutionWorkerStartupNotice -Message $timeoutMessage -Level 'WARNING' -Progress
 				}
 				else
 				{
 					$errorMessage = if ($snapshotResult -and -not [string]::IsNullOrWhiteSpace([string]$snapshotResult.ErrorMessage)) { [string]$snapshotResult.ErrorMessage } else { 'Pre-run snapshot capture failed.' }
 					LogDebug -Message (Get-BaselineBilingualString -Key 'GuiLogExecutionPreRunSnapshotFailed' -Fallback 'Failed to capture pre-run snapshot: {0}' -FormatArgs @($errorMessage)) -Always
-					Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker could not capture pre-run snapshot; continuing with selected tweaks.' -Level 'WARNING' -Progress
+					Write-GuiTweakExecutionWorkerStartupNotice -Message 'Execution worker could not capture pre-run snapshot; continuing with selected tweaks.' -Level 'WARNING' -Progress
 				}
 			}
 			catch
 			{
 				LogDebug -Message (Format-BaselineErrorForLog -ErrorObject $_ -Prefix (Get-BaselineBilingualString -Key 'GuiLogExecutionPreRunSnapshotFailed' -Fallback 'Failed to capture pre-run snapshot')) -Always
-				Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker could not capture pre-run snapshot; continuing with selected tweaks.' -Level 'WARNING' -Progress
+				Write-GuiTweakExecutionWorkerStartupNotice -Message 'Execution worker could not capture pre-run snapshot; continuing with selected tweaks.' -Level 'WARNING' -Progress
 			}
 
-			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker creating action host.' -Progress
+			Write-GuiTweakExecutionWorkerStartupNotice -Message 'Execution worker creating action host.' -Progress
 			$actionHost = New-GuiExecutionActionHost `
 				-LoaderPath $bgLoaderPath `
 				-LocalizationDirectory $bgLocDir `
@@ -301,7 +301,7 @@ $worker = [powershell]::Create().AddScript({
 
 			$stepIndex = 0
 			$stepTotal = $tweakList.Count
-			Write-GuiExecutionWorkerStartupNotice -Message ("Execution worker starting selected tweaks: {0} item(s)." -f $stepTotal) -Progress
+			Write-GuiTweakExecutionWorkerStartupNotice -Message ("Execution worker starting selected tweaks: {0} item(s)." -f $stepTotal) -Progress
 			foreach ($tweak in $tweakList)
 			{
 				while ($Script:RunState['Paused'] -and -not $Script:RunState['AbortRequested'])

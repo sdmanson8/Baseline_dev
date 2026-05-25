@@ -1109,6 +1109,7 @@ function New-BaselineSupportBundleWindowsFeatures
 			$powershellPath = 'powershell.exe'
 		}
 
+		$collectorScriptPath = $null
 		try
 		{
 			if (-not $ProcessCaptureScript)
@@ -1116,12 +1117,15 @@ function New-BaselineSupportBundleWindowsFeatures
 				throw 'Support bundle process capture helper is unavailable.'
 			}
 
+			$collectorScriptPath = Join-Path ([System.IO.Path]::GetTempPath()) ('BaselineSupportBundleCollector_{0}.ps1' -f [guid]::NewGuid().ToString('N'))
+			[System.IO.File]::WriteAllText($collectorScriptPath, $ScriptText, [System.Text.Encoding]::UTF8)
+
 			$processResult = & $ProcessCaptureScript -FilePath $powershellPath -ArgumentList @(
 				'-NoProfile',
 				'-ExecutionPolicy',
 				'Bypass',
-				'-Command',
-				$ScriptText
+				'-File',
+				$collectorScriptPath
 			) -TimeoutSeconds $TimeoutSeconds
 		}
 		catch [System.TimeoutException]
@@ -1146,6 +1150,13 @@ function New-BaselineSupportBundleWindowsFeatures
 				TimedOut  = $false
 				Value     = $null
 				Error     = $_.Exception.Message
+			}
+		}
+		finally
+		{
+			if (-not [string]::IsNullOrWhiteSpace($collectorScriptPath))
+			{
+				Remove-Item -LiteralPath $collectorScriptPath -Force -ErrorAction SilentlyContinue
 			}
 		}
 

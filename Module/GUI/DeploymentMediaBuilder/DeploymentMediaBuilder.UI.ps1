@@ -1528,16 +1528,15 @@ function Start-GuiDeploymentMediaBuilderBackgroundOperation
 
 	$operationScript = {
 		param (
-			[string]$WorkerSource,
+			[scriptblock]$WorkerBlock,
 			[hashtable]$WorkerContext,
 			[hashtable]$Sync
 		)
 
 		$ErrorActionPreference = 'Stop'
-		$workerBlock = [scriptblock]::Create($WorkerSource)
 		try
 		{
-			& $workerBlock -Context $WorkerContext -Sync $Sync
+			& $WorkerBlock -Context $WorkerContext -Sync $Sync
 		}
 		finally
 		{
@@ -1545,8 +1544,7 @@ function Start-GuiDeploymentMediaBuilderBackgroundOperation
 		}
 	}
 
-	$workerSource = $Worker.ToString()
-	$null = $ps.AddScript($operationScript).AddArgument($workerSource).AddArgument($Context).AddArgument($syncHash)
+	$null = $ps.AddScript($operationScript).AddArgument($Worker).AddArgument($Context).AddArgument($syncHash)
 
 	$asyncResult = $ps.BeginInvoke()
 	$timer = [System.Windows.Threading.DispatcherTimer]::new()

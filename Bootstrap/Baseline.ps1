@@ -1162,7 +1162,28 @@ if ($shouldShowBootstrapSplash)
 
 			if (-not $shouldPrimeUpdatesPulse)
 			{
-				$Script:BootstrapSplash = & $showBootstrapSplashCommand -StepOrder $bootstrapSplashStepOrder
+				$defaultSplashStepOrder = @('system','winget','chocolatey','finalize')
+				$usesDefaultSplashStepOrder = @($bootstrapSplashStepOrder).Count -eq $defaultSplashStepOrder.Count
+				if ($usesDefaultSplashStepOrder)
+				{
+					for ($stepIndex = 0; $stepIndex -lt $defaultSplashStepOrder.Count; $stepIndex++)
+					{
+						if ([string]$bootstrapSplashStepOrder[$stepIndex] -ne [string]$defaultSplashStepOrder[$stepIndex])
+						{
+							$usesDefaultSplashStepOrder = $false
+							break
+						}
+					}
+				}
+
+				if ($usesDefaultSplashStepOrder)
+				{
+					$Script:BootstrapSplash = & $showBootstrapSplashCommand
+				}
+				else
+				{
+					$Script:BootstrapSplash = & $showBootstrapSplashCommand -StepOrder $bootstrapSplashStepOrder
+				}
 			}
 			else
 			{

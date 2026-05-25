@@ -169,7 +169,7 @@ function Write-BaselineUpdateOverlayDebug
 	if (-not $debugEnabled -and (Get-Command -Name 'Get-BaselineDebugLogging' -CommandType Function -ErrorAction SilentlyContinue))
 	{
 		try { $debugEnabled = [bool](Get-BaselineDebugLogging) } catch {
-			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.Write-BaselineUpdateOverlayDebug:catch171' -Severity Debug }
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DebugTrace:catch171' -Severity Debug }
 		 $debugEnabled = $false }
 	}
 	if (-not $debugEnabled) { return }
@@ -186,7 +186,7 @@ function Write-BaselineUpdateOverlayDebug
 	}
 	catch
 	{
-		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.Write-BaselineUpdateOverlayDebug:catch185' -Severity Debug }
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DebugTrace:catch185' -Severity Debug }
 
 		$null = $_
 	}

@@ -79,10 +79,9 @@
 		}
 		catch
 		{
-			$writeSwallowedException = Get-TweakRowFactoryRuntimeCommand -Name 'Write-SwallowedException'
-			if ($writeSwallowedException)
+			if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue)
 			{
-				& $writeSwallowedException -ErrorRecord $_ -Source 'RowStateDefaults.Get-TweakRowFactoryHideUnavailableItems' -Severity Debug
+				Write-SwallowedException -ErrorRecord $_ -Source 'RowStateDefaults.Get-TweakRowFactoryHideUnavailableItems' -Severity Debug
 			}
 
 			return $true

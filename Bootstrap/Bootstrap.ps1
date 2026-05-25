@@ -126,6 +126,35 @@ function Resolve-RawBootstrapPreset
     .SYNOPSIS
 #>
 
+function Format-RawBootstrapByteCount
+{
+    param(
+        [Parameter(Mandatory = $true)]
+        [int64]$Bytes
+    )
+
+    if ($Bytes -ge 1GB)
+    {
+        return ('{0:N1} GB' -f ($Bytes / 1GB))
+    }
+
+    if ($Bytes -ge 1MB)
+    {
+        return ('{0:N1} MB' -f ($Bytes / 1MB))
+    }
+
+    if ($Bytes -ge 1KB)
+    {
+        return ('{0:N1} KB' -f ($Bytes / 1KB))
+    }
+
+    return ('{0:N0} B' -f $Bytes)
+}
+
+<#
+    .SYNOPSIS
+#>
+
 function Invoke-RawBootstrapDownloadFile
 {
     param(
@@ -133,23 +162,75 @@ function Invoke-RawBootstrapDownloadFile
         [string]$Uri,
 
         [Parameter(Mandatory = $true)]
-        [string]$OutFile
+        [string]$OutFile,
+
+        [string]$Label = 'Downloaded file'
     )
 
-    $invokeParams = @{
-        Uri         = $Uri
-        OutFile     = $OutFile
-        TimeoutSec  = 30
-        ErrorAction = 'Stop'
-    }
+    $request = [System.Net.HttpWebRequest][System.Net.WebRequest]::Create($Uri)
+    $request.Method = 'GET'
+    $request.UserAgent = 'BaselineBootstrap'
+    $request.Timeout = 30000
+    $request.ReadWriteTimeout = 30000
+    $request.AllowAutoRedirect = $true
 
-    $iwrCommand = Get-Command Invoke-WebRequest -ErrorAction Stop
-    if ($iwrCommand.Parameters.ContainsKey('UseBasicParsing'))
+    $response = $null
+    $inputStream = $null
+    $outputStream = $null
+    $activity = "Downloading $Label..."
+    $statusPrefix = "Downloading $Label"
+    $previousProgressPreference = $ProgressPreference
+
+    try
     {
-        $invokeParams.UseBasicParsing = $true
-    }
+        $response = [System.Net.HttpWebResponse]$request.GetResponse()
+        $totalBytes = [int64]$response.ContentLength
+        $inputStream = $response.GetResponseStream()
+        $outputStream = [System.IO.File]::Open($OutFile, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+        $buffer = New-Object byte[] 65536
+        $receivedBytes = [int64]0
+        $ProgressPreference = 'Continue'
 
-	Invoke-WebRequest @invokeParams | Out-Null
+        while ($true)
+        {
+            $read = $inputStream.Read($buffer, 0, $buffer.Length)
+            if ($read -le 0)
+            {
+                break
+            }
+
+            $outputStream.Write($buffer, 0, $read)
+            $receivedBytes += [int64]$read
+
+            if ($totalBytes -gt 0)
+            {
+                $percentComplete = [System.Math]::Min(100, [System.Math]::Floor(($receivedBytes * 100.0) / $totalBytes))
+                $operation = '{0} of {1}' -f (Format-RawBootstrapByteCount -Bytes $receivedBytes), (Format-RawBootstrapByteCount -Bytes $totalBytes)
+                Write-Progress -Activity $activity -Status $statusPrefix -CurrentOperation $operation -PercentComplete $percentComplete
+            }
+            else
+            {
+                $operation = '{0} downloaded' -f (Format-RawBootstrapByteCount -Bytes $receivedBytes)
+                Write-Progress -Activity $activity -Status $statusPrefix -CurrentOperation $operation
+            }
+        }
+
+        $outputStream.Flush()
+
+        if ($totalBytes -gt 0 -and $receivedBytes -ne $totalBytes)
+        {
+            throw "Downloaded byte count for '$Label' did not match Content-Length. Expected $totalBytes but received $receivedBytes."
+        }
+    }
+    finally
+    {
+        Write-Progress -Activity $activity -Completed
+        $ProgressPreference = $previousProgressPreference
+
+        if ($outputStream) { $outputStream.Dispose() }
+        if ($inputStream) { $inputStream.Dispose() }
+        if ($response) { $response.Dispose() }
+    }
 }
 
 <#
@@ -564,9 +645,9 @@ try
 
     # Write-Host: intentional bootstrap progress output.
     Write-Host "Downloading $Repository $($latest.tag_name) from $downloadUrl"
-    Invoke-RawBootstrapDownloadFile -Uri $downloadUrl -OutFile $archivePath
+    Invoke-RawBootstrapDownloadFile -Uri $downloadUrl -OutFile $archivePath -Label 'Baseline release archive'
     Write-Host "Downloading release integrity manifest from $integrityUrl"
-    Invoke-RawBootstrapDownloadFile -Uri $integrityUrl -OutFile $integrityManifestPath
+    Invoke-RawBootstrapDownloadFile -Uri $integrityUrl -OutFile $integrityManifestPath -Label 'release integrity manifest'
     $archiveHash = Assert-RawBootstrapReleaseAssetHash -ManifestPath $integrityManifestPath -AssetName ([string]$asset.name) -FilePath $archivePath -Label 'Release archive'
     Write-Host "Verified SHA-256 for $($asset.name): $archiveHash"
 

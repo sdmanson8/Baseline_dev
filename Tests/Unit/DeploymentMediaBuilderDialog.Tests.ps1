@@ -211,8 +211,9 @@ Describe 'Deployment Media Builder top navigation view' {
         $script:ViewContent | Should -Match '\[System\.Management\.Automation\.Runspaces\.InitialSessionState\]::CreateDefault\(\)'
         $script:ViewContent | Should -Match '\$initialSessionState\.ImportPSModule\(@\(''Microsoft\.PowerShell\.Management'', ''Microsoft\.PowerShell\.Utility''\)\)'
         $script:ViewContent | Should -Match '\[System\.Management\.Automation\.Runspaces\.RunspaceFactory\]::CreateRunspace\(\$initialSessionState\)'
-        $script:ViewContent | Should -Match '\$workerSource = \$Worker\.ToString\(\)'
-        $script:ViewContent | Should -Match '\[scriptblock\]::Create\(\$WorkerSource\)'
+        $script:ViewContent | Should -Match '\[scriptblock\]\$WorkerBlock'
+        $script:ViewContent | Should -Match '\.AddArgument\(\$Worker\)'
+        $script:ViewContent | Should -Not -Match '\[scriptblock\]::Create\(\$WorkerSource\)'
         $script:ViewContent | Should -Match '\[System\.Windows\.Threading\.DispatcherTimer\]::new\(\)'
         $script:ViewContent | Should -Match '\$ps\.BeginInvoke\(\)'
         $script:ViewContent | Should -Match '\$ps\.BeginStop\(\$null, \$null\)'
@@ -247,7 +248,7 @@ Describe 'Deployment Media Builder top navigation view' {
             '\$convertWorkerErrorScript = \$\{function:Convert-GuiDeploymentMediaBuilderWorkerErrorRecord\}',
             '\$writeDebugLogScript = \$\{function:Write-GuiDeploymentMediaBuilderViewDebugLog\}',
             '\$ErrorActionPreference = ''Stop''',
-            '\$workerBlock = \[scriptblock\]::Create\(\$WorkerSource\)',
+            '\[scriptblock\]\$WorkerBlock',
             'ProgressPayload = \$null',
             'LastStatus = ''''',
             '\$streamErrors = @\(\$ps\.Streams\.Error\)',
@@ -786,8 +787,9 @@ Describe 'Deployment Media Builder dialog contract' {
         $script:DialogContent | Should -Match '\[System\.Management\.Automation\.Runspaces\.InitialSessionState\]::CreateDefault\(\)'
         $script:DialogContent | Should -Match '\$initialSessionState\.ImportPSModule\(@\(''Microsoft\.PowerShell\.Management'', ''Microsoft\.PowerShell\.Utility''\)\)'
         $script:DialogContent | Should -Match '\[System\.Management\.Automation\.Runspaces\.RunspaceFactory\]::CreateRunspace\(\$initialSessionState\)'
-        $script:DialogContent | Should -Match '\$workerSource = \$Worker\.ToString\(\)'
-        $script:DialogContent | Should -Match '\[scriptblock\]::Create\(\$WorkerSource\)'
+        $script:DialogContent | Should -Match '\[scriptblock\]\$WorkerBlock'
+        $script:DialogContent | Should -Match '\.AddArgument\(\$Worker\)'
+        $script:DialogContent | Should -Not -Match '\[scriptblock\]::Create\(\$WorkerSource\)'
         $script:DialogContent | Should -Match '\[System\.Windows\.Threading\.DispatcherTimer\]::new\(\)'
         $script:DialogContent | Should -Match '\$ps\.BeginInvoke\(\)'
         $script:DialogContent | Should -Match '\$ps\.BeginStop\(\$null, \$null\)'

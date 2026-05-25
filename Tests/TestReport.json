@@ -1,5 +1,5 @@
 ﻿{
-    "generated":  "2026-05-13T01:52:43.3457795+02:00",
+    "generated":  "2026-05-24T23:41:23.0007920+02:00",
     "platform":  {
                      "os":  "Microsoft Windows NT 10.0.26100.0",
                      "edition":  "Desktop",
@@ -14,28 +14,28 @@
                                  "passed":  0,
                                  "failed":  0,
                                  "skipped":  0,
-                                 "duration":  228.76,
+                                 "duration":  224.17,
                                  "output":  ""
                              },
                    "unit":  {
                                 "name":  "Unit Tests",
                                 "script":  "E:\\Github\\Baseline_dev\\Tests\\Unit",
                                 "result":  "Passed",
-                                "passed":  5463,
+                                "passed":  5730,
                                 "failed":  0,
                                 "skipped":  4,
-                                "duration":  1029.58,
-                                "output":  "Tests: 5467 | Passed: 5463 | Failed: 0 | Skipped: 4"
+                                "duration":  993.37,
+                                "output":  "Tests: 5734 | Passed: 5730 | Failed: 0 | Skipped: 4"
                             },
                    "composition":  {
                                        "name":  "GUI Composition Tests",
                                        "script":  "E:\\Github\\Baseline_dev\\Tests\\GUI.Composition.Tests.ps1",
                                        "result":  "Passed",
-                                       "passed":  43,
+                                       "passed":  44,
                                        "failed":  0,
                                        "skipped":  0,
-                                       "duration":  3.44,
-                                       "output":  "Tests: 43 | Passed: 43 | Failed: 0 | Skipped: 0"
+                                       "duration":  3.78,
+                                       "output":  "Tests: 44 | Passed: 44 | Failed: 0 | Skipped: 0"
                                    },
                    "preset":  {
                                   "name":  "Preset Validation",
@@ -44,12 +44,12 @@
                                   "passed":  0,
                                   "failed":  0,
                                   "skipped":  0,
-                                  "duration":  4.65,
+                                  "duration":  5.42,
                                   "output":  ""
                               }
                },
     "summary":  {
-                    "totalPassed":  5506,
+                    "totalPassed":  5774,
                     "totalFailed":  0,
                     "totalSkipped":  4,
                     "overallResult":  "Passed"
@@ -57,7 +57,7 @@
     "badge":  {
                   "schemaVersion":  1,
                   "label":  "tests",
-                  "message":  "5506 passed",
+                  "message":  "5774 passed",
                   "color":  "brightgreen"
               }
 }

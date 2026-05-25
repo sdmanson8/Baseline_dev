@@ -306,7 +306,7 @@ function Invoke-GuiCustomizationsUserFoldersAction
 	catch
 	{
 		LogError (Format-BaselineErrorForLog -ErrorObject $_ -Prefix 'Failed to open user folders')
-		[void](Show-ThemedDialog -Title 'User Folders' -Message ("Failed to open user folders.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
+		[void](Show-ThemedDialog -Title (Get-UxLocalizedString -Key 'GuiUserFoldersTitle' -Fallback 'User Folders') -Message ("Failed to open user folders.`n`n{0}" -f $_.Exception.Message) -Buttons @('OK') -AccentButton 'OK')
 	}
 }
 

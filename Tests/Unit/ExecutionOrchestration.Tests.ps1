@@ -109,7 +109,7 @@ Describe 'Execution orchestration timer wiring' {
         $script:ExecutionRunContent | Should -Match "Start-GuiPerfScope -Name 'Execution\.TimerStart'"
         $script:GuiExecutionContent | Should -Match 'Execution startup: creating background runspace\.'
         $script:GuiExecutionContent | Should -Match 'Execution startup: worker BeginInvoke returned\.'
-        $script:ExecutionWorkerContent | Should -Match 'function Write-GuiExecutionWorkerStartupNotice'
+        $script:ExecutionWorkerContent | Should -Match 'function Write-GuiTweakExecutionWorkerStartupNotice'
         $script:ExecutionWorkerContent | Should -Match 'Execution worker entered background runspace\.'
         $script:ExecutionWorkerContent | Should -Match 'Execution worker importing Baseline modules\.'
         $script:ExecutionWorkerContent | Should -Match 'Execution worker capturing pre-run system snapshot\.'
@@ -160,7 +160,7 @@ Describe 'Execution orchestration timer wiring' {
         $script:AppExecutionWorkerContent | Should -Match '\$Script:RunState\[''AppProgressIndeterminate''\] = \$false'
         $script:AppExecutionRunContent | Should -Match '\$noticeDiagnostic'
         $script:AppExecutionRunContent | Should -Match 'LogDebug -Message \$noticeMessage -Always'
-        $script:AppExecutionWorkerContent | Should -Match 'function Write-GuiExecutionWorkerStartupNotice'
+        $script:AppExecutionWorkerContent | Should -Match 'function Write-GuiAppExecutionWorkerStartupNotice'
         $script:AppExecutionWorkerContent | Should -Match 'Execution worker entered background runspace\.'
         $script:AppExecutionWorkerContent | Should -Match 'Execution worker loading JSON and localization helpers\.'
         $script:AppExecutionWorkerContent | Should -Match 'Execution worker importing GUI execution helpers\.'

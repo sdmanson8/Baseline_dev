@@ -112,9 +112,9 @@ Describe 'Worker availability gate (Start-GuiExecutionWorker source-pattern chec
         $script:ExecutionContent | Should -Match 'Resolve-GuiExecutionAvailabilityGate -Entry \$tweak -ForceUnsupported:\$bgForceUnsupported'
     }
 
-    It 'enqueues a skipped _TweakCompleted entry when the gate blocks' {
+    It 'enqueues a not-applicable _TweakCompleted entry when the gate blocks' {
         $script:ExecutionContent | Should -Match 'Skipped - not available on this system: \{0\} - \{1\}'
-        $script:ExecutionContent | Should -Match "Status\s*=\s*'skipped'"
+        $script:ExecutionContent | Should -Match "Status\s*=\s*'not applicable'"
     }
 
     It 'logs a warning when the gate forces an unavailable entry' {

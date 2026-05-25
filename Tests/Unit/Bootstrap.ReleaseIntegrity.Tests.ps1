@@ -96,6 +96,17 @@ Describe 'Bootstrap release integrity helpers' {
         $script:bootstrapContent | Should -Not -Match 'Remove-Item -LiteralPath \$CacheRoot -Recurse -Force -ErrorAction SilentlyContinue'
     }
 
+    It 'renders bootstrap download progress from streamed bytes' {
+        $script:bootstrapContent | Should -Match 'function Format-RawBootstrapByteCount'
+        $script:bootstrapContent | Should -Match '\[System\.Net\.HttpWebRequest\]\[System\.Net\.WebRequest\]::Create\(\$Uri\)'
+        $script:bootstrapContent | Should -Match '\$response\.GetResponseStream\(\)'
+        $script:bootstrapContent | Should -Match 'Write-Progress -Activity \$activity -Status \$statusPrefix -CurrentOperation \$operation -PercentComplete \$percentComplete'
+        $script:bootstrapContent | Should -Match 'Content-Length'
+        $script:bootstrapContent | Should -Match 'Invoke-RawBootstrapDownloadFile -Uri \$downloadUrl -OutFile \$archivePath -Label ''Baseline release archive'''
+        $script:bootstrapContent | Should -Match 'Invoke-RawBootstrapDownloadFile -Uri \$integrityUrl -OutFile \$integrityManifestPath -Label ''release integrity manifest'''
+        $script:bootstrapContent | Should -Not -Match 'Invoke-WebRequest @invokeParams'
+    }
+
     It 'returns the expected SHA-256 for an asset in the manifest' {
         $result = Get-RawBootstrapReleaseAssetSha256 -ManifestPath $script:manifestPath -AssetName $script:archiveName
 

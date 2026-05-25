@@ -243,6 +243,10 @@ Get-FileHash .\Baseline-<version>.zip -Algorithm SHA256
 .\Baseline.exe -ProfilePath .\baseline-profile.json
 ```
 
+### Export a first-logon command for autounattend
+
+Export a configuration profile from the GUI, then use the first-logon command export to create a `FirstLogonCommands` XML snippet. The generated command runs `Baseline.exe --configfile "<profile.json>" --apply` during Windows setup first logon.
+
 ### Compliance check
 
 ```powershell

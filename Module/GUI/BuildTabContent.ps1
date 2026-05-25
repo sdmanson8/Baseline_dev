@@ -322,6 +322,17 @@
 		if (-not $CacheOnly)
 		{
 			Show-TabContentBuildPanel -BuildContext $BuildContext
+			try
+			{
+				if ($Script:UpdateGuiBackToTopButtonScript)
+				{
+					& $Script:UpdateGuiBackToTopButtonScript -Source 'BuildTabContent.SaveTabContentCacheEntry.UpdateBackToTopButton'
+				}
+			}
+			catch
+			{
+				Write-SwallowedException -ErrorRecord $_ -Source 'BuildTabContent.SaveTabContentCacheEntry.UpdateBackToTopButton' -Severity Debug
+			}
 		}
 		$controlRefs = @{}
 		foreach ($index in @($AllTabIndexes))

@@ -54,7 +54,7 @@ BeforeAll {
             [int]$TimeoutSeconds
         )
 
-        $scriptText = [string]$ArgumentList[-1]
+        $scriptText = if ($ArgumentList -contains '-File') { Get-Content -LiteralPath ([string]$ArgumentList[-1]) -Raw -Encoding UTF8 } else { [string]$ArgumentList[-1] }
         if ($scriptText -match 'Get-WindowsOptionalFeature -Online') {
             return [pscustomobject]@{
                 ExitCode       = 0
@@ -645,7 +645,7 @@ Describe 'Export-BaselineSupportBundle' {
                 [int]$TimeoutSeconds
             )
 
-            $scriptText = [string]$ArgumentList[-1]
+            $scriptText = if ($ArgumentList -contains '-File') { Get-Content -LiteralPath ([string]$ArgumentList[-1]) -Raw -Encoding UTF8 } else { [string]$ArgumentList[-1] }
             $script:SupportBundleWindowsFeatureCollectorCalls.Add([pscustomobject]@{
                 TimeoutSeconds = $TimeoutSeconds
                 ScriptText     = $scriptText

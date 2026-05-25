@@ -2512,7 +2512,7 @@
         "Aggressive repair"
       ],
       "Default": "Standard",
-      "WinDefault": null,
+      "WinDefault": "Standard",
       "Description": "Repair Windows Update components",
       "Detail": "Resets Windows Update services, cache, policy, BITS jobs, and re-registers core update DLLs. Aggressive mode also runs CHKDSK, SFC, DISM, and deeper cache resets.",
       "Caution": true,

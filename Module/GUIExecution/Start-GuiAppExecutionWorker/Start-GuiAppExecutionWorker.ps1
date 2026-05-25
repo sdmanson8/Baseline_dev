@@ -1,4 +1,4 @@
-$worker = [powershell]::Create().AddScript({
+﻿$worker = [powershell]::Create().AddScript({
 		$bgTracePath = Join-Path $env:TEMP 'Baseline-AppWorker-trace.txt'
 		function Write-BgTrace
 		{
@@ -86,7 +86,7 @@ $worker = [powershell]::Create().AddScript({
 				$Global:BaselineUseDarkMode = [bool]$bgUseDarkMode
 			}
 			$Script:RunState = $runState
-			function Write-GuiExecutionWorkerStartupNotice
+			function Write-GuiAppExecutionWorkerStartupNotice
 			{
 				param(
 					[Parameter(Mandatory = $true)]
@@ -114,10 +114,10 @@ $worker = [powershell]::Create().AddScript({
 					Write-BgTrace ("Failed to enqueue app worker startup notice: {0}" -f $_.Exception.Message)
 				}
 			}
-			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker entered background runspace.' -Progress
+			Write-GuiAppExecutionWorkerStartupNotice -Message 'Execution worker entered background runspace.' -Progress
 			Write-BgTrace "GUIMode set, RunState assigned"
 
-			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker loading JSON and localization helpers.' -Progress
+			Write-GuiAppExecutionWorkerStartupNotice -Message 'Execution worker loading JSON and localization helpers.' -Progress
 			$bgModuleRoot = Split-Path -Parent (Split-Path -Parent $bgLoaderPath)
 			$bgHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Localization.Helpers.ps1'
 			$bgJsonHelperPath = Join-Path $bgModuleRoot 'SharedHelpers\Json.Helpers.ps1'
@@ -147,17 +147,17 @@ $worker = [powershell]::Create().AddScript({
 				throw 'Action host loader path was not supplied to the app worker runspace.'
 			}
 
-			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker importing GUI execution helpers.' -Progress
+			Write-GuiAppExecutionWorkerStartupNotice -Message 'Execution worker importing GUI execution helpers.' -Progress
 			Write-BgTrace ("Import-Module GUIExecution.psm1 START path={0}" -f $bgGuiExecutionModulePath)
 			Import-Module $bgGuiExecutionModulePath -Force -Global -DisableNameChecking -WarningAction SilentlyContinue -ErrorAction Stop
 			Write-BgTrace ("Import-Module GUIExecution.psm1 DONE actionHostLoader={0}" -f $bgActionHostLoaderPath)
-			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker imported GUI execution helpers.' -Progress
+			Write-GuiAppExecutionWorkerStartupNotice -Message 'Execution worker imported GUI execution helpers.' -Progress
 
 			# Module import must be side-effect-free (no Write-Host, no state mutation)
 			# because this runs in a fresh background runspace.
 			try
 			{
-				Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker importing application modules.' -Progress
+				Write-GuiAppExecutionWorkerStartupNotice -Message 'Execution worker importing application modules.' -Progress
 				Write-BgTrace "Import-Module Applications.psm1 START"
 				$Global:LogFilePath = $bgLogFilePath
 				Import-Module $bgLoaderPath -Force -Global -ErrorAction Stop
@@ -166,7 +166,7 @@ $worker = [powershell]::Create().AddScript({
 					Set-BaselineOperationMode -Mode ([string]$bgOperationMode)
 				}
 				Write-BgTrace "Import-Module Applications.psm1 DONE"
-				Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker imported application modules.' -Progress
+				Write-GuiAppExecutionWorkerStartupNotice -Message 'Execution worker imported application modules.' -Progress
 			}
 			catch
 			{
@@ -193,10 +193,10 @@ $worker = [powershell]::Create().AddScript({
 			{
 				Clear-UILogHandler
 			}
-			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker connected logging pipeline.' -Progress
+			Write-GuiAppExecutionWorkerStartupNotice -Message 'Execution worker connected logging pipeline.' -Progress
 			Write-BgTrace ("Log plumbing configured. runAction={0} winget={1} choco={2} displayName={3} appPresent={4} selCount={5}" -f $runAction, $packageId, $chocolateyId, $displayName, ($null -ne $application), @($selectedApps).Count)
 
-			Write-GuiExecutionWorkerStartupNotice -Message 'Execution worker creating action host.' -Progress
+			Write-GuiAppExecutionWorkerStartupNotice -Message 'Execution worker creating action host.' -Progress
 			$actionHost = New-GuiExecutionActionHost `
 				-LoaderPath $bgActionHostLoaderPath `
 				-LocalizationDirectory $bgLocDir `
@@ -247,7 +247,7 @@ $worker = [powershell]::Create().AddScript({
 						$Script:RunState['AppProgressTotal'] = $stepTotal
 						$Script:RunState['AppProgressIndeterminate'] = $false
 					}
-					Write-GuiExecutionWorkerStartupNotice -Message ("Execution worker starting selected apps: {0} item(s)." -f $queuedApps.Count) -Progress
+					Write-GuiAppExecutionWorkerStartupNotice -Message ("Execution worker starting selected apps: {0} item(s)." -f $queuedApps.Count) -Progress
 
 					$stepIndex = 0
 					foreach ($queuedApp in @($queuedApps))
@@ -433,7 +433,7 @@ $worker = [powershell]::Create().AddScript({
 				}
 				else
 				{
-					Write-GuiExecutionWorkerStartupNotice -Message ("Execution worker starting app action: {0}." -f $runAction) -Progress
+					Write-GuiAppExecutionWorkerStartupNotice -Message ("Execution worker starting app action: {0}." -f $runAction) -Progress
 					$legacyTimeoutSeconds = Get-GuiExecutionActionTimeoutSeconds -Entry $application -ExecutionClass 'App'
 					$legacyName = if (-not [string]::IsNullOrWhiteSpace([string]$displayName)) { [string]$displayName } else { [string]$runAction }
 					Enqueue-AppExecutionEvent -Kind '_AppStarted' -Name $legacyName -Action $runAction -StepIndex 1 -StepTotal 1

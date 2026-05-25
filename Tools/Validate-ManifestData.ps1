@@ -213,6 +213,18 @@ function Test-ManifestEntryHasReversibleChoiceDefaults
 		}
 	}
 
+	if ($Entry.PSObject.Properties['DisplayOptions'] -and $null -ne $Entry.DisplayOptions)
+	{
+		foreach ($displayOption in @($Entry.DisplayOptions))
+		{
+			$displayOptionText = [string]$displayOption
+			if (-not [string]::IsNullOrWhiteSpace($displayOptionText))
+			{
+				[void]$choiceValues.Add($displayOptionText.Trim())
+			}
+		}
+	}
+
 	foreach ($propertyName in @('Default', 'WinDefault'))
 	{
 		if ($Entry.PSObject.Properties[$propertyName] -and $null -ne $Entry.$propertyName)
@@ -227,7 +239,7 @@ function Test-ManifestEntryHasReversibleChoiceDefaults
 
 	# Package-style install/remove choices can still expose Default/WinDefault values
 	# without providing a direct or defaults-only recovery path.
-	if (@($choiceValues | Where-Object { $_ -match '^(?i)(install|uninstall|remove|delete|update|repair)$' }).Count -gt 0)
+	if (@($choiceValues | Where-Object { $_ -match '(?i)\b(install|uninstall|remove|delete|update|repair)\b' }).Count -gt 0)
 	{
 		return $false
 	}

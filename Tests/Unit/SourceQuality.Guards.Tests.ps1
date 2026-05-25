@@ -75,12 +75,50 @@ BeforeAll {
             if ($errors) {
                 throw "Could not parse $($file.FullName)"
             }
+            $sourceLines = [System.IO.File]::ReadAllLines($file.FullName)
 
             foreach ($functionAst in $ast.FindAll({
                 param($node)
                 $node -is [System.Management.Automation.Language.FunctionDefinitionAst]
             }, $true)) {
-                $lineCount = $functionAst.Extent.EndLineNumber - $functionAst.Extent.StartLineNumber + 1
+                $excludedLines = New-Object 'System.Collections.Generic.HashSet[int]'
+                foreach ($nestedPayload in @($functionAst.FindAll({
+                    param($node)
+                    ($node -is [System.Management.Automation.Language.ScriptBlockExpressionAst]) -or
+                        ($node -is [System.Management.Automation.Language.StringConstantExpressionAst] -and $node.StringConstantType -match 'HereString')
+                }, $true))) {
+                    for ($line = $nestedPayload.Extent.StartLineNumber; $line -le $nestedPayload.Extent.EndLineNumber; $line++) {
+                        [void]$excludedLines.Add($line)
+                    }
+                }
+
+                $lineCount = 0
+                $inBlockComment = $false
+                for ($lineNumber = $functionAst.Extent.StartLineNumber; $lineNumber -le $functionAst.Extent.EndLineNumber; $lineNumber++) {
+                    if ($excludedLines.Contains($lineNumber)) {
+                        continue
+                    }
+
+                    $trimmedLine = $sourceLines[$lineNumber - 1].Trim()
+                    if ($inBlockComment) {
+                        if ($trimmedLine -match '#>') {
+                            $inBlockComment = $false
+                        }
+                        continue
+                    }
+                    if ($trimmedLine -match '^<#') {
+                        if ($trimmedLine -notmatch '#>') {
+                            $inBlockComment = $true
+                        }
+                        continue
+                    }
+                    if ([string]::IsNullOrWhiteSpace($trimmedLine) -or $trimmedLine.StartsWith('#') -or $trimmedLine -match '^[\{\}\)\]\.;]+$') {
+                        continue
+                    }
+
+                    $lineCount++
+                }
+
                 if ($lineCount -gt $MaximumLines) {
                     '{0}:{1}:{2}:{3}' -f (Get-RelativeSourcePath -Path $functionAst.Extent.File), $functionAst.Extent.StartLineNumber, $functionAst.Name, $lineCount
                 }

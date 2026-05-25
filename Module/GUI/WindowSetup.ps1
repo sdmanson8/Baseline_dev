@@ -1216,7 +1216,12 @@
 				$reporterErrorRecord = $_
 				$dispatcherErrorText = if ($dispatcherException) {
 					try { Format-BaselineErrorForLog -ErrorObject $dispatcherException -Prefix 'GUI event failed: WPF Dispatcher' }
-					catch { 'GUI event failed: WPF Dispatcher: {0}: {1}' -f $dispatcherException.GetType().FullName, $dispatcherException.Message }
+					catch {
+						$formattingErrorRecord = $_
+						$formattingErrorType = if ($formattingErrorRecord.Exception) { $formattingErrorRecord.Exception.GetType().FullName } else { $formattingErrorRecord.GetType().FullName }
+						Write-Warning ('GUI dispatcher error formatting failed: {0}: {1}' -f $formattingErrorType, [string]$formattingErrorRecord)
+						'GUI event failed: WPF Dispatcher: {0}: {1}' -f $dispatcherException.GetType().FullName, [string]$dispatcherException
+					}
 				} else {
 					'GUI event failed: WPF Dispatcher raised an unhandled exception event without an exception payload.'
 				}
@@ -1224,6 +1229,9 @@
 					Format-BaselineErrorForLog -ErrorObject $reporterErrorRecord.Exception -Prefix 'GUI dispatcher failure reporter failed'
 				}
 				catch {
+					$reporterFormattingErrorRecord = $_
+					$reporterFormattingErrorType = if ($reporterFormattingErrorRecord.Exception) { $reporterFormattingErrorRecord.Exception.GetType().FullName } else { $reporterFormattingErrorRecord.GetType().FullName }
+					Write-Warning ('GUI dispatcher reporter error formatting failed: {0}: {1}' -f $reporterFormattingErrorType, [string]$reporterFormattingErrorRecord)
 					'GUI dispatcher failure reporter failed.'
 				}
 
@@ -1262,7 +1270,12 @@
 						Write-SwallowedException -ErrorRecord $reporterErrorRecord -Source 'WindowSetup.DispatcherRuntimeFailureReport' -Severity Warning
 					}
 				}
-				catch { }
+				catch
+				{
+					$swallowedLoggingErrorRecord = $_
+					$swallowedLoggingErrorType = if ($swallowedLoggingErrorRecord.Exception) { $swallowedLoggingErrorRecord.Exception.GetType().FullName } else { $swallowedLoggingErrorRecord.GetType().FullName }
+					Write-Warning ('GUI dispatcher swallowed-exception logging failed: {0}: {1}' -f $swallowedLoggingErrorType, [string]$swallowedLoggingErrorRecord)
+				}
 			}
 			finally
 			{

@@ -611,10 +611,10 @@ switch ($PSCmdlet.ParameterSetName)
 
 				# Show themed dialog that blocks until user clicks OK
 				$messageText = "Microsoft Store has been opened for $PackageName.`n`nPlease install the app manually, then click OK to continue with the next app."
-                            $currentTheme = Get-UWPAppsPickerTheme
+                            $manualInstallTheme = Get-UWPAppsPickerTheme
                             $isDarkMode = Resolve-UWPAppsPickerUseDarkMode
 				$dialogParams = @{
-                                Theme = $currentTheme
+                                Theme = $manualInstallTheme
                                 ApplyButtonChrome = { param($Button, $Variant) }
 					Title = if ($Localization.PSObject.Properties['ManualInstallRequired']) { $Localization.ManualInstallRequired } else { 'Manual Installation Required' }
 					Message = $messageText
