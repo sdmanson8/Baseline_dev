@@ -1,6 +1,16 @@
 $Script:DownloadStartEvent = {
-		$uri = 'https://github.com/sdmanson8/Baseline/archive/refs/heads/main.zip'
-		$tempPath = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline_Update.zip'
+		$uri = if (Get-Variable -Name 'PendingUpdateDownloadUri' -Scope Script -ErrorAction SilentlyContinue) { [string]$Script:PendingUpdateDownloadUri } else { '' }
+		if ([string]::IsNullOrWhiteSpace($uri))
+		{
+			LogWarning 'No resolved update release asset is available to download.'
+			return
+		}
+		$tempPath = if (Get-Variable -Name 'PendingUpdateArchivePath' -Scope Script -ErrorAction SilentlyContinue) { [string]$Script:PendingUpdateArchivePath } else { '' }
+		if ([string]::IsNullOrWhiteSpace($tempPath))
+		{
+			LogWarning 'No resolved update archive path is available for the download.'
+			return
+		}
 		if ($startBaselineDownloadScript)
 		{
 			& $startBaselineDownloadScript -Uri $uri -DestinationPath $tempPath
@@ -16,7 +26,12 @@ $Script:DownloadStartEvent = {
 		if ($BtnDownloadYes) { $BtnDownloadYes.IsEnabled = $false }
 		if ($BtnDownloadNo) { $BtnDownloadNo.IsEnabled = $false }
 
-		$zipPath = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline_Update.zip'
+		$zipPath = if (Get-Variable -Name 'PendingUpdateArchivePath' -Scope Script -ErrorAction SilentlyContinue) { [string]$Script:PendingUpdateArchivePath } else { '' }
+		if ([string]::IsNullOrWhiteSpace($zipPath))
+		{
+			LogWarning 'No downloaded update archive path is available to extract.'
+			return
+		}
 		$extractPath = Join-Path ([System.IO.Path]::GetTempPath()) 'Baseline_New'
 
 		Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force

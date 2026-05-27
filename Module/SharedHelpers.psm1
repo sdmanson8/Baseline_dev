@@ -1101,6 +1101,8 @@ $ExportedFunctions = @(
     'Search-BaselineRemoteOrchestrationHistory'
     'Invoke-BaselineAutoUpdate'
     'Invoke-BaselineUpdateCheck'
+    'Get-BaselineUpdateAsset'
+    'Get-BaselineUpdateAssetPattern'
     'Get-BaselineUpdateSettings'
     'Get-BaselineStartupSplashSettings'
     'Get-BaselineStartupPackageManagerCheckStatePath'

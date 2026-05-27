@@ -455,9 +455,9 @@ Describe 'Get-BaselineUpdateSettings' {
         $settings.CheckFrequency | Should -Be 'Weekly'
         $settings.IncludePrereleaseBuilds | Should -BeTrue
         $settings.UpdateBranch | Should -Be 'Beta'
-        $settings.RepositoryName | Should -Be 'Baseline_dev'
-        $settings.RepositoryUrl | Should -Be 'https://github.com/sdmanson8/Baseline_dev'
-        $settings.ReleaseApiUri | Should -Be 'https://api.github.com/repos/sdmanson8/Baseline_dev/releases'
+        $settings.RepositoryName | Should -Be 'baseline_dev'
+        $settings.RepositoryUrl | Should -Be 'https://github.com/sdmanson8/baseline_dev'
+        $settings.ReleaseApiUri | Should -Be 'https://api.github.com/repos/sdmanson8/baseline_dev/releases'
     }
 }
 
@@ -567,8 +567,8 @@ Describe 'Baseline update branch mapping' {
         ConvertTo-BaselineUpdateBranch -Branch 'stable' | Should -Be 'Stable'
         ConvertTo-BaselineUpdateBranch -Branch 'beta' | Should -Be 'Beta'
         Get-BaselineUpdateRepositoryUrl -Branch 'Stable' | Should -Be 'https://github.com/sdmanson8/Baseline'
-        Get-BaselineUpdateRepositoryUrl -Branch 'Beta' | Should -Be 'https://github.com/sdmanson8/Baseline_dev'
-        Get-BaselineUpdateReleaseApiUri -Branch 'Beta' | Should -Be 'https://api.github.com/repos/sdmanson8/Baseline_dev/releases'
+        Get-BaselineUpdateRepositoryUrl -Branch 'Beta' | Should -Be 'https://github.com/sdmanson8/baseline_dev'
+        Get-BaselineUpdateReleaseApiUri -Branch 'Beta' | Should -Be 'https://api.github.com/repos/sdmanson8/baseline_dev/releases'
     }
 
     It 'defaults beta builds to the beta update branch' {
@@ -607,6 +607,43 @@ Describe 'Compare-BaselineReleaseVersions' {
 
     It 'normalizes display-version prerelease text in parentheses' {
         (Compare-BaselineReleaseVersions -LeftVersion 'v4.0.0 (beta)' -RightVersion 'v4.0.0-beta') | Should -Be 0
+    }
+}
+
+Describe 'Test-BaselineReleaseUpdateRequired' {
+    It 'allows an explicit beta channel switch from the same stable core version' {
+        Test-BaselineReleaseUpdateRequired -LatestVersion 'v1.0.0-beta' -CurrentVersion 'v1.0.0' -UpdateBranch 'Beta' |
+            Should -BeTrue
+    }
+
+    It 'does not treat the same beta build as a new update once already on beta' {
+        Test-BaselineReleaseUpdateRequired -LatestVersion 'v1.0.0-beta' -CurrentVersion 'v1.0.0 (beta)' -UpdateBranch 'Beta' |
+            Should -BeFalse
+    }
+
+    It 'does not treat the same beta build as a new update when the launcher reports a plain numeric version' {
+        Test-BaselineReleaseUpdateRequired -LatestVersion 'v1.0.0-beta' -CurrentVersion 'v1.0.0' -UpdateBranch 'Beta' -CurrentBuildBranch 'Beta' |
+            Should -BeFalse
+    }
+
+    It 'allows an explicit stable channel switch from a newer beta build' {
+        Test-BaselineReleaseUpdateRequired -LatestVersion 'v1.0.0' -CurrentVersion 'v4.0.0 (beta)' -UpdateBranch 'Stable' |
+            Should -BeTrue
+    }
+
+    It 'allows an explicit stable channel switch when the beta launcher reports a plain numeric version' {
+        Test-BaselineReleaseUpdateRequired -LatestVersion 'v1.0.0' -CurrentVersion 'v4.0.0' -UpdateBranch 'Stable' -CurrentBuildBranch 'Beta' |
+            Should -BeTrue
+    }
+
+    It 'allows an explicit beta channel switch from a newer stable build' {
+        Test-BaselineReleaseUpdateRequired -LatestVersion 'v1.0.0-beta' -CurrentVersion 'v4.0.0' -UpdateBranch 'Beta' -CurrentBuildBranch 'Stable' |
+            Should -BeTrue
+    }
+
+    It 'does not downgrade a stable build to an older stable release' {
+        Test-BaselineReleaseUpdateRequired -LatestVersion 'v1.0.0' -CurrentVersion 'v4.0.0' -UpdateBranch 'Stable' |
+            Should -BeFalse
     }
 }
 
@@ -808,6 +845,32 @@ Describe 'Get-BaselineLatestReleaseEntry' {
         [string]$result.tag_name | Should -Be 'v4.0.0'
     }
 
+    It 'filters release candidates by the selected channel asset pattern' {
+        $manifestPath = Join-Path $PSScriptRoot '../../Module/Baseline.psd1'
+        $manifest = Import-PowerShellDataFile -Path $manifestPath
+        $versionText = [string]$manifest.ModuleVersion
+        $releases = @(
+            [pscustomobject]@{
+                draft = $false
+                prerelease = $false
+                tag_name = ('v{0}' -f $versionText)
+                published_at = '2026-05-25T00:00:00Z'
+                assets = @([pscustomobject]@{ name = ('Baseline-{0}-stable.zip' -f $versionText) })
+            }
+            [pscustomobject]@{
+                draft = $false
+                prerelease = $true
+                tag_name = ('v{0}-beta' -f $versionText)
+                published_at = '2026-05-26T00:00:00Z'
+                assets = @([pscustomobject]@{ name = ('Baseline-{0}-beta.zip' -f $versionText) })
+            }
+        )
+
+        $result = Get-BaselineLatestReleaseEntry -Releases $releases -IncludePrerelease -AssetPattern (Get-BaselineUpdateAssetPattern -Branch Beta)
+
+        [string]$result.tag_name | Should -Be ('v{0}-beta' -f $versionText)
+    }
+
     It 'skips malformed published_at values after routing the parse error' {
         $releases = @(
             [pscustomobject]@{ draft = $false; prerelease = $false; tag_name = 'v3.0.0-beta'; published_at = 'not-a-date' }
@@ -819,6 +882,41 @@ Describe 'Get-BaselineLatestReleaseEntry' {
         [string]$result.tag_name | Should -Be 'v4.0.0'
         $script:DebugSwallowedExceptionCalls.Count | Should -Be 1
         $script:DebugSwallowedExceptionCalls[0].Source | Should -Be 'Environment.GetBaselineLatestReleaseEntry.ParsePublishedAt'
+    }
+}
+
+Describe 'Invoke-BaselineUpdateCheck' {
+    BeforeEach {
+        $script:updateCheckThrottlePath = Join-Path $TestDrive 'manual-update-check.json'
+        Remove-Item -LiteralPath $script:updateCheckThrottlePath -Force -ErrorAction SilentlyContinue
+        Mock Get-BaselineAutoUpdateThrottlePath { $script:updateCheckThrottlePath }
+        Mock Set-DownloadSecurityProtocol {}
+    }
+
+    It 'offers the stable release when the current beta build reports only its numeric version' {
+        $manifestPath = Join-Path $PSScriptRoot '../../Module/Baseline.psd1'
+        $manifest = Import-PowerShellDataFile -Path $manifestPath
+        $versionText = [string]$manifest.ModuleVersion
+
+        Mock Get-BaselineDefaultUpdateBranch { 'Beta' }
+        Mock Invoke-RestMethod {
+            @(
+                [pscustomobject]@{
+                    draft        = $false
+                    prerelease   = $false
+                    tag_name     = ('v{0}' -f $versionText)
+                    published_at = '2026-05-25T00:00:00Z'
+                    assets       = @([pscustomobject]@{ name = ('Baseline-{0}-stable.zip' -f $versionText) })
+                }
+            )
+        }
+
+        $result = Invoke-BaselineUpdateCheck -CurrentVersion '4.0.0' -UpdateBranch 'Stable'
+
+        $result.Status | Should -Be 'Update available'
+        $result.IsUpdateAvailable | Should -BeTrue
+        $result.LatestVersion | Should -Be ('v{0}' -f $versionText)
+        $result.RepositoryUrl | Should -Be 'https://github.com/sdmanson8/Baseline'
     }
 }
 
@@ -1019,7 +1117,7 @@ Describe 'Invoke-BaselineAutoUpdate' {
 
         { Invoke-BaselineAutoUpdate -CurrentVersion '4.0.0' } | Should -Not -Throw
 
-        $script:updateCheckUri | Should -Be 'https://api.github.com/repos/sdmanson8/Baseline_dev/releases'
+        $script:updateCheckUri | Should -Be 'https://api.github.com/repos/sdmanson8/baseline_dev/releases'
     }
 
     It 'does not touch the network when automatic update checks are disabled' {
@@ -1111,18 +1209,26 @@ Describe 'Invoke-BaselineAutoUpdate' {
         $env:BASELINE_LAUNCHER_PATH = Join-Path $TestDrive 'Baseline.exe'
         Set-Content -LiteralPath $env:BASELINE_LAUNCHER_PATH -Value '' -Encoding ASCII
 
+        Mock Get-BaselineUpdateSettings {
+            [pscustomobject]@{
+                AutoCheckUpdates = $true
+                CheckFrequency = 'Startup'
+                UpdateBranch = 'Beta'
+                IncludePrereleaseBuilds = $false
+            }
+        }
         Mock Set-DownloadSecurityProtocol {}
         Mock Invoke-RestMethod {
             @(
                 [pscustomobject]@{
                     draft    = $false
                     tag_name = 'v3.0.0-beta'
-                    assets   = @()
+                    assets   = @([pscustomobject]@{ name = 'Baseline-previous-beta.zip' })
                 }
                 [pscustomobject]@{
                     draft    = $false
                     tag_name = 'v4.0.0-beta'
-                    assets   = @()
+                    assets   = @([pscustomobject]@{ name = 'Baseline-current-beta.zip' })
                 }
             )
         }

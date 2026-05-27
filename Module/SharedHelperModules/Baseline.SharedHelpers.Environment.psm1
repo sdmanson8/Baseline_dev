@@ -42,6 +42,7 @@ $ExportedFunctions = @(
     'Close-LoadingSplashWindow'
     'Compare-BaselineReleaseVersions'
     'Get-BaselineLatestReleaseEntry'
+    'Get-BaselineUpdateAsset'
     'Get-BaselineUpdateAssetPattern'
     'Invoke-BaselineAutoUpdate'
     'Invoke-BaselineUpdateCheck'

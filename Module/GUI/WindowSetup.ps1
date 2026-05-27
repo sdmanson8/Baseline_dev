@@ -1101,6 +1101,11 @@
 	$Script:UpdateOverlayPreviewMouseUpEvent = $null
 	$Script:UpdateOverlayPrimaryClickAction = $null
 	$Script:UpdateOverlaySecondaryClickAction = $null
+	$Script:UpdateDownloadTimer = $null
+	$Script:UpdateDownloadPowerShell = $null
+	$Script:UpdateDownloadRunspace = $null
+	$Script:UpdateDownloadAsyncResult = $null
+	$Script:UpdateDownloadSyncHash = $null
 	$Script:UpdateOverlayState = [hashtable]::Synchronized(@{
 		PrimaryAction = $null
 		SecondaryAction = $null

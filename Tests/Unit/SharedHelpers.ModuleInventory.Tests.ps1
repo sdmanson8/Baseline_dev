@@ -52,9 +52,12 @@ Describe 'SharedHelpers helper module inventory' {
         $windowsUpdateModule = Get-Module 'Baseline.SharedHelpers.WindowsUpdate'
         $schedulerModule = Get-Module 'Baseline.SharedHelpers.Scheduler'
         $cliModeModule = Get-Module 'Baseline.SharedHelpers.CliMode'
+        $environmentModule = Get-Module 'Baseline.SharedHelpers.Environment'
 
         $manifestModule.ExportedCommands.Keys | Should -Contain 'Get-TweakManifestEntryValue'
         $manifestModule.ExportedCommands.Keys | Should -Contain 'Import-TweakManifestFromData'
+        $environmentModule.ExportedCommands.Keys | Should -Contain 'Get-BaselineUpdateAsset'
+        $environmentModule.ExportedCommands.Keys | Should -Contain 'Get-BaselineUpdateAssetPattern'
         $gameModeModule.ExportedCommands.Keys | Should -Contain 'Get-GameModeProfileDefinitions'
         $gameModeModule.ExportedCommands.Keys | Should -Contain 'Test-GameModeManifestDefaultEnabled'
         $singleInstanceModule.ExportedCommands.Keys | Should -Contain 'Get-BaselineSingleInstanceMutexName'
@@ -109,6 +112,26 @@ Describe 'SharedHelpers helper module inventory' {
 
         Get-Command -Name Resolve-BaselinePolicyToolPath -CommandType Function | Should -Not -BeNullOrEmpty
         Resolve-BaselinePolicyToolPath | Should -Match '\\Assets\\BaselinePolicyTool\.exe$'
+    }
+
+    It 'exports update release asset helpers through SharedHelpers' {
+        Import-Module $script:ModulePath -Force
+
+        Get-Command -Name Get-BaselineUpdateAsset -CommandType Function | Should -Not -BeNullOrEmpty
+        Get-Command -Name Get-BaselineUpdateAssetPattern -CommandType Function | Should -Not -BeNullOrEmpty
+
+        $moduleRoot = Split-Path -Path $script:ModulePath -Parent
+        $manifest = Import-PowerShellDataFile -Path (Join-Path $moduleRoot 'Baseline.psd1')
+        $versionText = [string]$manifest.ModuleVersion
+        $stableAssetName = 'Baseline-{0}-stable.zip' -f $versionText
+        $betaAssetName = 'Baseline-{0}-beta.zip' -f $versionText
+
+        $asset = Get-BaselineUpdateAsset -Assets @(
+            [pscustomobject]@{ name = $stableAssetName }
+            [pscustomobject]@{ name = $betaAssetName }
+        ) -Pattern (Get-BaselineUpdateAssetPattern -Branch Beta)
+
+        [string]$asset.name | Should -Be $betaAssetName
     }
 
     It 'removes helper slice modules when SharedHelpers is unloaded' {

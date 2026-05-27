@@ -322,7 +322,7 @@ function Show-BaselineUpdateCheckDialog
 	$title = (Get-UxLocalizedString -Key 'GuiUpdateDialogTitle' -Fallback 'Update Baseline')
 	$checkingDescription = (Get-UxLocalizedString -Key 'GuiUpdateCheckDescription' -Fallback 'Checking GitHub releases for a newer Baseline version.')
 	$checkingStatus = (Get-UxLocalizedString -Key 'GuiUpdateCheckStatus' -Fallback 'Checking for updates...')
-	$openReleaseLabel = (Get-UxLocalizedString -Key 'GuiUpdateCheckOpenRelease' -Fallback 'Open Release Page')
+	$downloadUpdateLabel = (Get-UxLocalizedString -Key 'GuiUpdateDialogDownload' -Fallback 'Download Update')
 	$closeLabel = (Get-UxLocalizedString -Key 'GuiCloseButton' -Fallback 'Close')
 	$upToDateDescription = (Get-UxLocalizedString -Key 'GuiUpdateCheckUpToDateDescription' -Fallback 'Baseline is already up to date.')
 	$upToDateStatus = (Get-UxLocalizedString -Key 'GuiUpdateCheckUpToDateStatus' -Fallback 'Already up to date.')
@@ -331,9 +331,12 @@ function Show-BaselineUpdateCheckDialog
 	$errorDescription = (Get-UxLocalizedString -Key 'GuiUpdateCheckFailedDescription' -Fallback 'Unable to check for updates right now.')
 	$offlineDescription = (Get-UxLocalizedString -Key 'GuiUpdateCheckOfflineDescription' -Fallback 'Unable to check for updates because the network is offline.')
 	$offlineStatus = (Get-UxLocalizedString -Key 'GuiUpdateCheckOfflineStatus' -Fallback 'Skipped (offline).')
-	$releasePageUrl = 'https://github.com/sdmanson8/Baseline/releases/latest'
 	$currentVersion = '0.0.0'
+	$Script:PendingUpdateDownloadUri = $null
+	$Script:PendingUpdateArchivePath = $null
+	$Script:PendingUpdateReleaseTag = $null
 	$hideBaselineUpdateOverlayAction = New-BaselineUpdateOverlayCloseAction
+	$startBaselineDownloadAction = ${function:Start-BaselineDownload}
 	$showSingleCloseButton = {
 		if ($Script:BtnDownloadNo)
 		{
@@ -346,7 +349,7 @@ function Show-BaselineUpdateCheckDialog
 
 		if (-not $Script:BtnDownloadYes) { return }
 
-		$Script:UpdateCheckPrimaryClickEvent = $Handler.GetNewClosure()
+		$Script:UpdateCheckPrimaryClickEvent = $Handler
 		$Script:UpdateOverlayPrimaryClickAction = $Script:UpdateCheckPrimaryClickEvent
 		if ($Script:UpdateOverlayState)
 		{
@@ -359,7 +362,7 @@ function Show-BaselineUpdateCheckDialog
 
 		if (-not $Script:BtnDownloadNo) { return }
 
-		$Script:UpdateCheckSecondaryClickEvent = $Handler.GetNewClosure()
+		$Script:UpdateCheckSecondaryClickEvent = $Handler
 		$Script:UpdateOverlaySecondaryClickAction = $Script:UpdateCheckSecondaryClickEvent
 		if ($Script:UpdateOverlayState)
 		{
@@ -403,10 +406,6 @@ function Show-BaselineUpdateCheckDialog
 		if (Get-Command -Name 'ConvertTo-BaselineUpdateBranch' -CommandType Function -ErrorAction SilentlyContinue)
 		{
 			$updateBranch = ConvertTo-BaselineUpdateBranch -Branch $updateBranch
-		}
-		if (Get-Command -Name 'Get-BaselineUpdateReleasePageUrl' -CommandType Function -ErrorAction SilentlyContinue)
-		{
-			$releasePageUrl = Get-BaselineUpdateReleasePageUrl -Branch $updateBranch
 		}
 		$checkResult = Invoke-BaselineUpdateCheck -CurrentVersion $currentVersion -UpdateBranch $updateBranch -IncludePrerelease:$includePrerelease
 		& $writeOverlayDebug ("Update check completed: status='{0}'; updateAvailable={1}; latest='{2}'" -f [string]$checkResult.Status, [bool]$checkResult.IsUpdateAvailable, [string]$checkResult.LatestVersion)
@@ -455,20 +454,56 @@ function Show-BaselineUpdateCheckDialog
 		$releaseAsset = $release.assets | Where-Object { $_.name -like $releaseAssetPattern } | Select-Object -First 1
 		if ($releaseAsset)
 		{
+			$releaseAssetName = [System.IO.Path]::GetFileName([string]$releaseAsset.name)
+			if ([string]::IsNullOrWhiteSpace($releaseAssetName))
+			{
+				LogWarning ('Update {0} found but matching release asset has no file name; skipping.' -f $latestTag)
+				Show-BaselineUpdateOverlay -Title $title -Description $errorDescription -StatusText ($availableStatus -f $latestTag) -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false -PrimaryButtonCloses:$true
+				& $showSingleCloseButton
+				& $wireCloseButtons
+				return
+			}
+			$releaseAssetDownloadUri = [string]$releaseAsset.browser_download_url
+			if ([string]::IsNullOrWhiteSpace($releaseAssetDownloadUri))
+			{
+				LogWarning ('Update {0} found but matching release asset {1} has no download URL; skipping.' -f $latestTag, $releaseAssetName)
+				Show-BaselineUpdateOverlay -Title $title -Description $errorDescription -StatusText ($availableStatus -f $latestTag) -PrimaryButtonText $closeLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false -PrimaryButtonCloses:$true
+				& $showSingleCloseButton
+				& $wireCloseButtons
+				return
+			}
+			$Script:PendingUpdateDownloadUri = $releaseAssetDownloadUri
+			$Script:PendingUpdateArchivePath = Join-Path ([System.IO.Path]::GetTempPath()) $releaseAssetName
+			$Script:PendingUpdateReleaseTag = $latestTag
+			$resolvedDownloadUri = [string]$Script:PendingUpdateDownloadUri
+			$resolvedArchivePath = [string]$Script:PendingUpdateArchivePath
+			$resolvedDownloadAction = $startBaselineDownloadAction
 			$availableDescription = (Get-UxLocalizedString -Key 'GuiUpdateCheckAvailableDescription' -Fallback 'A newer version of Baseline is available on GitHub Releases.') -f $latestTag
 			$availableStatus = (Get-UxLocalizedString -Key 'GuiUpdateCheckAvailableStatus' -Fallback 'Update available: {0}.') -f $latestTag
-			Show-BaselineUpdateOverlay -Title $title -Description $availableDescription -StatusText $availableStatus -PrimaryButtonText $openReleaseLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false -PrimaryButtonCloses:$false
-			& $setUpdateCheckPrimaryClickEvent {
+			Show-BaselineUpdateOverlay -Title $title -Description $availableDescription -StatusText $availableStatus -PrimaryButtonText $downloadUpdateLabel -SecondaryButtonText $closeLabel -ShowButtons:$true -ShowProgressPct:$false -PrimaryButtonCloses:$false
+			$downloadReleaseAction = {
 				try
 				{
-					[void](Invoke-UserLaunch -FilePath $releasePageUrl -Description 'Baseline release page')
+					if ([string]::IsNullOrWhiteSpace($resolvedDownloadUri) -or [string]::IsNullOrWhiteSpace($resolvedArchivePath))
+					{
+						LogWarning 'Resolved update download action is missing the release asset URL or archive path.'
+						return
+					}
+					if ($resolvedDownloadAction)
+					{
+						& $resolvedDownloadAction -Uri $resolvedDownloadUri -DestinationPath $resolvedArchivePath
+					}
+					else
+					{
+						LogWarning 'Start-BaselineDownload not available; update download action was skipped.'
+					}
 				}
 				catch
 				{
-					Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.OpenReleasePage'
+					Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.StartResolvedReleaseDownload'
 				}
-				& $hideBaselineUpdateOverlayAction
-			}
+			}.GetNewClosure()
+			& $setUpdateCheckPrimaryClickEvent $downloadReleaseAction
 			& $setUpdateCheckCloseClickEvent $hideBaselineUpdateOverlayAction
 			return
 		}
@@ -536,12 +571,23 @@ function Start-BaselineDownload
 	if ($Script:TxtDownloadProgressPct) { $Script:TxtDownloadProgressPct.Text = "0%" }
 	if ($Script:TxtDownloadProgressLabel) { $Script:TxtDownloadProgressLabel.Text = (Get-UxLocalizedString -Key 'GuiStatusDownloadConnecting' -Fallback 'Connecting to GitHub...') }
 
-		$syncHash = [hashtable]::Synchronized(@{
-			ProgressPct = 0
-			Status      = (Get-UxLocalizedString -Key 'GuiStatusDownloadInitializing' -Fallback 'Initializing...')
-			IsComplete  = $false
-			Error       = $null
-		})
+	$downloadProgressTemplate = (Get-UxLocalizedString -Key 'GuiStatusDownloadProgressFormat' -Fallback 'Downloading... {0} MB / {1} MB')
+	$downloadProgressNoTotalTemplate = (Get-UxLocalizedString -Key 'GuiStatusDownloadProgressNoTotalFormat' -Fallback 'Downloading... {0} MB')
+	$downloadCompleteText = (Get-UxLocalizedString -Key 'GuiStatusDownloadComplete' -Fallback 'Download complete.')
+	$userAgent = 'Baseline'
+	try { $userAgent = "Baseline/$(Get-BaselineDisplayVersion)" } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.StartBaselineDownload.UserAgent' }
+	if (Get-Command -Name 'Set-DownloadSecurityProtocol' -CommandType Function -ErrorAction SilentlyContinue)
+	{
+		try { Set-DownloadSecurityProtocol } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.StartBaselineDownload.SecurityProtocol' }
+	}
+
+	$syncHash = [hashtable]::Synchronized(@{
+		ProgressPct = 0
+		Status      = (Get-UxLocalizedString -Key 'GuiStatusDownloadInitializing' -Fallback 'Initializing...')
+		IsIndeterminate = $false
+		IsComplete  = $false
+		Error       = $null
+	})
 
 	$runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
 	$runspace.Open()
@@ -549,15 +595,29 @@ function Start-BaselineDownload
 	$ps.Runspace = $runspace
 
 	[void]$ps.AddScript({
-		param($DownloadUri, $Path, $Sync)
+		param($DownloadUri, $Path, $Sync, $ProgressTemplate, $ProgressNoTotalTemplate, $CompleteText, $UserAgent)
 		$response = $null
 		$responseStream = $null
 		$targetStream = $null
 		try
 		{
 			$webRequest = [System.Net.WebRequest]::Create($DownloadUri)
+			if ($webRequest -is [System.Net.HttpWebRequest])
+			{
+				$webRequest.UserAgent = $UserAgent
+				$webRequest.Timeout = 300000
+			}
 			$response = $webRequest.GetResponse()
 			$totalBytes = $response.ContentLength
+			$Sync.IsIndeterminate = ($totalBytes -le 0)
+			if ($totalBytes -gt 0)
+			{
+				$Sync.Status = $ProgressTemplate -f 0, ([math]::Round($totalBytes / 1MB, 2))
+			}
+			else
+			{
+				$Sync.Status = $ProgressNoTotalTemplate -f 0
+			}
 
 			$responseStream = $response.GetResponseStream()
 			$targetStream = [System.IO.File]::Create($Path)
@@ -577,14 +637,19 @@ function Start-BaselineDownload
 						$Sync.ProgressPct = [math]::Round(($totalRead / $totalBytes) * 100)
 						$mbRead = [math]::Round($totalRead / 1MB, 2)
 						$mbTotal = [math]::Round($totalBytes / 1MB, 2)
-							$Sync.Status = (Get-UxLocalizedString -Key 'GuiStatusDownloadProgressFormat' -Fallback 'Downloading... {0} MB / {1} MB' -FormatArgs @($mbRead, $mbTotal))
+						$Sync.Status = $ProgressTemplate -f $mbRead, $mbTotal
+					}
+					else
+					{
+						$mbRead = [math]::Round($totalRead / 1MB, 2)
+						$Sync.Status = $ProgressNoTotalTemplate -f $mbRead
 					}
 				}
 			}
 			while ($read -gt 0)
 
 			$Sync.IsComplete = $true
-			$Sync.Status = (Get-UxLocalizedString -Key 'GuiStatusDownloadComplete' -Fallback 'Download complete.')
+			$Sync.Status = $CompleteText
 		}
 		catch
 		{
@@ -599,34 +664,55 @@ function Start-BaselineDownload
 			if ($responseStream) { $responseStream.Dispose() }
 			if ($response) { $response.Dispose() }
 		}
-	}).AddArgument($Uri).AddArgument($DestinationPath).AddArgument($syncHash)
+	}).AddArgument($Uri).AddArgument($DestinationPath).AddArgument($syncHash).AddArgument($downloadProgressTemplate).AddArgument($downloadProgressNoTotalTemplate).AddArgument($downloadCompleteText).AddArgument($userAgent)
 
 	$asyncResult = $ps.BeginInvoke()
 
 	$timer = [System.Windows.Threading.DispatcherTimer]::new()
 	$timer.Interval = [TimeSpan]::FromMilliseconds(50)
+	$Script:UpdateDownloadTimer = $timer
+	$Script:UpdateDownloadPowerShell = $ps
+	$Script:UpdateDownloadRunspace = $runspace
+	$Script:UpdateDownloadAsyncResult = $asyncResult
+	$Script:UpdateDownloadSyncHash = $syncHash
 
 	$timer.Add_Tick({
 		if ($syncHash.Error)
 		{
 			$timer.Stop()
+			$Script:UpdateDownloadTimer = $null
+			$Script:UpdateDownloadSyncHash = $null
 			if ($Script:TxtDownloadProgressLabel) { $Script:TxtDownloadProgressLabel.Text = (Get-UxLocalizedString -Key 'GuiStatusDownloadFailedFormat' -Fallback 'Download failed: {0}' -FormatArgs @($syncHash.Error)) }
 			if ($Script:BtnDownloadYes) { $Script:BtnDownloadYes.Content = (Get-UxLocalizedString -Key 'GuiStatusDownloadRetry' -Fallback 'Retry') }
 			if ($Script:BtnDownloadYes) { $Script:BtnDownloadYes.IsEnabled = $true }
 			if ($Script:BtnDownloadNo) { $Script:BtnDownloadNo.IsEnabled = $true }
+			try { if ($asyncResult) { [void]$ps.EndInvoke($asyncResult) } } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.EndInvoke' }
 			try { $ps.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposePowerShell' }
 			try { $runspace.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposeRunspace' }
+			$Script:UpdateDownloadPowerShell = $null
+			$Script:UpdateDownloadRunspace = $null
+			$Script:UpdateDownloadAsyncResult = $null
 			return
 		}
 
-		if ($Script:CustomProgressBar) { $Script:CustomProgressBar.Value = $syncHash.ProgressPct }
+		if ($Script:CustomProgressBar)
+		{
+			$Script:CustomProgressBar.IsIndeterminate = [bool]$syncHash.IsIndeterminate
+			if (-not [bool]$syncHash.IsIndeterminate) { $Script:CustomProgressBar.Value = $syncHash.ProgressPct }
+		}
 		if ($Script:TxtDownloadProgressPct) { $Script:TxtDownloadProgressPct.Text = "$($syncHash.ProgressPct)%" }
 		if ($Script:TxtDownloadProgressLabel) { $Script:TxtDownloadProgressLabel.Text = $syncHash.Status }
 
 		if ($syncHash.IsComplete -and -not $syncHash.Error)
 		{
 			$timer.Stop()
-			if ($Script:CustomProgressBar) { $Script:CustomProgressBar.Value = 100 }
+			$Script:UpdateDownloadTimer = $null
+			$Script:UpdateDownloadSyncHash = $null
+			if ($Script:CustomProgressBar)
+			{
+				$Script:CustomProgressBar.IsIndeterminate = $false
+				$Script:CustomProgressBar.Value = 100
+			}
 			if ($Script:TxtDownloadProgressPct) { $Script:TxtDownloadProgressPct.Text = "100%" }
 			if ($Script:BtnDownloadYes) { $Script:BtnDownloadYes.Content = (Get-UxLocalizedString -Key 'GuiStatusDownloadExtractRestart' -Fallback 'Extract & Restart') }
 			if ($Script:BtnDownloadYes) { $Script:BtnDownloadYes.IsEnabled = $true }
@@ -639,8 +725,12 @@ function Start-BaselineDownload
 				$Script:UpdateOverlayState.PrimaryAction = $Script:DownloadExtractEvent
 			}
 
+			try { if ($asyncResult) { [void]$ps.EndInvoke($asyncResult) } } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.EndInvoke' }
 			try { $ps.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposePowerShell' }
 			try { $runspace.Dispose() } catch { Write-SwallowedException -ErrorRecord $_ -Source 'UpdateOverlayModule.DownloadCleanup.DisposeRunspace' }
+			$Script:UpdateDownloadPowerShell = $null
+			$Script:UpdateDownloadRunspace = $null
+			$Script:UpdateDownloadAsyncResult = $null
 		}
 	}.GetNewClosure())
 

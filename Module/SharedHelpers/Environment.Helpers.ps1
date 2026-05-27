@@ -1924,6 +1924,161 @@ function Compare-BaselineReleaseVersions
 	return 0
 }
 
+function Get-BaselineReleaseCoreVersion
+{
+	[CmdletBinding()]
+	[OutputType([System.Version])]
+	param (
+		[AllowNull()]
+		[string]$VersionText
+	)
+
+	if ([string]::IsNullOrWhiteSpace([string]$VersionText))
+	{
+		return $null
+	}
+
+	$match = [regex]::Match(([string]$VersionText).Trim().Split('+')[0].Trim(), '\d+(?:\.\d+){1,3}')
+	if (-not $match.Success)
+	{
+		return $null
+	}
+
+	$parts = $match.Value.Split('.')
+	while ($parts.Count -lt 4)
+	{
+		$parts += '0'
+	}
+	if ($parts.Count -gt 4)
+	{
+		$parts = $parts[0..3]
+	}
+
+	try
+	{
+		return [System.Version]($parts -join '.')
+	}
+	catch
+	{
+		if (Get-Command -Name 'Write-SwallowedException' -CommandType Function -ErrorAction SilentlyContinue) { Write-SwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineReleaseCoreVersion' -Severity Debug }
+		return $null
+	}
+}
+
+function Test-BaselineReleaseVersionPrerelease
+{
+	[CmdletBinding()]
+	[OutputType([bool])]
+	param (
+		[AllowNull()]
+		[string]$VersionText
+	)
+
+	if ([string]::IsNullOrWhiteSpace([string]$VersionText))
+	{
+		return $false
+	}
+
+	$coreText = ([string]$VersionText).Trim().Split('+')[0].Trim()
+	$match = [regex]::Match($coreText, '\d+(?:\.\d+){1,3}')
+	if (-not $match.Success)
+	{
+		return $false
+	}
+
+	$label = $coreText.Substring($match.Index + $match.Length).Trim()
+	if ($label -match '^\((.+)\)$')
+	{
+		$label = [string]$Matches[1]
+	}
+	$label = [regex]::Replace($label, '^[\s\-\._\(\[\{]+', '')
+	$label = [regex]::Replace($label, '[\s\)\]\}]+$', '')
+	return (-not [string]::IsNullOrWhiteSpace([string]$label))
+}
+
+function Test-BaselineReleaseUpdateRequired
+{
+	[CmdletBinding()]
+	[OutputType([bool])]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$LatestVersion,
+
+		[Parameter(Mandatory = $true)]
+		[string]$CurrentVersion,
+
+		[string]$UpdateBranch = 'Stable',
+
+		[AllowNull()]
+		[string]$CurrentBuildBranch
+	)
+
+	$normalizedBranch = ConvertTo-BaselineUpdateBranch -Branch $UpdateBranch
+	$latestVersionIsPrerelease = Test-BaselineReleaseVersionPrerelease -VersionText $LatestVersion
+	$currentVersionIsPrerelease = Test-BaselineReleaseVersionPrerelease -VersionText $CurrentVersion
+	$normalizedCurrentBuildBranch = if ($currentVersionIsPrerelease)
+	{
+		'Beta'
+	}
+	elseif (-not [string]::IsNullOrWhiteSpace([string]$CurrentBuildBranch))
+	{
+		ConvertTo-BaselineUpdateBranch -Branch $CurrentBuildBranch
+	}
+	else
+	{
+		'Stable'
+	}
+	$currentBuildIsPrerelease = (
+		$currentVersionIsPrerelease -or
+		[string]::Equals($normalizedCurrentBuildBranch, 'Beta', [System.StringComparison]::OrdinalIgnoreCase)
+	)
+
+	$comparison = Compare-BaselineReleaseVersions -LeftVersion $LatestVersion -RightVersion $CurrentVersion
+	if ($comparison -gt 0)
+	{
+		return $true
+	}
+
+	if (-not [string]::Equals($normalizedBranch, $normalizedCurrentBuildBranch, [System.StringComparison]::OrdinalIgnoreCase))
+	{
+		if ([string]::Equals($normalizedBranch, 'Stable', [System.StringComparison]::OrdinalIgnoreCase))
+		{
+			return (-not $latestVersionIsPrerelease)
+		}
+
+		if ([string]::Equals($normalizedBranch, 'Beta', [System.StringComparison]::OrdinalIgnoreCase))
+		{
+			return $latestVersionIsPrerelease
+		}
+	}
+
+	if ([string]::Equals($normalizedBranch, 'Stable', [System.StringComparison]::OrdinalIgnoreCase))
+	{
+		return (
+			-not $latestVersionIsPrerelease -and
+			$currentBuildIsPrerelease
+		)
+	}
+
+	if (-not [string]::Equals($normalizedBranch, 'Beta', [System.StringComparison]::OrdinalIgnoreCase))
+	{
+		return $false
+	}
+
+	$latestCore = Get-BaselineReleaseCoreVersion -VersionText $LatestVersion
+	$currentCore = Get-BaselineReleaseCoreVersion -VersionText $CurrentVersion
+	if ($null -eq $latestCore -or $null -eq $currentCore)
+	{
+		return $false
+	}
+
+	return (
+		$latestCore.CompareTo($currentCore) -eq 0 -and
+		$latestVersionIsPrerelease -and
+		-not $currentBuildIsPrerelease
+	)
+}
+
 <#
     .SYNOPSIS
 #>
@@ -1935,7 +2090,9 @@ function Get-BaselineLatestReleaseEntry
 		[AllowNull()]
 		[object[]]$Releases,
 
-		[switch]$IncludePrerelease
+		[switch]$IncludePrerelease,
+
+		[string]$AssetPattern
 	)
 
 	$bestRelease = $null
@@ -1978,6 +2135,24 @@ function Get-BaselineLatestReleaseEntry
 		if ($isPrerelease -and -not $IncludePrerelease)
 		{
 			continue
+		}
+
+		if (-not [string]::IsNullOrWhiteSpace($AssetPattern))
+		{
+			$matchingAsset = $null
+			try
+			{
+				$matchingAsset = Get-BaselineUpdateAsset -Assets @($release.assets) -Pattern $AssetPattern
+			}
+			catch
+			{
+				Write-SwallowedException -ErrorRecord $_ -Source 'Environment.GetBaselineLatestReleaseEntry.MatchAssetPattern'
+				$matchingAsset = $null
+			}
+			if (-not $matchingAsset)
+			{
+				continue
+			}
 		}
 
 		$candidateTag = [string]$release.tag_name
@@ -2475,7 +2650,7 @@ function Get-BaselineUpdateRepositoryName
 	)
 
 	$normalizedBranch = ConvertTo-BaselineUpdateBranch -Branch $Branch
-	if ($normalizedBranch -eq 'Beta') { return 'Baseline_dev' }
+	if ($normalizedBranch -eq 'Beta') { return 'baseline_dev' }
 	return 'Baseline'
 }
 
@@ -2889,15 +3064,17 @@ function Invoke-BaselineUpdateCheck
 	$statePath = Get-BaselineAutoUpdateThrottlePath
 	$normalizedUpdateBranch = ConvertTo-BaselineUpdateBranch -Branch $UpdateBranch
 	$allowPrerelease = Test-BaselineUpdatePrereleaseAllowed -Branch $normalizedUpdateBranch -IncludePrerelease ([bool]$IncludePrerelease)
+	$releaseAssetPattern = Get-BaselineUpdateAssetPattern -Branch $normalizedUpdateBranch
 	$releaseApiUri = Get-BaselineUpdateReleaseApiUri -Branch $normalizedUpdateBranch
 	$repositoryName = Get-BaselineUpdateRepositoryName -Branch $normalizedUpdateBranch
 	$repositoryUrl = Get-BaselineUpdateRepositoryUrl -Branch $normalizedUpdateBranch
+	$currentBuildBranch = Get-BaselineDefaultUpdateBranch
 	try
 	{
 		Set-DownloadSecurityProtocol
 		$headers = @{ 'User-Agent' = "Baseline/$CurrentVersion" }
 		$releases = Invoke-RestMethod -Uri $releaseApiUri -Headers $headers -Method Get -TimeoutSec 10 -ErrorAction Stop
-		$release = Get-BaselineLatestReleaseEntry -Releases $releases -IncludePrerelease:$allowPrerelease
+		$release = Get-BaselineLatestReleaseEntry -Releases $releases -IncludePrerelease:$allowPrerelease -AssetPattern $releaseAssetPattern
 		if (-not $release)
 		{
 			Set-BaselineUpdateCheckState -Path $statePath -Status 'Up to date' -LatestVersion $CurrentVersion -Message 'No published release newer than the current build was found.'
@@ -2915,7 +3092,7 @@ function Invoke-BaselineUpdateCheck
 		}
 
 		$latestTag = [string]$release.tag_name
-		$isNewer = ((Compare-BaselineReleaseVersions -LeftVersion $latestTag -RightVersion $CurrentVersion) -gt 0)
+		$isNewer = Test-BaselineReleaseUpdateRequired -LatestVersion $latestTag -CurrentVersion $CurrentVersion -UpdateBranch $normalizedUpdateBranch -CurrentBuildBranch $currentBuildBranch
 		if ($isNewer)
 		{
 			Set-BaselineUpdateCheckState -Path $statePath -Status 'Update available' -LatestVersion $latestTag -Message ''
@@ -3087,7 +3264,8 @@ function Invoke-BaselineAutoUpdate
 	if ($env:BASELINE_EMBEDDED_HOST -ne '1') { return }
 	$updateSettings = Get-BaselineUpdateSettings
 	$statePath = Get-BaselineAutoUpdateThrottlePath
-	$updateBranch = if ($updateSettings -and $updateSettings.PSObject.Properties['UpdateBranch'] -and -not [string]::IsNullOrWhiteSpace([string]$updateSettings.UpdateBranch)) { ConvertTo-BaselineUpdateBranch -Branch $updateSettings.UpdateBranch } else { Get-BaselineDefaultUpdateBranch }
+	$currentBuildBranch = Get-BaselineDefaultUpdateBranch
+	$updateBranch = if ($updateSettings -and $updateSettings.PSObject.Properties['UpdateBranch'] -and -not [string]::IsNullOrWhiteSpace([string]$updateSettings.UpdateBranch)) { ConvertTo-BaselineUpdateBranch -Branch $updateSettings.UpdateBranch } else { $currentBuildBranch }
 	if (-not [bool]$updateSettings.AutoCheckUpdates)
 	{
 		Set-BaselineUpdateCheckState -Path $statePath -Status 'Disabled' -PreserveLastChecked
@@ -3143,7 +3321,8 @@ function Invoke-BaselineAutoUpdate
 
 		$releases = Invoke-RestMethod -Uri $apiUrl -Headers $headers -Method Get -TimeoutSec 8 -ErrorAction Stop
 		$allowPrerelease = Test-BaselineUpdatePrereleaseAllowed -Branch $updateBranch -IncludePrerelease ([bool]$updateSettings.IncludePrereleaseBuilds)
-		$release = Get-BaselineLatestReleaseEntry -Releases $releases -IncludePrerelease:$allowPrerelease
+		$releaseAssetPattern = Get-BaselineUpdateAssetPattern -Branch $updateBranch
+		$release = Get-BaselineLatestReleaseEntry -Releases $releases -IncludePrerelease:$allowPrerelease -AssetPattern $releaseAssetPattern
 		if (-not $release)
 		{
 			Set-BaselineUpdateCheckState -Path $statePath -Status 'Up to date' -LatestVersion $CurrentVersion -Message 'No published release newer than the current build was found.'
@@ -3152,7 +3331,7 @@ function Invoke-BaselineAutoUpdate
 		}
 
 		$latestTag = [string]$release.tag_name
-		$isNewer = ((Compare-BaselineReleaseVersions -LeftVersion $latestTag -RightVersion $CurrentVersion) -gt 0)
+		$isNewer = Test-BaselineReleaseUpdateRequired -LatestVersion $latestTag -CurrentVersion $CurrentVersion -UpdateBranch $updateBranch -CurrentBuildBranch $currentBuildBranch
 
 		if (-not $isNewer)
 		{
@@ -3164,7 +3343,6 @@ function Invoke-BaselineAutoUpdate
 
 		Set-BaselineUpdateCheckState -Path $statePath -Status 'Update available' -LatestVersion $latestTag -Message ''
 
-		$releaseAssetPattern = Get-BaselineUpdateAssetPattern -Branch $updateBranch
 		$releaseAsset = Get-BaselineUpdateAsset -Assets @($release.assets) -Pattern $releaseAssetPattern
 		$downloadUrl = if ($releaseAsset) { [string]$releaseAsset.browser_download_url } else { $null }
 		if ([string]::IsNullOrWhiteSpace($downloadUrl)) { LogInfo (Get-BaselineBilingualString -Key 'Bootstrap_NoMatchingUpdateAsset' -Fallback 'Update {0} found but no matching release zip asset; skipping.' -FormatArgs @($latestTag)); return }
