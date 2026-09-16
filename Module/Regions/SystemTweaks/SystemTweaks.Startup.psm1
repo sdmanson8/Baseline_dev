@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 Startup-folder / Run-key enumerator and per-entry enable / disable.
 
@@ -126,7 +126,7 @@ function Get-BaselineStartupApprovedState
 
     try
     {
-        $val = Get-ItemProperty -LiteralPath $ApprovedKey -Name $ValueName -ErrorAction Stop
+        $val = Get-ItemProperty -LiteralPath $ApprovedKey -ErrorAction Stop
     }
     catch
     {

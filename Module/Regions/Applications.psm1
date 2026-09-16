@@ -1,4 +1,4 @@
-using module ..\Logging.psm1
+﻿using module ..\Logging.psm1
 using module ..\GUICommon.psm1
 using module ..\SharedHelpers.psm1
 
@@ -1079,8 +1079,11 @@ function Throw-ApplicationActionFailure
 	}
 
 	$genericFailureMessage = "{0} {1} - Failed" -f $TargetName, $ActionLabel
+	if ($ErrorRecord -and $ErrorRecord.Exception) {
+		$genericFailureMessage += ': ' + $ErrorRecord.Exception.Message
+	}
 	LogError $genericFailureMessage
-	throw $genericFailureMessage
+	throw [System.InvalidOperationException]::new($genericFailureMessage, $(if ($ErrorRecord) { $ErrorRecord.Exception } else { $null }))
 }
 
 <#
@@ -1145,7 +1148,7 @@ function Invoke-WingetInstall
 			return
 		}
 
-		$failureMessage = "{0} Install - Failed" -f $DisplayName
+		$failureMessage = "{0} Install - Failed (WinGet exit code {1})" -f $DisplayName, $exitCode
 		LogError $failureMessage
 		throw $failureMessage
 	}

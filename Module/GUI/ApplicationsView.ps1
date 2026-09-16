@@ -1,4 +1,4 @@
-# Apps view filter state, source preference, and catalog helpers
+﻿# Apps view filter state, source preference, and catalog helpers
 
 	<#
 	    .SYNOPSIS
@@ -793,7 +793,7 @@
 
 		Initialize-AppCategoryFilterState
 
-		$catalog = @(Get-BaselineApplicationsCatalog)
+		$catalog = @(Get-BaselineApplicationsCatalog -AllCategories:(-not [string]::IsNullOrWhiteSpace($SearchQuery)))
 		if ($catalog.Count -eq 0)
 		{
 			return @()
@@ -812,7 +812,7 @@
 
 		$selectedCategory = if ([string]::IsNullOrWhiteSpace([string]$Script:AppsCategoryFilter)) { 'All' } else { [string]$Script:AppsCategoryFilter.Trim() }
 		$filteredCatalog = $catalog
-		if ($selectedCategory -ne 'All')
+		if ($searchTerms.Count -eq 0 -and $selectedCategory -ne 'All')
 		{
 			$filteredCatalog = @(
 				$filteredCatalog |

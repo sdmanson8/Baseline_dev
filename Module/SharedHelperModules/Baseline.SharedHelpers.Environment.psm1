@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Module wrapper for Environment.Helpers.ps1.
 
@@ -68,6 +68,7 @@ $ExportedFunctions = @(
     'Get-LocalizedShellString'
     'Restart-Script'
     'Get-BaselineDisplayVersion'
+    'Set-BaselineTweakOutcome'
     'Get-TweakSkipLabel'
     'Stop-Foreground'
     'Invoke-UCPDBypassed'

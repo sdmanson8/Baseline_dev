@@ -1,4 +1,4 @@
-Register-GuiEventHandler -Source $Form -EventName 'Closing' -Handler ({
+﻿Register-GuiEventHandler -Source $Form -EventName 'Closing' -Handler ({
 			param($windowSource, $e)
 			if ($Script:SuppressRunClosePrompt) { return }
 			if ($Script:AbortRequested -and (Get-RunAbortDisposition) -eq 'Return')
@@ -28,6 +28,19 @@ Register-GuiEventHandler -Source $Form -EventName 'Closing' -Handler ({
 
 	Register-GuiEventHandler -Source $Form -EventName 'Closed' -Handler ({
 			param($closedSender, $e)
+			$Script:AppsCardBuildContext = $null
+			if ($Script:SplashCloseWorker) {
+				$splashWorker = $Script:SplashCloseWorker
+				$Script:SplashCloseWorker = $null
+				[Baseline.GuiExecution.WorkerLifecycle]::StopAndDispose($splashWorker.PowerShell, $splashWorker.AsyncResult, $splashWorker.Runspace)
+			}
+			if ($Script:AppsCacheRefreshWorker) {
+				$scanWorker = $Script:AppsCacheRefreshWorker
+				$Script:AppsCacheRefreshWorker = $null
+				$scanWorker.Timer.Stop()
+				[Baseline.GuiExecution.WorkerLifecycle]::StopAndDispose($scanWorker.PowerShell, $scanWorker.AsyncResult, $scanWorker.Runspace)
+			}
+			Stop-GuiBackgroundDetection
 
 			$dispatcher = if ($closedSender -and $closedSender.Dispatcher)
 			{

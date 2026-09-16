@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Module wrapper for PlatformSupport.Helpers.ps1.
 
@@ -35,6 +35,7 @@ $ExportedFunctions = @(
     'Get-BaselineDefenderComponentUnavailableReason'
     'Test-BaselineEntryAvailable'
     'Test-BaselineEntrySupportsExecution'
+    'Get-BaselineEntrySupportsExecutionReason'
     'Get-BaselineEntryAvailabilitySummary'
     'Update-BaselineManifestAvailability'
     'Update-BaselineManifestExecutionSupport'

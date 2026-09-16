@@ -3,7 +3,7 @@
     Bootstraps an interactive Baseline session and provides tab completion for functions, arguments, and presets.
 
     .VERSION
-    4.0.0 (beta)
+    4.1.0 (beta)
 
     .DATE
     17.03.2026 - initial beta version

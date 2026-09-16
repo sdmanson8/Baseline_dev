@@ -1,5 +1,5 @@
 #define MyAppName      "Baseline"
-#define MyAppVersion   "4.0.0"
+#define MyAppVersion   "4.1.0"
 #define MyAppChannel   "Beta"
 #define MyAppChannelToken "beta"
 #define MyAppPublisher "sdmanson8"

@@ -1,4 +1,4 @@
-#region Detect & Visibility Scriptblocks
+﻿#region Detect & Visibility Scriptblocks
 # Detect scriptblocks keyed by Function name (cannot be stored in JSON).
 # Used by system-scan to determine current on/off state of a tweak.
 
@@ -460,7 +460,7 @@ $Script:DetectScriptblocks = @{
 		$autoRegBackupTask = $false
 			try
 			{
-				$autoRegBackupTask = [bool](Get-ScheduledTask -TaskName 'AutoRegBackup' -ErrorAction SilentlyContinue)
+				$autoRegBackupTask = [bool](Get-ScheduledTask -ErrorAction Stop | Where-Object { $_.TaskName -eq 'AutoRegBackup' } | Select-Object -First 1)
 			}
 			catch
 			{

@@ -1,4 +1,4 @@
-using module ..\..\Logging.psm1
+﻿using module ..\..\Logging.psm1
 using module ..\..\SharedHelpers.psm1
 
 
@@ -484,6 +484,7 @@ function WinPrtScrFolder
 			if ($UserEmail)
 			{
 				LogError $Localization.OneDriveWarning
+				Set-BaselineTweakOutcome -Function $MyInvocation.MyCommand.Name -Status 'Skipped' -Detail ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 				LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 
 				return
@@ -510,6 +511,7 @@ function WinPrtScrFolder
 				else
 				{
 					LogError ($Localization.OneDriveWarning -f (Get-TweakSkipLabel $MyInvocation))
+					Set-BaselineTweakOutcome -Function $MyInvocation.MyCommand.Name -Status 'Skipped' -Detail ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 					LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 				}
 			}
@@ -529,6 +531,7 @@ function WinPrtScrFolder
 					else
 					{
 						LogError ($Localization.OneDriveWarning -f (Get-TweakSkipLabel $MyInvocation))
+						Set-BaselineTweakOutcome -Function $MyInvocation.MyCommand.Name -Status 'Skipped' -Detail ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 						LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 					}
 				}
@@ -551,6 +554,7 @@ function WinPrtScrFolder
 					else
 					{
 						LogError ($Localization.OneDriveWarning -f (Get-TweakSkipLabel $MyInvocation))
+						Set-BaselineTweakOutcome -Function $MyInvocation.MyCommand.Name -Status 'Skipped' -Detail ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 						LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 					}
 				}

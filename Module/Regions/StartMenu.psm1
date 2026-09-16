@@ -1,4 +1,4 @@
-using module ..\Logging.psm1
+﻿using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 #region Start menu
@@ -506,6 +506,7 @@ function StartRecommendedSection
 	$versionData = Get-WindowsVersionData
 	if ($versionData.ProductName -match 'Home')
 	{
+		Set-BaselineTweakOutcome -Function $MyInvocation.MyCommand.Name -Status 'Skipped' -Detail ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 		LogInfo ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 	}
 

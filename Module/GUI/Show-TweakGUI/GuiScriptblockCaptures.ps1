@@ -1,4 +1,4 @@
-# Purpose: late handler captures, initial theme, and action icon wiring.
+﻿# Purpose: late handler captures, initial theme, and action icon wiring.
 $Script:ClearTabContentCacheScript = ${function:Clear-TabContentCache}
 	$Script:BuildTabContentScript = ${function:Build-TabContent}
 	$Script:UpdateCurrentTabContentScript = ${function:Update-CurrentTabContent}
@@ -43,7 +43,9 @@ $Script:ClearTabContentCacheScript = ${function:Clear-TabContentCache}
 
 		$null = $_
 	}
+	& $traceGuiStartup 'Initial theme preference application started'
 	Apply-BaselineThemePreference -Preference $initialThemePreference -SkipContentRebuild
+	& $traceGuiStartup 'Initial theme preference applied; static button styling started'
 	Set-StaticButtonStyle
 	& $traceGuiStartup 'Initial theme applied'
 

@@ -1,4 +1,4 @@
-using module ..\Logging.psm1
+﻿using module ..\Logging.psm1
 using module ..\SharedHelpers.psm1
 
 #region Start Menu Apps
@@ -59,6 +59,7 @@ function MostUsedStartApps
 
 	if (Get-Process -Name Start11Srv, StartAllBackCfg, StartMenu -ErrorAction Ignore)
 	{
+		Set-BaselineTweakOutcome -Function $MyInvocation.MyCommand.Name -Status 'Skipped' -Detail ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 		LogWarning ($Localization.CustomStartMenu, ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation)) -join " ")
 
 		return
@@ -155,6 +156,7 @@ function RecentlyAddedStartApps
 
 	if (Get-Process -Name Start11Srv, StartAllBackCfg, StartMenu -ErrorAction Ignore)
 	{
+		Set-BaselineTweakOutcome -Function $MyInvocation.MyCommand.Name -Status 'Skipped' -Detail ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 		LogWarning ($Localization.CustomStartMenu, ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation)) -join " ")
 
 		return
@@ -266,13 +268,15 @@ function StartMenuAllSectionCategories
 			}
 		}
 
-		Write-ConsoleStatus -Status success
+		Set-BaselineTweakOutcome -Function $MyInvocation.MyCommand.Name -Status 'Not applicable' -Detail $SupportedMessage
+		Write-ConsoleStatus -Status warning
 		LogWarning $SupportedMessage
 		return
 	}
 
 	if (Get-Process -Name Start11Srv, StartAllBackCfg, StartMenu -ErrorAction Ignore)
 	{
+		Set-BaselineTweakOutcome -Function $MyInvocation.MyCommand.Name -Status 'Skipped' -Detail ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 		LogWarning ($Localization.CustomStartMenu, ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation)) -join " ")
 
 		return

@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Configures system maintenance and telemetry-related settings.
 
@@ -465,6 +465,7 @@ function SharedExperiences
 
 	if ($isServer)
 	{
+		Set-BaselineTweakOutcome -Function $MyInvocation.MyCommand.Name -Status 'Skipped' -Detail ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 		LogWarning ($Localization.Skipped -f (Get-TweakSkipLabel $MyInvocation))
 		return
 	}

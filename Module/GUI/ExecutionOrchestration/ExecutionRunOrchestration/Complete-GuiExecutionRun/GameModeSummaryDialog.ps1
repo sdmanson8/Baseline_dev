@@ -1,4 +1,4 @@
-try
+﻿try
 		{
 			$gameModeOperation = if ($gameModeContext -and (Test-GuiObjectField -Object $gameModeContext -FieldName 'Operation') -and -not [string]::IsNullOrWhiteSpace([string]$gameModeContext.Operation)) { [string]$gameModeContext.Operation } else { 'Apply' }
 			if ($gameModeContext -and $gameModeOperation -ne 'Undo')
@@ -112,12 +112,12 @@ try
 			}
 
 			# Post-run snapshot comparison
-			if ($Script:PreRunSnapshot)
+            if ($Script:RunState -and $Script:RunState['PostRunSnapshot'] -and $Script:RunState['SnapshotComparison'])
 			{
 				try
 				{
-					$postRunSnapshot = New-SystemStateSnapshot -Manifest $Script:TweakManifest
-					$snapshotComparison = Compare-SystemStateSnapshots -Before $Script:PreRunSnapshot -After $postRunSnapshot
+                    $postRunSnapshot = $Script:RunState['PostRunSnapshot']
+                    $snapshotComparison = $Script:RunState['SnapshotComparison']
 					$summaryPayload | Add-Member -NotePropertyName 'SnapshotChangedCount' -NotePropertyValue $snapshotComparison.Changed.Count -Force
 					$summaryPayload | Add-Member -NotePropertyName 'SnapshotComparison' -NotePropertyValue $snapshotComparison -Force
 					if ($Script:RunState)
